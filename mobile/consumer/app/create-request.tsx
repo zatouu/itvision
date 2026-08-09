@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { Image } from 'expo-image'
 import * as Location from 'expo-location'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -205,6 +205,7 @@ function CreateRequest() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn} activeOpacity={0.6}>
@@ -342,7 +343,7 @@ function CreateRequest() {
                               <Text style={s.mediaFileType}>{mediaLabel(m)}</Text>
                             </View>
                           )}
-                      <TouchableOpacity style={s.mediaRemove} onPress={() => removeMedia(i)}>
+                      <TouchableOpacity style={s.mediaRemove} onPress={() => removeMedia(i)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('common.delete', { defaultValue: 'Supprimer' })}>
                         <X size={12} color={colors.surface} />
                       </TouchableOpacity>
                     </View>
@@ -412,6 +413,7 @@ function CreateRequest() {
         )}
       </ScrollView>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -497,7 +499,7 @@ function DynamicAttributes({
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
   backIcon: { color: colors.text },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   cancelText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
@@ -533,7 +535,7 @@ const s = StyleSheet.create({
   budgetChipActive: { backgroundColor: colors.warningLight, borderColor: colors.warning },
   budgetChipText: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
   budgetChipTextActive: { color: colors.warning },
-  btn: { backgroundColor: colors.navy, borderRadius: radius.md, padding: 17, alignItems: 'center', ...shadows.sm },
+  btn: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 17, minHeight: 54, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   btnDisabled: { opacity: 0.35 },
   btnText: { color: colors.surface, fontSize: 15, fontWeight: typography.weight.bold as any, letterSpacing: 0.2 },
   locBtn: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1.5, borderColor: colors.border, ...shadows.sm },

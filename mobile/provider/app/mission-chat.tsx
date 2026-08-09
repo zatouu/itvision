@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+﻿import { useEffect, useState, useRef, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Alert } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
+import { toast } from '../src/toast'
 import { getAuthUser } from '../src/auth'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { ArrowLeft, Send, Phone, MessageCircle } from 'lucide-react-native'
@@ -37,7 +38,7 @@ function callPhone(phone?: string) {
     if (supported) return Linking.openURL(url)
     return Linking.openURL(url)
   }).catch(() => {
-    Alert.alert('Appel impossible', `Impossible d'appeler ${p}`)
+    toast.error('Appel impossible', `Impossible d'appeler ${p}`)
   })
 }
 
@@ -242,13 +243,13 @@ function MissionChat() {
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   headerTitle: { fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   headerSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerAction: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
+  headerAction: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
   empty: { alignItems: 'center', paddingTop: spacing.xxxl },

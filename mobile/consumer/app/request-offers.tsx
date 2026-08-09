@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, AppState, FlatList, Dimensions } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Modal, TextInput, Alert, AppState, FlatList, Dimensions, KeyboardAvoidingView, Platform } from 'react-native'
 
 const { width: SCREEN_W } = Dimensions.get('screen')
 import { router, useLocalSearchParams } from 'expo-router'
@@ -10,23 +10,25 @@ import { apiGet, apiPost } from '../src/api'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, onOfferTyping } from '../src/socket'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { confirm } from '../src/confirm'
+import { toast } from '../src/toast'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import { SkeletonCard } from '../src/components/Skeleton'
+import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
 import { hapticSuccess, hapticWarning, hapticLight } from '../src/haptics'
-import { ArrowLeft, Star, Clock, Hourglass, Play, X, Volume2 } from 'lucide-react-native'
+import { ArrowLeft, Star, Clock, Hourglass, Play, X, Volume2, Inbox } from 'lucide-react-native'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { resolveMediaUrl } from '../src/media'
 import RequestOffersMap from '../src/components/RequestOffersMap'
 
 const STATUS_OFFER: Record<string, { key: string; color: string; bg: string; dot: string }> = {
-  submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: '#FFFBEB', dot: '#D97706' },
-  accepted:  { key: 'offers.status_accepted',   color: '#065F46', bg: '#ECFDF5', dot: '#16A34A' },
+  submitted: { key: 'offers.status_submitted',  color: '#92400E', bg: colors.warningLight, dot: '#D97706' },
+  accepted:  { key: 'offers.status_accepted',   color: '#065F46', bg: '#ECFDF5', dot: colors.success },
   rejected:  { key: 'offers.status_rejected',    color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
-  withdrawn: { key: 'offers.status_withdrawn',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
-  expired:   { key: 'offers.status_expired',    color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
+  withdrawn: { key: 'offers.status_withdrawn',    color: '#475569', bg: colors.slate100, dot: colors.textMuted },
+  expired:   { key: 'offers.status_expired',    color: '#475569', bg: colors.slate100, dot: colors.textMuted },
 }
 
 function formatCountdown(ms: number): string {
@@ -286,7 +288,7 @@ function RequestOffers() {
     if (!counterOfferId || !counterPrice) return
     const price = Number(counterPrice.replace(/\s/g, ''))
     if (!price || price <= 0) {
-      Alert.alert(t('offers.invalidPrice'), t('offers.invalidPriceMsg'))
+      toast.error(t('offers.invalidPrice'), t('offers.invalidPriceMsg'))
       return
     }
     setCounterLoading(true)
@@ -299,11 +301,11 @@ function RequestOffers() {
       setCounterOfferId(null)
       setCounterPrice('')
       setCounterComment('')
-      Alert.alert(t('offers.counterSent'), t('offers.counterSentMsg'))
+      toast.success(t('offers.counterSent'), t('offers.counterSentMsg'))
       hapticSuccess()
       load(true)
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('offers.counterError'))
+      toast.error(t('common.error'), e.message || t('offers.counterError'))
     }
     setCounterLoading(false)
   }
@@ -392,7 +394,7 @@ function RequestOffers() {
                           useNativeControls={false}
                         />
                         <View style={s.playOverlay}>
-                          <Play size={24} color="#fff" fill="#fff" />
+                          <Play size={24} color={colors.surface} fill={colors.surface} />
                         </View>
                       </View>
                     ) : (
@@ -408,8 +410,8 @@ function RequestOffers() {
 
       <Modal visible={activeMediaIndex !== null} transparent animationType="fade" onRequestClose={() => setActiveMediaIndex(null)}>
         <View style={s.mediaModalOverlay}>
-          <TouchableOpacity style={s.mediaModalClose} onPress={() => setActiveMediaIndex(null)}>
-            <X size={24} color="#fff" />
+          <TouchableOpacity style={s.mediaModalClose} onPress={() => setActiveMediaIndex(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('common.close', { defaultValue: 'Fermer' })}>
+            <X size={24} color={colors.surface} />
           </TouchableOpacity>
           {activeMediaIndex !== null && (
             <FlatList
@@ -448,8 +450,8 @@ function RequestOffers() {
 
       {/* Indicateur temps réel */}
       <View style={s.rtRow}>
-        <View style={[s.rtDot, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8' }]} />
-        <View style={[s.rtDot2, { backgroundColor: wsConnected ? '#16A34A' : '#94A3B8', opacity: 0.4 }]} />
+        <View style={[s.rtDot, { backgroundColor: wsConnected ? colors.success : colors.textMuted }]} />
+        <View style={[s.rtDot2, { backgroundColor: wsConnected ? colors.success : colors.textMuted, opacity: 0.4 }]} />
         <Text style={s.rtText}>{t('offers.realtimeUpdate')}</Text>
       </View>
 
@@ -484,10 +486,7 @@ function RequestOffers() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#2563EB" />}
         >
           {offers.length === 0 ? (
-            <View style={s.empty}>
-              <Text style={s.emptyTitle}>{t('offers.noOffers')}</Text>
-              <Text style={s.emptyText}>{t('offers.noOffersSub')}</Text>
-            </View>
+            <EmptyState icon={<Inbox size={32} color={colors.textMuted} />} title={t('offers.noOffers')} subtitle={t('offers.noOffersSub')} />
           ) : (
             offers.map(offer => {
               const st = STATUS_OFFER[offer.status] || STATUS_OFFER.submitted
@@ -618,6 +617,7 @@ function RequestOffers() {
         animationType="slide"
         onRequestClose={() => { if (!counterLoading) setCounterModal(false) }}
       >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <Text style={s.modalTitle}>{t('offers.counterModalTitle')}</Text>
@@ -629,7 +629,7 @@ function RequestOffers() {
               onChangeText={setCounterPrice}
               keyboardType="numeric"
               placeholder={t('offers.counterPricePlaceholder')}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={s.modalLabel}>{t('offers.counterCommentLabel')}</Text>
             <TextInput
@@ -637,7 +637,7 @@ function RequestOffers() {
               value={counterComment}
               onChangeText={setCounterComment}
               placeholder={t('offers.counterCommentPlaceholder')}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textMuted}
               multiline
               maxLength={200}
             />
@@ -655,7 +655,7 @@ function RequestOffers() {
                 disabled={counterLoading}
               >
                 {counterLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.surface} />
                 ) : (
                   <Text style={s.modalBtnSendText}>{t('common.send')}</Text>
                 )}
@@ -663,6 +663,7 @@ function RequestOffers() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   )
@@ -671,7 +672,7 @@ function RequestOffers() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  backBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.text },
   title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.2 },
   countBadge: { minWidth: 28, height: 28, borderRadius: 14, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
@@ -703,11 +704,11 @@ const s = StyleSheet.create({
   map: { width: '100%', height: 140 },
   mapPlaceholder: { width: '100%', height: 140, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
-  providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', borderWidth: 3, borderColor: colors.success, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  providerMarker: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, borderWidth: 3, borderColor: colors.success, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   providerMarkerText: { fontSize: 14, fontWeight: typography.weight.extrabold as any },
   providerMarkerTail: { width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -1 },
   providerMarkerCallout: { position: 'absolute', top: -34, backgroundColor: 'rgba(15,23,42,0.88)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, minWidth: 70, alignItems: 'center' },
-  providerMarkerStatus: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  providerMarkerStatus: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   providerMarkerSub: { fontSize: 9, color: '#CBD5E1', marginTop: 1 },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: 32 },
   listScroll: { flex: 1 },
@@ -738,13 +739,13 @@ const s = StyleSheet.create({
   expiredBanner: { backgroundColor: colors.bg, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: colors.border },
   expiredText: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any, textAlign: 'center' },
   comment: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, fontStyle: 'italic' },
-  acceptBtn: { backgroundColor: colors.navy, borderRadius: radius.md, padding: 14, alignItems: 'center', marginTop: 4 },
+  acceptBtn: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4, ...shadows.md },
   acceptBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   acceptedBanner: { backgroundColor: colors.successLight, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0' },
   acceptedText: { fontSize: 13, color: colors.success, fontWeight: typography.weight.extrabold as any },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: radius.md },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: radius.lg, ...shadows.sm },
   retryTxt: { color: colors.surface, fontWeight: typography.weight.extrabold as any },
   empty: { alignItems: 'center', paddingTop: 48, gap: 12 },
   emptyTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
@@ -752,13 +753,13 @@ const s = StyleSheet.create({
 
   // ── Contre-offre ──
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  negotiateBtn: { flex: 1, backgroundColor: colors.infoLight, borderRadius: radius.md, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#BFDBFE' },
+  negotiateBtn: { flex: 1, backgroundColor: colors.infoLight, borderRadius: radius.lg, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#BFDBFE' },
   negotiateBtnText: { color: colors.info, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   counterPendingBanner: { backgroundColor: colors.warningLight, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FDE68A' },
   counterPendingText: { fontSize: 13, color: colors.warning, fontWeight: typography.weight.extrabold as any },
   counterAcceptedBanner: { backgroundColor: colors.successLight, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0', gap: 8 },
   counterAcceptedText: { fontSize: 13, color: colors.success, fontWeight: typography.weight.extrabold as any },
-  payNewPriceBtn: { backgroundColor: colors.success, borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 4 },
+  payNewPriceBtn: { backgroundColor: colors.success, borderRadius: radius.lg, padding: 12, alignItems: 'center', justifyContent: 'center', marginTop: 4, ...shadows.sm },
   payNewPriceBtnText: { color: colors.surface, fontSize: 13, fontWeight: typography.weight.extrabold as any },
   counterRejectedBanner: { backgroundColor: colors.dangerLight, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FECACA' },
   counterRejectedText: { fontSize: 13, color: colors.danger, fontWeight: typography.weight.extrabold as any },
@@ -771,7 +772,7 @@ const s = StyleSheet.create({
   modalLabel: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text, marginTop: 4 },
   modalInput: { backgroundColor: colors.bg, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.text },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  modalBtn: { flex: 1, borderRadius: radius.md, padding: 14, alignItems: 'center' },
+  modalBtn: { flex: 1, borderRadius: radius.lg, padding: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   modalBtnCancel: { backgroundColor: colors.bg },
   modalBtnCancelText: { color: colors.textSecondary, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   modalBtnSend: { backgroundColor: colors.navy },

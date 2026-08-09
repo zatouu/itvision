@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -8,15 +8,16 @@ import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
+import { pickOption } from '../../src/option-sheet'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
 import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle, AlertTriangle, Pause } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
-  pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: '#FFFBEB' },
+  pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: colors.warningLight },
   held:      { key: 'mission.paymentHeld',     color: '#065F46', bg: '#ECFDF5' },
-  released:  { key: 'mission.paymentReleased', color: '#1E3A8A', bg: '#EFF6FF' },
+  released:  { key: 'mission.paymentReleased', color: '#1E3A8A', bg: colors.infoLight },
   refunded:  { key: 'mission.paymentRefunded', color: '#991B1B', bg: '#FEF2F2' },
   failed:    { key: 'mission.paymentFailed',   color: '#991B1B', bg: '#FEF2F2' },
 }
@@ -25,30 +26,30 @@ const SCREEN_HEIGHT = Dimensions.get('window').height
 const MAP_FIT_PADDING = { top: 120, right: 40, bottom: Math.round(SCREEN_HEIGHT * 0.45), left: 40 }
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
-  created:            { key: 'mission.created',            color: '#374151', bg: '#F1F5F9' },
-  broadcasted:        { key: 'mission.broadcasted',        color: '#92400E', bg: '#FFFBEB' },
+  created:            { key: 'mission.created',            color: '#374151', bg: colors.slate100 },
+  broadcasted:        { key: 'mission.broadcasted',        color: '#92400E', bg: colors.warningLight },
   accepted:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
   assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
   on_the_way:         { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
   provider_arriving:  { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
   arrived:            { key: 'mission.arrived',            color: '#5B21B6', bg: '#F5F3FF' },
   in_progress:        { key: 'mission.inProgress',         color: '#5B21B6', bg: '#F5F3FF' },
-  paused:             { key: 'mission.paused',             color: '#92400E', bg: '#FFFBEB' },
-  awaiting_validation:{ key: 'mission.awaitingValidation', color: '#92400E', bg: '#FFFBEB' },
-  completed:          { key: 'mission.completed',          color: '#374151', bg: '#F1F5F9' },
+  paused:             { key: 'mission.paused',             color: '#92400E', bg: colors.warningLight },
+  awaiting_validation:{ key: 'mission.awaitingValidation', color: '#92400E', bg: colors.warningLight },
+  completed:          { key: 'mission.completed',          color: '#374151', bg: colors.slate100 },
   cancelled:          { key: 'mission.cancelled',          color: '#991B1B', bg: '#FEF2F2' },
-  expired:            { key: 'mission.expired',            color: '#374151', bg: '#F1F5F9' },
+  expired:            { key: 'mission.expired',            color: '#374151', bg: colors.slate100 },
   dispute:            { key: 'mission.dispute',            color: '#991B1B', bg: '#FEF2F2' },
-  archived:           { key: 'mission.archived',           color: '#374151', bg: '#F1F5F9' },
+  archived:           { key: 'mission.archived',           color: '#374151', bg: colors.slate100 },
 }
 
 function healthColor(health: 'active' | 'idle' | 'stale' | 'paused') {
   switch (health) {
-    case 'paused': return { bg: '#FFFBEB', dot: '#92400E', color: '#92400E' }
+    case 'paused': return { bg: colors.warningLight, dot: '#92400E', color: '#92400E' }
     case 'active': return { bg: '#ECFDF5', dot: '#065F46', color: '#065F46' }
-    case 'idle': return { bg: '#FFFBEB', dot: '#92400E', color: '#92400E' }
+    case 'idle': return { bg: colors.warningLight, dot: '#92400E', color: '#92400E' }
     case 'stale': return { bg: '#FEF2F2', dot: '#991B1B', color: '#991B1B' }
-    default: return { bg: '#F1F5F9', dot: '#6B7280', color: '#6B7280' }
+    default: return { bg: colors.slate100, dot: '#6B7280', color: '#6B7280' }
   }
 }
 
@@ -96,12 +97,7 @@ const PAUSE_REASONS = [
 ]
 
 function promptPauseReason(): Promise<string | null> {
-  return new Promise((resolve) => {
-    Alert.alert('Pause', 'Raison de la pause', [
-      ...PAUSE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
-    ])
-  })
+  return pickOption('Pause', PAUSE_REASONS.map(r => ({ key: r.key, label: r.label })), 'Raison de la pause')
 }
 
 const DISPUTE_REASONS = [
@@ -113,12 +109,7 @@ const DISPUTE_REASONS = [
 ]
 
 function promptDisputeReason(): Promise<string | null> {
-  return new Promise((resolve) => {
-    Alert.alert('Litige', 'Motif du litige', [
-      ...DISPUTE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
-    ])
-  })
+  return pickOption('Litige', DISPUTE_REASONS.map(r => ({ key: r.key, label: r.label })), 'Motif du litige')
 }
 
 function MissionDetail() {
@@ -526,8 +517,8 @@ function MissionDetail() {
                     <Text style={s.detailValue}>{formatMoney(item.payment.balanceAmount)}</Text>
                   </View>
                 )}
-                <View style={[s.paymentBadge, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || '#F1F5F9' }]}>
-                  <Text style={[s.paymentBadgeText, { color: PAYMENT_BADGE[item.payment.status]?.color || '#64748B' }]}>
+                <View style={[s.paymentBadge, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || colors.slate100 }]}>
+                  <Text style={[s.paymentBadgeText, { color: PAYMENT_BADGE[item.payment.status]?.color || colors.textSecondary }]}>
                     {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
                   </Text>
                 </View>
@@ -544,26 +535,26 @@ function MissionDetail() {
           {(item?.status === 'dispute' || item?.disputeStatus || item?.disputeDecision) && (
             <View style={[s.detailsCard, { borderLeftWidth: 4, borderLeftColor: item?.disputeStatus === 'resolved' ? colors.success : colors.danger }]}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-                {item?.disputeStatus === 'resolved' ? 'Litige résolu' : 'Litige en cours'}
+                {item?.disputeStatus === 'resolved' ? t('mission.disputeResolved', { defaultValue: 'Litige résolu' }) : t('mission.disputeOngoing', { defaultValue: 'Litige en cours' })}
               </Text>
               {item?.disputeReason && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Motif : {item.disputeReason}</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('mission.disputeReasonLabel', { defaultValue: 'Motif' })} : {item.disputeReason}</Text>
               )}
               {item?.disputeDecision && (
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-                  Décision : {({ release_escrow: 'Paiement libéré au prestataire', refund: 'Remboursement intégral', partial_refund: 'Remboursement partiel', reject: 'Litige rejeté', cancel: 'Litige annulé', other: 'Autre' } as any)[item.disputeDecision]}
+                  {t('mission.disputeDecisionLabel', { defaultValue: 'Décision' })} : {t(`mission.disputeDecision_${item.disputeDecision}`, { defaultValue: ({ release_escrow: 'Paiement libéré au prestataire', refund: 'Remboursement intégral', partial_refund: 'Remboursement partiel', reject: 'Litige rejeté', cancel: 'Litige annulé', other: 'Autre' } as any)[item.disputeDecision] })}
                   {item?.disputeRefundAmount ? ` (${item.disputeRefundAmount.toLocaleString('fr-FR')} FCFA)` : ''}
                 </Text>
               )}
               {item?.disputeAdminNote && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Note : {item.disputeAdminNote}</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>{t('mission.disputeNoteLabel', { defaultValue: 'Note' })} : {item.disputeAdminNote}</Text>
               )}
               <TouchableOpacity
                 style={{ marginTop: 12, alignSelf: 'flex-start' }}
                 onPress={() => router.push(`/dispute/${requestId}`)}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Voir le litige →</Text>
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{t('mission.viewDispute', { defaultValue: 'Voir le litige' })} →</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -698,13 +689,13 @@ const s = StyleSheet.create({
   paymentSummary: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   paymentBadge: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginTop: spacing.sm },
   paymentBadgeText: { fontSize: 12, fontWeight: typography.weight.extrabold as any },
-  payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md },
+  payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, ...shadows.md },
   payBalanceBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  rateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  rateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm, ...shadows.md },
   rateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  validateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  validateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm, ...shadows.md },
   validateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  pauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.sm },
+  pauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
   pauseBtnText: { color: colors.warning, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.semibold as any },

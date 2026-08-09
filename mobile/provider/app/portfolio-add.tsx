@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Switch, ActivityIndicator, Image, Platform, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Switch, ActivityIndicator, Image, Platform, KeyboardAvoidingView } from 'react-native'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, X, Image as ImageIcon, Camera } from 'lucide-react-nat
 import { apiPost, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { pickMedia, captureMedia, resolveMediaUrl } from '../src/media'
+import { pickOption } from '../src/option-sheet'
 
 const TYPES = [
   { id: 'realisation', label: 'Réalisation' },
@@ -66,22 +67,11 @@ function PortfolioAdd() {
   }
 
   const promptSource = async (): Promise<'camera' | 'gallery' | null> => {
-    return new Promise((resolve) => {
-      const options = ['Appareil photo', 'Galerie', 'Annuler']
-      if (Platform.OS === 'ios') {
-        const ActionSheetIOS = require('react-native').ActionSheetIOS
-        ActionSheetIOS.showActionSheetWithOptions(
-          { options, cancelButtonIndex: 2, title: 'Ajouter une photo' },
-          (idx: number) => resolve(idx === 0 ? 'camera' : idx === 1 ? 'gallery' : null)
-        )
-      } else {
-        Alert.alert('Ajouter une photo', '', [
-          { text: options[0], onPress: () => resolve('camera') },
-          { text: options[1], onPress: () => resolve('gallery') },
-          { text: options[2], style: 'cancel', onPress: () => resolve(null) },
-        ])
-      }
-    })
+    const key = await pickOption('Ajouter une photo', [
+      { key: 'camera', label: 'Appareil photo' },
+      { key: 'gallery', label: 'Galerie' },
+    ])
+    return key === 'camera' || key === 'gallery' ? key : null
   }
 
   const addMedia = async () => {
@@ -127,6 +117,7 @@ function PortfolioAdd() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.back}>
           <ArrowLeft size={22} color={colors.text} />
@@ -209,6 +200,7 @@ function PortfolioAdd() {
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaText}>Enregistrer</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -216,7 +208,7 @@ function PortfolioAdd() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   body: { padding: spacing.lg, paddingBottom: 100 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.sm, marginTop: spacing.md },

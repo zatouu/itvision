@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
+
+import { colors, radius, shadows } from '../src/design'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -16,12 +18,12 @@ import { hapticWarning } from '../src/haptics'
 import { ArrowLeft, Plus, AlertTriangle, Inbox, Search, ChevronRight } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
-  created:       { key: 'requests.status_created',            color: '#2563EB', bg: '#EFF6FF', dot: '#2563EB' },
-  pending_offers:{ key: 'requests.status_pending_offers',      color: '#B45309', bg: '#FFFBEB', dot: '#D97706' },
+  created:       { key: 'requests.status_created',            color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
+  pending_offers:{ key: 'requests.status_pending_offers',      color: '#B45309', bg: colors.warningLight, dot: '#D97706' },
   assigned:          { key: 'requests.status_assigned', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
-  provider_arriving: { key: 'requests.status_provider_arriving',            color: '#0369A1', bg: '#EFF6FF', dot: '#0EA5E9' },
+  provider_arriving: { key: 'requests.status_provider_arriving',            color: '#0369A1', bg: colors.infoLight, dot: '#0EA5E9' },
   in_progress:       { key: 'requests.status_in_progress',            color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
-  completed:     { key: 'requests.status_completed',           color: '#374151', bg: '#F1F5F9', dot: '#64748B' },
+  completed:     { key: 'requests.status_completed',           color: '#374151', bg: colors.slate100, dot: colors.textSecondary },
   cancelled:     { key: 'requests.status_cancelled',            color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
 }
 
@@ -128,7 +130,7 @@ function MyRequests() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel="Retour">
-          <ArrowLeft size={20} color="#0F172A" />
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <View style={s.headerLeft}>
           <Text style={s.title}>{t('requests.title')}</Text>
@@ -139,7 +141,7 @@ function MyRequests() {
           )}
         </View>
         <TouchableOpacity onPress={() => router.push('/create-request')} style={s.iconBtn} accessibilityLabel={t('requests.createRequest')}>
-          <Plus size={20} color="#0F172A" />
+          <Plus size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -149,7 +151,7 @@ function MyRequests() {
             value={query}
             onChangeText={setQuery}
             placeholder={t('requests.searchPlaceholder')}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             style={s.searchInput}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterChips}>
@@ -175,7 +177,7 @@ function MyRequests() {
         </ScrollView>
       ) : err ? (
         <View style={s.center}>
-          <AlertTriangle size={36} color="#0F7B4F" />
+          <AlertTriangle size={36} color={colors.primary} />
           <Text style={s.errText}>{err}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => load()}>
             <Text style={s.retryText}>{t('common.retry')}</Text>
@@ -184,11 +186,11 @@ function MyRequests() {
       ) : (
         <ScrollView
           contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#0F7B4F" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />}
         >
           {filteredItems.length === 0 && (
             <EmptyState
-              icon={items.length === 0 ? <Inbox size={32} color="#94A3B8" /> : <Search size={32} color="#94A3B8" />}
+              icon={items.length === 0 ? <Inbox size={32} color={colors.textMuted} /> : <Search size={32} color={colors.textMuted} />}
               title={items.length === 0 ? t('requests.noRequests') : t('requests.noResult')}
               subtitle={items.length === 0 ? t('requests.noRequestsSub') : t('requests.noResultSub')}
               actionLabel={t('requests.createRequest')}
@@ -197,7 +199,7 @@ function MyRequests() {
           )}
 
           {filteredItems.map(it => {
-            const st = STATUS_CONFIG[it.status] || { key: it.status, color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' }
+            const st = STATUS_CONFIG[it.status] || { key: it.status, color: '#475569', bg: colors.slate100, dot: colors.textMuted }
             const catLabel = catMap[it.category]?.label || it.category
             const title = it.description
               ? `${catLabel} — ${it.description.slice(0, 30)}${it.description.length > 30 ? '…' : ''}`
@@ -267,49 +269,49 @@ function MyRequests() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F1F5F9' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: colors.slate100 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   headerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerCount: { backgroundColor: '#EFF6FF', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  headerCount: { backgroundColor: colors.infoLight, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   headerCountText: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
   headerActions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  iconBtnText: { color: '#0F172A' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
-  filters: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, gap: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  searchInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: '#0F172A', fontSize: 14 },
+  iconBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
+  iconBtnText: { color: colors.text },
+  title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  filters: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12, gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchInput: { backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14 },
   filterChips: { gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
-  filterChipActive: { backgroundColor: '#0F7B4F', borderColor: '#0F7B4F' },
-  filterChipText: { fontSize: 12, color: '#64748B', fontWeight: '700' },
-  filterChipTextActive: { color: '#fff' },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.slate100, borderWidth: 1, borderColor: colors.border },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
+  filterChipTextActive: { color: colors.surface },
   list: { padding: 16, gap: 10, paddingBottom: 32 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E2E8F0' },
+  card: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
   cardInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   catMonogram: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
-  catMonogramText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  catMonogramText: { fontSize: 13, fontWeight: '800', color: colors.surface },
   cardContent: { flex: 1, gap: 3 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  cardTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: '#0F172A', lineHeight: 19 },
+  cardTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text, lineHeight: 19 },
   statusBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
-  desc: { fontSize: 13, color: '#64748B', lineHeight: 18 },
-  meta: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
+  desc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  meta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   offerCountBadge: { backgroundColor: '#F97316', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, minWidth: 20, alignItems: 'center' },
-  offerCountText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  offerCountText: { fontSize: 11, fontWeight: '800', color: colors.surface },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errIcon: { color: '#0F7B4F' },
-  errText: { fontSize: 14, color: '#64748B', textAlign: 'center' },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F172A', borderRadius: 10 },
-  retryText: { color: '#fff', fontWeight: '600' },
+  errIcon: { color: colors.primary },
+  errText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: 14, ...shadows.sm },
+  retryText: { color: colors.surface, fontWeight: '600' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  emptyText: { fontSize: 13, color: '#94A3B8', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
-  btn: { backgroundColor: '#0F172A', borderRadius: 10, paddingHorizontal: 28, paddingVertical: 14, marginTop: 8 },
-  btnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  offerIndicator: { backgroundColor: '#FFFBEB', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#FDE68A' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  btn: { backgroundColor: colors.navy, borderRadius: radius.lg, paddingHorizontal: 28, paddingVertical: 14, minHeight: 50, marginTop: 8, ...shadows.md },
+  btnText: { color: colors.surface, fontWeight: '600', fontSize: 14 },
+  offerIndicator: { backgroundColor: colors.warningLight, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#FDE68A' },
   offerIndicatorText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
   cancelBtn: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   cancelBtnText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },

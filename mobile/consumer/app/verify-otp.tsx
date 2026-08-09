@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import { apiPost } from '../src/api'
 import { ArrowLeft, FlaskConical, ShieldCheck } from 'lucide-react-native'
 import { hapticSuccess, hapticError, hapticSelect } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
+import Button from '../src/components/Button'
 
 const CODE_LENGTH = 6
 
@@ -93,14 +94,13 @@ export default function VerifyOtp() {
           maxLength={6}
         />
 
-        <TouchableOpacity
-          style={[s.btn, (loading || code.length !== CODE_LENGTH) && s.btnDisabled]}
-          disabled={loading || code.length !== CODE_LENGTH}
+        <Button
+          title={t('auth.verify')}
           onPress={verify}
-          activeOpacity={0.8}
-        >
-          {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={s.btnText}>{t('auth.verify')}</Text>}
-        </TouchableOpacity>
+          loading={loading}
+          disabled={code.length !== CODE_LENGTH}
+          fullWidth
+        />
 
         <TouchableOpacity onPress={resend} style={s.resendBtn} activeOpacity={0.6}>
           <Text style={s.resendText}>{t('auth.resend')}</Text>
@@ -113,7 +113,7 @@ export default function VerifyOtp() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, padding: spacing.xxl, paddingTop: 16 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xxl, ...shadows.sm },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xxl, ...shadows.sm },
   backIcon: { color: colors.text },
   title: { fontSize: 26, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.sm },
   subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: spacing.xxl, lineHeight: 22 },

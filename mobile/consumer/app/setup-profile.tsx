@@ -113,7 +113,7 @@ const s = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text },
   errText: { fontSize: 13, color: colors.danger, marginBottom: 12, textAlign: 'center' },
-  btn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  btn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8, ...shadows.md },
   btnDisabled: { opacity: 0.4 },
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: typography.weight.bold as any },

@@ -31,14 +31,14 @@ export const orderCreateSchema = z.object({
 
 export const paymentInitSchema = z.object({
   orderId: z.string().min(1),
-  provider: z.enum(['wave', 'orange_money', 'free_money', 'cash']),
+  provider: z.enum(['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']),
   clientPhone: z.string().min(8),
   phase: z.enum(['deposit', 'balance', 'full']).optional().default('full'),
 })
 
 export const offerPaymentInitSchema = z.object({
   offerId: z.string().min(1),
-  provider: z.enum(['wave', 'orange_money', 'free_money', 'cash']),
+  provider: z.enum(['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']),
   clientPhone: z.string().min(8).optional(),
   phase: z.enum(['deposit', 'balance', 'full']).optional().default('full'),
   useEscrow: z.boolean().optional(),

@@ -4,7 +4,7 @@ import { colors, radius, typography } from '../design'
 type ButtonProps = {
   title: string
   onPress: () => void
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   loading?: boolean
@@ -27,6 +27,7 @@ export default function Button({
     s.base,
     s[size],
     variantStyles[variant].container,
+    (variant === 'primary' || variant === 'secondary' || variant === 'danger') && !isDisabled && s.elevated,
     isDisabled && s.disabled,
     fullWidth && s.fullWidth,
   ]
@@ -37,7 +38,7 @@ export default function Button({
       onPress={onPress}
       disabled={isDisabled}
       style={containerStyle}
-      activeOpacity={0.85}
+      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
@@ -50,20 +51,21 @@ export default function Button({
 }
 
 const s = StyleSheet.create({
-  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, minHeight: 44 },
-  sm: { paddingVertical: 8, paddingHorizontal: 12 },
-  md: { paddingVertical: 14, paddingHorizontal: 20 },
-  lg: { paddingVertical: 17, paddingHorizontal: 24 },
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, minHeight: 44 },
+  sm: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.md },
+  md: { paddingVertical: 16, paddingHorizontal: 22, minHeight: 54 },
+  lg: { paddingVertical: 18, paddingHorizontal: 26, minHeight: 58 },
   fullWidth: { width: '100%' },
+  elevated: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 12, elevation: 6 },
   disabled: { opacity: 0.45 },
-  text: { fontWeight: typography.weight.bold as any, textAlign: 'center' },
+  text: { fontWeight: typography.weight.bold as any, textAlign: 'center', letterSpacing: 0.2 },
   textDisabled: { opacity: 0.8 },
 })
 
 const sizeStyles = {
   sm: StyleSheet.create({ text: { fontSize: typography.sm.fontSize } }),
-  md: StyleSheet.create({ text: { fontSize: typography.base.fontSize } }),
-  lg: StyleSheet.create({ text: { fontSize: typography.md.fontSize } }),
+  md: StyleSheet.create({ text: { fontSize: typography.md.fontSize } }),
+  lg: StyleSheet.create({ text: { fontSize: typography.lg.fontSize } }),
 }
 
 const variantStyles = {
@@ -73,6 +75,10 @@ const variantStyles = {
   },
   secondary: {
     container: { backgroundColor: colors.navy },
+    text: { color: colors.surface },
+  },
+  danger: {
+    container: { backgroundColor: colors.danger },
     text: { color: colors.surface },
   },
   outline: {

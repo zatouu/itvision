@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, Image, RefreshControl, Linking } from 'react-native'
+import { toast } from '../src/toast'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import EmptyState from '../src/components/EmptyState'
 import { getAuthUser } from '../src/auth'
 import { ArrowLeft, Plus, Coins, TrendingUp, TrendingDown, Wallet as WalletIcon } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
@@ -37,7 +39,8 @@ type WalletData = {
 }
 
 const PACKS = [25, 50, 100, 250]
-const OPERATORS: Array<{ id: 'wave' | 'orange_money' | 'free_money'; label: string }> = [
+const OPERATORS: Array<{ id: 'wave_qr' | 'wave' | 'orange_money' | 'free_money'; label: string }> = [
+  { id: 'wave_qr', label: 'Wave QR' },
   { id: 'wave', label: 'Wave' },
   { id: 'orange_money', label: 'Orange Money' },
   { id: 'free_money', label: 'Free Money' },
@@ -62,15 +65,17 @@ function Wallet() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedPack, setSelectedPack] = useState<number>(100)
-  const [selectedOp, setSelectedOp] = useState<'wave' | 'orange_money' | 'free_money'>('wave')
+  const [selectedOp, setSelectedOp] = useState<'wave_qr' | 'wave' | 'orange_money' | 'free_money'>('wave_qr')
   const [topupLoading, setTopupLoading] = useState(false)
+  const [manualCfg, setManualCfg] = useState<{ waveQrEnabled: boolean; waveMerchantPhone: string; waveQrUrl: string; wavePayUrl: string } | null>(null)
+  const [manualPending, setManualPending] = useState<{ reference: string; amount: number } | null>(null)
 
   const load = useCallback(async () => {
     try {
       const r = await apiGetRetry('/api/wallet')
       setData(r)
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || t('wallet.loadError'))
+      toast.error(t('common.error'), e?.message || t('wallet.loadError'))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -79,11 +84,17 @@ function Wallet() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    apiGetRetry('/api/payments/manual-config')
+      .then(r => { if (r?.success) setManualCfg({ waveQrEnabled: !!r.waveQrEnabled, waveMerchantPhone: r.waveMerchantPhone || '', waveQrUrl: r.waveQrUrl || '', wavePayUrl: r.wavePayUrl || '' }) })
+      .catch(() => {})
+  }, [])
+
   const onTopup = async () => {
     const user = getAuthUser()
     const phone = user?.phone
     if (!phone) {
-      Alert.alert(t('wallet.phoneRequired'), t('wallet.phoneRequiredMsg'))
+      toast.info(t('wallet.phoneRequired'), t('wallet.phoneRequiredMsg'))
       return
     }
     const amountFcfa = selectedPack * (data?.config.fcfaPerPoint || 100)
@@ -103,18 +114,20 @@ function Wallet() {
                 phone,
               })
               if (r?.confirmed) {
-                Alert.alert(t('wallet.topupSuccess'), t('wallet.topupSuccessMsg', { pack: selectedPack, balance: r.balance }))
+                toast.success(t('wallet.topupSuccess'), t('wallet.topupSuccessMsg', { pack: selectedPack, balance: r.balance }))
+              } else if (r?.manualConfirm && r?.reference) {
+                setManualPending({ reference: r.reference, amount: amountFcfa })
               } else if (r?.checkoutUrl) {
                 const supported = await Linking.canOpenURL(r.checkoutUrl)
                 if (supported) {
                   await Linking.openURL(r.checkoutUrl)
                 } else {
-                  Alert.alert(t('wallet.paymentLink'), r.checkoutUrl)
+                  toast.info(t('wallet.paymentLink'), r.checkoutUrl)
                 }
               }
               await load()
             } catch (e: any) {
-              Alert.alert(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
+              toast.error(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
             } finally {
               setTopupLoading(false)
             }
@@ -197,7 +210,7 @@ function Wallet() {
           </View>
 
           <View style={s.opRow}>
-            {OPERATORS.map(op => (
+            {OPERATORS.filter(op => op.id !== 'wave_qr' || manualCfg?.waveQrEnabled).map(op => (
               <TouchableOpacity
                 key={op.id}
                 style={[s.op, selectedOp === op.id && s.opActive]}
@@ -214,12 +227,41 @@ function Wallet() {
               ? <ActivityIndicator color={colors.surface} />
               : <Text style={s.payText}>{t('wallet.payBtn', { amount: (selectedPack * (data?.config.fcfaPerPoint || 100)).toLocaleString('fr-FR') })}</Text>}
           </TouchableOpacity>
+
+          {manualPending && (
+            <View style={s.manualCard}>
+              <Text style={s.manualTitle}>{t('wallet.waveQrTitle', { defaultValue: 'Payer par Wave' })}</Text>
+              <Text style={s.manualHint}>{t('wallet.waveQrInstructions', { defaultValue: 'Scannez le QR boutique avec Wave (ou envoyez au numéro ci-dessous) en indiquant la référence, puis attendez la confirmation.' })}</Text>
+              {manualCfg?.waveQrUrl ? (
+                <Image source={{ uri: manualCfg.waveQrUrl }} style={{ width: 180, height: 180, borderRadius: 8, alignSelf: 'center' }} resizeMode="contain" />
+              ) : null}
+              {!!manualCfg?.waveMerchantPhone && <Text style={s.manualPhone}>{manualCfg.waveMerchantPhone}</Text>}
+              <View style={s.refBox}>
+                <Text style={s.refLabel}>{t('wallet.waveQrRef', { defaultValue: 'Référence à indiquer' })}</Text>
+                <Text style={s.refValue}>{manualPending.reference}</Text>
+              </View>
+              <Text style={s.manualAmount}>{manualPending.amount.toLocaleString('fr-FR')} FCFA</Text>
+              {manualCfg?.wavePayUrl ? (
+                <TouchableOpacity
+                  style={s.waveOpenBtn}
+                  onPress={() => {
+                    const sep = manualCfg.wavePayUrl.includes('?') ? '&' : '?'
+                    Linking.openURL(`${manualCfg.wavePayUrl}${sep}amount=${manualPending.amount}`)
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.waveOpenBtnText}>{t('wallet.waveQrOpen', { defaultValue: `Ouvrir Wave — ${manualPending.amount.toLocaleString('fr-FR')} FCFA` })}</Text>
+                </TouchableOpacity>
+              ) : null}
+              <Text style={s.manualWaitingText}>{t('wallet.waveQrWaiting', { defaultValue: 'Vos crédits seront ajoutés après confirmation par la boutique.' })}</Text>
+            </View>
+          )}
         </View>
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('wallet.history')}</Text>
           {(!data?.history || data.history.length === 0) ? (
-            <Text style={s.empty}>{t('wallet.noHistory')}</Text>
+            <EmptyState icon={<WalletIcon size={32} color="#94A3B8" />} title={t('wallet.noHistory')} />
           ) : (
             data.history.map(txn => (
               <View key={txn.id} style={s.txn}>
@@ -250,7 +292,7 @@ function Wallet() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
   backIcon: { color: colors.text },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   body: { padding: spacing.xl, gap: 18 },
@@ -281,7 +323,7 @@ const s = StyleSheet.create({
   opActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
   opText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
   opTextActive: { color: colors.surface },
-  payBtn: { backgroundColor: colors.success, borderRadius: radius.md, paddingVertical: 15, alignItems: 'center', ...shadows.sm },
+  payBtn: { backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   payText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: 15 },
   empty: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: spacing.md },
   txn: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
@@ -292,6 +334,17 @@ const s = StyleSheet.create({
   txnPointsText: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
   txnPos: { color: colors.success },
   txnNeg: { color: colors.danger },
+  manualCard: { marginTop: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  manualTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  manualHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 17 },
+  manualPhone: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: 1 },
+  refBox: { backgroundColor: colors.warningLight, borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.warning },
+  refLabel: { fontSize: 11, color: '#92400E', fontWeight: typography.weight.semibold as any },
+  refValue: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: '#92400E', letterSpacing: 2, marginTop: 2 },
+  manualAmount: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
+  manualWaitingText: { fontSize: 12, color: colors.warning, fontWeight: typography.weight.semibold as any, textAlign: 'center' },
+  waveOpenBtn: { backgroundColor: '#1DC3F0', borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, ...shadows.md },
+  waveOpenBtnText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(Wallet, 'Wallet')

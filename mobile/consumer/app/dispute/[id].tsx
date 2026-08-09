@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, Image, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, Image } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPatch, apiUpload } from '../../src/api'
+import { toast } from '../../src/toast'
 import { pickMedia, resolveMediaUrl } from '../../src/media'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { ArrowLeft, Send, Paperclip, Image as ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react-native'
@@ -23,6 +25,7 @@ function normalizeId(value: string | string[] | undefined): string | null {
 }
 
 function DisputeDetail() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -38,7 +41,7 @@ function DisputeDetail() {
       const r = await apiGet(`/api/services/requests/${requestId}`)
       setItem(r.item)
     } catch (e: any) {
-      Alert.alert('Erreur', e.message)
+      toast.error('Erreur', e.message)
     } finally {
       setLoading(false)
     }
@@ -54,7 +57,7 @@ function DisputeDetail() {
       setMessage('')
       await load()
     } catch (e: any) {
-      Alert.alert('Erreur', e.message)
+      toast.error('Erreur', e.message)
     } finally {
       setSubmitting(false)
     }
@@ -73,7 +76,7 @@ function DisputeDetail() {
       await apiPatch(`/api/services/requests/${requestId}`, { action: 'dispute-evidence', type: media.type, url })
       await load()
     } catch (e: any) {
-      Alert.alert('Erreur', e.message)
+      toast.error('Erreur', e.message)
     } finally {
       setUploading(false)
     }
@@ -108,7 +111,7 @@ function DisputeDetail() {
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>Preuves ({(item?.disputeEvidence || []).length})</Text>
-          {(item?.disputeEvidence || []).length === 0 && <Text style={s.empty}>Aucune preuve.</Text>}
+          {(item?.disputeEvidence || []).length === 0 && <Text style={s.empty}>{t('dispute.noEvidence', { defaultValue: 'Aucune preuve.' })}</Text>}
           <View style={s.evidenceGrid}>
             {(item?.disputeEvidence || []).map((e: any) => (
               <View key={e._id} style={s.evidenceItem}>
@@ -131,7 +134,7 @@ function DisputeDetail() {
 
         <View style={s.section}>
           <Text style={s.sectionTitle}>Messages</Text>
-          {(item?.disputeMessages || []).length === 0 && <Text style={s.empty}>Aucun message.</Text>}
+          {(item?.disputeMessages || []).length === 0 && <Text style={s.empty}>{t('dispute.noMessages', { defaultValue: 'Aucun message.' })}</Text>}
           {(item?.disputeMessages || []).map((m: any) => (
             <View key={m._id} style={[s.messageBubble, m.senderRole === 'client' ? s.myBubble : s.theirBubble]}>
               <Text style={s.messageText}>{m.text}</Text>

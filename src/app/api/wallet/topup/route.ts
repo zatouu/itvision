@@ -6,7 +6,7 @@ import { initiatePayment, PaymentProvider } from '@/lib/payment'
 import { creditPoints, getAppConfig, getOrCreateWallet } from '@/lib/wallet'
 import TopupPayment from '@/lib/models/TopupPayment'
 
-const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money']
+const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'wave_qr']
 const MIN_POINTS = 10
 const MAX_POINTS = 10000
 
@@ -110,6 +110,8 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       externalId: result.externalId,
       checkoutUrl: result.checkoutUrl,
+      manualConfirm: !!result.manualConfirm,
+      reference: result.manualConfirm ? `XEUY-${Math.random().toString(36).slice(2, 8).toUpperCase()}` : undefined,
       phone: payPhone,
     })
     const wallet = await getOrCreateWallet(String(userId))
@@ -123,6 +125,8 @@ export async function POST(request: NextRequest) {
       balance: wallet.points,
       externalId: result.externalId,
       checkoutUrl: result.checkoutUrl,
+      manualConfirm: !!result.manualConfirm,
+      reference: topup.reference,
       topupId: topup._id,
       message: 'Paiement initié. Vos XC seront crédités après confirmation.',
     })

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Dimensions, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Dimensions, KeyboardAvoidingView, Platform } from 'react-native'
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { MapPin, Crosshair, Check, ChevronRight, Building2, MessageSquare } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
+import { toast } from '../../src/toast'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
@@ -31,7 +32,7 @@ export default function RequestLocation() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== 'granted') {
-        Alert.alert(t('common.error'), 'Permission de localisation requise')
+        toast.error(t('common.error'), 'Permission de localisation requise')
         return
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
@@ -45,7 +46,7 @@ export default function RequestLocation() {
         setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
       }
     } catch {
-      Alert.alert(t('common.error'), t('request.gpsRequired'))
+      toast.error(t('common.error'), t('request.gpsRequired'))
     } finally {
       setLoadingLocation(false)
     }
@@ -57,6 +58,7 @@ export default function RequestLocation() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <AppHeader title={t('clientRequest.location')} onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
         <View style={s.stepper}>
@@ -191,6 +193,7 @@ export default function RequestLocation() {
           size="lg"
         />
       </StickyBottomBar>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

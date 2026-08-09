@@ -133,7 +133,7 @@ function CalendarScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   intro: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.primaryLight, borderRadius: radius.lg, padding: spacing.lg, marginHorizontal: spacing.lg, marginBottom: spacing.lg },
   introText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 20 },

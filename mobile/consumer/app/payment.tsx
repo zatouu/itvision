@@ -1,25 +1,29 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, ScrollView, Image } from 'react-native'
+import QRCode from 'react-native-qrcode-svg'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
-import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert } from 'lucide-react-native'
+import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert, QrCode, Clock } from 'lucide-react-native'
 import { hapticSuccess, hapticSelect } from '../src/haptics'
+import { toast } from '../src/toast'
 import { colors, radius, shadows, spacing, typography } from '../src/design'
 
-type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
+type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash' | 'wave_qr'
 
 function getProviderLabel(t: any, id: Provider) {
   if (id === 'cash') return t('payment.cashOnPlace')
   if (id === 'orange_money') return 'Orange Money'
   if (id === 'free_money') return 'Free Money'
+  if (id === 'wave_qr') return t('payment.waveQr', { defaultValue: 'Wave QR (scan boutique)' })
   return 'Wave'
 }
 
 const PROVIDERS: { id: Provider; icon: React.ReactNode; color: string; bg: string }[] = [
+  { id: 'wave_qr', icon: <QrCode size={26} color="#1DC3F0" />, color: '#1DC3F0', bg: '#E0F7FE' },
   { id: 'wave', icon: <Waves size={26} color="#1DC3F0" />, color: '#1DC3F0', bg: '#E0F7FE' },
   { id: 'orange_money', icon: <Circle size={26} color="#FF6600" fill="#FF6600" />, color: '#FF6600', bg: '#FFF7ED' },
   { id: 'free_money', icon: <Circle size={26} color="#00A651" fill="#00A651" />, color: '#00A651', bg: '#ECFDF5' },
@@ -49,6 +53,9 @@ function PaymentScreen() {
   const [walletLoading, setWalletLoading] = useState(true)
   const [useEscrow, setUseEscrow] = useState(true)
   const [polling, setPolling] = useState(false)
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+  const [manualCfg, setManualCfg] = useState<{ waveQrEnabled: boolean; waveMerchantPhone: string; waveQrUrl: string; wavePayUrl: string } | null>(null)
+  const [manualPending, setManualPending] = useState<{ reference: string; amount: number } | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const user = getAuthUser()
@@ -63,6 +70,9 @@ function PaymentScreen() {
       .then(setWallet)
       .catch(() => setWallet(null))
       .finally(() => setWalletLoading(false))
+    apiGetRetry('/api/payments/manual-config')
+      .then(r => { if (r?.success) setManualCfg({ waveQrEnabled: !!r.waveQrEnabled, waveMerchantPhone: r.waveMerchantPhone || '', waveQrUrl: r.waveQrUrl || '', wavePayUrl: r.wavePayUrl || '' }) })
+      .catch(() => {})
   }, [])
 
   const stopPolling = useCallback(() => {
@@ -108,24 +118,43 @@ function PaymentScreen() {
         phase: requestPhase,
       })
       if (res.checkoutUrl) {
+        setCheckoutUrl(res.checkoutUrl)
         const supported = await Linking.canOpenURL(res.checkoutUrl)
         if (supported) {
           await Linking.openURL(res.checkoutUrl)
-        } else {
-          Alert.alert(t('payment.paymentLink'), res.checkoutUrl)
         }
+      }
+      if (res.manualConfirm && res.reference) {
+        // Paiement QR statique : afficher les instructions + polling de validation admin
+        setManualPending({ reference: res.reference, amount: payNowAmount })
+        setPolling(true)
+        pollRef.current = setInterval(async () => {
+          try {
+            const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
+            if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
+              stopPolling()
+              setManualPending(null)
+              hapticSuccess()
+              toast.success(t('payment.initiated'), t('payment.manualConfirmed', { defaultValue: 'Paiement confirmé. La mission démarre.' }))
+              router.back()
+            }
+          } catch { /* keep polling */ }
+        }, 5000)
+        pollTimeoutRef.current = setTimeout(() => stopPolling(), 600000)
+        setLoading(false)
+        return
       }
       if (res.payment?.status === 'held') {
         hapticSuccess()
-        Alert.alert(
+        toast.success(
           t('payment.initiated'),
           isCash
             ? t('payment.cashInitiated', { amount: totalAmount.toLocaleString('fr-FR') })
             : paymentMode === 'deposit'
               ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
-              : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') }),
-          [{ text: t('common.ok'), onPress: () => router.back() }]
+              : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') })
         )
+        router.back()
       } else if (res.payment?.status === 'pending') {
         setPolling(true)
         pollRef.current = setInterval(async () => {
@@ -133,13 +162,13 @@ function PaymentScreen() {
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
             if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
               stopPolling()
-              Alert.alert(
+              toast.success(
                 t('payment.initiated'),
                 paymentMode === 'deposit'
                   ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
-                  : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') }),
-                [{ text: t('common.ok'), onPress: () => router.back() }]
+                  : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') })
               )
+              router.back()
             }
           } catch { /* keep polling */ }
         }, 5000)
@@ -277,7 +306,7 @@ function PaymentScreen() {
         {/* Payment methods */}
         <Text style={s.sectionTitle}>{t('payment.chooseMethod')}</Text>
 
-        {PROVIDERS.map(p => (
+        {PROVIDERS.filter(p => p.id !== 'wave_qr' || manualCfg?.waveQrEnabled).map(p => (
           <TouchableOpacity
             key={p.id}
             style={[s.providerCard, selected === p.id && { borderColor: p.color, backgroundColor: p.bg }]}
@@ -289,6 +318,59 @@ function PaymentScreen() {
             {selected === p.id && <Check size={22} color={p.color} />}
           </TouchableOpacity>
         ))}
+
+        {/* QR code Wave : scanner depuis l'appli Wave (autre téléphone ou après retour) */}
+        {polling && checkoutUrl && selected === 'wave' && (
+          <View style={s.qrCard}>
+            <Text style={s.qrTitle}>{t('payment.scanQr', { defaultValue: 'Scanner pour payer' })}</Text>
+            <View style={s.qrBox}>
+              <QRCode value={checkoutUrl} size={180} backgroundColor="white" />
+            </View>
+            <Text style={s.qrHint}>{t('payment.scanQrHint', { defaultValue: 'Ouvrez Wave et scannez ce code, ou appuyez ci-dessous' })}</Text>
+            <TouchableOpacity style={s.qrOpenBtn} onPress={() => Linking.openURL(checkoutUrl)} activeOpacity={0.8}>
+              <Text style={s.qrOpenBtnText}>{t('payment.openWave', { defaultValue: 'Ouvrir Wave' })}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Paiement manuel Wave QR : instructions + référence */}
+        {manualPending && (
+          <View style={s.qrCard}>
+            <Text style={s.qrTitle}>{t('payment.waveQrTitle', { defaultValue: 'Payer par Wave' })}</Text>
+            <Text style={s.qrHint}>
+              {t('payment.waveQrInstructions', { defaultValue: 'Scannez le QR boutique avec Wave (ou envoyez au numéro ci-dessous), puis attendez la confirmation.' })}
+            </Text>
+            {manualCfg?.waveQrUrl ? (
+              <View style={s.qrBox}>
+                <Image source={{ uri: manualCfg.waveQrUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} resizeMode="contain" />
+              </View>
+            ) : null}
+            {!!manualCfg?.waveMerchantPhone && (
+              <Text style={s.manualPhone}>{manualCfg.waveMerchantPhone}</Text>
+            )}
+            <View style={s.refBox}>
+              <Text style={s.refLabel}>{t('payment.waveQrRef', { defaultValue: 'Référence à indiquer' })}</Text>
+              <Text style={s.refValue}>{manualPending.reference}</Text>
+            </View>
+            <Text style={s.manualAmount}>{manualPending.amount.toLocaleString('fr-FR')} FCFA</Text>
+            {manualCfg?.wavePayUrl ? (
+              <TouchableOpacity
+                style={s.qrOpenBtn}
+                onPress={() => {
+                  const sep = manualCfg.wavePayUrl.includes('?') ? '&' : '?'
+                  Linking.openURL(`${manualCfg.wavePayUrl}${sep}amount=${manualPending.amount}`)
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={s.qrOpenBtnText}>{t('payment.waveQrOpen', { defaultValue: `Ouvrir Wave — ${manualPending.amount.toLocaleString('fr-FR')} FCFA` })}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <View style={s.manualWaiting}>
+              <Clock size={16} color={colors.warning} />
+              <Text style={s.manualWaitingText}>{t('payment.waveQrWaiting', { defaultValue: 'En attente de confirmation par la boutique…' })}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Pay button */}
         <TouchableOpacity
@@ -353,6 +435,12 @@ const s = StyleSheet.create({
   modeTextActive: { color: colors.primary },
   modeSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
   sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  qrCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  qrTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  qrBox: { backgroundColor: '#fff', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  qrHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 17 },
+  qrOpenBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, marginTop: 4, ...shadows.md },
+  qrOpenBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   providerCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface,
@@ -366,6 +454,13 @@ const s = StyleSheet.create({
   },
   payBtnDisabled: { opacity: 0.5 },
   payBtnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  manualPhone: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: 1 },
+  refBox: { backgroundColor: colors.warningLight, borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.warning },
+  refLabel: { fontSize: 11, color: '#92400E', fontWeight: typography.weight.semibold as any },
+  refValue: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: '#92400E', letterSpacing: 2, marginTop: 2 },
+  manualAmount: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
+  manualWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  manualWaitingText: { fontSize: 12, color: colors.warning, fontWeight: typography.weight.semibold as any },
 })
 
 export default withScreenBoundary(PaymentScreen, 'Payment')

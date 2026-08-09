@@ -154,6 +154,9 @@ jobs:
             echo "PAYDUNYA_MODE=${{ secrets.PAYDUNYA_MODE }}" >> .env.ec2
             echo "PAYDUNYA_STORE_NAME=${{ secrets.PAYDUNYA_STORE_NAME }}" >> .env.ec2
             echo "APP_BASE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
+            echo "WAVE_MERCHANT_PHONE=${{ secrets.WAVE_MERCHANT_PHONE }}" >> .env.ec2
+            echo "WAVE_QR_URL=${{ secrets.WAVE_QR_URL }}" >> .env.ec2
+            echo "WAVE_PAY_URL=${{ secrets.WAVE_PAY_URL }}" >> .env.ec2
             echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env.ec2
             
 

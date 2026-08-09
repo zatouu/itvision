@@ -9,6 +9,8 @@ import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../src/api'
 import { resetSocket } from '../src/socket'
 import { initSentry, setUser, clearUser } from '../src/sentry'
+import { ToastHost } from '../src/toast'
+import { OptionSheetHost } from '../src/option-sheet'
 import '../src/i18n'
 import { loadSavedLanguage } from '../src/i18n'
 
@@ -142,6 +144,8 @@ export default function Layout(){
   return (
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }} />
+      <ToastHost />
+      <OptionSheetHost />
     </SafeAreaProvider>
   )
 }

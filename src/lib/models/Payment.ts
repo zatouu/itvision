@@ -1,7 +1,7 @@
 import { Schema, model, models } from 'mongoose'
 
 export type PaymentStatus = 'pending' | 'held' | 'released' | 'refunded' | 'failed'
-export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash'
+export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash' | 'wave_qr'
 export type PaymentPhase = 'deposit' | 'balance' | 'full'
 export type PaymentDomain = 'services' | 'marketplace' | 'group'
 
@@ -20,13 +20,16 @@ const PaymentSchema = new Schema({
   depositAmount: { type: Number, default: 0, min: 0 },
   balanceAmount: { type: Number, default: 0, min: 0 },
   currency: { type: String, default: 'XOF' },
-  provider: { type: String, enum: ['wave', 'orange_money', 'free_money', 'cash'], required: true },
+  provider: { type: String, enum: ['wave', 'orange_money', 'free_money', 'cash', 'wave_qr'], required: true },
   phase: { type: String, enum: ['deposit', 'balance', 'full'], default: 'full' },
   status: { type: String, enum: ['pending', 'held', 'released', 'refunded', 'failed'], default: 'pending' },
   useEscrow: { type: Boolean, default: true },
   // Provider-specific reference IDs
   externalId: { type: String },
   checkoutUrl: { type: String },
+  // Paiement manuel (QR statique) : en attente de validation admin
+  manualConfirm: { type: Boolean, default: false },
+  reference: { type: String }, // référence unique à indiquer par le client (ex: XEUY-AB12CD)
   // Points system
   escrowPointsCharged: { type: Number, default: 0, min: 0 },
   // Timestamps

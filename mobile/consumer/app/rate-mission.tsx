@@ -1,4 +1,6 @@
 import { useState } from 'react'
+
+import { colors, radius, shadows } from '../src/design'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -50,7 +52,7 @@ function RateMission() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.successContainer}>
-          <PartyPopper size={64} color="#0F7B4F" />
+          <PartyPopper size={64} color={colors.primary} />
           <Text style={s.successTitle}>{t('rating.thanks')}</Text>
           <Text style={s.successText}>{t('rating.thanksSub')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -79,7 +81,7 @@ function RateMission() {
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map(n => (
               <TouchableOpacity key={n} onPress={() => { hapticSelect(); setRating(n) }} style={s.starBtn}>
-                <Star size={44} color={n <= rating ? '#0F7B4F' : '#E2E8F0'} fill={n <= rating ? '#0F7B4F' : 'transparent'} />
+                <Star size={44} color={n <= rating ? colors.primary : colors.border} fill={n <= rating ? colors.primary : 'transparent'} />
               </TouchableOpacity>
             ))}
           </View>
@@ -117,7 +119,7 @@ function RateMission() {
           <TextInput
             style={s.input}
             placeholder={t('rating.commentPlaceholder')}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={comment}
             onChangeText={setComment}
             multiline
@@ -133,7 +135,7 @@ function RateMission() {
             disabled={loading || rating === 0}
           >
             {loading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.surface} />
               : <Text style={s.btnText}>{t('rating.submit')}</Text>
             }
           </TouchableOpacity>
@@ -144,34 +146,34 @@ function RateMission() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 24, paddingBottom: 48 },
   header: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 },
   skipBtn: { paddingVertical: 8, paddingHorizontal: 12 },
-  skipText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
-  title: { fontSize: 22, fontWeight: '800', color: '#0F172A', textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24 },
+  skipText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
+  title: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
+  subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 },
   starBtn: { padding: 4 },
-  star: { color: '#E2E8F0' },
-  starActive: { color: '#0F7B4F' },
-  ratingLabel: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, fontWeight: '500' },
+  star: { color: colors.border },
+  starActive: { color: colors.primary },
+  ratingLabel: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 24, fontWeight: '500' },
   tagsSection: { marginBottom: 20 },
   tagsTitle: { fontSize: 13, color: '#475569', fontWeight: '600', marginBottom: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
-  tagActive: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
-  tagText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
+  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.slate50 },
+  tagActive: { borderColor: '#2563EB', backgroundColor: colors.infoLight },
+  tagText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
   tagTextActive: { color: '#2563EB' },
-  input: { borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 14, color: '#0F172A', minHeight: 80, marginBottom: 16, backgroundColor: '#F8FAFC' },
+  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 14, fontSize: 14, color: colors.text, minHeight: 80, marginBottom: 16, backgroundColor: colors.slate50 },
   error: { color: '#DC2626', fontSize: 13, textAlign: 'center', marginBottom: 12 },
-  btn: { backgroundColor: '#0F172A', borderRadius: 12, padding: 16, alignItems: 'center' },
+  btn: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   btnDisabled: { opacity: 0.4 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  btnText: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  successEmoji: { color: '#0F7B4F' },
-  successTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A' },
-  successText: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 22 },
+  successEmoji: { color: colors.primary },
+  successTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
+  successText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
 })
 
 export default withScreenBoundary(RateMission, 'RateMission')

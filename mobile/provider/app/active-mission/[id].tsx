@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
@@ -10,6 +10,7 @@ import { apiGet, apiPost, apiPatchQueued } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
+import { pickOption } from '../../src/option-sheet'
 import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
@@ -112,12 +113,11 @@ const PAUSE_REASONS = [
 ]
 
 function promptPauseReason(): Promise<string | null> {
-  return new Promise((resolve) => {
-    Alert.alert('Pause', 'Raison de la pause', [
-      ...PAUSE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
-    ])
-  })
+  return pickOption(
+    i18n.t('mission.pauseTitle', { defaultValue: 'Pause' }),
+    PAUSE_REASONS.map(r => ({ key: r.key, label: i18n.t(`mission.pauseReason_${r.key}`, { defaultValue: r.label }) })),
+    i18n.t('mission.pauseReasonPrompt', { defaultValue: 'Raison de la pause' })
+  )
 }
 
 const DISPUTE_REASONS = [
@@ -129,12 +129,11 @@ const DISPUTE_REASONS = [
 ]
 
 function promptDisputeReason(): Promise<string | null> {
-  return new Promise((resolve) => {
-    Alert.alert('Litige', 'Motif du litige', [
-      ...DISPUTE_REASONS.map(r => ({ text: r.label, onPress: () => resolve(r.key) })),
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
-    ])
-  })
+  return pickOption(
+    i18n.t('mission.disputeTitle', { defaultValue: 'Litige' }),
+    DISPUTE_REASONS.map(r => ({ key: r.key, label: i18n.t(`mission.disputeReason_${r.key}`, { defaultValue: r.label }) })),
+    i18n.t('mission.disputeReasonPrompt', { defaultValue: 'Motif du litige' })
+  )
 }
 
 function healthColor(health: 'active' | 'idle' | 'stale' | 'paused') {
@@ -780,9 +779,9 @@ const s = StyleSheet.create({
   timelineLabelActive: { color: colors.text, fontWeight: typography.weight.extrabold as any },
   timelineLabelDone: { color: colors.success, fontWeight: typography.weight.extrabold as any },
   actionBtn: { borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
-  startBtn: { backgroundColor: colors.navy },
+  startBtn: { backgroundColor: colors.navy, ...shadows.md },
   startBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
-  completeBtn: { backgroundColor: colors.success },
+  completeBtn: { backgroundColor: colors.success, ...shadows.md },
   completeBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
   chatBtn: { backgroundColor: colors.infoLight, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.info, flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
   chatBtnText: { color: colors.info, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },

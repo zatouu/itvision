@@ -45,6 +45,8 @@ export const colors = {
   border: '#E2E8F0',
   borderLight: '#E2E8F0',
   shadow: '#000000',
+  slate50: '#F8FAFC',
+  slate100: '#F1F5F9',
   // Category aliases
   categoryElectricity: '#2563EB',
   categoryPlumbing: '#0891B2',

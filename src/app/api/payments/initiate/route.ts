@@ -10,7 +10,7 @@ import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { offerPaymentInitSchema, validate } from '@/lib/validation'
 
-const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
+const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']
 const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
 
 const DEPOSIT_RATE = 0.25
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isBalancePhase = phase === 'balance'
+    const isManual = provider === 'wave_qr'
 
     // Vérifier que l'offre est encore disponible
     if (isBalancePhase) {
@@ -160,6 +161,8 @@ export async function POST(request: NextRequest) {
         useEscrow,
         externalId: result.externalId,
         checkoutUrl: result.checkoutUrl,
+        manualConfirm: !!result.manualConfirm,
+        reference: result.manualConfirm ? `XEUY-${Math.random().toString(36).slice(2, 8).toUpperCase()}` : undefined,
         escrowPointsCharged,
       })
     } catch (createErr) {
@@ -190,6 +193,8 @@ export async function POST(request: NextRequest) {
       success: true,
       payment,
       checkoutUrl: result.checkoutUrl,
+      manualConfirm: !!result.manualConfirm,
+      reference: payment.reference,
       useEscrow,
       escrowPointsCharged,
       depositAmount,

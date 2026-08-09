@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { loadInitial, toggleOnline, subscribe } from '../src/online'
 import { getAuthUser } from '../src/auth'
+import { toast } from '../src/toast'
 import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
@@ -255,7 +256,7 @@ function Home() {
 
   const goNearby = () => {
     if (!online) {
-      Alert.alert(
+      toast.info(
         t('home.offlineAlert', { defaultValue: 'Hors ligne' }),
         t('home.offlineAlertMsg', { defaultValue: 'Passez en ligne pour voir les demandes proches.' })
       )
@@ -364,7 +365,7 @@ function Home() {
                     <Text style={s.statusMeta}>{gpsActive ? 'GPS actif' : 'GPS inactif'}</Text>
                     <View style={s.statusDotSmall} />
                     <Text style={s.statusMeta}>{synced ? 'Sync OK' : 'Hors sync'}</Text>
-                    <TouchableOpacity style={s.radiusBtn} onPress={() => Alert.alert('Visibilité', 'Gestion du rayon de visibilité bientôt disponible.')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity style={s.radiusBtn} onPress={() => router.push('/profile-detail?section=visibility')} hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }} accessibilityRole="button">
                       <Text style={s.radiusBtnText}>Gérer</Text>
                     </TouchableOpacity>
                   </View>
@@ -379,7 +380,7 @@ function Home() {
             onValueChange={handleToggle}
             disabled={busy}
             trackColor={{ false: '#CBD5E1', true: '#22C55E' }}
-            thumbColor='#fff'
+            thumbColor={colors.surface}
             ios_backgroundColor="#CBD5E1"
           />
         </View>
@@ -399,7 +400,7 @@ function Home() {
             label="Demandes proches"
             subLabel={`${todayNearby} aujourd'hui · ${activityLabel}`}
             icon={<MapPin size={22} color={colors.info} />}
-            iconBg="#EFF6FF"
+            iconBg={colors.infoLight}
             iconColor={colors.info}
             onPress={goNearby}
           />
@@ -428,10 +429,10 @@ function Home() {
             label="Revenus du jour"
             subLabel={`Sem. ${weeklyRevenue} · Mois ${monthlyRevenue}`}
             icon={<Banknote size={22} color={colors.navy} />}
-            iconBg="#F1F5F9"
+            iconBg={colors.slate100}
             iconColor={colors.navy}
             right={
-              <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={hideRevenue ? t('home.showRevenue', { defaultValue: 'Afficher les revenus' }) : t('home.hideRevenue', { defaultValue: 'Masquer les revenus' })}>
                 {hideRevenue ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
               </TouchableOpacity>
             }
@@ -468,7 +469,7 @@ function Home() {
               <Text style={s.actionHeroSub}>{online ? (nearbyCount > 0 ? `${nearbyCount} demande(s) autour de vous` : 'Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.') : t('home.activateToReceive', { defaultValue: 'Activez-vous pour recevoir des demandes' })}</Text>
             </>
           )}
-          <View style={s.actionHeroArrow}><ChevronRight size={20} color="#fff" /></View>
+          <View style={s.actionHeroArrow}><ChevronRight size={20} color={colors.surface} /></View>
         </AnimatedTouchableOpacity>
 
         <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
@@ -482,7 +483,7 @@ function Home() {
 
         <View style={s.adviceCard}>
           <View style={s.adviceHeader}>
-            <View style={[s.adviceTag, { backgroundColor: '#EFF6FF' }]}>
+            <View style={[s.adviceTag, { backgroundColor: colors.infoLight }]}>
               <Text style={[s.adviceTagText, { color: colors.info }]}>Conseil</Text>
             </View>
             <Text style={s.advicePaging}>{safeTipIndex + 1} / {currentTips.length}</Text>
@@ -553,19 +554,19 @@ const s = StyleSheet.create({
   statusText: { flex: 1 },
   statusDot: { width: 12, height: 12, borderRadius: 6 },
   statusDotOnline: { backgroundColor: '#86EFAC' },
-  statusDotOffline: { backgroundColor: '#94A3B8' },
-  statusTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: '#F1F5F9' },
-  statusTitleOnline: { color: '#fff' },
+  statusDotOffline: { backgroundColor: colors.textMuted },
+  statusTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.slate100 },
+  statusTitleOnline: { color: colors.surface },
   statusTitleOffline: { color: '#374151' },
-  statusSub: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
-  statusSubOnline: { color: '#DCFCE7' },
+  statusSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  statusSubOnline: { color: colors.successLight },
   statusSubOffline: { color: '#6B7280' },
   statusMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, flexWrap: 'wrap' },
   statusMeta: { fontSize: 11, color: 'rgba(255,255,255,0.9)' },
   statusMetaOffline: { color: '#6B7280' },
   statusDotSmall: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.6)' },
   radiusBtn: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.2)' },
-  radiusBtnText: { fontSize: 11, color: '#fff', fontWeight: '600' },
+  radiusBtnText: { fontSize: 11, color: colors.surface, fontWeight: '600' },
   activityCard: { marginHorizontal: spacing.lg, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   activityDot: { width: 8, height: 8, borderRadius: 4 },
   activityText: { flex: 1, fontSize: 13, color: colors.textSecondary },
@@ -575,23 +576,23 @@ const s = StyleSheet.create({
   actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
   actionDisabled: { opacity: 0.55 },
   actionHeroTag: { alignSelf: 'flex-start', backgroundColor: '#2563EB', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.md },
-  actionHeroTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: '#fff' },
-  actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: '#fff', marginBottom: 2 },
-  actionHeroSub: { fontSize: 14, color: '#94A3B8' },
+  actionHeroTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
+  actionHeroSub: { fontSize: 14, color: colors.textMuted },
   actionHeroArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  actionHeroArrowText: { color: '#fff' },
+  actionHeroArrowText: { color: colors.surface },
   requestHero: { gap: spacing.sm },
   requestHeroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  requestHeroDistance: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  requestHeroCategory: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: '#fff', marginBottom: 2 },
-  requestHeroPrice: { fontSize: 16, fontWeight: '700', color: '#DCFCE7' },
-  requestHeroRemaining: { fontSize: 13, color: '#94A3B8' },
-  requestHeroCta: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  requestHeroDistance: { fontSize: 14, fontWeight: '700', color: colors.surface },
+  requestHeroCategory: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
+  requestHeroPrice: { fontSize: 16, fontWeight: '700', color: colors.successLight },
+  requestHeroRemaining: { fontSize: 13, color: colors.textMuted },
+  requestHeroCta: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   requestHeroCtaText: { color: colors.navy, fontWeight: '700', fontSize: 14 },
   actionRow: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: 'relative', ...shadows.sm },
   adviceCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, paddingTop: spacing.md, ...shadows.sm, overflow: 'hidden' },
   adviceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  adviceTag: { alignSelf: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  adviceTag: { alignSelf: 'flex-start', backgroundColor: colors.infoLight, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4 },
   adviceTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.info },
   advicePaging: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.textMuted },
   advicePage: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
@@ -600,7 +601,7 @@ const s = StyleSheet.create({
   adviceDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.md },
   adviceDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
   adviceDotActive: { backgroundColor: colors.info },
-  actionRowTag: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.sm },
+  actionRowTag: { alignSelf: 'flex-start', backgroundColor: colors.slate100, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.sm },
   actionRowTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary },
   actionRowTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: 2 },
   actionRowSub: { fontSize: 13, color: colors.textSecondary },

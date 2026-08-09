@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, Alert, Platform, ActionSheetIOS } from 'react-native'
+
+import { colors } from '../src/design'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +9,8 @@ import { apiGet, apiGetRetry, apiUpload, apiPatch } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import TabBar from '../src/components/TabBar'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
+import { toast } from '../src/toast'
+import { pickOption } from '../src/option-sheet'
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
@@ -34,24 +38,13 @@ function Profile() {
       .catch(() => {})
   }, [])
 
-  const promptAvatarSource = (): Promise<'camera' | 'gallery' | 'avatar' | null> => {
-    return new Promise((resolve) => {
-      const options = [t('profile.avatarCamera'), t('profile.avatarGallery'), t('profile.avatarGenerated'), t('common.cancel')]
-      const actions: Array<'camera' | 'gallery' | 'avatar' | null> = ['camera', 'gallery', 'avatar', null]
-      if (Platform.OS === 'ios') {
-        ActionSheetIOS.showActionSheetWithOptions(
-          { options, cancelButtonIndex: 3, title: t('profile.avatarTitle') },
-          (idx) => resolve(actions[idx] ?? null)
-        )
-      } else {
-        Alert.alert(t('profile.avatarTitle'), '', [
-          { text: options[0], onPress: () => resolve('camera') },
-          { text: options[1], onPress: () => resolve('gallery') },
-          { text: options[2], onPress: () => resolve('avatar') },
-          { text: options[3], style: 'cancel', onPress: () => resolve(null) },
-        ], { cancelable: true })
-      }
-    })
+  const promptAvatarSource = async (): Promise<'camera' | 'gallery' | 'avatar' | null> => {
+    const key = await pickOption(t('profile.avatarTitle'), [
+      { key: 'camera', label: t('profile.avatarCamera') },
+      { key: 'gallery', label: t('profile.avatarGallery') },
+      { key: 'avatar', label: t('profile.avatarGenerated') },
+    ])
+    return key === 'camera' || key === 'gallery' || key === 'avatar' ? key : null
   }
 
   const changeAvatar = async () => {
@@ -79,7 +72,7 @@ function Profile() {
       await updateAuthUser({ avatarUrl })
       setUser(getAuthUser())
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo')
+      toast.error('Erreur', e.message || 'Impossible de mettre à jour la photo')
     }
   }
 
@@ -124,7 +117,7 @@ function Profile() {
               </View>
             )}
             <View style={s.cameraBadge}>
-              <Camera size={16} color="#fff" />
+              <Camera size={16} color={colors.surface} />
             </View>
           </TouchableOpacity>
           <Text style={s.name}>{user?.name || t('profile.defaultName')}</Text>
@@ -175,16 +168,16 @@ function Profile() {
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/wallet')}>
           <Text style={s.menuText}>{t('profile.wallet')}</Text>
-          <ChevronRight size={18} color="#94A3B8" />
+          <ChevronRight size={18} color={colors.textMuted} />
         </TouchableOpacity>
 
         <TouchableOpacity style={s.menuItem} onPress={() => router.push('/my-requests')}>
           <Text style={s.menuText}>{t('home.myRequests')}</Text>
-          <ChevronRight size={18} color="#94A3B8" />
+          <ChevronRight size={18} color={colors.textMuted} />
         </TouchableOpacity>
 
         <View style={{ marginVertical: 16 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 8 }}>{t('profile.language')}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8 }}>{t('profile.language')}</Text>
           <LanguagePicker />
         </View>
 
@@ -199,34 +192,34 @@ function Profile() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.slate50 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   backIcon: { color: '#111827' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
   body: { padding: 20, gap: 20 },
   avatarBox: { alignItems: 'center', gap: 8, marginVertical: 16 },
   avatarWrap: { position: 'relative' },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },
-  avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0' },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.border },
+  avatarText: { color: colors.surface, fontSize: 28, fontWeight: '700' },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
   name: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  phone: { fontSize: 14, color: '#64748B' },
+  phone: { fontSize: 14, color: colors.textSecondary },
   statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  statNum: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
-  statLabel: { fontSize: 12, color: '#64748B', marginTop: 4 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  statNum: { fontSize: 20, fontWeight: '800', color: colors.text },
+  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border },
   menuText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
-  menuArrow: { color: '#94A3B8' },
+  menuArrow: { color: colors.textMuted },
   referralCard: { backgroundColor: '#ECFDF5', borderRadius: 14, padding: 18, borderWidth: 1.5, borderColor: '#A7F3D0', gap: 10 },
   referralTitle: { fontSize: 16, fontWeight: '800', color: '#065F46' },
   referralSubtitle: { fontSize: 12, color: '#047857', lineHeight: 18 },
-  referralCodeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#D1FAE5' },
-  referralCode: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: 3, flex: 1 },
+  referralCodeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#D1FAE5' },
+  referralCode: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: 3, flex: 1 },
   referralShareBtn: { backgroundColor: '#059669', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  referralShareText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  referralShareText: { color: colors.surface, fontWeight: '700', fontSize: 13 },
   referralRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
   referralStat: { flex: 1, alignItems: 'center' },
   referralStatNum: { fontSize: 15, fontWeight: '800', color: '#065F46' },

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Animated, AppState } from 'react-native'
 import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
@@ -6,6 +6,7 @@ import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { toast } from '../src/toast'
 import { apiGet, apiPostQueued } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
@@ -113,7 +114,7 @@ function NearbyRequests() {
       status = req.status
     }
     if (status !== 'granted') {
-      Alert.alert(t('nearby.permissionRequired'), t('nearby.permissionMsg'))
+      toast.info(t('nearby.permissionRequired'), t('nearby.permissionMsg'))
       return lastCoordsRef.current
     }
 
@@ -221,7 +222,7 @@ function NearbyRequests() {
       loadRef.current(c, false, true)
     }
     const handleAccepted = (data: any) => {
-      Alert.alert(t('nearby.offerAccepted'), t('nearby.offerAcceptedMsg'))
+      toast.success(t('nearby.offerAccepted'), t('nearby.offerAcceptedMsg'))
       const requestId = data?.requestId
       if (requestId) {
         setItems(prev => prev.filter(it => String(it._id) !== String(requestId)))
@@ -418,11 +419,11 @@ function NearbyRequests() {
                     >
                       <View style={s.markerWrap}>
                         <View style={[s.mapMarker, { backgroundColor: color }]}>
-                          <Icon size={16} color="#fff" />
+                          <Icon size={16} color={colors.surface} />
                         </View>
                         <View style={[s.mapMarkerTail, { borderTopColor: color }]} />
                         {(hasAudio || hasPhoto || hasVideo) && (
-                          <View style={[s.markerBadge, { backgroundColor: '#0F172A' }]}>
+                          <View style={[s.markerBadge, { backgroundColor: colors.text }]}>
                             <Text style={s.markerBadgeText}>{hasAudio ? '♪' : '📷'}</Text>
                           </View>
                         )}
@@ -466,7 +467,7 @@ function NearbyRequests() {
         >
           {items.length === 0 && (
             <EmptyState
-              icon={<MapPin size={32} color="#94A3B8" />}
+              icon={<MapPin size={32} color={colors.textMuted} />}
               title={t('nearby.noRequests')}
               subtitle={t('nearby.noRequestsSub')}
             />
@@ -477,7 +478,7 @@ function NearbyRequests() {
               <View style={s.cardHead}>
                 <View style={s.catRow}>
                   <View style={[s.catMonogram, { backgroundColor: catMap[it.category]?.color || '#475569' }]}>
-                    {(() => { const Icon = getCategoryIcon(it.category); return <Icon size={16} color="#fff" /> })()}
+                    {(() => { const Icon = getCategoryIcon(it.category); return <Icon size={16} color={colors.surface} /> })()}
                   </View>
                   <Text style={s.catText}>{catMap[it.category]?.label || it.category}</Text>
                 </View>
@@ -505,7 +506,7 @@ function NearbyRequests() {
                       <Image
                         key={i}
                         source={{ uri }}
-                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 6, backgroundColor: '#F1F5F9' }}
+                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 6, backgroundColor: colors.slate100 }}
                       />
                     )
                   })}
@@ -673,10 +674,10 @@ function NearbyRequests() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, backgroundColor: colors.surface },
-  backBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   backIcon: { color: colors.text },
   title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  refreshBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  refreshBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   refreshIcon: { color: colors.text },
   scopeChip: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, paddingVertical: 8, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#BFDBFE' },
   scopeChipTxt: { fontSize: 12, fontWeight: typography.weight.semibold as any, color: colors.info, textAlign: 'center' },
@@ -695,9 +696,9 @@ const s = StyleSheet.create({
   mapMarkerText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   mapMarkerTail: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -1 },
   markerBadge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.surface },
-  markerBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  markerBadgeText: { fontSize: 9, fontWeight: '800', color: colors.surface },
   markerBudget: { position: 'absolute', bottom: -10, backgroundColor: 'rgba(15,23,42,0.85)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
-  markerBudgetText: { fontSize: 9, fontWeight: '700', color: '#fff' },
+  markerBudgetText: { fontSize: 9, fontWeight: '700', color: colors.surface },
   mapLegend: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, ...shadows.md },
   legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success, opacity: 0.7 },
   legendText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
@@ -737,20 +738,20 @@ const s = StyleSheet.create({
   audioFirstLabel: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: '#166534', marginBottom: 8 },
   mediaThumbWrap: { width: 100, height: 100, borderRadius: radius.md, marginRight: 8, backgroundColor: colors.bg, overflow: 'hidden' },
   mediaThumb: { width: 100, height: 100 },
-  videoBadge: { position: 'absolute', top: 6, right: 6, fontSize: 16, color: '#fff', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
-  unlockBox: { backgroundColor: '#E6F4EC', borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
-  unlockTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#065F3A' },
-  unlockSub: { fontSize: 13, color: '#0F7B4F', marginTop: 4, marginBottom: 12 },
-  unlockBtn: { backgroundColor: '#0F7B4F', borderRadius: radius.lg, paddingVertical: 12, alignItems: 'center' },
-  unlockBtnText: { color: '#fff', fontWeight: typography.weight.extrabold as any, fontSize: 15 },
+  videoBadge: { position: 'absolute', top: 6, right: 6, fontSize: 16, color: colors.surface, textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  unlockBox: { backgroundColor: colors.primaryLight, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
+  unlockTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.primaryDark },
+  unlockSub: { fontSize: 13, color: colors.primary, marginTop: 4, marginBottom: 12 },
+  unlockBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 12, alignItems: 'center' },
+  unlockBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: 15 },
   priceTextInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text, backgroundColor: colors.surface },
   quickPriceRow: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 12 },
   quickPriceChip: { backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
   quickPriceChipText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
-  modalBackBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  modalBackBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   modalBackIcon: { color: colors.text },
-  modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  modalCloseBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   modalCloseIcon: { color: colors.text },
   modalTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   modalRecap: { backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.md, gap: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
@@ -784,7 +785,7 @@ const s = StyleSheet.create({
   secureBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
   secureIcon: { color: colors.info },
   secureText: { flex: 1, fontSize: 13, color: colors.info, fontWeight: typography.weight.extrabold as any },
-  sendOfferBtn: { backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, alignItems: 'center', marginTop: spacing.md },
+  sendOfferBtn: { backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, minHeight: 56, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, ...shadows.md },
   sendOfferBtnDisabled: { opacity: 0.45 },
   sendOfferBtnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
 })

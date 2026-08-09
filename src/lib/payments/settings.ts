@@ -30,6 +30,8 @@ export type PaymentSettings = {
   providers: {
     manual: {
       waveMerchantPhone: string
+      waveQrUrl: string
+      wavePayUrl: string
       orangeMerchantPhone: string
       freeMoneyMerchantPhone: string
       instructions: string
@@ -146,6 +148,8 @@ const DEFAULT_SETTINGS: PaymentSettings = {
   providers: {
     manual: {
       waveMerchantPhone: '+221770000000',
+      waveQrUrl: '',
+      wavePayUrl: '',
       orangeMerchantPhone: '+221760000000',
       freeMoneyMerchantPhone: '+221780000000',
       instructions: "Paiement à la livraison ou retrait au bureau."
@@ -218,6 +222,8 @@ export function readPaymentSettings(): PaymentSettings {
       providers: {
         manual: {
           waveMerchantPhone: process.env.WAVE_MERCHANT_PHONE || parsed?.providers?.manual?.waveMerchantPhone || DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
+          waveQrUrl: process.env.WAVE_QR_URL || parsed?.providers?.manual?.waveQrUrl || DEFAULT_SETTINGS.providers.manual.waveQrUrl,
+          wavePayUrl: process.env.WAVE_PAY_URL || parsed?.providers?.manual?.wavePayUrl || DEFAULT_SETTINGS.providers.manual.wavePayUrl,
           orangeMerchantPhone: process.env.ORANGE_MERCHANT_PHONE || parsed?.providers?.manual?.orangeMerchantPhone || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
           freeMoneyMerchantPhone: process.env.FREE_MONEY_MERCHANT_PHONE || parsed?.providers?.manual?.freeMoneyMerchantPhone || DEFAULT_SETTINGS.providers.manual.freeMoneyMerchantPhone,
           instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
@@ -257,6 +263,8 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
     providers: {
       manual: {
         waveMerchantPhone: payload.providers?.manual?.waveMerchantPhone ?? current.providers.manual.waveMerchantPhone,
+          waveQrUrl: payload.providers?.manual?.waveQrUrl ?? current.providers.manual.waveQrUrl,
+          wavePayUrl: payload.providers?.manual?.wavePayUrl ?? current.providers.manual.wavePayUrl,
         orangeMerchantPhone: payload.providers?.manual?.orangeMerchantPhone ?? current.providers.manual.orangeMerchantPhone,
         freeMoneyMerchantPhone: payload.providers?.manual?.freeMoneyMerchantPhone ?? current.providers.manual.freeMoneyMerchantPhone,
         instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions

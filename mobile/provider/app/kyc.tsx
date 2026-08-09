@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native'
+
+import { colors, radius, shadows } from '../src/design'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { Image } from 'expo-image'
 import { TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost, apiUpload } from '../src/api'
+import { toast } from '../src/toast'
 import { pickMedia, captureMedia } from '../src/media'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
@@ -44,13 +47,13 @@ function KycScreen() {
         : await pickMedia({ maxFiles: 1 })
       if (picked.length > 0) setter(picked[0].uri)
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || t('kyc.uploadError'))
+      toast.error(t('common.error'), e?.message || t('kyc.uploadError'))
     }
   }
 
   const submit = async () => {
     if (!fullName.trim() || !trade.trim() || !idFrontUri || !selfieUri) {
-      Alert.alert(t('kyc.missingFields'), t('kyc.missingFieldsMsg'))
+      toast.info(t('kyc.missingFields'), t('kyc.missingFieldsMsg'))
       return
     }
     setSubmitting(true)
@@ -79,9 +82,9 @@ function KycScreen() {
       })
 
       setStatus('pending')
-      Alert.alert(t('kyc.submitSuccess'), t('kyc.submitSuccessMsg'))
+      toast.success(t('kyc.submitSuccess'), t('kyc.submitSuccessMsg'))
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('kyc.submitError'))
+      toast.error(t('common.error'), e.message || t('kyc.submitError'))
     }
     setSubmitting(false)
   }
@@ -89,7 +92,7 @@ function KycScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.safe}>
-        <View style={s.center}><ActivityIndicator size="large" color="#0F7B4F" /></View>
+        <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       </SafeAreaView>
     )
   }
@@ -98,7 +101,7 @@ function KycScreen() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <CheckCircle2 size={48} color="#16A34A" />
+          <CheckCircle2 size={48} color={colors.success} />
           <Text style={s.statusTitle}>{t('kyc.approved')}</Text>
           <Text style={s.statusSub}>{t('kyc.approvedMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -113,7 +116,7 @@ function KycScreen() {
     return (
       <SafeAreaView style={s.safe}>
         <View style={s.center}>
-          <Clock size={48} color="#0F7B4F" />
+          <Clock size={48} color={colors.primary} />
           <Text style={s.statusTitle}>{t('kyc.pending')}</Text>
           <Text style={s.statusSub}>{t('kyc.pendingMsg')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => router.back()}>
@@ -126,9 +129,10 @@ function KycScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={22} color="#0F172A" />
+          <ArrowLeft size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('kyc.title')}</Text>
         <View style={{ width: 28 }} />
@@ -194,28 +198,29 @@ function KycScreen() {
           disabled={submitting}
           onPress={submit}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.submitText}>{t('kyc.submit')}</Text>}
+          {submitting ? <ActivityIndicator color={colors.surface} /> : <Text style={s.submitText}>{t('kyc.submit')}</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.slate50 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  backIcon: { color: '#0F172A' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
+  backIcon: { color: colors.text },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
   body: { padding: 20, gap: 12, paddingBottom: 40 },
-  badge: { color: '#0F172A' },
-  statusTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A' },
-  statusSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: '#0F172A', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 8 },
-  btnText: { color: '#fff', fontWeight: '600' },
+  badge: { color: colors.text },
+  statusTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+  statusSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  btn: { backgroundColor: colors.navy, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 14, marginTop: 8, ...shadows.sm },
+  btnText: { color: colors.surface, fontWeight: '600' },
   rejectedBox: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: '#FECACA' },
   rejectedTitle: { fontSize: 15, fontWeight: '700', color: '#DC2626' },
   rejectedReason: { fontSize: 13, color: '#991B1B' },
@@ -225,18 +230,18 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#475569' },
   hint: { fontSize: 11, color: '#9CA3AF' },
   input: {
-    backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0',
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#0F172A',
+    backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.text,
   },
   photoBtn: {
-    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, borderColor: '#E2E8F0',
+    backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border,
     borderStyle: 'dashed', height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  photoPlaceholder: { fontSize: 14, color: '#94A3B8' },
+  photoPlaceholder: { fontSize: 14, color: colors.textMuted },
   photoPreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  submitBtn: { backgroundColor: '#059669', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
+  submitBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', marginTop: 12, ...shadows.md },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  submitText: { color: colors.surface, fontSize: 16, fontWeight: '700' },
 })
 
 export default withScreenBoundary(KycScreen, 'KYC')

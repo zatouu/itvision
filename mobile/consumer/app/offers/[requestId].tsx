@@ -10,6 +10,7 @@ import { Star, Check, Clock, SlidersHorizontal } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import { apiGet, apiPost } from '../../src/api'
 import { confirm } from '../../src/confirm'
+import { toast } from '../../src/toast'
 
 const SORTS = ['recommended', 'cheapest', 'fastest', 'bestRated']
 
@@ -42,7 +43,7 @@ export default function OffersReceived() {
       setRequest(data.request || null)
       setOffers(Array.isArray(data.offers) ? data.offers : [])
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || t('offers.loadError'))
+      toast.error(t('common.error'), e?.message || t('offers.loadError'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +75,7 @@ export default function OffersReceived() {
       await apiPost(`/api/services/offers/${offer._id}/accept`, {})
       router.replace(`/mission/${requestId}`)
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || t('offers.acceptError'))
+      toast.error(t('common.error'), e?.message || t('offers.acceptError'))
     } finally {
       setAccepting(null)
     }
@@ -181,7 +182,7 @@ export default function OffersReceived() {
             <Button
               title={t('clientOffers.compare')}
               variant="secondary"
-              onPress={() => Alert.alert(t('common.comingSoon'), t('clientOffers.compareSoon'))}
+              onPress={() => toast.info(t('common.comingSoon'), t('clientOffers.compareSoon'))}
               fullWidth
               size="lg"
               icon={<SlidersHorizontal size={18} color={colors.text} />}

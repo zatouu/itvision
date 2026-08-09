@@ -9,12 +9,13 @@
  * In dev mode, all calls are mocked with instant success.
  */
 
-export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash'
+export type PaymentProvider = 'wave' | 'orange_money' | 'free_money' | 'cash' | 'wave_qr'
 
 export interface InitiateResult {
   success: boolean
   externalId: string
   checkoutUrl?: string // URL to redirect user for payment approval
+  manualConfirm?: boolean // true = validation manuelle admin requise (QR statique)
   error?: string
 }
 
@@ -197,6 +198,24 @@ async function cashRelease(externalId: string, _amount: number, _providerPhone: 
   return { success: true }
 }
 
+
+// ────── WAVE QR STATIQUE (validation manuelle admin) ──────
+// Le client scanne le QR marchand de la boutique ou envoie au numéro marchand.
+// Aucune API : le paiement arrive sur le compte Wave Business, un admin confirme.
+
+async function waveQrInitiate(_amount: number, _clientPhone: string, _description: string): Promise<InitiateResult> {
+  return {
+    success: true,
+    externalId: `waveqr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    manualConfirm: true,
+  }
+}
+
+async function waveQrRelease(externalId: string, _amount: number, providerPhone: string): Promise<ReleaseResult> {
+  // Reversement manuel depuis le compte Wave Business de la boutique
+  console.log(`[Payment/WaveQR] Manual release ${externalId} -> ${providerPhone} (${_amount} XOF)`)
+  return { success: true }
+}
 // ──── PUBLIC API ──────────────────────────────────────────────────────────────
 
 export async function initiatePayment(
@@ -210,6 +229,7 @@ export async function initiatePayment(
     case 'orange_money': return omInitiate(amount, clientPhone, description)
     case 'free_money': return freeInitiate(amount, clientPhone, description)
     case 'cash': return cashInitiate(amount, clientPhone, description)
+    case 'wave_qr': return waveQrInitiate(amount, clientPhone, description)
   }
 }
 
@@ -224,5 +244,6 @@ export async function releasePayment(
     case 'orange_money': return omRelease(externalId, amount, providerPhone)
     case 'free_money': return freeRelease(externalId, amount, providerPhone)
     case 'cash': return cashRelease(externalId, amount, providerPhone)
+    case 'wave_qr': return waveQrRelease(externalId, amount, providerPhone)
   }
 }

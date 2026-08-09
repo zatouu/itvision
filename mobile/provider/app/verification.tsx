@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
-import { ArrowLeft, ShieldCheck, Smartphone, Mail, GraduationCap, Wrench, Briefcase, FileCheck, AlertCircle, CheckCircle2, Circle, TrendingUp } from 'lucide-react-native'
+import { ArrowLeft, ShieldCheck, Smartphone, Mail, Wrench } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
@@ -12,10 +12,6 @@ const VERIFS = (data: any) => [
   { id: 'email', icon: Mail, label: 'Email', done: !!data.user?.email },
   { id: 'kyc', icon: ShieldCheck, label: 'KYC', done: data.user?.kycVerified || data.provider?.kycVerified },
   { id: 'skills', icon: Wrench, label: 'Compétences validées', done: (data.provider?.serviceCategories || []).length > 0 },
-  { id: 'diploma', icon: GraduationCap, label: 'Diplôme', done: false },
-  { id: 'insurance', icon: FileCheck, label: 'Assurance', done: false },
-  { id: 'company', icon: Briefcase, label: 'Entreprise / Registre', done: false },
-  { id: 'criminal', icon: AlertCircle, label: 'Casier judiciaire', done: false },
 ]
 
 function Verification() {
@@ -48,10 +44,6 @@ function Verification() {
               <Text style={s.scoreTitle}>Score de confiance</Text>
               <Text style={s.scoreValue}>{data.provider?.scoreXeuy || 0}/100</Text>
             </View>
-            <View style={s.badge}>
-              <TrendingUp size={14} color={colors.success} />
-              <Text style={s.badgeText}>Top 5%</Text>
-            </View>
           </View>
           <TouchableOpacity style={s.scoreBtn} onPress={() => router.push('/kyc')}>
             <Text style={s.scoreBtnText}>Compléter mes vérifications</Text>
@@ -64,7 +56,7 @@ function Verification() {
             return (
               <View key={v.id} style={[s.row, idx < items.length - 1 && s.rowBorder]}>
                 <View style={[s.icon, v.done ? s.iconDone : s.iconPending]}>
-                  <Icon size={18} color={v.done ? '#fff' : colors.textMuted} />
+                  <Icon size={18} color={v.done ? colors.surface : colors.textMuted} />
                 </View>
                 <Text style={[s.label, v.done && s.labelDone]}>{v.label}</Text>
                 <Text style={v.done ? s.statusDone : s.statusPending}>{v.done ? 'Validé' : 'À compléter'}</Text>
@@ -84,21 +76,19 @@ function Verification() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   body: { padding: spacing.lg, paddingBottom: 100 },
   scoreCard: { backgroundColor: colors.heroDark, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg },
   scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   scoreTitle: { fontSize: 15, color: 'rgba(255,255,255,0.8)' },
-  scoreValue: { fontSize: 32, fontWeight: '700', color: '#fff' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  badgeText: { fontSize: 12, color: colors.success, fontWeight: '600' },
+  scoreValue: { fontSize: 32, fontWeight: '700', color: colors.surface },
   scoreBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center' },
-  scoreBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  scoreBtnText: { color: colors.surface, fontWeight: '600', fontSize: 16 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  icon: { width: 36, height: 36, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+  icon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   iconDone: { backgroundColor: colors.success },
   iconPending: { backgroundColor: colors.bgGlobal },
   label: { flex: 1, fontSize: 16, color: colors.text, fontWeight: '500' },

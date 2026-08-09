@@ -6,8 +6,11 @@ import { colors, spacing, radius, shadows } from '../src/design'
 import { ArrowLeft, Star, User, MessageSquare } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import EmptyState from '../src/components/EmptyState'
+import { useTranslation } from 'react-i18next'
 
 function Reviews() {
+  const { t } = useTranslation()
   const [data, setData] = useState<any>({ reviews: [], stats: { average: 0, count: 0 } })
   const [loading, setLoading] = useState(true)
 
@@ -51,7 +54,7 @@ function Reviews() {
 
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
         {list.length === 0 && !loading ? (
-          <Text style={s.empty}>Aucun avis pour le moment.</Text>
+          <EmptyState icon={<MessageSquare size={32} color="#94A3B8" />} title={t('reviews.empty', { defaultValue: 'Aucun avis pour le moment.' })} />
         ) : null}
         {list.map((r: any) => (
           <View key={r._id || r.id} style={s.card}>
@@ -82,7 +85,7 @@ function Reviews() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   summary: { alignItems: 'center', marginBottom: spacing.md },
   avg: { fontSize: 48, fontWeight: '700', color: colors.text },
@@ -91,7 +94,7 @@ const s = StyleSheet.create({
   body: { padding: spacing.lg, paddingBottom: 100 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md, ...shadows.sm },
   top: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgGlobal, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgGlobal, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
   meta: { flex: 1 },
   client: { fontSize: 16, fontWeight: '600', color: colors.text },
   mission: { fontSize: 13, color: colors.textSecondary },

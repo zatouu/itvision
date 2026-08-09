@@ -1,8 +1,3 @@
-★ eas-cli@21.0.2 is now available.
-To upgrade, run:
-npm install -g eas-cli
-Proceeding with outdated version.
-
 Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
 Environment variables with visibility "Plain text" and "Sensitive" loaded from the "preview" environment on EAS: GOOGLE_SERVICES_JSON_BASE64.
 Environment variables loaded from the "ec2" build profile "env" configuration: EXPO_PUBLIC_API_BASE_URL, EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.
@@ -10,13 +5,19 @@ Environment variables loaded from the "ec2" build profile "env" configuration: E
 File specified via "android.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.
 Use EAS file environment variables with secret or sensitive visibility to pass all values that you don't want to include in your version control to build process. Learn more: https://docs.expo.dev/eas/environment-variables/#file-environment-variables
 
-- Incrementing versionCode from 30 to 31.
-✔ Incremented versionCode from 30 to 31.
+- Incrementing versionCode from 32 to 33.
+✔ Incremented versionCode from 32 to 33.
 ✔ Using remote Android credentials (Expo server)
 ✔ Using Keystore from configuration: Build Credentials 6sFzCIAuws (default)
 - Compressing project files
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@2.4.5: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated glob@6.0.4: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated uuid@9.0.1: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
 ANDROID_NDK_HOME environment variable was not specified, continuing build without NDK
-[SETUP_WORKINGDIR] Preparing workingdir /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b
+[SETUP_WORKINGDIR] Preparing workingdir /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043
 [START_BUILD] Starting build
   "job": {
     "type": "managed",
@@ -24,7 +25,7 @@ ANDROID_NDK_HOME environment variable was not specified, continuing build withou
     "projectRootDirectory": "mobile/provider",
     "projectArchive": {
       "type": "PATH",
-      "path": "/tmp/cheo/eas-cli-nodejs/cae26b29-c9fc-4e44-b763-d858f0d98d2b.tar.gz"
+      "path": "/tmp/cheo/eas-cli-nodejs/c031b5ef-262a-4d5b-8fe1-284bcb6702ce.tar.gz"
     },
     "builderEnvironment": {
       "env": {
@@ -43,7 +44,7 @@ ANDROID_NDK_HOME environment variable was not specified, continuing build withou
     "buildType": "apk",
     "username": "xeuy",
     "version": {
-      "versionCode": "31"
+      "versionCode": "33"
     },
     "experimental": {},
     "mode": "build",
@@ -127,6 +128,7 @@ Local build, skipping project archive refresh
     "expo-location": "~17.0.1",
     "expo-notifications": "~0.28.9",
     "expo-router": "~3.5.17",
+    "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.1",
     "expo-task-manager": "~11.8.2",
     "expo-updates": "~0.25.0",
@@ -151,13 +153,13 @@ Local build, skipping project archive refresh
     "typescript": "~5.3.3"
   }
 }
-[INSTALL_DEPENDENCIES] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider directory
+[INSTALL_DEPENDENCIES] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider directory
 [INSTALL_DEPENDENCIES] npm warn deprecated osenv@0.1.5: This package is no longer supported.
 [INSTALL_DEPENDENCIES] npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 [INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-optional-catch-binding@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-catch-binding instead.
-[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
-[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
 [INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
 [INSTALL_DEPENDENCIES] npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
 [INSTALL_DEPENDENCIES] npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
 [INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-logical-assignment-operators@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-logical-assignment-operators instead.
@@ -168,8 +170,8 @@ Local build, skipping project archive refresh
 [INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 [INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 [INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
-[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-async-generator-functions@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-async-generator-functions instead.
 [INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-object-rest-spread@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-object-rest-spread instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-async-generator-functions@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-async-generator-functions instead.
 [INSTALL_DEPENDENCIES] npm warn deprecated @xmldom/xmldom@0.7.13: this version has critical issues, please update to the latest version
 [INSTALL_DEPENDENCIES] npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 [INSTALL_DEPENDENCIES] npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
@@ -180,10 +182,10 @@ Local build, skipping project archive refresh
 [INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/native@6.1.18: This version is no longer supported
 [INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/elements@1.3.31: This version is no longer supported
 [INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/core@6.4.17: This version is no longer supported
-[INSTALL_DEPENDENCIES] added 1363 packages, and audited 1364 packages in 1m
+[INSTALL_DEPENDENCIES] added 1364 packages, and audited 1365 packages in 1m
 [INSTALL_DEPENDENCIES] 182 packages are looking for funding
 [INSTALL_DEPENDENCIES]   run `npm fund` for details
-[INSTALL_DEPENDENCIES] 45 vulnerabilities (1 low, 17 moderate, 26 high, 1 critical)
+[INSTALL_DEPENDENCIES] 45 vulnerabilities (1 low, 16 moderate, 27 high, 1 critical)
 [INSTALL_DEPENDENCIES] 
 [INSTALL_DEPENDENCIES] To address issues that do not require attention, run:
 [INSTALL_DEPENDENCIES]   npm audit fix
@@ -286,30 +288,30 @@ Proceeding without mode-specific .env
 }
 [RUN_EXPO_DOCTOR] Running "expo doctor"
 [RUN_EXPO_DOCTOR] Running 17 checks on your project...
-[RUN_EXPO_DOCTOR] 17/17 checks passed. No issues detected!
+[RUN_EXPO_DOCTOR] "expo doctor" timed out, skipping...
 [PREBUILD] The android project is malformed, project files will be cleared and reinitialized.
 [PREBUILD] - Clearing android
 [PREBUILD] ✔ Cleared android code
-[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
-[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
-[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
 [PREBUILD] - Creating native directory (./android)
 [PREBUILD] ✔ Created native directory
 [PREBUILD] - Updating package.json
 [PREBUILD] ✔ Updated package.json | no changes
 [PREBUILD] - Running prebuild
-[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
 [PREBUILD] - Running prebuild
 [PREBUILD] Copied google-services.json to android project
 [PREBUILD] - Running prebuild
 [PREBUILD] » android: userInterfaceStyle: Install expo-system-ui in your project to enable this feature.
 [PREBUILD] - Running prebuild
 [PREBUILD] ✔ Finished prebuild
-[PREBUILD] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider directory
-[PREBUILD] up to date, audited 1364 packages in 17s
+[PREBUILD] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider directory
+[PREBUILD] up to date, audited 1365 packages in 8s
 [PREBUILD] 182 packages are looking for funding
 [PREBUILD]   run `npm fund` for details
-[PREBUILD] 45 vulnerabilities (1 low, 17 moderate, 26 high, 1 critical)
+[PREBUILD] 45 vulnerabilities (1 low, 16 moderate, 27 high, 1 critical)
 [PREBUILD] 
 [PREBUILD] To address issues that do not require attention, run:
 [PREBUILD]   npm audit fix
@@ -324,10 +326,10 @@ Proceeding without mode-specific .env
 [PREPARE_CREDENTIALS] Injecting signing config into build.gradle
 [PREPARE_CREDENTIALS] Signing config injected
 [CONFIGURE_ANDROID_VERSION] Injecting version config into build.gradle
-[CONFIGURE_ANDROID_VERSION] Version code: 31
+[CONFIGURE_ANDROID_VERSION] Version code: 33
 [CONFIGURE_ANDROID_VERSION] Version config injected
 [CONFIGURE_EXPO_UPDATES] Setting the update request headers in 'AndroidManifest.xml' to '{"expo-channel-name":"ec2"}'
-[RUN_GRADLEW] Running 'gradlew :app:assembleRelease' in /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/android
+[RUN_GRADLEW] Running 'gradlew :app:assembleRelease' in /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android
 [RUN_GRADLEW] To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 [RUN_GRADLEW] Daemon will be stopped at the end of the build
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors
@@ -338,8 +340,8 @@ Proceeding without mode-specific .env
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:classes
 [RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:jar
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
-[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
 [RUN_GRADLEW] > Task :expo-updates-gradle-plugin:pluginDescriptors
 [RUN_GRADLEW] > Task :expo-updates-gradle-plugin:processResources
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
@@ -351,7 +353,8 @@ Proceeding without mode-specific .env
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:compileJava NO-SOURCE
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:classes
 [RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:jar
-[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileJava
+[RUN_GRADLEW] NO-SOURCE
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:classes
 [RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:jar
 [RUN_GRADLEW] > Task :expo-updates-gradle-plugin:compileKotlin
@@ -379,16 +382,17 @@ Proceeding without mode-specific .env
 [RUN_GRADLEW]   - [32mexpo-image-loader[0m (4.7.0)
 [RUN_GRADLEW]   - [32mexpo-image-picker[0m (15.1.0)
 [RUN_GRADLEW]   - [32mexpo-json-utils[0m (0.13.1)
-[RUN_GRADLEW]   - [32mexpo-keep-awake[0m (13.0.2)
+[RUN_GRADLEW] - [32mexpo-keep-awake[0m (13.0.2)
 [RUN_GRADLEW]   - [32mexpo-location[0m (17.0.1)
 [RUN_GRADLEW]   - [32mexpo-manifests[0m (0.14.3)
 [RUN_GRADLEW]   - [32mexpo-modules-core[0m (1.12.26)
 [RUN_GRADLEW]   - [32mexpo-notifications[0m (0.28.19)
+[RUN_GRADLEW]   - [32mexpo-secure-store[0m (13.0.2)
 [RUN_GRADLEW]   - [32mexpo-splash-screen[0m (0.27.7)
-[RUN_GRADLEW] - [32mexpo-structured-headers[0m (3.8.0)
+[RUN_GRADLEW]   - [32mexpo-structured-headers[0m (3.8.0)
 [RUN_GRADLEW]   - [32mexpo-task-manager[0m (11.8.2)
 [RUN_GRADLEW]   - [32mexpo-updates[0m (0.25.28)
-[RUN_GRADLEW] - [32munimodules-app-loader[0m (4.6.0)
+[RUN_GRADLEW]   - [32munimodules-app-loader[0m (4.6.0)
 [RUN_GRADLEW] > Task :app:buildKotlinToolingMetadata
 [RUN_GRADLEW] > Task :app:checkKotlinGradlePluginConfigurationErrors
 [RUN_GRADLEW] > Task :app:generateCodegenSchemaFromJavaScript SKIPPED
@@ -400,56 +404,56 @@ Proceeding without mode-specific .env
 [RUN_GRADLEW] > Task :expo:generateExpoModulesPackageListTask
 [RUN_GRADLEW] > Task :expo:preBuild
 [RUN_GRADLEW] > Task :expo:preReleaseBuild
-[RUN_GRADLEW] > Task :expo-application:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-application:preBuild
+[RUN_GRADLEW] UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-application:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-asset:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-asset:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-av:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-av:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-application:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-asset:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :expo:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-av:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-constants:createExpoConfig
-[RUN_GRADLEW] The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
-[RUN_GRADLEW] Proceeding without mode-specific .env
-[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
+[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
 [RUN_GRADLEW] > Task :expo-constants:preBuild
 [RUN_GRADLEW] > Task :expo-constants:preReleaseBuild
-[RUN_GRADLEW] > Task :expo-constants:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-client:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-client:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
+[RUN_GRADLEW] Proceeding without mode-specific .env
+[RUN_GRADLEW] > Task :expo-constants:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-launcher:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-launcher:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-client:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-menu:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-launcher:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-menu:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-launcher:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-dev-menu-interface:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-dev-menu:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :expo-dev-menu-interface:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-device:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-device:preReleaseBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-eas-client:preBuild
-[RUN_GRADLEW] UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-eas-client:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-device:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-eas-client:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-eas-client:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-file-system:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-file-system:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-eas-client:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-font:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-font:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-file-system:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-font:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-haptics:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-font:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-haptics:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-font:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-image:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-image:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-haptics:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-image-loader:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-image:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-image-loader:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-image:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-image-picker:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-image-picker:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-image-loader:writeReleaseAarMetadata
@@ -458,66 +462,818 @@ Proceeding without mode-specific .env
 [RUN_GRADLEW] > Task :expo-image-picker:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-keep-awake:preBuild
 [RUN_GRADLEW] UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-json-utils:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-keep-awake:preReleaseBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-keep-awake:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-json-utils:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-location:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-location:preReleaseBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-location:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-keep-awake:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-manifests:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-manifests:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-location:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-modules-core:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-modules-core:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-manifests:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-notifications:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-notifications:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-modules-core:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-secure-store:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-notifications:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-secure-store:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-splash-screen:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-splash-screen:preReleaseBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-notifications:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-secure-store:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :expo-structured-headers:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-structured-headers:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-structured-headers:preReleaseBuild
+[RUN_GRADLEW] UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-splash-screen:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :expo-task-manager:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-structured-headers:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-task-manager:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-task-manager:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-updates:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-updates:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-task-manager:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :expo-updates:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-updates-interface:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :expo-updates-interface:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-updates:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:preReleaseBuild
-[RUN_GRADLEW] UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-updates-interface:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :expo-updates-interface:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-community_netinfo:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :react-native-community_netinfo:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :react-native-gesture-handler:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-gesture-handler:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-community_netinfo:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :react-native-maps:preBuild UP-TO-DATE
-[RUN_GRADLEW] > Task :react-native-maps:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-gesture-handler:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :react-native-safe-area-context:preBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-maps:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-maps:writeReleaseAarMetadata
+[RUN_GRADLEW] > Task :react-native-safe-area-context:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-safe-area-context:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-screens:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-safe-area-context:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :react-native-screens:preReleaseBuild
-[RUN_GRADLEW] UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-screens:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-svg:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-svg:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :react-native-screens:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :react-native-svg:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :sentry_react-native:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :sentry_react-native:preReleaseBuild UP-TO-DATE
+[RUN_GRADLEW] > Task :react-native-svg:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :unimodules-app-loader:preBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :unimodules-app-loader:preReleaseBuild UP-TO-DATE
 [RUN_GRADLEW] > Task :sentry_react-native:writeReleaseAarMetadata
 [RUN_GRADLEW] > Task :unimodules-app-loader:writeReleaseAarMetadata
-[RUN_GRADLEW] > Task :app:checkReleaseAarMetadata
 [RUN_GRADLEW] > Task :app:createBundleReleaseJsAndAssets
-[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
-[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/6ee25045-05c8-4fcb-bcfd-d5717c42bf4b/build/mobile/provider/google-services.json
+[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
+[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
+[RUN_GRADLEW] Starting Metro Bundler
+[RUN_GRADLEW] warning: Bundler cache is empty, rebuilding (this may take a minute)
+[RUN_GRADLEW] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/google-services.json
+[RUN_GRADLEW] Android Bundled 150989ms node_modules/expo-router/entry.js (2978 modules)
+[RUN_GRADLEW] Writing bundle output to: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle
+[RUN_GRADLEW] Writing sourcemap output to: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/intermediates/sourcemaps/react/release/index.android.bundle.packager.map
+[RUN_GRADLEW] Copying 10 asset files
+[RUN_GRADLEW] Done writing bundle output
+[RUN_GRADLEW] Done writing sourcemap output
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:767:63: warning: Direct call to eval(), but lexical scope is not supported.
+[RUN_GRADLEW] ...typeof expo === "undefined" ? eval("require") : function (moduleId) {
+[RUN_GRADLEW]                                  ^~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:848:24: warning: the variable "URL" was not declared in function "_fetch"
+[RUN_GRADLEW]         props[0] = new URL(props[0], window.location?.origin).toString();
+[RUN_GRADLEW]                        ^~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:870:42: warning: the variable "fetch" was not declared in anonymous function " 23#"
+[RUN_GRADLEW]       value: wrapFetchWithWindowLocation(fetch)
+[RUN_GRADLEW]                                          ^~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:1647:20: warning: the variable "Promise" was not declared in function "promiseMethodWrapper"
+[RUN_GRADLEW]         return new Promise(function (resolve, reject) {
+[RUN_GRADLEW]                    ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:2027:18: warning: the variable "DebuggerInternal" was not declared in function "__shouldPauseOnThrow"
+[RUN_GRADLEW]           typeof DebuggerInternal !== 'undefined' &&
+[RUN_GRADLEW]                  ^~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:4654:5: warning: the variable "setImmediate" was not declared in function "handleResolved"
+[RUN_GRADLEW]     setImmediate(function () {
+[RUN_GRADLEW]     ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:6124:9: warning: the variable "setTimeout" was not declared in anonymous function " 220#"
+[RUN_GRADLEW]         setTimeout(function () {
+[RUN_GRADLEW]         ^~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8997:5: warning: the variable "Headers" was not declared in anonymous function " 295#"
+[RUN_GRADLEW]     Headers,
+[RUN_GRADLEW]     ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8998:5: warning: the variable "Request" was not declared in anonymous function " 295#"
+[RUN_GRADLEW]     Request,
+[RUN_GRADLEW]     ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:8999:5: warning: the variable "Response" was not declared in anonymous function " 295#"
+[RUN_GRADLEW]     Response
+[RUN_GRADLEW]     ^~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9156:24: warning: the variable "FileReader" was not declared in function "readBlobAsArrayBuffer"
+[RUN_GRADLEW]       var reader = new FileReader();
+[RUN_GRADLEW]                        ^~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9207:36: warning: the variable "Blob" was not declared in anonymous function " 306#"
+[RUN_GRADLEW]         } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
+[RUN_GRADLEW]                                    ^~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9209:40: warning: the variable "FormData" was not declared in anonymous function " 306#"
+[RUN_GRADLEW]         } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
+[RUN_GRADLEW]                                        ^~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9211:44: warning: the variable "URLSearchParams" was not declared in anonymous function " 306#"
+[RUN_GRADLEW] ...e if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body...
+[RUN_GRADLEW]                                  ^~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9330:26: warning: the variable "AbortController" was not declared in anonymous function " 312#"
+[RUN_GRADLEW]           var ctrl = new AbortController();
+[RUN_GRADLEW]                          ^~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9464:23: warning: the variable "XMLHttpRequest" was not declared in anonymous function " 316#"
+[RUN_GRADLEW]         var xhr = new XMLHttpRequest();
+[RUN_GRADLEW]                       ^~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:9009:71: warning: the variable "self" was not declared in anonymous function " 298#"
+[RUN_GRADLEW] ...undefined' && globalThis || typeof self !== 'undefined' && self ||
+[RUN_GRADLEW]                                       ^~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:20534:31: warning: the variable "nativeFabricUIManager" was not declared in anonymous function " 627#"
+[RUN_GRADLEW]   var _nativeFabricUIManage = nativeFabricUIManager,
+[RUN_GRADLEW]                               ^~~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:20562:21: warning: the variable "clearTimeout" was not declared in anonymous function " 627#"
+[RUN_GRADLEW]     cancelTimeout = clearTimeout;
+[RUN_GRADLEW]                     ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25192:30: warning: the variable "__REACT_DEVTOOLS_GLOBAL_HOOK__" was not declared in anonymous function " 627#"
+[RUN_GRADLEW]   if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
+[RUN_GRADLEW]                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25307:27: warning: the variable "performance" was not declared in anonymous function " 658#"
+[RUN_GRADLEW]   if ("object" === typeof performance && "function" === typeof performance.no...
+[RUN_GRADLEW]                           ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25330:26: warning: the variable "navigator" was not declared in anonymous function " 658#"
+[RUN_GRADLEW]   "undefined" !== typeof navigator && undefined !== navigator.scheduling && u...
+[RUN_GRADLEW]                          ^~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25440:37: warning: the variable "MessageChannel" was not declared in anonymous function " 658#"
+[RUN_GRADLEW]   };else if ("undefined" !== typeof MessageChannel) {
+[RUN_GRADLEW]                                     ^~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:25455:34: warning: the variable "nativeRuntimeScheduler" was not declared in anonymous function " 658#"
+[RUN_GRADLEW] ... = "undefined" !== typeof nativeRuntimeScheduler ? nativeRuntimeScheduler....
+[RUN_GRADLEW]                              ^~~~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:38749:34: warning: the variable "requestAnimationFrame" was not declared in function "start 9#"
+[RUN_GRADLEW] ...    this._animationFrame = requestAnimationFrame(this.onUpdate.bind(this));
+[RUN_GRADLEW] ^~~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:62521:38: warning: the variable "document" was not declared in anonymous function " 1771#"
+[RUN_GRADLEW] ...r useClientLayoutEffect = typeof document !== 'undefined' || typeof naviga...
+[RUN_GRADLEW] ^~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:73773:11: warning: the variable "cancelAnimationFrame" was not declared in function "cleanup"
+[RUN_GRADLEW]           cancelAnimationFrame(this.splashScreenAnimationFrame);
+[RUN_GRADLEW]           ^~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:81995:25: warning: the variable "location" was not declared in function "url"
+[RUN_GRADLEW]     loc = loc || typeof location !== "undefined" && location;
+[RUN_GRADLEW]                         ^~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:82179:35: warning: the variable "addEventListener" was not declared in anonymous function " 2702#"
+[RUN_GRADLEW] ... withEventListeners = typeof addEventListener === "function" && typeof rem...
+[RUN_GRADLEW]                                 ^~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:82179:77: warning: the variable "removeEventListener" was not declared in anonymous function " 2702#"
+[RUN_GRADLEW] ...er === "function" && typeof removeEventListener === "function";
+[RUN_GRADLEW]                                ^~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83225:16: warning: the variable "attachEvent" was not declared in anonymous function " 2725#"
+[RUN_GRADLEW]     if (typeof attachEvent === "function") {
+[RUN_GRADLEW]                ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83749:16: warning: the variable "TransformStream" was not declared in function "createPacketEncoderStream"
+[RUN_GRADLEW]     return new TransformStream({
+[RUN_GRADLEW]                ^~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83805:26: warning: the variable "TextDecoder" was not declared in function "createPacketDecoderStream"
+[RUN_GRADLEW]       TEXT_DECODER = new TextDecoder();
+[RUN_GRADLEW]                          ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:83929:28: warning: the variable "TextEncoder" was not declared in anonymous function " 2757#"
+[RUN_GRADLEW]         TEXT_ENCODER = new TextEncoder();
+[RUN_GRADLEW]                            ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:85261:33: warning: the variable "WebTransport" was not declared in function "doOpen 2#"
+[RUN_GRADLEW]           this._transport = new WebTransport(this.createUri("https"), this.op...
+[RUN_GRADLEW]                                 ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:87502:158: warning: the variable "File" was not declared in function "isBinary"
+[RUN_GRADLEW] ...| withNativeFile && obj instanceof File;
+[RUN_GRADLEW]                                       ^~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:118682:48: warning: the variable "CSSRule" was not declared in function "adoptStyleSheets"
+[RUN_GRADLEW]               rules: Array.from(sheet.rules || CSSRule, function (r, index) {
+[RUN_GRADLEW]                                                ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:125383:13: warning: the variable "createImageBitmap" was not declared in anonymous function " 4106#"
+[RUN_GRADLEW]             createImageBitmap(canvas).then(function (bitmap) {
+[RUN_GRADLEW]             ^~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128486:24: warning: the variable "indexedDB" was not declared in function "getIDB"
+[RUN_GRADLEW]             if (typeof indexedDB !== 'undefined') {
+[RUN_GRADLEW]                        ^~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128489:24: warning: the variable "webkitIndexedDB" was not declared in function "getIDB"
+[RUN_GRADLEW]             if (typeof webkitIndexedDB !== 'undefined') {
+[RUN_GRADLEW]                        ^~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128492:24: warning: the variable "mozIndexedDB" was not declared in function "getIDB"
+[RUN_GRADLEW]             if (typeof mozIndexedDB !== 'undefined') {
+[RUN_GRADLEW]                        ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128495:24: warning: the variable "OIndexedDB" was not declared in function "getIDB"
+[RUN_GRADLEW]             if (typeof OIndexedDB !== 'undefined') {
+[RUN_GRADLEW]                        ^~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128498:24: warning: the variable "msIndexedDB" was not declared in function "getIDB"
+[RUN_GRADLEW]             if (typeof msIndexedDB !== 'undefined') {
+[RUN_GRADLEW]                        ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128517:35: warning: the variable "openDatabase" was not declared in function "isIndexedDBValid"
+[RUN_GRADLEW]             var isSafari = typeof openDatabase !== 'undefined' && /(Safari|iP...
+[RUN_GRADLEW]                                   ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128531:20: warning: the variable "IDBKeyRange" was not declared in function "isIndexedDBValid"
+[RUN_GRADLEW]             typeof IDBKeyRange !== 'undefined';
+[RUN_GRADLEW]                    ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128553:34: warning: the variable "BlobBuilder" was not declared in function "createBlob"
+[RUN_GRADLEW]             var Builder = typeof BlobBuilder !== 'undefined' ? BlobBuilder : ...
+[RUN_GRADLEW]                                  ^~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128553:85: warning: the variable "MSBlobBuilder" was not declared in function "createBlob"
+[RUN_GRADLEW] ...efined' ? BlobBuilder : typeof MSBlobBuilder !== 'undefined' ? MSBlobBuild...
+[RUN_GRADLEW]                                   ^~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128553:140: warning: the variable "MozBlobBuilder" was not declared in function "createBlob"
+[RUN_GRADLEW] ...ned' ? MSBlobBuilder : typeof MozBlobBuilder !== 'undefined' ? MozBlobBuil...
+[RUN_GRADLEW]                                  ^~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128553:190: warning: the variable "WebKitBlobBuilder" was not declared in function "createBlob"
+[RUN_GRADLEW] ...ndefined' ? MozBlobBuilder : WebKitBlobBuilder;
+[RUN_GRADLEW]                                 ^~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128819:28: warning: the variable "btoa" was not declared in anonymous function " 4209#"
+[RUN_GRADLEW]               var base64 = btoa(e.target.result || '');
+[RUN_GRADLEW]                            ^~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:128832:51: warning: the variable "atob" was not declared in function "_decodeBlob"
+[RUN_GRADLEW]           var arrayBuff = _binStringToArrayBuffer(atob(encodedBlob.data));
+[RUN_GRADLEW]                                                   ^~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144280:38: warning: the variable "SharedArrayBuffer" was not declared in anonymous function " 4829#"
+[RUN_GRADLEW] ...aredArrayBufferCopy = typeof SharedArrayBuffer !== 'undefined' ? SharedArr...
+[RUN_GRADLEW]                                 ^~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144541:25: warning: the variable "Atomics" was not declared in anonymous function " 4836#"
+[RUN_GRADLEW]     '%Atomics%': typeof Atomics === 'undefined' ? undefined : Atomics,
+[RUN_GRADLEW]                         ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144556:30: warning: the variable "Float16Array" was not declared in anonymous function " 4836#"
+[RUN_GRADLEW]     '%Float16Array%': typeof Float16Array === 'undefined' ? undefined : Float...
+[RUN_GRADLEW]                              ^~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144559:38: warning: the variable "FinalizationRegistry" was not declared in anonymous function " 4836#"
+[RUN_GRADLEW] ...lizationRegistry%': typeof FinalizationRegistry === 'undefined' ? undefine...
+[RUN_GRADLEW]                               ^~~~~~~~~~~~~~~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:144599:25: warning: the variable "WeakRef" was not declared in anonymous function " 4836#"
+[RUN_GRADLEW]     '%WeakRef%': typeof WeakRef === 'undefined' ? undefined : WeakRef,
+[RUN_GRADLEW]                         ^~~~~~~
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle:151218:29: warning: the variable "Intl" was not declared in function "formatLanguageCode"
+[RUN_GRADLEW]             formattedCode = Intl.getCanonicalLocales(code)[0];
+[RUN_GRADLEW]                             ^~~~
+[RUN_GRADLEW] > Task :app:checkReleaseAarMetadata
+[RUN_GRADLEW] > Task :app:generateReleaseResValues
+[RUN_GRADLEW] > Task :app:processReleaseGoogleServices
+[RUN_GRADLEW] > Task :expo:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo:generateReleaseResources
+[RUN_GRADLEW] > Task :expo:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-application:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-application:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-application:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-asset:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-asset:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-asset:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-av:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-av:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-av:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-constants:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-constants:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-constants:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-client:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-dev-client:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-client:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-menu:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-dev-menu:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-menu:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-device:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-device:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-device:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-eas-client:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-eas-client:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-eas-client:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-file-system:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-file-system:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-file-system:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-font:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-font:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-font:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-haptics:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-haptics:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-haptics:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-image:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-image:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-image:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-image-loader:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-image-loader:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-image-loader:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-image-picker:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-image-picker:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-image-picker:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-json-utils:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-json-utils:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-json-utils:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-keep-awake:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-keep-awake:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-keep-awake:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-location:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-location:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-location:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-manifests:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-manifests:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-manifests:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-modules-core:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-modules-core:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-modules-core:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-notifications:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-notifications:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-notifications:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-secure-store:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-secure-store:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-secure-store:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-splash-screen:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-splash-screen:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-splash-screen:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-structured-headers:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-structured-headers:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-structured-headers:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-task-manager:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-task-manager:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-task-manager:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-updates:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-updates:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-updates:packageReleaseResources
+[RUN_GRADLEW] > Task :expo-updates-interface:generateReleaseResValues
+[RUN_GRADLEW] > Task :expo-updates-interface:generateReleaseResources
+[RUN_GRADLEW] > Task :expo-updates-interface:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-community_netinfo:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-community_netinfo:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-community_netinfo:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-maps:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-maps:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-maps:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-screens:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-screens:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-screens:packageReleaseResources
+[RUN_GRADLEW] > Task :react-native-svg:generateReleaseResValues
+[RUN_GRADLEW] > Task :react-native-svg:generateReleaseResources
+[RUN_GRADLEW] > Task :react-native-svg:packageReleaseResources
+[RUN_GRADLEW] > Task :sentry_react-native:generateReleaseResValues
+[RUN_GRADLEW] > Task :sentry_react-native:generateReleaseResources
+[RUN_GRADLEW] > Task :sentry_react-native:packageReleaseResources
+[RUN_GRADLEW] > Task :unimodules-app-loader:generateReleaseResValues
+[RUN_GRADLEW] > Task :unimodules-app-loader:generateReleaseResources
+[RUN_GRADLEW] > Task :unimodules-app-loader:packageReleaseResources
+[RUN_GRADLEW] > Task :app:mapReleaseSourceSetPaths
+[RUN_GRADLEW] > Task :app:generateReleaseResources
+[RUN_GRADLEW] > Task :app:packageReleaseResources
+[RUN_GRADLEW] > Task :app:createReleaseCompatibleScreenManifests
+[RUN_GRADLEW] > Task :app:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-application:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-asset:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-application:processReleaseManifest
+[RUN_GRADLEW] > Task :app:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-asset:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-av:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-constants:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-av:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-constants:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-dev-client:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-dev-launcher:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-dev-client:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-dev-launcher:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-dev-menu:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-dev-menu:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-device:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-eas-client:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-device:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-file-system:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-eas-client:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-font:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-haptics:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-font:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-file-system:processReleaseManifest
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/expo-file-system/android/src/main/AndroidManifest.xml:6:9-8:20 Warning:
+[RUN_GRADLEW] 	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:6 to replace other declarations but no other declaration present
+[RUN_GRADLEW] > Task :expo-haptics:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-image:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-image-loader:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-image:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-image-loader:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-image-picker:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-json-utils:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-keep-awake:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-json-utils:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-image-picker:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-keep-awake:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-location:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-location:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-manifests:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-modules-core:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-manifests:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-notifications:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-modules-core:processReleaseManifest
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/expo-modules-core/android/src/main/AndroidManifest.xml:8:9-11:45 Warning:
+[RUN_GRADLEW] 	meta-data#com.facebook.soloader.enabled@android:value was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+[RUN_GRADLEW] > Task :expo-secure-store:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-notifications:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-splash-screen:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-secure-store:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-splash-screen:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-structured-headers:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-task-manager:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-structured-headers:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-updates:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-task-manager:processReleaseManifest
+[RUN_GRADLEW] > Task :expo-updates-interface:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-updates:processReleaseManifest
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :expo-updates-interface:processReleaseManifest
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:processReleaseManifest
+[RUN_GRADLEW] package="com.reactnativecommunity.asyncstorage" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.asyncstorage" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-community_netinfo:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-gesture-handler:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-community_netinfo:processReleaseManifest
+[RUN_GRADLEW] package="com.reactnativecommunity.netinfo" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.reactnativecommunity.netinfo" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-gesture-handler:processReleaseManifest
+[RUN_GRADLEW] package="com.swmansion.gesturehandler" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.swmansion.gesturehandler" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-maps:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-safe-area-context:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-maps:processReleaseManifest
+[RUN_GRADLEW] package="com.rnmaps.maps" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-maps/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.rnmaps.maps" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-maps/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-screens:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-safe-area-context:processReleaseManifest
+[RUN_GRADLEW] package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-screens:processReleaseManifest
+[RUN_GRADLEW] package="com.swmansion.rnscreens" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.swmansion.rnscreens" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :react-native-svg:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :sentry_react-native:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :react-native-svg:processReleaseManifest
+[RUN_GRADLEW] package="com.horcrux.svg" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-svg/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="com.horcrux.svg" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-svg/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :sentry_react-native:processReleaseManifest
+[RUN_GRADLEW] package="io.sentry.react" found in source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+[RUN_GRADLEW] Recommendation: remove package="io.sentry.react" from the source AndroidManifest.xml: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml.
+[RUN_GRADLEW] > Task :unimodules-app-loader:extractDeepLinksRelease
+[RUN_GRADLEW] > Task :unimodules-app-loader:processReleaseManifest
+[RUN_GRADLEW] > Task :expo:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :app:mergeReleaseResources
+[RUN_GRADLEW] > Task :app:processReleaseMainManifest
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/android/app/src/main/AndroidManifest.xml Warning:
+[RUN_GRADLEW] 	provider#expo.modules.filesystem.FileSystemFileProvider@android:authorities was tagged at AndroidManifest.xml:0 to replace other declarations but no other declaration present
+[RUN_GRADLEW] > Task :app:processReleaseManifest
+[RUN_GRADLEW] > Task :expo:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-application:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-application:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-asset:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-asset:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-application:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-asset:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-av:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-av:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-constants:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-av:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-constants:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-dev-client:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-client:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-constants:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-dev-client:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-dev-launcher:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :app:processReleaseManifestForPackage
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-device:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-device:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-eas-client:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-device:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-eas-client:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-file-system:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-eas-client:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-file-system:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-font:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-dev-menu:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-file-system:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-font:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-haptics:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-font:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-haptics:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-image:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-haptics:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-image:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-image-loader:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-image-loader:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-image:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-image-picker:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-image-picker:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-image-loader:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-json-utils:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-json-utils:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-image-picker:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-keep-awake:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-keep-awake:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-json-utils:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-location:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-location:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-keep-awake:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-manifests:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-location:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-manifests:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-modules-core:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-manifests:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-modules-core:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-notifications:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-notifications:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-modules-core:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-notifications:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-secure-store:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-secure-store:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-splash-screen:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-secure-store:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-splash-screen:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-structured-headers:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-splash-screen:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-structured-headers:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-task-manager:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-structured-headers:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-task-manager:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-updates:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-task-manager:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-updates:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo-updates-interface:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-updates:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo-updates-interface:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :expo-updates-interface:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-community_netinfo:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-community_netinfo:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-gesture-handler:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-community_netinfo:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-maps:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-maps:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-maps:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-safe-area-context:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-screens:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateReleaseRFile
+[RUN_GRADLEW] > Task :react-native-svg:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :react-native-screens:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-svg:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-screens:generateReleaseRFile
+[RUN_GRADLEW] > Task :sentry_react-native:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :sentry_react-native:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :react-native-svg:generateReleaseRFile
+[RUN_GRADLEW] > Task :unimodules-app-loader:compileReleaseLibraryResources
+[RUN_GRADLEW] > Task :sentry_react-native:generateReleaseRFile
+[RUN_GRADLEW] > Task :unimodules-app-loader:parseReleaseLocalResources
+[RUN_GRADLEW] > Task :expo:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :unimodules-app-loader:generateReleaseRFile
+[RUN_GRADLEW] > Task :expo:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-application:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-application:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-modules-core:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-modules-core:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-asset:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-application:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-asset:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-av:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-asset:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-av:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-constants:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-constants:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-av:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-constants:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-client:dataBindingMergeDependencyArtifactsRelease
+[RUN_GRADLEW] > Task :expo-dev-client:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-client:dataBindingGenBaseClassesRelease
+[RUN_GRADLEW] > Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-client:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsRelease
+[RUN_GRADLEW] > Task :expo-dev-launcher:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :app:processReleaseResources
+[RUN_GRADLEW] > Task :expo-dev-launcher:dataBindingGenBaseClassesRelease
+[RUN_GRADLEW] > Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-menu:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-dev-menu-interface:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-json-utils:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-json-utils:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-manifests:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-manifests:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-menu:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-updates-interface:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-updates-interface:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-device:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-launcher:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-device:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-eas-client:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-device:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-eas-client:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-file-system:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-eas-client:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-file-system:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-font:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-file-system:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-font:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-haptics:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-font:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-haptics:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-image:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-haptics:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-image:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-image-loader:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-image:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-image-loader:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-image-loader:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-image-picker:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-image-picker:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-keep-awake:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-image-picker:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-keep-awake:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-location:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-keep-awake:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-location:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-notifications:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-location:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-notifications:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-secure-store:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-notifications:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-secure-store:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-secure-store:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-splash-screen:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-splash-screen:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-structured-headers:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-splash-screen:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-structured-headers:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-task-manager:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-structured-headers:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-task-manager:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :unimodules-app-loader:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :unimodules-app-loader:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :unimodules-app-loader:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-updates:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-task-manager:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo-updates:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:javaPreCompileRelease
+[RUN_GRADLEW] > Task :expo:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-community_netinfo:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-updates:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:compileReleaseJavaWithJavac
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/main/java/com/reactnativecommunity/asyncstorage/AsyncStorageModule.java:84: warning: [removal] onCatalystInstanceDestroy() in NativeModule has been deprecated and marked for removal
+[RUN_GRADLEW]   public void onCatalystInstanceDestroy() {
+[RUN_GRADLEW]               ^
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-async-storage/async-storage/android/src/javaPackage/java/com/reactnativecommunity/asyncstorage/AsyncStoragePackage.java uses unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] 1 warning
+[RUN_GRADLEW] > Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :react-native-community_netinfo:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-gesture-handler:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-async-storage_async-storage:bundleLibCompileToJarRelease
+[RUN_GRADLEW] > Task :react-native-community_netinfo:compileReleaseJavaWithJavac
+[RUN_GRADLEW] /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@react-native-community/netinfo/android/src/main/java/com/reactnativecommunity/netinfo/NetInfoModule.java:45: warning: [removal] onCatalystInstanceDestroy() in NativeModule has been deprecated and marked for removal
+[RUN_GRADLEW]     public void onCatalystInstanceDestroy() {
+[RUN_GRADLEW]                 ^
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] 1 warning
+[RUN_GRADLEW] > Task :react-native-community_netinfo:bundleLibCompileToJarRelease
+[RUN_GRADLEW] > Task :react-native-gesture-handler:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-maps:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :react-native-maps:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-safe-area-context:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :expo-modules-core:compileReleaseKotlin
+[RUN_GRADLEW] > Task :react-native-maps:compileReleaseJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: Some input files use unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :react-native-maps:bundleLibCompileToJarRelease
+[RUN_GRADLEW] > Task :react-native-screens:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :react-native-safe-area-context:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-screens:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-screens:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-svg:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-svg:javaPreCompileRelease
+[RUN_GRADLEW] > Task :sentry_react-native:generateReleaseBuildConfig
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileReleaseKotlin
+[RUN_GRADLEW] > Task :react-native-svg:compileReleaseJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileReleaseKotlin
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: Some input files use unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :sentry_react-native:javaPreCompileRelease
+[RUN_GRADLEW] > Task :app:javaPreCompileRelease
+[RUN_GRADLEW] > Task :react-native-screens:compileReleaseKotlin
+[RUN_GRADLEW] > Task :react-native-svg:bundleLibCompileToJarRelease
+[RUN_GRADLEW] > Task :sentry_react-native:compileReleaseJavaWithJavac
+[RUN_GRADLEW] Note: Some input files use or override a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] Note: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/@sentry/react-native/android/src/main/java/io/sentry/react/RNSentryOnDrawReporterManager.java uses unchecked or unsafe operations.
+[RUN_GRADLEW] Note: Recompile with -Xlint:unchecked for details.
+[RUN_GRADLEW] > Task :sentry_react-native:bundleLibCompileToJarRelease
+[RUN_GRADLEW] > Task :app:extractProguardFiles
+[RUN_GRADLEW] > Task :expo:mergeReleaseJniLibFolders
+[RUN_GRADLEW] > Task :expo:mergeReleaseNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo:stripReleaseDebugSymbols NO-SOURCE
+[RUN_GRADLEW] > Task :expo:copyReleaseJniLibsProjectAndLocalJars
+[RUN_GRADLEW] > Task :expo:extractDeepLinksForAarRelease
+[RUN_GRADLEW] > Task :expo:mergeReleaseShaders
+[RUN_GRADLEW] > Task :expo:compileReleaseShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo:generateReleaseAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo:packageReleaseAssets
+[RUN_GRADLEW] > Task :expo:prepareLintJarForPublish
+[RUN_GRADLEW] > Task :expo:prepareReleaseArtProfile
+[RUN_GRADLEW] > Task :expo-application:mergeReleaseJniLibFolders
+[RUN_GRADLEW] > Task :expo-application:mergeReleaseNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-application:stripReleaseDebugSymbols NO-SOURCE
+[RUN_GRADLEW] > Task :expo-application:extractDeepLinksForAarRelease
+[RUN_GRADLEW] > Task :expo-application:copyReleaseJniLibsProjectAndLocalJars
+[RUN_GRADLEW] > Task :expo-application:mergeReleaseShaders
+[RUN_GRADLEW] > Task :expo-application:compileReleaseShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-application:generateReleaseAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-application:packageReleaseAssets
+[RUN_GRADLEW] > Task :expo-application:prepareLintJarForPublish
+[RUN_GRADLEW] > Task :expo-application:prepareReleaseArtProfile
+[RUN_GRADLEW] > Task :expo-asset:mergeReleaseJniLibFolders
+[RUN_GRADLEW] > Task :expo-asset:mergeReleaseNativeLibs NO-SOURCE
+[RUN_GRADLEW] > Task :expo-asset:stripReleaseDebugSymbols NO-SOURCE
+[RUN_GRADLEW] > Task :expo-asset:extractDeepLinksForAarRelease
+[RUN_GRADLEW] > Task :expo-asset:copyReleaseJniLibsProjectAndLocalJars
+[RUN_GRADLEW] > Task :expo-asset:mergeReleaseShaders
+[RUN_GRADLEW] > Task :expo-asset:compileReleaseShaders NO-SOURCE
+[RUN_GRADLEW] > Task :expo-asset:generateReleaseAssets UP-TO-DATE
+[RUN_GRADLEW] > Task :expo-asset:packageReleaseAssets
+[RUN_GRADLEW] > Task :expo-asset:prepareReleaseArtProfile
+[RUN_GRADLEW] > Task :expo-asset:prepareLintJarForPublish
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileReleaseKotlin
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaContextPackage.kt:27:11 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaContextPackage.kt:33:27 'hasConstants: Boolean' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:59:23 'getter for uiImplementation: UIImplementation!' is deprecated. Deprecated in Java
+[RUN_GRADLEW] > Task :expo-av:configureCMakeRelWithDebInfo[arm64-v8a]
+[RUN_GRADLEW] > Task :react-native-safe-area-context:compileReleaseJavaWithJavac
+[RUN_GRADLEW] > Task :react-native-safe-area-context:bundleLibCompileToJarRelease
+[RUN_GRADLEW] Note: /tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-safe-area-context/android/src/paper/java/com/th3rdwave/safeareacontext/NativeSafeAreaContextSpec.java uses or overrides a deprecated API.
+[RUN_GRADLEW] Note: Recompile with -Xlint:deprecation for details.
+[RUN_GRADLEW] > Task :expo-av:buildCMakeRelWithDebInfo[arm64-v8a]
+[RUN_GRADLEW] > Task :react-native-screens:compileReleaseKotlin
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/RNScreensPackage.kt:42:47 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainer.kt:30:53 'FrameCallback' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenContainer.kt:30:98 'FrameCallback' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:65:27 'setter for targetElevation: Float' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt:128:27 'setter for targetElevation: Float' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt:86:34 'getter for systemWindowInsetTop: Int' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt:231:37 'setColorFilter(Int, PorterDuff.Mode): Unit' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenViewManager.kt:47:42 'setStateWrapper(StateWrapper!): Unit' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:135:47 'replaceSystemWindowInsets(Int, Int, Int, Int): WindowInsetsCompat' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:136:51 'getter for systemWindowInsetLeft: Int' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:138:51 'getter for systemWindowInsetRight: Int' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenWindowTraits.kt:139:51 'getter for systemWindowInsetBottom: Int' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarManager.kt:100:22 Parameter 'view' is never used
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarManager.kt:100:43 Parameter 'placeholder' is never used
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/SearchBarView.kt:147:43 Parameter 'flag' is never used
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/events/HeaderHeightChangeEvent.kt:6:44 'RCTEventEmitter' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:5:37 'FabricViewStateManager' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:9:48 'FabricViewStateManager' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:42 Parameter 'width' is never used
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:54 Parameter 'height' is never used
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledViewGroup.kt:11:67 Parameter 'headerHeight' is never used
+[RUN_GRADLEW] > Task :react-native-gesture-handler:compileReleaseKotlin
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.kt:69:42 'constructor ReactModuleInfo(String!, String!, Boolean, Boolean, Boolean, Boolean, Boolean)' is deprecated. Deprecated in Java
+[RUN_GRADLEW] w: file:///tmp/cheo/eas-build-local-nodejs/77b1758d-3bae-4e81-ab32-361a8c1b4043/build/mobile/provider/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/FlingGestureHandler.kt:25:26 Parameter 'event' is never used

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image, Platform, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -10,10 +10,12 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import {
   User, Camera, Star, Briefcase, Calendar, ShieldCheck, FolderOpen, MessageSquare,
   ChevronRight, Crown, Zap, Award, TrendingUp, Clock, MapPin, Sliders, Eye, Wallet,
-  CreditCard, Lock, HelpCircle, Bell, Power, CheckCircle2, Circle, Plus
+  Lock, Bell, Power, CheckCircle2, Circle, Plus
 } from 'lucide-react-native'
 import { loadCategories } from '../src/categories'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
+import { toast } from '../src/toast'
+import { pickOption } from '../src/option-sheet'
 import { updateAuthUser } from '../src/auth'
 
 const HERO_H = 280
@@ -39,8 +41,6 @@ const SECTIONS = [
       { icon: ShieldCheck, label: 'Vérification', route: '/verification' },
       { icon: MessageSquare, label: 'Avis clients', route: '/reviews' },
       { icon: Zap, label: 'Compétences', route: '/profile-detail?section=business' },
-      { icon: Award, label: 'Certifications', route: '/profile-detail?section=certifications' },
-      { icon: Briefcase, label: 'Expériences', route: '/profile-detail?section=experiences' },
       { icon: Crown, label: 'Badges', route: '/badges' },
     ],
   },
@@ -59,12 +59,8 @@ const SECTIONS = [
     title: 'Mon business',
     items: [
       { icon: TrendingUp, label: 'Performances', route: '/performance' },
-      { icon: Wallet, label: 'Wallet', route: '/profile-detail?section=wallet' },
-      { icon: CreditCard, label: 'Paiements', route: '/profile-detail?section=payments' },
+      { icon: Wallet, label: 'Wallet', route: '/wallet' },
       { icon: Crown, label: 'Premium', route: '/premium' },
-      { icon: Award, label: 'Crédits Xeuy', route: '/profile-detail?section=credits' },
-      { icon: Briefcase, label: 'Factures', route: '/profile-detail?section=invoices' },
-      { icon: TrendingUp, label: 'Historique revenus', route: '/profile-detail?section=history' },
     ],
   },
   {
@@ -72,8 +68,7 @@ const SECTIONS = [
     items: [
       { icon: User, label: 'Informations personnelles', route: '/profile-detail?section=personal' },
       { icon: Lock, label: 'Sécurité', route: '/profile-detail?section=security' },
-      { icon: Bell, label: 'Notifications', route: '/profile-detail?section=notifications' },
-      { icon: HelpCircle, label: 'Support', route: '/profile-detail?section=help' },
+      { icon: Bell, label: 'Notifications', route: '/notifications' },
     ],
   },
 ]
@@ -95,22 +90,11 @@ function Profile() {
   const [uploading, setUploading] = useState(false)
 
   const promptSource = async (): Promise<'camera' | 'gallery' | null> => {
-    return new Promise((resolve) => {
-      const options = ['Appareil photo', 'Galerie', 'Annuler']
-      if (Platform.OS === 'ios') {
-        const ActionSheetIOS = require('react-native').ActionSheetIOS
-        ActionSheetIOS.showActionSheetWithOptions(
-          { options, cancelButtonIndex: 2, title: 'Photo de profil' },
-          (idx: number) => resolve(idx === 0 ? 'camera' : idx === 1 ? 'gallery' : null)
-        )
-      } else {
-        Alert.alert('Photo de profil', '', [
-          { text: options[0], onPress: () => resolve('camera') },
-          { text: options[1], onPress: () => resolve('gallery') },
-          { text: options[2], style: 'cancel', onPress: () => resolve(null) },
-        ])
-      }
-    })
+    const key = await pickOption('Photo de profil', [
+      { key: 'camera', label: 'Appareil photo' },
+      { key: 'gallery', label: 'Galerie' },
+    ])
+    return key === 'camera' || key === 'gallery' ? key : null
   }
 
   const uploadAvatar = async () => {
@@ -127,7 +111,7 @@ function Profile() {
       await updateAuthUser({ avatarUrl: url })
       setData((d: any) => ({ ...d, user: { ...d.user, avatarUrl: url } }))
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de mettre à jour la photo')
+      toast.error('Erreur', e.message || 'Impossible de mettre à jour la photo')
     } finally {
       setUploading(false)
     }
@@ -191,15 +175,15 @@ function Profile() {
               {u.avatarUrl ? (
                 <Image source={{ uri: resolveMediaUrl(u.avatarUrl) }} style={s.avatar} />
               ) : (
-                <View style={s.avatar}><User size={32} color="#fff" /></View>
+                <View style={s.avatar}><User size={32} color={colors.surface} /></View>
               )}
               {uploading && (
                 <View style={[s.camera, { backgroundColor: colors.textMuted }]}>
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.surface} />
                 </View>
               )}
               <TouchableOpacity style={s.camera} onPress={uploadAvatar} disabled={uploading} activeOpacity={0.8}>
-                <Camera size={12} color="#fff" />
+                <Camera size={12} color={colors.surface} />
               </TouchableOpacity>
             </View>
             <Text style={s.name}>{u.name || 'Mon profil'}</Text>
@@ -225,7 +209,7 @@ function Profile() {
             <TouchableOpacity style={s.statusRow} onPress={toggleAvailable}>
               <View style={[s.statusDot, { backgroundColor: isOnline ? colors.success : colors.danger }]} />
               <Text style={s.statusText}>{isOnline ? 'Disponible maintenant' : p.availabilityStatus}</Text>
-              <Switch value={isOnline} onValueChange={toggleAvailable} trackColor={{ false: '#444', true: colors.success }} thumbColor="#fff" style={s.statusSwitch} />
+              <Switch value={isOnline} onValueChange={toggleAvailable} trackColor={{ false: '#444', true: colors.success }} thumbColor={colors.surface} style={s.statusSwitch} />
             </TouchableOpacity>
           </View>
         </View>
@@ -321,9 +305,9 @@ const s = StyleSheet.create({
   hero: { height: HERO_H, backgroundColor: colors.heroDark, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, overflow: 'hidden' },
   heroInner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, paddingTop: 20, backgroundColor: 'rgba(15,123,79,0.35)' },
   avatarWrap: { position: 'relative', marginBottom: spacing.md },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
-  camera: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.heroGreen, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
-  name: { fontSize: 32, fontWeight: '600', color: '#fff', marginBottom: spacing.xs },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.surface },
+  camera: { position: 'absolute', bottom: 0, right: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.heroGreen, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+  name: { fontSize: 32, fontWeight: '600', color: colors.surface, marginBottom: spacing.xs },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
   verified: { fontSize: 14, color: colors.success, fontWeight: '500' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
@@ -331,17 +315,17 @@ const s = StyleSheet.create({
   dot: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.md },
   chip: { backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  chipText: { fontSize: 13, color: '#fff', fontWeight: '500' },
+  chipText: { fontSize: 13, color: colors.surface, fontWeight: '500' },
   noChip: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 13, color: '#fff', flex: 1 },
+  statusText: { fontSize: 13, color: colors.surface, flex: 1 },
   statusSwitch: { transform: [{ scale: 0.8 }] },
-  kpiCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: radius.xl, paddingVertical: spacing.lg, marginHorizontal: spacing.lg, marginTop: -32, ...shadows.md },
+  kpiCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.xl, paddingVertical: spacing.lg, marginHorizontal: spacing.lg, marginTop: -32, ...shadows.md },
   kpiCol: { flex: 1, alignItems: 'center' },
   kpiValue: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: spacing.xs },
   kpiLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  scoreCard: { backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.md },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.md },
   scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   scoreTitle: { fontSize: 15, color: colors.textSecondary },
   scoreValue: { fontSize: 28, fontWeight: '700', color: colors.text },
@@ -352,19 +336,19 @@ const s = StyleSheet.create({
   scoreDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   levelCard: { backgroundColor: colors.heroGreen, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg },
   levelTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
-  levelTitle: { fontSize: 18, fontWeight: '600', color: '#fff', flex: 1 },
+  levelTitle: { fontSize: 18, fontWeight: '600', color: colors.surface, flex: 1 },
   levelText: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: spacing.sm },
   levelLink: { alignSelf: 'flex-start', marginTop: spacing.sm },
-  levelLinkText: { fontSize: 13, color: '#fff', fontWeight: '600', textDecorationLine: 'underline' },
+  levelLinkText: { fontSize: 13, color: colors.surface, fontWeight: '600', textDecorationLine: 'underline' },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: spacing.lg, marginTop: spacing.lg, gap: spacing.md },
-  actionCard: { flex: 1, backgroundColor: '#fff', borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', ...shadows.sm },
+  actionCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', ...shadows.sm },
   actionIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   actionLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
-  sectionCard: { backgroundColor: '#fff', borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.sm },
+  sectionCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.sm },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowIcon: { width: 36, height: 36, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+  rowIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   rowLabel: { flex: 1, fontSize: 16, color: colors.text, fontWeight: '500' },
   logout: { alignSelf: 'center', marginTop: spacing.xl, marginBottom: spacing.lg },
   logoutText: { color: colors.primary, fontWeight: '600', fontSize: 15 },

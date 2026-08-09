@@ -16,7 +16,7 @@ import {
   Briefcase,
   AlertCircle,
   Settings,
-  CreditCard,
+  CreditCard, QrCode,
   ChevronRight,
   ChevronDown,
   ChevronLeft,
@@ -129,6 +129,12 @@ const menuItems: MenuItem[] = [
         label: 'Paiements',
         icon: CreditCard,
         href: '/admin/paiements'
+      },
+      {
+        id: 'paiements-qr',
+        label: 'Paiements QR',
+        icon: QrCode,
+        href: '/admin/paiements-qr'
       },
       {
         id: 'migration',

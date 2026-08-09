@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }
   assigned:          { label: 'Prestataire assigne',  color: '#065F46', dot: '#059669' },
   provider_arriving: { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
   in_progress:       { label: 'En cours',             color: '#5B21B6', dot: '#7C3AED' },
-  completed:         { label: 'Terminee',             color: '#475569', dot: '#94A3B8' },
+  completed:         { label: 'Terminee',             color: '#475569', dot: colors.textMuted },
   cancelled:         { label: 'Annulee',              color: '#991B1B', dot: '#DC2626' },
 }
 
@@ -275,7 +275,7 @@ function Home() {
         {offersPending.length > 0 && (
           <View style={s.offersBanner}>
             <View style={s.offersBannerIcon}>
-              <Zap size={20} color="#fff" />
+              <Zap size={20} color={colors.surface} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.offersBannerTitle}>{t('home.offersWaiting', { count: offersPending.length })}</Text>
@@ -286,7 +286,7 @@ function Home() {
               onPress={() => router.push({ pathname: '/request-offers', params: { id: String(offersPending[0]._id) } })}
             >
               <Text style={s.offersBannerBtnText}>{t('home.reviewOffers')}</Text>
-              <ArrowRight size={14} color="#fff" />
+              <ArrowRight size={14} color={colors.surface} />
             </TouchableOpacity>
           </View>
         )}
@@ -296,7 +296,7 @@ function Home() {
           <View style={s.missionsSection}>
             <Text style={s.missionsSectionTitle}>{t('home.activeMissions')}</Text>
             {activeMissions.map(it => {
-              const st = STATUS_LABEL[it.status] || { label: it.status, color: '#64748B', dot: '#94A3B8' }
+              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
               const catMatch = cats.find(c => c.id === it.category)
               const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
               const color = catMatch?.color || '#475569'
@@ -338,7 +338,7 @@ function Home() {
         {/* 3. CTA compact + actions rapides */}
         <View style={s.ctaRow}>
           <TouchableOpacity style={s.ctaMain} onPress={() => router.push('/create-request')} activeOpacity={0.88}>
-            <Plus size={22} color="#fff" />
+            <Plus size={22} color={colors.surface} />
             <Text style={s.ctaMainText}>{t('home.publishRequest')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.ctaEmergency} onPress={() => router.push({ pathname: '/create-request', params: { category: 'electricite' } })} activeOpacity={0.85}>
@@ -356,7 +356,7 @@ function Home() {
                 <Text style={s.nearbyCountText}>{liveProviders.length}</Text>
               </View>
             )}
-            <TouchableOpacity onPress={() => { focusOnUser(); loadRecent() }}>
+            <TouchableOpacity onPress={() => { focusOnUser(); loadRecent() }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('home.centerMap', { defaultValue: 'Centrer la carte' })}>
               <Crosshair size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -364,7 +364,7 @@ function Home() {
         <View style={s.mapCard}>
           {Platform.OS === 'web' ? (
             <View style={s.mapPlaceholder}>
-              <MapPin size={32} color="#94A3B8" />
+              <MapPin size={32} color={colors.textMuted} />
               <Text style={s.mapPlaceholderText}>{t('home.mapWeb')}</Text>
             </View>
           ) : mapLoading || !userLocation ? (
@@ -398,9 +398,9 @@ function Home() {
                 if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return null
                 const statusColor =
                   p.status === 'arriving' || p.status === 'in_progress' || p.status === 'selected' ? '#2563EB'
-                  : p.status === 'offered' ? '#0F7B4F'
+                  : p.status === 'offered' ? colors.primary
                   : p.status === 'viewing' ? '#10B981'
-                  : '#64748B'
+                  : colors.textSecondary
                 const label = p.status === 'arriving' ? t('offers.statusArriving')
                   : p.status === 'in_progress' ? t('offers.statusInProgress')
                   : p.status === 'selected' ? t('offers.statusSelected')
@@ -454,7 +454,7 @@ function Home() {
               onPress={() => router.push({ pathname: '/create-request', params: { category: c.id } })}
             >
               <View style={[s.catMonogram, { backgroundColor: c.color }]}>
-                {(() => { const Icon = getCategoryIcon(c.id); return <Icon size={20} color="#fff" /> })()}
+                {(() => { const Icon = getCategoryIcon(c.id); return <Icon size={20} color={colors.surface} /> })()}
               </View>
               <Text style={s.catLabel}>{c.label}</Text>
             </TouchableOpacity>
@@ -471,7 +471,7 @@ function Home() {
               </TouchableOpacity>
             </View>
             {otherRecent.map(it => {
-              const st = STATUS_LABEL[it.status] || { label: it.status, color: '#64748B', dot: '#94A3B8' }
+              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
               const catMatch = cats.find(c => c.id === it.category)
               const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
               const color = catMatch?.color || '#475569'
@@ -580,9 +580,9 @@ const s = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   appName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  iconBtn: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
+  iconBtn: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
-  avatarBtn: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  avatarBtn: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   greeting: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
   greetTitle: { fontSize: 26, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
@@ -592,7 +592,7 @@ const s = StyleSheet.create({
   offersBannerTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#92400E' },
   offersBannerSub: { fontSize: 12, color: '#B45309', marginTop: 2 },
   offersBannerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.warning, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexShrink: 0 },
-  offersBannerBtnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: '#fff' },
+  offersBannerBtnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.surface },
   missionsSection: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
   missionsSectionTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.xs },
   missionCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
@@ -612,7 +612,7 @@ const s = StyleSheet.create({
   howItWorksSection: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
   stepCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   stepNum: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  stepNumText: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  stepNumText: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   stepTitle: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text },
   stepSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.md, marginTop: spacing.xl },
@@ -631,12 +631,12 @@ const s = StyleSheet.create({
   mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.bg },
   mapPlaceholderText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.lg },
   nearbyCountBadge: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, minWidth: 28, alignItems: 'center' },
-  nearbyCountText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: '#fff' },
-  providerMarker: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, ...shadows.sm },
+  nearbyCountText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  providerMarker: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, ...shadows.sm },
   providerMarkerDot: { width: 7, height: 7, borderRadius: 4 },
   providerMarkerTail: { width: 0, height: 0, backgroundColor: 'transparent', borderStyle: 'solid', borderLeftWidth: 4, borderRightWidth: 4, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -2 },
   onlineBadge: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.md },
-  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16A34A' },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   onlineText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.text },
   mapFab: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.navy, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, ...shadows.md },
   mapFabText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },

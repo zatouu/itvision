@@ -117,5 +117,23 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5"
-  }
+  },
+  "description": "## Aperçu Application web Next.js (React + TypeScript) avec API routes, MongoDB (mongoose) et Prisma (optionnel). Docker/Compose et Nginx inclus pour un déploiement simple.",
+  "main": "ecosystem.config.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zatouu/itvision.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zatouu/itvision/issues"
+  },
+  "homepage": "https://github.com/zatouu/itvision#readme"
 }

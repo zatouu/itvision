@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, TextInput } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { ArrowLeft, ChevronRight, Plus } from 'lucide-react-native'
 import { apiGet, apiPatch } from '../src/api'
+import { clearAuth } from '../src/auth'
+import { resetSocket } from '../src/socket'
+import { resetNotificationBinding } from '../src/notifications'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { loadCategories } from '../src/categories'
 
@@ -197,7 +200,7 @@ function ProfileDetail() {
             {renderSwitch('Notifications push', pref.pushNotifications !== false, (v) => updatePref('pushNotifications', v))}
             {renderSwitch('Partager localisation', pref.shareLocation !== false, (v) => updatePref('shareLocation', v))}
             {renderSwitch('Profil public', pref.publicProfile === true, (v) => updatePref('publicProfile', v))}
-            <TouchableOpacity style={s.logoutBtn} onPress={() => { /* clearAuth handled elsewhere */ router.replace('/login') }}>
+            <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); resetNotificationBinding(); router.replace('/login') }}>
               <Text style={s.logoutBtnText}>Déconnexion</Text>
             </TouchableOpacity>
           </View>
@@ -226,6 +229,7 @@ function ProfileDetail() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.back}>
           <ArrowLeft size={22} color={colors.text} />
@@ -233,9 +237,10 @@ function ProfileDetail() {
         <Text style={s.title}>{title}</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {renderSection()}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -243,7 +248,7 @@ function ProfileDetail() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   body: { padding: spacing.lg, paddingBottom: 100 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm },
@@ -257,7 +262,7 @@ const s = StyleSheet.create({
   sliderTrack: { height: 6, borderRadius: radius.pill, backgroundColor: colors.bgGlobal, overflow: 'hidden', marginVertical: spacing.sm },
   sliderFill: { height: '100%', backgroundColor: colors.primary, borderRadius: radius.pill },
   sliderButtons: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  sliderBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.bgGlobal, alignItems: 'center', justifyContent: 'center' },
+  sliderBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgGlobal, alignItems: 'center', justifyContent: 'center' },
   sliderBtnText: { fontSize: 18, color: colors.text, fontWeight: '600' },
   sliderValue: { fontSize: 16, fontWeight: '600', color: colors.primary, flex: 1, textAlign: 'center' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },

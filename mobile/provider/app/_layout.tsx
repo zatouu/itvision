@@ -12,6 +12,8 @@ import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../
 import { resetSocket, emitGps } from '../src/socket'
 import { loadInitial, subscribe as subscribeOnline } from '../src/online'
 import { initSentry, setUser, clearUser } from '../src/sentry'
+import { ToastHost } from '../src/toast'
+import { OptionSheetHost } from '../src/option-sheet'
 import '../src/i18n'
 import { loadSavedLanguage } from '../src/i18n'
 
@@ -214,6 +216,8 @@ export default function Layout(){
   return (
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }} />
+      <ToastHost />
+      <OptionSheetHost />
     </SafeAreaProvider>
   )
 }

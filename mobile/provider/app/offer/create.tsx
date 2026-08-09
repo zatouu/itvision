@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
@@ -29,6 +29,7 @@ export default function CreateOffer() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
       <AppHeader title={t('providerOffer.title')} onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
         {request && (
@@ -104,6 +105,7 @@ export default function CreateOffer() {
           size="lg"
         />
       </StickyBottomBar>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

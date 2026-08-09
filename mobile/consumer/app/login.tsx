@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +7,7 @@ import { apiPost } from '../src/api'
 import { hapticSelect, hapticError } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { ArrowRight, Phone, ShieldCheck } from 'lucide-react-native'
+import Button from '../src/components/Button'
 
 export default function Login() {
   const { t } = useTranslation()
@@ -68,21 +69,14 @@ export default function Login() {
 
           {err && <Text style={s.errText}>{err}</Text>}
 
-          <TouchableOpacity
-            style={[s.btn, (!canSubmit || loading) && s.btnDisabled]}
-            disabled={!canSubmit || loading}
+          <Button
+            title={t('auth.sendCode')}
             onPress={sendOtp}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.surface} />
-            ) : (
-              <>
-                <Text style={s.btnText}>{t('auth.sendCode')}</Text>
-                <ArrowRight size={18} color={colors.surface} />
-              </>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            disabled={!canSubmit}
+            icon={<ArrowRight size={18} color={colors.surface} />}
+            fullWidth
+          />
         </View>
 
         <View style={s.trust}>
@@ -110,13 +104,6 @@ const s = StyleSheet.create({
   phoneInput: { flex: 1, borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 16, fontSize: 18, fontWeight: typography.weight.semibold as any, color: colors.text, backgroundColor: colors.surface, letterSpacing: 1 },
   hint: { fontSize: 12, color: colors.textMuted },
   errText: { fontSize: 13, color: colors.danger, textAlign: 'center', fontWeight: typography.weight.semibold as any },
-  btn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-    backgroundColor: colors.navy, borderRadius: radius.md, paddingVertical: 17,
-    marginTop: spacing.xs, ...shadows.sm,
-  },
-  btnDisabled: { opacity: 0.35 },
-  btnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
   trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 32 },
   legal: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 16, flex: 1 },
 })

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native'
+import { colors } from '../src/design'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator, RefreshControl } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -22,12 +23,12 @@ import { Bell } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
 
 const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; bg: string }> = {
-  'request-new':     { tagKey: 'notifications.kind_request',  color: '#1D4ED8', bg: '#EFF6FF' },
+  'request-new':     { tagKey: 'notifications.kind_request',  color: '#1D4ED8', bg: colors.infoLight },
   'offer-accepted':  { tagKey: 'notifications.kind_offer',    color: '#065F46', bg: '#ECFDF5' },
   'offer-rejected':  { tagKey: 'notifications.kind_offer',    color: '#991B1B', bg: '#FEF2F2' },
-  'offer-counter':   { tagKey: 'notifications.kind_negotiate', color: '#1D4ED8', bg: '#EFF6FF' },
-  'mission-update':  { tagKey: 'notifications.kind_mission',  color: '#1E293B', bg: '#F1F5F9' },
-  'info':            { tagKey: 'notifications.kind_info',    color: '#475569', bg: '#F1F5F9' },
+  'offer-counter':   { tagKey: 'notifications.kind_negotiate', color: '#1D4ED8', bg: colors.infoLight },
+  'mission-update':  { tagKey: 'notifications.kind_mission',  color: colors.navyLight, bg: colors.slate100 },
+  'info':            { tagKey: 'notifications.kind_info',    color: '#475569', bg: colors.slate100 },
 }
 
 function formatRelative(ts: number, t: any): string {
@@ -46,6 +47,17 @@ function NotificationsScreen() {
   const [items, setItems] = useState<Notification[]>([])
   const [, setTick] = useState(0)
   const [diagRunning, setDiagRunning] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const onRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const fresh = await loadBackendNotifications()
+      setItems([...fresh])
+    } catch {} finally {
+      setRefreshing(false)
+    }
+  }
 
   const runDiagnostics = async () => {
     setDiagRunning(true)
@@ -131,9 +143,11 @@ function NotificationsScreen() {
           <Text style={s.title}>{t('notifications.title')}</Text>
         </View>
         <View style={s.headerActions}>
-          <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={[s.headerBtn, s.headerBtnDebug]}>
-            {diagRunning ? <ActivityIndicator size="small" color="#0F172A" /> : <Text style={s.headerBtnText}>Tester</Text>}
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={[s.headerBtn, s.headerBtnDebug]}>
+              {diagRunning ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={s.headerBtnText}>Tester</Text>}
+            </TouchableOpacity>
+          )}
           {hasUnread && (
             <TouchableOpacity onPress={handleMarkAll} style={s.headerBtn}>
               <Text style={s.headerBtnText}>{t('notifications.markAllRead')}</Text>
@@ -147,16 +161,15 @@ function NotificationsScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={s.body}>
+      <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
         {items.length === 0 ? (
           <EmptyState
-            icon={<Bell size={32} color="#94A3B8" />}
+            icon={<Bell size={32} color={colors.textMuted} />}
             title={t('notifications.empty')}
-            subtitle=""
           />
         ) : (
           items.map(n => {
-            const meta = KIND_META[n.kind] ?? { tagKey: 'notifications.kind_info', color: '#475569', bg: '#F1F5F9' }
+            const meta = KIND_META[n.kind] ?? { tagKey: 'notifications.kind_info', color: '#475569', bg: colors.slate100 }
             return (
               <TouchableOpacity
                 key={n.id}
@@ -185,27 +198,27 @@ function NotificationsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#fff', gap: 12 },
+  safe: { flex: 1, backgroundColor: colors.slate50 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, gap: 12 },
   headerTop: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
+  title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
   headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.slate100 },
   headerBtnDanger: { backgroundColor: '#FEF2F2' },
   headerBtnDebug: { backgroundColor: '#E0F2FE' },
-  headerBtnText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  headerBtnText: { fontSize: 12, fontWeight: '700', color: colors.text },
   headerBtnTextDanger: { color: '#B91C1C' },
   body: { padding: 16, gap: 10, paddingBottom: 32 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  emptyText: { fontSize: 13, color: '#94A3B8', textAlign: 'center', lineHeight: 20, maxWidth: 280 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', position: 'relative' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  card: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, position: 'relative' },
   cardUnread: { borderColor: '#BFDBFE', backgroundColor: '#F0F9FF' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   tag: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   tagText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  time: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
+  time: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
   cardBody: { fontSize: 13, color: '#475569', lineHeight: 18 },
   unreadDot: { position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB' },
 })

@@ -6,6 +6,8 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { ArrowLeft, Plus, Image as ImageIcon, Heart, ChevronRight } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import EmptyState from '../src/components/EmptyState'
+import { useTranslation } from 'react-i18next'
 import { resolveMediaUrl } from '../src/media'
 
 const TABS = [
@@ -15,6 +17,7 @@ const TABS = [
 ]
 
 function Portfolio() {
+  const { t } = useTranslation()
   const [active, setActive] = useState('realisation')
   const [data, setData] = useState<any>({ featured: null, items: [], counts: {} })
   const [loading, setLoading] = useState(true)
@@ -87,7 +90,7 @@ function Portfolio() {
 
         <View style={s.grid}>
           {list.length === 0 && !loading ? (
-            <Text style={s.empty}>Aucun élément dans cette catégorie.</Text>
+            <EmptyState icon={<ImageIcon size={32} color={colors.textMuted} />} title={t('portfolio.emptyCategory', { defaultValue: 'Aucun élément dans cette catégorie.' })} />
           ) : null}
           {list.map((item: any) => {
             const thumb = item.images?.[0]?.url
@@ -115,7 +118,7 @@ function Portfolio() {
 
       <View style={s.footer}>
         <TouchableOpacity style={s.btnPrimary} onPress={() => router.push('/portfolio-add')}>
-          <Plus size={18} color="#fff" />
+          <Plus size={18} color={colors.surface} />
           <Text style={s.btnPrimaryText}>Ajouter une réalisation</Text>
         </TouchableOpacity>
       </View>
@@ -126,28 +129,28 @@ function Portfolio() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bgGlobal },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
-  back: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600', color: colors.text },
   editBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.bg },
   editText: { color: colors.primary, fontWeight: '600' },
   body: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   introCard: { backgroundColor: colors.heroDark, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg },
-  introTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: spacing.xs },
+  introTitle: { fontSize: 18, fontWeight: '600', color: colors.surface, marginBottom: spacing.xs },
   introDesc: { fontSize: 14, color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
   tabs: { flexDirection: 'row', paddingBottom: spacing.md, gap: spacing.sm },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabLabel: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
-  tabLabelActive: { color: '#fff' },
+  tabLabelActive: { color: colors.surface },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: spacing.md, marginTop: spacing.md },
   featured: { borderRadius: radius.xl, overflow: 'hidden', marginBottom: spacing.lg, ...shadows.md },
   featuredThumb: { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   featuredOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.45)' },
   featuredTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  loveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  loveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
   loveText: { fontSize: 11, color: colors.danger, fontWeight: '600' },
   featuredDate: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-  featuredTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
+  featuredTitle: { fontSize: 18, fontWeight: '600', color: colors.surface },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadows.sm },
   thumb: { borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
@@ -158,7 +161,7 @@ const s = StyleSheet.create({
   addText: { fontSize: 13, color: colors.primary, marginTop: spacing.xs, fontWeight: '600' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg },
   btnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md },
-  btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  btnPrimaryText: { color: colors.surface, fontWeight: '600', fontSize: 16 },
 })
 
 export default withScreenBoundary(Portfolio, 'Portfolio')
