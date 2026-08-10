@@ -335,12 +335,43 @@ function PaymentScreen() {
           </View>
         )}
 
-        {/* Paiement manuel Wave QR : instructions + référence */}
+        {/* Wave QR statique : QR marchand affiché immédiatement (avant paiement) */}
+        {selected === 'wave_qr' && manualCfg?.waveQrEnabled && !polling && !manualPending && (
+          <View style={s.qrCard}>
+            <Text style={s.qrTitle}>{t('payment.waveQrTitle', { defaultValue: 'Payer par Wave' })}</Text>
+            <Text style={s.qrHint}>
+              {t('payment.waveQrInstructions', { defaultValue: 'Scannez le QR ci-dessous avec Wave ou envoyez au numéro marchand, puis appuyez sur Payer.' })}
+            </Text>
+            {manualCfg?.waveQrUrl ? (
+              <View style={s.qrBox}>
+                <Image source={{ uri: manualCfg.waveQrUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} resizeMode="contain" />
+              </View>
+            ) : null}
+            {!!manualCfg?.waveMerchantPhone && (
+              <Text style={s.manualPhone}>{manualCfg.waveMerchantPhone}</Text>
+            )}
+            <Text style={s.manualAmount}>{payNowAmount.toLocaleString('fr-FR')} FCFA</Text>
+            {manualCfg?.wavePayUrl ? (
+              <TouchableOpacity
+                style={s.qrOpenBtn}
+                onPress={() => {
+                  const sep = manualCfg.wavePayUrl.includes('?') ? '&' : '?'
+                  Linking.openURL(`${manualCfg.wavePayUrl}${sep}amount=${payNowAmount}`)
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={s.qrOpenBtnText}>{t('payment.waveQrOpen', { defaultValue: `Ouvrir Wave — ${payNowAmount.toLocaleString('fr-FR')} FCFA` })}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
+        {/* Paiement manuel Wave QR : instructions + référence + attente confirmation */}
         {manualPending && (
           <View style={s.qrCard}>
             <Text style={s.qrTitle}>{t('payment.waveQrTitle', { defaultValue: 'Payer par Wave' })}</Text>
             <Text style={s.qrHint}>
-              {t('payment.waveQrInstructions', { defaultValue: 'Scannez le QR boutique avec Wave (ou envoyez au numéro ci-dessous), puis attendez la confirmation.' })}
+              {t('payment.waveQrInstructions', { defaultValue: 'Scannez le QR boutique avec Wave (ou envoyez au numéro ci-dessous), puis appuyez sur le bouton ci-dessous.' })}
             </Text>
             {manualCfg?.waveQrUrl ? (
               <View style={s.qrBox}>
@@ -371,6 +402,18 @@ function PaymentScreen() {
               <Clock size={16} color={colors.warning} />
               <Text style={s.manualWaitingText}>{t('payment.waveQrWaiting', { defaultValue: 'En attente de confirmation par la boutique…' })}</Text>
             </View>
+            <TouchableOpacity
+              style={s.ipaidBtn}
+              onPress={() => {
+                hapticSelect()
+                stopPolling()
+                setManualPending(null)
+                initiate()
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={s.ipaidBtnText}>{t('payment.ipaidVerify', { defaultValue: "J'ai payé — vérifier" })}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -463,6 +506,8 @@ const s = StyleSheet.create({
   manualAmount: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
   manualWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   manualWaitingText: { fontSize: 12, color: colors.warning, fontWeight: typography.weight.semibold as any },
+  ipaidBtn: { backgroundColor: colors.success, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, marginTop: spacing.sm, ...shadows.md },
+  ipaidBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(PaymentScreen, 'Payment')

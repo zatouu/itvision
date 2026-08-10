@@ -31,9 +31,14 @@ console.log(`[Payment] Mode: ${isDev ? 'MOCK (paiements simulés)' : 'PROD (Wave
 // ──── WAVE ────────────────────────────────────────────────────────────────────
 
 async function waveInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
-  // Sans clé API Wave (ou mock activé), on bascule sur le flux QR manuel.
-  if (isDev || !process.env.WAVE_API_KEY) {
-    console.log(`[Payment/Wave] No API key/mock → manual QR flow for ${amount} XOF`)
+  // En dev/mock : auto-success comme OM et Free Money (pas de validation manuelle)
+  if (isDev) {
+    console.log(`[Payment/Wave] DEV: hold ${amount} XOF from ${clientPhone}`)
+    return { success: true, externalId: `wave_dev_${Date.now()}` }
+  }
+  // Sans clé API Wave en prod : bascule sur le flux QR manuel
+  if (!process.env.WAVE_API_KEY) {
+    console.log(`[Payment/Wave] No API key → manual QR flow for ${amount} XOF`)
     return waveQrInitiate(amount, clientPhone, description)
   }
 
@@ -205,6 +210,12 @@ async function cashRelease(externalId: string, _amount: number, _providerPhone: 
 // Aucune API : le paiement arrive sur le compte Wave Business, un admin confirme.
 
 async function waveQrInitiate(_amount: number, _clientPhone: string, _description: string): Promise<InitiateResult> {
+  // En dev/mock : auto-success (pas de validation manuelle admin)
+  if (isDev) {
+    console.log(`[Payment/WaveQR] DEV: auto-confirm ${_amount} XOF`)
+    return { success: true, externalId: `waveqr_dev_${Date.now()}` }
+  }
+  // En prod : le client scanne le QR marchand, un admin confirme réception
   return {
     success: true,
     externalId: `waveqr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
