@@ -40,7 +40,10 @@ type PaymentSettings = {
   providers: {
     manual: {
       waveMerchantPhone: string
+      waveQrUrl: string
+      wavePayUrl: string
       orangeMerchantPhone: string
+      freeMoneyMerchantPhone: string
       instructions: string
     },
     gateway: {
@@ -453,6 +456,38 @@ export default function AdminPaymentsPage() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                     placeholder="+22177..."
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Numéro Marchand Free Money</label>
+                  <input 
+                    type="text" 
+                    value={settings.providers.manual.freeMoneyMerchantPhone}
+                    onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, freeMoneyMerchantPhone: e.target.value } } })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="+22178..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">URL QR Wave (image)</label>
+                  <input 
+                    type="text" 
+                    value={settings.providers.manual.waveQrUrl}
+                    onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, waveQrUrl: e.target.value } } })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="/api/uploads/.../wave-qr.png"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Image du QR code Wave affichée aux clients dans l'app.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">URL de paiement Wave (deep link)</label>
+                  <input 
+                    type="text" 
+                    value={settings.providers.manual.wavePayUrl}
+                    onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, wavePayUrl: e.target.value } } })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="https://pay.wave.com/m/..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Deep link Wave pour ouvrir l'app Wave avec le montant pré-rempli.</p>
                 </div>
               </div>
 

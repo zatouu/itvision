@@ -20,8 +20,8 @@ function isValidUrl(value: unknown): value is string {
 
 function normalizeUploadUrl(value: string): string {
   const v = value.trim()
-  // Préfère le chemin statique /uploads car /api/uploads/ n'est pas un endpoint API
-  if (v.startsWith('/api/uploads/')) return v.replace('/api/uploads/', '/uploads/')
+  // /api/uploads/ est le seul endpoint garanti en production standalone
+  if (v.startsWith('/uploads/')) return v.replace('/uploads/', '/api/uploads/')
   return v
 }
 

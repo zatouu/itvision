@@ -88,6 +88,13 @@ export default function PlatformKycPage() {
     )
   })
 
+  const imgSrc = (url: string) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    if (url.startsWith('/uploads/')) return url.replace('/uploads/', '/api/uploads/')
+    return url
+  }
+
   const statusBadge = (status: string) => {
     const map: Record<string, { text: string; class: string }> = {
       pending: { text: 'En attente', class: 'bg-amber-100 text-amber-700' },
@@ -230,19 +237,19 @@ export default function PlatformKycPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <div className="text-xs font-semibold text-gray-500 uppercase mb-2">CNI Recto</div>
-                  <img src={selected.idCardFrontUrl} alt="CNI recto" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                  <img src={imgSrc(selected.idCardFrontUrl)} alt="CNI recto" className="w-full h-48 object-cover rounded-lg border border-gray-200" />
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-gray-500 uppercase mb-2">CNI Verso</div>
                   {selected.idCardBackUrl ? (
-                    <img src={selected.idCardBackUrl} alt="CNI verso" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                    <img src={imgSrc(selected.idCardBackUrl)} alt="CNI verso" className="w-full h-48 object-cover rounded-lg border border-gray-200" />
                   ) : (
-                    <div className="w-full h-32 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-sm">Non fourni</div>
+                    <div className="w-full h-48 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-sm">Non fourni</div>
                   )}
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Selfie</div>
-                  <img src={selected.selfieUrl} alt="Selfie" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                  <img src={imgSrc(selected.selfieUrl)} alt="Selfie" className="w-full h-48 object-cover rounded-lg border border-gray-200" />
                 </div>
               </div>
 
