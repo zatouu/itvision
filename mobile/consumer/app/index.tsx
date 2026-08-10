@@ -8,7 +8,6 @@ import { apiGet } from '../src/api'
 import { getAuthUser } from '../src/auth'
 import { fetchWithCache } from '../src/storage'
 import { connectSocket, requestOnlineProviders, onOnlineProvidersCount } from '../src/socket'
-import TabBar from '../src/components/TabBar'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { getCategoryIcon } from '../src/categoryIcons'
@@ -579,8 +578,6 @@ function Home() {
         )}
 
       </ScrollView>
-
-      <TabBar active="home" />
 
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>

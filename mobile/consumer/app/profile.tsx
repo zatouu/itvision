@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiGetRetry, apiUpload, apiPatch } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import TabBar from '../src/components/TabBar'
+import SideMenu from '../src/components/SideMenu'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
 import { pickOption } from '../src/option-sheet'
@@ -15,9 +15,10 @@ import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
-import { ArrowLeft, ChevronRight, Camera } from 'lucide-react-native'
+import { ChevronRight, Camera, Menu } from 'lucide-react-native'
 
 function Profile() {
+  const [menuOpen, setMenuOpen] = useState(false)
   const { t } = useTranslation()
   const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0 })
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
@@ -99,8 +100,8 @@ function Profile() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={18} color="#111827" />
+        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.backBtn} accessibilityLabel="Menu">
+          <Menu size={18} color="#111827" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('profile.title')}</Text>
         <View style={{ width: 36 }} />
@@ -192,7 +193,7 @@ function Profile() {
         </TouchableOpacity>
       </ScrollView>
 
-      <TabBar active="profile" />
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

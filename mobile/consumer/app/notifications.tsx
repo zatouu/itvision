@@ -4,8 +4,9 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIn
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import TabBar from '../src/components/TabBar'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import SideMenu from '../src/components/SideMenu'
+import { Menu } from 'lucide-react-native'
 import EmptyState from '../src/components/EmptyState'
 import {
   Notification,
@@ -47,6 +48,7 @@ function NotificationsScreen() {
   const [, setTick] = useState(0)
   const [diagRunning, setDiagRunning] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -140,6 +142,9 @@ function NotificationsScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <View style={s.headerTop}>
+          <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.menuBtn} accessibilityLabel="Menu">
+            <Menu size={20} color={colors.text} />
+          </TouchableOpacity>
           <Text style={s.title}>{t('notifications.title')}</Text>
         </View>
         <View style={s.headerActions}>
@@ -192,7 +197,7 @@ function NotificationsScreen() {
         )}
       </ScrollView>
 
-      <TabBar active="notifications" />
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }
@@ -200,7 +205,8 @@ function NotificationsScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.slate50 },
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, gap: 12 },
-  headerTop: { flexDirection: 'row', alignItems: 'center' },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  menuBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
   headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.slate100 },

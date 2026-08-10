@@ -8,14 +8,14 @@ import { apiGet, apiPatch } from '../src/api'
 import { confirm, notify } from '../src/confirm'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
-import TabBar from '../src/components/TabBar'
 import { SkeletonCard } from '../src/components/Skeleton'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { hapticWarning } from '../src/haptics'
-import { ArrowLeft, Plus, AlertTriangle, Inbox, Search, ChevronRight } from 'lucide-react-native'
+import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu } from 'lucide-react-native'
+import SideMenu from '../src/components/SideMenu'
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   created:       { key: 'requests.status_created',            color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
@@ -30,6 +30,7 @@ const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; do
 type CatEntry = { abbr: string; color: string; label: string }
 
 function MyRequests() {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -129,8 +130,8 @@ function MyRequests() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel="Retour">
-          <ArrowLeft size={20} color={colors.text} />
+        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.iconBtn} accessibilityLabel="Menu">
+          <Menu size={20} color={colors.text} />
         </TouchableOpacity>
         <View style={s.headerLeft}>
           <Text style={s.title}>{t('requests.title')}</Text>
@@ -263,7 +264,7 @@ function MyRequests() {
         </ScrollView>
       )}
 
-      <TabBar active="requests" />
+      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

@@ -58,6 +58,7 @@ function PaymentScreen() {
   const [manualPending, setManualPending] = useState<{ reference: string; amount: number } | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollDoneRef = useRef(false)
   const user = getAuthUser()
   const escrowEnabled = !!wallet?.config?.escrowEnabled
   const escrowMandatory = !!wallet?.config?.escrowMandatory
@@ -125,10 +126,13 @@ function PaymentScreen() {
         // Paiement QR statique : afficher les instructions + polling de validation admin
         setManualPending({ reference: res.reference, amount: payNowAmount })
         setPolling(true)
+        pollDoneRef.current = false
         pollRef.current = setInterval(async () => {
+          if (pollDoneRef.current) return
           try {
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
             if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
+              pollDoneRef.current = true
               stopPolling()
               setManualPending(null)
               hapticSuccess()
@@ -154,10 +158,13 @@ function PaymentScreen() {
         router.back()
       } else if (res.payment?.status === 'pending') {
         setPolling(true)
+        pollDoneRef.current = false
         pollRef.current = setInterval(async () => {
+          if (pollDoneRef.current) return
           try {
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
             if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
+              pollDoneRef.current = true
               stopPolling()
               toast.success(
                 t('payment.initiated'),
@@ -369,8 +376,8 @@ function PaymentScreen() {
 
         {/* Pay button */}
         <TouchableOpacity
-          style={[s.payBtn, (!selected || loading || walletLoading) && s.payBtnDisabled]}
-          disabled={!selected || loading || walletLoading}
+          style={[s.payBtn, (!selected || loading || walletLoading || polling) && s.payBtnDisabled]}
+          disabled={!selected || loading || walletLoading || polling}
           onPress={initiate}
           activeOpacity={0.8}
         >
