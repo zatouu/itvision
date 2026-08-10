@@ -646,10 +646,10 @@ function ActiveMission() {
             {/* Chat */}
             {['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(item.status) && (
               <TouchableOpacity
-                style={s.chatBtn}
+                style={[s.actionBtn, s.chatBtn]}
                 onPress={() => router.push(`/mission-chat?id=${requestId}&clientName=${encodeURIComponent(item.clientName || '')}&clientPhone=${encodeURIComponent(item.clientPhone || '')}`)}
               >
-                <MessageCircle size={18} color={colors.info} />
+                <MessageCircle size={18} color={colors.surface} />
                 <Text style={s.chatBtnText}>{t('mission.contactClient')}</Text>
               </TouchableOpacity>
             )}
@@ -673,11 +673,12 @@ function ActiveMission() {
                   <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>Note : {item.disputeAdminNote}</Text>
                 )}
                 <TouchableOpacity
-                  style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                  style={[s.actionBtn, { backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger, marginTop: spacing.md }]}
                   onPress={() => router.push(`/dispute/${requestId}`)}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>Voir le litige →</Text>
+                  <AlertTriangle size={18} color={colors.danger} />
+                  <Text style={[s.startBtnText, { color: colors.danger }]}>Voir le litige</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -783,8 +784,8 @@ const s = StyleSheet.create({
   startBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
   completeBtn: { backgroundColor: colors.success, ...shadows.md },
   completeBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
-  chatBtn: { backgroundColor: colors.infoLight, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.info, flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
-  chatBtnText: { color: colors.info, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },
+  chatBtn: { backgroundColor: colors.info, ...shadows.md },
+  chatBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
   arrivingBtn: { backgroundColor: colors.infoLight, borderWidth: 1, borderColor: colors.info },
   arrivingBtnText: { color: colors.info, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
   mapFallback: { backgroundColor: colors.successLight, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.success, marginTop: spacing.md },

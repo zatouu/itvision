@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Alert, Image, RefreshControl, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image, RefreshControl, Linking } from 'react-native'
 import { toast } from '../src/toast'
+import { confirm } from '../src/confirm'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -98,43 +99,37 @@ function Wallet() {
       return
     }
     const amountFcfa = selectedPack * (data?.config.fcfaPerPoint || 100)
-    Alert.alert(
+    const ok = await confirm(
       t('wallet.confirmTopup'),
-      t('wallet.confirmTopupMsg', { pack: selectedPack, amount: amountFcfa.toLocaleString('fr-FR'), operator: OPERATORS.find(o => o.id === selectedOp)?.label }),
-      [
-        { text: t('wallet.cancelBtn'), style: 'cancel' },
-        {
-          text: t('wallet.pay'),
-          onPress: async () => {
-            setTopupLoading(true)
-            try {
-              const r: any = await apiPost('/api/wallet/topup', {
-                points: selectedPack,
-                provider: selectedOp,
-                phone,
-              })
-              if (r?.confirmed) {
-                toast.success(t('wallet.topupSuccess'), t('wallet.topupSuccessMsg', { pack: selectedPack, balance: r.balance }))
-              } else if (r?.manualConfirm && r?.reference) {
-                setManualPending({ reference: r.reference, amount: amountFcfa })
-              } else if (r?.checkoutUrl) {
-                const supported = await Linking.canOpenURL(r.checkoutUrl)
-                if (supported) {
-                  await Linking.openURL(r.checkoutUrl)
-                } else {
-                  toast.info(t('wallet.paymentLink'), r.checkoutUrl)
-                }
-              }
-              await load()
-            } catch (e: any) {
-              toast.error(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
-            } finally {
-              setTopupLoading(false)
-            }
-          },
-        },
-      ]
+      t('wallet.confirmTopupMsg', { pack: selectedPack, amount: amountFcfa.toLocaleString('fr-FR'), operator: OPERATORS.find(o => o.id === selectedOp)?.label })
     )
+    if (!ok) return
+    setTopupLoading(true)
+    try {
+      const r: any = await apiPost('/api/wallet/topup', {
+        points: selectedPack,
+        provider: selectedOp,
+        phone,
+      })
+      if (r?.confirmed) {
+        hapticSuccess()
+        toast.success(t('wallet.topupSuccess'), t('wallet.topupSuccessMsg', { pack: selectedPack, balance: r.balance }))
+      } else if (r?.manualConfirm && r?.reference) {
+        setManualPending({ reference: r.reference, amount: amountFcfa })
+      } else if (r?.checkoutUrl) {
+        const supported = await Linking.canOpenURL(r.checkoutUrl)
+        if (supported) {
+          await Linking.openURL(r.checkoutUrl)
+        } else {
+          toast.info(t('wallet.paymentLink'), r.checkoutUrl)
+        }
+      }
+      await load()
+    } catch (e: any) {
+      toast.error(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
+    } finally {
+      setTopupLoading(false)
+    }
   }
 
   if (loading) {

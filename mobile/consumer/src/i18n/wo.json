@@ -110,7 +110,14 @@
     "step2Sub": "Liggéeykat yi ëpp ci sa wet ngir tontu",
     "step3": "Tann ak wóor",
     "step3Sub": "Pil njëg ak seet",
-    "recommendedProviders": "Liggéeykat yi ñu digal ci sa wet"
+    "recommendedProviders": "Liggéeykat yi ñu digal ci sa wet",
+    "allCategories": "Génn yépp"
+  },
+  "allCategoriesScreen": {
+    "title": "Këttan yépp",
+    "searchPlaceholder": "Seet liggéey...",
+    "subServices": "su liggéey",
+    "noResult": "Amul këttan bu gis"
   },
   "request": {
     "createTitle": "Laaj bu bees",
@@ -151,7 +158,12 @@
     "recapMedia": "Nataal",
     "recapMediaValue": "{{count}} file(s)",
     "recapVoice": "Baat",
-    "recapVoiceValue": "{{sec}}s denc"
+    "recapVoiceValue": "{{sec}}s denc",
+    "subcategory": "Su këttan",
+    "subcategoryPlaceholder": "Tànn benn (du dogu)",
+    "subcategoryNone": "Amul — këttan bu gën",
+    "descPlaceholderAutre": "Wax sa soxla bu baax (10 araf yu gën)",
+    "descMinChars": "Gën a woy 10 araf"
   },
   "offers": {
     "title": "Ofr yi ñu yónnee",
@@ -389,7 +401,11 @@
     "menuiserie": "Bënu-bant",
     "peinture": "Pentur",
     "climatisation": "Klima",
-    "securite": "Kaarange"
+    "securite": "Kaarange",
+    "maconnerie": "Mësoŋ",
+    "nettoyage": "Set",
+    "demenagement": "Wuti kër",
+    "autre": "Yeneen"
   },
   "notifications": {
     "title": "Xibaar",

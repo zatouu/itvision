@@ -110,7 +110,14 @@
     "step2Sub": "Nearby providers respond to you",
     "step3": "Choose and rate",
     "step3Sub": "Compare prices and reviews",
-    "recommendedProviders": "Recommended providers near you"
+    "recommendedProviders": "Recommended providers near you",
+    "allCategories": "See all"
+  },
+  "allCategoriesScreen": {
+    "title": "All categories",
+    "searchPlaceholder": "Search a service...",
+    "subServices": "sub-services",
+    "noResult": "No category found"
   },
   "request": {
     "createTitle": "New request",
@@ -151,7 +158,12 @@
     "recapMedia": "Media",
     "recapMediaValue": "{{count}} file(s)",
     "recapVoice": "Voice",
-    "recapVoiceValue": "{{sec}}s recorded"
+    "recapVoiceValue": "{{sec}}s recorded",
+    "subcategory": "Sub-category",
+    "subcategoryPlaceholder": "Select an option (optional)",
+    "subcategoryNone": "None — general category",
+    "descPlaceholderAutre": "Describe your need in detail (min 10 characters)...",
+    "descMinChars": "Minimum {{count}} characters required"
   },
   "offers": {
     "title": "Offers received",
@@ -389,7 +401,11 @@
     "menuiserie": "Carpentry",
     "peinture": "Painting",
     "climatisation": "HVAC",
-    "securite": "Security"
+    "securite": "Security",
+    "maconnerie": "Masonry",
+    "nettoyage": "Cleaning",
+    "demenagement": "Moving",
+    "autre": "Other"
   },
   "notifications": {
     "title": "Notifications",

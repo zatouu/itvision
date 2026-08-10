@@ -39,6 +39,8 @@ const FALLBACK_CATS: CatItem[] = [
   { id: 'peinture', label: 'Peinture', abbr: 'PE', color: '#6D28D9' },
   { id: 'climatisation', label: 'Climatisation', abbr: 'CL', color: '#0891B2' },
   { id: 'securite', label: 'Securite', abbr: 'SE', color: '#065F46' },
+  { id: 'maconnerie', label: 'Maçonnerie', abbr: 'MA', color: '#78350F' },
+  { id: 'nettoyage', label: 'Nettoyage', abbr: 'NE', color: '#0D9488' },
 ]
 
 function greetingByHour(t: any): string {
@@ -446,7 +448,7 @@ function Home() {
           <Text style={s.sectionTitle}>{t('home.categories')}</Text>
         </View>
         <View style={s.catGrid}>
-          {cats.map(c => (
+          {cats.slice(0, 8).map(c => (
             <TouchableOpacity
               key={c.id}
               style={s.catCard}
@@ -459,6 +461,17 @@ function Home() {
               <Text style={s.catLabel}>{c.label}</Text>
             </TouchableOpacity>
           ))}
+          {/* Bouton Voir toutes les catégories */}
+          <TouchableOpacity
+            style={s.catCard}
+            activeOpacity={0.75}
+            onPress={() => router.push('/all-categories')}
+          >
+            <View style={[s.catMonogram, { backgroundColor: colors.navy }]}>
+              <Plus size={20} color={colors.surface} />
+            </View>
+            <Text style={s.catLabel}>{t('home.allCategories')}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 6. Autre activite recente */}

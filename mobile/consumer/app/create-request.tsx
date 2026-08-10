@@ -10,9 +10,9 @@ import { pickMedia, PickedMedia } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
 import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
-import { loadCategories, getCategoryLabel, getAttributeLabel, ServiceCategory, Attribute } from '../src/categories'
+import { loadCategories, getCategoryLabel, getSubCategoryLabel, getAttributeLabel, ServiceCategory, SubCategory, Attribute } from '../src/categories'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, X, Check, MapPin, Plus } from 'lucide-react-native'
+import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
@@ -25,6 +25,9 @@ const FALLBACK_CATS = [
   { id: 'peinture', label: 'Peinture', abbr: 'PE', color: '#6D28D9' },
   { id: 'climatisation', label: 'Climatisation', abbr: 'CL', color: '#0891B2' },
   { id: 'securite', label: 'Sécurité', abbr: 'SE', color: '#065F46' },
+  { id: 'maconnerie', label: 'Maçonnerie', abbr: 'MA', color: '#78350F' },
+  { id: 'nettoyage', label: 'Nettoyage', abbr: 'NE', color: '#0D9488' },
+  { id: 'autre', label: 'Autre', abbr: 'AU', color: '#6B7280' },
 ]
 
 const BUDGETS = ['5 000', '10 000', '25 000', '50 000', '100 000']
@@ -39,7 +42,7 @@ function mediaLabel(media: PickedMedia): string {
 }
 
 function CreateRequest() {
-  const params = useLocalSearchParams<{ category?: string }>()
+  const params = useLocalSearchParams<{ category?: string; subcategory?: string }>()
   const [step, setStep] = useState(1)
   const [category, setCategory] = useState(params.category || '')
   const [description, setDescription] = useState('')
@@ -54,7 +57,9 @@ function CreateRequest() {
   const [landmark, setLandmark] = useState('')
   const [autoAddress, setAutoAddress] = useState('')
   const [voiceNote, setVoiceNote] = useState<VoiceRecording | null>(null)
-  const [cats, setCats] = useState<{ id: string; label: string; abbr: string; color: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[] }[]>(FALLBACK_CATS)
+  const [cats, setCats] = useState<{ id: string; label: string; abbr: string; color: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[]; subCategories?: SubCategory[] }[]>(FALLBACK_CATS)
+  const [subcategory, setSubcategory] = useState(params.subcategory || '')
+  const [showSubcats, setShowSubcats] = useState(false)
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
   const [attributes, setAttributes] = useState<Record<string, string | number | boolean>>({})
   const { t, i18n } = useTranslation()
@@ -68,6 +73,7 @@ function CreateRequest() {
         color: c.color,
         requiredAttributes: c.requiredAttributes,
         optionalAttributes: c.optionalAttributes,
+        subCategories: c.subCategories,
       })))
     }).catch(() => {})
     Location.requestForegroundPermissionsAsync()
@@ -82,9 +88,11 @@ function CreateRequest() {
       .catch(() => {})
   }, [category, coords])
 
-  // Reset dynamic attributes when category changes
+  // Reset dynamic attributes and subcategory when category changes
   useEffect(() => {
     setAttributes({})
+    setSubcategory('')
+    setShowSubcats(false)
   }, [category])
 
   const areRequiredAttributesFilled = () => {
@@ -164,6 +172,7 @@ function CreateRequest() {
       setUploadingMedia(false)
       const res = await apiPostQueued('/api/services/requests', {
         category,
+        subcategory: subcategory || undefined,
         description,
         media: uploadedMedia,
         location: coords ? {
@@ -196,7 +205,7 @@ function CreateRequest() {
         <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')} activeOpacity={0.8}>
           <Text style={s.btnText}>{t('request.viewRequests')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => { setDone(false); setStep(1); setCategory(''); setDescription(''); setBudget(''); setCoords(null); setMedia([]); setLandmark(''); setAutoAddress(''); setVoiceNote(null) }}>
+        <TouchableOpacity onPress={() => { setDone(false); setStep(1); setCategory(''); setSubcategory(''); setDescription(''); setBudget(''); setCoords(null); setMedia([]); setLandmark(''); setAutoAddress(''); setVoiceNote(null) }}>
           <Text style={s.link}>{t('request.newOne')}</Text>
         </TouchableOpacity>
       </View>
@@ -277,17 +286,68 @@ function CreateRequest() {
         {step === 2 && (
           <View style={{ gap: 20 }}>
             <Text style={s.stepTitle}>{t('request.describeNeed')}</Text>
+            
+            {/* Sous-catégorie (optionnelle) */}
+            {(() => {
+              const selectedCat = cats.find(c => c.id === category)
+              const subs = selectedCat?.subCategories || []
+              if (subs.length === 0) return null
+              return (
+                <View>
+                  <Text style={s.label}>{t('request.subcategory')}</Text>
+                  <TouchableOpacity
+                    style={s.subcatDropdown}
+                    onPress={() => setShowSubcats(!showSubcats)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.subcatText, !subcategory && { color: colors.textMuted }]}>
+                      {subcategory
+                        ? getSubCategoryLabel(subs.find(s => s.slug === subcategory)!, i18n.language)
+                        : t('request.subcategoryPlaceholder')}
+                    </Text>
+                    <ChevronDown size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  {showSubcats && (
+                    <View style={s.subcatList}>
+                      <TouchableOpacity
+                        style={[s.subcatItem, !subcategory && s.subcatItemActive]}
+                        onPress={() => { setSubcategory(''); setShowSubcats(false); hapticLight() }}
+                      >
+                        <Text style={[s.subcatItemText, !subcategory && s.subcatItemTextActive]}>{t('request.subcategoryNone')}</Text>
+                      </TouchableOpacity>
+                      {subs.map(sub => (
+                        <TouchableOpacity
+                          key={sub.slug}
+                          style={[s.subcatItem, subcategory === sub.slug && s.subcatItemActive]}
+                          onPress={() => { setSubcategory(sub.slug); setShowSubcats(false); hapticLight() }}
+                        >
+                          <Text style={[s.subcatItemText, subcategory === sub.slug && s.subcatItemTextActive]}>
+                            {getSubCategoryLabel(sub, i18n.language)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )
+            })()}
+
             <View>
-              <Text style={s.label}>{t('request.description')} *</Text>
+              <Text style={s.label}>
+                {t('request.description')} {category === 'autre' ? '*' : ''}
+              </Text>
               <TextInput
                 style={s.textarea}
                 value={description}
                 onChangeText={setDescription}
-                placeholder={t('request.descPlaceholder')}
+                placeholder={category === 'autre' ? t('request.descPlaceholderAutre') : t('request.descPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
               />
+              {category === 'autre' && description.trim().length < 10 && description.length > 0 && (
+                <Text style={s.descHint}>{t('request.descMinChars', { count: 10 })}</Text>
+              )}
             </View>
             <DynamicAttributes
               category={cats.find(c => c.id === category)}
@@ -357,8 +417,8 @@ function CreateRequest() {
               </ScrollView>
             </View>
             <TouchableOpacity
-              style={[s.btn, (!description || !areRequiredAttributesFilled()) && s.btnDisabled]}
-              disabled={!description || !areRequiredAttributesFilled()}
+              style={[s.btn, (!description || !areRequiredAttributesFilled() || (category === 'autre' && description.trim().length < 10)) && s.btnDisabled]}
+              disabled={!description || !areRequiredAttributesFilled() || (category === 'autre' && description.trim().length < 10)}
               onPress={() => setStep(3)}
             >
               <Text style={s.btnText}>{t('request.continueBtn')}</Text>
@@ -394,6 +454,11 @@ function CreateRequest() {
             {/* Récap */}
             <View style={s.recap}>
               <RecapRow label={t('request.recapService')} value={cats.find(c => c.id === category)?.label || category} />
+              {subcategory && (() => {
+                const selectedCat = cats.find(c => c.id === category)
+                const sub = selectedCat?.subCategories?.find(s => s.slug === subcategory)
+                return sub ? <RecapRow label={t('request.subcategory')} value={getSubCategoryLabel(sub, i18n.language)} /> : null
+              })()}
               <RecapRow label={t('request.recapDescription')} value={description.length > 60 ? description.slice(0, 60) + '…' : description} />
               {budget ? <RecapRow label={t('request.recapBudget')} value={`${budget} FCFA`} /> : null}
               {media.length ? <RecapRow label={t('request.recapMedia')} value={t('request.recapMediaValue', { count: media.length })} /> : null}
@@ -574,6 +639,14 @@ const s = StyleSheet.create({
   attrToggleActive: { backgroundColor: colors.successLight, borderColor: colors.success },
   attrToggleText: { fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
   attrToggleTextActive: { color: colors.success },
+  subcatDropdown: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: 14, backgroundColor: colors.surface },
+  subcatText: { fontSize: 15, color: colors.text },
+  subcatList: { marginTop: 8, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  subcatItem: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  subcatItemActive: { backgroundColor: colors.successLight },
+  subcatItemText: { fontSize: 14, color: colors.textSecondary },
+  subcatItemTextActive: { color: colors.success, fontWeight: typography.weight.bold as any },
+  descHint: { fontSize: 12, color: colors.warning, marginTop: 4 },
 })
 
 export default withScreenBoundary(CreateRequest, 'CreateRequest')

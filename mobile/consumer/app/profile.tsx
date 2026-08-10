@@ -181,7 +181,13 @@ function Profile() {
           <LanguagePicker />
         </View>
 
-        <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); resetNotificationBinding(); router.replace('/login') }}>
+        <TouchableOpacity style={s.logoutBtn} onPress={async () => {
+          await clearAuth()
+          resetSocket()
+          resetNotificationBinding()
+          toast.info(t('auth.logout'), t('auth.logoutMsg', { defaultValue: 'Vous êtes déconnecté.' }))
+          router.replace('/login')
+        }}>
           <Text style={s.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>

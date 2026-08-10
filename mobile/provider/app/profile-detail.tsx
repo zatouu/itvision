@@ -10,6 +10,7 @@ import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { loadCategories } from '../src/categories'
+import { toast } from '../src/toast'
 
 const AVAIL = ['Disponible', 'Occupé', 'En pause', 'En vacances', 'Hors ligne']
 
@@ -200,7 +201,13 @@ function ProfileDetail() {
             {renderSwitch('Notifications push', pref.pushNotifications !== false, (v) => updatePref('pushNotifications', v))}
             {renderSwitch('Partager localisation', pref.shareLocation !== false, (v) => updatePref('shareLocation', v))}
             {renderSwitch('Profil public', pref.publicProfile === true, (v) => updatePref('publicProfile', v))}
-            <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); resetSocket(); resetNotificationBinding(); router.replace('/login') }}>
+            <TouchableOpacity style={s.logoutBtn} onPress={async () => {
+              await clearAuth()
+              resetSocket()
+              resetNotificationBinding()
+              toast.info('Déconnexion', 'Vous êtes déconnecté.')
+              router.replace('/login')
+            }}>
               <Text style={s.logoutBtnText}>Déconnexion</Text>
             </TouchableOpacity>
           </View>

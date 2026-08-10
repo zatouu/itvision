@@ -41,13 +41,13 @@ export async function loadProfile(): Promise<ProviderProfile | null> {
 
   // Fetch serveur
   try {
-    const res = await apiGet('/api/client/profile')
-    if (res?.profile) {
+    const res = await apiGet('/api/provider/profile')
+    if (res?.user) {
       cached = {
-        _id: res.profile._id,
-        name: res.profile.name || '',
-        email: res.profile.email,
-        phone: res.profile.phone,
+        _id: res.user._id,
+        name: res.user.name || '',
+        email: res.user.email,
+        phone: res.user.phone,
       }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cached))
       notify()

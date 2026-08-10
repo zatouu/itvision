@@ -97,14 +97,11 @@ function PaymentScreen() {
   const initiate = async () => {
     if (!selected || !offerId) return
     if (!hasEnoughEscrowPoints && !isCash && !isBalance) {
-      Alert.alert(
+      toast.error(
         t('payment.insufficientPoints'),
-        `${escrowCost} XC ${t('payment.insufficientPoints').toLowerCase()}. ${wallet?.points || 0} XC.`,
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('payment.recharge'), onPress: () => router.push('/wallet') },
-        ]
+        `${escrowCost} XC requis. ${wallet?.points || 0} XC disponibles.`
       )
+      setTimeout(() => router.push('/wallet'), 800)
       return
     }
     setLoading(true)
@@ -175,13 +172,11 @@ function PaymentScreen() {
         pollTimeoutRef.current = setTimeout(() => stopPolling(), 120000)
       }
     } catch (e: any) {
-      Alert.alert(
-        t('common.error'),
-        e.message || t('payment.initError'),
-        e?.message?.toLowerCase?.().includes('solde points insuffisant')
-          ? [{ text: t('payment.recharge'), onPress: () => router.push('/wallet') }, { text: t('common.ok') }]
-          : undefined
-      )
+      const msg = e.message || t('payment.initError')
+      toast.error(t('common.error'), msg)
+      if (msg.toLowerCase().includes('solde points insuffisant')) {
+        setTimeout(() => router.push('/wallet'), 800)
+      }
     }
     setLoading(false)
   }

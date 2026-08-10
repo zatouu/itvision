@@ -16,7 +16,7 @@ export async function getActiveCategorySlugs(): Promise<string[]> {
   cachedAt = now
   if (cachedSlugs.length === 0) {
     // Fallback hardcoded to avoid blocking creation if DB is empty
-    cachedSlugs = ['electricite', 'plomberie', 'menuiserie', 'peinture', 'climatisation', 'securite']
+    cachedSlugs = ['electricite', 'plomberie', 'menuiserie', 'peinture', 'climatisation', 'securite', 'maconnerie', 'nettoyage', 'demenagement', 'autre']
   }
   return cachedSlugs
 }

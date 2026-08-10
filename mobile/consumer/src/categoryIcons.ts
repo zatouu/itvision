@@ -1,4 +1,4 @@
-import { Zap, Wrench, Hammer, Paintbrush, Wind, ShieldCheck, Sparkles, Truck, Briefcase } from 'lucide-react-native'
+import { Zap, Wrench, Hammer, Paintbrush, Wind, ShieldCheck, Sparkles, Truck, Briefcase, BrickWall, HelpCircle } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 
 const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
@@ -10,6 +10,8 @@ const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
   securite: ShieldCheck,
   nettoyage: Sparkles,
   demenagement: Truck,
+  maconnerie: BrickWall,
+  autre: HelpCircle,
 }
 
 export function getCategoryIcon(slug: string | undefined | null): LucideIcon {

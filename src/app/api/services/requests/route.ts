@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { category, description, media, location, budget, channel, attributes } = body as any
+    const { category, subcategory, description, media, location, budget, channel, attributes } = body as any
 
     // Validation catégorie
     const validCategories = await getActiveCategorySlugs()
@@ -105,6 +105,13 @@ export async function POST(request: NextRequest) {
     // Validation description
     if (description && (typeof description !== 'string' || description.length > MAX_DESCRIPTION_LENGTH)) {
       return NextResponse.json({ error: `Description trop longue (max ${MAX_DESCRIPTION_LENGTH} car.)` }, { status: 400 })
+    }
+    // Si catégorie "autre" : description obligatoire (min 10 caractères)
+    const isOther = category === 'autre'
+    if (isOther) {
+      if (!description || typeof description !== 'string' || description.trim().length < 10) {
+        return NextResponse.json({ error: 'Description obligatoire (min 10 caractères) pour la catégorie Autre' }, { status: 400 })
+      }
     }
     // Validation location
     if (!location?.coordinates || !Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
@@ -128,6 +135,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
     const created = await ServiceRequest.create({
       clientId: userId, category,
+      subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,
       attributes: safeAttributes,

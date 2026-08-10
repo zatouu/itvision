@@ -110,7 +110,14 @@
     "step2Sub": "Les prestataires proches vous répondent",
     "step3": "Choisissez et notez",
     "step3Sub": "Comparez les prix et les avis",
-    "recommendedProviders": "Prestataires recommandes pres de vous"
+    "recommendedProviders": "Prestataires recommandes pres de vous",
+    "allCategories": "Voir tout"
+  },
+  "allCategoriesScreen": {
+    "title": "Toutes les catégories",
+    "searchPlaceholder": "Rechercher un service...",
+    "subServices": "sous-services",
+    "noResult": "Aucune catégorie trouvée"
   },
   "request": {
     "createTitle": "Nouvelle demande",
@@ -151,7 +158,12 @@
     "recapMedia": "Médias",
     "recapMediaValue": "{{count}} fichier(s)",
     "recapVoice": "Vocal",
-    "recapVoiceValue": "{{sec}}s enregistré"
+    "recapVoiceValue": "{{sec}}s enregistré",
+    "subcategory": "Sous-catégorie",
+    "subcategoryPlaceholder": "Sélectionnez une option (optionnel)",
+    "subcategoryNone": "Aucune — catégorie générale",
+    "descPlaceholderAutre": "Décrivez votre besoin en détail (min 10 caractères)...",
+    "descMinChars": "Minimum {{count}} caractères requis"
   },
   "offers": {
     "title": "Offres reçues",
@@ -389,7 +401,11 @@
     "menuiserie": "Menuiserie",
     "peinture": "Peinture",
     "climatisation": "Climatisation",
-    "securite": "Sécurité"
+    "securite": "Sécurité",
+    "maconnerie": "Maçonnerie",
+    "nettoyage": "Nettoyage",
+    "demenagement": "Déménagement",
+    "autre": "Autre"
   },
   "notifications": {
     "title": "Notifications",

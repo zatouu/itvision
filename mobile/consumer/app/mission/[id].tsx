@@ -550,11 +550,12 @@ function MissionDetail() {
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>{t('mission.disputeNoteLabel', { defaultValue: 'Note' })} : {item.disputeAdminNote}</Text>
               )}
               <TouchableOpacity
-                style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                style={[s.cancelBtn, { marginTop: 12 }]}
                 onPress={() => router.push(`/dispute/${requestId}`)}
                 activeOpacity={0.7}
               >
-                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>{t('mission.viewDispute', { defaultValue: 'Voir le litige' })} →</Text>
+                <AlertTriangle size={16} color={colors.danger} />
+                <Text style={s.cancelBtnText}>{t('mission.viewDispute', { defaultValue: 'Voir le litige' })}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -697,8 +698,8 @@ const s = StyleSheet.create({
   validateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   pauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
   pauseBtnText: { color: colors.warning, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md },
-  cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.semibold as any },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
+  cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.extrabold as any },
 })
 
 export default withScreenBoundary(MissionDetail, 'MissionDetail')

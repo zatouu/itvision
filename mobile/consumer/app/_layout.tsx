@@ -136,7 +136,7 @@ export default function Layout(){
       <View style={s.splash}>
         <Text style={s.splashName}>Xeuy Bi</Text>
         <Text style={s.splashSub}>Services à domicile</Text>
-        <ActivityIndicator size="small" color="#64748B" style={{ marginTop: 24 }} />
+        <ActivityIndicator size="small" color="#A7F3D0" style={{ marginTop: 24 }} />
       </View>
     )
   }
@@ -151,7 +151,7 @@ export default function Layout(){
 }
 
 const s = StyleSheet.create({
-  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A' },
-  splashName: { fontSize: 36, fontWeight: '800', color: '#F8FAFC', letterSpacing: -1 },
-  splashSub: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#065F3A' },
+  splashName: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1 },
+  splashSub: { fontSize: 14, color: '#A7F3D0', marginTop: 4 },
 })

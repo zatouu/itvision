@@ -43,6 +43,10 @@ const FALLBACK: ServiceCategory[] = [
   { slug: 'peinture', label_fr: 'Peinture', label_wo: 'Pentur', label_en: 'Painting', abbr: 'PE', color: '#6D28D9', order: 4, subCategories: [] },
   { slug: 'climatisation', label_fr: 'Climatisation', label_wo: 'Klima', label_en: 'HVAC', abbr: 'CL', color: '#0891B2', order: 5, subCategories: [] },
   { slug: 'securite', label_fr: 'Sécurité', label_wo: 'Kaarange', label_en: 'Security', abbr: 'SE', color: '#065F46', order: 6, subCategories: [] },
+  { slug: 'maconnerie', label_fr: 'Maçonnerie', label_wo: 'Mësoŋ', label_en: 'Masonry', abbr: 'MA', color: '#78350F', order: 7, subCategories: [] },
+  { slug: 'nettoyage', label_fr: 'Nettoyage', label_wo: 'Set', label_en: 'Cleaning', abbr: 'NE', color: '#0D9488', order: 8, subCategories: [] },
+  { slug: 'demenagement', label_fr: 'Déménagement', label_wo: 'Wuti kër', label_en: 'Moving', abbr: 'DM', color: '#B45309', order: 9, subCategories: [] },
+  { slug: 'autre', label_fr: 'Autre', label_wo: 'Yeneen', label_en: 'Other', abbr: 'AU', color: '#6B7280', order: 99, subCategories: [] },
 ]
 
 let _cached: ServiceCategory[] | null = null
