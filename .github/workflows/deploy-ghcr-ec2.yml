@@ -160,8 +160,8 @@ jobs:
             echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env.ec2
             
 
-            # Login au registre GHCR (méthode sécurisée avec stdin)
-            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+            # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)
+            echo "${{ github.token }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
             
             # Pull de l'image avec retry (3 tentatives en cas de timeout réseau)
             MAX_RETRIES=3
