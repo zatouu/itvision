@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
     }
 
     const isBalancePhase = phase === 'balance'
-    const isManual = provider === 'wave_qr'
 
     // Vérifier que l'offre est encore disponible
     if (isBalancePhase) {
@@ -174,7 +173,8 @@ export async function POST(request: NextRequest) {
       throw createErr
     }
 
-    if (isDev || provider === 'cash') {
+    const isManual = !!result.manualConfirm
+    if (!isManual && (isDev || provider === 'cash')) {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()

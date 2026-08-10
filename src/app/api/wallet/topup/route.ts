@@ -74,9 +74,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error || 'Échec de l\'initiation du paiement' }, { status: 502 })
     }
 
-    // En dev, le paiement est mocké et confirmé instantanément → on crédite tout de suite.
-    // En prod, le crédit doit être confirmé par le webhook opérateur (paiement réel).
-    if (isDev) {
+    // En dev, le paiement est mocké et confirmé instantanément → on crédite tout de suite,
+    // sauf pour les paiements manuels (QR) qui attendent une validation admin.
+    if (isDev && !result.manualConfirm) {
       if (totalCredits !== points) {
         await creditPoints(String(userId), totalCredits - points, 'promo', {
           description: `Bonus ${totalCredits - points} crédits offerts (pack ${packId || 'custom'})`,

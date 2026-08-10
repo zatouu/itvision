@@ -31,9 +31,10 @@ console.log(`[Payment] Mode: ${isDev ? 'MOCK (paiements simulés)' : 'PROD (Wave
 // ──── WAVE ────────────────────────────────────────────────────────────────────
 
 async function waveInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
-  if (isDev) {
-    console.log(`[Payment/Wave] DEV: hold ${amount} XOF from ${clientPhone}`)
-    return { success: true, externalId: `wave_dev_${Date.now()}`, checkoutUrl: `https://pay.wave.com/dev?amount=${amount}` }
+  // Sans clé API Wave (ou mock activé), on bascule sur le flux QR manuel.
+  if (isDev || !process.env.WAVE_API_KEY) {
+    console.log(`[Payment/Wave] No API key/mock → manual QR flow for ${amount} XOF`)
+    return waveQrInitiate(amount, clientPhone, description)
   }
 
   const res = await fetch('https://api.wave.com/v1/checkout/sessions', {
