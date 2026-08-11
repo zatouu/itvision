@@ -125,7 +125,7 @@ function Home() {
 
   const screenWidth = Dimensions.get('window').width
   const adviceCardWidth = screenWidth - spacing.lg * 2
-  const requestCardWidth = Math.min(screenWidth * 0.72, 280)
+  const requestCardWidth = screenWidth - spacing.lg * 2
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
@@ -393,52 +393,54 @@ function Home() {
           </Text>
         </View>
 
-        {/* KPI grid - 4 compact cards in one row */}
-        <View style={s.kpiRow}>
+        {/* KPI grid - 2x2 */}
+        <View style={s.kpiGrid}>
           <KpiCard
-            compact
             value={nearbyCount}
-            label="Demandes"
-            icon={<MapPin size={16} color={colors.info} />}
+            label="Demandes proches"
+            subLabel={`${todayNearby} aujourd'hui · ${activityLabel}`}
+            icon={<MapPin size={22} color={colors.info} />}
             iconBg={colors.infoLight}
             iconColor={colors.info}
             onPress={goNearby}
           />
           <KpiCard
-            compact
             value={offersTotal}
-            label="Offres"
-            icon={<FileText size={16} color={colors.warning} />}
+            label="Offres envoyées"
+            subLabel={`${offersPending} en attente`}
+            icon={<FileText size={22} color={colors.warning} />}
             iconBg="#FFF7ED"
             iconColor={colors.warning}
             onPress={() => router.push('/my-offers')}
           />
+        </View>
+        <View style={s.kpiGrid}>
           <KpiCard
-            compact
             value={activeMission}
-            label="En cours"
-            icon={<Briefcase size={16} color={colors.success} />}
+            label="Mission en cours"
+            subLabel={activeMission > 0 && missionElapsed ? `depuis ${missionElapsed}` : 'Aucune mission active'}
+            icon={<Briefcase size={22} color={colors.success} />}
             iconBg="#F0FDF4"
             iconColor={colors.success}
             onPress={() => router.push({ pathname: '/my-offers', params: { filter: 'active' } })}
           />
           <KpiCard
-            compact
             value={dailyRevenueValue}
-            label="Revenus"
-            icon={<Banknote size={16} color={colors.navy} />}
+            label="Revenus du jour"
+            subLabel={`Sem. ${weeklyRevenue} · Mois ${monthlyRevenue}`}
+            icon={<Banknote size={22} color={colors.navy} />}
             iconBg={colors.slate100}
             iconColor={colors.navy}
             right={
               <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={hideRevenue ? t('home.showRevenue', { defaultValue: 'Afficher les revenus' }) : t('home.hideRevenue', { defaultValue: 'Masquer les revenus' })}>
-                {hideRevenue ? <EyeOff size={14} color={colors.textSecondary} /> : <Eye size={14} color={colors.textSecondary} />}
+                {hideRevenue ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
               </TouchableOpacity>
             }
           />
         </View>
 
-        {/* Actions - Nouvelles demandes en scroll horizontal */}
-        <Text style={s.sectionTitle}>Nouvelles demandes</Text>
+        {/* Actions - Nouvelles demandes en scroll horizontal pleine largeur */}
+        <Text style={s.sectionTitle}>Actions</Text>
         {online && nearbyItems.length > 0 ? (
           <ScrollView
             horizontal
@@ -579,8 +581,7 @@ const s = StyleSheet.create({
   activityDot: { width: 8, height: 8, borderRadius: 4 },
   activityText: { flex: 1, fontSize: 13, color: colors.textSecondary },
   activityLabel: { fontWeight: '700' },
-  kpiRow: { flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.md },
-  kpiCompact: { padding: spacing.sm },
+  kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.xl, marginTop: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
   actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
   actionDisabled: { opacity: 0.55 },
