@@ -11,9 +11,10 @@ type KpiCardProps = {
   iconColor: string
   onPress?: () => void
   right?: React.ReactNode
+  compact?: boolean
 }
 
-export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColor, onPress, right }: KpiCardProps) {
+export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColor, onPress, right, compact }: KpiCardProps) {
   const scale = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
@@ -25,12 +26,12 @@ export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColo
 
   const content = (
     <>
-      <View style={[s.icon, { backgroundColor: iconBg }]}>
+      <View style={[s.icon, compact && s.iconCompact, { backgroundColor: iconBg }]}>
         {icon}
       </View>
       <View style={s.text}>
-        <Animated.Text style={[s.value, { transform: [{ scale }] }]} numberOfLines={1} ellipsizeMode="tail">{value}</Animated.Text>
-        <Text style={s.label}>{label}</Text>
+        <Animated.Text style={[s.value, compact && s.valueCompact, { transform: [{ scale }] }]} numberOfLines={1} ellipsizeMode="tail">{value}</Animated.Text>
+        <Text style={[s.label, compact && s.labelCompact]} numberOfLines={compact ? 1 : undefined}>{label}</Text>
         {subLabel ? <Text style={s.subLabel} numberOfLines={1} ellipsizeMode="tail">{subLabel}</Text> : null}
       </View>
       {right ? <View style={s.right}>{right}</View> : null}
@@ -38,13 +39,13 @@ export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColo
   )
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.card, shadows.sm]}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[s.card, compact && s.cardCompact, shadows.sm]}>
         {content}
       </TouchableOpacity>
     )
   }
   return (
-    <View style={[s.card, shadows.sm]}>
+    <View style={[s.card, compact && s.cardCompact, shadows.sm]}>
       {content}
     </View>
   )
@@ -60,6 +61,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  cardCompact: {
+    padding: spacing.sm,
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   icon: {
     width: 44,
     height: 44,
@@ -67,10 +75,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+  },
   iconText: { },
   text: { flex: 1 },
   right: { justifyContent: 'center' },
   value: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  valueCompact: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
   label: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  labelCompact: { fontSize: 10, color: colors.textSecondary, marginTop: 2 },
   subLabel: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
 })

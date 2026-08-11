@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { loadInitial, toggleOnline, subscribe } from '../src/online'
 import { getAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
-import TabBar from '../src/components/TabBar'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import SideMenu from '../src/components/SideMenu'
@@ -126,6 +125,7 @@ function Home() {
 
   const screenWidth = Dimensions.get('window').width
   const adviceCardWidth = screenWidth - spacing.lg * 2
+  const requestCardWidth = Math.min(screenWidth * 0.72, 280)
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
@@ -359,19 +359,19 @@ function Home() {
               {online ? (
                 <>
                   <Text style={[s.statusSub, s.statusSubOnline]}>
-                    Rayon {radius} km {onlineSince ? `· Disponible depuis ${onlineSince}` : ''}
+                    Rayon {radius} km{onlineSince ? ` · ${onlineSince}` : ''}
                   </Text>
                   <View style={s.statusMetaRow}>
-                    <Text style={s.statusMeta}>{gpsActive ? 'GPS actif' : 'GPS inactif'}</Text>
+                    <Text style={s.statusMeta}>{gpsActive ? 'GPS' : 'No GPS'}</Text>
                     <View style={s.statusDotSmall} />
-                    <Text style={s.statusMeta}>{synced ? 'Sync OK' : 'Hors sync'}</Text>
+                    <Text style={s.statusMeta}>{synced ? 'Sync' : 'No sync'}</Text>
                     <TouchableOpacity style={s.radiusBtn} onPress={() => router.push('/profile-detail?section=visibility')} hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }} accessibilityRole="button">
                       <Text style={s.radiusBtnText}>Gérer</Text>
                     </TouchableOpacity>
                   </View>
                 </>
               ) : (
-                <Text style={[s.statusSub, s.statusSubOffline]}>Vous ne recevez actuellement aucune demande.</Text>
+                <Text style={[s.statusSub, s.statusSubOffline]}>Aucune demande reçue.</Text>
               )}
             </View>
           </View>
@@ -393,84 +393,93 @@ function Home() {
           </Text>
         </View>
 
-        {/* KPI grid */}
-        <View style={s.kpiGrid}>
+        {/* KPI grid - 4 compact cards in one row */}
+        <View style={s.kpiRow}>
           <KpiCard
+            compact
             value={nearbyCount}
-            label="Demandes proches"
-            subLabel={`${todayNearby} aujourd'hui · ${activityLabel}`}
-            icon={<MapPin size={22} color={colors.info} />}
+            label="Demandes"
+            icon={<MapPin size={16} color={colors.info} />}
             iconBg={colors.infoLight}
             iconColor={colors.info}
             onPress={goNearby}
           />
           <KpiCard
+            compact
             value={offersTotal}
-            label="Offres envoyées"
-            subLabel={`${offersPending} en attente`}
-            icon={<FileText size={22} color={colors.warning} />}
+            label="Offres"
+            icon={<FileText size={16} color={colors.warning} />}
             iconBg="#FFF7ED"
             iconColor={colors.warning}
             onPress={() => router.push('/my-offers')}
           />
-        </View>
-        <View style={s.kpiGrid}>
           <KpiCard
+            compact
             value={activeMission}
-            label="Mission en cours"
-            subLabel={activeMission > 0 && missionElapsed ? `depuis ${missionElapsed}` : 'Aucune mission active'}
-            icon={<Briefcase size={22} color={colors.success} />}
+            label="En cours"
+            icon={<Briefcase size={16} color={colors.success} />}
             iconBg="#F0FDF4"
             iconColor={colors.success}
             onPress={() => router.push({ pathname: '/my-offers', params: { filter: 'active' } })}
           />
           <KpiCard
+            compact
             value={dailyRevenueValue}
-            label="Revenus du jour"
-            subLabel={`Sem. ${weeklyRevenue} · Mois ${monthlyRevenue}`}
-            icon={<Banknote size={22} color={colors.navy} />}
+            label="Revenus"
+            icon={<Banknote size={16} color={colors.navy} />}
             iconBg={colors.slate100}
             iconColor={colors.navy}
             right={
               <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={hideRevenue ? t('home.showRevenue', { defaultValue: 'Afficher les revenus' }) : t('home.hideRevenue', { defaultValue: 'Masquer les revenus' })}>
-                {hideRevenue ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
+                {hideRevenue ? <EyeOff size={14} color={colors.textSecondary} /> : <Eye size={14} color={colors.textSecondary} />}
               </TouchableOpacity>
             }
           />
         </View>
 
-        {/* Actions */}
-        <Text style={s.sectionTitle}>Actions</Text>
-        <AnimatedTouchableOpacity
-          style={[s.actionHero, !online && s.actionDisabled, { transform: [{ scale: pulseAnim }] }]}
-          onPress={goNearby}
-          activeOpacity={0.85}
-        >
-          {online && topRequest ? (
-            <View style={s.requestHero}>
-              <View style={s.requestHeroTop}>
-                <View style={[s.actionHeroTag, { backgroundColor: getCategoryMeta(topRequest.category).color }]}>
-                  <Text style={s.actionHeroTagText}>Nouvelle demande</Text>
+        {/* Actions - Nouvelles demandes en scroll horizontal */}
+        <Text style={s.sectionTitle}>Nouvelles demandes</Text>
+        {online && nearbyItems.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={requestCardWidth + spacing.md}
+            decelerationRate="fast"
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}
+          >
+            {[...nearbyItems].sort((a: any, b: any) => (b._score || 0) - (a._score || 0)).map((req, i) => (
+              <TouchableOpacity
+                key={req._id || i}
+                style={[s.requestCard, { width: requestCardWidth }, !online && s.actionDisabled, i === 0 && { transform: [{ scale: pulseAnim }] }]}
+                onPress={() => {
+                  if (!online) return
+                  router.push('/nearby-requests')
+                }}
+                activeOpacity={0.85}
+              >
+                <View style={s.requestCardTop}>
+                  <View style={[s.requestCardTag, { backgroundColor: getCategoryMeta(req.category).color }]}>
+                    <Text style={s.requestCardTagText}>Nouvelle</Text>
+                  </View>
+                  {req._distance !== undefined ? <Text style={s.requestCardDistance}>{(req._distance / 1000).toFixed(1)} km</Text> : null}
                 </View>
-                {topRequest._distance !== undefined ? <Text style={s.requestHeroDistance}>{(topRequest._distance / 1000).toFixed(1)} km</Text> : null}
-              </View>
-              <Text style={s.requestHeroCategory}>{getCategoryMeta(topRequest.category).label}</Text>
-              <Text style={s.requestHeroPrice}>{Number(topRequest.budget || 0).toLocaleString('fr-FR')} FCFA</Text>
-              <Text style={s.requestHeroRemaining}>Temps restant : {remainingHM(topRequest.createdAt)}</Text>
-              <View style={s.requestHeroCta}>
-                <Text style={s.requestHeroCtaText}>Voir la demande</Text>
-                <ChevronRight size={16} color={colors.navy} />
-              </View>
-            </View>
-          ) : (
-            <>
-              <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
-              <Text style={s.actionHeroTitle}>Demandes proches</Text>
-              <Text style={s.actionHeroSub}>{online ? (nearbyCount > 0 ? `${nearbyCount} demande(s) autour de vous` : 'Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.') : t('home.activateToReceive', { defaultValue: 'Activez-vous pour recevoir des demandes' })}</Text>
-            </>
-          )}
-          <View style={s.actionHeroArrow}><ChevronRight size={20} color={colors.surface} /></View>
-        </AnimatedTouchableOpacity>
+                <Text style={s.requestCardCategory}>{getCategoryMeta(req.category).label}</Text>
+                <Text style={s.requestCardPrice}>{Number(req.budget || 0).toLocaleString('fr-FR')} FCFA</Text>
+                <Text style={s.requestCardRemaining}>Restant : {remainingHM(req.createdAt)}</Text>
+                <View style={s.requestCardCta}>
+                  <Text style={s.requestCardCtaText}>Voir</Text>
+                  <ChevronRight size={14} color={colors.navy} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={[s.actionHero, !online && s.actionDisabled]}>
+            <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
+            <Text style={s.actionHeroTitle}>Demandes proches</Text>
+            <Text style={s.actionHeroSub}>{online ? 'Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.' : t('home.activateToReceive', { defaultValue: 'Activez-vous pour recevoir des demandes' })}</Text>
+          </View>
+        )}
 
         <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
           <View style={s.actionRowTag}><Text style={s.actionRowTagText}>Suivi</Text></View>
@@ -526,7 +535,6 @@ function Home() {
         )}
       </AnimatedScrollView>
 
-      <TabBar active="home" />
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
@@ -547,7 +555,7 @@ const s = StyleSheet.create({
   avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary, overflow: 'hidden' },
   avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
-  statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
+  statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
   statusCardOnline: { backgroundColor: colors.primary },
   statusCardOffline: { backgroundColor: '#E5E7EB' },
   statusLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
@@ -555,10 +563,10 @@ const s = StyleSheet.create({
   statusDot: { width: 12, height: 12, borderRadius: 6 },
   statusDotOnline: { backgroundColor: '#86EFAC' },
   statusDotOffline: { backgroundColor: colors.textMuted },
-  statusTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.slate100 },
+  statusTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.slate100 },
   statusTitleOnline: { color: colors.surface },
   statusTitleOffline: { color: '#374151' },
-  statusSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  statusSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   statusSubOnline: { color: colors.successLight },
   statusSubOffline: { color: '#6B7280' },
   statusMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, flexWrap: 'wrap' },
@@ -571,7 +579,8 @@ const s = StyleSheet.create({
   activityDot: { width: 8, height: 8, borderRadius: 4 },
   activityText: { flex: 1, fontSize: 13, color: colors.textSecondary },
   activityLabel: { fontWeight: '700' },
-  kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.xl, marginTop: spacing.md },
+  kpiRow: { flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.md },
+  kpiCompact: { padding: spacing.sm },
   sectionTitle: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
   actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
   actionDisabled: { opacity: 0.55 },
@@ -579,16 +588,16 @@ const s = StyleSheet.create({
   actionHeroTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
   actionHeroSub: { fontSize: 14, color: colors.textMuted },
-  actionHeroArrow: { position: 'absolute', right: spacing.lg, top: '50%', marginTop: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  actionHeroArrowText: { color: colors.surface },
-  requestHero: { gap: spacing.sm },
-  requestHeroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  requestHeroDistance: { fontSize: 14, fontWeight: '700', color: colors.surface },
-  requestHeroCategory: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
-  requestHeroPrice: { fontSize: 16, fontWeight: '700', color: colors.successLight },
-  requestHeroRemaining: { fontSize: 13, color: colors.textMuted },
-  requestHeroCta: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  requestHeroCtaText: { color: colors.navy, fontWeight: '700', fontSize: 14 },
+  requestCard: { backgroundColor: colors.navy, borderRadius: radius.xl, padding: spacing.lg, ...shadows.lg, gap: spacing.sm },
+  requestCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  requestCardTag: { alignSelf: 'flex-start', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  requestCardTagText: { fontSize: 10, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  requestCardDistance: { fontSize: 13, fontWeight: '700', color: colors.surface },
+  requestCardCategory: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
+  requestCardPrice: { fontSize: 15, fontWeight: '700', color: colors.successLight },
+  requestCardRemaining: { fontSize: 12, color: colors.textMuted },
+  requestCardCta: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: spacing.xs, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  requestCardCtaText: { color: colors.navy, fontWeight: '700', fontSize: 13 },
   actionRow: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: 'relative', ...shadows.sm },
   adviceCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, paddingTop: spacing.md, ...shadows.sm, overflow: 'hidden' },
   adviceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
