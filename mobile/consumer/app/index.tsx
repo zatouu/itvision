@@ -138,7 +138,7 @@ function Home() {
     apiGet('/api/client/profile')
       .then((res: any) => {
         const name = res?.profile?.name
-        if (name && name.trim()) setUserName(name.split(' ')[0])
+        if (name && name.trim() && !/^\d{7,}$/.test(name.trim())) setUserName(name.split(' ')[0])
       })
       .catch(() => {})
     setMapLoading(true)

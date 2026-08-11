@@ -134,8 +134,9 @@ function Home() {
   useEffect(() => {
     return subscribeProfile(p => {
       const name = p?.name?.trim() || ''
-      setProviderName(name.split(' ')[0] || '')
-      setInitials(name.slice(0, 2).toUpperCase() || 'P')
+      const clean = name && !/^\d{7,}$/.test(name) ? name : ''
+      setProviderName(clean.split(' ')[0] || '')
+      setInitials(clean.slice(0, 2).toUpperCase() || 'P')
     })
   }, [])
 
