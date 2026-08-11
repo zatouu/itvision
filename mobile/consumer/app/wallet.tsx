@@ -5,7 +5,7 @@ import { confirm } from '../src/confirm'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { apiGetRetry, apiPost } from '../src/api'
+import { apiGetRetry, apiPost, getBaseUrl } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import EmptyState from '../src/components/EmptyState'
 import { getAuthUser } from '../src/auth'
@@ -87,7 +87,18 @@ function Wallet() {
 
   useEffect(() => {
     apiGetRetry('/api/payments/manual-config')
-      .then(r => { if (r?.success) setManualCfg({ waveQrEnabled: !!r.waveQrEnabled, waveMerchantPhone: r.waveMerchantPhone || '', waveQrUrl: r.waveQrUrl || '', wavePayUrl: r.wavePayUrl || '' }) })
+      .then(r => {
+        if (r?.success) {
+          const baseUrl = getBaseUrl()
+          let qrUrl = r.waveQrUrl || ''
+          if (qrUrl && !qrUrl.startsWith('http')) qrUrl = baseUrl + qrUrl
+          let payUrl = r.wavePayUrl || ''
+          if (!payUrl && r.waveMerchantPhone) {
+            payUrl = `https://pay.wave.com/m/${r.waveMerchantPhone.replace(/\D/g, '')}`
+          }
+          setManualCfg({ waveQrEnabled: !!r.waveMerchantPhone, waveMerchantPhone: r.waveMerchantPhone || '', waveQrUrl: qrUrl, wavePayUrl: payUrl })
+        }
+      })
       .catch(() => {})
   }, [])
 
