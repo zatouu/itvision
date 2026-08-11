@@ -6,21 +6,32 @@ const TOKEN_KEY = 'authToken'
 const USER_KEY = 'authUser'
 const isWeb = Platform.OS === 'web'
 
+// SecureStore can crash on some Android devices ("invalid key provided to secure store")
+// After first failure, disable it and use AsyncStorage for all subsequent calls
+let secureStoreAvailable = !isWeb
+
 // Token JWT → stockage chiffré (SecureStore) sur natif, AsyncStorage sur web
 async function readToken(): Promise<string | null> {
   try {
-    if (isWeb) return await AsyncStorage.getItem(TOKEN_KEY)
-    const t = await SecureStore.getItemAsync(TOKEN_KEY)
+    if (isWeb || !secureStoreAvailable) return await AsyncStorage.getItem(TOKEN_KEY)
+    let t: string | null = null
+    try {
+      t = await SecureStore.getItemAsync(TOKEN_KEY)
+    } catch {
+      secureStoreAvailable = false
+    }
     if (t) return t
     // Fallback si SecureStore a échoué précédemment
     const fallback = await AsyncStorage.getItem(TOKEN_KEY)
-    if (fallback) {
-      await SecureStore.setItemAsync(TOKEN_KEY, fallback).catch(() => {})
+    if (fallback && secureStoreAvailable) {
+      try { await SecureStore.setItemAsync(TOKEN_KEY, fallback) } catch { secureStoreAvailable = false }
     }
     // Migration depuis anciennes clés (auth:token)
     const legacy = await AsyncStorage.getItem('auth:token')
     if (legacy) {
-      await SecureStore.setItemAsync(TOKEN_KEY, legacy).catch(() => {})
+      if (secureStoreAvailable) {
+        try { await SecureStore.setItemAsync(TOKEN_KEY, legacy) } catch { secureStoreAvailable = false }
+      }
       await AsyncStorage.removeItem('auth:token').catch(() => {})
     }
     return fallback || legacy
@@ -30,19 +41,19 @@ async function readToken(): Promise<string | null> {
 }
 
 async function writeToken(token: string): Promise<void> {
-  if (isWeb) { await AsyncStorage.setItem(TOKEN_KEY, token); return }
+  if (isWeb || !secureStoreAvailable) { await AsyncStorage.setItem(TOKEN_KEY, token); return }
   try {
     await SecureStore.setItemAsync(TOKEN_KEY, token)
   } catch {
-    // Fallback si SecureStore n'est pas utilisable sur ce device
+    secureStoreAvailable = false
     await AsyncStorage.setItem(TOKEN_KEY, token)
   }
 }
 
 async function deleteToken(): Promise<void> {
-  if (isWeb) { await AsyncStorage.removeItem(TOKEN_KEY); return }
+  if (isWeb || !secureStoreAvailable) { await AsyncStorage.removeItem(TOKEN_KEY); return }
   await Promise.all([
-    SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {}),
+    SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => { secureStoreAvailable = false }),
     AsyncStorage.removeItem(TOKEN_KEY).catch(() => {}),
   ])
 }
