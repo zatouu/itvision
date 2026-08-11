@@ -385,14 +385,6 @@ function Home() {
           />
         </View>
 
-        {/* Local activity */}
-        <View style={s.activityCard}>
-          <View style={[s.activityDot, { backgroundColor: activityColor }]} />
-          <Text style={s.activityText}>
-            Activité autour de vous · <Text style={{ fontWeight: '700', color: colors.text }}>{todayNearby}</Text> demandes aujourd’hui · <Text style={{ fontWeight: '700', color: activityColor }}>{activityLabel}</Text>
-          </Text>
-        </View>
-
         {/* KPI grid - 2x2 */}
         <View style={s.kpiGrid}>
           <KpiCard
