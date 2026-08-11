@@ -89,7 +89,7 @@ function Home() {
   const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
-    setRecent(items.slice(0, 5))
+    setRecent(items.slice(0, 10))
   }, [])
 
   const loadRecent = useCallback(async () => {
@@ -292,31 +292,35 @@ function Home() {
           </View>
         )}
 
-        {/* 2. Missions actives avec statut live */}
+        {/* 2. Missions actives avec statut live — scroll horizontal */}
         {activeMissions.length > 0 && (
           <View style={s.missionsSection}>
             <Text style={s.missionsSectionTitle}>{t('home.activeMissions')}</Text>
-            {activeMissions.map(it => {
-              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
-              const catMatch = cats.find(c => c.id === it.category)
-              const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
-              const color = catMatch?.color || '#475569'
-              const catLabel = catMatch?.label || it.category
-              const liveP = liveProviders.find(p => p.status === 'arriving' || p.status === 'in_progress')
-              const title = it.description
-                ? `${catLabel} - ${it.description.slice(0, 24)}${it.description.length > 24 ? '...' : ''}`
-                : catLabel
-              return (
-                <TouchableOpacity
-                  key={it._id}
-                  style={s.missionCard}
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/mission/${it._id}`)}
-                >
-                  <View style={[s.missionMonogram, { backgroundColor: color }]}>
-                    <Text style={s.missionMonogramText}>{abbr}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}
+            >
+              {activeMissions.map(it => {
+                const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
+                const catMatch = cats.find(c => c.id === it.category)
+                const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+                const color = catMatch?.color || '#475569'
+                const catLabel = catMatch?.label || it.category
+                const liveP = liveProviders.find(p => p.status === 'arriving' || p.status === 'in_progress')
+                const title = it.description
+                  ? `${catLabel} - ${it.description.slice(0, 24)}${it.description.length > 24 ? '...' : ''}`
+                  : catLabel
+                return (
+                  <TouchableOpacity
+                    key={it._id}
+                    style={s.missionCardH}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/mission/${it._id}`)}
+                  >
+                    <View style={[s.missionMonogram, { backgroundColor: color }]}>
+                      <Text style={s.missionMonogramText}>{abbr}</Text>
+                    </View>
                     <Text style={s.missionTitle} numberOfLines={1}>{title}</Text>
                     <View style={s.missionStatusRow}>
                       <View style={[s.missionDot, { backgroundColor: st.dot }]} />
@@ -328,11 +332,10 @@ function Home() {
                         </View>
                       )}
                     </View>
-                  </View>
-                  <ChevronRight size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              )
-            })}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -473,7 +476,7 @@ function Home() {
           </TouchableOpacity>
         </View>
 
-        {/* 6. Autre activite recente */}
+        {/* 6. Autre activite recente — scroll horizontal */}
         {otherRecent.length > 0 && (
           <View>
             <View style={s.sectionRow}>
@@ -482,42 +485,45 @@ function Home() {
                 <Text style={s.seeAllText}>{t('home.seeAllRequests')}</Text>
               </TouchableOpacity>
             </View>
-            {otherRecent.map(it => {
-              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
-              const catMatch = cats.find(c => c.id === it.category)
-              const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
-              const color = catMatch?.color || '#475569'
-              const catLabel = catMatch?.label || it.category
-              const title = it.description
-                ? `${catLabel} - ${it.description.slice(0, 28)}${it.description.length > 28 ? '...' : ''}`
-                : catLabel
-              return (
-                <TouchableOpacity
-                  key={it._id}
-                  style={s.recentCard}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    if (['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(it.status)) {
-                      router.push(`/mission/${it._id}`)
-                    } else {
-                      router.push({ pathname: '/request-offers', params: { id: it._id } })
-                    }
-                  }}
-                >
-                  <View style={[s.recentMonogram, { backgroundColor: color }]}>
-                    <Text style={s.recentMonogramText}>{abbr}</Text>
-                  </View>
-                  <View style={s.recentInfo}>
-                    <Text style={s.recentTitle} numberOfLines={1}>{title}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md, paddingBottom: spacing.sm }}
+            >
+              {otherRecent.map(it => {
+                const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
+                const catMatch = cats.find(c => c.id === it.category)
+                const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+                const color = catMatch?.color || '#475569'
+                const catLabel = catMatch?.label || it.category
+                const title = it.description
+                  ? `${catLabel} - ${it.description.slice(0, 20)}${it.description.length > 20 ? '...' : ''}`
+                  : catLabel
+                return (
+                  <TouchableOpacity
+                    key={it._id}
+                    style={s.recentCardH}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(it.status)) {
+                        router.push(`/mission/${it._id}`)
+                      } else {
+                        router.push({ pathname: '/request-offers', params: { id: it._id } })
+                      }
+                    }}
+                  >
+                    <View style={[s.recentMonogram, { backgroundColor: color }]}>
+                      <Text style={s.recentMonogramText}>{abbr}</Text>
+                    </View>
+                    <Text style={s.recentTitleH} numberOfLines={1}>{title}</Text>
                     <View style={s.recentStatus}>
                       <View style={[s.recentDot, { backgroundColor: st.dot }]} />
                       <Text style={[s.recentStatusText, { color: st.color }]}>{st.label}</Text>
                     </View>
-                  </View>
-                  <ChevronRight size={20} color={colors.textMuted} />
-                </TouchableOpacity>
-              )
-            })}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -603,9 +609,10 @@ const s = StyleSheet.create({
   offersBannerSub: { fontSize: 12, color: '#B45309', marginTop: 2 },
   offersBannerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.warning, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexShrink: 0 },
   offersBannerBtnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.surface },
-  missionsSection: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
-  missionsSectionTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.xs },
+  missionsSection: { marginBottom: spacing.lg },
+  missionsSectionTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.xs, paddingHorizontal: spacing.lg },
   missionCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  missionCardH: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, width: 200, borderWidth: 1, borderColor: colors.border, ...shadows.sm, gap: spacing.sm },
   missionMonogram: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   missionMonogramText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   missionTitle: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text },
@@ -629,10 +636,12 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
   seeAllText: { fontSize: 13, color: colors.primary, fontWeight: typography.weight.extrabold as any },
   recentCard: { marginHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, ...shadows.sm },
-  recentMonogram: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  recentCardH: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, width: 180, borderWidth: 1, borderColor: colors.border, ...shadows.sm, gap: spacing.sm },
+  recentMonogram: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   recentMonogramText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   recentInfo: { flex: 1, gap: 4 },
   recentTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  recentTitleH: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
   recentStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   recentDot: { width: 6, height: 6, borderRadius: 3 },
   recentStatusText: { fontSize: 12, fontWeight: typography.weight.semibold as any },
