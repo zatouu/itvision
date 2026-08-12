@@ -274,3 +274,70 @@ export async function releasePayment(
     case 'wave_qr': return waveQrRelease(externalId, amount, providerPhone)
   }
 }
+
+// ──── PAYMENT STATUS CHECK ────────────────────────────────────────────────────
+
+export type PaymentCheckResult = {
+  status: 'succeeded' | 'pending' | 'failed' | 'unknown'
+  raw?: any
+}
+
+/**
+ * Query the provider's API to check the real-time status of a payment.
+ * Used by the confirm endpoint and the sweeper as fallback when webhooks don't fire.
+ */
+export async function checkPaymentStatus(
+  provider: PaymentProvider,
+  externalId: string,
+): Promise<PaymentCheckResult> {
+  if (isMockMode()) return { status: 'succeeded' }
+
+  try {
+    switch (provider) {
+      case 'wave': {
+        if (!process.env.WAVE_API_KEY) return { status: 'unknown' }
+        const res = await fetch(`https://api.wave.com/v1/checkout/sessions/${externalId}`, {
+          headers: { 'Authorization': `Bearer ${process.env.WAVE_API_KEY}` },
+        })
+        if (!res.ok) return { status: 'unknown', raw: await res.json().catch(() => null) }
+        const data = await res.json()
+        const st = data.payment_status || data.status || ''
+        if (['paid', 'succeeded', 'successful', 'completed'].includes(st)) return { status: 'succeeded', raw: data }
+        if (['failed', 'cancelled', 'expired'].includes(st)) return { status: 'failed', raw: data }
+        return { status: 'pending', raw: data }
+      }
+      case 'orange_money': {
+        if (!process.env.OM_API_URL || !process.env.OM_API_TOKEN) return { status: 'unknown' }
+        const res = await fetch(`${process.env.OM_API_URL}/merchant/payment/${externalId}`, {
+          headers: { 'Authorization': `Bearer ${process.env.OM_API_TOKEN}` },
+        })
+        if (!res.ok) return { status: 'unknown', raw: await res.json().catch(() => null) }
+        const data = await res.json()
+        const st = data.status || data.paymentStatus || ''
+        if (['SUCCESS', 'SUCCESSFUL', 'COMPLETED'].includes(st)) return { status: 'succeeded', raw: data }
+        if (['FAILED', 'CANCELLED', 'EXPIRED'].includes(st)) return { status: 'failed', raw: data }
+        return { status: 'pending', raw: data }
+      }
+      case 'free_money': {
+        if (!process.env.FREE_MONEY_API_URL || !process.env.FREE_MONEY_API_KEY) return { status: 'unknown' }
+        const res = await fetch(`${process.env.FREE_MONEY_API_URL}/payment/status/${externalId}`, {
+          headers: { 'X-API-Key': process.env.FREE_MONEY_API_KEY },
+        })
+        if (!res.ok) return { status: 'unknown', raw: await res.json().catch(() => null) }
+        const data = await res.json()
+        const st = data.status || data.transactionStatus || ''
+        if (['SUCCESS', 'SUCCESSFUL', 'COMPLETED'].includes(st)) return { status: 'succeeded', raw: data }
+        if (['FAILED', 'CANCELLED', 'EXPIRED'].includes(st)) return { status: 'failed', raw: data }
+        return { status: 'pending', raw: data }
+      }
+      case 'cash':
+      case 'wave_qr':
+        // No API to query — trust-based confirmation
+        return { status: 'unknown' }
+    }
+  } catch (err) {
+    console.error(`[checkPaymentStatus] ${provider} error:`, err)
+    return { status: 'unknown' }
+  }
+  return { status: 'unknown' }
+}

@@ -41,6 +41,7 @@ const PaymentSchema = new Schema({
   refundAmount: { type: Number, default: 0, min: 0 },
   failedAt: { type: Date },
   failReason: { type: String },
+  confirmedBy: { type: String, enum: ['webhook', 'client', 'system_reconcile', 'admin'], default: null },
 }, { timestamps: true })
 
 PaymentSchema.index({ requestId: 1, status: 1 })

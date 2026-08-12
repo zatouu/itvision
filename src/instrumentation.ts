@@ -34,5 +34,9 @@ export async function register() {
         console.error('[server] offer expiration interval', err)
       }
     }, 5 * 60 * 1000)
+
+    // Payment sweeper — réconciliation des paiements pending (fallback webhook)
+    const { startPaymentSweeper } = await import('@/lib/payment-sweeper')
+    startPaymentSweeper()
   }
 }

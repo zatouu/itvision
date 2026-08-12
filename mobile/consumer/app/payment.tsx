@@ -136,13 +136,34 @@ function PaymentScreen() {
         }
       }
       if (res.manualConfirm && res.reference) {
-        // Paiement QR statique : afficher les instructions + polling de validation admin
+        // Paiement QR statique : afficher les instructions + polling via /confirm
         setManualPending({ reference: res.reference, amount: payNowAmount })
         setPolling(true)
         pollDoneRef.current = false
+        let confirmAttempts = 0
         pollRef.current = setInterval(async () => {
           if (pollDoneRef.current) return
+          confirmAttempts++
           try {
+            // After 3 attempts (15s), call /confirm to trigger trust-based confirmation
+            if (confirmAttempts >= 3) {
+              pollDoneRef.current = true
+              stopPolling()
+              setManualPending(null)
+              hapticSuccess()
+              // Call confirm endpoint to transition payment
+              try {
+                await apiPost('/api/payments/confirm', { requestId: res.payment.requestId })
+              } catch { /* sweeper will handle it */ }
+              toast.success(t('payment.initiated'), t('payment.manualConfirmed', { defaultValue: 'Paiement confirmé. La mission démarre.' }))
+              if (requestId) {
+                router.replace(`/mission/${requestId}`)
+              } else {
+                router.back()
+              }
+              return
+            }
+            // First 15s: check if already confirmed by webhook/sweeper
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
             if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
               pollDoneRef.current = true
@@ -180,9 +201,39 @@ function PaymentScreen() {
       } else if (res.payment?.status === 'pending') {
         setPolling(true)
         pollDoneRef.current = false
+        let pendingAttempts = 0
         pollRef.current = setInterval(async () => {
           if (pollDoneRef.current) return
+          pendingAttempts++
           try {
+            // After 4 attempts (20s), call /confirm to trigger fallback confirmation
+            if (pendingAttempts >= 4) {
+              pollDoneRef.current = true
+              stopPolling()
+              try {
+                const confirmRes = await apiPost('/api/payments/confirm', { requestId: res.payment.requestId })
+                if (confirmRes.status === 'held' || confirmRes.success) {
+                  hapticSuccess()
+                  toast.success(
+                    t('payment.initiated'),
+                    paymentMode === 'deposit'
+                      ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
+                      : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') })
+                  )
+                  if (requestId) {
+                    router.replace(`/mission/${requestId}`)
+                  } else {
+                    router.back()
+                  }
+                  return
+                }
+              } catch { /* sweeper will handle it */ }
+              // Confirm didn't work — keep polling request status as last resort
+              setPolling(true)
+              pollDoneRef.current = false
+              pendingAttempts = 0
+            }
+            // Check if webhook already fired
             const r = await apiGetRetry(`/api/services/requests/${res.payment.requestId}`)
             if (['accepted','assigned','on_the_way','provider_arriving','arrived','in_progress','paused','awaiting_validation'].includes(r.item?.status)) {
               pollDoneRef.current = true
@@ -201,7 +252,7 @@ function PaymentScreen() {
             }
           } catch { /* keep polling */ }
         }, 5000)
-        pollTimeoutRef.current = setTimeout(() => stopPolling(), 120000)
+        pollTimeoutRef.current = setTimeout(() => stopPolling(), 180000)
       }
     } catch (e: any) {
       const msg = e.message || t('payment.initError')
@@ -437,11 +488,24 @@ function PaymentScreen() {
             </View>
             <TouchableOpacity
               style={s.ipaidBtn}
-              onPress={() => {
+              onPress={async () => {
                 hapticSelect()
                 stopPolling()
                 setManualPending(null)
-                initiate()
+                setLoading(true)
+                try {
+                  const confirmRes = await apiPost('/api/payments/confirm', { requestId: requestId || '' })
+                  hapticSuccess()
+                  toast.success(t('payment.initiated'), t('payment.manualConfirmed', { defaultValue: 'Paiement confirmé. La mission démarre.' }))
+                  if (requestId) {
+                    router.replace(`/mission/${requestId}`)
+                  } else {
+                    router.back()
+                  }
+                } catch (e: any) {
+                  toast.error(t('common.error'), e.message || 'Confirmation échouée')
+                  setLoading(false)
+                }
               }}
               activeOpacity={0.8}
             >

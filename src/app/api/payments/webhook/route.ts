@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       // Payment held successfully
       payment.status = 'held'
       payment.heldAt = new Date()
+      payment.confirmedBy = 'webhook'
       await payment.save()
 
       if (payment.orderId) {
