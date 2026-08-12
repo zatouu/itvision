@@ -211,7 +211,7 @@ function MyRequests() {
                 style={s.card}
                 activeOpacity={0.85}
                 onPress={() => {
-                  if (['assigned', 'provider_arriving', 'in_progress', 'completed', 'cancelled'].includes(it.status)) {
+                  if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress', 'completed', 'cancelled'].includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
                     router.push(`/offers/${it._id}`)

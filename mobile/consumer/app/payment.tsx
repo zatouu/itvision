@@ -45,7 +45,7 @@ type WalletData = {
 
 function PaymentScreen() {
   const { t } = useTranslation()
-  const { offerId, amount, phase } = useLocalSearchParams<{ offerId: string; amount: string; requestId: string; phase?: string }>()
+  const { offerId, amount, phase, requestId } = useLocalSearchParams<{ offerId: string; amount: string; requestId: string; phase?: string }>()
   const [selected, setSelected] = useState<Provider | null>(null)
   const [paymentMode, setPaymentMode] = useState<'deposit' | 'full'>(phase === 'balance' ? 'full' : phase === 'full' ? 'full' : 'deposit')
   const [loading, setLoading] = useState(false)
@@ -150,7 +150,11 @@ function PaymentScreen() {
               setManualPending(null)
               hapticSuccess()
               toast.success(t('payment.initiated'), t('payment.manualConfirmed', { defaultValue: 'Paiement confirmé. La mission démarre.' }))
-              router.back()
+              if (requestId) {
+                router.replace(`/mission/${requestId}`)
+              } else {
+                router.back()
+              }
             }
           } catch { /* keep polling */ }
         }, 5000)
@@ -168,7 +172,11 @@ function PaymentScreen() {
               ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
               : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') })
         )
-        router.back()
+        if (requestId && phase !== 'balance') {
+          router.replace(`/mission/${requestId}`)
+        } else {
+          router.back()
+        }
       } else if (res.payment?.status === 'pending') {
         setPolling(true)
         pollDoneRef.current = false
@@ -185,7 +193,11 @@ function PaymentScreen() {
                   ? t('payment.depositInitiated', { deposit: depositAmount.toLocaleString('fr-FR'), balance: balanceAmount.toLocaleString('fr-FR') })
                   : t('payment.escrowHeld', { amount: totalAmount.toLocaleString('fr-FR') })
               )
-              router.back()
+              if (requestId) {
+                router.replace(`/mission/${requestId}`)
+              } else {
+                router.back()
+              }
             }
           } catch { /* keep polling */ }
         }, 5000)

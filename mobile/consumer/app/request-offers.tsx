@@ -198,7 +198,12 @@ function RequestOffers() {
     }
     const handleDisconnect = () => setWsConnected(false)
     const handleOfferNew = () => { load(false, true) }
-    const handleAssigned = () => { load(false, true) }
+    const handleAssigned = async () => {
+      if (cacheKey) await cacheClear(cacheKey)
+      await cacheClear('my-requests')
+      await cacheClear('home-requests')
+      load(false, true)
+    }
     const handleCounterAccepted = () => { load(false, true) }
     const handleCounterRejected = () => { load(false, true) }
     const handleOfferUpdated = () => { load(false, true) }
@@ -312,7 +317,7 @@ function RequestOffers() {
 
   // Si la demande est déjà assignée, rediriger vers l'écran mission
   useEffect(() => {
-    if (serviceRequest && ['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(serviceRequest.status)) {
+    if (serviceRequest && ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress', 'completed'].includes(serviceRequest.status)) {
       router.replace(`/mission/${id}`)
     }
   }, [serviceRequest, id])
