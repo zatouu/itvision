@@ -20,6 +20,9 @@ export type Offer = {
   materialIncluded?: boolean
   distanceKm?: number
   isNew?: boolean
+  status?: 'submitted' | 'withdrawn' | 'accepted' | 'rejected' | 'expired'
+  clientCounterPrice?: number
+  clientCounterStatus?: 'pending' | 'accepted' | 'rejected'
 }
 
 type Props = {
@@ -29,6 +32,7 @@ type Props = {
   onChoose: (offer: Offer) => void
   onNegotiate: (offer: Offer) => void
   disabled?: boolean
+  hasAcceptedOffer?: boolean
 }
 
 function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) {
@@ -48,7 +52,7 @@ function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) 
   )
 }
 
-export default function OfferCard({ offer, isBest, budget, onChoose, onNegotiate, disabled }: Props) {
+export default function OfferCard({ offer, isBest, budget, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
   const { t } = useTranslation()
   const slideAnim = useRef(new Animated.Value(offer.isNew ? 50 : 0)).current
   const fadeAnim = useRef(new Animated.Value(offer.isNew ? 0 : 1)).current
@@ -164,26 +168,47 @@ export default function OfferCard({ offer, isBest, budget, onChoose, onNegotiate
         </View>
       )}
 
+      {/* Contre-offre status badge */}
+      {offer.clientCounterStatus === 'pending' && (
+        <View style={s.counterBadge}>
+          <Text style={s.counterBadgeText}>{t('clientOffers.counterPending', { defaultValue: 'Contre-offre en attente' })} — {offer.clientCounterPrice?.toLocaleString('fr-FR')} FCFA</Text>
+        </View>
+      )}
+      {offer.clientCounterStatus === 'accepted' && (
+        <View style={s.counterBadgeAccepted}>
+          <Text style={s.counterBadgeTextAccepted}>{t('clientOffers.counterAccepted', { defaultValue: 'Contre-offre acceptée' })} — {offer.clientCounterPrice?.toLocaleString('fr-FR')} FCFA</Text>
+        </View>
+      )}
+
       {/* Action buttons */}
       <View style={s.actions}>
-        <TouchableOpacity
-          style={s.negotiateBtn}
-          onPress={() => onNegotiate(offer)}
-          activeOpacity={0.85}
-          disabled={disabled}
-        >
-          <Text style={s.negotiateBtnText}>{t('clientOffers.negotiate')}</Text>
-          <MessageCircle size={16} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.chooseBtn, disabled && { opacity: 0.6 }]}
-          onPress={() => onChoose(offer)}
-          activeOpacity={0.85}
-          disabled={disabled}
-        >
-          <Text style={s.chooseBtnText}>{t('clientOffers.choose')}</Text>
-          <Check size={16} color={colors.surface} strokeWidth={3} />
-        </TouchableOpacity>
+        {offer.status === 'accepted' ? (
+          <View style={s.acceptedRow}>
+            <Check size={18} color={colors.success} strokeWidth={3} />
+            <Text style={s.acceptedText}>{t('clientOffers.accepted', { defaultValue: 'Accepté' })}</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[s.negotiateBtn, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
+              onPress={() => onNegotiate(offer)}
+              activeOpacity={0.85}
+              disabled={disabled || hasAcceptedOffer}
+            >
+              <Text style={s.negotiateBtnText}>{t('clientOffers.negotiate')}</Text>
+              <MessageCircle size={16} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.chooseBtn, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
+              onPress={() => onChoose(offer)}
+              activeOpacity={0.85}
+              disabled={disabled || hasAcceptedOffer}
+            >
+              <Text style={s.chooseBtnText}>{t('clientOffers.choose')}</Text>
+              <Check size={16} color={colors.surface} strokeWidth={3} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </Animated.View>
   )
@@ -388,5 +413,50 @@ const s = StyleSheet.create({
     fontSize: typography.base.fontSize,
     color: colors.surface,
     fontWeight: typography.weight.bold as any,
+  },
+  counterBadge: {
+    backgroundColor: colors.warningLight,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  counterBadgeText: {
+    fontSize: 12,
+    color: colors.warning,
+    fontWeight: typography.weight.semibold as any,
+  },
+  counterBadgeAccepted: {
+    backgroundColor: colors.successLight,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  counterBadgeTextAccepted: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: typography.weight.semibold as any,
+  },
+  acceptedRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: colors.successLight,
+    borderRadius: radius.lg,
+  },
+  acceptedText: {
+    fontSize: typography.base.fontSize,
+    color: colors.success,
+    fontWeight: typography.weight.extrabold as any,
   },
 })

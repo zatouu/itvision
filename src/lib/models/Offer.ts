@@ -16,6 +16,7 @@ const OfferSchema = new Schema({
   clientCounterPrice: { type: Number, min: 0 },
   clientCounterAt: { type: Date },
   clientCounterComment: { type: String },
+  clientCounterAudioUrl: { type: String },
   clientCounterStatus: { type: String, enum: ['pending','accepted','rejected'] },
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 

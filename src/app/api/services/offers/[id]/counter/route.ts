@@ -18,13 +18,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { price, comment } = body as any
+    const { price, comment, audioUrl } = body as any
 
     if (typeof price !== 'number' || price <= 0 || price > MAX_PRICE || !Number.isFinite(price)) {
       return NextResponse.json({ error: 'Prix invalide (doit être > 0)' }, { status: 400 })
     }
     if (comment && (typeof comment !== 'string' || comment.length > MAX_COMMENT_LENGTH)) {
       return NextResponse.json({ error: `Commentaire trop long (max ${MAX_COMMENT_LENGTH} car.)` }, { status: 400 })
+    }
+    if (audioUrl && typeof audioUrl !== 'string') {
+      return NextResponse.json({ error: 'Audio invalide' }, { status: 400 })
     }
 
     const offer = await Offer.findById(id)
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     offer.clientCounterPrice = price
     offer.clientCounterAt = new Date()
     offer.clientCounterComment = comment ? comment.slice(0, MAX_COMMENT_LENGTH) : undefined
+    offer.clientCounterAudioUrl = audioUrl || undefined
     offer.clientCounterStatus = 'pending'
     await offer.save()
 
@@ -57,19 +61,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         requestId: String(offer.requestId),
         clientCounterPrice: price,
         clientCounterComment: offer.clientCounterComment,
+        clientCounterAudioUrl: offer.clientCounterAudioUrl,
       })
       io.to(`request-${String(offer.requestId)}`).emit('offer:updated', {
         offerId: String(offer._id),
         clientCounterPrice: price,
         clientCounterStatus: 'pending',
+        clientCounterAudioUrl: offer.clientCounterAudioUrl,
       })
     }
 
     // Push notification au provider
     await sendPushToUser(String(offer.providerId), {
       title: '💬 Contre-offre reçue',
-      body: `Le client propose ${price.toLocaleString('fr-FR')} FCFA au lieu de ${offer.price.toLocaleString('fr-FR')} FCFA`,
-      data: { type: 'offer:counter', offerId: String(offer._id), requestId: String(offer.requestId) },
+      body: `Le client propose ${price.toLocaleString('fr-FR')} FCFA au lieu de ${offer.price.toLocaleString('fr-FR')} FCFA${audioUrl ? ' (avec vocal)' : ''}`,
+      data: { type: 'offer:counter', offerId: String(offer._id), requestId: String(offer.requestId), audioUrl: audioUrl || '' },
       appType: 'provider',
     })
 

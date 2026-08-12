@@ -21,6 +21,7 @@ import RadarPulseIllustration from '../../src/components/offers/RadarPulseIllust
 import VerticalTimeline from '../../src/components/offers/VerticalTimeline'
 import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
 import TipCard from '../../src/components/offers/TipCard'
+import NegotiateSheet from '../../src/components/offers/NegotiateSheet'
 
 export default function OffersReceived() {
   const { t } = useTranslation()
@@ -31,6 +32,8 @@ export default function OffersReceived() {
   const [sort, setSort] = useState<SortKey>('recommended')
   const [accepting, setAccepting] = useState<string | null>(null)
   const [viewersCount, setViewersCount] = useState(0)
+  const [showFilters, setShowFilters] = useState(true)
+  const [negotiateTarget, setNegotiateTarget] = useState<Offer | null>(null)
   const transitionAnim = useRef(false)
 
   const cacheKey = `offers-${requestId}`
@@ -137,7 +140,7 @@ export default function OffersReceived() {
   }
 
   const negotiateOffer = (offer: Offer) => {
-    router.push(`/offers/provider/${offer.providerId}`)
+    setNegotiateTarget(offer)
   }
 
   const cancelRequest = async () => {
@@ -169,6 +172,8 @@ export default function OffersReceived() {
   // Expires at for countdown
   const expiresAt = request?.validUntil || request?.expiresAt || undefined
 
+  const hasAcceptedOffer = offers.some(o => o.status === 'accepted')
+
   const isEmpty = !loading && offers.length === 0
   const hasOffers = !loading && offers.length > 0
 
@@ -178,8 +183,8 @@ export default function OffersReceived() {
         title={t('clientOffers.title')}
         onBack={() => router.back()}
         right={
-          <TouchableOpacity style={s.filterBtn} activeOpacity={0.8}>
-            <SlidersHorizontal size={20} color={colors.textSecondary} />
+          <TouchableOpacity style={s.filterBtn} activeOpacity={0.8} onPress={() => setShowFilters(v => !v)}>
+            <SlidersHorizontal size={20} color={showFilters ? colors.primary : colors.textSecondary} />
           </TouchableOpacity>
         }
       />
@@ -215,7 +220,7 @@ export default function OffersReceived() {
           {hasOffers && (
             <>
               {/* Sorting Pills */}
-              <SortingPillsRow active={sort} onChange={setSort} />
+              {showFilters && <SortingPillsRow active={sort} onChange={setSort} />}
 
               {/* Offers count */}
               <Text style={s.offersCount}>
@@ -233,6 +238,7 @@ export default function OffersReceived() {
                     onChoose={acceptOffer}
                     onNegotiate={negotiateOffer}
                     disabled={accepting === offer._id}
+                    hasAcceptedOffer={hasAcceptedOffer}
                   />
                 ))}
               </View>
@@ -304,6 +310,16 @@ export default function OffersReceived() {
           )}
         </ScrollView>
       )}
+
+      {/* Negotiate bottom sheet */}
+      <NegotiateSheet
+        visible={!!negotiateTarget}
+        onClose={() => setNegotiateTarget(null)}
+        offerId={negotiateTarget?._id || ''}
+        offerPrice={negotiateTarget?.price || 0}
+        providerName={negotiateTarget?.providerName}
+        onSent={() => load(true)}
+      />
     </SafeAreaView>
   )
 }
