@@ -9,9 +9,19 @@ import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wall
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { offerPaymentInitSchema, validate } from '@/lib/validation'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']
-const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
+
+// Mock si : dev local, PAYMENTS_MOCK=true, ou toggle admin activé (sans redémarrage)
+function isMockMode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  try {
+    return readPaymentSettings().providers.mockEnabled
+  } catch {
+    return process.env.PAYMENTS_MOCK === 'true'
+  }
+}
 
 const DEPOSIT_RATE = 0.25
 const MIN_DEPOSIT = 1000
@@ -174,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isManual = !!result.manualConfirm
-    if (!isManual && (isDev || provider === 'cash')) {
+    if (!isManual && (isMockMode() || provider === 'cash')) {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()

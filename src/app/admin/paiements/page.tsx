@@ -38,6 +38,7 @@ type PaymentSettings = {
     }
   },
   providers: {
+    mockEnabled: boolean
     manual: {
       waveMerchantPhone: string
       waveQrUrl: string
@@ -193,6 +194,22 @@ export default function AdminPaymentsPage() {
           {/* GENERAL */}
           {activeTab === 'general' && (
             <div className="space-y-6">
+              <div className={`rounded-xl border-2 p-4 ${settings.providers.mockEnabled ? 'border-amber-400 bg-amber-50' : 'border-gray-200 bg-white'}`}>
+                <Toggle
+                  label="Mode simulation (paiements fictifs)"
+                  description={settings.providers.mockEnabled
+                    ? 'ATTENTION : aucun paiement réel n\'est débité. Toutes les transactions sont auto-validées. À utiliser uniquement pour les démos/tests.'
+                    : 'Les paiements passent par les vrais canaux (Wave QR marchand, gateway). Activer uniquement pour les démos.'}
+                  checked={settings.providers.mockEnabled}
+                  onChange={v => setSettings({ ...settings, providers: { ...settings.providers, mockEnabled: v } })}
+                />
+                {settings.providers.mockEnabled && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    Actif — prise en compte immédiate après enregistrement, sans redémarrage serveur.
+                  </p>
+                )}
+              </div>
+
               <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Fonctionnalités Achats Groupés</h2>
               <div className="grid gap-4">
                 <Toggle 

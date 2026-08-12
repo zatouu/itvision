@@ -5,12 +5,21 @@ import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { initiatePayment, PaymentProvider } from '@/lib/payment'
 import { creditPoints, getAppConfig, getOrCreateWallet } from '@/lib/wallet'
 import TopupPayment from '@/lib/models/TopupPayment'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'wave_qr']
 const MIN_POINTS = 10
 const MAX_POINTS = 10000
 
-const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
+// Mock si : dev local, PAYMENTS_MOCK=true, ou toggle admin activé (sans redémarrage)
+function isMockMode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  try {
+    return readPaymentSettings().providers.mockEnabled
+  } catch {
+    return process.env.PAYMENTS_MOCK === 'true'
+  }
+}
 
 export async function POST(request: NextRequest) {
   const rl = await applyRateLimit(request, serviceWriteRateLimiter)
@@ -76,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     // En dev, le paiement est mocké et confirmé instantanément → on crédite tout de suite,
     // sauf pour les paiements manuels (QR) qui attendent une validation admin.
-    if (isDev && !result.manualConfirm) {
+    if (isMockMode() && !result.manualConfirm) {
       if (totalCredits !== points) {
         await creditPoints(String(userId), totalCredits - points, 'promo', {
           description: `Bonus ${totalCredits - points} crédits offerts (pack ${packId || 'custom'})`,

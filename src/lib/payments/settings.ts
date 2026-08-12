@@ -28,6 +28,8 @@ export type PaymentSettings = {
     rules: GroupOrderRules
   },
   providers: {
+    /** true = paiements simulés (aucun débit réel). Pilotable depuis l'admin. */
+    mockEnabled: boolean
     manual: {
       waveMerchantPhone: string
       waveQrUrl: string
@@ -146,6 +148,7 @@ const DEFAULT_SETTINGS: PaymentSettings = {
     rules: DEFAULT_GROUP_ORDER_RULES
   },
   providers: {
+    mockEnabled: false,
     manual: {
       waveMerchantPhone: '+221770000000',
       waveQrUrl: '',
@@ -220,6 +223,10 @@ export function readPaymentSettings(): PaymentSettings {
         rules: sanitizeGroupOrderRules(parsed?.groupOrders?.rules, DEFAULT_GROUP_ORDER_RULES)
       },
       providers: {
+        // Priorité : fichier admin > env PAYMENTS_MOCK > défaut (false)
+        mockEnabled: typeof parsed?.providers?.mockEnabled === 'boolean'
+          ? parsed.providers.mockEnabled
+          : process.env.PAYMENTS_MOCK === 'true',
         manual: {
           // Priorité : valeur saisie par l'admin (fichier) > variable d'env > défaut.
           // Avant : l'env écrasait la config admin, ce qui faisait "sauter" le numéro marchand.
@@ -263,6 +270,7 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
       rules: sanitizeGroupOrderRules(payload?.groupOrders?.rules, current.groupOrders.rules)
     },
     providers: {
+      mockEnabled: typeof payload.providers?.mockEnabled === 'boolean' ? payload.providers.mockEnabled : current.providers.mockEnabled,
       manual: {
         waveMerchantPhone: payload.providers?.manual?.waveMerchantPhone ?? current.providers.manual.waveMerchantPhone,
           waveQrUrl: payload.providers?.manual?.waveQrUrl ?? current.providers.manual.waveQrUrl,

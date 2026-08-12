@@ -5,9 +5,19 @@ import Payment from '@/lib/models/Payment'
 import { initiatePayment, PaymentProvider, InitiateResult } from '@/lib/payment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { paymentInitSchema, validate } from '@/lib/validation'
+import { readPaymentSettings } from '@/lib/payments/settings'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
-const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
+
+// Mock si : dev local, PAYMENTS_MOCK=true, ou toggle admin activé (sans redémarrage)
+function isMockMode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  try {
+    return readPaymentSettings().providers.mockEnabled
+  } catch {
+    return process.env.PAYMENTS_MOCK === 'true'
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,7 +100,7 @@ export async function POST(request: NextRequest) {
     await order.save()
 
     // En dev ou cash : simuler le paiement confirmé pour permettre les tests sans compte marchand
-    if (isDev || provider === 'cash') {
+    if (isMockMode() || provider === 'cash') {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()

@@ -11,7 +11,18 @@ import { createHmac, timingSafeEqual } from 'crypto'
  * En dev (NODE_ENV !== production), tous les webhooks sont acceptés.
  */
 
-const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
+import { readPaymentSettings } from '@/lib/payments/settings'
+
+// En mode mock (dev local, PAYMENTS_MOCK=true, ou toggle admin), les webhooks sont acceptés
+// sans vérification de signature — cohérent avec les paiements simulés.
+function isMockMode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  try {
+    return readPaymentSettings().providers.mockEnabled
+  } catch {
+    return process.env.PAYMENTS_MOCK === 'true'
+  }
+}
 
 function safeCompare(a: string, b: string): boolean {
   try {
@@ -42,7 +53,7 @@ export function verifyWebhookSignature(
   headers: Headers,
   rawBody: string,
 ): WebhookVerifyResult {
-  if (isDev) {
+  if (isMockMode()) {
     return { valid: true, provider: 'unknown' }
   }
 

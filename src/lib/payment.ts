@@ -24,16 +24,31 @@ export interface ReleaseResult {
   error?: string
 }
 
-// Mock automatique en dev OU si PAYMENTS_MOCK=true (utile pour tests E2E en prod sans compte marchand)
-const isDev = process.env.NODE_ENV !== 'production' || process.env.PAYMENTS_MOCK === 'true'
-console.log(`[Payment] Mode: ${isDev ? 'MOCK (paiements simulés)' : 'PROD (Wave/OM/Free Money réels)'} — NODE_ENV=${process.env.NODE_ENV} PAYMENTS_MOCK=${process.env.PAYMENTS_MOCK}`)
+import { readPaymentSettings } from '@/lib/payments/settings'
+
+// Mock automatique en dev local, si PAYMENTS_MOCK=true, ou si activé depuis l'admin.
+// Évalué à chaque appel (cache 5s) pour permettre le toggle admin sans redémarrage.
+let _mockCache: { value: boolean; at: number } | null = null
+function isMockMode(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true
+  const now = Date.now()
+  if (_mockCache && now - _mockCache.at < 5000) return _mockCache.value
+  let value = false
+  try {
+    value = readPaymentSettings().providers.mockEnabled
+  } catch {
+    value = process.env.PAYMENTS_MOCK === 'true'
+  }
+  _mockCache = { value, at: now }
+  return value
+}
 
 // ──── WAVE ────────────────────────────────────────────────────────────────────
 
 async function waveInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
   // En dev/mock : auto-success comme OM et Free Money (pas de validation manuelle)
-  if (isDev) {
-    console.log(`[Payment/Wave] DEV: hold ${amount} XOF from ${clientPhone}`)
+  if (isMockMode()) {
+    console.log(`[Payment/Wave] MOCK: hold ${amount} XOF from ${clientPhone}`)
     return { success: true, externalId: `wave_dev_${Date.now()}` }
   }
   // Sans clé API Wave en prod : bascule sur le flux QR manuel
@@ -66,8 +81,8 @@ async function waveInitiate(amount: number, clientPhone: string, description: st
 }
 
 async function waveRelease(externalId: string, _amount: number, _providerPhone: string): Promise<ReleaseResult> {
-  if (isDev) {
-    console.log(`[Payment/Wave] DEV: release ${externalId}`)
+  if (isMockMode()) {
+    console.log(`[Payment/Wave] MOCK: release ${externalId}`)
     return { success: true }
   }
   // Wave auto-releases to merchant account on successful checkout
@@ -93,8 +108,8 @@ async function waveRelease(externalId: string, _amount: number, _providerPhone: 
 // ──── ORANGE MONEY ────────────────────────────────────────────────────────────
 
 async function omInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
-  if (isDev) {
-    console.log(`[Payment/OM] DEV: hold ${amount} XOF from ${clientPhone}`)
+  if (isMockMode()) {
+    console.log(`[Payment/OM] MOCK: hold ${amount} XOF from ${clientPhone}`)
     return { success: true, externalId: `om_dev_${Date.now()}`, checkoutUrl: undefined }
   }
 
@@ -119,8 +134,8 @@ async function omInitiate(amount: number, clientPhone: string, description: stri
 }
 
 async function omRelease(externalId: string, amount: number, providerPhone: string): Promise<ReleaseResult> {
-  if (isDev) {
-    console.log(`[Payment/OM] DEV: release ${externalId} → ${providerPhone}`)
+  if (isMockMode()) {
+    console.log(`[Payment/OM] MOCK: release ${externalId} → ${providerPhone}`)
     return { success: true }
   }
   const res = await fetch(`${process.env.OM_API_URL}/cashout`, {
@@ -143,8 +158,8 @@ async function omRelease(externalId: string, amount: number, providerPhone: stri
 // ──── FREE MONEY ──────────────────────────────────────────────────────────────
 
 async function freeInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
-  if (isDev) {
-    console.log(`[Payment/Free] DEV: hold ${amount} XOF from ${clientPhone}`)
+  if (isMockMode()) {
+    console.log(`[Payment/Free] MOCK: hold ${amount} XOF from ${clientPhone}`)
     return { success: true, externalId: `free_dev_${Date.now()}`, checkoutUrl: undefined }
   }
 
@@ -167,8 +182,8 @@ async function freeInitiate(amount: number, clientPhone: string, description: st
 }
 
 async function freeRelease(externalId: string, amount: number, providerPhone: string): Promise<ReleaseResult> {
-  if (isDev) {
-    console.log(`[Payment/Free] DEV: release ${externalId} → ${providerPhone}`)
+  if (isMockMode()) {
+    console.log(`[Payment/Free] MOCK: release ${externalId} → ${providerPhone}`)
     return { success: true }
   }
   const res = await fetch(`${process.env.FREE_MONEY_API_URL}/transfer`, {
@@ -191,15 +206,15 @@ async function freeRelease(externalId: string, amount: number, providerPhone: st
 // ──── CASH ────────────────────────────────────────────────────────────────────
 
 async function cashInitiate(amount: number, clientPhone: string, description: string): Promise<InitiateResult> {
-  if (isDev) {
-    console.log(`[Payment/Cash] DEV: cash payment registered for ${amount} XOF`)
+  if (isMockMode()) {
+    console.log(`[Payment/Cash] MOCK: cash payment registered for ${amount} XOF`)
   }
   return { success: true, externalId: `cash_${Date.now()}` }
 }
 
 async function cashRelease(externalId: string, _amount: number, _providerPhone: string): Promise<ReleaseResult> {
-  if (isDev) {
-    console.log(`[Payment/Cash] DEV: cash release ${externalId}`)
+  if (isMockMode()) {
+    console.log(`[Payment/Cash] MOCK: cash release ${externalId}`)
   }
   return { success: true }
 }
@@ -211,8 +226,8 @@ async function cashRelease(externalId: string, _amount: number, _providerPhone: 
 
 async function waveQrInitiate(_amount: number, _clientPhone: string, _description: string): Promise<InitiateResult> {
   // En dev/mock : auto-success (pas de validation manuelle admin)
-  if (isDev) {
-    console.log(`[Payment/WaveQR] DEV: auto-confirm ${_amount} XOF`)
+  if (isMockMode()) {
+    console.log(`[Payment/WaveQR] MOCK: auto-confirm ${_amount} XOF`)
     return { success: true, externalId: `waveqr_dev_${Date.now()}` }
   }
   // En prod : le client scanne le QR marchand, un admin confirme réception
