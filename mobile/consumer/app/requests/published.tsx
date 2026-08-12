@@ -1,19 +1,23 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import SuccessBanner from '../../src/components/SuccessBanner'
 import Button from '../../src/components/Button'
 import { Check, ClipboardList, Home, Bell, Tag, Banknote, MapPin, Clock } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { mockRequests } from '../../src/mock'
 
 export default function RequestPublished() {
   const { t } = useTranslation()
-  const request = mockRequests[0]
-  const meta = getCategoryMeta(request.category)
-  const ref = request._id.slice(-6).toUpperCase()
+  const params = useLocalSearchParams<{ id?: string; category?: string; subCategory?: string; budget?: string; address?: string }>()
+  const category = params.category || 'electricite'
+  const subCategory = params.subCategory || ''
+  const budget = params.budget ? parseInt(params.budget) : 0
+  const address = params.address || ''
+  const requestId = params.id || ''
+  const meta = getCategoryMeta(category)
+  const ref = requestId.slice(-6).toUpperCase() || 'NEW'
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -42,7 +46,7 @@ export default function RequestPublished() {
             <View style={[s.summaryIcon, { backgroundColor: meta.bg }]}>
               <Text style={[s.summaryAbbr, { color: meta.color }]}>{meta.label.slice(0, 2).toUpperCase()}</Text>
             </View>
-            <Text style={s.summaryTitle}>{meta.label} • {request.subCategory}</Text>
+            <Text style={s.summaryTitle}>{meta.label}{subCategory ? ` • ${subCategory}` : ''}</Text>
           </View>
           <View style={s.summaryRows}>
             <View style={s.summaryRow}>
@@ -57,14 +61,14 @@ export default function RequestPublished() {
                 <Banknote size={16} color={colors.textSecondary} />
                 <Text style={s.summaryLabel}>{t('clientRequest.budget')}</Text>
               </View>
-              <Text style={s.summaryValue}>{request.budget?.toLocaleString('fr-FR')} FCFA</Text>
+              <Text style={s.summaryValue}>{budget.toLocaleString('fr-FR')} FCFA</Text>
             </View>
             <View style={s.summaryRow}>
               <View style={s.summaryLabelRow}>
                 <MapPin size={16} color={colors.textSecondary} />
                 <Text style={s.summaryLabel}>{t('clientRequest.location')}</Text>
               </View>
-              <Text style={s.summaryValue}>{request.address}</Text>
+              <Text style={s.summaryValue}>{address}</Text>
             </View>
           </View>
         </View>
@@ -87,7 +91,7 @@ export default function RequestPublished() {
         <View style={s.ctaGroup}>
           <Button
             title={t('clientRequest.seeOffers')}
-            onPress={() => router.push('/offers/req1')}
+            onPress={() => requestId ? router.push(`/offers/${requestId}`) : router.push('/my-requests')}
             fullWidth
             size="lg"
             icon={<ClipboardList size={18} color={colors.surface} />}

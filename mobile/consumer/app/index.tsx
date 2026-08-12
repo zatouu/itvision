@@ -284,7 +284,7 @@ function Home() {
             </View>
             <TouchableOpacity
               style={s.offersBannerBtn}
-              onPress={() => router.push({ pathname: '/request-offers', params: { id: String(offersPending[0]._id) } })}
+              onPress={() => router.push(`/offers/${offersPending[0]._id}`)}
             >
               <Text style={s.offersBannerBtnText}>{t('home.reviewOffers')}</Text>
               <ArrowRight size={14} color={colors.surface} />
@@ -508,7 +508,7 @@ function Home() {
                       if (['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(it.status)) {
                         router.push(`/mission/${it._id}`)
                       } else {
-                        router.push({ pathname: '/request-offers', params: { id: it._id } })
+                        router.push(`/offers/${it._id}`)
                       }
                     }}
                   >

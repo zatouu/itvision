@@ -38,6 +38,7 @@ export default function VerifyOtp() {
       router.replace(data.user?.isNew ? '/setup-profile' : '/')
     } catch (e: any) {
       hapticError()
+      console.error('[verify-otp] Erreur:', e.message, e)
       setErr(e.message || t('auth.errorVerify'))
     }
     setLoading(false)

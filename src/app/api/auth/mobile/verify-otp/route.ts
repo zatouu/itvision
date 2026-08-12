@@ -19,13 +19,18 @@ export async function POST(request: NextRequest) {
   const rl = await applyRateLimit(request, otpVerifyLimiter)
   if (rl) return rl
 
+  let rawPhone: string | undefined
+  let rawCode: string | undefined
+
   try {
     const body = await request.json().catch(() => null)
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const { phone: rawPhone, code, role: rawRole, name: rawName, referralCode: rawReferral } = body as any
+    const { phone: bodyPhone, code, role: rawRole, name: rawName, referralCode: rawReferral } = body as any
+    rawPhone = bodyPhone
+    rawCode = code
 
     if (!rawPhone || typeof rawPhone !== 'string') {
       return NextResponse.json({ error: 'Numéro requis' }, { status: 400 })
@@ -103,16 +108,19 @@ export async function POST(request: NextRequest) {
       user = newUser.toObject()
       user._isNew = true
 
-      // Créer les profils découplés par domaine
+      // Créer les profils découplés par domaine (non-bloquant, ne doit pas faire échouer l'inscription)
       const mappedRole = role === 'PROVIDER' ? 'TECHNICIAN' : 'CLIENT'
-      await createUserProfiles(newUser._id, mappedRole, {
-        referralCode,
-        referredBy,
-        referralBalance: 0,
-        referralCount: 0
-      }).catch(profileErr => {
-        console.error('[verify-otp] Erreur création profils utilisateur:', profileErr)
-      })
+      try {
+        await createUserProfiles(newUser._id, mappedRole, {
+          referralCode,
+          referredBy,
+          referralBalance: 0,
+          referralCount: 0
+        })
+      } catch (profileErr) {
+        console.error('[verify-otp] Erreur création profils utilisateur (non-bloquant):', profileErr)
+        // Ne pas faire échouer l'inscription pour ça
+      }
 
       // Mettre à jour le parrain et créditer les grains (best effort)
       if (referredBy) {
@@ -178,7 +186,15 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('[POST /api/auth/mobile/verify-otp]', err)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const error = err as Error
+    console.error('[POST /api/auth/mobile/verify-otp]', {
+      message: error.message,
+      stack: error.stack,
+      phone: rawPhone ? '***' + String(rawPhone).slice(-4) : 'unknown',
+    })
+    return NextResponse.json({ 
+      error: 'Erreur serveur', 
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    }, { status: 500 })
   }
 }

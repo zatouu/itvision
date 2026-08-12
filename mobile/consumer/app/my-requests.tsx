@@ -214,7 +214,7 @@ function MyRequests() {
                   if (['assigned', 'provider_arriving', 'in_progress', 'completed', 'cancelled'].includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
-                    router.push({ pathname: '/request-offers', params: { id: it._id } })
+                    router.push(`/offers/${it._id}`)
                   }
                 }}
               >
