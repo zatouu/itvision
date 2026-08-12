@@ -120,10 +120,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             },
           },
         }).select('userId zone').limit(50).lean() as any[]
-        return docs.map((d: any) => {
-          const [lng, lat] = d.zone?.coordinates || [0, 0]
-          return { providerId: String(d.userId), lat: Number(lat), lng: Number(lng), status: 'available', updatedAt: new Date(d.zone?.updatedAt || Date.now()).getTime(), source: 'profile.zone' }
-        })
+        const pm = (global as any).providerPresence as Map<string, any> | undefined
+        return docs
+          .filter((d: any) => {
+            const p = pm?.get(String(d.userId))
+            if (!p) return false
+            if (p.status === 'offline') return false
+            if (now - (p.updatedAt || 0) > PRESENCE_STALE_MS) return false
+            return true
+          })
+          .map((d: any) => {
+            const p = pm!.get(String(d.userId))!
+            const [lng, lat] = d.zone?.coordinates || [0, 0]
+            const useLat = Number.isFinite(Number(p.lat)) ? Number(p.lat) : Number(lat)
+            const useLng = Number.isFinite(Number(p.lng)) ? Number(p.lng) : Number(lng)
+            return { providerId: String(d.userId), lat: useLat, lng: useLng, status: p.status || 'available', updatedAt: p.updatedAt || now, source: 'profile.zone+presence' }
+          })
       } catch (e: any) { /* ignore */ }
 
       return []

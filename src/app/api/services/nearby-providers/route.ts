@@ -74,8 +74,10 @@ export async function GET(request: NextRequest) {
     })
 
     // 2) Fallback last-known MongoDB si redis geo n'a rien
+    //    On ne retourne QUE les providers réellement en ligne (présence fraîche).
     if (candidates.length === 0) {
       try {
+        const presenceMap = (global as any).providerPresence as Map<string, any> | undefined
         const docs = await ProviderProfile.find({
           'zone.coordinates': {
             $near: {
@@ -85,19 +87,31 @@ export async function GET(request: NextRequest) {
           },
         }).select('userId zone serviceCategories').limit(50).lean() as any[]
 
-        candidates = docs.map((d: any) => {
-          const [pLng, pLat] = d.zone?.coordinates || [0, 0]
-          return {
-            providerId: String(d.userId),
-            lat: Number(pLat),
-            lng: Number(pLng),
-            distanceKm: haversineKm(lat, lng, Number(pLat), Number(pLng)),
-            status: 'available',
-            updatedAt: d.zone?.updatedAt?.getTime() || now,
-            categories: d.serviceCategories || [],
-          }
-        })
-        source = 'profile.zone'
+        candidates = docs
+          .filter((d: any) => {
+            const pid = String(d.userId)
+            const p = presenceMap?.get(pid)
+            if (!p) return false
+            if (p.status === 'offline') return false
+            if (now - (p.updatedAt || 0) > freshnessMs) return false
+            return true
+          })
+          .map((d: any) => {
+            const p = presenceMap!.get(String(d.userId))!
+            const [pLng, pLat] = d.zone?.coordinates || [0, 0]
+            const useLat = Number.isFinite(Number(p.lat)) ? Number(p.lat) : Number(pLat)
+            const useLng = Number.isFinite(Number(p.lng)) ? Number(p.lng) : Number(pLng)
+            return {
+              providerId: String(d.userId),
+              lat: useLat,
+              lng: useLng,
+              distanceKm: haversineKm(lat, lng, useLat, useLng),
+              status: p.status || 'available',
+              updatedAt: p.updatedAt || now,
+              categories: d.serviceCategories || [],
+            }
+          })
+        source = 'profile.zone+presence'
       } catch (e: any) {
         console.warn('[nearby-providers] ProviderProfile fallback failed:', e.message)
       }

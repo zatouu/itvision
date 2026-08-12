@@ -279,7 +279,11 @@ app.prepare().then(() => {
 
     // Consumer demande le nombre de prestataires en ligne
     socket.on('get-online-providers', () => {
-      const count = io.sockets.adapter.rooms.get('providers-online')?.size || 0
+      const now = Date.now()
+      let count = 0
+      for (const [, p] of providerPresence.entries()) {
+        if (p.status !== 'offline' && now - (p.updatedAt || 0) <= STALE_POSITION_MS) count++
+      }
       socket.emit('online-providers-count', { count })
     })
 

@@ -159,30 +159,9 @@ function Home() {
     let mounted = true
     const fetchLive = async () => {
       const merged = new Map<string, typeof liveProviders[0]>()
-      const activeIds = recent
-        .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
-        .map(it => String(it._id))
 
-      if (activeIds.length > 0) {
-        for (const id of activeIds) {
-          try {
-            const r: any = await apiGet(`/api/services/requests/${id}/live`)
-            ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : []), ...(r.nearby || [])]
-              .filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
-              .forEach((p: any) => {
-                merged.set(String(p.providerId), {
-                  providerId: String(p.providerId),
-                  name: p.name,
-                  status: p.status || 'available',
-                  lat: Number(p.lat),
-                  lng: Number(p.lng),
-                  distanceKm: p.distanceKm ?? null,
-                  etaMinutes: p.etaMinutes ?? null,
-                })
-              })
-          } catch {}
-        }
-      } else if (userLocation) {
+      // 1) Toujours récupérer les prestataires autour de l'utilisateur (live count)
+      if (userLocation) {
         try {
           const r: any = await apiGet(`/api/services/nearby-providers?lat=${userLocation.lat}&lng=${userLocation.lng}&radiusKm=10`)
           ;(r.providers || []).forEach((p: any) => {
@@ -198,6 +177,32 @@ function Home() {
               })
             }
           })
+        } catch {}
+      }
+
+      // 2) Ajouter viewers / offerors / assigned depuis les demandes actives
+      //    (sans fusionner le "nearby" de chaque demande qui est basé sur la
+      //    position de la demande, pas de l'utilisateur)
+      const activeIds = recent
+        .filter(it => it._id && !['completed', 'cancelled'].includes(it.status))
+        .map(it => String(it._id))
+
+      for (const id of activeIds) {
+        try {
+          const r: any = await apiGet(`/api/services/requests/${id}/live`)
+          ;[...(r.viewers || []), ...(r.offerors || []), ...(r.assigned ? [r.assigned] : [])]
+            .filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
+            .forEach((p: any) => {
+              merged.set(String(p.providerId), {
+                providerId: String(p.providerId),
+                name: p.name,
+                status: p.status || 'available',
+                lat: Number(p.lat),
+                lng: Number(p.lng),
+                distanceKm: p.distanceKm ?? null,
+                etaMinutes: p.etaMinutes ?? null,
+              })
+            })
         } catch {}
       }
 
