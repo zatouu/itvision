@@ -22,7 +22,9 @@ import SideMenu from '../src/components/SideMenu'
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:           { label: 'Publiée',              color: '#2563EB', dot: '#2563EB' },
   pending_offers:    { label: 'Offres recues',        color: '#B45309', dot: '#D97706' },
+  accepted:          { label: 'Prestataire assigne',  color: '#065F46', dot: '#059669' },
   assigned:          { label: 'Prestataire assigne',  color: '#065F46', dot: '#059669' },
+  on_the_way:        { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
   provider_arriving: { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
   in_progress:       { label: 'En cours',             color: '#5B21B6', dot: '#7C3AED' },
   completed:         { label: 'Terminee',             color: '#475569', dot: colors.textMuted },
@@ -217,8 +219,8 @@ function Home() {
     const unseen = it.unseenOfferCount ?? it.pendingOfferCount
     return it.status === 'pending_offers' && unseen > 0
   })
-  const activeMissions = recent.filter(it => ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
-  const otherRecent = recent.filter(it => !['pending_offers', 'assigned', 'provider_arriving', 'in_progress'].includes(it.status))
+  const activeMissions = recent.filter(it => ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status))
+  const otherRecent = recent.filter(it => !['pending_offers', 'accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status))
   const hasNoActivity = recent.length === 0 && !loadingRecent
 
   const formatProviderName = (raw: string): string => {
@@ -277,55 +279,68 @@ function Home() {
           <Text style={s.greetSub}>{t('home.greetSub')}</Text>
         </View>
 
-        {/* 1. URGENT: Offres en attente */}
-        {offersPending.length > 0 && (
-          <View style={s.offersBanner}>
-            <View style={s.offersBannerIcon}>
-              <Zap size={20} color={colors.surface} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.offersBannerTitle}>{t('home.offersWaiting', { count: offersPending.length })}</Text>
-              <Text style={s.offersBannerSub}>{t('home.offersWaitingSub')}</Text>
-            </View>
-            <TouchableOpacity
-              style={s.offersBannerBtn}
-              onPress={() => router.push(`/offers/${offersPending[0]._id}`)}
-            >
-              <Text style={s.offersBannerBtnText}>{t('home.reviewOffers')}</Text>
-              <ArrowRight size={14} color={colors.surface} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* 2. Missions actives avec statut live — scroll horizontal */}
-        {activeMissions.length > 0 && (
-          <View style={s.missionsSection}>
-            <Text style={s.missionsSectionTitle}>{t('home.activeMissions')}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}
-            >
-              {activeMissions.map(it => {
-                const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
-                const catMatch = cats.find(c => c.id === it.category)
-                const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
-                const color = catMatch?.color || '#475569'
-                const catLabel = catMatch?.label || it.category
-                const liveP = liveProviders.find(p => p.status === 'arriving' || p.status === 'in_progress')
-                const title = it.description
-                  ? `${catLabel} - ${it.description.slice(0, 24)}${it.description.length > 24 ? '...' : ''}`
-                  : catLabel
-                return (
-                  <TouchableOpacity
-                    key={it._id}
-                    style={s.missionCardH}
-                    activeOpacity={0.85}
-                    onPress={() => router.push(`/mission/${it._id}`)}
-                  >
-                    <View style={[s.missionMonogram, { backgroundColor: color }]}>
-                      <Text style={s.missionMonogramText}>{abbr}</Text>
+        {/* 1. ACTIVITÉ EN COURS — Offres en attente + Missions actives (premier plan) */}
+        {(offersPending.length > 0 || activeMissions.length > 0) && (
+          <View style={s.activitySection}>
+            {/* Offres en attente — cartes cliquables compactes */}
+            {offersPending.map(it => {
+              const catMatch = cats.find(c => c.id === it.category)
+              const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+              const color = catMatch?.color || '#475569'
+              const catLabel = catMatch?.label || it.category
+              const offerCount = it.unseenOfferCount ?? it.pendingOfferCount ?? 0
+              const title = it.description
+                ? `${catLabel} — ${it.description.slice(0, 28)}${it.description.length > 28 ? '…' : ''}`
+                : catLabel
+              return (
+                <TouchableOpacity
+                  key={`offer-${it._id}`}
+                  style={s.offerCard}
+                  activeOpacity={0.82}
+                  onPress={() => router.push(`/offers/${it._id}`)}
+                >
+                  <View style={[s.offerMonogram, { backgroundColor: color }]}>
+                    <Text style={s.offerMonogramText}>{abbr}</Text>
+                  </View>
+                  <View style={s.offerInfo}>
+                    <Text style={s.offerTitle} numberOfLines={1}>{title}</Text>
+                    <View style={s.offerMeta}>
+                      <View style={s.offerBadge}>
+                        <Zap size={10} color={colors.surface} />
+                        <Text style={s.offerBadgeText}>{offerCount} {offerCount > 1 ? 'offres' : 'offre'}</Text>
+                      </View>
+                      {it.budget && <Text style={s.offerBudget}>{Number(it.budget).toLocaleString('fr-FR')} FCFA</Text>}
                     </View>
+                  </View>
+                  <View style={s.offerArrow}>
+                    <ArrowRight size={16} color={colors.warning} />
+                  </View>
+                </TouchableOpacity>
+              )
+            })}
+
+            {/* Missions actives — cartes compactes */}
+            {activeMissions.map(it => {
+              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
+              const catMatch = cats.find(c => c.id === it.category)
+              const abbr = catMatch?.abbr || it.category?.slice(0, 2).toUpperCase()
+              const color = catMatch?.color || '#475569'
+              const catLabel = catMatch?.label || it.category
+              const liveP = liveProviders.find(p => p.status === 'arriving' || p.status === 'in_progress')
+              const title = it.description
+                ? `${catLabel} — ${it.description.slice(0, 28)}${it.description.length > 28 ? '…' : ''}`
+                : catLabel
+              return (
+                <TouchableOpacity
+                  key={`mission-${it._id}`}
+                  style={s.missionCard}
+                  activeOpacity={0.82}
+                  onPress={() => router.push(`/mission/${it._id}`)}
+                >
+                  <View style={[s.missionMonogram, { backgroundColor: color }]}>
+                    <Text style={s.missionMonogramText}>{abbr}</Text>
+                  </View>
+                  <View style={s.missionInfo}>
                     <Text style={s.missionTitle} numberOfLines={1}>{title}</Text>
                     <View style={s.missionStatusRow}>
                       <View style={[s.missionDot, { backgroundColor: st.dot }]} />
@@ -337,10 +352,13 @@ function Home() {
                         </View>
                       )}
                     </View>
-                  </TouchableOpacity>
-                )
-              })}
-            </ScrollView>
+                  </View>
+                  <View style={s.missionArrow}>
+                    <ChevronRight size={18} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
+              )
+            })}
           </View>
         )}
 
@@ -608,15 +626,20 @@ const s = StyleSheet.create({
   greeting: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
   greetTitle: { fontSize: 26, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
   greetSub: { fontSize: 15, color: colors.textSecondary, marginTop: 4 },
-  offersBanner: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.warningLight, borderWidth: 1.5, borderColor: colors.warning, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm },
-  offersBannerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  offersBannerTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#92400E' },
-  offersBannerSub: { fontSize: 12, color: '#B45309', marginTop: 2 },
-  offersBannerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.warning, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexShrink: 0 },
-  offersBannerBtnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.surface },
-  missionsSection: { marginBottom: spacing.lg },
-  missionsSectionTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, marginBottom: spacing.xs, paddingHorizontal: spacing.lg },
-  missionCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  activitySection: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
+  offerCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1.5, borderColor: colors.warning, ...shadows.sm },
+  offerMonogram: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  offerMonogramText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  offerInfo: { flex: 1, gap: 4 },
+  offerTitle: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  offerMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  offerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.warning, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
+  offerBadgeText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  offerBudget: { fontSize: 12, fontWeight: typography.weight.semibold as any, color: colors.textSecondary },
+  offerArrow: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.warningLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  missionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
+  missionInfo: { flex: 1, gap: 4 },
+  missionArrow: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   missionCardH: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, width: 200, borderWidth: 1, borderColor: colors.border, ...shadows.sm, gap: spacing.sm },
   missionMonogram: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   missionMonogramText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.surface },
