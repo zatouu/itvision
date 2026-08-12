@@ -2085,3 +2085,10 @@ EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates
 
 [consumer] OK - tag 'mobile-consumer-published' mis a jour.
 [provider] Aucun changement detecte depuis 85cdb0964a130aabc0955699a93f5bd0c48d869a. Skip.
+[consumer] Fichiers modifies depuis 4e4204dee2536e338f64d3ef317e449adc6f245f :
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/requests/published.tsx
+  - mobile/consumer/app/verify-otp.tsx
+[consumer] Changements JS/assets detectes -> mode OTA
+[consumer] Publication OTA sur le channel 'ec2'...
