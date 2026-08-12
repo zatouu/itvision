@@ -221,11 +221,13 @@ export function readPaymentSettings(): PaymentSettings {
       },
       providers: {
         manual: {
-          waveMerchantPhone: process.env.WAVE_MERCHANT_PHONE || parsed?.providers?.manual?.waveMerchantPhone || DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
-          waveQrUrl: process.env.WAVE_QR_URL || parsed?.providers?.manual?.waveQrUrl || DEFAULT_SETTINGS.providers.manual.waveQrUrl,
-          wavePayUrl: process.env.WAVE_PAY_URL || parsed?.providers?.manual?.wavePayUrl || DEFAULT_SETTINGS.providers.manual.wavePayUrl,
-          orangeMerchantPhone: process.env.ORANGE_MERCHANT_PHONE || parsed?.providers?.manual?.orangeMerchantPhone || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
-          freeMoneyMerchantPhone: process.env.FREE_MONEY_MERCHANT_PHONE || parsed?.providers?.manual?.freeMoneyMerchantPhone || DEFAULT_SETTINGS.providers.manual.freeMoneyMerchantPhone,
+          // Priorité : valeur saisie par l'admin (fichier) > variable d'env > défaut.
+          // Avant : l'env écrasait la config admin, ce qui faisait "sauter" le numéro marchand.
+          waveMerchantPhone: parsed?.providers?.manual?.waveMerchantPhone || process.env.WAVE_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.waveMerchantPhone,
+          waveQrUrl: parsed?.providers?.manual?.waveQrUrl || process.env.WAVE_QR_URL || DEFAULT_SETTINGS.providers.manual.waveQrUrl,
+          wavePayUrl: parsed?.providers?.manual?.wavePayUrl || process.env.WAVE_PAY_URL || DEFAULT_SETTINGS.providers.manual.wavePayUrl,
+          orangeMerchantPhone: parsed?.providers?.manual?.orangeMerchantPhone || process.env.ORANGE_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
+          freeMoneyMerchantPhone: parsed?.providers?.manual?.freeMoneyMerchantPhone || process.env.FREE_MONEY_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.freeMoneyMerchantPhone,
           instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
         },
         gateway: resolveGatewayConfig(parsed),

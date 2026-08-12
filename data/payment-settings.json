@@ -22,7 +22,9 @@
   },
   "providers": {
     "manual": {
-      "waveMerchantPhone": "+221770000000",
+      "waveMerchantPhone": "+221772742500",
+      "waveQrUrl": "",
+      "wavePayUrl": "",
       "orangeMerchantPhone": "+221760000000",
       "freeMoneyMerchantPhone": "+221780000000",
       "instructions": "Paiement à la livraison ou retrait au bureau."

@@ -2092,3 +2092,73 @@ EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates
   - mobile/consumer/app/verify-otp.tsx
 [consumer] Changements JS/assets detectes -> mode OTA
 [consumer] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] [app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY manquant — la carte Google Maps ne fonctionnera pas.
+[expo-cli] env: load .env
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+- Exporting...
+[expo-cli] [app.config] EXPO_PU[expo-cli] iOS Bundled 30845ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3185 modules)
+[expo-cli] Android Bundled 40266ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3184 modules)
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _e[expo-cli] iOS Bundled 27754ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3185 modules)
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_mo√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 12 iOS assets, 12 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    8fc1f5c5-0c67-411f-900b-7c0531cf094e
+Android update ID  019ff7aa-bc67-7b97-b6a6-1f435eb04f4b
+iOS update ID      019ff7aa-bc67-74f6-8503-6bda44c83ac2
+Message            publish 2026-08-12 21:28
+Commit             263bc29dbcaac6dbb527f93595bd68889c48beb2*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates/8fc1f5c5-0c67-411f-900b-7c0531cf094e
+
+assetmap.json (0 / 5.0 KB)
+✔ Uploaded assetmap.json 1s
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 12 iOS assets, 12 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    4a6184df-6cd8-45fa-940b-b278094b54e5
+Android update ID  019ff7aa-cf6d-7681-a269-88b79f286309
+iOS update ID      019ff7aa-cf6d-7eb3-a21e-c442a99bd994
+Message            publish 2026-08-12 21:28
+Commit             263bc29dbcaac6dbb527f93595bd68889c48beb2*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates/4a6184df-6cd8-45fa-940b-b278094b54e5
+
+[consumer] OK - tag 'mobile-consumer-published' mis a jour.
+[provider] Aucun changement detecte depuis 85cdb0964a130aabc0955699a93f5bd0c48d869a. Skip.

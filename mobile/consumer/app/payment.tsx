@@ -77,10 +77,12 @@ function PaymentScreen() {
           const baseUrl = getBaseUrl()
           let qrUrl = r.waveQrUrl || ''
           if (qrUrl && !qrUrl.startsWith('http')) qrUrl = baseUrl + qrUrl
-          let payUrl = r.wavePayUrl || ''
-          if (!payUrl && r.waveMerchantPhone) {
-            payUrl = `https://pay.wave.com/m/${r.waveMerchantPhone.replace(/\D/g, '')}`
-          }
+          // Ne pas construire d'URL depuis le numéro : pay.wave.com/m/<code> attend un code
+          // marchand Wave Business, pas un numéro de téléphone. Sans URL configurée,
+          // le client paie via le QR image ou le numéro affiché.
+          const payUrl = typeof r.wavePayUrl === 'string' && r.wavePayUrl.startsWith('https://pay.wave.com/')
+            ? r.wavePayUrl
+            : ''
           setManualCfg({ waveQrEnabled: !!r.waveMerchantPhone, waveMerchantPhone: r.waveMerchantPhone || '', waveQrUrl: qrUrl, wavePayUrl: payUrl })
         }
       })
