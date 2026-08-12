@@ -1,30 +1,26 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, AppState } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import { SlidersHorizontal, Pencil } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
-import StatusChip from '../../src/components/StatusChip'
-import Button from '../../src/components/Button'
-import { Star, Check, Clock, SlidersHorizontal } from 'lucide-react-native'
-import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
+import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../../src/design'
 import { apiGet, apiPost } from '../../src/api'
 import { confirm } from '../../src/confirm'
 import { toast } from '../../src/toast'
+import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
+import { cacheSet, cacheGet } from '../../src/storage'
+import { hapticLight } from '../../src/haptics'
 
-const SORTS = ['recommended', 'cheapest', 'fastest', 'bestRated']
-
-type Offer = {
-  _id: string
-  providerId: string
-  providerName?: string
-  providerVerified?: boolean
-  providerRating?: { avg?: number; count?: number }
-  price: number
-  etaMinutes?: number
-  message?: string
-  status?: string
-}
+import RequestSummaryCard from '../../src/components/offers/RequestSummaryCard'
+import LiveStatusBar from '../../src/components/offers/LiveStatusBar'
+import SortingPillsRow, { SortKey } from '../../src/components/offers/SortingPillsRow'
+import OfferCard, { Offer } from '../../src/components/offers/OfferCard'
+import RadarPulseIllustration from '../../src/components/offers/RadarPulseIllustration'
+import VerticalTimeline from '../../src/components/offers/VerticalTimeline'
+import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
+import TipCard from '../../src/components/offers/TipCard'
 
 export default function OffersReceived() {
   const { t } = useTranslation()
@@ -32,24 +28,81 @@ export default function OffersReceived() {
   const [request, setRequest] = useState<any>(null)
   const [offers, setOffers] = useState<Offer[]>([])
   const [loading, setLoading] = useState(true)
-  const [sort, setSort] = useState('recommended')
+  const [sort, setSort] = useState<SortKey>('recommended')
   const [accepting, setAccepting] = useState<string | null>(null)
+  const [viewersCount, setViewersCount] = useState(0)
+  const transitionAnim = useRef(false)
 
-  const load = useCallback(async () => {
+  const cacheKey = `offers-${requestId}`
+
+  const load = useCallback(async (silent = false) => {
     if (!requestId) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
+      // Try cache first
+      const cached = await cacheGet<{ request: any; offers: Offer[] }>(cacheKey, 2 * 60 * 1000)
+      if (cached && !silent) {
+        setRequest(cached.request)
+        setOffers(cached.offers)
+        setLoading(false)
+      }
       const data: any = await apiGet(`/api/services/requests/${requestId}/offers`)
       setRequest(data.request || null)
       setOffers(Array.isArray(data.offers) ? data.offers : [])
+      await cacheSet(cacheKey, { request: data.request, offers: data.offers }, 2 * 60 * 1000)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('offers.loadError'))
+      if (!silent) toast.error(t('common.error'), e?.message || t('offers.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [requestId, t])
+  }, [requestId, t, cacheKey])
 
   useEffect(() => { load() }, [load])
+
+  // Socket: listen for new offers, viewers updates
+  useEffect(() => {
+    if (!requestId) return
+    const socket = connectSocket()
+    joinRequestRoom(requestId)
+
+    const handleOfferNew = (offer: any) => {
+      if (offer?.requestId !== requestId) return
+      setOffers(prev => [{ ...offer, isNew: true }, ...prev])
+      hapticLight()
+    }
+
+    const handleViewers = (data: any) => {
+      if (data?.requestId === requestId && typeof data.count === 'number') {
+        setViewersCount(data.count)
+      }
+    }
+
+    const handleAssigned = () => { load(true) }
+
+    socket.on('offer:new', handleOfferNew)
+    socket.on('request:viewers_updated', handleViewers)
+    socket.on('request:assigned', handleAssigned)
+
+    // Fallback: auto-refresh when WS disconnected
+    const interval = setInterval(() => {
+      if (!socket.connected && AppState.currentState === 'active') load(true)
+    }, 30000)
+
+    return () => {
+      clearInterval(interval)
+      leaveRequestRoom(requestId)
+      socket.off('offer:new', handleOfferNew)
+      socket.off('request:viewers_updated', handleViewers)
+      socket.off('request:assigned', handleAssigned)
+    }
+  }, [requestId, load])
+
+  // Redirect to mission if already assigned
+  useEffect(() => {
+    if (request && ['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(request.status)) {
+      router.replace(`/mission/${requestId}`)
+    }
+  }, [request, requestId])
 
   const sortedOffers = useMemo(() => {
     const list = [...offers]
@@ -57,7 +110,8 @@ export default function OffersReceived() {
       if (sort === 'cheapest') return a.price - b.price
       if (sort === 'fastest') return (a.etaMinutes || 0) - (b.etaMinutes || 0)
       if (sort === 'bestRated') return (b.providerRating?.avg || 0) - (a.providerRating?.avg || 0)
-      // recommended = score combiné prix/ETA/note
+      if (sort === 'nearest') return (a.distanceKm || 99) - (b.distanceKm || 99)
+      // recommended = combined score price/ETA/rating
       const scoreA = (a.providerRating?.avg || 0) * 10 - (a.price / 1000) - (a.etaMinutes || 0) * 0.5
       const scoreB = (b.providerRating?.avg || 0) * 10 - (b.price / 1000) - (b.etaMinutes || 0) * 0.5
       return scoreB - scoreA
@@ -65,264 +119,278 @@ export default function OffersReceived() {
     return list
   }, [offers, sort])
 
-  const meta = request ? getCategoryMeta(request.category) : getCategoryMeta('')
-
   const acceptOffer = async (offer: Offer) => {
-    const ok = await confirm(t('offers.confirmTitle'), t('offers.confirmMsg', { price: offer.price.toLocaleString('fr-FR') }))
+    const ok = await confirm(
+      t('clientOffers.confirmTitle'),
+      t('clientOffers.confirmMsg', { price: offer.price.toLocaleString('fr-FR') })
+    )
     if (!ok) return
     setAccepting(offer._id)
     try {
-      await apiPost(`/api/services/offers/${offer._id}/accept`, {})
-      router.replace(`/mission/${requestId}`)
+      hapticLight()
+      router.push(`/payment?offerId=${offer._id}&amount=${offer.price}&requestId=${requestId}`)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('offers.acceptError'))
+      toast.error(t('common.error'), e?.message || t('clientOffers.acceptError'))
     } finally {
       setAccepting(null)
     }
   }
 
+  const negotiateOffer = (offer: Offer) => {
+    router.push(`/offers/provider/${offer.providerId}`)
+  }
+
+  const cancelRequest = async () => {
+    const ok = await confirm(
+      t('clientOffers.cancelConfirmTitle'),
+      t('clientOffers.cancelConfirmMsg')
+    )
+    if (!ok) return
+    try {
+      await apiPost(`/api/services/requests/${requestId}/cancel`, {})
+      toast.success(t('clientOffers.cancelSuccess'))
+      router.back()
+    } catch (e: any) {
+      toast.error(t('common.error'), e?.message || t('clientOffers.cancelError'))
+    }
+  }
+
+  // Compute published minutes ago
+  const publishedMinutesAgo = useMemo(() => {
+    if (!request?.createdAt) return undefined
+    return Math.max(1, Math.round((Date.now() - new Date(request.createdAt).getTime()) / 60000))
+  }, [request?.createdAt])
+
+  // Voice message from request media
+  const voiceMedia = useMemo(() => {
+    return request?.media?.find((m: any) => m.type === 'audio') || null
+  }, [request?.media])
+
+  // Expires at for countdown
+  const expiresAt = request?.validUntil || request?.expiresAt || undefined
+
+  const isEmpty = !loading && offers.length === 0
+  const hasOffers = !loading && offers.length > 0
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <AppHeader title={t('clientOffers.title')} onBack={() => router.back()} />
+    <SafeAreaView style={s.safe}>
+      <AppHeader
+        title={t('clientOffers.title')}
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity style={s.filterBtn} activeOpacity={0.8}>
+            <SlidersHorizontal size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        }
+      />
+
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-            <View style={s.summaryCard}>
-              <View style={s.summaryHeader}>
-                <View style={[s.categoryIcon, { backgroundColor: meta.bg }]}>
-                  <Text style={[s.categoryAbbr, { color: meta.color }]}>{meta.label.slice(0, 2).toUpperCase()}</Text>
-                </View>
-                <View>
-                  <Text style={s.summaryTitle}>{meta.label} {request?.subCategory ? `• ${request.subCategory}` : ''}</Text>
-                  <Text style={s.summarySub}>{request?.location?.address || request?.address || ''}</Text>
-                </View>
-              </View>
-            </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+          {/* Request Summary Card */}
+          {request && (
+            <RequestSummaryCard
+              title={request.title || getCategoryMeta(request.category).label}
+              category={request.category || ''}
+              location={request.location?.address || request.address || ''}
+              publishedMinutesAgo={publishedMinutesAgo}
+              budget={request.budget}
+              voiceUri={voiceMedia?.url || voiceMedia?.uri}
+              voiceDuration={voiceMedia?.durationSeconds || 23}
+            />
+          )}
 
-            <View style={s.livePill}>
-              <View style={s.liveDot} />
-              <Text style={s.liveText}>{t('clientOffers.live', { count: offers.length })}</Text>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.sortBar}>
-              {SORTS.map(key => (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => setSort(key)}
-                  style={[s.sortPill, sort === key && s.sortPillActive]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[s.sortText, sort === key && s.sortTextActive]}>{t(`clientOffers.${key}`)}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={s.list}>
-              {sortedOffers.map((offer, idx) => {
-                const isBest = idx === 0
-                const initials = offer.providerName?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'P'
-                const hasRating = Number.isFinite(offer.providerRating?.avg) && (offer.providerRating?.avg || 0) > 0
-                return (
-                  <View key={offer._id} style={[s.card, isBest && s.cardBest]}>
-                    {isBest ? (
-                      <View style={s.bestBadge}>
-                        <Text style={s.bestBadgeText}>{t('clientOffers.bestChoice')}</Text>
-                      </View>
-                    ) : null}
-                    <View style={s.cardHeader}>
-                      <View style={s.avatar}>
-                        <Text style={s.avatarText}>{initials}</Text>
-                        {offer.providerVerified ? <View style={s.verified}><Check size={9} color={colors.surface} /></View> : null}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.name}>{offer.providerName}</Text>
-                        <View style={s.ratingRow}>
-                          <Star size={14} color={colors.warning} fill={colors.warning} />
-                          <Text style={s.rating}>{hasRating ? `${offer.providerRating?.avg} (${offer.providerRating?.count || 0})` : t('clientOffers.noRating')}</Text>
-                        </View>
-                      </View>
-                      <View style={s.priceBox}>
-                        <Text style={s.price}>{offer.price.toLocaleString('fr-FR')}</Text>
-                        <Text style={s.priceCurrency}>FCFA</Text>
-                      </View>
-                    </View>
-                    {offer.message ? <Text style={s.message}>{offer.message}</Text> : null}
-                    <View style={s.metaRow}>
-                      <StatusChip label={offer.etaMinutes ? `${offer.etaMinutes} min` : t('offers.noEta')} icon={<Clock size={12} color={colors.textSecondary} />} variant="neutral" small />
-                      {offer.providerVerified ? <StatusChip label={t('clientOffers.verified')} variant="success" small /> : null}
-                    </View>
-                    <View style={s.actions}>
-                      <TouchableOpacity
-                        style={s.profileBtn}
-                        onPress={() => router.push(`/offers/provider/${offer.providerId}`)}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={s.profileBtnText}>{t('clientOffers.viewProfile')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[s.chooseBtn, accepting === offer._id && { opacity: 0.6 }]}
-                        activeOpacity={0.85}
-                        onPress={() => acceptOffer(offer)}
-                        disabled={accepting === offer._id}
-                      >
-                        <Text style={s.chooseBtnText}>{accepting === offer._id ? t('common.loading') : t('clientOffers.choose')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          </ScrollView>
-
-          <View style={s.bottomBar}>
-            <Button
-              title={t('clientOffers.compare')}
-              variant="secondary"
-              onPress={() => toast.info(t('common.comingSoon'), t('clientOffers.compareSoon'))}
-              fullWidth
-              size="lg"
-              icon={<SlidersHorizontal size={18} color={colors.text} />}
+          {/* Live Status Bar */}
+          <View style={s.liveBarWrap}>
+            <LiveStatusBar
+              viewersCount={viewersCount || (offers.length > 0 ? 3 : 1)}
+              expiresAt={expiresAt}
+              compact={isEmpty}
             />
           </View>
-        </>
+
+          {hasOffers && (
+            <>
+              {/* Sorting Pills */}
+              <SortingPillsRow active={sort} onChange={setSort} />
+
+              {/* Offers count */}
+              <Text style={s.offersCount}>
+                {t('clientOffers.offersReceived', { count: offers.length })}
+              </Text>
+
+              {/* Offer Cards */}
+              <View style={s.offersList}>
+                {sortedOffers.map((offer, idx) => (
+                  <OfferCard
+                    key={offer._id}
+                    offer={offer}
+                    isBest={idx === 0 && sort === 'recommended'}
+                    budget={request?.budget}
+                    onChoose={acceptOffer}
+                    onNegotiate={negotiateOffer}
+                    disabled={accepting === offer._id}
+                  />
+                ))}
+              </View>
+            </>
+          )}
+
+          {isEmpty && (
+            <>
+              {/* Radar pulse hero */}
+              <View style={s.heroSection}>
+                <RadarPulseIllustration />
+                <Text style={s.heroTitle}>{t('clientOffers.searching')}</Text>
+                <Text style={s.heroSubtitle}>
+                  {t('clientOffers.emptySubtitle', {
+                    category: request ? getCategoryMeta(request.category).label.toLowerCase() : 'prestataires',
+                  })}
+                </Text>
+              </View>
+
+              {/* How it works timeline */}
+              <View style={s.timelineCard}>
+                <VerticalTimeline
+                  steps={[
+                    {
+                      key: 'published',
+                      label: t('clientOffers.stepPublished'),
+                      status: 'done',
+                      statusText: t('clientOffers.stepPublishedTime', { minutes: publishedMinutesAgo || 1 }),
+                    },
+                    {
+                      key: 'searching',
+                      label: t('clientOffers.stepSearching'),
+                      status: 'active',
+                      statusText: t('clientOffers.stepSearchingStatus'),
+                    },
+                    {
+                      key: 'choose',
+                      label: t('clientOffers.stepChoose'),
+                      status: 'pending',
+                      statusText: t('clientOffers.stepChooseStatus'),
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Estimated time */}
+              <EstimatedTimeCard />
+
+              {/* Tip */}
+              <View style={s.tipWrap}>
+                <TipCard />
+              </View>
+
+              {/* Action buttons */}
+              <View style={s.emptyActions}>
+                <TouchableOpacity
+                  style={s.editBtn}
+                  onPress={() => router.push(`/create-request?editId=${requestId}`)}
+                  activeOpacity={0.85}
+                >
+                  <Pencil size={16} color={colors.primary} />
+                  <Text style={s.editBtnText}>{t('clientOffers.editRequest')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={cancelRequest} activeOpacity={0.7}>
+                  <Text style={s.cancelLink}>{t('clientOffers.cancelRequest')}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </ScrollView>
       )}
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  summaryCard: {
+  safe: { flex: 1, backgroundColor: colors.bg },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scrollContent: { paddingBottom: 60 },
+  liveBarWrap: { marginTop: spacing.md, alignItems: 'center' },
+  offersCount: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textSecondary,
+    fontWeight: typography.weight.medium as any,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  offersList: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  heroTitle: {
+    fontSize: typography.lg.fontSize,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+  },
+  heroSubtitle: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  timelineCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    padding: spacing.md,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
   },
-  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
+  tipWrap: { marginTop: spacing.md },
+  emptyActions: {
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: spacing.xl,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
-  categoryAbbr: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
-  summaryTitle: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  summarySub: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginTop: 2 },
-  livePill: {
-    alignSelf: 'center',
+  editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.successLight,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginTop: spacing.md,
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
-  liveText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
-  sortBar: { paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.sm },
-  sortPill: {
     backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sortPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  sortText: { fontSize: typography.sm.fontSize, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
-  sortTextActive: { color: colors.surface, fontWeight: typography.weight.extrabold as any },
-  list: { paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.md },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  cardBest: { borderColor: colors.success, borderWidth: 2 },
-  bestBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.success,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  bestBadgeText: { fontSize: typography.xs.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  avatarText: { fontSize: 16, color: colors.primary, fontWeight: typography.weight.extrabold as any },
-  verified: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  verifiedText: { color: colors.surface },
-  name: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  star: { color: colors.warning },
-  rating: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
-  priceBox: { alignItems: 'flex-end' },
-  price: { fontSize: typography.xl.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  priceCurrency: { fontSize: typography.xs.fontSize, color: colors.textSecondary },
-  message: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 18 },
-  metaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  profileBtn: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    alignItems: 'center',
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.xl,
     borderWidth: 1.5,
     borderColor: colors.primary,
   },
-  profileBtnText: { fontSize: typography.base.fontSize, color: colors.primary, fontWeight: typography.weight.extrabold as any },
-  chooseBtn: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    alignItems: 'center',
+  editBtnText: {
+    fontSize: typography.base.fontSize,
+    color: colors.primary,
+    fontWeight: typography.weight.semibold as any,
   },
-  chooseBtnText: { fontSize: typography.base.fontSize, color: colors.surface, fontWeight: typography.weight.extrabold as any },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    ...shadows.xl,
+  cancelLink: {
+    fontSize: typography.sm.fontSize,
+    color: colors.danger,
+    fontWeight: typography.weight.medium as any,
   },
 })
