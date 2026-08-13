@@ -511,10 +511,16 @@ function MissionDetail() {
                     <Text style={s.detailValue}>{formatMoney(item.payment.depositAmount)}</Text>
                   </View>
                 )}
-                {item.payment.balanceAmount > 0 && item.payment.phase === 'deposit' && item.payment.status === 'held' && (
+                {item.payment.balanceAmount > 0 && item.payment.depositStatus === 'held' && item.payment.balanceStatus !== 'held' && item.payment.balanceStatus !== 'pending' && (
                   <View style={s.detailRow}>
                     <Text style={s.detailLabel}>{t('mission.balanceDue')}</Text>
                     <Text style={s.detailValue}>{formatMoney(item.payment.balanceAmount)}</Text>
+                  </View>
+                )}
+                {item.payment.balanceStatus === 'pending' && (
+                  <View style={s.detailRow}>
+                    <Text style={s.detailLabel}>{t('mission.balanceDue')}</Text>
+                    <Text style={[s.detailValue, { color: colors.warning }]}>{formatMoney(item.payment.balanceAmount)} — en cours</Text>
                   </View>
                 )}
                 <View style={[s.paymentBadge, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || colors.slate100 }]}>
@@ -522,7 +528,7 @@ function MissionDetail() {
                     {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
                   </Text>
                 </View>
-                {item.payment.phase === 'deposit' && item.payment.status === 'held' && item.status !== 'cancelled' && item.status !== 'completed' && (
+                {item.payment.depositStatus === 'held' && item.payment.balanceStatus !== 'held' && item.payment.balanceStatus !== 'pending' && item.payment.balanceAmount > 0 && item.status !== 'cancelled' && item.status !== 'completed' && (
                   <TouchableOpacity style={s.payBalanceBtn} onPress={payBalance} activeOpacity={0.8}>
                     <Text style={s.payBalanceBtnText}>{t('payment.payBalance')}</Text>
                   </TouchableOpacity>

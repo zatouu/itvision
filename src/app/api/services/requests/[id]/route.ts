@@ -48,8 +48,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let payment = null
     if (sr.selectedOfferId) {
       const Payment = (await import('@/lib/models/Payment')).default
-      payment = await Payment.findOne({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
-        .select('status provider phase amount depositAmount balanceAmount useEscrow').lean()
+      const payments = await Payment.find({ requestId: id, status: { $in: ['pending', 'held', 'released', 'refunded', 'failed'] } })
+        .select('status provider phase amount depositAmount balanceAmount useEscrow createdAt').lean()
+      if (payments.length > 0) {
+        const deposit = payments.find(p => p.phase === 'deposit')
+        const balance = payments.find(p => p.phase === 'balance')
+        const full = payments.find(p => p.phase === 'full')
+        const latest = payments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        payment = {
+          status: latest.status,
+          provider: latest.provider,
+          phase: latest.phase,
+          amount: latest.amount,
+          depositAmount: deposit?.depositAmount || full?.depositAmount || 0,
+          balanceAmount: balance?.amount || deposit?.balanceAmount || full?.balanceAmount || 0,
+          useEscrow: latest.useEscrow,
+          depositStatus: deposit?.status || null,
+          balanceStatus: balance?.status || null,
+        }
+      }
     }
 
     const hasDispute = sr.status === 'dispute' || sr.disputeStatus || sr.disputeDecision

@@ -88,9 +88,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier pas de double paiement
-    const existing = await Payment.findOne({ offerId, status: { $in: ['pending', 'held'] } })
-    if (existing) {
-      if (isBalancePhase && existing.phase === 'deposit' && existing.status === 'held') {
+    const existingPayments = await Payment.find({ offerId, status: { $in: ['pending', 'held'] } }).sort({ createdAt: 1 }).lean()
+    const existing = existingPayments[0]
+    if (existingPayments.length > 0) {
+      if (isBalancePhase) {
+        // Check if there's already a balance payment pending or held
+        const existingBalance = existingPayments.find(p => p.phase === 'balance')
+        if (existingBalance) {
+          return NextResponse.json({
+            success: true,
+            payment: existingBalance,
+            message: 'Solde déjà payé ou en cours'
+          })
+        }
+        // If deposit is held, allow creating balance payment
+        const existingDeposit = existingPayments.find(p => p.phase === 'deposit' && p.status === 'held')
+        if (!existingDeposit) {
+          return NextResponse.json({
+            success: true,
+            payment: existing,
+            message: 'Paiement déjà initié'
+          })
+        }
         // allowed to pay the remaining balance
       } else {
         return NextResponse.json({
@@ -111,7 +130,8 @@ export async function POST(request: NextRequest) {
       : (phase === 'deposit' ? depositAmount : phase === 'balance' ? balanceAmount : totalAmount)
 
     if (isBalancePhase) {
-      const alreadyPaid = existing?.phase === 'deposit' ? existing.depositAmount : 0
+      const depositPayment = existingPayments.find(p => p.phase === 'deposit')
+      const alreadyPaid = depositPayment?.depositAmount || 0
       depositAmount = 0
       balanceAmount = Math.max(0, totalAmount - alreadyPaid)
       amountToPayNow = balanceAmount

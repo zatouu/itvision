@@ -135,6 +135,26 @@ function PaymentScreen() {
           await Linking.openURL(res.checkoutUrl)
         }
       }
+      // If payment already initiated and it's held, go to mission
+      if (res.message && res.payment?.status === 'held') {
+        hapticSuccess()
+        toast.success(t('payment.initiated'), t('payment.manualConfirmed', { defaultValue: 'Paiement confirmé. La mission démarre.' }))
+        if (requestId) {
+          router.replace(`/mission/${requestId}`)
+        } else {
+          router.back()
+        }
+        return
+      }
+      // If balance already paid or in progress, go to mission
+      if (res.message && isBalance && res.payment?.phase === 'balance') {
+        if (requestId) {
+          router.replace(`/mission/${requestId}`)
+        } else {
+          router.back()
+        }
+        return
+      }
       if (res.manualConfirm && res.reference) {
         // Paiement QR statique : afficher les instructions + polling via /confirm
         setManualPending({ reference: res.reference, amount: payNowAmount })
