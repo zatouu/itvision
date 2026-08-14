@@ -4,7 +4,7 @@ import Constants from 'expo-constants'
 import * as Notifications from 'expo-notifications'
 import * as TaskManager from 'expo-task-manager'
 import * as Device from 'expo-device'
-import { apiPost } from './api'
+import { apiPost, apiDelete } from './api'
 import { pushNotification, NotificationKind } from './notifications'
 
 /** Mappe le type de push serveur vers un kind + lien de navigation pour le store in-app. */
@@ -154,6 +154,22 @@ export async function registerPushToken(): Promise<string | null> {
   } catch (err: any) {
     console.warn('[Push] Erreur envoi token:', err?.message || err)
     return null
+  }
+}
+
+/**
+ * Désenregistre le token push du serveur — à appeler au logout.
+ * Évite que le nouvel utilisateur reçoive les push de l'ancien.
+ */
+export async function unregisterPushToken(): Promise<void> {
+  if (!isNative) return
+  try {
+    const status = await getPushTokenStatus()
+    if (!status.token) return
+    await apiDelete(`/api/notifications/push-token?token=${encodeURIComponent(status.token)}`)
+    console.log('[Push] Token désenregistré côté serveur ✓')
+  } catch (err: any) {
+    console.warn('[Push] Erreur désenregistrement token:', err?.message || err)
   }
 }
 

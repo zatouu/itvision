@@ -95,7 +95,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
     await logoutApi()
     await clearAuth()
     await clearAllUserData()
-    setTimeout(() => router.replace('/login'), 250)
+    router.replace('/login')
   }
 
   const mainItems: MenuItem[] = [

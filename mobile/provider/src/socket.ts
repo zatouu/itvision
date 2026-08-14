@@ -14,6 +14,11 @@ export function getSocket(): Socket {
       auth: { token },
       transports: ['websocket', 'polling'],
       autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.5,
     })
 
     socket.on('connect', () => {

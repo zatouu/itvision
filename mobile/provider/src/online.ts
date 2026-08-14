@@ -60,3 +60,10 @@ export async function toggleOnline() {
   else await goOnline()
   return current
 }
+
+/** Reset in-memory state + AsyncStorage — called on logout. */
+export async function resetOnline(): Promise<void> {
+  current = false
+  try { await AsyncStorage.removeItem(KEY) } catch {}
+  emit()
+}

@@ -172,6 +172,16 @@ export async function apiPatch(path: string, body: Record<string, unknown>) {
   return finalRes.json()
 }
 
+export async function apiDelete(path: string) {
+  const doFetch = () => fetchWithRetry(base + path, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }, 1)
+  const r = await doFetch()
+  const finalRes = await handleStatus(r, doFetch)
+  return finalRes.json()
+}
+
 export async function apiUpload(fileUri: string, filename: string, contentType: string, uploadType = 'requests') {
   if (Platform.OS === 'web') {
     const formData = new FormData()
