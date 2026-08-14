@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type InAppType = 'info' | 'success' | 'warning' | 'error'
-export type AppRole = 'ADMIN' | 'TECHNICIAN' | 'CLIENT'
+export type AppRole = 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'PROVIDER'
 
 export interface IInAppNotification extends Document {
   userId?: string
@@ -20,7 +20,7 @@ export interface IInAppNotification extends Document {
 
 const InAppNotificationSchema = new Schema<IInAppNotification>({
   userId: { type: String },
-  roles: { type: [String], enum: ['ADMIN', 'TECHNICIAN', 'CLIENT'], default: undefined },
+  roles: { type: [String], enum: ['ADMIN', 'TECHNICIAN', 'CLIENT', 'PROVIDER'], default: undefined },
   teamId: { type: String },
   type: { type: String, enum: ['info', 'success', 'warning', 'error'], required: true },
   title: { type: String, required: true },

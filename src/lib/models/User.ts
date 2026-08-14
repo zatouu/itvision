@@ -20,7 +20,7 @@ export interface IUser extends Document {
   providerProfileId?: mongoose.Types.ObjectId
   vendorProfileId?: mongoose.Types.ObjectId
   favoriteProductIds?: string[]
-  role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN' | 'VENDOR'
+  role: 'CLIENT' | 'TECHNICIAN' | 'PRODUCT_MANAGER' | 'ACCOUNTANT' | 'ADMIN' | 'SUPER_ADMIN' | 'VENDOR' | 'PROVIDER'
   marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
   proRequestedAt?: Date
   proValidatedAt?: Date
@@ -71,7 +71,7 @@ const UserSchema = new Schema<IUser>({
   providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },
   vendorProfileId: { type: Schema.Types.ObjectId, ref: 'VendorProfile', sparse: true, index: true },
   favoriteProductIds: { type: [String], default: [] },
-  role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN', 'VENDOR'], default: 'CLIENT', index: true },
+  role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN', 'VENDOR', 'PROVIDER'], default: 'CLIENT', index: true },
   marketplaceTier: { type: String, enum: ['standard', 'pro', 'reseller', 'partner'], default: 'standard', index: true },
   proRequestedAt: { type: Date },
   proValidatedAt: { type: Date },

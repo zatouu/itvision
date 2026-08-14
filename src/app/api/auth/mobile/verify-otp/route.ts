@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         passwordHash: '___otp_only___',
         name: displayName,
         phone,
-        role: role === 'PROVIDER' ? 'TECHNICIAN' : 'CLIENT',
+        role: role === 'PROVIDER' ? 'PROVIDER' : 'CLIENT',
         isActive: true,
         loginAttempts: 0,
         referralCode,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       user._isNew = true
 
       // Créer les profils découplés par domaine (non-bloquant, ne doit pas faire échouer l'inscription)
-      const mappedRole = role === 'PROVIDER' ? 'TECHNICIAN' : 'CLIENT'
+      const mappedRole = role === 'PROVIDER' ? 'PROVIDER' : 'CLIENT'
       try {
         await createUserProfiles(newUser._id, mappedRole, {
           referralCode,

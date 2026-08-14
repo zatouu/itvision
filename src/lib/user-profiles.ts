@@ -54,7 +54,7 @@ export async function createUserProfiles(
   }
 
   // ProviderProfile : techniciens / prestataires
-  if (role === 'TECHNICIAN') {
+  if (role === 'TECHNICIAN' || role === 'PROVIDER') {
     const providerProfile = await ProviderProfile.create({
       userId: userObjectId,
       kycVerified: false,
@@ -161,6 +161,7 @@ export async function syncUserToProfiles(userId: mongoose.Types.ObjectId | strin
   // ProviderProfile
   if (
     user.role === 'TECHNICIAN' ||
+    user.role === 'PROVIDER' ||
     user.kycVerified ||
     user.providerStats?.completedMissions ||
     user.providerStats?.cancelledByProvider ||

@@ -33,7 +33,8 @@ import {
   Calculator,
   Crown,
   Briefcase,
-  Trash2
+  Trash2,
+  Wrench
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
@@ -87,7 +88,9 @@ interface CompanyOption {
 // Configuration des rôles
 const ROLES = [
   { value: 'CLIENT', label: 'Client', icon: User, color: 'emerald', description: 'Accès au portail client' },
+  { value: 'PROVIDER', label: 'Prestataire Xeuy Bi', icon: Wrench, color: 'emerald', description: 'Prestataire de services sur l\'app Xeuy Bi' },
   { value: 'TECHNICIAN', label: 'Technicien', icon: Settings, color: 'blue', description: 'Interventions et maintenance' },
+  { value: 'VENDOR', label: 'Vendeur Marketplace', icon: Briefcase, color: 'purple', description: 'Vendeur sur la marketplace' },
   { value: 'PRODUCT_MANAGER', label: 'Gestionnaire Produits', icon: Package, color: 'purple', description: 'Gestion du catalogue produits' },
   { value: 'ACCOUNTANT', label: 'Comptable', icon: Calculator, color: 'orange', description: 'Accès comptabilité et factures' },
   { value: 'ADMIN', label: 'Administrateur', icon: Briefcase, color: 'red', description: 'Gestion générale (sans config système)' },
@@ -564,7 +567,7 @@ export default function UserManagementInterface() {
 
     if (q) setSearchTerm(q)
     if (role) setRoleFilter(role)
-    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(userCategory)) {
+    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER', 'XEUY_PROVIDER', 'XEUY_CLIENT'].includes(userCategory)) {
       setUserCategoryFilter(userCategory as UserCategory)
     }
     if (isActive) setStatusFilter(isActive)
@@ -850,13 +853,19 @@ export default function UserManagementInterface() {
   }
 
   const getUserCategoryBadge = (user: UserData) => {
-    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : 'PLATFORM_USER')
+    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : user.role === 'PROVIDER' ? 'XEUY_PROVIDER' : 'PLATFORM_USER')
 
     if (category === 'ENTERPRISE_CLIENT') {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">{getUserCategoryLabel(category)}</span>
     }
     if (category === 'MARKETPLACE_CLIENT') {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700">{getUserCategoryLabel(category)}</span>
+    }
+    if (category === 'XEUY_PROVIDER') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-100 text-teal-700">{getUserCategoryLabel(category)}</span>
+    }
+    if (category === 'XEUY_CLIENT') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-100 text-cyan-700">{getUserCategoryLabel(category)}</span>
     }
     return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">{getUserCategoryLabel(category)}</span>
   }
@@ -973,6 +982,32 @@ export default function UserManagementInterface() {
           )}
         </AnimatePresence>
 
+        {/* Onglets de filtrage par entité */}
+        <div className="mb-4 flex gap-2 flex-wrap">
+          {[
+            { key: 'all', label: 'Tous', color: 'bg-gray-100 text-gray-700 border-gray-300', activeColor: 'bg-gray-700 text-white border-gray-700' },
+            { key: 'ENTERPRISE_CLIENT', label: 'Corporate', color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
+            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace', color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
+            { key: 'XEUY_PROVIDER', label: 'Xeuy Bi Prestataires', color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
+            { key: 'XEUY_CLIENT', label: 'Xeuy Bi Clients', color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
+            { key: 'PLATFORM_USER', label: 'Plateforme / Admin', color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
+          ].map(tab => {
+            const isActiveTab = userCategoryFilter === tab.key || (tab.key === 'all' && userCategoryFilter === 'all')
+            return (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setUserCategoryFilter(tab.key as 'all' | UserCategory)
+                  setCurrentPage(1)
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
         {/* Filtres */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -1012,6 +1047,8 @@ export default function UserManagementInterface() {
                 <option value="all">Toutes</option>
                 <option value="MARKETPLACE_CLIENT">Clients marketplace</option>
                 <option value="ENTERPRISE_CLIENT">Clients entreprise</option>
+                <option value="XEUY_PROVIDER">Prestataires Xeuy Bi</option>
+                <option value="XEUY_CLIENT">Clients Xeuy Bi</option>
                 <option value="PLATFORM_USER">Utilisateurs plateforme</option>
               </select>
             </div>

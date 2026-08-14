@@ -56,13 +56,30 @@ export async function GET(request: NextRequest) {
         }
       ]
     } else if (userCategory === 'ENTERPRISE_CLIENT') {
-      query.role = 'CLIENT'
+      query.role = { $in: ['CLIENT', 'TECHNICIAN'] }
       query.$and = [
         ...(query.$and || []),
         { companyClientId: { $exists: true, $ne: null } }
       ]
+    } else if (userCategory === 'XEUY_PROVIDER') {
+      query.$or = [
+        { role: 'PROVIDER' },
+        { providerProfileId: { $exists: true, $ne: null } }
+      ]
+    } else if (userCategory === 'XEUY_CLIENT') {
+      query.role = 'CLIENT'
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { companyClientId: { $exists: false } },
+            { companyClientId: null }
+          ]
+        },
+        { providerProfileId: { $exists: false } }
+      ]
     } else if (userCategory === 'PLATFORM_USER') {
-      query.role = { $ne: 'CLIENT' }
+      query.role = { $nin: ['CLIENT', 'PROVIDER'] }
     }
 
     if (isActive === 'true') query.isActive = true
@@ -75,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     const usersWithCategory = users.map((user: any) => ({
       ...user,
-      userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId })
+      userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: user.providerProfileId })
     }))
 
     return NextResponse.json({ success: true, users: usersWithCategory, total, skip, limit })

@@ -51,275 +51,222 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-const menuItems: MenuItem[] = [
+interface MenuSection {
+  id: string
+  label: string
+  icon: any
+  color: 'gray' | 'blue' | 'purple' | 'emerald' | 'slate'
+  items: MenuItem[]
+}
+
+const SECTION_COLORS: Record<string, {
+  activeBg: string; activeText: string; bar: string; header: string; dot: string; collapsedBar: string
+}> = {
+  gray:    { activeBg: 'bg-gray-100',    activeText: 'text-gray-700',    bar: 'bg-gray-500',    header: 'text-gray-600',    dot: 'bg-gray-500',    collapsedBar: 'bg-gray-400' },
+  blue:    { activeBg: 'bg-blue-50',     activeText: 'text-blue-700',   bar: 'bg-blue-500',    header: 'text-blue-600',    dot: 'bg-blue-500',    collapsedBar: 'bg-blue-400' },
+  purple:  { activeBg: 'bg-purple-50',   activeText: 'text-purple-700', bar: 'bg-purple-500',  header: 'text-purple-600',  dot: 'bg-purple-500',  collapsedBar: 'bg-purple-400' },
+  emerald: { activeBg: 'bg-emerald-50',  activeText: 'text-emerald-700',bar: 'bg-emerald-500', header: 'text-emerald-600', dot: 'bg-emerald-500', collapsedBar: 'bg-emerald-400' },
+  slate:   { activeBg: 'bg-slate-100',   activeText: 'text-slate-700',  bar: 'bg-slate-500',   header: 'text-slate-600',   dot: 'bg-slate-500',   collapsedBar: 'bg-slate-400' },
+}
+
+const menuSections: MenuSection[] = [
+  // ─── COMMUN / TRANSVERSE ──────────────────────────────────────
   {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: 'commun',
+    label: 'Commun',
     icon: LayoutDashboard,
-    href: '/admin'
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: BarChart3,
-    href: '/admin/analytics'
-  },
-  {
-    id: 'plateforme',
-    label: 'Plateforme',
-    icon: Globe,
-    children: [
+    color: 'gray',
+    items: [
       {
-        id: 'plateforme-config',
-        label: 'Configuration',
-        icon: Settings,
-        href: '/admin/platform/config'
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        href: '/admin'
       },
       {
-        id: 'plateforme-analytics',
-        label: 'Analytics Mobile',
+        id: 'analytics',
+        label: 'Analytics',
         icon: BarChart3,
-        href: '/admin/platform/analytics'
+        href: '/admin/analytics'
       },
       {
-        id: 'plateforme-wallets',
-        label: 'Wallets',
-        icon: Wallet,
-        href: '/admin/platform/wallets'
-      },
-      {
-        id: 'plateforme-transactions',
-        label: 'Transactions Points',
-        icon: CreditCard,
-        href: '/admin/platform/transactions'
-      },
-      {
-        id: 'plateforme-kyc',
-        label: 'KYC Prestataires',
-        icon: Shield,
-        href: '/admin/platform/kyc'
-      },
-      {
-        id: 'plateforme-visibility',
-        label: 'Visibilité & Notifications',
-        icon: Eye,
-        href: '/admin/platform/visibility'
+        id: 'tickets',
+        label: 'Support',
+        icon: AlertCircle,
+        href: '/admin/tickets'
       }
     ]
   },
+
+  // ─── ITVISION CORPORATE (B2B Sécurité électronique) ───────────
   {
-    id: 'administration',
-    label: 'Administration',
-    icon: Settings,
-    children: [
-      {
-        id: 'how-to',
-        label: 'Guide d\'utilisation',
-        icon: BookOpen,
-        href: '/admin/administration/how-to'
-      },
-      {
-        id: 'emails',
-        label: 'Emails',
-        icon: Mail,
-        href: '/admin/emails'
-      },
-      {
-        id: 'paiements',
-        label: 'Paiements',
-        icon: CreditCard,
-        href: '/admin/paiements'
-      },
-      {
-        id: 'paiements-qr',
-        label: 'Paiements QR',
-        icon: QrCode,
-        href: '/admin/paiements-qr'
-      },
-      {
-        id: 'migration',
-        label: 'Paramètres / Migration',
-        icon: Settings,
-        href: '/admin/migration'
-      }
-    ]
-  },
-  {
-    id: 'finance',
-    label: 'Finance',
-    icon: Wallet,
-    children: [
-      {
-        id: 'tresorerie',
-        label: 'Trésorerie 360°',
-        icon: Wallet,
-        href: '/admin/tresorerie'
-      },
-      {
-        id: 'devis',
-        label: 'Devis',
-        icon: FileText,
-        href: '/admin/devis'
-      },
-      {
-        id: 'factures',
-        label: 'Factures',
-        icon: Receipt,
-        href: '/admin/factures'
-      },
-      {
-        id: 'depenses',
-        label: 'Dépenses',
-        icon: TrendingDown,
-        href: '/admin/depenses'
-      },
-      {
-        id: 'comptabilite',
-        label: 'Comptabilité',
-        icon: Calculator,
-        href: '/admin/comptabilite'
-      },
-      {
-        id: 'paiements-finance',
-        label: 'Paiements',
-        icon: Banknote,
-        href: '/admin/paiements'
-      }
-    ]
-  },
-  {
-    id: 'projets',
-    label: 'Projets',
-    icon: FolderKanban,
-    href: '/admin/projects'
-  },
-  {
-    id: 'planning',
-    label: 'Planning',
-    icon: Calendar,
-    href: '/admin/planning'
-  },
-  {
-    id: 'clients',
-    label: 'Clients',
+    id: 'corporate',
+    label: 'ITVision Corporate',
     icon: Building2,
-    href: '/admin/clients'
-  },
-  {
-    id: 'clients-marketplace',
-    label: 'Clients marketplace',
-    icon: Users,
-    href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
-  },
-  {
-    id: 'clients-entreprise-comptes',
-    label: 'Clients entreprise (comptes)',
-    icon: UsersRound,
-    href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
-  },
-  {
-    id: 'utilisateurs-plateforme',
-    label: 'Utilisateurs plateforme',
-    icon: Shield,
-    href: '/admin/users?userCategory=PLATFORM_USER'
-  },
-  {
-    id: 'commandes',
-    label: 'Commandes',
-    icon: ShoppingCart,
-    href: '/admin/commandes'
-  },
-  {
-    id: 'achats-groupes',
-    label: 'Achats Groupés',
-    icon: UsersRound,
-    href: '/admin/achats-groupes'
-  },
-  {
-    id: 'achats-chine',
-    label: 'Achats Chine',
-    icon: Package,
-    href: '/admin/achats-chine'
-  },
-  {
-    id: 'auto-import',
-    label: 'Auto Import 1688/Ali',
-    icon: Download,
-    href: '/admin/auto-import'
-  },
-  {
-    id: 'produits',
-    label: 'Produits',
-    icon: Package,
-    children: [
+    color: 'blue',
+    items: [
       {
-        id: 'produits-liste',
-        label: 'Liste produits',
-        icon: ListChecks,
-        href: '/admin/produits'
+        id: 'projets',
+        label: 'Projets',
+        icon: FolderKanban,
+        href: '/admin/projects'
       },
       {
-        id: 'produits-prix',
-        label: 'Gestion des prix',
-        icon: Tags,
-        href: '/admin/prices'
+        id: 'planning',
+        label: 'Planning',
+        icon: Calendar,
+        href: '/admin/planning'
       },
       {
-        id: 'produits-b2b-pricing',
-        label: 'Pricing B2B en masse',
-        icon: Tags,
-        href: '/admin/produits/b2b-pricing'
-      }
-    ]
-  },
-  {
-    id: 'technicians',
-    label: 'Techniciens',
-    icon: Users,
-    href: '/admin/technicians'
-  },
-  {
-    id: 'services',
-    label: 'Services',
-    icon: Wrench,
-    children: [
+        id: 'clients',
+        label: 'Clients entreprise',
+        icon: Building2,
+        href: '/admin/clients'
+      },
       {
-        id: 'services-disputes',
-        label: 'Litiges',
-        icon: Scale,
-        href: '/admin/services/disputes'
-      }
-    ]
-  },
-  {
-    id: 'maintenance',
-    label: 'Maintenance',
-    icon: Wrench,
-    children: [
+        id: 'technicians',
+        label: 'Techniciens',
+        icon: Users,
+        href: '/admin/technicians'
+      },
       {
-        id: 'maintenance-contrats',
-        label: 'Contrats',
+        id: 'finance',
+        label: 'Finance',
+        icon: Wallet,
+        children: [
+          {
+            id: 'tresorerie',
+            label: 'Trésorerie 360°',
+            icon: Wallet,
+            href: '/admin/tresorerie'
+          },
+          {
+            id: 'devis',
+            label: 'Devis',
+            icon: FileText,
+            href: '/admin/devis'
+          },
+          {
+            id: 'factures',
+            label: 'Factures',
+            icon: Receipt,
+            href: '/admin/factures'
+          },
+          {
+            id: 'depenses',
+            label: 'Dépenses',
+            icon: TrendingDown,
+            href: '/admin/depenses'
+          },
+          {
+            id: 'comptabilite',
+            label: 'Comptabilité',
+            icon: Calculator,
+            href: '/admin/comptabilite'
+          },
+          {
+            id: 'paiements-finance',
+            label: 'Paiements',
+            icon: Banknote,
+            href: '/admin/paiements'
+          }
+        ]
+      },
+      {
+        id: 'maintenance',
+        label: 'Maintenance',
         icon: Wrench,
-        href: '/admin/maintenance'
+        children: [
+          {
+            id: 'maintenance-contrats',
+            label: 'Contrats',
+            icon: Wrench,
+            href: '/admin/maintenance'
+          },
+          {
+            id: 'maintenance-rapports',
+            label: 'Rapports d\'intervention',
+            icon: ClipboardCheck,
+            href: '/admin/rapports'
+          }
+        ]
       },
       {
-        id: 'maintenance-rapports',
-        label: 'Rapports d\'intervention',
-        icon: ClipboardCheck,
-        href: '/admin/rapports'
+        id: 'garanties',
+        label: 'Garanties',
+        icon: Shield,
+        href: '/admin/garanties'
       }
     ]
   },
+
+  // ─── MARKETPLACE (Sourcing Chine) ─────────────────────────────
   {
     id: 'marketplace',
     label: 'Marketplace',
     icon: Briefcase,
-    children: [
+    color: 'purple',
+    items: [
       {
         id: 'marketplace-dashboard',
         label: 'Dashboard Marketplace',
         icon: Briefcase,
         href: '/admin/marketplace'
+      },
+      {
+        id: 'produits',
+        label: 'Produits',
+        icon: Package,
+        children: [
+          {
+            id: 'produits-liste',
+            label: 'Liste produits',
+            icon: ListChecks,
+            href: '/admin/produits'
+          },
+          {
+            id: 'produits-prix',
+            label: 'Gestion des prix',
+            icon: Tags,
+            href: '/admin/prices'
+          },
+          {
+            id: 'produits-b2b-pricing',
+            label: 'Pricing B2B en masse',
+            icon: Tags,
+            href: '/admin/produits/b2b-pricing'
+          }
+        ]
+      },
+      {
+        id: 'commandes',
+        label: 'Commandes',
+        icon: ShoppingCart,
+        href: '/admin/commandes'
+      },
+      {
+        id: 'achats-groupes',
+        label: 'Achats Groupés',
+        icon: UsersRound,
+        href: '/admin/achats-groupes'
+      },
+      {
+        id: 'achats-chine',
+        label: 'Achats Chine',
+        icon: Package,
+        href: '/admin/achats-chine'
+      },
+      {
+        id: 'auto-import',
+        label: 'Auto Import 1688/Ali',
+        icon: Download,
+        href: '/admin/auto-import'
+      },
+      {
+        id: 'clients-marketplace',
+        label: 'Clients marketplace',
+        icon: Users,
+        href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
       },
       {
         id: 'marketplace-comptes-pro',
@@ -347,17 +294,142 @@ const menuItems: MenuItem[] = [
       }
     ]
   },
+
+  // ─── XEUY BI (App de services) ────────────────────────────────
   {
-    id: 'garanties',
-    label: 'Garanties',
-    icon: Shield,
-    href: '/admin/garanties'
+    id: 'xeuybi',
+    label: 'Xeuy Bi',
+    icon: Wrench,
+    color: 'emerald',
+    items: [
+      {
+        id: 'plateforme',
+        label: 'Plateforme',
+        icon: Globe,
+        children: [
+          {
+            id: 'plateforme-config',
+            label: 'Configuration',
+            icon: Settings,
+            href: '/admin/platform/config'
+          },
+          {
+            id: 'plateforme-analytics',
+            label: 'Analytics Mobile',
+            icon: BarChart3,
+            href: '/admin/platform/analytics'
+          },
+          {
+            id: 'plateforme-wallets',
+            label: 'Wallets',
+            icon: Wallet,
+            href: '/admin/platform/wallets'
+          },
+          {
+            id: 'plateforme-transactions',
+            label: 'Transactions Points',
+            icon: CreditCard,
+            href: '/admin/platform/transactions'
+          },
+          {
+            id: 'plateforme-kyc',
+            label: 'KYC Prestataires',
+            icon: Shield,
+            href: '/admin/platform/kyc'
+          },
+          {
+            id: 'plateforme-visibility',
+            label: 'Visibilité & Notifications',
+            icon: Eye,
+            href: '/admin/platform/visibility'
+          }
+        ]
+      },
+      {
+        id: 'services',
+        label: 'Services & Litiges',
+        icon: Wrench,
+        children: [
+          {
+            id: 'services-disputes',
+            label: 'Litiges',
+            icon: Scale,
+            href: '/admin/services/disputes'
+          }
+        ]
+      },
+      {
+        id: 'xeuy-providers',
+        label: 'Prestataires Xeuy Bi',
+        icon: Wrench,
+        href: '/admin/users?userCategory=XEUY_PROVIDER'
+      },
+      {
+        id: 'xeuy-clients',
+        label: 'Clients Xeuy Bi',
+        icon: Users,
+        href: '/admin/users?userCategory=XEUY_CLIENT'
+      },
+      {
+        id: 'utilisateurs-plateforme',
+        label: 'Utilisateurs plateforme',
+        icon: Shield,
+        href: '/admin/users?userCategory=PLATFORM_USER'
+      },
+      {
+        id: 'clients-entreprise-comptes',
+        label: 'Clients entreprise (comptes)',
+        icon: UsersRound,
+        href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
+      }
+    ]
   },
+
+  // ─── SYSTÈME / ADMINISTRATION ─────────────────────────────────
   {
-    id: 'tickets',
-    label: 'Support',
-    icon: AlertCircle,
-    href: '/admin/tickets'
+    id: 'systeme',
+    label: 'Système',
+    icon: Settings,
+    color: 'slate',
+    items: [
+      {
+        id: 'administration',
+        label: 'Administration',
+        icon: Settings,
+        children: [
+          {
+            id: 'how-to',
+            label: 'Guide d\'utilisation',
+            icon: BookOpen,
+            href: '/admin/administration/how-to'
+          },
+          {
+            id: 'emails',
+            label: 'Emails',
+            icon: Mail,
+            href: '/admin/emails'
+          },
+          {
+            id: 'paiements',
+            label: 'Paiements',
+            icon: CreditCard,
+            href: '/admin/paiements'
+          },
+          {
+            id: 'paiements-qr',
+            label: 'Paiements QR',
+            icon: QrCode,
+            href: '/admin/paiements-qr'
+          },
+          {
+            id: 'migration',
+            label: 'Paramètres / Migration',
+            icon: Settings,
+            href: '/admin/migration'
+          }
+        ]
+      }
+    ]
   }
 ]
 
@@ -366,35 +438,6 @@ export default function AdminSidebar() {
   const [search, setSearch] = useState('')
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
-
-  // Charger l'état de collapse depuis localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('admin-sidebar-collapsed')
-    if (saved !== null) {
-      setIsCollapsed(saved === 'true')
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setSearch(window.location.search)
-    }
-  }, [pathname])
-
-  // Sauvegarder l'état de collapse
-  const toggleCollapse = () => {
-    const newState = !isCollapsed
-    setIsCollapsed(newState)
-    localStorage.setItem('admin-sidebar-collapsed', String(newState))
-  }
-
-  const toggleMenu = (menuId: string) => {
-    setOpenMenus(prev =>
-      prev.includes(menuId)
-        ? prev.filter(id => id !== menuId)
-        : [...prev, menuId]
-    )
-  }
 
   const isActive = (href?: string) => {
     if (!href) return false
@@ -422,10 +465,56 @@ export default function AdminSidebar() {
     return false
   }
 
-  const renderMenuItem = (item: MenuItem, level: number = 0) => {
+  // Charger l'état de collapse depuis localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('admin-sidebar-collapsed')
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearch(window.location.search)
+    }
+    // Auto-expand any submenu whose child is active
+    const activeParents: string[] = []
+    for (const section of menuSections) {
+      for (const item of section.items) {
+        if (item.children && hasActiveChild(item)) {
+          activeParents.push(item.id)
+        }
+      }
+    }
+    if (activeParents.length > 0) {
+      setOpenMenus(prev => {
+        const merged = new Set([...prev, ...activeParents])
+        return Array.from(merged)
+      })
+    }
+  }, [pathname])
+
+  // Sauvegarder l'état de collapse
+  const toggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem('admin-sidebar-collapsed', String(newState))
+  }
+
+  const toggleMenu = (menuId: string) => {
+    setOpenMenus(prev =>
+      prev.includes(menuId)
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    )
+  }
+
+  const renderMenuItem = (item: MenuItem, level: number = 0, colors?: { activeBg: string; activeText: string }) => {
     const hasChildren = item.children && item.children.length > 0
     const isOpen = openMenus.includes(item.id)
     const active = isActive(item.href) || hasActiveChild(item)
+    const activeBg = colors?.activeBg || 'bg-green-50'
+    const activeText = colors?.activeText || 'text-green-700'
 
     if (hasChildren) {
       return (
@@ -435,7 +524,7 @@ export default function AdminSidebar() {
             title={isCollapsed ? item.label : undefined}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
-                ? 'bg-green-50 text-green-700'
+                ? `${activeBg} ${activeText}`
                 : 'text-gray-700 hover:bg-gray-50'
             } ${isCollapsed ? 'justify-center' : ''}`}
           >
@@ -453,7 +542,7 @@ export default function AdminSidebar() {
           </button>
           {isOpen && !isCollapsed && (
             <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
-              {item.children!.map(child => renderMenuItem(child, level + 1))}
+              {item.children!.map(child => renderMenuItem(child, level + 1, colors))}
             </div>
           )}
         </div>
@@ -467,7 +556,7 @@ export default function AdminSidebar() {
         title={isCollapsed ? item.label : undefined}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
-            ? 'bg-green-50 text-green-700 font-medium'
+            ? `${activeBg} ${activeText} font-medium`
             : 'text-gray-700 hover:bg-gray-50'
         }`}
         style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
@@ -475,6 +564,34 @@ export default function AdminSidebar() {
         <item.icon className="h-5 w-5 flex-shrink-0" />
         {!isCollapsed && <span className="text-sm">{item.label}</span>}
       </Link>
+    )
+  }
+
+  const renderSection = (section: MenuSection) => {
+    const sectionActive = section.items.some(item => hasActiveChild(item))
+    const c = SECTION_COLORS[section.color]
+
+    return (
+      <div key={section.id} className="space-y-1">
+        {/* Section header */}
+        {!isCollapsed ? (
+          <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
+            <div className={`w-1 h-4 rounded-full ${c.bar}`} />
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${c.header}`}>
+              {section.label}
+            </span>
+            {sectionActive && (
+              <div className={`ml-auto w-1.5 h-1.5 rounded-full ${c.dot} animate-pulse`} />
+            )}
+          </div>
+        ) : (
+          <div className="pt-3 pb-1 flex justify-center">
+            <div className={`w-6 h-0.5 rounded-full ${c.collapsedBar}`} />
+          </div>
+        )}
+        {/* Section items */}
+        {section.items.map(item => renderMenuItem(item, 0, { activeBg: c.activeBg, activeText: c.activeText }))}
+      </div>
     )
   }
 
@@ -515,8 +632,8 @@ export default function AdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {menuItems.map(item => renderMenuItem(item))}
+      <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
+        {menuSections.map(section => renderSection(section))}
       </nav>
 
       {/* Footer avec version */}
