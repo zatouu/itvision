@@ -11,8 +11,7 @@ import SideMenu from '../src/components/SideMenu'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
 import { pickOption } from '../src/option-sheet'
-import { resetSocket } from '../src/socket'
-import { resetNotificationBinding } from '../src/notifications'
+import { clearAllUserData } from '../src/clear-user-data'
 import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { ChevronRight, Camera, Menu } from 'lucide-react-native'
@@ -185,8 +184,7 @@ function Profile() {
         <TouchableOpacity style={s.logoutBtn} onPress={async () => {
           await logoutApi()
           await clearAuth()
-          resetSocket()
-          resetNotificationBinding()
+          await clearAllUserData()
           toast.info(t('auth.logout'), t('auth.logoutMsg', { defaultValue: 'Vous êtes déconnecté.' }))
           router.replace('/login')
         }}>

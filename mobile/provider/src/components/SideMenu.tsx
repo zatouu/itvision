@@ -8,6 +8,7 @@ import {
 import { colors, radius, shadows, spacing, typography } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
 import { logoutApi } from '../api'
+import { clearAllUserData } from '../clear-user-data'
 import { hapticSelect, hapticLight } from '../haptics'
 import { useTranslation } from 'react-i18next'
 
@@ -93,6 +94,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
     onClose()
     await logoutApi()
     await clearAuth()
+    await clearAllUserData()
     setTimeout(() => router.replace('/login'), 250)
   }
 

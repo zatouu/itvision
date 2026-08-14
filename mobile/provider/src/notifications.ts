@@ -180,6 +180,16 @@ export async function clearNotifications(): Promise<void> {
   emit()
 }
 
+/** Wipe everything — called on logout so the next user doesn't see stale notifications. */
+export async function resetAllNotifications(): Promise<void> {
+  cache = []
+  loaded = false
+  loadingPromise = null
+  recentKeys.clear()
+  try { await AsyncStorage.removeItem(STORAGE_KEY) } catch {}
+  emit()
+}
+
 let wsBound = false
 
 /** Reset le flag de binding (à appeler après resetSocket / logout). */

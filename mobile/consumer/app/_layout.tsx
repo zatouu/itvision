@@ -3,11 +3,11 @@ import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } 
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { bindNotificationSocket, loadNotifications, resetNotificationBinding } from '../src/notifications'
+import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../src/api'
-import { resetSocket } from '../src/socket'
+import { clearAllUserData } from '../src/clear-user-data'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import { ToastHost } from '../src/toast'
 import { OptionSheetHost } from '../src/option-sheet'
@@ -33,8 +33,7 @@ export default function Layout(){
   useEffect(() => {
     setOnUnauthorized(() => {
       clearAuth()
-      resetSocket()
-      resetNotificationBinding()
+      clearAllUserData()
       router.replace('/login')
     })
   }, [])

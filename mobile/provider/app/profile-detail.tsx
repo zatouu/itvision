@@ -6,8 +6,7 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { ArrowLeft, ChevronRight, Plus } from 'lucide-react-native'
 import { apiGet, apiPatch, logoutApi } from '../src/api'
 import { clearAuth } from '../src/auth'
-import { resetSocket } from '../src/socket'
-import { resetNotificationBinding } from '../src/notifications'
+import { clearAllUserData } from '../src/clear-user-data'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { loadCategories } from '../src/categories'
 import { toast } from '../src/toast'
@@ -204,8 +203,7 @@ function ProfileDetail() {
             <TouchableOpacity style={s.logoutBtn} onPress={async () => {
               await logoutApi()
               await clearAuth()
-              resetSocket()
-              resetNotificationBinding()
+              await clearAllUserData()
               toast.info('Déconnexion', 'Vous êtes déconnecté.')
               router.replace('/login')
             }}>

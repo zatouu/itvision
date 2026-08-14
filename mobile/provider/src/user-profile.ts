@@ -29,6 +29,17 @@ export function getProviderName(): string {
   return cached?.name || process.env.EXPO_PUBLIC_PROVIDER_NAME || 'Prestataire'
 }
 
+export function resetProfile() {
+  cached = null
+  notify()
+}
+
+export async function clearProfileStorage() {
+  cached = null
+  notify()
+  try { await AsyncStorage.removeItem(STORAGE_KEY) } catch {}
+}
+
 export async function loadProfile(): Promise<ProviderProfile | null> {
   // Essayer le cache local d'abord
   try {
