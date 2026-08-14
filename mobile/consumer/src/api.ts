@@ -106,8 +106,8 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
   throw lastErr ?? new Error('Échec après plusieurs tentatives')
 }
 
-async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Promise<void> {
-  if (r.ok) return
+async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Promise<Response> {
+  if (r.ok) return r
   const body = await r.json().catch(() => ({}))
   if (r.status === 401) {
     // Try auto-refresh before logging out
@@ -115,7 +115,7 @@ async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Pro
       const refreshed = await performRefresh()
       if (refreshed) {
         const retryRes = await retryFn()
-        if (retryRes.ok) return
+        if (retryRes.ok) return retryRes
         // Retry also failed — parse and throw
         const retryBody = await retryRes.json().catch(() => ({}))
         const msg = retryBody.error || `Erreur serveur (${retryRes.status})`
@@ -141,8 +141,8 @@ export async function apiGet(path: string, maxRetries = 2) {
     headers: authHeaders(),
   }, maxRetries)
   const r = await doFetch()
-  await handleStatus(r, doFetch)
-  return r.json()
+  const finalRes = await handleStatus(r, doFetch)
+  return finalRes.json()
 }
 
 /** Alias for apiGet — kept for backward compatibility */
@@ -157,8 +157,8 @@ export async function apiPost(path: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   }, 1)
   const r = await doFetch()
-  await handleStatus(r, doFetch)
-  return r.json()
+  const finalRes = await handleStatus(r, doFetch)
+  return finalRes.json()
 }
 
 export async function apiPatch(path: string, body: Record<string, unknown>) {
@@ -168,8 +168,8 @@ export async function apiPatch(path: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   }, 1)
   const r = await doFetch()
-  await handleStatus(r, doFetch)
-  return r.json()
+  const finalRes = await handleStatus(r, doFetch)
+  return finalRes.json()
 }
 
 export async function apiUpload(fileUri: string, filename: string, contentType: string, uploadType = 'requests') {
@@ -187,8 +187,8 @@ export async function apiUpload(fileUri: string, filename: string, contentType: 
         body: formData,
         signal: controller.signal,
       })
-      await handleStatus(r)
-      return r.json()
+      const finalRes = await handleStatus(r)
+      return finalRes.json()
     } catch (e: unknown) {
       if ((e as { name?: string }).name === 'AbortError') throw new Error('Délai upload dépassé — connexion trop lente')
       throw e
