@@ -122,6 +122,7 @@ export const apiRateLimiter = new RateLimiter(15 * 60 * 1000, 100) // 100 requê
 export const uploadRateLimiter = new RateLimiter(60 * 60 * 1000, 10) // 10 uploads par heure
 export const serviceWriteRateLimiter = new RateLimiter(15 * 60 * 1000, 10) // 10 créations requêtes/offres par 15 min
 export const serviceReadRateLimiter = new RateLimiter(60 * 1000, 30) // 30 requêtes read par minute
+export const aiRateLimiter = new RateLimiter(15 * 60 * 1000, 30) // 30 AI requests per 15 min
 
 // Helper function pour appliquer le rate limiting
 export async function applyRateLimit(

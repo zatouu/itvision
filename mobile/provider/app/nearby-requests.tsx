@@ -7,7 +7,7 @@ import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { toast } from '../src/toast'
-import { apiGet, apiPostQueued } from '../src/api'
+import { apiGet, apiPostQueued, apiPost } from '../src/api'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket, joinNearbyRoom, leaveNearbyRoom, emitOfferTyping } from '../src/socket'
@@ -22,7 +22,7 @@ import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
-import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2 } from 'lucide-react-native'
+import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles } from 'lucide-react-native'
 
 const RADIUS_KM = 10
 
@@ -498,6 +498,34 @@ function NearbyRequests() {
                 </View>
               )}
               {it.description ? <Text style={s.desc} numberOfLines={2}>{it.description}</Text> : null}
+              {/* AI Analyze button */}
+              <TouchableOpacity
+                style={s.aiAnalyzeBtn}
+                onPress={async () => {
+                  hapticLight()
+                  try {
+                    const res = await apiPost('/api/ai/assist', {
+                      type: 'analyze_request',
+                      category: it.category,
+                      description: it.description,
+                      attributes: it.attributes,
+                    })
+                    if (res.text) {
+                      Alert.alert(
+                        t('nearby.aiAnalysis', { defaultValue: 'Analyse IA' }),
+                        res.text,
+                        [{ text: 'OK' }]
+                      )
+                    }
+                  } catch (e: any) {
+                    toast.error(t('common.error'), e.message || 'AI indisponible')
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Sparkles size={14} color={colors.primary} />
+                <Text style={s.aiAnalyzeBtnText}>{t('nearby.aiAnalyze', { defaultValue: 'Analyser' })}</Text>
+              </TouchableOpacity>
               {it.media?.filter((m: any) => m.type === 'image').length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
                   {it.media.filter((m: any) => m.type === 'image').map((m: any, i: number) => {

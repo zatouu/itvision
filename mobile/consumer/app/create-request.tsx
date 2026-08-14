@@ -4,7 +4,7 @@ import { Image } from 'expo-image'
 import * as Location from 'expo-location'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiPostQueued, apiUpload, apiGetRetry } from '../src/api'
+import { apiPostQueued, apiPost, apiUpload, apiGetRetry } from '../src/api'
 import { cacheClear } from '../src/storage'
 import { pickMedia, PickedMedia } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
@@ -12,7 +12,7 @@ import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, getSubCategoryLabel, getAttributeLabel, ServiceCategory, SubCategory, Attribute } from '../src/categories'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown } from 'lucide-react-native'
+import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown, Sparkles } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
@@ -62,6 +62,8 @@ function CreateRequest() {
   const [showSubcats, setShowSubcats] = useState(false)
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
   const [attributes, setAttributes] = useState<Record<string, string | number | boolean>>({})
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<string | null>(null)
   const { t, i18n } = useTranslation()
 
   useEffect(() => {
@@ -348,6 +350,38 @@ function CreateRequest() {
               {category === 'autre' && description.trim().length < 10 && description.length > 0 && (
                 <Text style={s.descHint}>{t('request.descMinChars', { count: 10 })}</Text>
               )}
+              {/* AI Enhance button */}
+              <TouchableOpacity
+                style={[s.aiBtn, aiLoading && { opacity: 0.6 }]}
+                onPress={async () => {
+                  if (aiLoading) return
+                  setAiLoading(true)
+                  setAiResult(null)
+                  try {
+                    const res = await apiPost('/api/ai/assist', {
+                      type: 'enhance_request',
+                      category,
+                      description,
+                      attributes,
+                    })
+                    if (res.text) {
+                      setAiResult(res.text)
+                      setDescription(res.text)
+                      hapticSuccess()
+                    }
+                  } catch (e: any) {
+                    setErr(e.message || 'AI indisponible')
+                  }
+                  setAiLoading(false)
+                }}
+                disabled={aiLoading || !category}
+                activeOpacity={0.8}
+              >
+                <Sparkles size={16} color={colors.primary} />
+                <Text style={s.aiBtnText}>
+                  {aiLoading ? t('request.aiLoading', { defaultValue: 'Analyse…' }) : t('request.aiEnhance', { defaultValue: 'Améliorer ma description' })}
+                </Text>
+              </TouchableOpacity>
             </View>
             <DynamicAttributes
               category={cats.find(c => c.id === category)}
@@ -647,6 +681,22 @@ const s = StyleSheet.create({
   subcatItemText: { fontSize: 14, color: colors.textSecondary },
   subcatItemTextActive: { color: colors.success, fontWeight: typography.weight.bold as any },
   descHint: { fontSize: 12, color: colors.warning, marginTop: 4 },
+  aiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryLight || '#E8F0FE',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  aiBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
 })
 
 export default withScreenBoundary(CreateRequest, 'CreateRequest')

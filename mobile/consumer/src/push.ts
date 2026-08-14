@@ -117,13 +117,20 @@ export async function getPushTokenStatus(): Promise<PushTokenStatus> {
   }
 }
 
+let _registering: Promise<string | null> | null = null
+
 /**
  * Enregistre le token push auprès du serveur.
  * Doit être appelé au démarrage de l'app.
  */
 export async function registerPushToken(): Promise<string | null> {
   if (!isNative) return null
+  if (_registering) return _registering
+  _registering = _doRegister().finally(() => { _registering = null })
+  return _registering
+}
 
+async function _doRegister(): Promise<string | null> {
   const permitted = await requestPushPermission()
   if (!permitted) {
     console.log('[Push] Permission refusée — token non enregistré')
