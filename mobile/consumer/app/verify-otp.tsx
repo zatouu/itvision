@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { apiPost } from '../src/api'
+import * as Constants from 'expo-constants'
+import * as Device from 'expo-device'
 import { ArrowLeft, FlaskConical, ShieldCheck } from 'lucide-react-native'
 import { hapticSuccess, hapticError, hapticSelect } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
@@ -31,8 +33,9 @@ export default function VerifyOtp() {
     setErr(null)
     setLoading(true)
     try {
-      const data = await apiPost('/api/auth/mobile/verify-otp', { phone, code, role: 'CLIENT', referralCode: referralCode || undefined })
-      await setAuth(data.token, data.user)
+      const deviceId = Device.osBuildId || Device.modelName || Constants.default?.expoConfig?.slug || 'unknown-device'
+      const data = await apiPost('/api/auth/mobile/verify-otp', { phone, code, role: 'CLIENT', referralCode: referralCode || undefined, deviceId })
+      await setAuth(data.accessToken || data.token, data.user, data.refreshToken, deviceId)
       resetSocket()
       hapticSuccess()
       router.replace(data.user?.isNew ? '/setup-profile' : '/')

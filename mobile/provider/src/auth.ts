@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 
 const TOKEN_KEY = 'authToken'
+const REFRESH_TOKEN_KEY = 'authRefreshToken'
+const DEVICE_ID_KEY = 'authDeviceId'
 const USER_KEY = 'authUser'
 const isWeb = Platform.OS === 'web'
 
@@ -70,6 +72,8 @@ export interface AuthUser {
 }
 
 let _token: string | null = null
+let _refreshToken: string | null = null
+let _deviceId: string | null = null
 let _user: AuthUser | null = null
 const listeners: Set<(loggedIn: boolean) => void> = new Set()
 
@@ -84,17 +88,23 @@ export function subscribeAuth(fn: (loggedIn: boolean) => void) {
 }
 
 export function getAuthToken(): string | null { return _token }
+export function getRefreshToken(): string | null { return _refreshToken }
+export function getDeviceId(): string | null { return _deviceId }
 export function getAuthUser(): AuthUser | null { return _user }
 export function isLoggedIn(): boolean { return !!_token }
 
 /** Charger le token depuis AsyncStorage au démarrage */
 export async function loadAuth(): Promise<boolean> {
   try {
-    const [t, u] = await Promise.all([
+    const [t, rt, did, u] = await Promise.all([
       readToken(),
+      AsyncStorage.getItem(REFRESH_TOKEN_KEY),
+      AsyncStorage.getItem(DEVICE_ID_KEY),
       AsyncStorage.getItem(USER_KEY),
     ])
     _token = t
+    _refreshToken = rt
+    _deviceId = did
     _user = u ? (JSON.parse(u) as AuthUser) : null
     notify()
     return !!_token
@@ -104,12 +114,20 @@ export async function loadAuth(): Promise<boolean> {
 }
 
 /** Stocker le token + user après login OTP */
-export async function setAuth(token: string, user: AuthUser): Promise<void> {
+export async function setAuth(token: string, user: AuthUser, refreshToken?: string, deviceId?: string): Promise<void> {
   _token = token
   _user = user
+  if (refreshToken) {
+    _refreshToken = refreshToken
+  }
+  if (deviceId) {
+    _deviceId = deviceId
+  }
   const payload = user ? JSON.stringify(user) : ''
   await Promise.all([
     writeToken(token),
+    refreshToken ? AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken) : Promise.resolve(),
+    deviceId ? AsyncStorage.setItem(DEVICE_ID_KEY, deviceId) : Promise.resolve(),
     AsyncStorage.setItem(USER_KEY, payload),
   ])
   notify()
@@ -126,9 +144,13 @@ export async function updateAuthUser(partial: Partial<AuthUser>): Promise<AuthUs
 /** Déconnexion */
 export async function clearAuth(): Promise<void> {
   _token = null
+  _refreshToken = null
+  _deviceId = null
   _user = null
   await Promise.all([
     deleteToken(),
+    AsyncStorage.removeItem(REFRESH_TOKEN_KEY),
+    AsyncStorage.removeItem(DEVICE_ID_KEY),
     AsyncStorage.removeItem(USER_KEY),
   ])
   notify()

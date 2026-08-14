@@ -1,6 +1,7 @@
 import { Platform, Alert } from 'react-native'
 import * as FileSystem from 'expo-file-system'
-import { getAuthToken } from './auth'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getAuthToken, getRefreshToken, getDeviceId, setAuth, clearAuth } from './auth'
 import { enqueue, isNetworkError, replay, startNetInfoReplay } from './offlineQueue'
 import type { HttpMethod, ReplayResult } from './offlineQueue'
 import { captureError } from './sentry'
@@ -23,6 +24,47 @@ export function setOnUnauthorized(handler: () => void) {
 /** Réarmer l'intercepteur 401 après un (re)login */
 export function resetUnauthorizedFlag() {
   _unauthorizedFired = false
+}
+
+// ─── Auto-refresh on 401 ────────────────────────────────────────────────────
+let _isRefreshing = false
+let _refreshPromise: Promise<boolean> | null = null
+
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return false
+
+  try {
+    const res = await fetch(base + '/api/auth/mobile/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    if (!data.accessToken || !data.refreshToken) return false
+
+    // Update stored tokens — need to get existing user
+    const userStr = await AsyncStorage.getItem('authUser')
+    const user = userStr ? JSON.parse(userStr) : null
+    if (user) {
+      await setAuth(data.accessToken, user, data.refreshToken, getDeviceId() || undefined)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Deduplicated refresh — multiple concurrent 401s share one refresh call */
+function performRefresh(): Promise<boolean> {
+  if (_isRefreshing && _refreshPromise) return _refreshPromise
+  _isRefreshing = true
+  _refreshPromise = tryRefreshToken().finally(() => {
+    _isRefreshing = false
+    _refreshPromise = null
+  })
+  return _refreshPromise
 }
 
 export function getToken(): string | null { return getAuthToken() }
@@ -64,11 +106,25 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
   throw lastErr ?? new Error('Échec après plusieurs tentatives')
 }
 
-async function handleStatus(r: Response) {
+async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Promise<void> {
   if (r.ok) return
   const body = await r.json().catch(() => ({}))
-  if (r.status === 401 && _onUnauthorized) {
-    _onUnauthorized()
+  if (r.status === 401) {
+    // Try auto-refresh before logging out
+    if (retryFn && getRefreshToken()) {
+      const refreshed = await performRefresh()
+      if (refreshed) {
+        const retryRes = await retryFn()
+        if (retryRes.ok) return
+        // Retry also failed — parse and throw
+        const retryBody = await retryRes.json().catch(() => ({}))
+        const msg = retryBody.error || `Erreur serveur (${retryRes.status})`
+        throw new Error(msg)
+      }
+    }
+    if (_onUnauthorized) {
+      _onUnauthorized()
+    }
   }
   const msg =
     r.status === 401 ? 'Session expirée — veuillez vous reconnecter'
@@ -81,10 +137,11 @@ async function handleStatus(r: Response) {
 }
 
 export async function apiGet(path: string, maxRetries = 2) {
-  const r = await fetchWithRetry(base + path, {
+  const doFetch = () => fetchWithRetry(base + path, {
     headers: authHeaders(),
   }, maxRetries)
-  await handleStatus(r)
+  const r = await doFetch()
+  await handleStatus(r, doFetch)
   return r.json()
 }
 
@@ -94,22 +151,24 @@ export async function apiGetRetry(path: string, maxRetries = 2) {
 }
 
 export async function apiPost(path: string, body: Record<string, unknown>) {
-  const r = await fetchWithRetry(base + path, {
+  const doFetch = () => fetchWithRetry(base + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   }, 1)
-  await handleStatus(r)
+  const r = await doFetch()
+  await handleStatus(r, doFetch)
   return r.json()
 }
 
 export async function apiPatch(path: string, body: Record<string, unknown>) {
-  const r = await fetchWithRetry(base + path, {
+  const doFetch = () => fetchWithRetry(base + path, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   }, 1)
-  await handleStatus(r)
+  const r = await doFetch()
+  await handleStatus(r, doFetch)
   return r.json()
 }
 
@@ -220,5 +279,20 @@ export async function checkBackend(): Promise<boolean> {
     return r.ok
   } catch {
     return false
+  }
+}
+
+/** Revoke refresh token on server before clearing local auth */
+export async function logoutApi(): Promise<void> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return
+  try {
+    await fetch(base + '/api/auth/mobile/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+  } catch {
+    // Best-effort — logout should never fail client-side
   }
 }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
-import { verifyXeuyRefreshToken, signXeuyTokenPair } from '@/modules/xeuy'
-import { connectMongoose } from '@/lib/mongoose'
-import User from '@/lib/models/User'
+import { rotateXeuyRefreshToken } from '@/modules/xeuy'
 
 const refreshLimiter = new RateLimiter(15 * 60 * 1000, 20)
 
@@ -21,32 +19,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Refresh token requis' }, { status: 400 })
     }
 
-    let session
     try {
-      session = await verifyXeuyRefreshToken(refreshToken)
-    } catch {
-      return NextResponse.json({ error: 'Refresh token invalide ou expiré' }, { status: 401 })
+      const tokens = await rotateXeuyRefreshToken(refreshToken)
+
+      return NextResponse.json({
+        success: true,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+      })
+    } catch (err) {
+      const error = err as Error
+      const message = error.message
+
+      if (message.includes('réutil') || message.includes('reuse')) {
+        return NextResponse.json({ error: 'Token reuse detected' }, { status: 401 })
+      }
+      if (message.includes('inconnu') || message.includes('invalide') || message.includes('expiré')) {
+        return NextResponse.json({ error: 'Refresh token invalide ou expiré' }, { status: 401 })
+      }
+      if (message.includes('désactivé') || message.includes('introuvable')) {
+        return NextResponse.json({ error: 'Compte désactivé ou introuvable' }, { status: 403 })
+      }
+      if (message.includes('Device')) {
+        return NextResponse.json({ error: 'Device mismatch' }, { status: 403 })
+      }
+      return NextResponse.json({ error: message || 'Refresh token invalide' }, { status: 401 })
     }
-
-    await connectMongoose()
-    const user = await User.findById(session.userId).lean() as any
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'Compte désactivé ou introuvable' }, { status: 403 })
-    }
-
-    const tokens = await signXeuyTokenPair({
-      userId: session.userId,
-      role: session.role,
-      phone: session.phone,
-      name: user.name || session.name,
-    })
-
-    return NextResponse.json({
-      success: true,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresIn: tokens.expiresIn,
-    })
   } catch (err) {
     const error = err as Error
     console.error('[POST /api/auth/mobile/refresh]', {

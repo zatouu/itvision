@@ -5,7 +5,7 @@ import {
   verifyXeuyOtp,
   createXeuyUser,
   findXeuyUserByPhone,
-  signXeuyTokenPair,
+  issueXeuyTokenPair,
   creditXeuyWelcomePoints,
   type XeuyRole,
 } from '@/modules/xeuy'
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const { phone: bodyPhone, code, role: rawRole, name: rawName, referralCode: rawReferral } = body as any
+    const { phone: bodyPhone, code, role: rawRole, name: rawName, referralCode: rawReferral, deviceId: rawDeviceId } = body as any
     rawPhone = bodyPhone
 
     if (!rawPhone || typeof rawPhone !== 'string') {
@@ -76,12 +76,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate Xeuy token pair (access 7d + refresh 30d)
-    const tokens = await signXeuyTokenPair({
+    // Generate Xeuy token pair with device binding (access 1h + refresh 30j in DB)
+    const deviceId = (typeof rawDeviceId === 'string' && rawDeviceId) || 'unknown'
+    const tokens = await issueXeuyTokenPair({
       userId: user._id,
       role: user.role,
       phone: user.phone,
       name: user.name,
+      deviceId,
     })
 
     return NextResponse.json({

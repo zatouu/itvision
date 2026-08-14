@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config'
-import { signXeuyToken, signXeuyRefreshToken, signXeuyTokenPair, verifyXeuyToken, verifyXeuyRefreshToken } from '@/modules/xeuy/auth/session'
+import { signXeuyToken, signXeuyRefreshToken, verifyXeuyToken, verifyXeuyRefreshToken } from '@/modules/xeuy/auth/session'
 import { sendXeuyOtp, verifyXeuyOtp } from '@/modules/xeuy/auth/otp'
 import { connectMongoose } from '@/lib/mongoose'
 import OtpCode from '@/lib/models/OtpCode'
@@ -201,6 +201,8 @@ async function main() {
       role: 'CLIENT',
       phone: '+221771234570',
       name: 'Refresh Test',
+      deviceId: 'test-device-1',
+      familyId: 'test-family-1',
     })
     assertNotNull(refreshToken, 'Refresh token should not be null')
 
@@ -216,6 +218,8 @@ async function main() {
       role: 'CLIENT',
       phone: '+221771234571',
       name: 'Refresh As Access',
+      deviceId: 'test-device-2',
+      familyId: 'test-family-2',
     })
     let threw = false
     try {
@@ -250,44 +254,52 @@ async function main() {
     assert(threw, 'Refresh token verifier should reject access tokens')
   })
 
-  await test('signXeuyTokenPair returns both access and refresh tokens', async () => {
-    const pair = await signXeuyTokenPair({
+  await test('signXeuyToken + signXeuyRefreshToken produce valid pair', async () => {
+    const payload = {
       userId: 'test-user-pair-1',
-      role: 'CLIENT',
+      role: 'CLIENT' as const,
       phone: '+221771234573',
       name: 'Pair Test',
-    })
-    assertNotNull(pair.accessToken, 'Access token should be present')
-    assertNotNull(pair.refreshToken, 'Refresh token should be present')
-    assert(pair.accessToken !== pair.refreshToken, 'Tokens should be different')
-    assertEqual(pair.expiresIn, 7 * 24 * 60 * 60, 'expiresIn should be 7 days in seconds')
+      deviceId: 'test-device-pair',
+      familyId: 'test-family-pair',
+    }
+    const accessToken = await signXeuyToken(payload)
+    const refreshToken = await signXeuyRefreshToken(payload)
+
+    assertNotNull(accessToken, 'Access token should be present')
+    assertNotNull(refreshToken, 'Refresh token should be present')
+    assert(accessToken !== refreshToken, 'Tokens should be different')
 
     // Both should verify independently
-    const accessSession = await verifyXeuyToken(pair.accessToken)
+    const accessSession = await verifyXeuyToken(accessToken)
     assertEqual(accessSession.userId, 'test-user-pair-1', 'Access token userId')
 
-    const refreshSession = await verifyXeuyRefreshToken(pair.refreshToken)
+    const refreshSession = await verifyXeuyRefreshToken(refreshToken)
     assertEqual(refreshSession.userId, 'test-user-pair-1', 'Refresh token userId')
   })
 
-  await test('refresh token rotation: new pair differs from original', async () => {
+  await test('refresh token rotation: new tokens differ from original', async () => {
     const payload = {
       userId: 'test-user-rot-1',
       role: 'CLIENT' as const,
       phone: '+221771234574',
       name: 'Rotation Test',
+      deviceId: 'test-device-rot',
+      familyId: 'test-family-rot',
     }
-    const pair1 = await signXeuyTokenPair(payload)
+    const access1 = await signXeuyToken(payload)
+    const refresh1 = await signXeuyRefreshToken(payload)
     // jose setIssuedAt() uses seconds precision — wait >1s so iat differs
     await new Promise((r) => setTimeout(r, 1100))
-    const pair2 = await signXeuyTokenPair(payload)
+    const access2 = await signXeuyToken(payload)
+    const refresh2 = await signXeuyRefreshToken(payload)
 
-    assert(pair1.accessToken !== pair2.accessToken, 'Access tokens should differ (different iat)')
-    assert(pair1.refreshToken !== pair2.refreshToken, 'Refresh tokens should differ (different iat)')
+    assert(access1 !== access2, 'Access tokens should differ (different iat)')
+    assert(refresh1 !== refresh2, 'Refresh tokens should differ (different iat)')
 
-    // Both refresh tokens should be valid (stateless rotation)
-    const s1 = await verifyXeuyRefreshToken(pair1.refreshToken)
-    const s2 = await verifyXeuyRefreshToken(pair2.refreshToken)
+    // Both refresh tokens should verify
+    const s1 = await verifyXeuyRefreshToken(refresh1)
+    const s2 = await verifyXeuyRefreshToken(refresh2)
     assertEqual(s1.userId, s2.userId, 'Both should resolve to same user')
   })
 

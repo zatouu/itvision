@@ -5,7 +5,7 @@
  */
 
 // Auth
-export { signXeuyToken, signXeuyRefreshToken, signXeuyTokenPair, verifyXeuyToken, verifyXeuyRefreshToken, requireXeuyAuth, extractXeuyToken } from './auth/session'
+export { signXeuyToken, signXeuyRefreshToken, issueXeuyTokenPair, verifyXeuyToken, verifyXeuyRefreshToken, rotateXeuyRefreshToken, revokeXeuyRefreshToken, revokeAllXeuyRefreshTokens, requireXeuyAuth, extractXeuyToken } from './auth/session'
 export type { XeuyTokenPair } from './auth/session'
 export { sendXeuyOtp, verifyXeuyOtp } from './auth/otp'
 

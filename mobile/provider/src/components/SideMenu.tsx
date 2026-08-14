@@ -7,6 +7,7 @@ import {
 } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
+import { logoutApi } from '../api'
 import { hapticSelect, hapticLight } from '../haptics'
 import { useTranslation } from 'react-i18next'
 
@@ -90,6 +91,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
   const handleLogout = async () => {
     hapticLight()
     onClose()
+    await logoutApi()
     await clearAuth()
     setTimeout(() => router.replace('/login'), 250)
   }

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { ArrowLeft, ChevronRight, Plus } from 'lucide-react-native'
-import { apiGet, apiPatch } from '../src/api'
+import { apiGet, apiPatch, logoutApi } from '../src/api'
 import { clearAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { resetNotificationBinding } from '../src/notifications'
@@ -202,6 +202,7 @@ function ProfileDetail() {
             {renderSwitch('Partager localisation', pref.shareLocation !== false, (v) => updatePref('shareLocation', v))}
             {renderSwitch('Profil public', pref.publicProfile === true, (v) => updatePref('publicProfile', v))}
             <TouchableOpacity style={s.logoutBtn} onPress={async () => {
+              await logoutApi()
               await clearAuth()
               resetSocket()
               resetNotificationBinding()

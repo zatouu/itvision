@@ -5,7 +5,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image } fr
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { apiGet, apiGetRetry, apiUpload, apiPatch } from '../src/api'
+import { apiGet, apiGetRetry, apiUpload, apiPatch, logoutApi } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import SideMenu from '../src/components/SideMenu'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
@@ -183,6 +183,7 @@ function Profile() {
         </View>
 
         <TouchableOpacity style={s.logoutBtn} onPress={async () => {
+          await logoutApi()
           await clearAuth()
           resetSocket()
           resetNotificationBinding()
