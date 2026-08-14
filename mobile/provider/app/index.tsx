@@ -22,8 +22,8 @@ import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import Logo from '../src/components/Logo'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../src/design'
-import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff } from 'lucide-react-native'
-import { apiGet } from '../src/api'
+import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
+import { apiGet, apiPost } from '../src/api'
 
 const REQUEST_TTL_HOURS = 2
 const DEFAULT_RADIUS_KM = 10
@@ -117,6 +117,7 @@ function Home() {
   const [synced, setSynced] = useState(false)
   const [pulse, setPulse] = useState(false)
   const [tipIndex, setTipIndex] = useState(0)
+  const [aiTips, setAiTips] = useState<AdviceItem[]>([])
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const pulseAnim = useRef(new Animated.Value(1)).current
@@ -130,6 +131,47 @@ function Home() {
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
   }, [])
+
+  // Fetch AI daily tips once per day (cached in AsyncStorage)
+  useEffect(() => {
+    if (!profile) return
+    let mounted = true
+    ;(async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const cacheKey = `provider:aiTips:${today}`
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey)
+        if (cached) {
+          if (mounted) setAiTips(JSON.parse(cached))
+          return
+        }
+        const res = await apiPost('/api/ai/assist', {
+          type: 'daily_tips',
+          profile: { completedMissions: profile?.completedMissions, kycVerified: profile?.kycVerified, online },
+          nearbyCount,
+          earnings,
+          rating: profile?.rating,
+        })
+        if (res.text && mounted) {
+          // Parse AI response into AdviceItem[] (one per line)
+          const lines = res.text.split('\n').filter((l: string) => l.trim()).slice(0, 3)
+          const tips: AdviceItem[] = lines.map((line: string) => {
+            const clean = line.replace(/^[\d\-*•\s]+/, '').trim()
+            const parts = clean.split(/[:\-–]/)
+            return {
+              title: (parts[0] || clean).trim().slice(0, 60),
+              sub: (parts.slice(1).join(':').trim() || 'Conseil IA').slice(0, 100),
+            }
+          })
+          if (tips.length > 0) {
+            setAiTips(tips)
+            await AsyncStorage.setItem(cacheKey, JSON.stringify(tips))
+          }
+        }
+      } catch { /* AI unavailable — static tips still work */ }
+    })()
+    return () => { mounted = false }
+  }, [profile, nearbyCount, online])
 
   useEffect(() => {
     return subscribeProfile(p => {
@@ -292,7 +334,11 @@ function Home() {
   const offersExpired = offers.filter((it: any) => it.status === 'expired').length
 
   const topRequest = [...nearbyItems].sort((a: any, b: any) => (b._score || 0) - (a._score || 0))[0]
-  const currentTips = useMemo(() => getAdviceList(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online), [profile, offers, nearbyCount, earnings, activeMission, gpsActive, online])
+  const currentTips = useMemo(() => {
+    const staticTips = getAdviceList(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online)
+    // Merge AI tips first (if available), then static
+    return aiTips.length > 0 ? [...aiTips, ...staticTips].slice(0, 8) : staticTips
+  }, [profile, offers, nearbyCount, earnings, activeMission, gpsActive, online, aiTips])
   const safeTipIndex = Math.min(tipIndex, Math.max(0, currentTips.length - 1))
 
   useEffect(() => {

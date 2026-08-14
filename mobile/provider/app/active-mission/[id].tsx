@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Linking, AppState, AppStateStatus, Alert, Modal } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
@@ -14,7 +14,7 @@ import { pickOption } from '../../src/option-sheet'
 import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation, Pause, Play, AlertTriangle, XCircle } from 'lucide-react-native'
+import { ArrowLeft, Clock, MessageCircle, CheckCircle, Navigation, Pause, Play, AlertTriangle, XCircle, Sparkles } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string; dot: string }> = {
@@ -155,6 +155,10 @@ function ActiveMission() {
   const [refreshing, setRefreshing] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [aiModalVisible, setAiModalVisible] = useState(false)
+  const [aiQuestion, setAiQuestion] = useState('')
+  const [aiResponse, setAiResponse] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
   const [, setTick] = useState(0)
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
@@ -654,6 +658,17 @@ function ActiveMission() {
               </TouchableOpacity>
             )}
 
+            {/* AI Conseil */}
+            {['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused'].includes(item.status) && (
+              <TouchableOpacity
+                style={[s.actionBtn, { backgroundColor: colors.primaryLight || '#E6F4EC', borderWidth: 1, borderColor: colors.primary }]}
+                onPress={() => { setAiModalVisible(true); setAiResponse(null); setAiQuestion('') }}
+              >
+                <Sparkles size={18} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '700' }}>{t('mission.aiAdvice', { defaultValue: 'Conseil IA' })}</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Info litige */}
             {(item?.status === 'dispute' || item?.disputeStatus || item?.disputeDecision) && (
               <View style={[s.card, { borderLeftWidth: 4, borderLeftColor: item?.disputeStatus === 'resolved' ? colors.success : colors.danger }]}>
@@ -745,6 +760,69 @@ function ActiveMission() {
           </>
         )}
       </ScrollView>
+
+      {/* AI Conseil Modal */}
+      <Modal visible={aiModalVisible} transparent animationType="slide" onRequestClose={() => setAiModalVisible(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setAiModalVisible(false)} />
+        <View style={s.aiSheet}>
+          <View style={s.aiSheetHandle} />
+          <View style={s.aiSheetHeader}>
+            <Text style={s.aiSheetTitle}>{t('mission.aiAdvice', { defaultValue: 'Conseil IA' })}</Text>
+            <TouchableOpacity onPress={() => setAiModalVisible(false)} style={s.aiSheetClose}>
+              <XCircle size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {aiResponse ? (
+            <ScrollView style={{ flex: 1, marginBottom: spacing.md }}>
+              <Text style={s.aiResponseText}>{aiResponse}</Text>
+              <TouchableOpacity
+                style={s.aiAskAgainBtn}
+                onPress={() => { setAiResponse(null); setAiQuestion('') }}
+              >
+                <Text style={s.aiAskAgainText}>{t('mission.aiAskAgain', { defaultValue: 'Poser une autre question' })}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          ) : (
+            <View style={{ gap: spacing.md }}>
+              <TextInput
+                style={s.aiInput}
+                value={aiQuestion}
+                onChangeText={setAiQuestion}
+                placeholder={t('mission.aiQuestionPlaceholder', { defaultValue: 'Décrivez le problème rencontré…' })}
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+              />
+              <TouchableOpacity
+                style={[s.aiSendBtn, (!aiQuestion.trim() || aiLoading) && { opacity: 0.5 }]}
+                disabled={!aiQuestion.trim() || aiLoading}
+                onPress={async () => {
+                  setAiLoading(true)
+                  try {
+                    const res = await apiPost('/api/ai/assist', {
+                      type: 'mission_help',
+                      category: item?.category,
+                      description: item?.description,
+                      missionStatus: item?.status,
+                      question: aiQuestion,
+                    })
+                    if (res.text) setAiResponse(res.text)
+                  } catch (e: any) {
+                    notify(t('common.error'), e.message || 'AI indisponible')
+                  }
+                  setAiLoading(false)
+                }}
+              >
+                <Sparkles size={18} color={colors.surface} />
+                <Text style={s.aiSendBtnText}>
+                  {aiLoading ? t('common.loading', { defaultValue: 'Chargement…' }) : t('mission.aiGetAdvice', { defaultValue: 'Obtenir un conseil' })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -794,6 +872,17 @@ const s = StyleSheet.create({
   routeInfoText: { color: colors.text, fontWeight: typography.weight.extrabold as any, fontSize: typography.base.fontSize },
   navBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.info, borderRadius: radius.lg, paddingVertical: spacing.lg, marginTop: spacing.md },
   navBtnText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: typography.md.fontSize },
+  aiSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40, maxHeight: '80%' },
+  aiSheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
+  aiSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  aiSheetTitle: { fontSize: typography.lg.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  aiSheetClose: { padding: 4 },
+  aiInput: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, fontSize: 15, color: colors.text, minHeight: 80, textAlignVertical: 'top' },
+  aiSendBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
+  aiSendBtnText: { color: colors.surface, fontWeight: typography.weight.bold as any, fontSize: 15 },
+  aiResponseText: { fontSize: 15, color: colors.text, lineHeight: 22 },
+  aiAskAgainBtn: { marginTop: spacing.md, alignSelf: 'center' },
+  aiAskAgainText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
 })
 
 export default withScreenBoundary(ActiveMission, 'ActiveMission')

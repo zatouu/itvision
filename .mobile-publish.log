@@ -3115,3 +3115,153 @@ EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates
   - mobile/consumer/src/push.ts
 [consumer] Changements JS/assets detectes -> mode OTA
 [consumer] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] [app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY manquant — la carte Google Maps ne fonctionnera pas.
+[expo-cli] env: load .env
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] Starting Metro Bundler
+[expo-cli] 
+[expo-cli] Android Bundled 59083ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3186 modules)
+[expo-cli] iOS Bundled 101776ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3187 modules)
+[expo-cli] 
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-4357695924e0797f366490605d5693bb.hbc (4.27 MB)
+[expo-cli] _expo/static/js/android/entry-4357695924e0797f366490605d5693bb.hbc.map (13.1 MB)
+[expo-c[expo-cli] iOS Bundled 58519ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3187 modules)
+[expo-cli] 
+[expo-cli] Android Bundled 79503ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3186 modules)
+[expo-cli] 
+[expo-cli] Creating asset map
+[expo-cli] 
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _expo/static/js/ios/entry-408c21181fa63abef88abbba4b5bd77c.hbc (4.27 MB)
+[expo-cli] _expo/static/js/ios/entry-408c21181fa63abef88abbba4b5bd77c.hbc.map (13.1 MB)
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-c75df53f187bb623a57c77432ba4f7d3.hbc (4.27 MB)
+[expo-cli] _expo/static/js/android/entry-c75df53f187bb623a57c77432ba4f7d3.hbc.map (13.1 MB)
+[expo-cli] 
+[expo-cli] Exporting 3 files:
+[expo-cli] assetmap.json (5.08 kB)
+[expo-cli] debug.html (390 B)
+[expo-cli] metadata.json (1.65 kB)
+[expo-cli] 
+[expo-cli] App exported to: dist
+[expo-cli] 
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 5.0 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 12 iOS assets, 12 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    e19ec1d9-5704-4b26-92b3-1b0c0fb3c26c
+Android update ID  01a000d9-ae56-7c76-b1d7-95355934cf7c
+iOS update ID      01a000d9-ae56-7dd1-b085-85c6f6b6c831
+Message            publish 2026-08-14 16:14
+Commit             7509bb07fdcf37203f739bcc290e2480d2eb03fc*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates/e19ec1d9-5704-4b26-92b3-1b0c0fb3c26c
+
+[consumer] OK - tag 'mobile-consumer-published' mis a jour.
+[provider] Fichiers modifies depuis 14737723b0cd3b8a135f6f0029a34c6755d2c304 :
+  - mobile/provider/app/active-mission/[id].tsx
+  - mobile/provider/app/nearby-requests.tsx
+  - mobile/provider/src/push.ts
+[provider] Changements JS/assets detectes -> mode OTA
+[provider] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] env: load .env
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] Starting Metro Bundler
+[expo-cli] 
+[expo-cli] iOS Bundled 58737ms D:\itvision-1\mobile\provider\node_modules\expo-router\entry.js (2982 modules)
+[expo-cli] Android Bundled 80128ms D:\itvision-1\mobile\provider\node_modules\expo-router\entry.js (2981 modules)
+[expo-cli] 
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 15 assets:
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] 
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] 
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] 
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] 
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] 
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _expo/static/js/ios/entry-a45b8de72bec166461bc2aeaaa74c5a8.hbc (3.8 MB)
+[expo-cli] 
+[expo-cli] _expo/static/js/ios/entry-a45b8de72bec166461bc2aeaaa74c5a8.hbc.map (11.9 MB)
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-15bbc0e1a8970d1900eb3d7d9e901488.hbc (3.81 MB)
+[expo-cli] _expo/static/js/android/entry-15bbc0e1a8970d1900eb3d7d9e901488.hbc.map (11.9 MB)
+[expo-cli] 
+[expo-cli] Exporting 3 files:
+[expo-cli] assetmap.json (4.69 kB)
+[expo-cli] debug.html (390 B)
+[expo-cli] metadata.json (1.52 kB)
+[expo-cli] 
+[expo-cli] App exported to: dist
+[expo-cli] 
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 4.6 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 11 iOS assets, 11 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    73cc7f52-2fa4-4fe7-bfe6-0187fd1f8ffa
+Android update ID  01a000dc-0544-7107-a24c-cbae6d92253a
+iOS update ID      01a000dc-0544-7126-8e50-eb24d5e15718
+Message            publish 2026-08-14 16:17
+Commit             7509bb07fdcf37203f739bcc290e2480d2eb03fc*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates/73cc7f52-2fa4-4fe7-bfe6-0187fd1f8ffa
+
+[provider] OK - tag 'mobile-provider-published' mis a jour.
