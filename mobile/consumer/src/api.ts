@@ -57,7 +57,7 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 /** Deduplicated refresh — multiple concurrent 401s share one refresh call */
-function performRefresh(): Promise<boolean> {
+export function performRefresh(): Promise<boolean> {
   if (_isRefreshing && _refreshPromise) return _refreshPromise
   _isRefreshing = true
   _refreshPromise = tryRefreshToken().finally(() => {

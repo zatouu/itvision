@@ -55,7 +55,7 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
-function performRefresh(): Promise<boolean> {
+export function performRefresh(): Promise<boolean> {
   if (_isRefreshing && _refreshPromise) return _refreshPromise
   _isRefreshing = true
   _refreshPromise = tryRefreshToken().finally(() => {

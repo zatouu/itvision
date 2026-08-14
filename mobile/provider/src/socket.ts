@@ -1,5 +1,8 @@
 import { io, Socket } from 'socket.io-client'
-import { getToken, getBaseUrl } from './api'
+import { getToken, getBaseUrl, apiPost, performRefresh } from './api'
+import { getRefreshToken } from './auth'
+
+let _refreshing = false
 
 let socket: Socket | null = null
 
@@ -27,8 +30,23 @@ export function getSocket(): Socket {
     socket.on('disconnect', (reason) => {
       console.log('[WS] Déconnecté:', reason)
     })
-    socket.on('connect_error', (err) => {
+    socket.on('connect_error', async (err) => {
       console.warn('[WS] Erreur connexion:', err.message)
+      // If token expired, try to refresh and reconnect
+      if (err.message?.includes('token') || err.message?.includes('exp') || err.message?.includes('unauthorized')) {
+        if (!_refreshing && getRefreshToken()) {
+          _refreshing = true
+          try {
+            const ok = await performRefresh()
+            if (ok) {
+              console.log('[WS] Token refreshed — reconnecting socket')
+              resetSocket()
+              connectSocket()
+            }
+          } catch {}
+          _refreshing = false
+        }
+      }
     })
   }
   return socket
@@ -85,17 +103,10 @@ export function emitStopViewing(requestId: string) {
   socket?.emit('request:stop-viewing', { requestId })
 }
 
-function fallbackPostGps(lat: number, lng: number, status?: string) {
-  const token = getToken()
-  if (!token) return
-  fetch(`${getBaseUrl()}/api/provider/location`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ lat, lng, status }),
-  }).catch(() => {})
+async function fallbackPostGps(lat: number, lng: number, status?: string) {
+  try {
+    await apiPost('/api/provider/location', { lat, lng, status })
+  } catch {}
 }
 
 /** Emit provider GPS for geofencing (called periodically while app is foregrounded) */
