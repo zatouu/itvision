@@ -8,6 +8,7 @@ const { parse } = require('url')
 const next = require('next')
 const { Server } = require('socket.io')
 const { jwtVerify } = require('jose')
+const mongoose = require('mongoose')
 const geo = require('./lib/redis-geo')
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -84,6 +85,25 @@ async function verifyToken(token) {
     return null
   }
 }
+
+// ── Mongoose (lazy connection for server-side verification) ──
+let _mongoConnected = false
+async function ensureMongo() {
+  if (_mongoConnected) return
+  const uri = process.env.MONGODB_URI
+  if (!uri) throw new Error('MONGODB_URI not set')
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(uri)
+  }
+  _mongoConnected = true
+}
+
+// Minimal schema — only the fields we need for verification
+const ServiceRequestSchema = new mongoose.Schema({
+  assignedProviderId: { type: String },
+  status: { type: String },
+})
+const ServiceRequest = mongoose.models.ServiceRequest || mongoose.model('ServiceRequest', ServiceRequestSchema)
 
 // ── GEOFENCING : présence des providers via Redis GEO ──
 // Redis GEO commands (GEOADD, GEOSEARCH) for O(log N) spatial queries.
@@ -295,7 +315,7 @@ app.prepare().then(() => {
 
       // Vérifier que le provider est bien assigné à cette mission
       try {
-        const { default: ServiceRequest } = await import('./src/lib/models/ServiceRequest')
+        await ensureMongo()
         const sr = await ServiceRequest.findById(data.requestId).select('assignedProviderId status').lean()
         if (!sr || String(sr.assignedProviderId) !== String(userId)) return
         if (!['accepted', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(sr.status)) return
