@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config'
-import { signXeuyToken, verifyXeuyToken } from '@/modules/xeuy/auth/session'
+import { signXeuyToken, signXeuyRefreshToken, signXeuyTokenPair, verifyXeuyToken, verifyXeuyRefreshToken } from '@/modules/xeuy/auth/session'
 import { sendXeuyOtp, verifyXeuyOtp } from '@/modules/xeuy/auth/otp'
 import { connectMongoose } from '@/lib/mongoose'
 import OtpCode from '@/lib/models/OtpCode'
@@ -191,6 +191,150 @@ async function main() {
       )
     }
     assert(threw, 'Should reject token without domain=xeuy')
+  })
+
+  // ─── Refresh Token Tests (pure, no DB) ─────────────────────
+
+  await test('signXeuyRefreshToken produces a valid refresh token', async () => {
+    const refreshToken = await signXeuyRefreshToken({
+      userId: 'test-user-rf-1',
+      role: 'CLIENT',
+      phone: '+221771234570',
+      name: 'Refresh Test',
+    })
+    assertNotNull(refreshToken, 'Refresh token should not be null')
+
+    const session = await verifyXeuyRefreshToken(refreshToken)
+    assertEqual(session.userId, 'test-user-rf-1', 'userId should match')
+    assertEqual(session.role, 'CLIENT', 'role should match')
+    assertEqual(session.domain, 'xeuy', 'domain should be xeuy')
+  })
+
+  await test('verifyXeuyToken rejects a refresh token used as access', async () => {
+    const refreshToken = await signXeuyRefreshToken({
+      userId: 'test-user-rf-2',
+      role: 'CLIENT',
+      phone: '+221771234571',
+      name: 'Refresh As Access',
+    })
+    let threw = false
+    try {
+      await verifyXeuyToken(refreshToken)
+    } catch (err) {
+      threw = true
+      assert(
+        (err as Error).message.includes('Refresh token'),
+        `Should mention refresh token misuse, got: ${(err as Error).message}`
+      )
+    }
+    assert(threw, 'Access token verifier should reject refresh tokens')
+  })
+
+  await test('verifyXeuyRefreshToken rejects an access token used as refresh', async () => {
+    const accessToken = await signXeuyToken({
+      userId: 'test-user-rf-3',
+      role: 'PROVIDER',
+      phone: '+221771234572',
+      name: 'Access As Refresh',
+    })
+    let threw = false
+    try {
+      await verifyXeuyRefreshToken(accessToken)
+    } catch (err) {
+      threw = true
+      assert(
+        (err as Error).message.includes('Access token'),
+        `Should mention access token misuse, got: ${(err as Error).message}`
+      )
+    }
+    assert(threw, 'Refresh token verifier should reject access tokens')
+  })
+
+  await test('signXeuyTokenPair returns both access and refresh tokens', async () => {
+    const pair = await signXeuyTokenPair({
+      userId: 'test-user-pair-1',
+      role: 'CLIENT',
+      phone: '+221771234573',
+      name: 'Pair Test',
+    })
+    assertNotNull(pair.accessToken, 'Access token should be present')
+    assertNotNull(pair.refreshToken, 'Refresh token should be present')
+    assert(pair.accessToken !== pair.refreshToken, 'Tokens should be different')
+    assertEqual(pair.expiresIn, 7 * 24 * 60 * 60, 'expiresIn should be 7 days in seconds')
+
+    // Both should verify independently
+    const accessSession = await verifyXeuyToken(pair.accessToken)
+    assertEqual(accessSession.userId, 'test-user-pair-1', 'Access token userId')
+
+    const refreshSession = await verifyXeuyRefreshToken(pair.refreshToken)
+    assertEqual(refreshSession.userId, 'test-user-pair-1', 'Refresh token userId')
+  })
+
+  await test('refresh token rotation: new pair differs from original', async () => {
+    const payload = {
+      userId: 'test-user-rot-1',
+      role: 'CLIENT' as const,
+      phone: '+221771234574',
+      name: 'Rotation Test',
+    }
+    const pair1 = await signXeuyTokenPair(payload)
+    // jose setIssuedAt() uses seconds precision — wait >1s so iat differs
+    await new Promise((r) => setTimeout(r, 1100))
+    const pair2 = await signXeuyTokenPair(payload)
+
+    assert(pair1.accessToken !== pair2.accessToken, 'Access tokens should differ (different iat)')
+    assert(pair1.refreshToken !== pair2.refreshToken, 'Refresh tokens should differ (different iat)')
+
+    // Both refresh tokens should be valid (stateless rotation)
+    const s1 = await verifyXeuyRefreshToken(pair1.refreshToken)
+    const s2 = await verifyXeuyRefreshToken(pair2.refreshToken)
+    assertEqual(s1.userId, s2.userId, 'Both should resolve to same user')
+  })
+
+  await test('verifyXeuyRefreshToken rejects web token', async () => {
+    const { signAuthTokenWithExpiry } = await import('@/lib/jwt')
+    const webToken = await signAuthTokenWithExpiry(
+      { userId: 'web-rf', role: 'CLIENT', email: 'web@test.com' },
+      '30d'
+    )
+    let threw = false
+    try {
+      await verifyXeuyRefreshToken(webToken)
+    } catch (err) {
+      threw = true
+      assert(
+        (err as Error).message.includes('non-Xeuy') || (err as Error).message.includes('invalide'),
+        `Should mention non-Xeuy, got: ${(err as Error).message}`
+      )
+    }
+    assert(threw, 'Refresh verifier should reject web tokens')
+  })
+
+  await test('verifyXeuyRefreshToken rejects expired refresh token', async () => {
+    const { SignJWT } = await import('jose')
+    const { getJwtSecretKey } = await import('@/lib/jwt-secret')
+    const expiredRefresh = await new SignJWT({
+      userId: 'expired-rf',
+      role: 'CLIENT',
+      phone: '+221000000010',
+      name: 'Expired RF',
+      domain: 'xeuy',
+      typ: 'xeuy-refresh',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('0s')
+      .sign(getJwtSecretKey())
+
+    await new Promise((r) => setTimeout(r, 100))
+
+    let threw = false
+    try {
+      await verifyXeuyRefreshToken(expiredRefresh)
+    } catch {
+      threw = true
+    }
+    assert(threw, 'Should reject expired refresh token')
   })
 
   // ─── OTP Tests (require DB) ────────────────────────────────

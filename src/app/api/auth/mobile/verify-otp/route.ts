@@ -5,7 +5,7 @@ import {
   verifyXeuyOtp,
   createXeuyUser,
   findXeuyUserByPhone,
-  signXeuyToken,
+  signXeuyTokenPair,
   creditXeuyWelcomePoints,
   type XeuyRole,
 } from '@/modules/xeuy'
@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate Xeuy-specific JWT (domain: 'xeuy')
-    const token = await signXeuyToken({
+    // Generate Xeuy token pair (access 7d + refresh 30d)
+    const tokens = await signXeuyTokenPair({
       userId: user._id,
       role: user.role,
       phone: user.phone,
@@ -86,7 +86,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      token,
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
       user: {
         _id: user._id,
         name: user.name,
