@@ -158,6 +158,9 @@ jobs:
             echo "WAVE_QR_URL=${{ secrets.WAVE_QR_URL }}" >> .env.ec2
             echo "WAVE_PAY_URL=${{ secrets.WAVE_PAY_URL }}" >> .env.ec2
             echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env.ec2
+            echo "QWEN_CLOUD_API_KEY=${{ secrets.QWEN_CLOUD_API_KEY }}" >> .env.ec2
+            echo "QWEN_CLOUD_BASE_URL=${{ secrets.QWEN_CLOUD_BASE_URL }}" >> .env.ec2
+            echo "QWEN_MODEL=${{ secrets.QWEN_MODEL }}" >> .env.ec2
             
 
             # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)

@@ -84,6 +84,12 @@ services:
       DEV_PROVIDER_TOKEN: ${DEV_PROVIDER_TOKEN:-}
       # ── Sentry ────────────────────────────────────────────
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # ── Qwen AI (hybrid: QwenCloud + Ollama fallback) ──────
+      QWEN_CLOUD_API_KEY: ${QWEN_CLOUD_API_KEY:-}
+      QWEN_CLOUD_BASE_URL: ${QWEN_CLOUD_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen-turbo}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs
