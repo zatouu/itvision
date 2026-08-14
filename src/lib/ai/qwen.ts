@@ -5,7 +5,7 @@
 
 const QWEN_CLOUD_BASE = process.env.QWEN_CLOUD_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 const QWEN_CLOUD_KEY = process.env.QWEN_CLOUD_API_KEY || process.env.DASHSCOPE_API_KEY || ''
-const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen3-8b'
+const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-turbo'
 
 const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen3:8b'
