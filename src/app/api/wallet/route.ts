@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceReadRateLimiter } from '@/lib/rate-limiter'
+import { requireXeuyAuth, getXeuyWallet, getXeuyWalletHistory, getXeuyWalletConfig } from '@/modules/xeuy'
+import { loadUserWithProfiles } from '@/lib/user-profiles'
 import WalletTransaction from '@/lib/models/WalletTransaction'
 import { getOrCreateWallet, getAppConfig, isPointsModeActive } from '@/lib/wallet'
-import { loadUserWithProfiles } from '@/lib/user-profiles'
 
 export async function GET(request: NextRequest) {
   const rl = await applyRateLimit(request, serviceReadRateLimiter)
@@ -12,8 +13,46 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectMongoose()
-    const { userId } = await requireAuth(request)
 
+    // Try Xeuy auth first (domain-isolated token)
+    let userId: string
+    let isXeuyUser = false
+    try {
+      const xeuySession = await requireXeuyAuth(request)
+      userId = xeuySession.userId
+      isXeuyUser = true
+    } catch {
+      // Fallback to web auth for backward compatibility
+      const webSession = await requireAuth(request)
+      userId = webSession.userId
+    }
+
+    // Xeuy users: use decoupled wallet service (no MarketplaceProfile)
+    if (isXeuyUser) {
+      const [wallet, history, config] = await Promise.all([
+        getXeuyWallet(userId),
+        getXeuyWalletHistory(userId),
+        getXeuyWalletConfig(),
+      ])
+
+      return NextResponse.json({
+        points: wallet.points,
+        reservedPoints: wallet.reservedPoints,
+        cashBalance: wallet.cashBalance,
+        escrow: wallet.escrow,
+        lifetimePointsEarned: wallet.lifetimePointsEarned,
+        lifetimePointsSpent: wallet.lifetimePointsSpent,
+        config,
+        history,
+        profile: {
+          referralCode: wallet.referralCode,
+          referralBalance: wallet.referralBalance,
+          referralCount: wallet.referralCount,
+        },
+      })
+    }
+
+    // Web users: existing flow with MarketplaceProfile
     const wallet = await getOrCreateWallet(String(userId))
     const cfg = await getAppConfig()
     const pointsActive = await isPointsModeActive()

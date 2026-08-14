@@ -1,30 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectMongoose } from '@/lib/mongoose'
-import OtpCode from '@/lib/models/OtpCode'
-import { sendSms, normalizePhone } from '@/lib/sms'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
+import { sendXeuyOtp } from '@/modules/xeuy'
 
-// Rate limit strict : 5 envois OTP par 15 min par IP
 const otpSendLimiter = new RateLimiter(15 * 60 * 1000, 5)
 
-const OTP_LENGTH = 6
-const OTP_TTL_MIN = 5
-const TEST_CODE = '000000'
-const isFreeMode = process.env.OTP_FREE_MODE === 'true' ||
-  process.env.ALLOW_TEST_CODES === 'true' ||
-  (process.env.SMS_PROVIDER || 'console') === 'console'
-
-function generateOtp(): string {
-  const digits = '0123456789'
-  let otp = ''
-  for (let i = 0; i < OTP_LENGTH; i++) {
-    otp += digits[Math.floor(Math.random() * 10)]
-  }
-  return otp
-}
-
 export async function POST(request: NextRequest) {
-  // Rate limit
   const rl = await applyRateLimit(request, otpSendLimiter)
   if (rl) return rl
 
@@ -36,63 +16,26 @@ export async function POST(request: NextRequest) {
 
     const { phone: rawPhone, role: rawRole } = body as any
 
-    // Validation numéro
     if (!rawPhone || typeof rawPhone !== 'string') {
       return NextResponse.json({ error: 'Numéro de téléphone requis' }, { status: 400 })
     }
-    const phone = normalizePhone(rawPhone)
-    if (!phone) {
-      return NextResponse.json({ error: 'Numéro invalide. Exemples : +221 77 123 45 67, +212 6 12 34 56 78, +33 6 12 34 56 78' }, { status: 400 })
-    }
 
-    // Validation rôle
     const role = rawRole === 'PROVIDER' ? 'PROVIDER' : 'CLIENT'
 
-    await connectMongoose()
+    const result = await sendXeuyOtp(rawPhone, role as 'CLIENT' | 'PROVIDER')
 
-    // Vérifier s'il y a un OTP récent non expiré (anti-spam)
-    const recent = await OtpCode.findOne({
-      phone,
-      expiresAt: { $gt: new Date() },
-      verified: false,
-    }).sort({ createdAt: -1 })
-
-    if (recent) {
-      const ageMs = Date.now() - new Date(recent.createdAt).getTime()
-      if (ageMs < 60_000) {
-        // Moins d'1 minute depuis le dernier envoi
-        return NextResponse.json(
-          { error: 'Un code vient d\'être envoyé. Attendez 1 minute.' },
-          { status: 429 }
-        )
-      }
-    }
-
-    // En mode test/free, utiliser le code fixe pour simplifier les tests terrain
-    const code = isFreeMode ? TEST_CODE : generateOtp()
-    const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
-
-    // Sauvegarder en DB
-    await OtpCode.create({ phone, code, role, expiresAt })
-
-    // En mode test/free, on ne part pas de SMS réel (console log uniquement)
-    const sent = isFreeMode
-      ? true
-      : await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
-
-    if (!sent) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Impossible d\'envoyer le SMS. Réessayez.' },
-        { status: 503 }
+        { error: result.error },
+        { status: result.status || 500 }
       )
     }
 
     return NextResponse.json({
       success: true,
-      phone,
-      expiresIn: OTP_TTL_MIN * 60,
-      // En mode test/free (pas de SMS reel), on expose le code pour faciliter les tests terrain
-      ...(isFreeMode ? { _devCode: code, isFreeMode: true } : {}),
+      phone: result.phone,
+      expiresIn: result.expiresIn,
+      ...(result.devCode ? { _devCode: result.devCode, isFreeMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)
