@@ -132,10 +132,13 @@ export async function findXeuyUserByPhone(phone: string): Promise<XeuyUser | nul
   await connectMongoose()
   const user = await User.findOne({ phone }).lean() as any
   if (!user) return null
+  const name = user.name || user.phone
+  // isNew = user never completed setup-profile (name is empty or just their phone number)
+  const isNew = !name?.trim() || /^\d{7,}$/.test(name.trim())
   return {
     _id: String(user._id),
     phone: user.phone,
-    name: user.name || user.phone,
+    name,
     role: (user.role === 'PROVIDER' ? 'PROVIDER' : 'CLIENT') as XeuyRole,
     referralCode: user.referralCode,
     referralBalance: user.referralBalance || 0,
@@ -143,5 +146,6 @@ export async function findXeuyUserByPhone(phone: string): Promise<XeuyUser | nul
     referredBy: user.referredBy,
     isActive: user.isActive,
     providerProfileId: user.providerProfileId ? String(user.providerProfileId) : undefined,
+    isNew,
   }
 }
