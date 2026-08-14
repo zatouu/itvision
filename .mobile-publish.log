@@ -3110,3 +3110,8 @@ EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates
 [provider] Aucun changement detecte depuis 14737723b0cd3b8a135f6f0029a34c6755d2c304. Skip.
 [consumer] Aucun changement detecte depuis 14737723b0cd3b8a135f6f0029a34c6755d2c304. Skip.
 [provider] Aucun changement detecte depuis 14737723b0cd3b8a135f6f0029a34c6755d2c304. Skip.
+[consumer] Fichiers modifies depuis 14737723b0cd3b8a135f6f0029a34c6755d2c304 :
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/src/push.ts
+[consumer] Changements JS/assets detectes -> mode OTA
+[consumer] Publication OTA sur le channel 'ec2'...
