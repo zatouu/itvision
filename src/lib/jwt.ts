@@ -44,7 +44,13 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
     }
   }
   const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
+  let payload: JWTPayload
+  try {
+    const result = await jwtVerify(token, secret)
+    payload = result.payload
+  } catch {
+    throw new Error('Non authentifié')
+  }
 
   const role = String(payload.role || '').toUpperCase()
   const userId = String(payload.userId || payload.id || payload.sub || '')

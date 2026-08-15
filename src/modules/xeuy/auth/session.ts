@@ -108,7 +108,13 @@ export async function issueXeuyTokenPair(payload: {
 }
 
 export async function verifyXeuyToken(token: string): Promise<XeuySession> {
-  const { payload } = await jwtVerify(token, getJwtSecretKey())
+  let payload: any
+  try {
+    const result = await jwtVerify(token, getJwtSecretKey())
+    payload = result.payload
+  } catch {
+    throw new Error('Non authentifié')
+  }
 
   if (payload.domain !== XEUY_DOMAIN) {
     throw new Error('Token non-Xeuy')
