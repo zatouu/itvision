@@ -118,7 +118,9 @@ export async function runVisibilityWave(task: IScheduledTask): Promise<void> {
   if (!dispatch || dispatch.status !== 'active') return
 
   const req = await ServiceRequest.findById(requestId).lean() as any
-  if (!req || !['created', 'pending_offers'].includes(req.status)) {
+  if (!req) return
+  const reqStatus = req.status || 'created'
+  if (!['created', 'pending_offers', 'broadcasted'].includes(reqStatus)) {
     dispatch.status = 'completed'
     dispatch.stopReason = 'request_closed'
     dispatch.nextRunAt = undefined

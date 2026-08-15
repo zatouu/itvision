@@ -41,6 +41,7 @@ const STATUS_ALIASES: Record<string, MissionStatus> = {
 }
 
 export function normalizeStatus(raw: string): MissionStatus {
+  if (!raw) return 'created'
   return (STATUS_ALIASES[raw] || raw) as MissionStatus
 }
 

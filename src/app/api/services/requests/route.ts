@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,
       attributes: safeAttributes,
+      status: 'created',
       expiresAt,
     })
 
