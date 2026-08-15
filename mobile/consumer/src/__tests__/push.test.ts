@@ -26,8 +26,8 @@ jest.mock('../auth', () => ({
 import { resolveNavTarget } from '../push'
 
 describe('resolveNavTarget (consumer)', () => {
-  it('routes offer:new to request-offers', () => {
-    expect(resolveNavTarget({ type: 'offer:new', requestId: 'r1' })).toBe('/request-offers?id=r1')
+  it('routes offer:new to offers page', () => {
+    expect(resolveNavTarget({ type: 'offer:new', requestId: 'r1' })).toBe('/offers/r1')
   })
 
   it('routes offer:new without requestId to null', () => {

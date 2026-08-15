@@ -6,11 +6,11 @@ import { useTranslation } from 'react-i18next'
 import { SlidersHorizontal, Pencil } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../../src/design'
-import { apiGet, apiPost } from '../../src/api'
+import { apiGet, apiPost, apiPatch } from '../../src/api'
 import { confirm } from '../../src/confirm'
 import { toast } from '../../src/toast'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
-import { cacheSet, cacheGet } from '../../src/storage'
+import { cacheSet, cacheGet, cacheClear } from '../../src/storage'
 import { hapticLight } from '../../src/haptics'
 
 import RequestSummaryCard from '../../src/components/offers/RequestSummaryCard'
@@ -68,23 +68,30 @@ export default function OffersReceived() {
     const socket = connectSocket()
     joinRequestRoom(requestId)
 
-    const handleOfferNew = (offer: any) => {
-      if (offer?.requestId !== requestId) return
-      setOffers(prev => [{ ...offer, isNew: true }, ...prev])
-      hapticLight()
+    const handleConnect = () => {
+      joinRequestRoom(requestId)
+      load(true)
     }
-
+    const handleDisconnect = () => {}
+    const handleOfferNew = () => { load(true) }
     const handleViewers = (data: any) => {
       if (data?.requestId === requestId && typeof data.count === 'number') {
         setViewersCount(data.count)
       }
     }
-
     const handleAssigned = () => { load(true) }
+    const handleOfferUpdated = () => { load(true) }
+    const handleCounterAccepted = () => { load(true) }
+    const handleCounterRejected = () => { load(true) }
 
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
     socket.on('offer:new', handleOfferNew)
     socket.on('request:viewers_updated', handleViewers)
     socket.on('request:assigned', handleAssigned)
+    socket.on('offer:updated', handleOfferUpdated)
+    socket.on('offer:counter-accepted', handleCounterAccepted)
+    socket.on('offer:counter-rejected', handleCounterRejected)
 
     // Fallback: auto-refresh when WS disconnected
     const interval = setInterval(() => {
@@ -94,9 +101,14 @@ export default function OffersReceived() {
     return () => {
       clearInterval(interval)
       leaveRequestRoom(requestId)
+      socket.off('connect', handleConnect)
+      socket.off('disconnect', handleDisconnect)
       socket.off('offer:new', handleOfferNew)
       socket.off('request:viewers_updated', handleViewers)
       socket.off('request:assigned', handleAssigned)
+      socket.off('offer:updated', handleOfferUpdated)
+      socket.off('offer:counter-accepted', handleCounterAccepted)
+      socket.off('offer:counter-rejected', handleCounterRejected)
     }
   }, [requestId, load])
 
@@ -150,7 +162,10 @@ export default function OffersReceived() {
     )
     if (!ok) return
     try {
-      await apiPost(`/api/services/requests/${requestId}/cancel`, {})
+      await apiPatch(`/api/services/requests/${requestId}`, { status: 'cancelled' })
+      await cacheClear(cacheKey)
+      await cacheClear('my-requests')
+      await cacheClear('home-requests')
       toast.success(t('clientOffers.cancelSuccess'))
       router.back()
     } catch (e: any) {

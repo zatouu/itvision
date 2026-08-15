@@ -227,7 +227,7 @@ export function bindNotificationSocket() {
       kind: 'offer-received',
       title: 'Nouvelle offre reçue',
       body: category ? `Un prestataire a répondu à votre demande (${category})` : 'Un prestataire a répondu à votre demande',
-      link: requestId ? { pathname: '/request-offers', params: { id: requestId } } : undefined,
+      link: requestId ? { pathname: `/offers/${requestId}` } : undefined,
     })
   }
 

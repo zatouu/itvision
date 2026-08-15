@@ -18,7 +18,7 @@ function mapPushToStore(title: string, body: string, data: any) {
 
   if (type === 'offer:new') {
     kind = 'offer-received'
-    if (requestId) link = { pathname: '/request-offers', params: { id: requestId } }
+    if (requestId) link = { pathname: `/offers/${requestId}` }
   } else if (type === 'offer:accepted' || type === 'payment:held') {
     kind = 'request-assigned'
     if (requestId) link = { pathname: `/mission/${requestId}` }
@@ -269,7 +269,7 @@ export function setupNotificationResponseListener(): () => void {
 export function resolveNavTarget(data: any): string | null {
   switch (data.type) {
     case 'offer:new':
-      return data.requestId ? `/request-offers?id=${data.requestId}` : null
+      return data.requestId ? `/offers/${data.requestId}` : null
     case 'offer:accepted':
     case 'payment:held':
       return data.requestId ? `/mission/${data.requestId}` : null
