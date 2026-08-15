@@ -4,6 +4,7 @@ import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
 import { sendPushToUser } from '@/lib/push'
+import { isTerminalStatus } from '@/lib/mission-lifecycle'
 
 const MAX_COMMENT_LENGTH = 500
 const MAX_PRICE = 50_000_000
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
     if (String(sr.clientId) !== String(userId)) {
       return NextResponse.json({ error: 'Seul le client peut faire une contre-offre' }, { status: 403 })
+    }
+
+    if (isTerminalStatus(sr.status)) {
+      const code = sr.status === 'cancelled' ? 'ALREADY_CANCELLED' : sr.status === 'completed' ? 'ALREADY_COMPLETED' : sr.status === 'expired' ? 'ALREADY_EXPIRED' : 'REQUEST_NOT_AVAILABLE'
+      return NextResponse.json({ error: 'Demande non disponible', code }, { status: 409 })
     }
 
     if (offer.status !== 'submitted') {

@@ -102,6 +102,62 @@ const STARTED_STATUSES: MissionStatus[] = ['arrived', 'in_progress', 'paused', '
 
 const PAUSABLE_STATUSES: MissionStatus[] = ['arrived', 'in_progress']
 
+const TERMINAL_STATUSES: MissionStatus[] = ['cancelled', 'expired', 'completed', 'archived']
+
+const CANCELLABLE_STATUSES: MissionStatus[] = ['created', 'broadcasted', 'accepted', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
+
+/** Business error codes — stable, language-independent. The frontend maps these to UI messages. */
+export type BusinessErrorCode =
+  | 'ALREADY_CANCELLED'
+  | 'ALREADY_COMPLETED'
+  | 'ALREADY_EXPIRED'
+  | 'CANNOT_CANCEL'
+  | 'OFFER_ALREADY_ACCEPTED'
+  | 'REQUEST_NOT_AVAILABLE'
+  | 'TRANSITION_FORBIDDEN'
+
+export function isTerminalStatus(status: string): boolean {
+  return TERMINAL_STATUSES.includes(normalizeStatus(status))
+}
+
+export function isActiveStatus(status: string): boolean {
+  return ACTIVE_STATUSES.includes(normalizeStatus(status))
+}
+
+export function canCancel(status: string): boolean {
+  return CANCELLABLE_STATUSES.includes(normalizeStatus(status))
+}
+
+export function canAcceptOffer(status: string): boolean {
+  const s = normalizeStatus(status)
+  return s === 'created' || s === 'broadcasted'
+}
+
+export function canNegotiate(status: string): boolean {
+  const s = normalizeStatus(status)
+  return s === 'created' || s === 'broadcasted'
+}
+
+/** Maps a transition failure reason to a stable business code. */
+export function transitionErrorCode(fromRaw: string, toRaw: string): BusinessErrorCode {
+  const from = normalizeStatus(fromRaw)
+  const to = normalizeStatus(toRaw)
+  if (to === 'cancelled') {
+    if (from === 'cancelled') return 'ALREADY_CANCELLED'
+    if (from === 'completed') return 'ALREADY_COMPLETED'
+    if (from === 'expired') return 'ALREADY_EXPIRED'
+    if (from === 'archived') return 'REQUEST_NOT_AVAILABLE'
+    return 'CANNOT_CANCEL'
+  }
+  if (from === to) {
+    if (from === 'cancelled') return 'ALREADY_CANCELLED'
+    if (from === 'completed') return 'ALREADY_COMPLETED'
+    if (from === 'expired') return 'ALREADY_EXPIRED'
+  }
+  if (TERMINAL_STATUSES.includes(from)) return 'REQUEST_NOT_AVAILABLE'
+  return 'TRANSITION_FORBIDDEN'
+}
+
 export function isMissionActive(status: MissionStatus): boolean {
   return ACTIVE_STATUSES.includes(status)
 }
@@ -179,7 +235,11 @@ export async function transition(
   const { actor, reason, metadata, context } = options
 
   const check = canTransition(from, to, actor.role)
-  if (!check.ok) throw new Error(check.reason)
+  if (!check.ok) {
+    const err = new Error(check.reason) as Error & { code?: BusinessErrorCode }
+    err.code = transitionErrorCode(from, to)
+    throw err
+  }
 
   const isOwner = String(sr.clientId) === String(actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(actor.userId)

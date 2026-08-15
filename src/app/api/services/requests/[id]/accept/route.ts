@@ -37,7 +37,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Une mission clôturée ne peut plus accepter d'offre
     if (['completed', 'cancelled', 'expired', 'archived', 'dispute'].includes(sr.status)) {
-      return NextResponse.json({ error: 'Mission déjà clôturée' }, { status: 409 })
+      const code = sr.status === 'cancelled' ? 'ALREADY_CANCELLED' : sr.status === 'completed' ? 'ALREADY_COMPLETED' : sr.status === 'expired' ? 'ALREADY_EXPIRED' : 'REQUEST_NOT_AVAILABLE'
+      return NextResponse.json({ error: 'Mission déjà clôturée', code }, { status: 409 })
     }
 
     const offer = await Offer.findById(offerId)

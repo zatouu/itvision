@@ -131,7 +131,8 @@ async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Pro
     : r.status === 403 ? 'Accès refusé'
     : r.status === 404 ? 'Ressource introuvable'
     : body.error || `Erreur serveur (${r.status})`
-  const err = new Error(msg)
+  const err = new Error(msg) as Error & { code?: string }
+  if (body.code) err.code = body.code
   if (r.status >= 500) captureError(err, { status: r.status, url: r.url })
   throw err
 }

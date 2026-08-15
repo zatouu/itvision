@@ -99,7 +99,8 @@ export async function POST(request: NextRequest) {
     }
     // Refuse offers on missions that are no longer open
     if (!['created', 'broadcasted', 'pending_offers'].includes(sr.status)) {
-      return NextResponse.json({ error: 'Cette demande n\'est plus ouverte aux offres' }, { status: 409 })
+      const code = sr.status === 'cancelled' ? 'ALREADY_CANCELLED' : sr.status === 'completed' ? 'ALREADY_COMPLETED' : sr.status === 'expired' ? 'ALREADY_EXPIRED' : 'REQUEST_NOT_AVAILABLE'
+      return NextResponse.json({ error: 'Cette demande n\'est plus ouverte aux offres', code }, { status: 409 })
     }
 
     const cfg = await getAppConfig()

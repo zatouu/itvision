@@ -194,12 +194,12 @@ export default function OffersReceived() {
       toast.success(t('clientOffers.cancelSuccess'))
       router.back()
     } catch (e: any) {
-      const msg = e?.message || ''
-      if (msg.includes('déjà') || msg.includes('Statut déjà')) {
-        toast.info(t('clientOffers.alreadyCancelled') || 'Demande déjà annulée')
+      const code = e?.code || ''
+      if (code === 'ALREADY_CANCELLED' || code === 'ALREADY_COMPLETED' || code === 'ALREADY_EXPIRED') {
+        toast.info('Demande déjà clôturée')
         load(true)
       } else {
-        toast.error(t('common.error'), msg || t('clientOffers.cancelError'))
+        toast.error(t('common.error'), e?.message || t('clientOffers.cancelError'))
       }
     }
   }

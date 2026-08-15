@@ -85,12 +85,12 @@ function MyRequests() {
       notify(t('requests.cancelRequestSuccess'), '')
       await load(true)
     } catch (e: any) {
-      const msg = e?.message || ''
-      if (msg.includes('déjà') || msg.includes('Statut déjà')) {
-        notify('Demande déjà annulée', '')
+      const code = e?.code || ''
+      if (code === 'ALREADY_CANCELLED' || code === 'ALREADY_COMPLETED' || code === 'ALREADY_EXPIRED') {
+        notify('Demande déjà clôturée', '')
         load(true)
       } else {
-        notify(t('common.error'), msg || 'Erreur')
+        notify(t('common.error'), e.message || 'Erreur')
       }
     }
   }
@@ -218,15 +218,13 @@ function MyRequests() {
                 activeOpacity={0.85}
                 onPress={() => {
                   if (['cancelled', 'expired', 'completed'].includes(it.status)) {
-                    return
-                  }
-                  if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status)) {
+                    router.push(`/offers/${it._id}`)
+                  } else if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
                     router.push(`/offers/${it._id}`)
                   }
                 }}
-                disabled={['cancelled', 'expired', 'completed'].includes(it.status)}
               >
                 <View style={s.cardInner}>
                   {/* Monogram */}
@@ -266,7 +264,9 @@ function MyRequests() {
                       </TouchableOpacity>
                     )}
                   </View>
-                  {['cancelled', 'expired', 'completed'].includes(it.status) ? null : (
+                  {['cancelled', 'expired', 'completed'].includes(it.status) ? (
+                    <Text style={s.viewDetailLink}>Voir le détail</Text>
+                  ) : (
                     <ChevronRight size={20} color="#CBD5E1" />
                   )}
                 </View>
@@ -329,6 +329,7 @@ const s = StyleSheet.create({
   offerIndicatorText: { fontSize: 10, fontWeight: '700', color: '#B45309' },
   cancelBtn: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   cancelBtnText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
+  viewDetailLink: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
   cardArrow: { position: 'absolute', right: 14, top: '50%', color: '#CBD5E1' },
 })
 

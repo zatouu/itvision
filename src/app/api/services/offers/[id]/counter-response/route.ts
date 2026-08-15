@@ -4,6 +4,7 @@ import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
 import { sendPushToUser } from '@/lib/push'
+import { isTerminalStatus } from '@/lib/mission-lifecycle'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const sr = await ServiceRequest.findById(offer.requestId)
     if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
+
+    if (isTerminalStatus(sr.status)) {
+      const code = sr.status === 'cancelled' ? 'ALREADY_CANCELLED' : sr.status === 'completed' ? 'ALREADY_COMPLETED' : sr.status === 'expired' ? 'ALREADY_EXPIRED' : 'REQUEST_NOT_AVAILABLE'
+      return NextResponse.json({ error: 'Demande non disponible', code }, { status: 409 })
+    }
 
     const clientId = String(sr.clientId)
     const requestId = String(sr._id)

@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           context,
         })
       } catch (err: any) {
-        return NextResponse.json({ error: err.message || 'Transition interdite' }, { status: 409 })
+        return NextResponse.json({ error: err.message || 'Transition interdite', code: err.code || 'TRANSITION_FORBIDDEN' }, { status: 409 })
       }
     }
 
