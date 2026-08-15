@@ -98,11 +98,12 @@ async function ensureMongo() {
   _mongoConnected = true
 }
 
-// Minimal schema — only the fields we need for verification
+// Minimal schema — strict:false so it doesn't strip fields written by the full model
+// (server.js registers this first, so it becomes the active model for Mongoose)
 const ServiceRequestSchema = new mongoose.Schema({
   assignedProviderId: { type: String },
   status: { type: String },
-})
+}, { strict: false, timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 const ServiceRequest = mongoose.models.ServiceRequest || mongoose.model('ServiceRequest', ServiceRequestSchema)
 
 // ── GEOFENCING : présence des providers via Redis GEO ──
