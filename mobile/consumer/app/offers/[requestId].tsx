@@ -17,7 +17,7 @@ import RequestSummaryCard from '../../src/components/offers/RequestSummaryCard'
 import LiveStatusBar from '../../src/components/offers/LiveStatusBar'
 import SortingPillsRow, { SortKey } from '../../src/components/offers/SortingPillsRow'
 import OfferCard, { Offer } from '../../src/components/offers/OfferCard'
-import RadarPulseIllustration from '../../src/components/offers/RadarPulseIllustration'
+import RadarPulseIllustration, { RadarViewer } from '../../src/components/offers/RadarPulseIllustration'
 import VerticalTimeline from '../../src/components/offers/VerticalTimeline'
 import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
 import TipCard from '../../src/components/offers/TipCard'
@@ -32,6 +32,7 @@ export default function OffersReceived() {
   const [sort, setSort] = useState<SortKey>('recommended')
   const [accepting, setAccepting] = useState<string | null>(null)
   const [viewersCount, setViewersCount] = useState(0)
+  const [liveViewers, setLiveViewers] = useState<RadarViewer[]>([])
   const [showFilters, setShowFilters] = useState(true)
   const [negotiateTarget, setNegotiateTarget] = useState<Offer | null>(null)
   const transitionAnim = useRef(false)
@@ -61,6 +62,29 @@ export default function OffersReceived() {
   }, [requestId, t, cacheKey])
 
   useEffect(() => { load() }, [load])
+
+  // Fetch live viewers (providers currently consulting this request)
+  useEffect(() => {
+    if (!requestId) return
+    let active = true
+    const fetchLive = async () => {
+      try {
+        const data: any = await apiGet(`/api/services/requests/${requestId}/live`)
+        if (!active) return
+        const viewers = (data.viewers || []).map((v: any) => ({
+          providerId: v.providerId,
+          name: v.name,
+          distanceKm: v.distanceKm,
+          etaMinutes: v.etaMinutes,
+        }))
+        setLiveViewers(viewers)
+        setViewersCount(viewers.length)
+      } catch {}
+    }
+    fetchLive()
+    const interval = setInterval(fetchLive, 15000)
+    return () => { active = false; clearInterval(interval) }
+  }, [requestId])
 
   // Socket: listen for new offers, viewers updates
   useEffect(() => {
@@ -264,7 +288,7 @@ export default function OffersReceived() {
             <>
               {/* Radar pulse hero */}
               <View style={s.heroSection}>
-                <RadarPulseIllustration />
+                <RadarPulseIllustration viewers={liveViewers} />
                 <Text style={s.heroTitle}>{t('clientOffers.searching')}</Text>
                 <Text style={s.heroSubtitle}>
                   {t('clientOffers.emptySubtitle', {

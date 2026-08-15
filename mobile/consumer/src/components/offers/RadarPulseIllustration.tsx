@@ -1,26 +1,65 @@
 import { useEffect, useRef } from 'react'
-import { View, StyleSheet, Animated, Easing } from 'react-native'
-import { Image } from 'expo-image'
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
 import { Home } from 'lucide-react-native'
 import { colors } from '../../design'
 
 const SIZE = 200
 const RING_COUNT = 4
 
-// Sample avatar positions around the radar
-const AVATARS = [
-  { x: -70, y: -55, size: 36, uri: 'https://i.pravatar.cc/100?img=11' },
-  { x: 60, y: -40, size: 32, uri: 'https://i.pravatar.cc/100?img=12' },
-  { x: -50, y: 60, size: 34, uri: 'https://i.pravatar.cc/100?img=13' },
-  { x: 55, y: 50, size: 30, uri: 'https://i.pravatar.cc/100?img=14' },
+export type RadarViewer = {
+  providerId: string
+  name?: string
+  distanceKm?: number | null
+  etaMinutes?: number | null
+}
+
+type Props = {
+  viewers?: RadarViewer[]
+}
+
+// Fallback generic positions around the radar (used when no real viewers)
+const FALLBACK_POSITIONS = [
+  { x: -70, y: -55, size: 36 },
+  { x: 60, y: -40, size: 32 },
+  { x: -50, y: 60, size: 34 },
+  { x: 55, y: 50, size: 30 },
 ]
 
-export default function RadarPulseIllustration() {
+const AVATAR_COLORS = ['#1D4ED8', '#0369A1', '#6D28D9', '#0891B2', '#065F46', '#92400E', '#B45309', '#7C2D12']
+
+function getInitials(name?: string): string {
+  if (!name || typeof name !== 'string') return 'PR'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function getColorForId(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+export default function RadarPulseIllustration({ viewers = [] }: Props) {
+  // Build display items: real viewers first, then fallback slots to fill up to 4
+  const items = useRef<{ id: string; name?: string; x: number; y: number; size: number }[]>([]).current
+  items.length = 0
+  const realViewers = viewers.slice(0, 4)
+  for (let i = 0; i < realViewers.length; i++) {
+    const pos = FALLBACK_POSITIONS[i]
+    items.push({ id: realViewers[i].providerId, name: realViewers[i].name, x: pos.x, y: pos.y, size: pos.size })
+  }
+  // Fill remaining slots with generic placeholders (no fake white faces)
+  for (let i = realViewers.length; i < 4; i++) {
+    const pos = FALLBACK_POSITIONS[i]
+    items.push({ id: `fallback-${i}`, name: undefined, x: pos.x, y: pos.y, size: pos.size })
+  }
+
   const pulseAnims = useRef(
     Array.from({ length: RING_COUNT }, () => new Animated.Value(0))
   ).current
   const avatarAnims = useRef(
-    AVATARS.map(() => ({
+    items.map(() => ({
       translateY: new Animated.Value(0),
       opacity: new Animated.Value(0.7),
     }))
@@ -96,28 +135,25 @@ export default function RadarPulseIllustration() {
         <Home size={28} color={colors.primary} />
       </View>
 
-      {/* Floating avatars */}
-      {AVATARS.map((avatar, i) => (
+      {/* Floating avatars — real viewers or generic initials */}
+      {items.map((item, i) => (
         <Animated.View
           key={`avatar-${i}`}
           style={[
             s.avatarWrap,
             {
-              width: avatar.size,
-              height: avatar.size,
-              borderRadius: avatar.size / 2,
-              left: SIZE / 2 + avatar.x - avatar.size / 2,
-              top: SIZE / 2 + avatar.y - avatar.size / 2,
+              width: item.size,
+              height: item.size,
+              borderRadius: item.size / 2,
+              left: SIZE / 2 + item.x - item.size / 2,
+              top: SIZE / 2 + item.y - item.size / 2,
               transform: [{ translateY: avatarAnims[i].translateY }],
               opacity: avatarAnims[i].opacity,
+              backgroundColor: getColorForId(item.id),
             },
           ]}
         >
-          <Image
-            source={{ uri: avatar.uri }}
-            style={{ width: avatar.size - 4, height: avatar.size - 4, borderRadius: (avatar.size - 4) / 2 }}
-            contentFit="cover"
-          />
+          <Text style={s.avatarText}>{getInitials(item.name)}</Text>
           <View style={s.onlineDot} />
         </Animated.View>
       ))}
@@ -150,10 +186,14 @@ const s = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.primaryLight,
     zIndex: 3,
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#fff',
   },
   onlineDot: {
     position: 'absolute',
