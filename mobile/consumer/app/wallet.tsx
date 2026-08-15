@@ -9,6 +9,7 @@ import { apiGetRetry, apiPost, getBaseUrl } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import EmptyState from '../src/components/EmptyState'
 import { getAuthUser } from '../src/auth'
+import { humanErrorMessage } from '../src/errorMessages'
 import { ArrowLeft, Plus, Coins, TrendingUp, TrendingDown, Wallet as WalletIcon } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { hapticSelect, hapticSuccess } from '../src/haptics'
@@ -76,7 +77,7 @@ function Wallet() {
       const r = await apiGetRetry('/api/wallet')
       setData(r)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('wallet.loadError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -137,7 +138,7 @@ function Wallet() {
       }
       await load()
     } catch (e: any) {
-      toast.error(t('wallet.topupFailed'), e?.message || t('wallet.topupFailedMsg'))
+      toast.error(t('wallet.topupFailed'), humanErrorMessage(e))
     } finally {
       setTopupLoading(false)
     }

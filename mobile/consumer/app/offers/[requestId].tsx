@@ -12,6 +12,7 @@ import { toast } from '../../src/toast'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { cacheSet, cacheGet, cacheClear } from '../../src/storage'
 import { hapticLight } from '../../src/haptics'
+import { humanErrorMessage } from '../../src/errorMessages'
 
 import RequestSummaryCard from '../../src/components/offers/RequestSummaryCard'
 import LiveStatusBar from '../../src/components/offers/LiveStatusBar'
@@ -55,7 +56,7 @@ export default function OffersReceived() {
       setOffers(Array.isArray(data.offers) ? data.offers : [])
       await cacheSet(cacheKey, { request: data.request, offers: data.offers }, 2 * 60 * 1000)
     } catch (e: any) {
-      if (!silent) toast.error(t('common.error'), e?.message || t('offers.loadError'))
+      if (!silent) toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setLoading(false)
     }
@@ -170,7 +171,7 @@ export default function OffersReceived() {
       hapticLight()
       router.push(`/payment?offerId=${offer._id}&amount=${offer.price}&requestId=${requestId}`)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('clientOffers.acceptError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setAccepting(null)
     }
@@ -199,7 +200,7 @@ export default function OffersReceived() {
         toast.info('Demande déjà clôturée')
         load(true)
       } else {
-        toast.error(t('common.error'), e?.message || t('clientOffers.cancelError'))
+        toast.error(t('common.error'), humanErrorMessage(e))
       }
     }
   }
@@ -304,18 +305,18 @@ export default function OffersReceived() {
               {isExpired && <Clock size={48} color={colors.textMuted} />}
               {isCompleted && <CheckCircle size={48} color={colors.success} />}
               <Text style={s.terminalTitle}>
-                {isCancelled ? (t('clientOffers.cancelledTitle') || 'Demande annulée')
-                  : isExpired ? (t('clientOffers.expiredTitle') || 'Demande expirée')
-                  : (t('clientOffers.completedTitle') || 'Demande terminée')}
+                {isCancelled ? 'Demande annulée'
+                  : isExpired ? 'Demande expirée'
+                  : 'Mission terminée'}
               </Text>
               <Text style={s.terminalSubtitle}>
-                {isCancelled ? (t('clientOffers.cancelledMsg') || 'Cette demande a été annulée. Les prestataires ne peuvent plus y répondre.')
-                  : isExpired ? (t('clientOffers.expiredMsg') || 'Cette demande a expiré. Aucun prestataire n\'a répondu à temps.')
-                  : (t('clientOffers.completedMsg') || 'Cette demande a été complétée.')}
+                {isCancelled ? 'Cette demande n\'est plus active. Les informations disponibles restent consultables.'
+                  : isExpired ? 'Le délai prévu pour cette demande est terminé.'
+                  : 'Cette demande a été finalisée. Vous pouvez consulter son historique.'}
               </Text>
               {offers.length > 0 && (
                 <Text style={s.terminalOffersCount}>
-                  {t('clientOffers.offersReceived', { count: offers.length })}
+                  {offers.length} offre{offers.length > 1 ? 's' : ''} reçue{offers.length > 1 ? 's' : ''}
                 </Text>
               )}
             </View>

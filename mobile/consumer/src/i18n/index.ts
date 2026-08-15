@@ -20,6 +20,10 @@ i18n.use(initReactI18next).init({
   fallbackLng: 'fr',
   interpolation: { escapeValue: false },
   compatibilityJSON: 'v4',
+  returnEmptyString: false,
+  parseMissingKeyHandler: () => '',
+  missingKeyHandler: () => {},
+  react: { useSuspense: false },
 })
 
 /** Load saved language from AsyncStorage */

@@ -240,6 +240,8 @@
     "status_in_progress": "En cours",
     "status_completed": "Terminée",
     "status_cancelled": "Annulée",
+    "status_expired": "Expirée",
+    "status_broadcasted": "Publiée",
     "cancelRequest": "Annuler la demande",
     "cancelRequestConfirm": "Annuler cette demande ?",
     "cancelRequestMsg": "Aucun prestataire n'a encore été choisi. Vous pouvez la republier plus tard.",

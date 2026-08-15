@@ -8,6 +8,7 @@ import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
+import { humanErrorMessage } from '../../src/errorMessages'
 import { pickOption } from '../../src/option-sheet'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
@@ -144,7 +145,7 @@ function MissionDetail() {
         const rev = await apiGet(`/api/services/reviews?requestId=${requestId}`)
         setHasReview(rev?.count > 0)
       } catch { setHasReview(false) }
-    } catch (e: any) { setErr(e.message) }
+    } catch (e: any) { setErr(humanErrorMessage(e)) }
     finally {
       if (isRefresh) setRefreshing(false)
       else setLoading(false)
@@ -221,7 +222,7 @@ function MissionDetail() {
         t('mission.offlineAction')
       )
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 
@@ -231,7 +232,7 @@ function MissionDetail() {
     try {
       const r = await apiPatchQueued(`/api/services/requests/${requestId}`, body, t('mission.offlineAction'))
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 

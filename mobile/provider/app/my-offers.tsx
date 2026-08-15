@@ -6,6 +6,7 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost } from '../src/api'
 import { toast } from '../src/toast'
+import { humanErrorMessage } from '../src/errorMessages'
 import { connectSocket } from '../src/socket'
 import TabBar from '../src/components/TabBar'
 import { SkeletonCard } from '../src/components/Skeleton'
@@ -58,7 +59,7 @@ function MyOffers() {
       const r = await apiGet('/api/services/offers?mine=1')
       setItems(Array.isArray(r?.items) ? r.items : [])
     } catch (e: any) {
-      setErr(e?.message || t('offers.loadError'))
+      setErr(humanErrorMessage(e))
     } finally {
       busyRef.current = false
       if (isRefresh) setRefreshing(false)
@@ -139,7 +140,7 @@ function MyOffers() {
       )
       load(true)
     } catch (e: any) {
-      toast.error(t('common.error'), e.message || t('offers.errorRespond'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     }
     setRespondLoading(null)
   }

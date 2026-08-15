@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { humanErrorMessage } from '../src/errorMessages'
 import { useTranslation } from 'react-i18next'
 import { Star, PartyPopper } from 'lucide-react-native'
 import { hapticSelect, hapticSuccess } from '../src/haptics'
@@ -42,7 +43,7 @@ function RateMission() {
       setSubmitted(true)
       hapticSuccess()
     } catch (e: any) {
-      setError(e.message || t('rating.errorSubmit'))
+      setError(humanErrorMessage(e))
     } finally {
       setLoading(false)
     }

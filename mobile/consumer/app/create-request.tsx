@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued, apiPost, apiUpload, apiGetRetry } from '../src/api'
 import { cacheClear } from '../src/storage'
+import { humanErrorMessage } from '../src/errorMessages'
 import { pickMedia, PickedMedia } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
 import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
@@ -194,7 +195,7 @@ function CreateRequest() {
       await cacheClear('my-requests')
       hapticSuccess()
       setDone(true)
-    } catch (e: any) { setErr(e.message); setUploadingMedia(false) }
+    } catch (e: any) { setErr(humanErrorMessage(e)); setUploadingMedia(false) }
     setLoading(false)
   }
 
@@ -370,7 +371,7 @@ function CreateRequest() {
                       hapticSuccess()
                     }
                   } catch (e: any) {
-                    setErr(e.message || 'AI indisponible')
+                    setErr(humanErrorMessage(e))
                   }
                   setAiLoading(false)
                 }}

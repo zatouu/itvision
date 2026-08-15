@@ -240,6 +240,8 @@
     "status_in_progress": "Diy liggéey",
     "status_completed": "Jeex",
     "status_cancelled": "Ëpp",
+    "status_expired": "Jeex",
+    "status_broadcasted": "Yóne",
     "cancelRequest": "Bayyil laaj bi",
     "cancelRequestConfirm": "Bayyil laaj bi?",
     "cancelRequestMsg": "Amul kenn liggéeykat buñu tànn. Mëna nga ko yónnee ci kanam.",

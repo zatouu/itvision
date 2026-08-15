@@ -15,6 +15,7 @@ import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '.
 import VoicePlayer from '../../src/components/VoicePlayer'
 import { apiGet } from '../../src/api'
 import { toast } from '../../src/toast'
+import { humanErrorMessage } from '../../src/errorMessages'
 import { resolveMediaUrl } from '../../src/media'
 import { Video, ResizeMode } from 'expo-av'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
@@ -43,7 +44,7 @@ export default function NearbyRequestDetail() {
       const r = await apiGet(`/api/services/requests/${id}`)
       setRequest(r.item || r)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('nearby.loadError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setLoading(false)
     }

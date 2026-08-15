@@ -8,6 +8,7 @@ import { apiGet, apiPatch } from '../src/api'
 import { confirm, notify } from '../src/confirm'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
+import { humanErrorMessage } from '../src/errorMessages'
 import { SkeletonCard } from '../src/components/Skeleton'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
@@ -19,12 +20,14 @@ import SideMenu from '../src/components/SideMenu'
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   created:       { key: 'requests.status_created',            color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
+  broadcasted:   { key: 'requests.status_broadcasted',        color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
   pending_offers:{ key: 'requests.status_pending_offers',      color: '#B45309', bg: colors.warningLight, dot: '#D97706' },
   assigned:          { key: 'requests.status_assigned', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
   provider_arriving: { key: 'requests.status_provider_arriving',            color: '#0369A1', bg: colors.infoLight, dot: '#0EA5E9' },
   in_progress:       { key: 'requests.status_in_progress',            color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
   completed:     { key: 'requests.status_completed',           color: '#374151', bg: colors.slate100, dot: colors.textSecondary },
   cancelled:     { key: 'requests.status_cancelled',            color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
+  expired:       { key: 'requests.status_expired',              color: '#6B7280', bg: colors.slate100, dot: '#9CA3AF' },
 }
 
 type CatEntry = { abbr: string; color: string; label: string }
@@ -90,7 +93,7 @@ function MyRequests() {
         notify('Demande déjà clôturée', '')
         load(true)
       } else {
-        notify(t('common.error'), e.message || 'Erreur')
+        notify(t('common.error'), humanErrorMessage(e))
       }
     }
   }
@@ -206,7 +209,7 @@ function MyRequests() {
           )}
 
           {filteredItems.map(it => {
-            const st = STATUS_CONFIG[it.status] || { key: it.status, color: '#475569', bg: colors.slate100, dot: colors.textMuted }
+            const st = STATUS_CONFIG[it.status] || { key: 'requests.status_created', color: '#475569', bg: colors.slate100, dot: colors.textMuted }
             const catLabel = catMap[it.category]?.label || it.category
             const title = it.description
               ? `${catLabel} — ${it.description.slice(0, 30)}${it.description.length > 30 ? '…' : ''}`

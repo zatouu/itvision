@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { getAuthUser, updateAuthUser } from '../src/auth'
 import { apiPatch } from '../src/api'
+import { humanErrorMessage } from '../src/errorMessages'
 import { hapticSuccess, hapticError } from '../src/haptics'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { User, Phone, Check } from 'lucide-react-native'
@@ -35,7 +36,7 @@ export default function SetupProfile() {
       router.replace('/')
     } catch (e: any) {
       hapticError()
-      setErr(e?.message || t('setup.error'))
+      setErr(humanErrorMessage(e))
     }
     setLoading(false)
   }

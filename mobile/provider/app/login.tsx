@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiPost } from '../src/api'
+import { humanErrorMessage } from '../src/errorMessages'
 import { hapticSelect, hapticError } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { ArrowRight, ShieldCheck } from 'lucide-react-native'
@@ -29,7 +30,7 @@ export default function Login() {
       hapticSelect()
       router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '' } })
     } catch (e: any) {
-      setErr(e.message || t('auth.errorOtp'))
+      setErr(humanErrorMessage(e))
       hapticError()
     }
     setLoading(false)

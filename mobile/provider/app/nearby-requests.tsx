@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { toast } from '../src/toast'
 import { apiGet, apiPostQueued, apiPost } from '../src/api'
+import { humanErrorMessage } from '../src/errorMessages'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket, joinNearbyRoom, leaveNearbyRoom, emitOfferTyping } from '../src/socket'
@@ -176,8 +177,7 @@ function NearbyRequests() {
       )
     } catch (e: any) {
       if (!silent) {
-        const msg = e?.message || String(e)
-        setErr(t('nearby.loadError', { msg }))
+        setErr(humanErrorMessage(e))
       }
     } finally {
       loadInFlightRef.current = false
@@ -290,7 +290,7 @@ function NearbyRequests() {
           }
         : it
       ))
-    } catch (e: any) { setErr(t('nearby.sendError', { msg: e.message })) }
+    } catch (e: any) { setErr(humanErrorMessage(e)) }
     setSending(false)
   }
 
@@ -518,7 +518,7 @@ function NearbyRequests() {
                       )
                     }
                   } catch (e: any) {
-                    toast.error(t('common.error'), e.message || 'AI indisponible')
+                    toast.error(t('common.error'), humanErrorMessage(e))
                   }
                 }}
                 activeOpacity={0.8}

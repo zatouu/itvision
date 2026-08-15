@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPatch, apiUpload } from '../../src/api'
 import { toast } from '../../src/toast'
+import { humanErrorMessage } from '../../src/errorMessages'
 import { pickMedia, resolveMediaUrl } from '../../src/media'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { ArrowLeft, Send, Paperclip, Image as ImageIcon, CheckCircle2, AlertCircle } from 'lucide-react-native'
@@ -41,7 +42,7 @@ function DisputeDetail() {
       const r = await apiGet(`/api/services/requests/${requestId}`)
       setItem(r.item)
     } catch (e: any) {
-      toast.error('Erreur', e.message)
+      toast.error('Erreur', humanErrorMessage(e))
     } finally {
       setLoading(false)
     }
@@ -57,7 +58,7 @@ function DisputeDetail() {
       setMessage('')
       await load()
     } catch (e: any) {
-      toast.error('Erreur', e.message)
+      toast.error('Erreur', humanErrorMessage(e))
     } finally {
       setSubmitting(false)
     }
@@ -76,7 +77,7 @@ function DisputeDetail() {
       await apiPatch(`/api/services/requests/${requestId}`, { action: 'dispute-evidence', type: media.type, url })
       await load()
     } catch (e: any) {
-      toast.error('Erreur', e.message)
+      toast.error('Erreur', humanErrorMessage(e))
     } finally {
       setUploading(false)
     }
@@ -138,7 +139,7 @@ function DisputeDetail() {
           {(item?.disputeMessages || []).map((m: any) => (
             <View key={m._id} style={[s.messageBubble, m.senderRole === 'provider' ? s.myBubble : s.theirBubble]}>
               <Text style={s.messageText}>{m.text}</Text>
-              <Text style={s.messageMeta}>{m.senderRole} · {new Date(m.createdAt).toLocaleString('fr-FR')}</Text>
+              <Text style={s.messageMeta}>{m.senderRole === 'provider' ? 'Vous' : 'Client'} · {new Date(m.createdAt).toLocaleString('fr-FR')}</Text>
             </View>
           ))}
           {!resolved && (

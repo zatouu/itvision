@@ -20,6 +20,7 @@ import {
 } from '../src/notifications'
 import { confirm } from '../src/confirm'
 import { apiPost } from '../src/api'
+import { humanErrorMessage } from '../src/errorMessages'
 import { Bell } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
 
@@ -73,7 +74,7 @@ function NotificationsScreen() {
           ? `OK (${r.result?.deliveredCount ?? 0}/${r.result?.tokenCount ?? 0} tokens)`
           : `KO: ${r.result?.error || r.message || 'Échec'}`
       } catch (e: any) {
-        backendResult = `Erreur API: ${e?.message || e}`
+        backendResult = `Erreur API: ${humanErrorMessage(e)}`
       }
 
       Alert.alert(

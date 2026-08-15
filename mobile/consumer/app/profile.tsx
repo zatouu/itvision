@@ -10,6 +10,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import SideMenu from '../src/components/SideMenu'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
+import { humanErrorMessage } from '../src/errorMessages'
 import { pickOption } from '../src/option-sheet'
 import { clearAllUserData } from '../src/clear-user-data'
 import LanguagePicker from '../src/components/LanguagePicker'
@@ -72,7 +73,7 @@ function Profile() {
       await updateAuthUser({ avatarUrl })
       setUser(getAuthUser())
     } catch (e: any) {
-      toast.error('Erreur', e.message || 'Impossible de mettre à jour la photo')
+      toast.error('Erreur', humanErrorMessage(e))
     }
   }
 

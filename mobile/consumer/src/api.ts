@@ -118,7 +118,7 @@ async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Pro
         if (retryRes.ok) return retryRes
         // Retry also failed — parse and throw
         const retryBody = await retryRes.json().catch(() => ({}))
-        const msg = retryBody.error || `Erreur serveur (${retryRes.status})`
+        const msg = typeof retryBody.error === 'string' ? retryBody.error : 'Une erreur est survenue. Veuillez réessayer.'
         throw new Error(msg)
       }
     }
@@ -127,10 +127,11 @@ async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Pro
     }
   }
   const msg =
-    r.status === 401 ? 'Session expirée — veuillez vous reconnecter'
+    r.status === 401 ? 'Session expirée'
     : r.status === 403 ? 'Accès refusé'
     : r.status === 404 ? 'Ressource introuvable'
-    : body.error || `Erreur serveur (${r.status})`
+    : typeof body.error === 'string' ? body.error
+    : 'Une erreur est survenue. Veuillez réessayer.'
   const err = new Error(msg) as Error & { code?: string }
   if (body.code) err.code = body.code
   if (r.status >= 500) captureError(err, { status: r.status, url: r.url })

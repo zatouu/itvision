@@ -10,6 +10,7 @@ import { apiGet, apiPost, apiPatchQueued } from '../../src/api'
 import { connectSocket, emitProviderLocation, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { confirm, notify } from '../../src/confirm'
+import { humanErrorMessage } from '../../src/errorMessages'
 import { pickOption } from '../../src/option-sheet'
 import { hapticSuccess, hapticWarning } from '../../src/haptics'
 import { useTranslation } from 'react-i18next'
@@ -193,7 +194,7 @@ function ActiveMission() {
     try {
       const r = await apiGet(`/api/services/requests/${requestId}`)
       setItem(r.item)
-    } catch (e: any) { setErr(e.message) }
+    } catch (e: any) { setErr(humanErrorMessage(e)) }
     finally {
       if (isRefresh) setRefreshing(false)
       else setLoading(false)
@@ -318,7 +319,7 @@ function ActiveMission() {
         t('mission.offlineStatusChange')
       )
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 
@@ -350,7 +351,7 @@ function ActiveMission() {
     try {
       const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'pause', reason }, t('mission.offlineStatusChange'))
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 
@@ -360,7 +361,7 @@ function ActiveMission() {
     try {
       const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'resume' }, t('mission.offlineStatusChange'))
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 
@@ -386,7 +387,7 @@ function ActiveMission() {
     try {
       const r = await apiPatchQueued(`/api/services/requests/${requestId}`, { action: 'dispute', reason }, t('mission.offlineStatusChange'))
       if (r) await load(true)
-    } catch (e: any) { notify(t('common.error'), e.message) }
+    } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
 
@@ -809,7 +810,7 @@ function ActiveMission() {
                     })
                     if (res.text) setAiResponse(res.text)
                   } catch (e: any) {
-                    notify(t('common.error'), e.message || 'AI indisponible')
+                    notify(t('common.error'), humanErrorMessage(e))
                   }
                   setAiLoading(false)
                 }}

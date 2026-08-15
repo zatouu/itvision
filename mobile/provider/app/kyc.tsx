@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet, apiPost, apiUpload } from '../src/api'
 import { toast } from '../src/toast'
+import { humanErrorMessage } from '../src/errorMessages'
 import { pickMedia, captureMedia } from '../src/media'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
@@ -47,7 +48,7 @@ function KycScreen() {
         : await pickMedia({ maxFiles: 1 })
       if (picked.length > 0) setter(picked[0].uri)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('kyc.uploadError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     }
   }
 
@@ -84,7 +85,7 @@ function KycScreen() {
       setStatus('pending')
       toast.success(t('kyc.submitSuccess'), t('kyc.submitSuccessMsg'))
     } catch (e: any) {
-      toast.error(t('common.error'), e.message || t('kyc.submitError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     }
     setSubmitting(false)
   }

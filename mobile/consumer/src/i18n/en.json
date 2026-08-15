@@ -240,6 +240,8 @@
     "status_in_progress": "In progress",
     "status_completed": "Completed",
     "status_cancelled": "Cancelled",
+    "status_expired": "Expired",
+    "status_broadcasted": "Published",
     "cancelRequest": "Cancel request",
     "cancelRequestConfirm": "Cancel this request?",
     "cancelRequestMsg": "No provider has been chosen yet. You can republish it later.",

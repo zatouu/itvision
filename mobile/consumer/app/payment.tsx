@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { apiGetRetry, apiPost, getBaseUrl } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
+import { humanErrorMessage } from '../src/errorMessages'
 import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert, QrCode, Clock } from 'lucide-react-native'
 import { hapticSuccess, hapticSelect } from '../src/haptics'
 import { toast } from '../src/toast'
@@ -275,9 +276,9 @@ function PaymentScreen() {
         pollTimeoutRef.current = setTimeout(() => stopPolling(), 180000)
       }
     } catch (e: any) {
-      const msg = e.message || t('payment.initError')
+      const msg = humanErrorMessage(e)
       toast.error(t('common.error'), msg)
-      if (msg.toLowerCase().includes('solde points insuffisant')) {
+      if (msg.toLowerCase().includes('solde') || msg.toLowerCase().includes('insuffisant')) {
         setTimeout(() => router.push('/wallet'), 800)
       }
     }
@@ -523,7 +524,7 @@ function PaymentScreen() {
                     router.back()
                   }
                 } catch (e: any) {
-                  toast.error(t('common.error'), e.message || 'Confirmation échouée')
+                  toast.error(t('common.error'), humanErrorMessage(e))
                   setLoading(false)
                 }
               }}

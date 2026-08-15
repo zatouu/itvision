@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
 import { apiPost } from '../src/api'
+import { humanErrorMessage } from '../src/errorMessages'
 import * as Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import { ArrowLeft, FlaskConical, ShieldCheck } from 'lucide-react-native'
@@ -41,8 +42,8 @@ export default function VerifyOtp() {
       router.replace(data.user?.isNew ? '/setup-profile' : '/')
     } catch (e: any) {
       hapticError()
-      console.error('[verify-otp] Erreur:', e.message, e)
-      setErr(e.message || t('auth.errorVerify'))
+      console.error('[verify-otp] Erreur:', e)
+      setErr(humanErrorMessage(e))
     }
     setLoading(false)
   }
