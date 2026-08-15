@@ -142,17 +142,17 @@ export function canNegotiate(status: string): boolean {
 export function transitionErrorCode(fromRaw: string, toRaw: string): BusinessErrorCode {
   const from = normalizeStatus(fromRaw)
   const to = normalizeStatus(toRaw)
-  if (to === 'cancelled') {
-    if (from === 'cancelled') return 'ALREADY_CANCELLED'
-    if (from === 'completed') return 'ALREADY_COMPLETED'
-    if (from === 'expired') return 'ALREADY_EXPIRED'
-    if (from === 'archived') return 'REQUEST_NOT_AVAILABLE'
-    return 'CANNOT_CANCEL'
-  }
   if (from === to) {
     if (from === 'cancelled') return 'ALREADY_CANCELLED'
     if (from === 'completed') return 'ALREADY_COMPLETED'
     if (from === 'expired') return 'ALREADY_EXPIRED'
+    return 'TRANSITION_FORBIDDEN'
+  }
+  if (to === 'cancelled') {
+    if (from === 'completed') return 'ALREADY_COMPLETED'
+    if (from === 'expired') return 'ALREADY_EXPIRED'
+    if (from === 'archived') return 'REQUEST_NOT_AVAILABLE'
+    return 'CANNOT_CANCEL'
   }
   if (TERMINAL_STATUSES.includes(from)) return 'REQUEST_NOT_AVAILABLE'
   return 'TRANSITION_FORBIDDEN'
