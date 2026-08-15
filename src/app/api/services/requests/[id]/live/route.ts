@@ -187,14 +187,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Providers en train de consulter cette demande
+    const viewerIds: string[] = []
     const viewers = []
     for (const [pid, p] of presenceMap.entries()) {
       if (pid === String(sr.assignedProviderId)) continue
       if (!offerProviderIds.includes(pid) && p.viewingRequestId === id && !isStale(p)) {
+        viewerIds.push(pid)
         const { distanceKm, etaMinutes } = computeDistanceEta(p, reqLat, reqLng)
         viewers.push({
           providerId: pid,
           name: p.name || 'Prestataire',
+          avatarUrl: null as string | null,
           status: 'viewing',
           lat: toLatLng(p)?.lat ?? null,
           lng: toLatLng(p)?.lng ?? null,
@@ -203,6 +206,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           lastSeenAt: new Date(p.updatedAt || now).toISOString(),
           stale: false,
         })
+      }
+    }
+    // Enrich viewers with avatarUrl
+    if (viewerIds.length > 0) {
+      const viewerUsers = await User.find({ _id: { $in: viewerIds } }).select('avatarUrl').lean()
+      const avatarMap = new Map(viewerUsers.map((u: any) => [String(u._id), u.avatarUrl || null]))
+      for (const v of viewers) {
+        v.avatarUrl = avatarMap.get(v.providerId) || null
       }
     }
 

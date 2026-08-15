@@ -74,6 +74,7 @@ export default function OffersReceived() {
         const viewers = (data.viewers || []).map((v: any) => ({
           providerId: v.providerId,
           name: v.name,
+          avatarUrl: v.avatarUrl,
           distanceKm: v.distanceKm,
           etaMinutes: v.etaMinutes,
         }))

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { Image } from 'expo-image'
 import { Home } from 'lucide-react-native'
 import { colors } from '../../design'
 
@@ -9,6 +10,7 @@ const RING_COUNT = 4
 export type RadarViewer = {
   providerId: string
   name?: string
+  avatarUrl?: string | null
   distanceKm?: number | null
   etaMinutes?: number | null
 }
@@ -42,12 +44,12 @@ function getColorForId(id: string): string {
 
 export default function RadarPulseIllustration({ viewers = [] }: Props) {
   // Build display items: real viewers first, then fallback slots to fill up to 4
-  const items = useRef<{ id: string; name?: string; x: number; y: number; size: number }[]>([]).current
+  const items = useRef<{ id: string; name?: string; avatarUrl?: string | null; x: number; y: number; size: number }[]>([]).current
   items.length = 0
   const realViewers = viewers.slice(0, 4)
   for (let i = 0; i < realViewers.length; i++) {
     const pos = FALLBACK_POSITIONS[i]
-    items.push({ id: realViewers[i].providerId, name: realViewers[i].name, x: pos.x, y: pos.y, size: pos.size })
+    items.push({ id: realViewers[i].providerId, name: realViewers[i].name, avatarUrl: realViewers[i].avatarUrl, x: pos.x, y: pos.y, size: pos.size })
   }
   // Fill remaining slots with generic placeholders (no fake white faces)
   for (let i = realViewers.length; i < 4; i++) {
@@ -135,7 +137,7 @@ export default function RadarPulseIllustration({ viewers = [] }: Props) {
         <Home size={28} color={colors.primary} />
       </View>
 
-      {/* Floating avatars — real viewers or generic initials */}
+      {/* Floating avatars — real viewers (photo or initials) or generic placeholders */}
       {items.map((item, i) => (
         <Animated.View
           key={`avatar-${i}`}
@@ -149,11 +151,19 @@ export default function RadarPulseIllustration({ viewers = [] }: Props) {
               top: SIZE / 2 + item.y - item.size / 2,
               transform: [{ translateY: avatarAnims[i].translateY }],
               opacity: avatarAnims[i].opacity,
-              backgroundColor: getColorForId(item.id),
+              backgroundColor: item.avatarUrl ? colors.surface : getColorForId(item.id),
             },
           ]}
         >
-          <Text style={s.avatarText}>{getInitials(item.name)}</Text>
+          {item.avatarUrl ? (
+            <Image
+              source={{ uri: item.avatarUrl }}
+              style={{ width: item.size - 4, height: item.size - 4, borderRadius: (item.size - 4) / 2 }}
+              contentFit="cover"
+            />
+          ) : (
+            <Text style={s.avatarText}>{getInitials(item.name)}</Text>
+          )}
           <View style={s.onlineDot} />
         </Animated.View>
       ))}
