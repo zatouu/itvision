@@ -26,6 +26,7 @@ export function getSocket(): Socket {
 
     socket.on('connect', () => {
       console.log('[WS] Provider connecté', socket?.id)
+      socket!.emit('join-provider-channel')
     })
     socket.on('disconnect', (reason) => {
       console.log('[WS] Déconnecté:', reason)
