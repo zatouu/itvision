@@ -85,7 +85,13 @@ function MyRequests() {
       notify(t('requests.cancelRequestSuccess'), '')
       await load(true)
     } catch (e: any) {
-      notify(t('common.error'), e.message || 'Erreur')
+      const msg = e?.message || ''
+      if (msg.includes('déjà') || msg.includes('Statut déjà')) {
+        notify('Demande déjà annulée', '')
+        load(true)
+      } else {
+        notify(t('common.error'), msg || 'Erreur')
+      }
     }
   }
 
@@ -208,15 +214,19 @@ function MyRequests() {
             return (
               <TouchableOpacity
                 key={it._id}
-                style={s.card}
+                style={[s.card, ['cancelled', 'expired', 'completed'].includes(it.status) && s.cardDisabled]}
                 activeOpacity={0.85}
                 onPress={() => {
-                  if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress', 'completed', 'cancelled'].includes(it.status)) {
+                  if (['cancelled', 'expired', 'completed'].includes(it.status)) {
+                    return
+                  }
+                  if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
                     router.push(`/offers/${it._id}`)
                   }
                 }}
+                disabled={['cancelled', 'expired', 'completed'].includes(it.status)}
               >
                 <View style={s.cardInner}>
                   {/* Monogram */}
@@ -246,7 +256,7 @@ function MyRequests() {
                       {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
                       {it.budget ? ` • ${Number(it.budget).toLocaleString()} FCFA` : ''}
                     </Text>
-                    {['created', 'pending_offers'].includes(it.status) && (
+                    {['created', 'pending_offers', 'broadcasted'].includes(it.status) && (
                       <TouchableOpacity
                         style={s.cancelBtn}
                         onPress={() => handleCancel(it._id)}
@@ -256,7 +266,9 @@ function MyRequests() {
                       </TouchableOpacity>
                     )}
                   </View>
-                  <ChevronRight size={20} color="#CBD5E1" />
+                  {['cancelled', 'expired', 'completed'].includes(it.status) ? null : (
+                    <ChevronRight size={20} color="#CBD5E1" />
+                  )}
                 </View>
               </TouchableOpacity>
             )
@@ -288,6 +300,7 @@ const s = StyleSheet.create({
   filterChipTextActive: { color: colors.surface },
   list: { padding: 16, gap: 10, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
+  cardDisabled: { opacity: 0.6 },
   cardInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   catMonogram: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
   catMonogramText: { fontSize: 13, fontWeight: '800', color: colors.surface },

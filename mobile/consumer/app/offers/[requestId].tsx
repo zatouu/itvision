@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, AppState } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { SlidersHorizontal, Pencil } from 'lucide-react-native'
+import { SlidersHorizontal, Pencil, XCircle, CheckCircle, Clock } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../../src/design'
 import { apiGet, apiPost, apiPatch } from '../../src/api'
@@ -139,7 +139,7 @@ export default function OffersReceived() {
 
   // Redirect to mission if already assigned
   useEffect(() => {
-    if (request && ['assigned', 'provider_arriving', 'in_progress', 'completed'].includes(request.status)) {
+    if (request && ['assigned', 'provider_arriving', 'in_progress'].includes(request.status)) {
       router.replace(`/mission/${requestId}`)
     }
   }, [request, requestId])
@@ -194,7 +194,13 @@ export default function OffersReceived() {
       toast.success(t('clientOffers.cancelSuccess'))
       router.back()
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('clientOffers.cancelError'))
+      const msg = e?.message || ''
+      if (msg.includes('déjà') || msg.includes('Statut déjà')) {
+        toast.info(t('clientOffers.alreadyCancelled') || 'Demande déjà annulée')
+        load(true)
+      } else {
+        toast.error(t('common.error'), msg || t('clientOffers.cancelError'))
+      }
     }
   }
 
@@ -214,7 +220,12 @@ export default function OffersReceived() {
 
   const hasAcceptedOffer = offers.some(o => o.status === 'accepted')
 
-  const isEmpty = !loading && offers.length === 0
+  const isCancelled = request?.status === 'cancelled'
+  const isExpired = request?.status === 'expired'
+  const isCompleted = request?.status === 'completed'
+  const isTerminal = isCancelled || isExpired || isCompleted
+
+  const isEmpty = !loading && offers.length === 0 && !isTerminal
   const hasOffers = !loading && offers.length > 0
 
   return (
@@ -248,14 +259,16 @@ export default function OffersReceived() {
             />
           )}
 
-          {/* Live Status Bar */}
-          <View style={s.liveBarWrap}>
-            <LiveStatusBar
-              viewersCount={viewersCount || (offers.length > 0 ? 3 : 1)}
-              expiresAt={expiresAt}
-              compact={isEmpty}
-            />
-          </View>
+          {/* Live Status Bar — hidden for terminal states */}
+          {!isTerminal && (
+            <View style={s.liveBarWrap}>
+              <LiveStatusBar
+                viewersCount={viewersCount || (offers.length > 0 ? 3 : 1)}
+                expiresAt={expiresAt}
+                compact={isEmpty}
+              />
+            </View>
+          )}
 
           {hasOffers && (
             <>
@@ -277,12 +290,35 @@ export default function OffersReceived() {
                     budget={request?.budget}
                     onChoose={acceptOffer}
                     onNegotiate={negotiateOffer}
-                    disabled={accepting === offer._id}
+                    disabled={accepting === offer._id || isTerminal}
                     hasAcceptedOffer={hasAcceptedOffer}
                   />
                 ))}
               </View>
             </>
+          )}
+
+          {isTerminal && (
+            <View style={s.terminalSection}>
+              {isCancelled && <XCircle size={48} color={colors.danger} />}
+              {isExpired && <Clock size={48} color={colors.textMuted} />}
+              {isCompleted && <CheckCircle size={48} color={colors.success} />}
+              <Text style={s.terminalTitle}>
+                {isCancelled ? (t('clientOffers.cancelledTitle') || 'Demande annulée')
+                  : isExpired ? (t('clientOffers.expiredTitle') || 'Demande expirée')
+                  : (t('clientOffers.completedTitle') || 'Demande terminée')}
+              </Text>
+              <Text style={s.terminalSubtitle}>
+                {isCancelled ? (t('clientOffers.cancelledMsg') || 'Cette demande a été annulée. Les prestataires ne peuvent plus y répondre.')
+                  : isExpired ? (t('clientOffers.expiredMsg') || 'Cette demande a expiré. Aucun prestataire n\'a répondu à temps.')
+                  : (t('clientOffers.completedMsg') || 'Cette demande a été complétée.')}
+              </Text>
+              {offers.length > 0 && (
+                <Text style={s.terminalOffersCount}>
+                  {t('clientOffers.offersReceived', { count: offers.length })}
+                </Text>
+              )}
+            </View>
           )}
 
           {isEmpty && (
@@ -448,5 +484,29 @@ const s = StyleSheet.create({
     fontSize: typography.sm.fontSize,
     color: colors.danger,
     fontWeight: typography.weight.medium as any,
+  },
+  terminalSection: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl + spacing.lg,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  terminalTitle: {
+    fontSize: typography.lg.fontSize,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  terminalSubtitle: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 20,
+  },
+  terminalOffersCount: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
 })
