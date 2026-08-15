@@ -102,7 +102,7 @@ async function ensureMongo() {
 // (server.js registers this first, so it becomes the active model for Mongoose)
 const ServiceRequestSchema = new mongoose.Schema({
   assignedProviderId: { type: String },
-  status: { type: String },
+  status: { type: String, default: 'created' },
 }, { strict: false, timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 const ServiceRequest = mongoose.models.ServiceRequest || mongoose.model('ServiceRequest', ServiceRequestSchema)
 
