@@ -404,6 +404,42 @@ app.prepare().then(() => {
       })
     })
 
+    // Mission status updated relay
+    socket.on('mission:status_updated', (data) => {
+      const requestId = data?.requestId
+      if (!requestId) return
+      console.log(`   🔄 mission:status_updated pour ${requestId} → ${data.status}`)
+      const payload = {
+        requestId,
+        status: data.status,
+        ...data,
+      }
+      io.to(`request-${requestId}`).emit('request:status-changed', payload)
+      io.to(`request-${requestId}`).emit('mission:status_updated', data)
+      // Notifier aussi les écrans liste (qui ne rejoignent pas la room request)
+      io.to(`user-${userId}`).emit('request:status-changed', payload)
+      if (data.clientId) {
+        io.to(`user-${data.clientId}`).emit('request:status-changed', payload)
+      }
+      if (data.providerId) {
+        io.to(`user-${data.providerId}`).emit('request:status-changed', payload)
+      }
+    })
+
+    // Client typing in mission chat
+    socket.on('mission:client_typing', (data) => {
+      const requestId = data?.requestId
+      if (!requestId) return
+      socket.to(`request-${requestId}`).emit('mission:client_typing', data)
+    })
+
+    // AI Advice broadcast relay
+    socket.on('ai:advice_updated', (data) => {
+      const requestId = data?.requestId
+      if (!requestId) return
+      socket.to(`request-${requestId}`).emit('ai:advice_updated', data)
+    })
+
     // Événement: Rejoindre un projet
     socket.on('join-project', (projectId) => {
       socket.join(`project-${projectId}`)

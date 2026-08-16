@@ -73,19 +73,20 @@ function ActiveMissionScreen() {
 
   const [adminModalVisible, setAdminModalVisible] = useState(false)
 
-  const status = mission?.status || 'on_the_way'
+  const rawStatus = mission?.status || 'assigned'
+  const status = rawStatus === 'accepted' ? 'assigned' : rawStatus
   const isMapLayout = status === 'assigned' || status === 'on_the_way' || status === 'provider_arriving'
 
-  // Fallbacks
+  // Real backend field mapping
   const clientData = useMemo(() => {
     return {
-      name: mission?.user?.name || 'Aïcha Bâ',
-      phone: mission?.user?.phone || '+221770000000',
-      avatar: mission?.user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      name: mission?.clientName || mission?.user?.name || '',
+      phone: mission?.clientPhone || mission?.user?.phone || '',
+      avatar: mission?.user?.avatar,
       rating: mission?.user?.rating || 4.8,
       isVerified: mission?.user?.isVerified ?? true,
     }
-  }, [mission?.user])
+  }, [mission?.clientName, mission?.clientPhone, mission?.user])
 
   const locationCoords = useMemo(() => {
     if (mission?.location?.coordinates && mission.location.coordinates.length === 2) {
@@ -97,10 +98,10 @@ function ActiveMissionScreen() {
     return { lat: 33.5898, lng: -7.6325 }
   }, [mission?.location?.coordinates])
 
-  const clientAddress = mission?.location?.address || 'Berger, Maârif, Casablanca'
-  const missionCategory = mission?.category || 'Climatisation'
-  const missionPrice = mission?.finalPrice || mission?.price || 10000
-  const missionRefCode = mission?.reference || '#88703D'
+  const clientAddress = mission?.location?.address || ''
+  const missionCategory = mission?.category || ''
+  const missionPrice = mission?.acceptedOffer?.price || mission?.finalPrice || mission?.price || mission?.budget
+  const missionRefCode = mission?.reference || (mission?._id ? `#${mission._id.slice(-6).toUpperCase()}` : '')
 
   const handleShare = async () => {
     try {

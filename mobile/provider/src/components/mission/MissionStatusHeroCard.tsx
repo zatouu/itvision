@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
+import React, { useEffect, useRef, useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, Animated, LayoutChangeEvent } from 'react-native'
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { formatDuration, formatTimer } from '../../utils/duration'
-import { typography, radius, spacing } from '../../design'
+import { radius, spacing } from '../../design'
 
 interface Props {
   status: string
@@ -20,12 +20,20 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation()
   const pulseAnim = useRef(new Animated.Value(1)).current
+  const [cardSize, setCardSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout
+    if (width > 0 && height > 0) {
+      setCardSize({ width, height })
+    }
+  }
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 0.4,
+          toValue: 0.35,
           duration: 900,
           useNativeDriver: true,
         }),
@@ -41,14 +49,14 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
   }, [pulseAnim])
 
   // Gradient selection by status
-  let gradientColors: [string, string] = ['#7C3AED', '#A855F7'] // violet for in_progress
+  let gradientColors: [string, string] = ['#7C3AED', '#9333EA'] // violet for in_progress
   let title = t('providerMissionActive.statusInProgress', { defaultValue: 'Intervention en cours' })
 
   if (status === 'on_the_way' || status === 'provider_arriving') {
-    gradientColors = ['#2563EB', '#3B82F6']
+    gradientColors = ['#1D4ED8', '#3B82F6']
     title = t('providerMissionActive.statusEnRoute', { defaultValue: 'En route vers le client' })
   } else if (status === 'arrived') {
-    gradientColors = ['#2563EB', '#3B82F6']
+    gradientColors = ['#2563EB', '#60A5FA']
     title = t('providerMissionActive.statusArrived', { defaultValue: 'Sur place' })
   } else if (status === 'paused') {
     gradientColors = ['#D97706', '#F59E0B']
@@ -59,6 +67,9 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
   } else if (status === 'assigned' || status === 'accepted') {
     gradientColors = ['#0F7B4F', '#10B981']
     title = t('providerMissionActive.statusAssigned', { defaultValue: 'Mission assignée' })
+  } else if (status === 'completed') {
+    gradientColors = ['#0F7B4F', '#059669']
+    title = t('providerMissionActive.progressCompleted', { defaultValue: 'Terminée' })
   }
 
   const durationText = formatDuration(elapsedSeconds)
@@ -76,12 +87,34 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
       delayLongPress={400}
       style={s.wrapper}
     >
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={s.gradientCard}
+      <View
+        style={[s.gradientCard, { backgroundColor: gradientColors[0] }]}
+        onLayout={onLayout}
       >
+        {/* SVG Gradient Fill matching exact measured container */}
+        {cardSize.width > 0 && cardSize.height > 0 && (
+          <Svg
+            style={StyleSheet.absoluteFillObject}
+            width={cardSize.width}
+            height={cardSize.height}
+            pointerEvents="none"
+          >
+            <Defs>
+              <SvgLinearGradient id="heroCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={gradientColors[0]} stopOpacity="1" />
+                <Stop offset="100%" stopColor={gradientColors[1]} stopOpacity="1" />
+              </SvgLinearGradient>
+            </Defs>
+            <Rect
+              width={cardSize.width}
+              height={cardSize.height}
+              fill="url(#heroCardGrad)"
+              rx={radius['2xl']}
+              ry={radius['2xl']}
+            />
+          </Svg>
+        )}
+
         <View style={s.leftContent}>
           <View style={s.statusTagRow}>
             <Animated.View style={[s.pulseDot, { opacity: pulseAnim }]} />
@@ -89,7 +122,7 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
               {t('providerMissionActive.statusCurrent', { defaultValue: 'STATUT ACTUEL' })}
             </Text>
           </View>
-          <Text style={s.mainTitle} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={s.mainTitle} numberOfLines={2}>
             {title}
           </Text>
           <Text style={s.sinceSubtitle}>
@@ -102,7 +135,7 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
             <Text style={s.timerText}>{timerText}</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   )
 }
@@ -113,20 +146,21 @@ const s = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderRadius: radius['2xl'],
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
   },
   gradientCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.xl,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     borderRadius: radius['2xl'],
-    minHeight: 120,
+    minHeight: 110,
+    overflow: 'hidden',
   },
   leftContent: {
     flex: 1,
@@ -136,7 +170,7 @@ const s = StyleSheet.create({
   statusTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   pulseDot: {
     width: 8,
@@ -148,20 +182,21 @@ const s = StyleSheet.create({
   statusTagText: {
     fontSize: 11,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.88)',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   mainTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
     marginBottom: 4,
+    lineHeight: 25,
   },
   sinceSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12.5,
+    color: 'rgba(255, 255, 255, 0.92)',
     fontWeight: '500',
   },
   timerContainer: {
@@ -169,17 +204,17 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   timerCircle: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   timerText: {
     fontSize: 17,

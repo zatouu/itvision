@@ -15,23 +15,26 @@ interface Props {
 }
 
 export const MissionSummaryCard: React.FC<Props> = ({
-  category = 'Climatisation',
-  categoryCode = 'CL',
-  price = 10000,
-  reference = '#88703D',
-  address = 'Berger, Maârif',
+  category,
+  categoryCode,
+  price,
+  reference,
+  address,
   paymentMethod = 'Cash',
   compact = false,
 }) => {
   const { t } = useTranslation()
 
+  const displayCategory = category || t('common.service', { defaultValue: 'Service' })
   const formattedPrice =
-    typeof price === 'number'
-      ? `${price.toLocaleString('fr-FR')} FCFA`
-      : `${price} FCFA`
+    price !== undefined && price !== null
+      ? typeof price === 'number'
+        ? `${price.toLocaleString('fr-FR')} FCFA`
+        : `${price} FCFA`
+      : t('mission.notProvided', { defaultValue: 'Non précisé' })
 
   // Get code from category name if not given
-  const displayCode = categoryCode || (category ? category.slice(0, 2).toUpperCase() : 'SR')
+  const displayCode = categoryCode || (displayCategory ? displayCategory.slice(0, 2).toUpperCase() : 'SR')
 
   return (
     <View style={s.card}>
@@ -42,7 +45,7 @@ export const MissionSummaryCard: React.FC<Props> = ({
             <Text style={s.categoryCode}>{displayCode}</Text>
           </View>
           <Text style={s.categoryName} numberOfLines={1}>
-            {category}
+            {displayCategory}
           </Text>
         </View>
 
@@ -57,7 +60,7 @@ export const MissionSummaryCard: React.FC<Props> = ({
           <>
             {reference ? (
               <>
-                <Text style={s.metaText}>
+                <Text style={[s.metaText, { flexShrink: 0 }]} numberOfLines={1}>
                   Réf {reference.startsWith('#') ? reference : `#${reference}`}
                 </Text>
                 <Text style={s.bullet}>·</Text>
@@ -78,7 +81,7 @@ export const MissionSummaryCard: React.FC<Props> = ({
 
             <View style={s.inlineItem}>
               <Lock size={11} color="#64748B" style={{ marginRight: 3 }} />
-              <Text style={s.metaText}>
+              <Text style={s.metaText} numberOfLines={1}>
                 {t('providerMissionActive.paymentSecured', { defaultValue: 'Paiement sécurisé' })} ({paymentMethod})
               </Text>
             </View>
@@ -157,6 +160,8 @@ const s = StyleSheet.create({
   inlineItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   inlineItemRight: {
     flexDirection: 'row',
@@ -168,6 +173,7 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     fontWeight: '500',
+    flexShrink: 1,
   },
   metaTextSecured: {
     fontSize: 12,

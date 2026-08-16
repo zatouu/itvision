@@ -15,16 +15,24 @@ import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { hapticWarning } from '../src/haptics'
-import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu } from 'lucide-react-native'
+import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2 } from 'lucide-react-native'
 import SideMenu from '../src/components/SideMenu'
+
+const ACTIVE_MISSION_STATUSES = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; dot: string }> = {
   created:       { key: 'requests.status_created',            color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
   broadcasted:   { key: 'requests.status_broadcasted',        color: '#2563EB', bg: colors.infoLight, dot: '#2563EB' },
   pending_offers:{ key: 'requests.status_pending_offers',      color: '#B45309', bg: colors.warningLight, dot: '#D97706' },
+  accepted:          { key: 'requests.status_assigned', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
   assigned:          { key: 'requests.status_assigned', color: '#065F46', bg: '#ECFDF5', dot: '#059669' },
+  on_the_way:        { key: 'mission.arriving',                 color: '#0369A1', bg: colors.infoLight, dot: '#0EA5E9' },
   provider_arriving: { key: 'requests.status_provider_arriving',            color: '#0369A1', bg: colors.infoLight, dot: '#0EA5E9' },
+  arrived:           { key: 'mission.arrived',                  color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
   in_progress:       { key: 'requests.status_in_progress',            color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED' },
+  paused:            { key: 'mission.paused',                   color: '#B45309', bg: colors.warningLight, dot: '#D97706' },
+  awaiting_validation:{ key: 'mission.awaitingValidation',      color: '#B45309', bg: colors.warningLight, dot: '#D97706' },
+  dispute:           { key: 'mission.dispute',                  color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
   completed:     { key: 'requests.status_completed',           color: '#374151', bg: colors.slate100, dot: colors.textSecondary },
   cancelled:     { key: 'requests.status_cancelled',            color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
   expired:       { key: 'requests.status_expired',              color: '#6B7280', bg: colors.slate100, dot: '#9CA3AF' },
@@ -121,12 +129,14 @@ function MyRequests() {
     }
   }, [load])
 
+  const awaitingValidationItems = useMemo(() => items.filter(it => it.status === 'awaiting_validation'), [items])
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase()
     return items.filter(it => {
       const matchesStatus =
         (statusFilter === 'all' && !['completed', 'cancelled', 'expired'].includes(it.status))
-        || (statusFilter === 'active' && ['assigned', 'provider_arriving', 'in_progress'].includes(it.status))
+        || (statusFilter === 'active' && ACTIVE_MISSION_STATUSES.includes(it.status))
         || (statusFilter === 'offers' && (it.status === 'pending_offers' || it.pendingOfferCount > 0))
         || (statusFilter === 'done' && ['completed', 'cancelled', 'expired'].includes(it.status))
       const catLabel = catMap[it.category]?.label || it.category || ''
@@ -179,6 +189,23 @@ function MyRequests() {
         </View>
       )}
 
+      {/* Alerte validation en attente */}
+      {awaitingValidationItems.length > 0 && (
+        <TouchableOpacity
+          style={s.validationAlert}
+          activeOpacity={0.8}
+          onPress={() => router.push(`/mission/${awaitingValidationItems[0]._id}`)}
+        >
+          <View style={s.validationAlertIcon}>
+            <CheckCircle2 size={20} color="#92400E" />
+          </View>
+          <Text style={s.validationAlertText}>
+            {t('requests.awaitingValidationAlert', { count: awaitingValidationItems.length })}
+          </Text>
+          <ChevronRight size={18} color="#B45309" />
+        </TouchableOpacity>
+      )}
+
       {loading ? (
         <ScrollView contentContainerStyle={s.list}>
           <SkeletonCard />
@@ -217,12 +244,12 @@ function MyRequests() {
             return (
               <TouchableOpacity
                 key={it._id}
-                style={[s.card, ['cancelled', 'expired', 'completed'].includes(it.status) && s.cardDisabled]}
+                style={[s.card, ['cancelled', 'expired', 'completed'].includes(it.status) && s.cardDisabled, it.status === 'awaiting_validation' && s.cardAwaitingValidation]}
                 activeOpacity={0.85}
                 onPress={() => {
                   if (['cancelled', 'expired', 'completed'].includes(it.status)) {
                     router.push(`/offers/${it._id}`)
-                  } else if (['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress'].includes(it.status)) {
+                  } else if (ACTIVE_MISSION_STATUSES.includes(it.status)) {
                     router.push(`/mission/${it._id}`)
                   } else {
                     router.push(`/offers/${it._id}`)
@@ -257,6 +284,22 @@ function MyRequests() {
                       {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
                       {it.budget ? ` • ${Number(it.budget).toLocaleString()} FCFA` : ''}
                     </Text>
+                    {it.status === 'awaiting_validation' && (
+                      <View style={s.validationBanner}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.validationBannerTitle}>{t('requests.awaitingValidationBannerTitle')}</Text>
+                          <Text style={s.validationBannerSub}>{t('requests.awaitingValidationBannerSub')}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={s.validateNowBtn}
+                          onPress={() => router.push(`/mission/${it._id}`)}
+                          activeOpacity={0.8}
+                        >
+                          <CheckCircle2 size={14} color={colors.surface} />
+                          <Text style={s.validateNowBtnText}>{t('requests.validateNow')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                     {['created', 'pending_offers', 'broadcasted'].includes(it.status) && (
                       <TouchableOpacity
                         style={s.cancelBtn}
@@ -304,6 +347,15 @@ const s = StyleSheet.create({
   list: { padding: 16, gap: 10, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
   cardDisabled: { opacity: 0.6 },
+  cardAwaitingValidation: { borderColor: '#F59E0B', borderWidth: 2, backgroundColor: '#FFFBEB' },
+  validationAlert: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF3C7', borderBottomWidth: 1, borderBottomColor: '#FDE68A', paddingHorizontal: 16, paddingVertical: 12 },
+  validationAlertIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FDE68A', alignItems: 'center', justifyContent: 'center' },
+  validationAlertText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#92400E' },
+  validationBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A', padding: 10 },
+  validationBannerTitle: { fontSize: 13, fontWeight: '800', color: '#92400E' },
+  validationBannerSub: { fontSize: 12, color: '#B45309', marginTop: 1 },
+  validateNowBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#D97706', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  validateNowBtnText: { fontSize: 12, fontWeight: '800', color: colors.surface },
   cardInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   catMonogram: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
   catMonogramText: { fontSize: 13, fontWeight: '800', color: colors.surface },

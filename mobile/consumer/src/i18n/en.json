@@ -245,7 +245,12 @@
     "cancelRequest": "Cancel request",
     "cancelRequestConfirm": "Cancel this request?",
     "cancelRequestMsg": "No provider has been chosen yet. You can republish it later.",
-    "cancelRequestSuccess": "Request cancelled"
+    "cancelRequestSuccess": "Request cancelled",
+    "awaitingValidationAlert_one": "{{count}} mission is waiting for your validation",
+    "awaitingValidationAlert_other": "{{count}} missions are waiting for your validation",
+    "awaitingValidationBannerTitle": "Validation pending",
+    "awaitingValidationBannerSub": "The provider has finished the mission",
+    "validateNow": "Validate now"
   },
   "mission": {
     "title": "Active mission",

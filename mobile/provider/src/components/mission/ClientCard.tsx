@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native'
 import { Image } from 'expo-image'
 import { Phone, MessageSquare, Check, Star } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { colors, radius, spacing } from '../../design'
+import { radius, spacing } from '../../design'
 
 interface Props {
   clientName?: string
@@ -16,11 +16,23 @@ interface Props {
   onChat?: () => void
 }
 
-const BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4'
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'
+function getInitials(name?: string, phone?: string): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  if (phone && phone.trim()) {
+    const clean = phone.replace(/[^0-9]/g, '')
+    return clean.slice(-2) || 'CL'
+  }
+  return 'CL'
+}
 
 export const ClientCard: React.FC<Props> = ({
-  clientName = 'Aïcha Bâ',
+  clientName,
   clientPhone,
   clientAvatar,
   clientRating = 4.8,
@@ -30,6 +42,15 @@ export const ClientCard: React.FC<Props> = ({
   onChat,
 }) => {
   const { t } = useTranslation()
+
+  const displayName = clientName || clientPhone || t('common.client', { defaultValue: 'Client' })
+  const initials = getInitials(clientName, clientPhone)
+  const hasRealAvatar = !!(
+    clientAvatar &&
+    typeof clientAvatar === 'string' &&
+    clientAvatar.startsWith('http') &&
+    !clientAvatar.includes('unsplash.com')
+  )
 
   const handleCall = () => {
     if (onCall) {
@@ -41,37 +62,41 @@ export const ClientCard: React.FC<Props> = ({
     }
   }
 
-  const avatarUri = clientAvatar || DEFAULT_AVATAR
-
   return (
     <View style={s.card}>
       <View style={s.avatarWrapper}>
-        <Image
-          source={{ uri: avatarUri }}
-          placeholder={BLURHASH}
-          contentFit="cover"
-          transition={200}
-          style={s.avatar}
-        />
+        {hasRealAvatar ? (
+          <Image
+            source={{ uri: clientAvatar }}
+            contentFit="cover"
+            transition={200}
+            style={s.avatar}
+          />
+        ) : (
+          <View style={s.initialsAvatar}>
+            <Text style={s.initialsText}>{initials}</Text>
+          </View>
+        )}
+
         {isVerified && (
           <View style={s.verifiedBadge}>
-            <Check size={10} color="#FFFFFF" strokeWidth={3.5} />
+            <Check size={9} color="#FFFFFF" strokeWidth={3.5} />
           </View>
         )}
       </View>
 
       <View style={s.infoColumn}>
         <Text style={s.name} numberOfLines={1}>
-          {clientName}
+          {displayName}
         </Text>
         <View style={s.metaRow}>
-          <Star size={13} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 3 }} />
+          <Star size={12} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 3 }} />
           <Text style={s.ratingText}>
-            {clientRating.toFixed(1)}
+            {Number(clientRating || 4.8).toFixed(1)}
           </Text>
           <Text style={s.bullet}>·</Text>
           <Text style={s.verifiedText}>
-            {t('providerMissionActive.clientVerified', { defaultValue: 'Cliente vérifiée' })}
+            {t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })}
           </Text>
         </View>
       </View>
@@ -103,33 +128,49 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: radius['2xl'],
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   avatarWrapper: {
     position: 'relative',
-    marginRight: spacing.md,
+    marginRight: 12,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#F1F5F9',
+  },
+  initialsAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E0E7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialsText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#3730A3',
+    letterSpacing: 0.5,
   },
   verifiedBadge: {
     position: 'absolute',
     bottom: -1,
     right: -1,
-    width: 18,
-    height: 18,
+    width: 17,
+    height: 17,
     borderRadius: 9,
     backgroundColor: '#0F7B4F',
     alignItems: 'center',
@@ -143,58 +184,56 @@ const s = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0A1628',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   ratingText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#475569',
   },
   bullet: {
-    fontSize: 13,
+    marginHorizontal: 4,
     color: '#94A3B8',
-    marginHorizontal: 5,
+    fontSize: 11,
   },
   verifiedText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     fontWeight: '500',
   },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginLeft: spacing.sm,
+    gap: 8,
+    marginLeft: 6,
   },
   actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   callButton: {
-    backgroundColor: '#E8F5EE',
+    backgroundColor: '#ECFDF5',
   },
   chatButton: {
     backgroundColor: '#EFF6FF',
   },
   typingDot: {
     position: 'absolute',
-    top: 3,
-    right: 3,
+    top: 4,
+    right: 4,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#2563EB',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
   },
 })

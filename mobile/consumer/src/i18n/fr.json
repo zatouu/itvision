@@ -245,7 +245,12 @@
     "cancelRequest": "Annuler la demande",
     "cancelRequestConfirm": "Annuler cette demande ?",
     "cancelRequestMsg": "Aucun prestataire n'a encore été choisi. Vous pouvez la republier plus tard.",
-    "cancelRequestSuccess": "Demande annulée"
+    "cancelRequestSuccess": "Demande annulée",
+    "awaitingValidationAlert_one": "{{count}} mission attend votre validation",
+    "awaitingValidationAlert_other": "{{count}} missions attendent votre validation",
+    "awaitingValidationBannerTitle": "Validation en attente",
+    "awaitingValidationBannerSub": "Le prestataire a terminé la mission",
+    "validateNow": "Valider maintenant"
   },
   "mission": {
     "title": "Mission en cours",

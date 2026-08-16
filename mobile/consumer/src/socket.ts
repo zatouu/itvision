@@ -110,8 +110,8 @@ export function emitProviderLocation(requestId: string, location: { lat: number;
   socket?.emit('provider:location', { requestId, ...location })
 }
 
-export function emitMissionStatus(requestId: string, status: string) {
-  socket?.emit('mission:status_updated', { requestId, status })
+export function emitMissionStatus(requestId: string, status: string, extra?: Record<string, unknown>) {
+  socket?.emit('mission:status_updated', { requestId, status, ...extra })
 }
 
 export function emitOfferTyping(requestId: string, isTyping: boolean, providerName?: string) {

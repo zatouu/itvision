@@ -26,8 +26,17 @@ export interface ActiveMissionData {
   description?: string
   price?: number
   finalPrice?: number
+  budget?: number
+  acceptedOffer?: {
+    price?: number
+    eta?: string
+    providerName?: string
+    providerPhone?: string
+  }
   paymentMethod?: string
   createdAt?: string
+  clientName?: string
+  clientPhone?: string
   user?: {
     _id?: string
     name?: string
@@ -87,23 +96,25 @@ export function useMissionActive(requestId: string | null) {
       const item: ActiveMissionData = res.item || res.data || res.request
       if (item) {
         setMission(item)
-        if (item.aiAdvice) setAiAdvice(item.aiAdvice)
-      }
-
-      // Restore persisted timer & admin metrics
-      const saved = await getPersistedMission(requestId)
-      if (saved) {
-        if (saved.startedAt) startedAtRef.current = saved.startedAt
-        if (saved.totalPausedSeconds) {
-          totalPausedSecondsRef.current = saved.totalPausedSeconds
-          setPausedSeconds(saved.totalPausedSeconds)
+        if (item.status === 'in_progress' && !startedAtRef.current) {
+          startedAtRef.current = item.startedAt ? new Date(item.startedAt).getTime() : Date.now()
         }
-        if (saved.pauseCount) setPauseCount(saved.pauseCount)
-        if (saved.lastActivityAt) setLastActivityAt(saved.lastActivityAt)
-      } else if (item?.startedAt) {
-        const parsed = new Date(item.startedAt).getTime()
-        if (!Number.isNaN(parsed)) {
-          startedAtRef.current = parsed
+        const m = (item as any).metrics
+        if (m) {
+          if (m.pauseCount !== undefined) {
+            setPauseCount(m.pauseCount)
+          }
+          if (m.pausedMs !== undefined) {
+            const sec = Math.floor(m.pausedMs / 1000)
+            totalPausedSecondsRef.current = sec
+            setPausedSeconds(sec)
+          }
+          if (m.activeMs !== undefined && m.activeMs > 0) {
+            setElapsedSeconds(Math.floor(m.activeMs / 1000))
+          }
+        }
+        if (item.status === 'completed' || item.status === 'cancelled' || item.status === 'archived') {
+          await clearPersistedMission(requestId)
         }
       }
     } catch (err: any) {
@@ -201,6 +212,7 @@ export function useMissionActive(requestId: string | null) {
     }
 
     socket.on('mission:status_updated', handleStatusChanged)
+    socket.on('mission:status-changed', handleStatusChanged)
     socket.on('request:status-changed', handleStatusChanged)
     socket.on('mission:eta_updated', handleEtaUpdated)
     socket.on('mission:client_typing', handleClientTyping)
@@ -209,6 +221,7 @@ export function useMissionActive(requestId: string | null) {
     return () => {
       leaveRequestRoom(requestId)
       socket.off('mission:status_updated', handleStatusChanged)
+      socket.off('mission:status-changed', handleStatusChanged)
       socket.off('request:status-changed', handleStatusChanged)
       socket.off('mission:eta_updated', handleEtaUpdated)
       socket.off('mission:client_typing', handleClientTyping)
@@ -269,29 +282,32 @@ export function useMissionActive(requestId: string | null) {
     try {
       hapticSuccess()
       const socket = getSocket()
-      socket.emit('mission:status_updated', { requestId, status: nextStatus, ...extraPayload })
+      socket.emit('mission:status_updated', { requestId, status: nextStatus, clientId: missionRef.current?.user?._id, ...extraPayload })
 
-      // Optimistic local update
-      setMission(prev => (prev ? { ...prev, status: nextStatus } : null))
+      // Sync backend
+      const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
+        status: nextStatus,
+        ...extraPayload,
+      })
+
+      const actualStatus = (res as any)?.item?.status || (res as any)?.status || nextStatus
+      setMission(prev => (prev ? { ...prev, status: actualStatus } : null))
       setLastActivityAt(Date.now())
 
       // Persist locally
       await savePersistedMission(requestId, {
-        status: nextStatus,
+        status: actualStatus,
         lastActivityAt: Date.now(),
-        ...(nextStatus === 'in_progress' && !startedAtRef.current
+        ...(actualStatus === 'in_progress' && !startedAtRef.current
           ? { startedAt: Date.now() }
           : {}),
       })
 
-      // Sync backend
-      await apiPatchQueued(`/api/services/requests/${requestId}`, {
-        status: nextStatus,
-        ...extraPayload,
-      })
+      await loadMission(true)
     } catch (err: any) {
       setError(humanErrorMessage(err))
       hapticWarning()
+      await loadMission(true)
     } finally {
       setUpdating(false)
     }
@@ -302,15 +318,53 @@ export function useMissionActive(requestId: string | null) {
   const startIntervention = () => updateStatus('in_progress')
 
   const pauseIntervention = async (reason?: string) => {
-    const nextCount = pauseCount + 1
-    setPauseCount(nextCount)
-    if (requestId) {
-      savePersistedMission(requestId, { pauseCount: nextCount })
+    if (!requestId) return
+    setUpdating(true)
+    try {
+      hapticSuccess()
+      const socket = getSocket()
+      socket.emit('mission:status_updated', { requestId, status: 'paused', reason: reason || 'Pause opérateur' })
+
+      await apiPatchQueued(`/api/services/requests/${requestId}`, {
+        action: 'pause',
+        reason: reason || 'Pause opérateur',
+      })
+
+      const nextCount = pauseCount + 1
+      setPauseCount(nextCount)
+      await savePersistedMission(requestId, { pauseCount: nextCount, status: 'paused', lastActivityAt: Date.now() })
+      await loadMission(true)
+    } catch (err: any) {
+      setError(humanErrorMessage(err))
+      hapticWarning()
+      await loadMission(true)
+    } finally {
+      setUpdating(false)
     }
-    await updateStatus('paused', { pauseReason: reason || 'Pause opérateur' })
   }
 
-  const resumeIntervention = () => updateStatus('in_progress')
+  const resumeIntervention = async () => {
+    if (!requestId) return
+    setUpdating(true)
+    try {
+      hapticSuccess()
+      const socket = getSocket()
+      socket.emit('mission:status_updated', { requestId, status: 'in_progress' })
+
+      await apiPatchQueued(`/api/services/requests/${requestId}`, {
+        action: 'resume',
+      })
+
+      await savePersistedMission(requestId, { status: 'in_progress', lastActivityAt: Date.now() })
+      await loadMission(true)
+    } catch (err: any) {
+      setError(humanErrorMessage(err))
+      hapticWarning()
+      await loadMission(true)
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   const finishMission = async () => {
     await updateStatus('awaiting_validation', {

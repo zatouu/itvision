@@ -245,7 +245,12 @@
     "cancelRequest": "Bayyil laaj bi",
     "cancelRequestConfirm": "Bayyil laaj bi?",
     "cancelRequestMsg": "Amul kenn liggéeykat buñu tànn. Mëna nga ko yónnee ci kanam.",
-    "cancelRequestSuccess": "Laaj bi dañu ko bayyil"
+    "cancelRequestSuccess": "Laaj bi dañu ko bayyil",
+    "awaitingValidationAlert_one": "Misiyoŋ {{count}} dafa xaaj sa dëggal",
+    "awaitingValidationAlert_other": "Misiyoŋ {{count}} dañu xaaj sa dëggal",
+    "awaitingValidationBannerTitle": "Dafa xaaj dëggal",
+    "awaitingValidationBannerSub": "Liggéeykat bi pare na liggéey bi",
+    "validateNow": "Dëggal léegi"
   },
   "mission": {
     "title": "Misiyoŋ bi",

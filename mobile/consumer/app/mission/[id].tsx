@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
 import { apiGet, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
-import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../../src/socket'
+import { connectSocket, joinRequestRoom, leaveRequestRoom, emitMissionStatus } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { pickOption } from '../../src/option-sheet'
@@ -187,6 +187,7 @@ function MissionDetail() {
     }
 
     socket.on('request:status-changed', handleStatusChanged)
+    socket.on('mission:status_updated', handleStatusChanged)
     socket.on('provider:location', handleProviderLocation)
     socket.on('connect', handleReconnect)
 
@@ -199,6 +200,7 @@ function MissionDetail() {
       clearInterval(interval)
       leaveRequestRoom(requestId)
       socket.off('request:status-changed', handleStatusChanged)
+      socket.off('mission:status_updated', handleStatusChanged)
       socket.off('provider:location', handleProviderLocation)
       socket.off('connect', handleReconnect)
     }
@@ -221,7 +223,10 @@ function MissionDetail() {
         { status: nextStatus },
         t('mission.offlineAction')
       )
-      if (r) await load(true)
+      if (r) {
+        emitMissionStatus(requestId, nextStatus, { providerId: item?.acceptedOffer?.providerId })
+        await load(true)
+      }
     } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
@@ -231,7 +236,12 @@ function MissionDetail() {
     setUpdating(true)
     try {
       const r = await apiPatchQueued(`/api/services/requests/${requestId}`, body, t('mission.offlineAction'))
-      if (r) await load(true)
+      if (r) {
+        const ACTION_STATUS: Record<string, string> = { validate: 'completed', pause: 'paused', resume: 'in_progress', dispute: 'dispute' }
+        const resulting = ACTION_STATUS[String(body.action || '')]
+        if (resulting) emitMissionStatus(requestId, resulting, { providerId: item?.acceptedOffer?.providerId })
+        await load(true)
+      }
     } catch (e: any) { notify(t('common.error'), humanErrorMessage(e)) }
     finally { setUpdating(false) }
   }
