@@ -1,31 +1,94 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, KeyboardAvoidingView, Platform } from 'react-native'
+import { useState, useEffect } from 'react'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { mockRequests } from '../../src/mock'
 import { Minus, Plus } from 'lucide-react-native'
-import type { ServiceRequest } from '../../src/types'
+import { apiGet, apiPostQueued } from '../../src/api'
+import { toast } from '../../src/toast'
+import { humanErrorMessage } from '../../src/errorMessages'
+import { hapticSuccess, hapticError } from '../../src/haptics'
+import { getProviderName } from '../../src/user-profile'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
 const ETA_OPTIONS = [15, 30, 45, 60]
 
-export default function CreateOffer() {
+function CreateOffer() {
   const { t } = useTranslation()
   const { requestId } = useLocalSearchParams<{ requestId: string }>()
-  const request = mockRequests.find((r: ServiceRequest) => r._id === requestId)
-  const [price, setPrice] = useState(request?.budget || 10000)
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [price, setPrice] = useState(10000)
   const [eta, setEta] = useState(30)
   const [message, setMessage] = useState('')
   const [includesTravel, setIncludesTravel] = useState(true)
   const [includesMaterial, setIncludesMaterial] = useState(false)
   const [availableNow, setAvailableNow] = useState(true)
 
-  const meta = request ? getCategoryMeta(request.category) : getCategoryMeta('')
-  const average = Math.round((request?.budget || 10000) * 0.95)
+  useEffect(() => {
+    if (!requestId) {
+      setLoading(false)
+      return
+    }
+    apiGet(`/api/services/requests/${requestId}`)
+      .then((res: any) => {
+        const item = res.item || res
+        setRequest(item)
+        if (item?.budget && typeof item.budget === 'number') {
+          setPrice(item.budget)
+        }
+      })
+      .catch((e: any) => {
+        toast.error(t('common.error'), humanErrorMessage(e))
+      })
+      .finally(() => setLoading(false))
+  }, [requestId, t])
+
+  const meta = request ? getCategoryMeta(request.category || '') : getCategoryMeta('')
+  const average = Math.round((request?.budget || price) * 0.95)
+
+  const handleSendOffer = async () => {
+    if (!requestId) return
+    setSubmitting(true)
+    try {
+      await apiPostQueued(
+        '/api/services/offers',
+        {
+          requestId,
+          price,
+          etaMinutes: eta,
+          comment: message,
+          validityMinutes: 30,
+          providerName: getProviderName(),
+          travelIncluded: includesTravel,
+          materialIncluded: includesMaterial,
+          availableNow,
+        },
+        t('nearby.offerQueuedOffline')
+      )
+      hapticSuccess()
+      toast.success(t('offers.sentSuccessTitle', 'Offre envoyée !'), t('offers.sentSuccessMsg', 'Votre proposition a été transmise au client.'))
+      router.replace('/my-offers')
+    } catch (e: any) {
+      hapticError()
+      toast.error(t('common.error'), humanErrorMessage(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -38,8 +101,8 @@ export default function CreateOffer() {
               <Text style={[s.categoryAbbr, { color: meta.color }]}>{meta.label.slice(0, 2).toUpperCase()}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.summaryTitle}>{meta.label} • {request.subCategory}</Text>
-              <Text style={s.summarySub}>{request.address}</Text>
+              <Text style={s.summaryTitle}>{meta.label}{request.subCategory ? ` • ${request.subCategory}` : ''}</Text>
+              <Text style={s.summarySub}>{request.address || request.locationName || ''}</Text>
             </View>
           </View>
         )}
@@ -100,7 +163,9 @@ export default function CreateOffer() {
       <StickyBottomBar>
         <Button
           title={t('providerOffer.sendOffer')}
-          onPress={() => router.back()}
+          onPress={handleSendOffer}
+          loading={submitting}
+          disabled={submitting}
           fullWidth
           size="lg"
         />
@@ -243,3 +308,6 @@ const s = StyleSheet.create({
   },
   toggleLabel: { fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.bold as any },
 })
+
+export default withScreenBoundary(CreateOffer, 'CreateOffer')
+

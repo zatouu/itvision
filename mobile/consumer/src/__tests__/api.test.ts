@@ -7,6 +7,10 @@ global.fetch = mockFetch as any
 // Mock auth to avoid AsyncStorage complexity
 jest.mock('../auth', () => ({
   getAuthToken: jest.fn(() => 'test-token'),
+  getRefreshToken: jest.fn(() => null),
+  getDeviceId: jest.fn(() => null),
+  setAuth: jest.fn(),
+  clearAuth: jest.fn(),
 }))
 
 // Mock sentry

@@ -60,6 +60,7 @@
           "defaultChannel": "default"
         }
       ],
+      "./plugins/withGoogleMapsApiKey",
       "./plugins/withGoogleServicesJson"
     ],
     "web": {

@@ -13,10 +13,11 @@ import Button from '../../src/components/Button'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
 import { reverseGeocode } from '../../src/geocode'
 import { mockAddresses } from '../../src/mock'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
 const STEPS = ['Catégorie', 'Détails', 'Lieu']
 
-export default function RequestLocation() {
+function RequestLocation() {
   const { t } = useTranslation()
   const [address, setAddress] = useState('')
   const [street, setStreet] = useState('')
@@ -354,3 +355,6 @@ const s = StyleSheet.create({
   toggleLabel: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
   toggleSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary, marginTop: 2 },
 })
+
+export default withScreenBoundary(RequestLocation, 'RequestLocation')
+

@@ -23,8 +23,9 @@ import VerticalTimeline from '../../src/components/offers/VerticalTimeline'
 import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
 import TipCard from '../../src/components/offers/TipCard'
 import NegotiateSheet from '../../src/components/offers/NegotiateSheet'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
-export default function OffersReceived() {
+function OffersReceived() {
   const { t } = useTranslation()
   const { requestId } = useLocalSearchParams<{ requestId: string }>()
   const [request, setRequest] = useState<any>(null)
@@ -511,3 +512,6 @@ const s = StyleSheet.create({
     marginTop: spacing.sm,
   },
 })
+
+export default withScreenBoundary(OffersReceived, 'OffersReceived')
+

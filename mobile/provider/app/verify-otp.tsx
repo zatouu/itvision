@@ -13,10 +13,11 @@ import { ArrowLeft, FlaskConical } from 'lucide-react-native'
 import { hapticSuccess, hapticError, hapticSelect } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import Button from '../src/components/Button'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 const CODE_LENGTH = 6
 
-export default function VerifyOtp() {
+function VerifyOtp() {
   const { t } = useTranslation()
   const { phone, _devCode } = useLocalSearchParams<{ phone: string; _devCode?: string }>()
   const [code, setCode] = useState('')
@@ -142,3 +143,6 @@ const s = StyleSheet.create({
   resendBtn: { alignItems: 'center', marginTop: spacing.xl },
   resendText: { fontSize: 14, color: colors.info, fontWeight: typography.weight.semibold as any },
 })
+
+export default withScreenBoundary(VerifyOtp, 'VerifyOtp')
+

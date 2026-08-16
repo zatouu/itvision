@@ -7,8 +7,9 @@ import SuccessBanner from '../../src/components/SuccessBanner'
 import Button from '../../src/components/Button'
 import { Check, ClipboardList, Home, Bell, Tag, Banknote, MapPin, Clock } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
-export default function RequestPublished() {
+function RequestPublished() {
   const { t } = useTranslation()
   const params = useLocalSearchParams<{ id?: string; category?: string; subCategory?: string; budget?: string; address?: string }>()
   const category = params.category || 'electricite'
@@ -249,3 +250,6 @@ const s = StyleSheet.create({
   notifyIcon: { color: colors.textSecondary },
   notifyText: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
 })
+
+export default withScreenBoundary(RequestPublished, 'RequestPublished')
+

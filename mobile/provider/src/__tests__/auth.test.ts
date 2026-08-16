@@ -25,8 +25,7 @@ describe('setAuth / getAuthToken / getAuthUser', () => {
     expect(getAuthToken()).toBe('my-token')
     expect(getAuthUser()).toEqual(mockUser)
     expect(isLoggedIn()).toBe(true)
-    expect(store['auth:token']).toBe('my-token')
-    expect(JSON.parse(store['auth:user'])).toEqual(mockUser)
+    expect(JSON.parse(store['authUser'])).toEqual(mockUser)
   })
 })
 
@@ -37,8 +36,8 @@ describe('clearAuth', () => {
     expect(getAuthToken()).toBeNull()
     expect(getAuthUser()).toBeNull()
     expect(isLoggedIn()).toBe(false)
-    expect(store['auth:token']).toBeUndefined()
-    expect(store['auth:user']).toBeUndefined()
+    expect(store['authToken']).toBeUndefined()
+    expect(store['authUser']).toBeUndefined()
   })
 })
 
@@ -50,8 +49,8 @@ describe('loadAuth', () => {
   })
 
   it('loads token and user from AsyncStorage', async () => {
-    store['auth:token'] = 'stored-token'
-    store['auth:user'] = JSON.stringify(mockUser)
+    store['authToken'] = 'stored-token'
+    store['authUser'] = JSON.stringify(mockUser)
     const result = await loadAuth()
     expect(result).toBe(true)
     expect(getAuthToken()).toBe('stored-token')
@@ -59,8 +58,8 @@ describe('loadAuth', () => {
   })
 
   it('returns false on corrupted data', async () => {
-    store['auth:token'] = 'stored-token'
-    store['auth:user'] = '{invalid json'
+    store['authToken'] = 'stored-token'
+    store['authUser'] = '{invalid json'
     const result = await loadAuth()
     expect(result).toBe(false)
   })

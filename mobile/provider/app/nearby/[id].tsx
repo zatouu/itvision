@@ -20,6 +20,7 @@ import { resolveMediaUrl } from '../../src/media'
 import { Video, ResizeMode } from 'expo-av'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
 import { getProviderName } from '../../src/user-profile'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
 const DEGS_TO_RADS = Math.PI / 180
 function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -29,7 +30,7 @@ function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return 2 * 6371000 * Math.asin(Math.sqrt(x))
 }
 
-export default function NearbyRequestDetail() {
+function NearbyRequestDetail() {
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [request, setRequest] = useState<any>(null)
@@ -428,3 +429,6 @@ const s = StyleSheet.create({
   trustText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
   bottomActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 })
+
+export default withScreenBoundary(NearbyRequestDetail, 'NearbyRequestDetail')
+

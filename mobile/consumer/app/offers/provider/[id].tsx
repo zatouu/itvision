@@ -11,8 +11,9 @@ import StatusChip from '../../../src/components/StatusChip'
 import { Check, Star, ShieldCheck, Zap, Wrench, Circle, MessageCircle, Clock, ChevronRight } from 'lucide-react-native'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../../src/design'
 import { mockProviders, mockOffers } from '../../../src/mock'
+import { withScreenBoundary } from '../../../src/components/withScreenBoundary'
 
-export default function ProviderDetail() {
+function ProviderDetail() {
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const [provider] = useState(() => mockProviders.find(p => p._id === id))
@@ -290,3 +291,6 @@ const s = StyleSheet.create({
   offerLabel: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
   offerPrice: { fontSize: typography.xl.fontSize, color: colors.text, fontWeight: typography.weight.extrabold as any },
 })
+
+export default withScreenBoundary(ProviderDetail, 'ProviderDetail')
+

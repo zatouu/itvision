@@ -9,8 +9,9 @@ import { hapticSelect, hapticError } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { ArrowRight, Phone, ShieldCheck } from 'lucide-react-native'
 import Button from '../src/components/Button'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
-export default function Login() {
+function Login() {
   const { t } = useTranslation()
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
@@ -108,3 +109,6 @@ const s = StyleSheet.create({
   trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 32 },
   legal: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 16, flex: 1 },
 })
+
+export default withScreenBoundary(Login, 'Login')
+

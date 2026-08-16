@@ -8,8 +8,9 @@ import { apiPatch } from '../src/api'
 import { hapticSuccess, hapticError } from '../src/haptics'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import { User, Phone, Check } from 'lucide-react-native'
+import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
-export default function SetupProfile() {
+function SetupProfile() {
   const { t } = useTranslation()
   const user = getAuthUser()
   const [name, setName] = useState('')
@@ -118,3 +119,6 @@ const s = StyleSheet.create({
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: typography.weight.bold as any },
 })
+
+export default withScreenBoundary(SetupProfile, 'SetupProfile')
+

@@ -5,6 +5,10 @@ global.fetch = mockFetch as any
 
 jest.mock('../auth', () => ({
   getAuthToken: jest.fn(() => 'test-token'),
+  getRefreshToken: jest.fn(() => null),
+  getDeviceId: jest.fn(() => null),
+  setAuth: jest.fn(),
+  clearAuth: jest.fn(),
 }))
 
 jest.mock('../sentry', () => ({

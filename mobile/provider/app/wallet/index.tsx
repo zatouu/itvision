@@ -9,6 +9,8 @@ import { colors, spacing, radius, shadows, typography } from '../../src/design'
 import { apiGet, apiPost, getCreditPacks } from '../../src/api'
 import { toast } from '../../src/toast'
 import { getAuthUser } from '../../src/auth'
+import { humanErrorMessage } from '../../src/errorMessages'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
 const OPERATORS: Array<{ id: 'wave_qr' | 'wave' | 'orange_money' | 'free_money'; label: string }> = [
   { id: 'wave_qr', label: 'Wave QR' },
@@ -77,7 +79,7 @@ type WalletData = {
   }
 }
 
-export default function Wallet() {
+function Wallet() {
   const { t } = useTranslation()
   const [data, setData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -100,7 +102,7 @@ export default function Wallet() {
       const r = await apiGet('/api/wallet')
       setData(r)
     } catch (e: any) {
-      toast.error(t('common.error'), e?.message || t('providerWallet.loadError'))
+      toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -659,3 +661,6 @@ const s = StyleSheet.create({
   waveOpenBtn: { backgroundColor: '#1DC3F0', borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, ...shadows.md },
   waveOpenBtnText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.extrabold as any },
 })
+
+export default withScreenBoundary(Wallet, 'Wallet')
+

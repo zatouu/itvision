@@ -10,6 +10,7 @@ import StickyBottomBar from '../../src/components/StickyBottomBar'
 import { Star, Clock, MessageSquare, Receipt, RotateCcw, Banknote, ShieldAlert, ChevronRight, Send, Check } from 'lucide-react-native'
 import { colors, spacing, radius, shadows, typography } from '../../src/design'
 import { mockMission, mockProviders } from '../../src/mock'
+import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 
 const TAGS = ['Ponctuel', 'Professionnel', 'Rapide', 'Travail propre', 'Bon prix', 'Communicatif']
 const ACTIONS = [
@@ -19,7 +20,7 @@ const ACTIONS = [
   { key: 'dispute', icon: <ShieldAlert size={18} color={colors.text} />, label: 'reportDispute' },
 ]
 
-export default function MissionReview() {
+function MissionReview() {
   const { t } = useTranslation()
   const [rating, setRating] = useState(5)
   const [selectedTags, setSelectedTags] = useState<string[]>(['Professionnel', 'Rapide'])
@@ -233,3 +234,6 @@ const s = StyleSheet.create({
   actionLabel: { flex: 1, fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.bold as any },
   actionArrow: { color: colors.textSecondary },
 })
+
+export default withScreenBoundary(MissionReview, 'MissionReview')
+

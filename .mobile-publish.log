@@ -3927,3 +3927,154 @@ EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates
 [provider] Aucun changement detecte depuis ec9327ac6257a2ad6851ec8496a2462355ce75d8. Skip.
 [consumer] Aucun changement detecte depuis eaac49b81f8707c16122dc4e15984eb6d1e94b3d. Skip.
 [provider] Aucun changement detecte depuis ec9327ac6257a2ad6851ec8496a2462355ce75d8. Skip.
+[consumer] Fichiers modifies depuis eaac49b81f8707c16122dc4e15984eb6d1e94b3d :
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/dispute/[id].tsx
+  - mobile/consumer/app/login.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/offers/[requestId].tsx
+  - mobile/consumer/app/payment.tsx
+  - mobile/consumer/app/profile.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/setup-profile.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/errorMessages.ts
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/index.ts
+  - mobile/consumer/src/i18n/wo.json
+[consumer] Changements JS/assets detectes -> mode OTA
+[consumer] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] [app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY manquant — la carte Google Maps ne fonctionnera pas.
+[expo-cli] env: load .env
+[expo-cli] 
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] 
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] Starting Metro Bundler
+[expo-cli] 
+[expo-cli] Android Bundled 31591ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3066 modules)
+[expo-cli] iOS Bundled 39730ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3186 modules)
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-e8c7ea2435168a20f735cb25cc7ae69f.hbc (4.25 MB)
+[expo-cli] _expo/static/js/android/entry-e8c7ea2435168a20f735cb25cc7ae69f.hbc.map (13 MB)
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _expo/static/js/ios/entry-fe3ea43143fd9448018f6fc985fbf3d5.hbc (4.25 MB)
+[expo-cli] _expo/static/js/ios/entry-fe3ea43143fd9448018f6fc985fbf3d5.hbc.map (13 MB)
+[expo-cli] Exporting 3 files:
+[expo-cli] assetmap.json (5.08 kB)
+[expo-cli] debug.html (390 B)
+[expo-cli] metadata.json (1.65 kB)
+[expo-cli] 
+[expo-cli] App exported to: dist
+[expo-cli] 
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 5.0 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 12 iOS assets, 12 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    b02ab528-ba19-4705-a9f3-142b0184d97f
+Android update ID  01a00706-9b2e-738f-b28f-25000f462992
+iOS update ID      01a00706-9b2e-7b06-b3d0-570116db77a7
+Message            publish 2026-08-15 21:03
+Commit             80f62bb7a2c95789e693b5d2081ab1bfd4677788*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates/b02ab528-ba19-4705-a9f3-142b0184d97f
+
+[consumer] OK - tag 'mobile-consumer-published' mis a jour.
+[provider] Fichiers modifies depuis ec9327ac6257a2ad6851ec8496a2462355ce75d8 :
+  - mobile/provider/app/active-mission/[id].tsx
+  - mobile/provider/app/dispute/[id].tsx
+  - mobile/provider/app/kyc.tsx
+  - mobile/provider/app/login.tsx
+  - mobile/provider/app/my-offers.tsx
+  - mobile/provider/app/nearby-requests.tsx
+  - mobile/provider/app/nearby/[id].tsx
+  - mobile/provider/app/notifications.tsx
+  - mobile/provider/app/verify-otp.tsx
+  - mobile/provider/src/api.ts
+  - mobile/provider/src/errorMessages.ts
+  - mobile/provider/src/i18n/index.ts
+[provider] Changements JS/assets detectes -> mode OTA
+[provider] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] env: load .env
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] Starting Metro Bundler
+[expo-cli] 
+[expo-cli] Android Bundled 20265ms D:\itvision-1\mobile\provider\node_modules\expo-router\entry.js (2973 modules)
+[expo-cli] iOS Bundled 28448ms D:\itvision-1\mobile\provider\node_modules\expo-router\entry.js (2983 modules)
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 15 assets:
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-eba32e0e3e22a95d8d1943551bcf5045.hbc (3.81 MB)
+[expo-cli] _expo/static/js/android/entry-eba32e0e3e22a95d8d1943551bcf5045.hbc.map (12 MB)
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _expo/static/js/ios/entry-1b5ee94478ad53e3fa6f36382ff73944.hbc (3.81 MB)
+[expo-cli] 
+[expo-cli] _expo/static/js/ios/entry-1b5ee94478ad53e3fa6f36382ff73944.hbc.map (12 MB)
+[expo-cli] Exporting 3 files:
+[expo-cli] assetmap.json (4.69 kB)
+[expo-cli] debug.html (390 B)
+[expo-cli] metadata.json (1.52 kB)
+[expo-cli] 
+[expo-cli] App exported to: dist
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 4.6 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 11 iOS assets, 11 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    7eca90e0-fbb4-49f9-9560-79b55f34454a
+Android update ID  01a00707-7065-74f8-a224-4c237c5f995c
+iOS update ID      01a00707-7065-78b2-89ca-87d621ba8d45
+Message            publish 2026-08-15 21:04
+Commit             80f62bb7a2c95789e693b5d2081ab1bfd4677788*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates/7eca90e0-fbb4-49f9-9560-79b55f34454a
+
+[provider] OK - tag 'mobile-provider-published' mis a jour.

@@ -17,6 +17,7 @@ module.exports = {
     '^expo-device$': '<rootDir>/src/__mocks__/expo-device.ts',
     '^expo-file-system$': '<rootDir>/src/__mocks__/expo-file-system.ts',
     '^expo-notifications$': '<rootDir>/src/__mocks__/expo-notifications.ts',
+    '^expo-secure-store$': '<rootDir>/src/__mocks__/expo-secure-store.ts',
     '^expo-task-manager$': '<rootDir>/src/__mocks__/expo-task-manager.ts',
   },
 }
