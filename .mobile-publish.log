@@ -4078,3 +4078,30 @@ Commit             80f62bb7a2c95789e693b5d2081ab1bfd4677788*
 EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates/7eca90e0-fbb4-49f9-9560-79b55f34454a
 
 [provider] OK - tag 'mobile-provider-published' mis a jour.
+[consumer] Fichiers modifies depuis 80f62bb7a2c95789e693b5d2081ab1bfd4677788 :
+  - mobile/consumer/.npmrc
+  - mobile/consumer/app.json
+  - mobile/consumer/app/login.tsx
+  - mobile/consumer/app/mission/review.tsx
+  - mobile/consumer/app/offers/[requestId].tsx
+  - mobile/consumer/app/offers/provider/[id].tsx
+  - mobile/consumer/app/requests/location.tsx
+  - mobile/consumer/app/requests/published.tsx
+  - mobile/consumer/app/setup-profile.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/jest.config.js
+  - mobile/consumer/plugins/withGoogleMapsApiKey.js
+  - mobile/consumer/src/__mocks__/expo-secure-store.ts
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/app.json
+    NATIF: mobile/consumer/plugins/withGoogleMapsApiKey.js
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@22.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.

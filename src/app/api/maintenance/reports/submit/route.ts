@@ -7,8 +7,7 @@ import { addNotification } from '@/lib/notifications-memory'
 import { verifyJwtPayload } from '@/lib/jwt'
 import { emailService } from '@/lib/email-service'
 import { getClientContactEmails } from '@/lib/client-contacts'
-import { emitInterventionUpdate, emitGroupNotification } from '@/lib/socket-emit'
-import { logAuditEvent } from '@/lib/audit'
+ import { logAuditEvent } from '@/lib/audit'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 
 async function verifyTechnicianToken(request: NextRequest) {
