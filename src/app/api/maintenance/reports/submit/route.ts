@@ -9,6 +9,7 @@ import { emailService } from '@/lib/email-service'
 import { getClientContactEmails } from '@/lib/client-contacts'
  import { logAuditEvent } from '@/lib/audit'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
+import { emitGroupNotification, emitInterventionUpdate } from '@/lib/socket-emit'
 
 async function verifyTechnicianToken(request: NextRequest) {
   // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)

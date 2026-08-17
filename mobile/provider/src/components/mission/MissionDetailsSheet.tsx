@@ -27,6 +27,8 @@ import {
   ChevronRight,
 } from 'lucide-react-native'
 
+import { router } from 'expo-router'
+
 import BottomSheet from '../BottomSheet'
 import { getSocket } from '../../socket'
 import { resolveMediaUrl } from '../../media'
@@ -51,6 +53,8 @@ type Props = {
   lastActivityAt: number | null
   /** Fourni uniquement si la pause est métier-disponible pour le statut courant */
   onPause?: (() => void) | null
+  /** Fourni uniquement si la mission est en pause (reprise disponible côté backend) */
+  onResume?: (() => void) | null
   /** Fourni uniquement si le signalement de litige est disponible */
   onDispute?: (() => void) | null
 }
@@ -114,6 +118,7 @@ export function MissionDetailsSheet({
   pauseCount,
   lastActivityAt,
   onPause,
+  onResume,
   onDispute,
 }: Props) {
   const { t } = useTranslation()
@@ -315,11 +320,34 @@ export function MissionDetailsSheet({
       )}
 
       {/* Actions avancées — uniquement si la fonctionnalité existe réellement */}
-      {(onPause || onDispute) && (
-        <>
-          <Text style={s.sectionTitle}>{t('providerMissionDetails.advancedTitle', { defaultValue: 'ACTIONS AVANCÉES' })}</Text>
-          <View style={s.card}>
-            {onPause && (
+      <Text style={s.sectionTitle}>{t('providerMissionDetails.advancedTitle', { defaultValue: 'ACTIONS AVANCÉES' })}</Text>
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.actionRow}
+          onPress={() => { onClose(); if (mission?._id) router.push(`/mission-log/${mission._id}`) }}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+        >
+          <View style={[s.actionIcon, { backgroundColor: '#E6F4EC' }]}>
+            <ListOrdered size={15} color="#0F7B4F" />
+          </View>
+          <Text style={[s.actionLabel, { color: '#0A1628' }]}>
+            {t('providerMissionDetails.openFullLog', { defaultValue: 'Ouvrir le journal complet' })}
+          </Text>
+          <ChevronRight size={16} color="#64748B" />
+        </TouchableOpacity>
+        {onResume && (
+          <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onResume() }} activeOpacity={0.8} accessibilityRole="button">
+            <View style={[s.actionIcon, { backgroundColor: '#E6F4EC' }]}>
+              <Play size={15} color="#0F7B4F" />
+            </View>
+            <Text style={[s.actionLabel, { color: '#065F3A' }]}>
+              {t('providerMissionDetails.resumeAction', { defaultValue: 'Reprendre la mission' })}
+            </Text>
+            <ChevronRight size={16} color="#0F7B4F" />
+          </TouchableOpacity>
+        )}
+        {onPause && (
               <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onPause() }} activeOpacity={0.8} accessibilityRole="button">
                 <View style={[s.actionIcon, { backgroundColor: '#FFFBEB' }]}>
                   <PauseIcon size={15} color="#D97706" />
@@ -330,20 +358,18 @@ export function MissionDetailsSheet({
                 <ChevronRight size={16} color="#D97706" />
               </TouchableOpacity>
             )}
-            {onDispute && (
-              <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onDispute() }} activeOpacity={0.8} accessibilityRole="button">
-                <View style={[s.actionIcon, { backgroundColor: '#FEE2E2' }]}>
-                  <AlertTriangle size={15} color="#EF4444" />
-                </View>
-                <Text style={[s.actionLabel, { color: '#B91C1C' }]}>
-                  {t('providerMissionDetails.disputeAction', { defaultValue: 'Signaler un litige' })}
-                </Text>
-                <ChevronRight size={16} color="#EF4444" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </>
-      )}
+        {onDispute && (
+          <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onDispute() }} activeOpacity={0.8} accessibilityRole="button">
+            <View style={[s.actionIcon, { backgroundColor: '#FEE2E2' }]}>
+              <AlertTriangle size={15} color="#EF4444" />
+            </View>
+            <Text style={[s.actionLabel, { color: '#B91C1C' }]}>
+              {t('providerMissionDetails.disputeAction', { defaultValue: 'Signaler un litige' })}
+            </Text>
+            <ChevronRight size={16} color="#EF4444" />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Fermeture */}
       <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.88} accessibilityRole="button">

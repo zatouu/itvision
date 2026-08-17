@@ -590,7 +590,10 @@
     "achievement_one": "{{count}} mission completed this week",
     "achievement_other": "{{count}} missions completed this week",
     "achievementSub": "Keep it up, you are on the right track!",
-    "loadError": "Unable to load the mission"
+    "loadError": "Unable to load the mission",
+    "receiptSaved": "Receipt saved",
+    "receiptSavedBody": "The PDF receipt has been downloaded.",
+    "receiptError": "Unable to download the receipt"
   },
   "providerMissionDetails": {
     "title": "Mission details",
@@ -633,6 +636,11 @@
     "statusAwaitingValidation": "Awaiting validation",
     "statusCompleted": "Mission completed",
     "statusCancelled": "Mission cancelled",
-    "statusDispute": "Dispute reported"
+    "statusDispute": "Dispute reported",
+    "openFullLog": "Open full log",
+    "resumeAction": "Resume mission",
+    "logTitle": "Mission log",
+    "logEmpty": "No events recorded yet",
+    "logCurrent": "Current state"
   }
 }

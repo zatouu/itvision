@@ -590,7 +590,10 @@
     "achievement_one": "{{count}} mission terminée cette semaine",
     "achievement_other": "{{count}} missions terminées cette semaine",
     "achievementSub": "Continuez, vous êtes sur la bonne voie !",
-    "loadError": "Impossible de charger la mission"
+    "loadError": "Impossible de charger la mission",
+    "receiptSaved": "Reçu enregistré",
+    "receiptSavedBody": "Le reçu PDF a été téléchargé.",
+    "receiptError": "Impossible de télécharger le reçu"
   },
   "providerMissionDetails": {
     "title": "Détails de la mission",
@@ -633,6 +636,11 @@
     "statusAwaitingValidation": "En attente de validation",
     "statusCompleted": "Mission terminée",
     "statusCancelled": "Mission annulée",
-    "statusDispute": "Litige signalé"
+    "statusDispute": "Litige signalé",
+    "openFullLog": "Ouvrir le journal complet",
+    "resumeAction": "Reprendre la mission",
+    "logTitle": "Journal de la mission",
+    "logEmpty": "Aucun événement enregistré pour le moment",
+    "logCurrent": "État actuel"
   }
 }

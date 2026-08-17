@@ -534,6 +534,7 @@ function ActiveMissionScreen() {
         pauseCount={pauseCount}
         lastActivityAt={lastActivityAt}
         onPause={status === 'in_progress' ? handlePause : null}
+        onResume={status === 'paused' ? resumeIntervention : null}
         onDispute={['assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status) ? handleReport : null}
       />
 

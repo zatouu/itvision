@@ -31,7 +31,10 @@ import {
   Award,
 } from 'lucide-react-native'
 
+import * as FileSystem from 'expo-file-system'
+
 import { apiGet } from '../../src/api'
+import { getAuthToken } from '../../src/auth'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
@@ -78,6 +81,7 @@ function MissionCompletedScreen() {
 
   const [item, setItem] = useState<MissionCompletedData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
 
   const checkScale = useRef(new Animated.Value(0)).current
   const heroOpacity = useRef(new Animated.Value(0)).current
@@ -128,6 +132,37 @@ function MissionCompletedScreen() {
   const earnings = item?.earnings || null
   const acceptedPrice = earnings?.grossAmountFcfa ?? item?.acceptedOffer?.price ?? null
   const weeklyCount = item?.weeklyCompletedMissions ?? null
+
+  // Le reçu n'existe réellement que si la mission est terminée (endpoint backend dédié)
+  const canDownloadReceipt = item?.status === 'completed'
+
+  const downloadReceipt = async () => {
+    if (!requestId || downloading) return
+    setDownloading(true)
+    try {
+      const token = getAuthToken()
+      const base = process.env.EXPO_PUBLIC_API_BASE_URL || ''
+      const fileUri = `${FileSystem.cacheDirectory}recu-${refCode.replace('#', '')}.pdf`
+      const res = await FileSystem.downloadAsync(
+        `${base}/api/services/requests/${requestId}/receipt`,
+        fileUri,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      )
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`)
+      try { await Share.share({ url: res.uri }) } catch {}
+      toast.success(
+        t('providerMissionCompleted.receiptSaved', { defaultValue: 'Reçu enregistré' }),
+        t('providerMissionCompleted.receiptSavedBody', { defaultValue: 'Le reçu PDF a été téléchargé.' })
+      )
+    } catch {
+      toast.error(
+        t('common.error', { defaultValue: 'Erreur' }),
+        t('providerMissionCompleted.receiptError', { defaultValue: 'Impossible de télécharger le reçu' })
+      )
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const handleShare = async () => {
     try {
@@ -347,14 +382,16 @@ function MissionCompletedScreen() {
         </TouchableOpacity>
 
         {/* Reçu : affiché uniquement si un reçu existe réellement côté backend */}
-        {(item as any).receiptUrl ? (
-          <TouchableOpacity style={s.tertiaryBtn} activeOpacity={0.8} onPress={() => {}}>
-            <FileText size={15} color="#0F7B4F" style={{ marginRight: 6 }} />
+        {canDownloadReceipt && (
+          <TouchableOpacity style={s.tertiaryBtn} activeOpacity={0.8} onPress={downloadReceipt} disabled={downloading}>
+            {downloading
+              ? <ActivityIndicator size="small" color="#0F7B4F" style={{ marginRight: 6 }} />
+              : <FileText size={15} color="#0F7B4F" style={{ marginRight: 6 }} />}
             <Text style={s.tertiaryBtnText}>
               {t('providerMissionCompleted.downloadReceipt', { defaultValue: 'Télécharger le reçu' })}
             </Text>
           </TouchableOpacity>
-        ) : null}
+        )}
 
         {/* Achievement — données réelles hebdomadaires */}
         {typeof weeklyCount === 'number' && weeklyCount > 0 && (

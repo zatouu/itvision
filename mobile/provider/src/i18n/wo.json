@@ -590,7 +590,10 @@
     "achievement_one": "Misiyoŋ {{count}} nga pare ci ayu-bés bii",
     "achievement_other": "Misiyoŋ {{count}} nga pare ci ayu-bés bii",
     "achievementSub": "Wéy di dem, nga nga ci yoon wu baax !",
-    "loadError": "Mënula yeb misiyoŋ bi"
+    "loadError": "Mënula yeb misiyoŋ bi",
+    "receiptSaved": "Risi bi denc na",
+    "receiptSavedBody": "Risi PDF bi dañu ko sotti.",
+    "receiptError": "Mënula sotti risi bi"
   },
   "providerMissionDetails": {
     "title": "Xotay misiyoŋ bi",
@@ -633,6 +636,11 @@
     "statusAwaitingValidation": "Dafay xaaj dëggal",
     "statusCompleted": "Misiyoŋ bi pare",
     "statusCancelled": "Misiyoŋ bi dañu ko bayyi",
-    "statusDispute": "Caabi ci"
+    "statusDispute": "Caabi ci",
+    "openFullLog": "Ubbi taarix bi mat",
+    "resumeAction": "Tambali misiyoŋ bi",
+    "logTitle": "Taarixu misiyoŋ bi",
+    "logEmpty": "Amul beneen xew-xew buñu bind",
+    "logCurrent": "Tàggat bi tey"
   }
 }
