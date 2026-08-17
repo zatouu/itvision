@@ -40,11 +40,26 @@ export interface ActiveMissionData {
   user?: {
     _id?: string
     name?: string
-    phone?: string
-    avatar?: string
-    rating?: number
-    isVerified?: boolean
+  } & Record<string, any>
+  channel?: string
+  metrics?: {
+    elapsedFormatted?: string
+    activeFormatted?: string
+    pausedFormatted?: string
+    lastActivityAgo?: string
+    activeMs?: number
+    elapsedMs?: number
+    pausedMs?: number
   }
+  statusLog?: Array<{ timestamp: string; action?: string; fromStatus?: string | null; toStatus?: string | null }>
+  media?: Array<{ url: string; type?: 'image' | 'video' | 'audio' | 'file'; title?: string }>
+  payment?: { status?: string | null; provider?: string | null; phase?: string | null } | null
+  earnings?: { grossAmountFcfa: number; platformFeeFcfa?: number; bonusFcfa?: number; netAmountFcfa: number } | null
+  clientReview?: { rating?: number; comment?: string | null } | null
+  clientValidatedAt?: string | null
+  weeklyCompletedMissions?: number | null
+  rating?: number
+  isVerified?: boolean
   location?: {
     address?: string
     coordinates?: [number, number] // [lng, lat]

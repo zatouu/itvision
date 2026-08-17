@@ -24,8 +24,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const [clientUser, providerUser] = await Promise.all([
-      User.findById(sr.clientId).select('name phone').lean(),
-      sr.assignedProviderId ? User.findById(sr.assignedProviderId).select('name phone').lean() : null,
+      User.findById(sr.clientId).select('name phone avatarUrl kycVerified').lean(),
+      sr.assignedProviderId ? User.findById(sr.assignedProviderId).select('name phone avatarUrl').lean() : null,
     ])
 
     const allOffers = await Offer.find({ requestId: id }).lean()
@@ -81,6 +81,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const lifecycle = await import('@/lib/mission-lifecycle')
     const metrics = lifecycle.computeMetrics(sr)
     const display = lifecycle.DISPLAY_LABELS[lifecycle.normalizeStatus(sr.status)]
+
+    // Journal d'état de la mission (transitions + pauses/reprises)
+    const statusLogRaw = await MissionAuditLog.find({
+      requestId: id,
+      action: { $in: ['status_changed', 'pause', 'resume'] },
+    }).sort({ createdAt: 1 }).select('action fromStatus toStatus createdAt').lean()
+    const statusLog = statusLogRaw.map((e: any) => ({
+      timestamp: e.createdAt,
+      action: e.action,
+      fromStatus: e.fromStatus || null,
+      toStatus: e.toStatus || null,
+    }))
+
+    // Avis client sur cette mission (s'il existe)
+    const ServiceReview = (await import('@/lib/models/ServiceReview')).default
+    const reviewDoc = await ServiceReview.findOne({ requestId: id }).select('rating comment createdAt').lean() as any
+    const clientReview = reviewDoc ? { rating: reviewDoc.rating, comment: reviewDoc.comment || null, createdAt: reviewDoc.createdAt } : null
+
+    // Gains + compteur hebdomadaire : réservés au prestataire assigné / admin.
+    // Pas de commission ni de bonus dans le ledger actuel → net = brut, pas de lignes fictives.
+    let earnings = null
+    let weeklyCompletedMissions: number | null = null
+    if ((isProvider || isAdmin) && sr.assignedProviderId) {
+      const price = Number((acceptedOffer as any)?.price)
+      if (Number.isFinite(price) && price > 0) {
+        earnings = { grossAmountFcfa: price, netAmountFcfa: price }
+      }
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      weeklyCompletedMissions = await ServiceRequest.countDocuments({
+        assignedProviderId: sr.assignedProviderId,
+        status: 'completed',
+        completedAt: { $gte: weekAgo },
+      })
+    }
+
     return NextResponse.json({ item: {
       ...sr,
       offerCount,
@@ -90,9 +125,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       payment,
       clientName: clientUser?.name,
       clientPhone: clientUser?.phone,
+      clientAvatar: (clientUser as any)?.avatarUrl || null,
+      clientVerified: !!(clientUser as any)?.kycVerified,
+      clientValidatedAt: (sr as any).validatedByClientAt || null,
       providerName: providerUser?.name,
       providerPhone: providerUser?.phone,
+      providerAvatar: (providerUser as any)?.avatarUrl || null,
       statusLabel: display,
+      statusLog,
+      clientReview,
+      earnings,
+      weeklyCompletedMissions,
       metrics: {
         ...metrics,
         elapsedFormatted: lifecycle.formatDuration(metrics.elapsedMs),

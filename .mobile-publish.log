@@ -4132,3 +4132,85 @@ Proceeding with outdated version.
 
 Unsupported platform, macOS or Linux is required to build apps for Android
     Error: build command failed.
+[consumer] Fichiers modifies depuis 5ce068715a34fd57442b7a7488a062a50e44e967 :
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/socket.ts
+[consumer] Changements JS/assets detectes -> mode OTA
+[consumer] Publication OTA sur le channel 'ec2'...
+- Exporting...
+[expo-cli] [app.config] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY manquant — la carte Google Maps ne fonctionnera pas.
+[expo-cli] env: load .env
+[expo-cli] env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_AUTH_TOKEN EXPO_PUBLIC_PROVIDER_NAME EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] GOOGLE_SERVICES_JSON_BASE64 is not set; google-services.json will not be generated (push notifications disabled)
+[expo-cli] Starting Metro Bundler
+[expo-cli] 
+[expo-cli] iOS Bundled 83486ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3186 modules)
+[expo-cli] Android Bundled 114112ms D:\itvision-1\mobile\consumer\node_modules\expo-router\entry.js (3185 modules)
+[expo-cli] Creating asset map
+[expo-cli] Preparing additional debugging files
+[expo-cli] 
+[expo-cli] Exporting 16 assets:
+[expo-cli] assets\icon.png (129 kB)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon-mask.png (913 B)
+[expo-cli] node_modules\@react-navigation\elements\src\assets\back-icon.png (10 variations | 338 B)
+[expo-cli] node_modules\expo-router\assets\error.png (516 B)
+[expo-cli] node_modules\expo-router\assets\file.png (158 B)
+[expo-cli] node_modules\expo-router\assets\forward.png (250 B)
+[expo-cli] node_modules\expo-router\assets\pkg.png (429 B)
+[expo-cli] 
+[expo-cli] Exporting 2 bundles for ios:
+[expo-cli] _expo/static/js/ios/entry-3514086a091aecbf1a1b124a4724f387.hbc (4.25 MB)
+[expo-cli] _expo/static/js/ios/entry-3514086a091aecbf1a1b124a4724f387.hbc.map (13 MB)
+[expo-cli] Exporting 2 bundles for android:
+[expo-cli] _expo/static/js/android/entry-92abd9e3f43be04af560871add55638e.hbc (4.25 MB)
+[expo-cli] _expo/static/js/android/entry-92abd9e3f43be04af560871add55638e.hbc.map (13 MB)
+[expo-cli] Exporting 3 files:
+[expo-cli] assetmap.json (5.08 kB)
+[expo-cli] debug.html (390 B)
+[expo-cli] metadata.json (1.65 kB)
+[expo-cli] 
+[expo-cli] App exported to: dist
+✔ Exported bundle(s)
+- Uploading...
+- Uploading assetmap.json (0 / 5.0 KB)
+✔ Uploaded assetmap.json 
+√ Uploaded 2 app bundles
+√ Uploading assets skipped - no new assets found
+i 12 iOS assets, 12 Android assets (maximum: 2000 total per update). Learn more about asset limits: https://expo.fyi/eas-update-asset-limits
+- Publishing...
+✔ Published!
+Branch             ec2
+Runtime version    1.0.0
+Platform           android, ios
+Update group ID    82c48ca1-91c7-4830-bf37-2a39b951f064
+Android update ID  01a00bf2-f3f8-764a-8a61-dd3954a85d7b
+iOS update ID      01a00bf2-f3f8-71ce-ba86-f5c9ecc4e6ea
+Message            publish 2026-08-16 19:58
+Commit             b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4*
+EAS Dashboard      https://expo.dev/accounts/xeuy/projects/xeuy-consumer/updates/82c48ca1-91c7-4830-bf37-2a39b951f064
+
+[consumer] OK - tag 'mobile-consumer-published' mis a jour.
+[provider] Fichiers modifies depuis 5ce068715a34fd57442b7a7488a062a50e44e967 :
+  - mobile/provider/app/active-mission/[id].tsx
+  - mobile/provider/package.json
+  - mobile/provider/src/components/mission/ClientCard.tsx
+  - mobile/provider/src/components/mission/MissionStatusHeroCard.tsx
+  - mobile/provider/src/components/mission/MissionSummaryCard.tsx
+  - mobile/provider/src/hooks/useMissionActive.ts
+[provider] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/provider/package.json
+[provider] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@22.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.

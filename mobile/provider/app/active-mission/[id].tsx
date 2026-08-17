@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   Pause,
   Play,
   AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react-native'
 
 import { useMissionActive } from '../../src/hooks/useMissionActive'
@@ -32,6 +33,7 @@ import { HorizontalProgressionTimeline } from '../../src/components/mission/Hori
 import { AiAdviceCard } from '../../src/components/mission/AiAdviceCard'
 import { MapHero } from '../../src/components/mission/MapHero'
 import { AdminMetricsModal } from '../../src/components/mission/AdminMetricsModal'
+import { MissionDetailsSheet } from '../../src/components/mission/MissionDetailsSheet'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { pickOption } from '../../src/option-sheet'
 import { radius, spacing } from '../../src/design'
@@ -72,10 +74,18 @@ function ActiveMissionScreen() {
   } = useMissionActive(requestId)
 
   const [adminModalVisible, setAdminModalVisible] = useState(false)
+  const [detailsVisible, setDetailsVisible] = useState(false)
 
   const rawStatus = mission?.status || 'assigned'
   const status = rawStatus === 'accepted' ? 'assigned' : rawStatus
   const isMapLayout = status === 'assigned' || status === 'on_the_way' || status === 'provider_arriving'
+
+  // Navigation : mission validée par le client → écran de clôture (le provider voit son récapitulatif)
+  useEffect(() => {
+    if (rawStatus === 'completed' && requestId) {
+      router.replace(`/mission-completed/${requestId}`)
+    }
+  }, [rawStatus, requestId])
 
   // Real backend field mapping
   const clientData = useMemo(() => {
@@ -202,6 +212,16 @@ function ActiveMissionScreen() {
           <View style={s.bottomSheet}>
             <View style={s.dragHandle} />
 
+            {/* Accès détails du suivi */}
+            <TouchableOpacity
+              style={s.detailsBtnMap}
+              activeOpacity={0.8}
+              onPress={() => setDetailsVisible(true)}
+              accessibilityLabel={t('providerMissionDetails.title', { defaultValue: 'Détails de la mission' })}
+            >
+              <MoreHorizontal size={18} color="#0A1628" strokeWidth={2.2} />
+            </TouchableOpacity>
+
             {/* Status Pill */}
             <View style={s.statusPillWrapper}>
               <View style={s.statusPillBlue}>
@@ -301,13 +321,23 @@ function ActiveMissionScreen() {
               {t('providerMissionActive.title', { defaultValue: 'Mission active' })}
             </Text>
 
-            <TouchableOpacity
-              style={s.headerCircleBtn}
-              activeOpacity={0.8}
-              onPress={handleShare}
-            >
-              <Share2 size={18} color="#0A1628" strokeWidth={2.2} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={s.headerCircleBtn}
+                activeOpacity={0.8}
+                onPress={() => setDetailsVisible(true)}
+                accessibilityLabel={t('providerMissionDetails.title', { defaultValue: 'Détails de la mission' })}
+              >
+                <MoreHorizontal size={18} color="#0A1628" strokeWidth={2.2} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.headerCircleBtn}
+                activeOpacity={0.8}
+                onPress={handleShare}
+              >
+                <Share2 size={18} color="#0A1628" strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -493,6 +523,20 @@ function ActiveMissionScreen() {
         </SafeAreaView>
       )}
 
+      {/* Détails du suivi (bouton ⋯) */}
+      <MissionDetailsSheet
+        visible={detailsVisible}
+        onClose={() => setDetailsVisible(false)}
+        mission={mission}
+        status={status}
+        elapsedSeconds={elapsedSeconds}
+        pausedSeconds={pausedSeconds}
+        pauseCount={pauseCount}
+        lastActivityAt={lastActivityAt}
+        onPause={status === 'in_progress' ? handlePause : null}
+        onDispute={['assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status) ? handleReport : null}
+      />
+
       {/* Admin Metrics Modal (Long-press on Hero Card) */}
       <AdminMetricsModal
         visible={adminModalVisible}
@@ -555,6 +599,23 @@ const s = StyleSheet.create({
   statusPillWrapper: {
     alignItems: 'center',
     marginBottom: 8,
+  },
+  detailsBtnMap: {
+    position: 'absolute',
+    top: 14,
+    right: 16,
+    zIndex: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statusPillBlue: {
     flexDirection: 'row',
