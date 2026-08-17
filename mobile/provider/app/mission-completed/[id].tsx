@@ -13,7 +13,7 @@ import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { LinearGradient } from 'expo-linear-gradient'
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg'
 import {
   ArrowLeft,
   Share2,
@@ -85,6 +85,7 @@ function MissionCompletedScreen() {
 
   const checkScale = useRef(new Animated.Value(0)).current
   const heroOpacity = useRef(new Animated.Value(0)).current
+  const [heroSize, setHeroSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
 
   const load = useCallback(async () => {
     if (!requestId) return
@@ -214,12 +215,26 @@ function MissionCompletedScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         {/* Success Hero */}
         <Animated.View style={{ opacity: heroOpacity }}>
-          <LinearGradient
-            colors={['#0F7B4F', '#0A5C3B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+          <View
             style={s.hero}
+            onLayout={(e) => {
+              const { width, height } = e.nativeEvent.layout
+              if (width > 0 && height > 0 && (width !== heroSize.width || height !== heroSize.height)) {
+                setHeroSize({ width, height })
+              }
+            }}
           >
+            {heroSize.width > 0 && (
+              <Svg style={StyleSheet.absoluteFill} width={heroSize.width} height={heroSize.height}>
+                <Defs>
+                  <SvgLinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#0F7B4F" />
+                    <Stop offset="1" stopColor="#0A5C3B" />
+                  </SvgLinearGradient>
+                </Defs>
+                <Rect x="0" y="0" width={heroSize.width} height={heroSize.height} rx={24} fill="url(#heroGrad)" />
+              </Svg>
+            )}
             <Animated.View style={[s.heroCheck, { transform: [{ scale: checkScale }] }]}>
               <Check size={34} color="#0F7B4F" strokeWidth={3} />
             </Animated.View>
@@ -250,7 +265,7 @@ function MissionCompletedScreen() {
                 </Text>
               </View>
             )}
-          </LinearGradient>
+          </View>
         </Animated.View>
 
         {/* Avis client — uniquement si un avis réel existe */}
@@ -427,7 +442,7 @@ const s = StyleSheet.create({
   headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: '#0A1628' },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
-  hero: { borderRadius: 24, padding: 24, alignItems: 'center', gap: 8 },
+  hero: { borderRadius: 24, padding: 24, alignItems: 'center', gap: 8, overflow: 'hidden' },
   heroCheck: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   heroTitle: { fontSize: 19, fontWeight: '800', color: '#FFFFFF', textAlign: 'center' },
   heroSubtitle: { fontSize: 13, color: '#D1FAE5' },
