@@ -5,11 +5,11 @@
 set -e
 
 # Configuration
-EC2_IP="3.208.16.12"
-EC2_USER="ubuntu"
+EC2_IP="52.47.120.35"
+EC2_USER="admin"
 DOMAIN="itvisionplus.sn"
 LOCAL_DIR="/mnt/d/itvision-1"
-REMOTE_DIR="/home/ubuntu/itvision-1"
+REMOTE_DIR="/home/admin/itvision-1"
 
 echo "🚀 Déploiement IT Vision sur EC2"
 echo "================================"
@@ -49,7 +49,7 @@ echo ""
 # 3. Connexion SSH et redémarrage
 echo "🔧 Étape 3: Redémarrage services..."
 ssh -i ~/.ssh/itvision.pem "$EC2_USER@$EC2_IP" << 'EOF'
-    cd /home/ubuntu/itvision-1
+    cd /home/admin/itvision-1
     
     echo "  → Pull images Docker..."
     docker-compose pull

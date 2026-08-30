@@ -16,7 +16,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -57,11 +57,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push (multi-arch amd64 + arm64)
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=itvision-build
@@ -88,7 +89,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            mkdir -p ~/itvision/docker/mongodb
+            mkdir -p ~/itvision/docker/mongodb ~/itvision/docker/nginx
 
       - name: Copy compose and init script to EC2
         uses: appleboy/scp-action@v1.0.0
@@ -96,7 +97,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.ec2.yml,docker/mongodb/init.js"
+          source: "docker-compose.ec2.yml,docker/mongodb/init.js,docker/nginx/ec2-default.conf"
           target: "~/itvision"
 
       - name: Deploy on EC2 via SSH
@@ -120,8 +121,52 @@ jobs:
             if ! docker compose version >/dev/null 2>&1; then
               DOCKER_CONFIG=${HOME}/.docker
               mkdir -p $DOCKER_CONFIG/cli-plugins
-              curl -SL https://github.com/docker/compose/releases/download/v2.30.3/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
+              ARCH=$(uname -m)
+              if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+                COMPOSE_ARCH="aarch64"
+              else
+                COMPOSE_ARCH="x86_64"
+              fi
+              curl -SL "https://github.com/docker/compose/releases/download/v2.30.3/docker-compose-linux-${COMPOSE_ARCH}" -o $DOCKER_CONFIG/cli-plugins/docker-compose
               chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+            fi
+
+            # Installer Nginx + Certbot si absents (reverse proxy + SSL)
+            if ! command -v nginx >/dev/null 2>&1; then
+              sudo apt-get update -y
+              sudo apt-get install -y nginx certbot python3-certbot-nginx
+              sudo systemctl enable nginx
+              sudo systemctl start nginx
+            fi
+
+            # Configurer Nginx reverse proxy si pas déjà fait
+            if [ ! -f /etc/nginx/sites-enabled/itvision ]; then
+              sudo mkdir -p /var/www/certbot
+              sudo cp $APP_DIR/docker/nginx/ec2-default.conf /etc/nginx/sites-available/itvision
+              sudo ln -sf /etc/nginx/sites-available/itvision /etc/nginx/sites-enabled/itvision
+              sudo rm -f /etc/nginx/sites-enabled/default
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
+
+            # Firewall (ouvrir 80/443 si ufw présent)
+            if command -v ufw >/dev/null 2>&1; then
+              sudo ufw allow 80/tcp || true
+              sudo ufw allow 443/tcp || true
+              sudo ufw allow 22/tcp || true
+            fi
+
+            # SSL auto via Certbot (seulement si DNS résolu et pas déjà certifié)
+            DOMAIN=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+            DOMAIN=${DOMAIN#https://}
+            DOMAIN=${DOMAIN#http://}
+            DOMAIN=${DOMAIN%%/*}
+            if [ "$DOMAIN" != "localhost" ] && [ -n "$DOMAIN" ]; then
+              if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
+                echo "🔐 Génération certificat SSL pour $DOMAIN..."
+                sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN -d market.$DOMAIN \
+                  --email contact@$DOMAIN --agree-tos --no-eff-email --redirect \
+                  --non-interactive || echo "⚠️ SSL différé — vérifier DNS"
+              fi
             fi
 
             cd $APP_DIR
@@ -132,6 +177,7 @@ jobs:
             echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env.ec2
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.ec2
             echo "NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
+            echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
             echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> .env.ec2
             echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" >> .env.ec2
             echo "MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db" >> .env.ec2
@@ -187,6 +233,16 @@ jobs:
 
             # Démarrage/MAJ des services
             sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
+
+            # Vérification santé
+            echo "⏳ Attente démarrage app..."
+            sleep 15
+            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "✅ App healthy!"
+            else
+              echo "⚠️ App pas encore ready — vérifier logs: docker compose logs app"
+            fi
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml ps
 
             # Nettoyage des anciennes images
             sudo docker image prune -f
