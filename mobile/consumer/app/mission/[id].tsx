@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions } from 'react-native'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions, AppState } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -126,11 +126,29 @@ function MissionDetail() {
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null)
   const [hasReview, setHasReview] = useState(false)
   const [, setTick] = useState(0)
+  const syncInFlight = useRef(false)
+  const lastSyncAt = useRef(0)
 
+  // Tick interval: only when app is active — pauses in background to prevent freeze
   useEffect(() => {
     if (!['arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(item?.status)) return
-    const interval = setInterval(() => setTick(v => v + 1), 1000)
-    return () => clearInterval(interval)
+    let interval: ReturnType<typeof setInterval> | null = null
+
+    const start = () => {
+      if (interval) return
+      interval = setInterval(() => setTick(v => v + 1), 1000)
+    }
+    const stop = () => {
+      if (interval) { clearInterval(interval); interval = null }
+    }
+    const handleAppState = (state: string) => {
+      if (state === 'active') start()
+      else stop()
+    }
+
+    start()
+    const sub = AppState.addEventListener('change', handleAppState)
+    return () => { stop(); sub.remove() }
   }, [item?.status])
 
   const load = useCallback(async (isRefresh = false) => {
@@ -161,10 +179,16 @@ function MissionDetail() {
     let mounted = true
 
     const syncMission = async () => {
+      if (syncInFlight.current) return
+      const now = Date.now()
+      if (now - lastSyncAt.current < 5000) return
+      lastSyncAt.current = now
+      syncInFlight.current = true
       try {
         const r = await apiGet(`/api/services/requests/${requestId}`)
         if (mounted) setItem(r.item)
       } catch {}
+      finally { syncInFlight.current = false }
     }
 
     const handleStatusChanged = (data: any) => {
@@ -191,13 +215,28 @@ function MissionDetail() {
     socket.on('provider:location', handleProviderLocation)
     socket.on('connect', handleReconnect)
 
-    const interval = setInterval(() => {
-      if (!socket.connected) syncMission()
-    }, 15000)
+    // Fallback: auto-refresh when WS disconnected (paused in background)
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null
+    const startFallback = () => {
+      if (fallbackInterval) return
+      fallbackInterval = setInterval(() => {
+        if (!socket.connected && AppState.currentState === 'active') syncMission()
+      }, 15000)
+    }
+    const stopFallback = () => {
+      if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null }
+    }
+    const handleAppState2 = (state: string) => {
+      if (state === 'active') startFallback()
+      else stopFallback()
+    }
+    startFallback()
+    const sub2 = AppState.addEventListener('change', handleAppState2)
 
     return () => {
       mounted = false
-      clearInterval(interval)
+      stopFallback()
+      sub2.remove()
       leaveRequestRoom(requestId)
       socket.off('request:status-changed', handleStatusChanged)
       socket.off('mission:status_updated', handleStatusChanged)

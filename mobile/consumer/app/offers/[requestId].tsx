@@ -38,11 +38,15 @@ function OffersReceived() {
   const [showFilters, setShowFilters] = useState(true)
   const [negotiateTarget, setNegotiateTarget] = useState<Offer | null>(null)
   const transitionAnim = useRef(false)
+  const loadInFlight = useRef(false)
+  const lastReloadAt = useRef(0)
 
   const cacheKey = `offers-${requestId}`
 
   const load = useCallback(async (silent = false) => {
     if (!requestId) return
+    if (loadInFlight.current) return
+    loadInFlight.current = true
     if (!silent) setLoading(true)
     try {
       // Try cache first
@@ -60,16 +64,29 @@ function OffersReceived() {
       if (!silent) toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setLoading(false)
+      loadInFlight.current = false
     }
   }, [requestId, t, cacheKey])
+
+  // Throttled reload for socket events: min 5s between calls
+  const throttledReload = useCallback(() => {
+    const now = Date.now()
+    if (now - lastReloadAt.current < 5000) return
+    lastReloadAt.current = now
+    load(true)
+  }, [load])
 
   useEffect(() => { load() }, [load])
 
   // Fetch live viewers (providers currently consulting this request)
+  // Only polls when app is active — pauses in background to prevent freeze
   useEffect(() => {
     if (!requestId) return
     let active = true
+    let interval: ReturnType<typeof setInterval> | null = null
+
     const fetchLive = async () => {
+      if (!active || AppState.currentState !== 'active') return
       try {
         const data: any = await apiGet(`/api/services/requests/${requestId}/live`)
         if (!active) return
@@ -84,9 +101,29 @@ function OffersReceived() {
         setViewersCount(viewers.length)
       } catch {}
     }
-    fetchLive()
-    const interval = setInterval(fetchLive, 15000)
-    return () => { active = false; clearInterval(interval) }
+
+    const startPolling = () => {
+      if (interval) return
+      fetchLive()
+      interval = setInterval(fetchLive, 15000)
+    }
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null }
+    }
+
+    const handleAppState = (state: string) => {
+      if (state === 'active') startPolling()
+      else stopPolling()
+    }
+
+    startPolling()
+    const sub = AppState.addEventListener('change', handleAppState)
+
+    return () => {
+      active = false
+      stopPolling()
+      sub.remove()
+    }
   }, [requestId])
 
   // Socket: listen for new offers, viewers updates
@@ -97,19 +134,19 @@ function OffersReceived() {
 
     const handleConnect = () => {
       joinRequestRoom(requestId)
-      load(true)
+      throttledReload()
     }
     const handleDisconnect = () => {}
-    const handleOfferNew = () => { load(true) }
+    const handleOfferNew = () => { throttledReload() }
     const handleViewers = (data: any) => {
       if (data?.requestId === requestId && typeof data.count === 'number') {
         setViewersCount(data.count)
       }
     }
-    const handleAssigned = () => { load(true) }
-    const handleOfferUpdated = () => { load(true) }
-    const handleCounterAccepted = () => { load(true) }
-    const handleCounterRejected = () => { load(true) }
+    const handleAssigned = () => { throttledReload() }
+    const handleOfferUpdated = () => { throttledReload() }
+    const handleCounterAccepted = () => { throttledReload() }
+    const handleCounterRejected = () => { throttledReload() }
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
@@ -120,13 +157,27 @@ function OffersReceived() {
     socket.on('offer:counter-accepted', handleCounterAccepted)
     socket.on('offer:counter-rejected', handleCounterRejected)
 
-    // Fallback: auto-refresh when WS disconnected
-    const interval = setInterval(() => {
-      if (!socket.connected && AppState.currentState === 'active') load(true)
-    }, 30000)
+    // Fallback: auto-refresh when WS disconnected (paused in background)
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null
+    const startFallback = () => {
+      if (fallbackInterval) return
+      fallbackInterval = setInterval(() => {
+        if (!socket.connected && AppState.currentState === 'active') throttledReload()
+      }, 30000)
+    }
+    const stopFallback = () => {
+      if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null }
+    }
+    const handleAppState2 = (state: string) => {
+      if (state === 'active') startFallback()
+      else stopFallback()
+    }
+    startFallback()
+    const sub2 = AppState.addEventListener('change', handleAppState2)
 
     return () => {
-      clearInterval(interval)
+      stopFallback()
+      sub2.remove()
       leaveRequestRoom(requestId)
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
@@ -137,7 +188,7 @@ function OffersReceived() {
       socket.off('offer:counter-accepted', handleCounterAccepted)
       socket.off('offer:counter-rejected', handleCounterRejected)
     }
-  }, [requestId, load])
+  }, [requestId, throttledReload])
 
   // Redirect to mission if already assigned
   useEffect(() => {
