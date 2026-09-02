@@ -100,10 +100,17 @@ async function ensureMongo() {
 
 // Minimal schema — strict:false so it doesn't strip fields written by the full model
 // (server.js registers this first, so it becomes the active model for Mongoose)
+// IMPORTANT: must include the 2dsphere index on location, because once registered here,
+// the full ServiceRequest.ts model is never re-registered (models.ServiceRequest already exists).
 const ServiceRequestSchema = new mongoose.Schema({
   assignedProviderId: { type: String },
   status: { type: String, default: 'created' },
+  location: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], required: true },
+  },
 }, { strict: false, timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
+ServiceRequestSchema.index({ location: '2dsphere' })
 const ServiceRequest = mongoose.models.ServiceRequest || mongoose.model('ServiceRequest', ServiceRequestSchema)
 
 // ── GEOFENCING : présence des providers via Redis GEO ──

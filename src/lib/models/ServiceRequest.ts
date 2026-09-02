@@ -103,5 +103,8 @@ ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, category: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ status: 1, lastActivityAt: 1 })
 
-const ServiceRequest = models.ServiceRequest || model('ServiceRequest', ServiceRequestSchema)
+// overwriteModels: true — server.js registers a minimal ServiceRequest schema first
+// (for Socket.IO location queries). This ensures the full schema with all indexes
+// (2dsphere, status, expiresAt, clientId, etc.) replaces it when this module loads.
+const ServiceRequest = model('ServiceRequest', ServiceRequestSchema, undefined, { overwriteModels: true })
 export default ServiceRequest
