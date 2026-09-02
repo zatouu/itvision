@@ -1,5 +1,25 @@
 import mongoose from 'mongoose'
 
+/**
+ * Synchronise les indexes de tous les modèles Mongoose enregistrés.
+ * Idempotent et non-bloquant : logge les erreurs sans faire planter l'app.
+ */
+async function syncAllIndexes() {
+  try {
+    const modelNames = mongoose.modelNames()
+    for (const name of modelNames) {
+      try {
+        await mongoose.model(name).syncIndexes()
+      } catch (err) {
+        console.warn(`[MongoDB] syncIndexes("${name}") failed:`, err instanceof Error ? err.message : err)
+      }
+    }
+    console.log(`[MongoDB] ✅ Indexes synchronisés (${modelNames.length} modèles)`)
+  } catch (err) {
+    console.warn('[MongoDB] syncAllIndexes global error:', err instanceof Error ? err.message : err)
+  }
+}
+
 export async function connectMongoose(uri?: string) {
   const mongoUri =
     uri ||
@@ -50,9 +70,11 @@ export async function connectMongoose(uri?: string) {
 
     cache.promise = mongoose
       .connect(mongoUri, options)
-      .then(m => {
+      .then(async m => {
         cache.conn = m
         console.log('[MongoDB] ✅ Connexion réussie')
+        // Synchroniser les indexes après connexion (fire-and-forget, non-bloquant)
+        syncAllIndexes().catch(() => {})
         return m
       })
   }
