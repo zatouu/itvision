@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -23,6 +25,8 @@ import {
   Play,
   AlertTriangle,
   MoreHorizontal,
+  Sparkles,
+  X,
 } from 'lucide-react-native'
 
 import { useMissionActive } from '../../src/hooks/useMissionActive'
@@ -36,7 +40,10 @@ import { AdminMetricsModal } from '../../src/components/mission/AdminMetricsModa
 import { MissionDetailsSheet } from '../../src/components/mission/MissionDetailsSheet'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { pickOption } from '../../src/option-sheet'
-import { radius, spacing } from '../../src/design'
+import { radius, spacing, colors, typography } from '../../src/design'
+import { apiPost } from '../../src/api'
+import { toast } from '../../src/toast'
+import { humanErrorMessage } from '../../src/errorMessages'
 
 function normalizeId(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] || null
@@ -75,6 +82,10 @@ function ActiveMissionScreen() {
 
   const [adminModalVisible, setAdminModalVisible] = useState(false)
   const [detailsVisible, setDetailsVisible] = useState(false)
+  const [aiHelpVisible, setAiHelpVisible] = useState(false)
+  const [aiHelpLoading, setAiHelpLoading] = useState(false)
+  const [aiHelpResult, setAiHelpResult] = useState<string | null>(null)
+  const [aiHelpQuestion, setAiHelpQuestion] = useState('')
 
   const rawStatus = mission?.status || 'assigned'
   const status = rawStatus === 'accepted' ? 'assigned' : rawStatus
@@ -178,6 +189,33 @@ function ActiveMissionScreen() {
         params: { id: requestId, name: clientData.name },
       })
     }
+  }
+
+  const handleAiHelp = async () => {
+    if (aiHelpLoading) return
+    setAiHelpLoading(true)
+    setAiHelpResult(null)
+    try {
+      const res = await apiPost('/api/ai/assist', {
+        type: 'mission_help',
+        category: missionCategory,
+        description: mission?.description || '',
+        missionStatus: status,
+        question: aiHelpQuestion || 'Comment procéder ?',
+      })
+      if (res.text) setAiHelpResult(res.text)
+      else toast.error('IA', 'Aucune aide disponible')
+    } catch (e: any) {
+      toast.error('IA indisponible', humanErrorMessage(e))
+    } finally {
+      setAiHelpLoading(false)
+    }
+  }
+
+  const openAiHelp = () => {
+    setAiHelpResult(null)
+    setAiHelpQuestion('')
+    setAiHelpVisible(true)
   }
 
   if (loading && !mission) {
@@ -385,13 +423,7 @@ function ActiveMissionScreen() {
             <AiAdviceCard
               advice={aiAdvice || undefined}
               category={missionCategory}
-              onPress={() => {
-                Alert.alert(
-                  t('providerMissionActive.aiAdviceLabel', { defaultValue: 'Conseil IA' }),
-                  aiAdvice || "Vérifiez soigneusement l'état général de l'équipement avant d'intervenir et suivez les normes de sécurité en vigueur.",
-                  [{ text: 'OK' }]
-                )
-              }}
+              onPress={openAiHelp}
             />
           </ScrollView>
 
@@ -549,6 +581,58 @@ function ActiveMissionScreen() {
         createdAt={mission?.createdAt}
         requestId={requestId}
       />
+
+      {/* AI Help Modal */}
+      <Modal visible={aiHelpVisible} animationType="slide" transparent onRequestClose={() => setAiHelpVisible(false)}>
+        <View style={s.aiModalOverlay}>
+          <View style={s.aiModalContent}>
+            <View style={s.aiModalHeader}>
+              <View style={s.aiModalTitleRow}>
+                <Sparkles size={20} color={colors.info || '#0EA5E9'} />
+                <Text style={s.aiModalTitle}>Aide IA pour cette mission</Text>
+              </View>
+              <TouchableOpacity onPress={() => setAiHelpVisible(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <X size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.aiModalLabel}>Décrivez votre problème (optionnel) :</Text>
+            <TextInput
+              style={s.aiModalInput}
+              value={aiHelpQuestion}
+              onChangeText={setAiHelpQuestion}
+              placeholder="Ex: Le disjoncteur saute quand je branche le chauffe-eau…"
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={s.aiModalBtn}
+              onPress={handleAiHelp}
+              disabled={aiHelpLoading}
+              activeOpacity={0.85}
+            >
+              {aiHelpLoading ? (
+                <ActivityIndicator size={18} color="#fff" />
+              ) : (
+                <Sparkles size={18} color="#fff" />
+              )}
+              <Text style={s.aiModalBtnText}>
+                {aiHelpLoading ? 'Analyse en cours…' : 'Demander l\'aide IA'}
+              </Text>
+            </TouchableOpacity>
+
+            {aiHelpResult && (
+              <ScrollView style={s.aiModalResultScroll} showsVerticalScrollIndicator={false}>
+                <View style={s.aiModalResultCard}>
+                  <Text style={s.aiModalResultText}>{aiHelpResult}</Text>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -781,5 +865,80 @@ const s = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: spacing.md,
+  },
+  aiModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  aiModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: '85%',
+  },
+  aiModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  aiModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  aiModalTitle: {
+    fontSize: typography?.lg?.fontSize || 18,
+    fontWeight: '800',
+    color: '#0A1628',
+  },
+  aiModalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 6,
+  },
+  aiModalInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: radius.md,
+    padding: 12,
+    fontSize: 14,
+    color: '#0A1628',
+    minHeight: 70,
+    marginBottom: spacing.md,
+    textAlignVertical: 'top',
+  },
+  aiModalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors?.info || '#0EA5E9',
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+  },
+  aiModalBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  aiModalResultScroll: {
+    marginTop: spacing.md,
+    maxHeight: 300,
+  },
+  aiModalResultCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  aiModalResultText: {
+    fontSize: 14,
+    color: '#0A1628',
+    lineHeight: 22,
   },
 })

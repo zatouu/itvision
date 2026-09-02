@@ -1,6 +1,15 @@
 import { qwenChat, type ChatMessage } from './qwen'
 
-export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips'
+export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips' | 'suggest_offer'
+
+interface MarketPriceData {
+  category: string
+  count: number
+  medianPrice: number
+  minPrice: number
+  maxPrice: number
+  avgPrice: number
+}
 
 interface AssistContext {
   type: AssistType
@@ -14,6 +23,10 @@ interface AssistContext {
   nearbyCount?: number
   earnings?: any
   rating?: number
+  // suggest_offer
+  requestBudget?: number
+  marketPrices?: MarketPriceData
+  providerCompletedMissions?: number
 }
 
 export interface ClarifyQuestion {
@@ -157,6 +170,41 @@ Génère 3 conseils personnalisés pour aujourd'hui. Adapte-les au profil et à 
       ]
     }
 
+    case 'suggest_offer': {
+      const mp = ctx.marketPrices
+      const marketBlock = mp && mp.count > 0
+        ? `\nDonnées de marché réelles (missions complétées au Sénégal, catégorie ${cat}):
+- ${mp.count} missions terminées
+- Prix médian: ${mp.medianPrice.toLocaleString('fr-FR')} FCFA
+- Prix minimum: ${mp.minPrice.toLocaleString('fr-FR')} FCFA
+- Prix maximum: ${mp.maxPrice.toLocaleString('fr-FR')} FCFA
+- Prix moyen: ${mp.avgPrice.toLocaleString('fr-FR')} FCFA`
+        : `\nAucune donnée historique disponible pour cette catégorie. Base-toi sur les prix usuels au Sénégal pour cette catégorie de service.`
+
+      return [
+        {
+          role: 'system',
+          content: `Tu es un assistant qui aide les prestataires de services au Sénégal à faire des offres compétitives. Tu connais les prix du marché local (Dakar et autres villes sénégalaises).
+RÈGLES:
+1. Le prix suggéré doit être réaliste pour le marché sénégalais (en FCFA).
+2. Si le budget du client est mentionné, reste proche ou légèrement en dessous.
+3. Si des données de marché réelles sont fournies, utilise-les comme référence principale.
+4. Le message doit être professionnel, court (max 2 phrases), en français simple.
+5. Mentionne brièvement pourquoi ce prix (expérience, rapidité, qualité).
+6. Réponds UNIQUEMENT avec un JSON valide: {"suggestedPrice": nombre, "suggestedMessage": "texte", "reasoning": "1 phrase courte"}`,
+        },
+        {
+          role: 'user',
+          content: `Catégorie: ${cat}
+Description de la demande: "${ctx.description || '(non décrite)'}"
+Budget indiqué par le client: ${ctx.requestBudget ? `${ctx.requestBudget.toLocaleString('fr-FR')} FCFA` : 'non précisé'}${marketBlock}
+Profil prestataire: ${ctx.providerCompletedMissions || 0} missions terminées, note ${ctx.rating || 'nouvelle'}
+
+Suggère un prix d'offre compétitif et un message professionnel pour répondre à cette demande.`,
+        },
+      ]
+    }
+
     default:
       return [{ role: 'user', content: ctx.description || 'Aide-moi' }]
   }
@@ -171,7 +219,7 @@ function extractJson(raw: string): any {
   return JSON.parse(cleaned.slice(start, end + 1))
 }
 
-export async function aiAssist(ctx: AssistContext): Promise<{ text: string; source: string; model: string; questions?: ClarifyQuestion[] }> {
+export async function aiAssist(ctx: AssistContext): Promise<{ text: string; source: string; model: string; questions?: ClarifyQuestion[]; suggestedPrice?: number; suggestedMessage?: string; reasoning?: string }> {
   const messages = buildMessages(ctx)
   const result = await qwenChat(messages)
 
@@ -190,6 +238,15 @@ export async function aiAssist(ctx: AssistContext): Promise<{ text: string; sour
       : []
     if (questions.length === 0) throw new Error('AI returned no valid questions')
     return { text: '', questions, source: result.source, model: result.model }
+  }
+
+  if (ctx.type === 'suggest_offer') {
+    const parsed = extractJson(result.text)
+    const suggestedPrice = typeof parsed?.suggestedPrice === 'number' ? parsed.suggestedPrice : undefined
+    const suggestedMessage = typeof parsed?.suggestedMessage === 'string' ? parsed.suggestedMessage.trim() : undefined
+    const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim() : undefined
+    if (!suggestedPrice || !suggestedMessage) throw new Error('AI returned no valid offer suggestion')
+    return { text: '', suggestedPrice, suggestedMessage, reasoning, source: result.source, model: result.model }
   }
 
   return { text: result.text, source: result.source, model: result.model }

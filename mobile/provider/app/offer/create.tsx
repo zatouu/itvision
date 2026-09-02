@@ -7,8 +7,8 @@ import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { Minus, Plus } from 'lucide-react-native'
-import { apiGet, apiPostQueued } from '../../src/api'
+import { Minus, Plus, Sparkles } from 'lucide-react-native'
+import { apiGet, apiPost, apiPostQueued } from '../../src/api'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { hapticSuccess, hapticError } from '../../src/haptics'
@@ -29,6 +29,9 @@ function CreateOffer() {
   const [includesTravel, setIncludesTravel] = useState(true)
   const [includesMaterial, setIncludesMaterial] = useState(false)
   const [availableNow, setAvailableNow] = useState(true)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<{ suggestedPrice: number; suggestedMessage: string; reasoning?: string } | null>(null)
+  const [marketPrices, setMarketPrices] = useState<{ count: number; medianPrice: number; avgPrice: number } | null>(null)
 
   useEffect(() => {
     if (!requestId) {
@@ -51,6 +54,43 @@ function CreateOffer() {
 
   const meta = request ? getCategoryMeta(request.category || '') : getCategoryMeta('')
   const average = Math.round((request?.budget || price) * 0.95)
+
+  const handleAiSuggest = async () => {
+    if (aiLoading || !request) return
+    setAiLoading(true)
+    setAiSuggestion(null)
+    try {
+      const res = await apiPost('/api/ai/assist', {
+        type: 'suggest_offer',
+        category: request.category,
+        description: request.description,
+        requestBudget: request.budget,
+      })
+      if (res.suggestedPrice && res.suggestedMessage) {
+        setAiSuggestion({
+          suggestedPrice: res.suggestedPrice,
+          suggestedMessage: res.suggestedMessage,
+          reasoning: res.reasoning,
+        })
+        if (res.marketPrices) {
+          setMarketPrices(res.marketPrices)
+        }
+      } else {
+        toast.error('IA', 'Aucune suggestion disponible')
+      }
+    } catch (e: any) {
+      toast.error('IA indisponible', humanErrorMessage(e))
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const applyAiSuggestion = () => {
+    if (!aiSuggestion) return
+    setPrice(aiSuggestion.suggestedPrice)
+    setMessage(aiSuggestion.suggestedMessage)
+    toast.success('Suggestion appliquée', 'Prix et message mis à jour')
+  }
 
   const handleSendOffer = async () => {
     if (!requestId) return
@@ -106,6 +146,48 @@ function CreateOffer() {
             </View>
           </View>
         )}
+
+        {/* AI Suggest Offer */}
+        <View style={s.aiSection}>
+          <TouchableOpacity
+            style={s.aiSuggestBtn}
+            onPress={handleAiSuggest}
+            disabled={aiLoading}
+            activeOpacity={0.85}
+          >
+            {aiLoading ? (
+              <ActivityIndicator size={18} color={colors.info} />
+            ) : (
+              <Sparkles size={18} color={colors.info} />
+            )}
+            <Text style={s.aiSuggestBtnText}>
+              {aiLoading ? 'Analyse en cours…' : 'Suggérer un prix + message (IA)'}
+            </Text>
+          </TouchableOpacity>
+          {marketPrices && (
+            <Text style={s.marketInfo}>
+              📊 {marketPrices.count} mission(s) complétée(s) · Médian: {marketPrices.medianPrice.toLocaleString('fr-FR')} FCFA · Moyen: {marketPrices.avgPrice.toLocaleString('fr-FR')} FCFA
+            </Text>
+          )}
+          {aiSuggestion && (
+            <View style={s.aiSuggestionCard}>
+              <View style={s.aiSuggestionHeader}>
+                <Sparkles size={14} color={colors.info} />
+                <Text style={s.aiSuggestionTitle}>Suggestion IA</Text>
+              </View>
+              <Text style={s.aiSuggestionPrice}>
+                {aiSuggestion.suggestedPrice.toLocaleString('fr-FR')} FCFA
+              </Text>
+              <Text style={s.aiSuggestionMessage}>{aiSuggestion.suggestedMessage}</Text>
+              {aiSuggestion.reasoning && (
+                <Text style={s.aiSuggestionReasoning}>💡 {aiSuggestion.reasoning}</Text>
+              )}
+              <TouchableOpacity style={s.applyBtn} onPress={applyAiSuggestion} activeOpacity={0.85}>
+                <Text style={s.applyBtnText}>✓ Appliquer cette suggestion</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         <View style={s.priceSection}>
           <Text style={s.priceLabel}>{t('providerOffer.yourPrice')}</Text>
@@ -307,6 +389,85 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   toggleLabel: { fontSize: typography.base.fontSize, color: colors.text, fontWeight: typography.weight.bold as any },
+  aiSection: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  aiSuggestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.infoLight || '#E0F2FE',
+    borderRadius: radius.xl,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.info,
+  },
+  aiSuggestBtnText: {
+    fontSize: typography.base.fontSize,
+    fontWeight: typography.weight.bold as any,
+    color: colors.info,
+  },
+  marketInfo: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  aiSuggestionCard: {
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.info,
+    ...shadows.sm,
+  },
+  aiSuggestionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  aiSuggestionTitle: {
+    fontSize: typography.sm.fontSize,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.info,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  aiSuggestionPrice: {
+    fontSize: 28,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  aiSuggestionMessage: {
+    fontSize: typography.base.fontSize,
+    color: colors.text,
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
+  aiSuggestionReasoning: {
+    fontSize: typography.sm.fontSize,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: spacing.md,
+  },
+  applyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.info,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+  },
+  applyBtnText: {
+    fontSize: typography.base.fontSize,
+    fontWeight: typography.weight.bold as any,
+    color: '#fff',
+  },
 })
 
 export default withScreenBoundary(CreateOffer, 'CreateOffer')

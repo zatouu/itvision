@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { SkeletonCard } from '../../src/components/Skeleton'
 import * as Location from 'expo-location'
-import { MapPin, Mic, Check, Volume2, Play, X } from 'lucide-react-native'
+import { MapPin, Mic, Check, Volume2, Play, X, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
@@ -13,7 +13,7 @@ import Button from '../../src/components/Button'
 import StatusChip from '../../src/components/StatusChip'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
 import VoicePlayer from '../../src/components/VoicePlayer'
-import { apiGet } from '../../src/api'
+import { apiGet, apiPost } from '../../src/api'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { resolveMediaUrl } from '../../src/media'
@@ -37,6 +37,8 @@ function NearbyRequestDetail() {
   const [loading, setLoading] = useState(true)
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -52,6 +54,26 @@ function NearbyRequestDetail() {
   }, [id, t])
 
   useEffect(() => { load() }, [load])
+
+  const handleAiAnalyze = async () => {
+    if (aiLoading || !request) return
+    setAiLoading(true)
+    setAiAnalysis(null)
+    try {
+      const res = await apiPost('/api/ai/assist', {
+        type: 'analyze_request',
+        category: request.category,
+        description: request.description,
+        attributes: request.attributes,
+      })
+      if (res.text) setAiAnalysis(res.text)
+      else toast.error('IA', 'Aucune analyse disponible')
+    } catch (e: any) {
+      toast.error('IA indisponible', humanErrorMessage(e))
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   // Localisation provider + room + émission position temps réel
   useEffect(() => {
@@ -177,6 +199,34 @@ function NearbyRequestDetail() {
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('providerNearby.description')}</Text>
           <Text style={s.description}>{request.description || '—'}</Text>
+        </View>
+
+        {/* AI Analysis */}
+        <View style={s.section}>
+          <TouchableOpacity
+            style={s.aiAnalyzeBtn}
+            onPress={handleAiAnalyze}
+            disabled={aiLoading}
+            activeOpacity={0.85}
+          >
+            {aiLoading ? (
+              <ActivityIndicator size={18} color={colors.info} />
+            ) : (
+              <Sparkles size={18} color={colors.info} />
+            )}
+            <Text style={s.aiAnalyzeBtnText}>
+              {aiLoading ? 'Analyse en cours…' : 'Analyser cette demande (IA)'}
+            </Text>
+          </TouchableOpacity>
+          {aiAnalysis && (
+            <View style={s.aiResultCard}>
+              <View style={s.aiResultHeader}>
+                <Sparkles size={14} color={colors.info} />
+                <Text style={s.aiResultTitle}>Analyse IA</Text>
+              </View>
+              <Text style={s.aiResultText}>{aiAnalysis}</Text>
+            </View>
+          )}
         </View>
 
         {request.media?.some((m: any) => m.type === 'audio') && (() => {
@@ -428,6 +478,49 @@ const s = StyleSheet.create({
   },
   trustText: { fontSize: typography.sm.fontSize, color: colors.success, fontWeight: typography.weight.extrabold as any },
   bottomActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  aiAnalyzeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.infoLight || '#E0F2FE',
+    borderRadius: radius.xl,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.info,
+  },
+  aiAnalyzeBtnText: {
+    fontSize: typography.base.fontSize,
+    fontWeight: typography.weight.bold as any,
+    color: colors.info,
+  },
+  aiResultCard: {
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  aiResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  aiResultTitle: {
+    fontSize: typography.sm.fontSize,
+    fontWeight: typography.weight.extrabold as any,
+    color: colors.info,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  aiResultText: {
+    fontSize: typography.base.fontSize,
+    color: colors.text,
+    lineHeight: 22,
+  },
 })
 
 export default withScreenBoundary(NearbyRequestDetail, 'NearbyRequestDetail')
