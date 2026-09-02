@@ -163,7 +163,14 @@
     "subcategoryPlaceholder": "Tànn benn (du dogu)",
     "subcategoryNone": "Amul — këttan bu gën",
     "descPlaceholderAutre": "Wax sa soxla bu baax (10 araf yu gën)",
-    "descMinChars": "Gën a woy 10 araf"
+    "descMinChars": "Gën a woy 10 araf",
+    "aiClarify": "Leeral ak IA",
+    "aiLoading": "Dafay xool…",
+    "aiNeedDescription": "Waxal sa probleem ci ay baat yu néew, bu ko def IA dina la laaj laaj yu baax.",
+    "aiClarifyTitle": "Leeral sa laaj",
+    "aiClarifySub": "Tontul rekk lu dëgg. Bul tontu lu nga xamul — dara duñu ko fentaal.",
+    "aiClarifyOther": "Beneen leeral (du war)…",
+    "aiClarifyApply": "Mottéli sama waxtaan"
   },
   "offers": {
     "title": "Ofr yi ñu yónnee",

@@ -163,7 +163,14 @@
     "subcategoryPlaceholder": "Select an option (optional)",
     "subcategoryNone": "None — general category",
     "descPlaceholderAutre": "Describe your need in detail (min 10 characters)...",
-    "descMinChars": "Minimum {{count}} characters required"
+    "descMinChars": "Minimum {{count}} characters required",
+    "aiClarify": "Refine with AI",
+    "aiLoading": "Analyzing…",
+    "aiNeedDescription": "First describe your problem in a few words, then the AI will ask the right questions.",
+    "aiClarifyTitle": "Clarify your request",
+    "aiClarifySub": "Answer only what is true for you. Skip what you don't know — nothing will be made up.",
+    "aiClarifyOther": "Other detail (optional)…",
+    "aiClarifyApply": "Complete my description"
   },
   "offers": {
     "title": "Offers received",

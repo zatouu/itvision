@@ -91,7 +91,14 @@
     "offlineAlert": "Vous êtes hors ligne",
     "offlineAlertMsg": "Passez en ligne pour recevoir les demandes proches.",
     "newBadge": "Nouveautés",
-    "trackingBadge": "Suivi"
+    "trackingBadge": "Suivi",
+    "gpsOn": "GPS",
+    "gpsOff": "Pas de GPS",
+    "synced": "Sync",
+    "notSynced": "Non sync",
+    "manage": "Gérer",
+    "noRequestReceived": "Aucune demande reçue.",
+    "tracking": "Suivi"
   },
   "request": {
     "createTitle": "Nouvelle demande",
@@ -333,6 +340,7 @@
   },
   "profile": {
     "title": "Mon profil",
+    "advancedSettings": "Paramètres avancés",
     "defaultName": "Prestataire",
     "providerAvailable": "Disponible",
     "statOffers": "Offres",

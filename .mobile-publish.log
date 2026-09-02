@@ -4408,3 +4408,470 @@ Commit             f8a67134aa7843bd34f834e6ea50daedf93b1711*
 EAS Dashboard      https://expo.dev/accounts/xeuy/projects/Xeuy-provider/updates/ba053c12-877d-4de0-9a8a-cfb8993230ba
 
 [provider] OK - tag 'mobile-provider-published' mis a jour.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@22.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+Environment variables with visibility "Plain text" and "Sensitive" loaded from the "preview" environment on EAS: GOOGLE_SERVICES_JSON_BASE64.
+Environment variables loaded from the "ec2" build profile "env" configuration: EXPO_PUBLIC_API_BASE_URL, EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.
+
+File specified via "android.googleServicesFile" field in your app.json is not checked in to your repository and won't be uploaded to the builder.
+Use EAS file environment variables with secret or sensitive visibility to pass all values that you don't want to include in your version control to build process. Learn more: https://docs.expo.dev/eas/environment-variables/#file-environment-variables
+
+- Incrementing versionCode from 48 to 49.
+✔ Incremented versionCode from 48 to 49.
+✔ Using remote Android credentials (Expo server)
+✔ Using Keystore from configuration: Build Credentials FnOpIvnbVw (default)
+- Compressing project files
+ANDROID_NDK_HOME environment variable was not specified, continuing build without NDK
+[SETUP_WORKINGDIR] Preparing workingdir /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af
+[START_BUILD] Starting build
+  "job": {
+    "type": "managed",
+    "platform": "android",
+    "projectRootDirectory": "mobile/consumer",
+    "projectArchive": {
+      "type": "PATH",
+      "path": "/tmp/cheo/eas-cli-nodejs/04fb4860-b274-467a-b835-6cce2aa5c522.tar.gz"
+    },
+    "builderEnvironment": {
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
+      }
+    },
+    "cache": {
+      "disabled": false,
+      "paths": [],
+      "clear": false
+    },
+    "updates": {
+      "channel": "ec2"
+    },
+    "buildType": "apk",
+    "username": "xeuy",
+    "version": {
+      "versionCode": "49"
+    },
+    "experimental": {},
+    "mode": "build",
+    "triggeredBy": "EAS_CLI",
+    "appId": "c735fe72-f764-4847-9e1d-2342ff1cbfc8",
+    "initiatingUserId": "20e3e64e-52e5-432c-ba28-231c0512df01"
+  }
+Local build, skipping project archive refresh
+[PREPARE_PROJECT] .npmrc found at mobile/consumer/.npmrc
+[READ_EAS_JSON] Using eas.json:
+[READ_EAS_JSON] {
+  "cli": { "version": ">= 10.0.0", "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.1.100:3000",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": false },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging.itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
+      }
+    },
+    "ec2": {
+      "distribution": "internal",
+      "channel": "ec2",
+      "autoIncrement": true,
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
+      }
+    }
+  }
+}
+
+[READ_PACKAGE_JSON] Using package.json:
+[READ_PACKAGE_JSON] {
+  "name": "xeuy-consumer",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "test": "jest",
+    "type-check": "tsc --noEmit",
+    "build:apk": "eas build --platform android --profile ec2"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "~1.23.1",
+    "@react-native-community/netinfo": "11.3.1",
+    "@sentry/react-native": "~5.24.3",
+    "@tanstack/react-query": "^5.45.0",
+    "expo": "~51.0.0",
+    "expo-application": "~5.9.1",
+    "expo-av": "~14.0.6",
+    "expo-constants": "~16.0.2",
+    "expo-dev-client": "~4.0.29",
+    "expo-device": "~6.0.0",
+    "expo-file-system": "~17.0.1",
+    "expo-haptics": "~13.0.0",
+    "expo-image": "~1.13.0",
+    "expo-image-picker": "~15.1.0",
+    "expo-linking": "~6.3.1",
+    "expo-location": "~17.0.1",
+    "expo-notifications": "~0.28.9",
+    "expo-router": "~3.5.17",
+    "expo-secure-store": "~13.0.2",
+    "expo-status-bar": "~1.12.1",
+    "expo-task-manager": "~11.8.2",
+    "expo-updates": "~0.25.0",
+    "i18next": "^26.3.0",
+    "lucide-react-native": "^0.378.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-i18next": "^17.0.8",
+    "react-native": "0.74.5",
+    "react-native-gesture-handler": "~2.16.1",
+    "react-native-maps": "1.14.0",
+    "react-native-qrcode-svg": "^6.3.15",
+    "react-native-safe-area-context": "4.10.5",
+    "react-native-screens": "~3.31.1",
+    "react-native-svg": "~15.2.0",
+    "react-native-web": "~0.19.10",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.11",
+    "typescript": "~5.3.3"
+  }
+}
+[INSTALL_DEPENDENCIES] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer directory
+[INSTALL_DEPENDENCIES] npm warn deprecated osenv@0.1.5: This package is no longer supported.
+[INSTALL_DEPENDENCIES] npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-optional-catch-binding@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-catch-binding instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-logical-assignment-operators@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-logical-assignment-operators instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated sudo-prompt@9.2.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+[INSTALL_DEPENDENCIES] npm warn deprecated querystring@0.2.1: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-object-rest-spread@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-object-rest-spread instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @babel/plugin-proposal-async-generator-functions@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-async-generator-functions instead.
+[INSTALL_DEPENDENCIES] npm warn deprecated @xmldom/xmldom@0.7.13: this version has critical issues, please update to the latest version
+[INSTALL_DEPENDENCIES] npm warn deprecated text-encoding@0.7.0: no longer maintained
+[INSTALL_DEPENDENCIES] npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+[INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/routers@6.1.9: This version is no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+[INSTALL_DEPENDENCIES] npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/bottom-tabs@6.5.20: This version is no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/native@6.1.18: This version is no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/elements@1.3.31: This version is no longer supported
+[INSTALL_DEPENDENCIES] npm warn deprecated @react-navigation/core@6.4.17: This version is no longer supported
+[INSTALL_DEPENDENCIES] added 1332 packages, and audited 1333 packages in 44s
+[INSTALL_DEPENDENCIES] 182 packages are looking for funding
+[INSTALL_DEPENDENCIES]   run `npm fund` for details
+[INSTALL_DEPENDENCIES] 53 vulnerabilities (1 low, 16 moderate, 35 high, 1 critical)
+[INSTALL_DEPENDENCIES] 
+[INSTALL_DEPENDENCIES] To address issues that do not require attention, run:
+[INSTALL_DEPENDENCIES]   npm audit fix
+[INSTALL_DEPENDENCIES] 
+[INSTALL_DEPENDENCIES] To address all issues (including breaking changes), run:
+[INSTALL_DEPENDENCIES]   npm audit fix --force
+[INSTALL_DEPENDENCIES] 
+[INSTALL_DEPENDENCIES] Run `npm audit` for details.
+The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
+Proceeding without mode-specific .env
+[READ_APP_CONFIG] Using app configuration:
+[READ_APP_CONFIG] {
+  "name": "Xeuy Bi",
+  "slug": "xeuy-consumer",
+  "scheme": "xeuyconsumer",
+  "version": "1.0.0",
+  "runtimeVersion": "1.0.0",
+  "orientation": "portrait",
+  "userInterfaceStyle": "automatic",
+  "icon": "./assets/icon.png",
+  "splash": {
+    "image": "./assets/splash.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#0F172A"
+  },
+  "ios": {
+    "supportsTablet": false,
+    "bundleIdentifier": "com.xeuy.xeuy",
+    "infoPlist": {
+      "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches.",
+      "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le suivi de mission.",
+      "NSCameraUsageDescription": "Xeuy Bi utilise l'appareil photo pour prendre des photos de la mission ou des documents.",
+      "NSMicrophoneUsageDescription": "Xeuy Bi utilise le microphone pour les messages vocaux.",
+      "ITSAppUsesNonExemptEncryption": false
+    }
+  },
+  "android": {
+    "package": "com.xeuy.xeuy",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#0F172A"
+    },
+    "permissions": [
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.CAMERA",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_MEDIA_VIDEO",
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK",
+      "android.permission.RECEIVE_BOOT_COMPLETED"
+    ],
+    "googleServicesFile": "google-services.json"
+  },
+  "plugins": [
+    "expo-location",
+    [
+      "expo-av",
+      {
+        "microphonePermission": "Xeuy utilise le microphone pour enregistrer des messages vocaux."
+      }
+    ],
+    [
+      "expo-notifications",
+      {
+        "icon": "./assets/notification-icon.png",
+        "color": "#0F172A",
+        "sounds": [],
+        "defaultChannel": "default"
+      }
+    ],
+    "./plugins/withGoogleMapsApiKey",
+    "./plugins/withGoogleServicesJson"
+  ],
+  "web": {
+    "bundler": "metro"
+  },
+  "updates": {
+    "checkAutomatically": "ON_LOAD",
+    "url": "https://u.expo.dev/c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+    }
+  },
+  "owner": "xeuy",
+  "sdkVersion": "51.0.0",
+  "platforms": [
+    "ios",
+    "android",
+    "web"
+  ]
+}
+[RUN_EXPO_DOCTOR] Running "expo doctor"
+[RUN_EXPO_DOCTOR] Running 17 checks on your project...
+[RUN_EXPO_DOCTOR] 17/17 checks passed. No issues detected!
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/google-services.json
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/google-services.json
+[PREBUILD] - Creating native directory (./android)
+[PREBUILD] ✔ Created native directory
+[PREBUILD] - Updating package.json
+[PREBUILD] ✔ Updated package.json | no changes
+[PREBUILD] - Running prebuild
+[PREBUILD] Generated google-services.json at /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/google-services.json
+[PREBUILD] - Running prebuild
+[PREBUILD] Copied google-services.json to android project
+[PREBUILD] - Running prebuild
+[PREBUILD] » android: userInterfaceStyle: Install expo-system-ui in your project to enable this feature.
+[PREBUILD] - Running prebuild
+[PREBUILD] ✔ Finished prebuild
+[PREBUILD] Running "npm install --include=dev" in /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer directory
+[PREBUILD] up to date, audited 1333 packages in 5s
+[PREBUILD] 182 packages are looking for funding
+[PREBUILD]   run `npm fund` for details
+[PREBUILD] 53 vulnerabilities (1 low, 16 moderate, 35 high, 1 critical)
+[PREBUILD] 
+[PREBUILD] To address issues that do not require attention, run:
+[PREBUILD]   npm audit fix
+[PREBUILD] 
+[PREBUILD] To address all issues (including breaking changes), run:
+[PREBUILD]   npm audit fix --force
+[PREBUILD] 
+[PREBUILD] Run `npm audit` for details.
+[RESTORE_CACHE] Local builds do not support restoring cache
+[CALCULATE_EXPO_UPDATES_RUNTIME_VERSION] Resolved runtime version: 1.0.0
+[PREPARE_CREDENTIALS] Writing secrets to the project's directory
+[PREPARE_CREDENTIALS] Injecting signing config into build.gradle
+[PREPARE_CREDENTIALS] Signing config injected
+[CONFIGURE_ANDROID_VERSION] Injecting version config into build.gradle
+[CONFIGURE_ANDROID_VERSION] Version code: 49
+[CONFIGURE_ANDROID_VERSION] Version config injected
+[CONFIGURE_EXPO_UPDATES] Setting the update request headers in 'AndroidManifest.xml' to '{"expo-channel-name":"ec2"}'
+[RUN_GRADLEW] Running 'gradlew :app:assembleRelease' in /tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/android
+[RUN_GRADLEW] To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+[RUN_GRADLEW] Daemon will be stopped at the end of the build
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:processResources
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:compileKotlin
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:compileJava
+[RUN_GRADLEW] NO-SOURCE
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:classes
+[RUN_GRADLEW] > Task :gradle-plugin:settings-plugin:jar
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:processResources
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:processResources
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:pluginDescriptors
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:processResources
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:compileKotlin
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:compileJava NO-SOURCE
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:classes
+[RUN_GRADLEW] > Task :expo-dev-launcher-gradle-plugin:jar
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileKotlin
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:classes
+[RUN_GRADLEW] > Task :gradle-plugin:react-native-gradle-plugin:jar
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:compileKotlin
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:compileJava NO-SOURCE
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:classes
+[RUN_GRADLEW] > Task :expo-updates-gradle-plugin:jar
+[RUN_GRADLEW] > Configure project :app
+[RUN_GRADLEW] ℹ️  [33mApplying gradle plugin[0m '[32mexpo-dev-launcher-gradle-plugin[0m' (expo-dev-launcher@4.0.29)
+[RUN_GRADLEW]  ℹ️  [33mApplying gradle plugin[0m '[32mexpo-updates-gradle-plugin[0m' (expo-updates@0.25.28)
+[RUN_GRADLEW] > Configure project :expo
+[RUN_GRADLEW] Using expo modules
+[RUN_GRADLEW]   - [32mexpo-application[0m (5.9.1)
+[RUN_GRADLEW]   - [32mexpo-asset[0m (10.0.10)
+[RUN_GRADLEW] - [32mexpo-av[0m (14.0.7)
+[RUN_GRADLEW]   - [32mexpo-constants[0m (16.0.2)
+[RUN_GRADLEW]   - [32mexpo-dev-client[0m (4.0.29)
+[RUN_GRADLEW]   - [32mexpo-dev-launcher[0m (4.0.29)
+[RUN_GRADLEW]   - [32mexpo-dev-menu[0m (5.0.23)
+[RUN_GRADLEW]   - [32mexpo-device[0m (6.0.2)
+[RUN_GRADLEW]   - [32mexpo-eas-client[0m (0.12.0)
+[RUN_GRADLEW]   - [32mexpo-file-system[0m (17.0.1)
+[RUN_GRADLEW]   - [32mexpo-font[0m (12.0.10)
+[RUN_GRADLEW]   - [32mexpo-haptics[0m (13.0.1)
+[RUN_GRADLEW]   - [32mexpo-image[0m (1.13.0)
+[RUN_GRADLEW]   - [32mexpo-image-loader[0m (4.7.0)
+[RUN_GRADLEW]   - [32mexpo-image-picker[0m (15.1.0)
+[RUN_GRADLEW]   - [32mexpo-json-utils[0m (0.13.1)
+[RUN_GRADLEW]   - [32mexpo-keep-awake[0m (13.0.2)
+[RUN_GRADLEW]   - [32mexpo-location[0m (17.0.1)
+[RUN_GRADLEW]   - [32mexpo-manifests[0m (0.14.3)
+[RUN_GRADLEW]   - [32mexpo-modules-core[0m (1.12.26)
+[RUN_GRADLEW]   - [32mexpo-notifications[0m (0.28.19)
+[RUN_GRADLEW]   - [32mexpo-secure-store[0m (13.0.2)
+[RUN_GRADLEW]   - [32mexpo-splash-screen[0m (0.27.7)
+[RUN_GRADLEW]   - [32mexpo-structured-headers[0m (3.8.0)
+[RUN_GRADLEW]   - [32mexpo-task-manager[0m (11.8.2)
+[RUN_GRADLEW]   - [32mexpo-updates[0m (0.25.28)
+[RUN_GRADLEW]   - [32munimodules-app-loader[0m (4.6.0)
+[RUN_GRADLEW] This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+[RUN_GRADLEW] Observed package id 'ndk;26.1.10909125' in inconsistent location '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125.linux-bak' (Expected '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125')
+[RUN_GRADLEW] Build-tool 34.0.0 is missing AAPT at /mnt/c/Users/ASUS/AppData/Local/Android/Sdk/build-tools/34.0.0/aapt
+[RUN_GRADLEW] Observed package id 'ndk;26.1.10909125' in inconsistent location '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125.linux-bak' (Expected '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125')
+[RUN_GRADLEW] Observed package id 'ndk;26.1.10909125' in inconsistent location '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125.linux-bak' (Expected '/mnt/c/Users/ASUS/AppData/Local/Android/Sdk/ndk/26.1.10909125')
+[RUN_GRADLEW] Build-tool 34.0.0 is missing AAPT at /mnt/c/Users/ASUS/AppData/Local/Android/Sdk/build-tools/34.0.0/aapt
+[RUN_GRADLEW] FAILURE:
+[RUN_GRADLEW] Build failed with an exception.
+[RUN_GRADLEW] * What went wrong:
+[RUN_GRADLEW] Could not determine the dependencies of task ':app:lintVitalReportRelease'.
+[RUN_GRADLEW] > Installed Build Tools revision 34.0.0 is corrupted. Remove and install again using the SDK Manager.
+[RUN_GRADLEW] * Try:
+[RUN_GRADLEW] > Run with --stacktrace option to get the stack trace.
+[RUN_GRADLEW] > Run with --info or --debug option to get more log output.
+[RUN_GRADLEW] > Run with --scan to get full insights.
+[RUN_GRADLEW] > Get more help at https://help.gradle.org.
+[RUN_GRADLEW] BUILD FAILED in 1m 57s
+[RUN_GRADLEW] 20 actionable tasks: 20 executed
+[RUN_GRADLEW] See the profiling report at: file:///tmp/cheo/eas-build-local-nodejs/ba3efa59-492c-4cd7-aad9-175ef3e031af/build/mobile/consumer/android/build/reports/profile/profile-2026-08-30-16-18-19.html
+[RUN_GRADLEW] A fine-grained performance profile is available: use the
+[RUN_GRADLEW] --scan option.
+[RUN_GRADLEW] Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+
+Build failed
+Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+    at resolveBuildPhaseErrorAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/buildErrors/detectError.js:61:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async BuildContext.handleBuildPhaseErrorAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/context.js:193:28)
+    at async BuildContext.runBuildPhase (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/context.js:138:35)
+    at async buildAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/builders/android.js:140:5)
+    at async runBuilderWithHooksAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/builders/common.js:12:13)
+    at async Object.androidBuilder (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/@expo/build-tools/dist/builders/android.js:30:16)
+    at async buildAndroidAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/eas-cli-local-build-plugin/dist/android.js:43:12)
+    at async buildAsync (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/eas-cli-local-build-plugin/dist/build.js:54:29)
+    at async main (/home/cheo/.npm/_npx/159a69bc0d40c404/node_modules/eas-cli-local-build-plugin/dist/main.js:16:9)
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice
+npx -y eas-cli-local-build-plugin@20.0.0 eyJqb2IiOnsidHlwZSI6Im1hbmFnZWQiLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJwcm9qZWN0Um9vdERpcmVjdG9yeSI6Im1vYmlsZS9jb25zdW1lciIsInByb2plY3RBcmNoaXZlIjp7InR5cGUiOiJQQVRIIiwicGF0aCI6Ii90bXAvY2hlby9lYXMtY2xpLW5vZGVqcy8wNGZiNDg2MC1iMjc0LTQ2N2EtYjgzNS02Y2NlMmFhNWM1MjIudGFyLmd6In0sImJ1aWxkZXJFbnZpcm9ubWVudCI6eyJlbnYiOnsiRVhQT19QVUJMSUNfQVBJX0JBU0VfVVJMIjoiaHR0cHM6Ly9pdHZpc2lvbnBsdXMuc24iLCJFWFBPX1BVQkxJQ19HT09HTEVfTUFQU19BUElfS0VZIjoiQUl6YVN5QWtoM3Y1OTVVcEpILWhiQkIxcnBMeWFzR1RXckhMbXBFIn19LCJjYWNoZSI6eyJkaXNhYmxlZCI6ZmFsc2UsInBhdGhzIjpbXSwiY2xlYXIiOmZhbHNlfSwic2VjcmV0cyI6eyJidWlsZENyZWRlbnRpYWxzIjp7ImtleXN0b3JlIjp7ImRhdGFCYXNlNjQiOiIvdTMrN1FBQUFBSUFBQUFCQUFBQUFRQWdaRFJsWkdSaE56QmtNemRrT0dGak1qUXpOV1psTjJNMU1HTXpZVFkwWkRjQUFBR2VoK2J0SXdBQUJRSXdnZ1QrTUE0R0Npc0dBUVFCS2dJUkFRRUZBQVNDQk9yRWt1bnhYRFJSankwa2tkY1pva2xGT0tyeVhKSStxQU1vd3Vlb3NURlV2WVV0TzVQYVAzeTBJSHEwNUdadGpBZkk1YTdPUVBqZDQ2VnY1N01pcTlBZE1JdWFjU1NKRHNveDlqOW85MkI5NGdwSjVvSG83dFpVT0tBVGNaWEVsTlhwaEx6MUxrZDkwYnZYU0VRNFpUdXNDaFVyN2g2bDFmN0lGT0IyV2dFSWYyWjA2dTMzSU5WM2hadmkvOXpBODF3aHB1eEFDaXpmQlV2TnBkMmh2d3Zia2ZkUlhXZmZzVzNvb0JTaTdmRUNPRWo3eFhWMHBGYm9qdDZ2UHR4NjdVNmsyRmp1L21hNkw5S1J5cTI1S2VjY1ZFc3R3NmpmcWlnY2tmNmQwZUV4TnAycXJjaWx2QXNGWFFEc3BYSUppcGpBbkdQN0FlWGVlT3RjOUJHQlVpZG1FbWJISVBMZGdYYTNhc3Fta0xJTHhwaWYxb1JnaFpmTmRnY0VBeUJQL29MNUV1eEFsTGZHMkRCaWZBZ2VyR29aWXJkSUx6RFpXeEV2K0lRSUVVL0d1MnlxVEVqbmdlOU1KQ25aWWRtZ3FVY05ZbzJFWXpvdGlubVZPZ1Y4azhRay9ST1lOU3FCd0lZS2YwMDJoTmRhLzF6c1BLdm0rQlJjakR1d09xZWVMNUxidjhDWlJlbkx6Nk85MnBHOHY1ZWtmZDBKQ1Rqeit6dldkNGhyektjTlpHbWdTOUJvY1E1RmlmVGdLMjhWRTQwbGlFT1RpZGt5aWJyZ0syRkRZckNQaVpuS1FuWXgvb1hSZEdMTnhwWDhRTElrOUx3VzJNbFFYOThkVGh6aVRMMnVyeVdxNk5ZV1dsWkd0cHFKeUxpelA4L2gzbXpXYnJmUmZobEdPNDFnY3RMU1Q4eXZ5QlI1ZjdxYUIrV042WlJHM2MwUktGaURJczJQN0dGSUJIYWVTazd3dW5RUWtkY3V0TDd5Q3h0R3ZxN2VleEh2UTBuSk5HTnhnQXcyeDBNM05DYU9oWFg5cHNoUStMZVlWK0MxblFMMlhhNXlkYXJiaDlzaGdhYjNIWUF6LzN4SEQ3RTNSSmd1YklPK3JaSFB6SXloeEV0Yk9FdW5iMmp2SnRHNzdHYkZvck9ZTDRHM25jOHRzMlNEVmNMbGkzWGUxeWRTcWlmM1V3a0Q3KzhSM1ZLWmFGM003T0hiK1NBdDhWLzdnYXYxaWhraEszNEVsR0h3Zm0zaC9ZU2pjN0VxV0V6N25nV3V2ZnUrbXZqWWRXa05QSGIrcVowUFZYOFFRa0ZZYmFqSU1CQ0l4ckNITmpLR3d6dzFNUitVSEhSUEgwTVJ0czMxSXRMZ2t0VitpclpsbERlYzdkdFVWUWlZSkVjbXF5bFRORnY2LzFDTjhjaUkrUktmWXFIUFVxZ0s3cEtTc01RVGdHRDJpeThRaERDYXhBQXJDcWhkUEUwZzBVdjlaRy9ZeUtOQTBnb1BKV3Q3MHFWSy9yQnNXckcwRzdhZmltNTVJZmx1RUFRWUE2Yk9GVFVBRjI2STJBSWw2MXVYYkI5dGR4SUl1dWNpVXRPSGlMSDVJL3ZHbWVlZC9obnhZVjVNNkdXd0Uxc211dXFSdStEM1djMlNaUmhUTldiNnVDMkN5QTRsaVFkZ3J3R2RjbXZMd0JNWDI2Vk1DTktSMmlIS2dDdU8rU1czdVVEVTdLN0VLUkNxMmlWdVBqNERLVkRiL3BtOXF4OTM3c0dkOUM0elRxWm9DU0QyQkJmREFUU3M5aWM4Z0FkTHJkcUJzT0xnODljbHhYb3ZOWHVEbnV4bDNqM1BxQ3M0K3lvMHBsVm5yV1pGNUx4dy9mZ2pQcWhlbGN0Nlk4ZXJhZGF2b2JOaTVsTzNjNGZYaThqWWErSlRaeGJhblRxODRpU1dUNVNBR0pJdUxQODE1R0hIVlBQOXNqWUVET0ExSXNSeExQSUswYTA3ZXI5OEhMODlzQ1paUXBRQ0xSVUFOcWc0ZjlSd3NUTnY0cGV0Y0REaDZvSTM4eVNIR2NDYW45ZmFXV1pnN3Q1SXFkWUtPUHd6Q3cvL3ZrUXJxM1BSU3hQTE5CQS9FTW01QmlaVlA2SUplMUh5K1JqVERpWGh3VlFzNWxyZGZLWUhRNk13UG40c0JTb3IwMjRybXNsZ05PM1ZXbldDOHRIT1lNTlVYNC9GNnBmSHJqRkpaWG1BUjg5ZDJlSjM3akNhQUFBQUFRQUZXQzQxTURrQUFBTXhNSUlETFRDQ0FoV2dBd0lCQWdJSUZ1Sjh4U3FYWWFZd0RRWUpLb1pJaHZjTkFRRUxCUUF3UkRFTE1Ba0dBMVVFQmhNQ1ZWTXhDVEFIQmdOVkJBZ1RBREVKTUFjR0ExVUVCeE1BTVFrd0J3WURWUVFLRXdBeENUQUhCZ05WQkFzVEFERUpNQWNHQTFVRUF4TUFNQ0FYRFRJMk1EWXdNakV3TXpVeE9Gb1lEekl3TlRNeE1ERTRNVEF6TlRFNFdqQkVNUXN3Q1FZRFZRUUdFd0pWVXpFSk1BY0dBMVVFQ0JNQU1Ra3dCd1lEVlFRSEV3QXhDVEFIQmdOVkJBb1RBREVKTUFjR0ExVUVDeE1BTVFrd0J3WURWUVFERXdBd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUM5ZjZrZDJWVTdRalA2ZGZ4VWhObUdEYmV3S3k4dG8weHpEeUp6eDY3am1GUWQ2RGxoNmZaZys1aHhUeFhaeDdhT2hqREROMzliQk5EUnAxMlBWQkZ3elRsMTAwbzRnc0ZLcXdudThONVM0U2JXbWNxYms1Z0VwODR0OG90eXc0a0NvRlN2aElYdzhYbHhXaGgrSzFya3hTUUtjMFNOM2NUNFg4enFqeW52TG12dTJyc3pSQ3BNeWdXVkg0b04xZnJISzU2LzhBWmNEZmpzSkJFei9ZYTJHMVQ5WHF5ODY2cWludFFoVVBrSkc3Z3ZndDFhaG9lQ0tMbW44Mko4VnZoL0hwQnVYY29SL2t4bGkyUXQ3akZiYjRYakRTcjZPdFF2c1NGMzZrQ1huM2xsRHlDZjYrSkU5MlpZa0c2TzlJdEVOVC9mdmwybFZXZVB5NzhZQzBWdEFnTUJBQUdqSVRBZk1CMEdBMVVkRGdRV0JCUy9CQ0RZRWdCWkFGZ0pqNGNrRGM0MXBJeWgxVEFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBakZiWHFPYnBIWEVPTlJqMGUyaDlWRXBEZzBkMXE5T1k3L0dxemNmcWtaVmtOV2YzaGJGa1NlUkl6cnRVSnlMUkpNckkybDdOQ3hFV1ZJZnRkNTZKTlYzTmdCRmJDTWRiVmhHYUxYZEhnWjN5TEpPRXpUUmJ6dFlQc1N3RE05ZUNzSllPWlpDVjZVMURESXRKWDAvRzFpNFp5c1p5bk94U2plOWlnYlpwRExoV1hUSDdWdVBKWXBHTjBoRWVqVnNobjcwL2k4OGJ6MWs5d1hlUTYxN2NxbDI3MFo4R2lMdEMwSVlTZVlZbEQ3ZWJaM25TOVZMTnY3ZmR2RWxIWlAwWlFXcno2cWZOdnhKS3JNZk9hY1djcXZqVlVPM3FGTGxIbXpJZ2wyR0ppVG5Ud1Bad2g1aENWY21BSXlNa0QwMFdIU2hmcmt0TU9JdStkSjlrWWFuOFcyeXNYb3c2c2MvZHhvNXpIWFlja2gvTEtBbisiLCJrZXlzdG9yZVBhc3N3b3JkIjoiNjFkNTdjYzA2NWM1YTU1OTNkY2QwNDNhNGQwYzBiOTAiLCJrZXlBbGlhcyI6ImQ0ZWRkYTcwZDM3ZDhhYzI0MzVmZTdjNTBjM2E2NGQ3Iiwia2V5UGFzc3dvcmQiOiJhOTY3ZDg1ZDk4M2IzNjZkNzg4NzQ5ZjVlNTM0ZjhmNCJ9fX0sInVwZGF0ZXMiOnsiY2hhbm5lbCI6ImVjMiJ9LCJidWlsZFR5cGUiOiJhcGsiLCJ1c2VybmFtZSI6InhldXkiLCJ2ZXJzaW9uIjp7InZlcnNpb25Db2RlIjoiNDkifSwiZXhwZXJpbWVudGFsIjp7fSwibW9kZSI6ImJ1aWxkIiwidHJpZ2dlcmVkQnkiOiJFQVNfQ0xJIiwiYXBwSWQiOiJjNzM1ZmU3Mi1mNzY0LTQ4NDctOWUxZC0yMzQyZmYxY2JmYzgiLCJpbml0aWF0aW5nVXNlcklkIjoiMjBlM2U2NGUtNTJlNS00MzJjLWJhMjgtMjMxYzA1MTJkZjAxIn0sIm1ldGFkYXRhIjp7InRyYWNraW5nQ29udGV4dCI6eyJ0cmFja2luZ19pZCI6ImI0YjQ3MDNjLTA4OWYtNGFjOS1iMjNkLWRlODQwOTRhNzE1NCIsInBsYXRmb3JtIjoiYW5kcm9pZCIsInNka192ZXJzaW9uIjoiNTEuMC4wIiwiYWNjb3VudF9pZCI6ImZjNWRiODJjLTVhODYtNDM3MS1iZWE0LTY3NGZkYTY0YTI1YiIsInByb2plY3RfaWQiOiJjNzM1ZmU3Mi1mNzY0LTQ4NDctOWUxZC0yMzQyZmYxY2JmYzgiLCJwcm9qZWN0X3R5cGUiOiJtYW5hZ2VkIiwiZGV2X2NsaWVudCI6ZmFsc2UsImRldl9jbGllbnRfdmVyc2lvbiI6IjQuMC4yOSIsIm5vX3dhaXQiOmZhbHNlLCJydW5fZnJvbV9jaSI6ZmFsc2UsImxvY2FsIjp0cnVlfSwiYXBwQnVpbGRWZXJzaW9uIjoiNDkiLCJhcHBWZXJzaW9uIjoiMS4wLjAiLCJjbGlWZXJzaW9uIjoiMjAuMC4wIiwid29ya2Zsb3ciOiJtYW5hZ2VkIiwiY3JlZGVudGlhbHNTb3VyY2UiOiJyZW1vdGUiLCJzZGtWZXJzaW9uIjoiNTEuMC4wIiwicnVudGltZVZlcnNpb24iOiIxLjAuMCIsInJlYWN0TmF0aXZlVmVyc2lvbiI6IjAuNzQuNSIsImV4cG9QYWNrYWdlVmVyc2lvbiI6IjUxLjAuMzkiLCJjaGFubmVsIjoiZWMyIiwiZGlzdHJpYnV0aW9uIjoiaW50ZXJuYWwiLCJhcHBOYW1lIjoiWGV1eSBCaSIsImFwcElkZW50aWZpZXIiOiJjb20ueGV1eS54ZXV5IiwiYnVpbGRQcm9maWxlIjoiZWMyIiwiZ2l0Q29tbWl0SGFzaCI6ImY2MGRmODEwNDFiOTk3ZjJjMWEzNjIxYjViNTRiZWM4NmEwZDVhZWMiLCJnaXRDb21taXRNZXNzYWdlIjoiZml4OiBtdWx0aS1hcmNoIGRvY2tlciBidWlsZCBmb3IgYXJtNjQgRUMyIiwiaXNHaXRXb3JraW5nVHJlZURpcnR5Ijp0cnVlLCJ1c2VybmFtZSI6InhldXkiLCJydW5XaXRoTm9XYWl0RmxhZyI6ZmFsc2UsInJ1bkZyb21DSSI6ZmFsc2UsImRldmVsb3BtZW50Q2xpZW50IjpmYWxzZSwicmVxdWlyZWRQYWNrYWdlTWFuYWdlciI6Im5wbSIsInNpbXVsYXRvciI6ZmFsc2V9fQ== exited with non-zero code: 1
+    Error: build command failed.

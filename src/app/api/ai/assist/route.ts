@@ -4,7 +4,7 @@ import { aiAssist, type AssistType } from '@/lib/ai/assist'
 import { checkAiAvailability } from '@/lib/ai/qwen'
 import { applyRateLimit, aiRateLimiter } from '@/lib/rate-limiter'
 
-const VALID_TYPES: AssistType[] = ['enhance_request', 'analyze_request', 'mission_help', 'daily_tips']
+const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips']
 
 export async function POST(request: NextRequest) {
   const rateLimitResponse = await applyRateLimit(request, aiRateLimiter)
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const { type, category, description, attributes, question, missionStatus, profile, nearbyCount, earnings, rating } = body as any
+    const { type, category, description, attributes, answers, question, missionStatus, profile, nearbyCount, earnings, rating } = body as any
 
     if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       category,
       description,
       attributes,
+      answers: Array.isArray(answers) ? answers : undefined,
       question,
       missionStatus,
       profile,
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
       rating,
     })
 
-    return NextResponse.json({ text: result.text, source: result.source, model: result.model })
+    return NextResponse.json({ text: result.text, questions: result.questions, source: result.source, model: result.model })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/ai/assist]', e)

@@ -1,18 +1,26 @@
 import { qwenChat, type ChatMessage } from './qwen'
 
-export type AssistType = 'enhance_request' | 'analyze_request' | 'mission_help' | 'daily_tips'
+export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips'
 
 interface AssistContext {
   type: AssistType
   category?: string
   description?: string
   attributes?: Record<string, any>
+  answers?: Array<{ question: string; answer: string }>
   question?: string
   missionStatus?: string
   profile?: any
   nearbyCount?: number
   earnings?: any
   rating?: number
+}
+
+export interface ClarifyQuestion {
+  id: string
+  question: string
+  options?: string[]
+  allowFreeText?: boolean
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -33,23 +41,51 @@ function buildMessages(ctx: AssistContext): ChatMessage[] {
 
   switch (ctx.type) {
     case 'enhance_request': {
+      const answersBlock = ctx.answers && ctx.answers.length > 0
+        ? `\nPrécisions données par le client:\n${ctx.answers.map(a => `- ${a.question} → ${a.answer}`).join('\n')}`
+        : ''
       return [
         {
           role: 'system',
-          content: `Tu es un assistant qui aide les clients sénégalais à mieux décrire leurs besoins de service. Réponds en français simple et clair. Sois concis (max 150 mots). Structure la réponse avec des sections courtes. Évite le jargon technique.`,
+          content: `Tu reformules la description d'un client pour une demande de service au Sénégal. RÈGLES ABSOLUES:
+1. N'invente AUCUN fait. Utilise UNIQUEMENT les informations fournies par le client.
+2. Si une information n'est pas fournie (âge de l'installation, date de début, etc.), ne la mentionne JAMAIS.
+3. Texte brut uniquement: pas de markdown, pas d'astérisques, pas de titres, pas de listes numérotées.
+4. Pas de conseils, pas de suggestions de photos, pas de diagnostic technique.
+5. Écris à la première personne, comme si le client parlait. Ton naturel et simple.
+6. Maximum 4 phrases. Chaque phrase doit correspondre à un fait fourni.
+7. Si la description est déjà claire et complète, retourne-la quasi identique.`,
+        },
+        {
+          role: 'user',
+          content: `Catégorie: ${cat}
+Description du client: "${ctx.description || '(vide)'}"${answersBlock}
+
+Reformule en un texte fluide qui intègre les précisions. Rappel: aucun fait inventé, texte brut.`,
+        },
+      ]
+    }
+
+    case 'clarify_request': {
+      return [
+        {
+          role: 'system',
+          content: `Tu aides des clients sénégalais à préciser leur demande de dépannage/service. Ton rôle: poser les questions dont les réponses aideront VRAIMENT l'artisan à préparer son intervention.
+RÈGLES:
+1. Génère 3 à 4 questions MAXIMUM, spécifiques au problème décrit (jamais génériques).
+2. Chaque question doit porter sur un FAIT OBSERVABLE par le client (quand, où, fréquence, quel équipement, qu'est-ce qui a changé récemment) — jamais de question technique que le client ne peut pas vérifier.
+3. Propose 2 à 4 options de réponse courtes quand c'est possible.
+4. Questions en français très simple.
+5. Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown, au format:
+{"questions":[{"id":"q1","question":"...","options":["...","..."],"allowFreeText":true}]}`,
         },
         {
           role: 'user',
           content: `Catégorie: ${cat}
 Description du client: "${ctx.description || '(vide)'}"
-Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
+Attributs déjà renseignés: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
 
-Génère une description améliorée et structurée avec:
-1. **Nature du problème** (1-2 phrases claires)
-2. **Contexte utile** (âge installation, symptômes, quand ça a commencé)
-3. **Photos utiles à prendre** (1-2 suggestions concrètes)
-
-Reste pratique et adapté au contexte sénégalais.`,
+Génère les questions de clarification les plus utiles pour ce problème précis.`,
         },
       ]
     }
@@ -126,8 +162,35 @@ Génère 3 conseils personnalisés pour aujourd'hui. Adapte-les au profil et à 
   }
 }
 
-export async function aiAssist(ctx: AssistContext): Promise<{ text: string; source: string; model: string }> {
+function extractJson(raw: string): any {
+  // Retirer les éventuels code fences et texte autour
+  const cleaned = raw.replace(/```(?:json)?/g, '').trim()
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) throw new Error('No JSON found in AI response')
+  return JSON.parse(cleaned.slice(start, end + 1))
+}
+
+export async function aiAssist(ctx: AssistContext): Promise<{ text: string; source: string; model: string; questions?: ClarifyQuestion[] }> {
   const messages = buildMessages(ctx)
   const result = await qwenChat(messages)
+
+  if (ctx.type === 'clarify_request') {
+    const parsed = extractJson(result.text)
+    const questions: ClarifyQuestion[] = Array.isArray(parsed?.questions)
+      ? parsed.questions
+          .filter((q: any) => q && typeof q.question === 'string' && q.question.trim())
+          .slice(0, 4)
+          .map((q: any, i: number) => ({
+            id: typeof q.id === 'string' ? q.id : `q${i + 1}`,
+            question: q.question.trim(),
+            options: Array.isArray(q.options) ? q.options.filter((o: any) => typeof o === 'string' && o.trim()).slice(0, 4) : undefined,
+            allowFreeText: q.allowFreeText !== false,
+          }))
+      : []
+    if (questions.length === 0) throw new Error('AI returned no valid questions')
+    return { text: '', questions, source: result.source, model: result.model }
+  }
+
   return { text: result.text, source: result.source, model: result.model }
 }

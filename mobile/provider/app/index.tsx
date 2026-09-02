@@ -409,16 +409,16 @@ function Home() {
                     Rayon {radius} km{onlineSince ? ` · ${onlineSince}` : ''}
                   </Text>
                   <View style={s.statusMetaRow}>
-                    <Text style={s.statusMeta}>{gpsActive ? 'GPS' : 'No GPS'}</Text>
+                    <Text style={s.statusMeta}>{gpsActive ? t('home.gpsOn', { defaultValue: 'GPS' }) : t('home.gpsOff', { defaultValue: 'Pas de GPS' })}</Text>
                     <View style={s.statusDotSmall} />
-                    <Text style={s.statusMeta}>{synced ? 'Sync' : 'No sync'}</Text>
+                    <Text style={s.statusMeta}>{synced ? t('home.synced', { defaultValue: 'Sync' }) : t('home.notSynced', { defaultValue: 'Non sync' })}</Text>
                     <TouchableOpacity style={s.radiusBtn} onPress={() => router.push('/profile-detail?section=visibility')} hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }} accessibilityRole="button">
-                      <Text style={s.radiusBtnText}>Gérer</Text>
+                      <Text style={s.radiusBtnText}>{t('home.manage', { defaultValue: 'Gérer' })}</Text>
                     </TouchableOpacity>
                   </View>
                 </>
               ) : (
-                <Text style={[s.statusSub, s.statusSubOffline]}>Aucune demande reçue.</Text>
+                <Text style={[s.statusSub, s.statusSubOffline]}>{t('home.noRequestReceived', { defaultValue: 'Aucune demande reçue.' })}</Text>
               )}
             </View>
           </View>
@@ -523,8 +523,8 @@ function Home() {
         )}
 
         <TouchableOpacity style={s.actionRow} onPress={() => router.push('/my-offers')} activeOpacity={0.85}>
-          <View style={s.actionRowTag}><Text style={s.actionRowTagText}>Suivi</Text></View>
-          <Text style={s.actionRowTitle}>Mes offres envoyées</Text>
+          <View style={s.actionRowTag}><Text style={s.actionRowTagText}>{t('home.tracking', { defaultValue: 'Suivi' })}</Text></View>
+          <Text style={s.actionRowTitle}>{t('home.myOffersSent', { defaultValue: 'Mes offres envoyées' })}</Text>
           <Text style={s.actionRowSub} numberOfLines={1} ellipsizeMode="tail">
             {offersTotal > 0 ? `${offersTotal} envoyée(s) · ${offersPending} en attente · ${offersAccepted} acceptée(s) · ${offersRejected} refusée(s) · ${offersExpired} expirée(s)` : 'Aucune offre envoyée'}
           </Text>

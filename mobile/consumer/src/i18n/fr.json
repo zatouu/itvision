@@ -163,7 +163,14 @@
     "subcategoryPlaceholder": "Sélectionnez une option (optionnel)",
     "subcategoryNone": "Aucune — catégorie générale",
     "descPlaceholderAutre": "Décrivez votre besoin en détail (min 10 caractères)...",
-    "descMinChars": "Minimum {{count}} caractères requis"
+    "descMinChars": "Minimum {{count}} caractères requis",
+    "aiClarify": "Préciser avec l'IA",
+    "aiLoading": "Analyse…",
+    "aiNeedDescription": "Décrivez d'abord votre problème en quelques mots, puis l'IA vous posera les bonnes questions.",
+    "aiClarifyTitle": "Précisez votre demande",
+    "aiClarifySub": "Répondez à ce qui est vrai pour vous. Ignorez ce que vous ne savez pas — rien ne sera inventé.",
+    "aiClarifyOther": "Autre précision (optionnel)…",
+    "aiClarifyApply": "Compléter ma description"
   },
   "offers": {
     "title": "Offres reçues",

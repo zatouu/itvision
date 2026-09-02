@@ -291,7 +291,7 @@ function Profile() {
         ))}
 
         <TouchableOpacity style={s.logout} onPress={() => router.push('/profile-detail?section=security')}>
-          <Text style={s.logoutText}>Paramètres avancés</Text>
+          <Text style={s.logoutText}>{t('profile.advancedSettings', { defaultValue: 'Paramètres avancés' })}</Text>
         </TouchableOpacity>
       </ScrollView>
       <TabBar active="profile" />

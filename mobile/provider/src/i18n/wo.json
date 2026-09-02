@@ -91,7 +91,14 @@
     "offlineAlert": "Biiy internet",
     "offlineAlertMsg": "Dugg ci internet ngir jot ay laaj ci sa wàll.",
     "newBadge": "Bees",
-    "trackingBadge": "Tëg"
+    "trackingBadge": "Tëg",
+    "gpsOn": "GPS",
+    "gpsOff": "Amul GPS",
+    "synced": "Sync",
+    "notSynced": "Syncul",
+    "manage": "Saytu",
+    "noRequestReceived": "Jotul benn laaj.",
+    "tracking": "Tëg"
   },
   "request": {
     "createTitle": "Laaj bu bees",
@@ -333,6 +340,7 @@
   },
   "profile": {
     "title": "Profil",
+    "advancedSettings": "Saytu yu xóot",
     "defaultName": "Liggéeykat",
     "providerAvailable": "Am",
     "statOffers": "Ofr",

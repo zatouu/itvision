@@ -15,6 +15,7 @@ import { loadCategories, getCategoryLabel, getSubCategoryLabel, getAttributeLabe
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown, Sparkles } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import AiClarifyModal, { ClarifyQuestion, ClarifyAnswer } from '../src/components/AiClarifyModal'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
@@ -64,7 +65,9 @@ function CreateRequest() {
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
   const [attributes, setAttributes] = useState<Record<string, string | number | boolean>>({})
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiResult, setAiResult] = useState<string | null>(null)
+  const [aiApplying, setAiApplying] = useState(false)
+  const [aiQuestions, setAiQuestions] = useState<ClarifyQuestion[]>([])
+  const [aiModalVisible, setAiModalVisible] = useState(false)
   const { t, i18n } = useTranslation()
 
   useEffect(() => {
@@ -351,23 +354,27 @@ function CreateRequest() {
               {category === 'autre' && description.trim().length < 10 && description.length > 0 && (
                 <Text style={s.descHint}>{t('request.descMinChars', { count: 10 })}</Text>
               )}
-              {/* AI Enhance button */}
+              {/* AI guided clarification */}
               <TouchableOpacity
                 style={[s.aiBtn, aiLoading && { opacity: 0.6 }]}
                 onPress={async () => {
                   if (aiLoading) return
+                  if (description.trim().length < 10) {
+                    setErr(t('request.aiNeedDescription', { defaultValue: 'Décrivez d’abord votre problème en quelques mots, puis l’IA vous posera les bonnes questions.' }))
+                    return
+                  }
+                  setErr(null)
                   setAiLoading(true)
-                  setAiResult(null)
                   try {
                     const res = await apiPost('/api/ai/assist', {
-                      type: 'enhance_request',
+                      type: 'clarify_request',
                       category,
                       description,
                       attributes,
                     })
-                    if (res.text) {
-                      setAiResult(res.text)
-                      setDescription(res.text)
+                    if (Array.isArray(res.questions) && res.questions.length > 0) {
+                      setAiQuestions(res.questions)
+                      setAiModalVisible(true)
                       hapticSuccess()
                     }
                   } catch (e: any) {
@@ -380,9 +387,37 @@ function CreateRequest() {
               >
                 <Sparkles size={16} color={colors.primary} />
                 <Text style={s.aiBtnText}>
-                  {aiLoading ? t('request.aiLoading', { defaultValue: 'Analyse…' }) : t('request.aiEnhance', { defaultValue: 'Améliorer ma description' })}
+                  {aiLoading ? t('request.aiLoading', { defaultValue: 'Analyse…' }) : t('request.aiClarify', { defaultValue: 'Préciser avec l’IA' })}
                 </Text>
               </TouchableOpacity>
+              <AiClarifyModal
+                visible={aiModalVisible}
+                questions={aiQuestions}
+                applying={aiApplying}
+                onClose={() => setAiModalVisible(false)}
+                onApply={async (answers: ClarifyAnswer[]) => {
+                  setAiApplying(true)
+                  const composeFallback = () => {
+                    const lines = answers.map(a => `- ${a.question} ${a.answer}`)
+                    return `${description.trim()}\n\nPrécisions :\n${lines.join('\n')}`
+                  }
+                  try {
+                    const res = await apiPost('/api/ai/assist', {
+                      type: 'enhance_request',
+                      category,
+                      description,
+                      attributes,
+                      answers,
+                    })
+                    setDescription(res.text?.trim() ? res.text.trim() : composeFallback())
+                  } catch {
+                    setDescription(composeFallback())
+                  }
+                  setAiApplying(false)
+                  setAiModalVisible(false)
+                  hapticSuccess()
+                }}
+              />
             </View>
             <DynamicAttributes
               category={cats.find(c => c.id === category)}

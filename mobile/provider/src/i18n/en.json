@@ -91,7 +91,14 @@
     "offlineAlert": "You are offline",
     "offlineAlertMsg": "Go online to receive nearby requests.",
     "newBadge": "New",
-    "trackingBadge": "Tracking"
+    "trackingBadge": "Tracking",
+    "gpsOn": "GPS",
+    "gpsOff": "No GPS",
+    "synced": "Synced",
+    "notSynced": "Not synced",
+    "manage": "Manage",
+    "noRequestReceived": "No requests received.",
+    "tracking": "Tracking"
   },
   "request": {
     "createTitle": "New request",
@@ -333,6 +340,7 @@
   },
   "profile": {
     "title": "Profile",
+    "advancedSettings": "Advanced settings",
     "defaultName": "Provider",
     "providerAvailable": "Available",
     "statOffers": "Offers",
