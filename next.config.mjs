@@ -115,6 +115,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '150mb',
     },
+    outputFileTracingIncludes: {
+      '/': ['./lib/**/*'],
+    },
   },
 
   // Packages serveur exclus du bundling (binaires natifs)

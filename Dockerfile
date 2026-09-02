@@ -1,4 +1,4 @@
-# Dockerfile pour l'application Next.js IT Vision
+# Dockerfile pour l'application Next.js IT Vision (standalone)
 # Utilise node:20-slim (Debian) pour supporter Playwright + Chromium
 FROM node:20-slim AS base
 
@@ -20,10 +20,6 @@ RUN npx playwright install --with-deps chromium
 FROM base AS builder
 WORKDIR /app
 
-# Argument pour invalider le cache source (pas les deps)
-# Placé ici pour ne pas invalider la stage deps à chaque commit
-ARG CACHEBUST=1
-
 # Copie des dépendances depuis l'étape précédente
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -36,17 +32,16 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 # Placeholder uniquement pour permettre le build Next.js (pas utilisé à l'exécution)
 ENV MONGODB_URI=mongodb://localhost:27017/build-placeholder
 
-# Build de l'application
+# Build de l'application (output: standalone dans next.config.mjs)
 RUN npm run build
 
-# Étape 3: Image de production
+# Étape 3: Image de production (standalone — node_modules minimal tracé par Next.js)
 FROM base AS runner
 WORKDIR /app
 
 # Dépendances système pour Chromium + outils
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget ca-certificates \
-    # Dépendances Chromium headless
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
     libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
@@ -57,28 +52,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd --system --gid 1001 nodejs
 RUN useradd --system --uid 1001 --gid nodejs nextjs
 
-# Copie des fichiers nécessaires pour server.js personnalisé (Socket.IO + redis-geo)
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
-COPY --from=builder /app/server.js ./server.js
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=deps /app/node_modules ./node_modules
-RUN npm prune --omit=dev --legacy-peer-deps
+# Copie du standalone (inclut node_modules minimal + server.js tracé par Next.js)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Fichiers statiques non inclus dans standalone
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Assets publics
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# lib/ requis par server.js (redis-geo) — inclut ioredis via outputFileTracingIncludes
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 
 # Copier Playwright + Chromium depuis l'étape deps
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-COPY --from=deps /ms-playwright /ms-playwright
-COPY --from=deps /app/node_modules/playwright ./node_modules/playwright
-COPY --from=deps /app/node_modules/playwright-core ./node_modules/playwright-core
+COPY --from=deps --chown=nextjs:nodejs /ms-playwright /ms-playwright
 
-# Création des dossiers pour les uploads
+# Dossier pour les uploads
 RUN mkdir -p ./public/uploads
-RUN chown -R nextjs:nodejs ./public/uploads
-
-# Configuration des permissions
 RUN chown -R nextjs:nodejs /app
 RUN chmod -R 755 /ms-playwright
 USER nextjs
@@ -92,7 +80,7 @@ ENV HOSTNAME=0.0.0.0
 # Exposition du port
 EXPOSE 3000
 
-# Healthcheck interne (en complément de celui dans docker-compose)
+# Healthcheck interne
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Commande de démarrage
