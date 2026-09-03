@@ -90,6 +90,9 @@ services:
       QWEN_MODEL: ${QWEN_MODEL:-qwen-turbo}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      # ── Mobile route refresh throttling (provider app) ─────
+      ROUTE_REFRESH_MIN_MS: ${ROUTE_REFRESH_MIN_MS:-60000}
+      ROUTE_REFETCH_MIN_MOVE_M: ${ROUTE_REFETCH_MIN_MOVE_M:-250}
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs

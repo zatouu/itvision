@@ -28,6 +28,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       sr.assignedProviderId ? User.findById(sr.assignedProviderId).select('name phone avatarUrl').lean() : null,
     ])
 
+    const routeRefreshMinMs = Number(process.env.ROUTE_REFRESH_MIN_MS) >= 1000 ? Number(process.env.ROUTE_REFRESH_MIN_MS) : 60000
+    const routeRefetchMinMoveM = Number(process.env.ROUTE_REFETCH_MIN_MOVE_M) >= 10 ? Number(process.env.ROUTE_REFETCH_MIN_MOVE_M) : 250
+
     const allOffers = await Offer.find({ requestId: id }).lean()
     const offerCount = allOffers.length
     const pendingOfferCount = allOffers.filter((o: any) => o.status === 'submitted').length
@@ -136,6 +139,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       clientReview,
       earnings,
       weeklyCompletedMissions,
+      routeRefreshMinMs,
+      routeRefetchMinMoveM,
       metrics: {
         ...metrics,
         elapsedFormatted: lifecycle.formatDuration(metrics.elapsedMs),

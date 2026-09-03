@@ -16,6 +16,7 @@ import {
   clearPersistedMission,
 } from '../storage/missionStorage'
 import { humanErrorMessage } from '../errorMessages'
+import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
 
 export interface ActiveMissionData {
   _id: string
@@ -67,6 +68,8 @@ export interface ActiveMissionData {
   aiAdvice?: string
   startedAt?: string | number
   completedAt?: string | number
+  routeRefreshMinMs?: number
+  routeRefetchMinMoveM?: number
 }
 
 export function useMissionActive(requestId: string | null) {
@@ -79,7 +82,7 @@ export function useMissionActive(requestId: string | null) {
   // Real-time state
   const [isClientTyping, setIsClientTyping] = useState(false)
   const [aiAdvice, setAiAdvice] = useState<string | null>(null)
-  const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; heading?: number | null; speed?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string; coords: Array<{ latitude: number; longitude: number }> }>({
     distance: '1.2 km',
     duration: '2 min',
@@ -263,18 +266,18 @@ export function useMissionActive(requestId: string | null) {
 
         const currentPos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null)
         if (currentPos && !isCancelled) {
-          const loc = { lat: currentPos.coords.latitude, lng: currentPos.coords.longitude }
+          const loc = { lat: currentPos.coords.latitude, lng: currentPos.coords.longitude, heading: currentPos.coords.heading, speed: currentPos.coords.speed }
           setProviderLocation(loc)
-          emitProviderLocation(requestId, { ...loc, heading: currentPos.coords.heading, speed: currentPos.coords.speed })
+          emitProviderLocation(requestId, loc)
         }
 
         locationSub = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.Balanced, distanceInterval: 15, timeInterval: 5000 },
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 8, timeInterval: 2000 },
           pos => {
             if (isCancelled) return
-            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, heading: pos.coords.heading, speed: pos.coords.speed }
             setProviderLocation(loc)
-            emitProviderLocation(requestId, { ...loc, heading: pos.coords.heading, speed: pos.coords.speed })
+            emitProviderLocation(requestId, loc)
           }
         )
       } catch (err) {
@@ -289,6 +292,125 @@ export function useMissionActive(requestId: string | null) {
       if (locationSub) locationSub.remove()
     }
   }, [requestId, mission?.status])
+
+  // 4b. Real-time route (Google Directions) + speed-based ETA
+  const googleRouteRef = useRef<{
+    polyline: Array<{ lat: number; lng: number }>
+    distanceM: number
+    fetchedAt: number
+    fetchedFrom: { lat: number; lng: number }
+  } | null>(null)
+  const isFetchingRoute = useRef(false)
+  const lastFetchAt = useRef(0)
+  const lastFetchFrom = useRef<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    const clientCoords = mission?.location?.coordinates
+    if (!clientCoords || clientCoords.length !== 2 || !providerLocation) {
+      return
+    }
+    const clientLng = Number(clientCoords[0])
+    const clientLat = Number(clientCoords[1])
+    if (!Number.isFinite(clientLat) || !Number.isFinite(clientLng)) return
+
+    const ROUTE_REFRESH_MIN_MS = Number(mission?.routeRefreshMinMs) >= 1000 ? Number(mission?.routeRefreshMinMs) : 60000
+    const ROUTE_REFETCH_MIN_MOVE_M = Number(mission?.routeRefetchMinMoveM) >= 10 ? Number(mission?.routeRefetchMinMoveM) : 250
+
+    let isCancelled = false
+
+    const computeRouteInfo = () => {
+      if (isCancelled) return
+      let distanceM: number
+      let coords: Array<{ latitude: number; longitude: number }>
+
+      const googleRoute = googleRouteRef.current
+      if (googleRoute?.polyline?.length) {
+        const { remainingM, remainingPolyline } = remainingDistanceAlongPolyline(
+          providerLocation.lat,
+          providerLocation.lng,
+          googleRoute.polyline
+        )
+        distanceM = remainingM
+        coords = remainingPolyline.map(p => ({ latitude: p.lat, longitude: p.lng }))
+      } else {
+        distanceM = haversineMeters(providerLocation.lat, providerLocation.lng, clientLat, clientLng)
+        coords = [
+          { latitude: providerLocation.lat, longitude: providerLocation.lng },
+          { latitude: clientLat, longitude: clientLng },
+        ]
+      }
+
+      const speedMps = Number(providerLocation?.speed) || 0
+      const speedKmh = speedMps > 0.5 ? speedMps * 3.6 : 25
+      const durationMin = (distanceM / 1000 / Math.max(5, speedKmh)) * 60
+
+      setRouteInfo({
+        distance: formatDistance(distanceM),
+        duration: formatDuration(durationMin),
+        coords,
+      })
+    }
+
+    const maybeFetchRoute = async () => {
+      const now = Date.now()
+      const movedM = lastFetchFrom.current
+        ? haversineMeters(providerLocation.lat, providerLocation.lng, lastFetchFrom.current.lat, lastFetchFrom.current.lng)
+        : Infinity
+      const timeSince = now - lastFetchAt.current
+
+      if (timeSince < ROUTE_REFRESH_MIN_MS && movedM < ROUTE_REFETCH_MIN_MOVE_M) return false
+      if (isFetchingRoute.current) return false
+
+      isFetchingRoute.current = true
+      try {
+        const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        if (!apiKey) {
+          isFetchingRoute.current = false
+          return false
+        }
+        const url =
+          `https://maps.googleapis.com/maps/api/directions/json` +
+          `?origin=${providerLocation.lat},${providerLocation.lng}` +
+          `&destination=${clientLat},${clientLng}` +
+          `&mode=driving&key=${apiKey}`
+
+        const res = await fetch(url)
+        const data = await res.json()
+        if (data.status !== 'OK' || !data.routes?.length) {
+          isFetchingRoute.current = false
+          return false
+        }
+
+        const leg = data.routes[0].legs[0]
+        const encoded = data.routes[0].overview_polyline?.points || ''
+        const polyline = decodePolyline(encoded)
+
+        googleRouteRef.current = {
+          polyline,
+          distanceM: leg.distance?.value || 0,
+          fetchedAt: now,
+          fetchedFrom: { lat: providerLocation.lat, lng: providerLocation.lng },
+        }
+        lastFetchAt.current = now
+        lastFetchFrom.current = { lat: providerLocation.lat, lng: providerLocation.lng }
+        return true
+      } catch (e) {
+        console.warn('[useMissionActive] Directions fetch error', e)
+        return false
+      } finally {
+        isFetchingRoute.current = false
+      }
+    }
+
+    computeRouteInfo()
+    maybeFetchRoute().then((fetched) => {
+      if (fetched) computeRouteInfo()
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [providerLocation, mission?.location?.coordinates, mission?.routeRefreshMinMs, mission?.routeRefetchMinMoveM])
 
   // 5. Actions & State Transitions
   const updateStatus = async (nextStatus: string, extraPayload?: Record<string, any>) => {

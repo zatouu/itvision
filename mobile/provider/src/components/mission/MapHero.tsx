@@ -64,7 +64,7 @@ export const MapHero: React.FC<Props> = ({
       edgePadding: {
         top: 120,
         right: 70,
-        bottom: 380,
+        bottom: 120,
         left: 70,
       },
       animated: true,
@@ -92,7 +92,7 @@ export const MapHero: React.FC<Props> = ({
     const boxLngDelta = Math.max(0.001, maxLng - minLng)
 
     const mapHeight = SCREEN_HEIGHT * 0.56
-    const latDenominator = Math.max(1, mapHeight - 120 - 380)
+    const latDenominator = Math.max(1, mapHeight - 120 - 120)
     const lngDenominator = Math.max(1, SCREEN_WIDTH - 70 - 70)
 
     return {
@@ -108,7 +108,7 @@ export const MapHero: React.FC<Props> = ({
       fitCoordinates()
     }, 400)
     return () => clearTimeout(timer)
-  }, [clientLocation.lat, clientLocation.lng, providerLocation?.lat, providerLocation?.lng, distanceText, durationText, routeCoordinates.length])
+  }, [clientLocation.lat, clientLocation.lng, providerLocation?.lat, providerLocation?.lng, routeCoordinates.length])
 
   const initialRegion = {
     latitude: (clientLocation.lat + (providerLocation?.lat ?? clientLocation.lat)) / 2,
