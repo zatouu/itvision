@@ -17,6 +17,7 @@ import {
 } from '../storage/missionStorage'
 import { humanErrorMessage } from '../errorMessages'
 import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
+import { toast } from '../toast'
 
 export interface ActiveMissionData {
   _id: string
@@ -418,8 +419,7 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      const socket = getSocket()
-      socket.emit('mission:status_updated', { requestId, status: nextStatus, clientId: missionRef.current?.user?._id, ...extraPayload })
+      console.log('[useMissionActive] updateStatus', { requestId, nextStatus, extraPayload })
 
       // Sync backend
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
@@ -427,7 +427,13 @@ export function useMissionActive(requestId: string | null) {
         ...extraPayload,
       })
 
+      if (!res) {
+        console.warn('[useMissionActive] updateStatus queued (offline)')
+        return
+      }
+
       const actualStatus = (res as any)?.item?.status || (res as any)?.status || nextStatus
+      console.log('[useMissionActive] updateStatus success', { actualStatus })
       setMission(prev => (prev ? { ...prev, status: actualStatus } : null))
       setLastActivityAt(Date.now())
 
@@ -440,9 +446,16 @@ export function useMissionActive(requestId: string | null) {
           : {}),
       })
 
+      // Notify others after confirmed backend write
+      const socket = getSocket()
+      socket.emit('mission:status_updated', { requestId, status: actualStatus, clientId: missionRef.current?.user?._id, ...extraPayload })
+
       await loadMission(true)
     } catch (err: any) {
-      setError(humanErrorMessage(err))
+      console.error('[useMissionActive] updateStatus error', err)
+      const msg = humanErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
       hapticWarning()
       await loadMission(true)
     } finally {
@@ -459,20 +472,31 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      const socket = getSocket()
-      socket.emit('mission:status_updated', { requestId, status: 'paused', reason: reason || 'Pause opérateur' })
+      console.log('[useMissionActive] pauseIntervention', { requestId, reason })
 
-      await apiPatchQueued(`/api/services/requests/${requestId}`, {
+      const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
         action: 'pause',
         reason: reason || 'Pause opérateur',
       })
 
+      if (!res) {
+        console.warn('[useMissionActive] pauseIntervention queued (offline)')
+        return
+      }
+
       const nextCount = pauseCount + 1
       setPauseCount(nextCount)
       await savePersistedMission(requestId, { pauseCount: nextCount, status: 'paused', lastActivityAt: Date.now() })
+
+      const socket = getSocket()
+      socket.emit('mission:status_updated', { requestId, status: 'paused', reason: reason || 'Pause opérateur' })
+
       await loadMission(true)
     } catch (err: any) {
-      setError(humanErrorMessage(err))
+      console.error('[useMissionActive] pauseIntervention error', err)
+      const msg = humanErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
       hapticWarning()
       await loadMission(true)
     } finally {
@@ -485,17 +509,28 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      const socket = getSocket()
-      socket.emit('mission:status_updated', { requestId, status: 'in_progress' })
+      console.log('[useMissionActive] resumeIntervention', { requestId })
 
-      await apiPatchQueued(`/api/services/requests/${requestId}`, {
+      const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
         action: 'resume',
       })
 
+      if (!res) {
+        console.warn('[useMissionActive] resumeIntervention queued (offline)')
+        return
+      }
+
       await savePersistedMission(requestId, { status: 'in_progress', lastActivityAt: Date.now() })
+
+      const socket = getSocket()
+      socket.emit('mission:status_updated', { requestId, status: 'in_progress' })
+
       await loadMission(true)
     } catch (err: any) {
-      setError(humanErrorMessage(err))
+      console.error('[useMissionActive] resumeIntervention error', err)
+      const msg = humanErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
       hapticWarning()
       await loadMission(true)
     } finally {
@@ -520,7 +555,10 @@ export function useMissionActive(requestId: string | null) {
       })
       await updateStatus('dispute', { disputeReason: reason })
     } catch (err: any) {
-      setError(humanErrorMessage(err))
+      console.error('[useMissionActive] reportProblem error', err)
+      const msg = humanErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
     }
   }
 
