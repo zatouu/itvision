@@ -4875,3 +4875,306 @@ npm notice To update run: npm install -g npm@12.0.2
 npm notice
 npx -y eas-cli-local-build-plugin@20.0.0 eyJqb2IiOnsidHlwZSI6Im1hbmFnZWQiLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJwcm9qZWN0Um9vdERpcmVjdG9yeSI6Im1vYmlsZS9jb25zdW1lciIsInByb2plY3RBcmNoaXZlIjp7InR5cGUiOiJQQVRIIiwicGF0aCI6Ii90bXAvY2hlby9lYXMtY2xpLW5vZGVqcy8wNGZiNDg2MC1iMjc0LTQ2N2EtYjgzNS02Y2NlMmFhNWM1MjIudGFyLmd6In0sImJ1aWxkZXJFbnZpcm9ubWVudCI6eyJlbnYiOnsiRVhQT19QVUJMSUNfQVBJX0JBU0VfVVJMIjoiaHR0cHM6Ly9pdHZpc2lvbnBsdXMuc24iLCJFWFBPX1BVQkxJQ19HT09HTEVfTUFQU19BUElfS0VZIjoiQUl6YVN5QWtoM3Y1OTVVcEpILWhiQkIxcnBMeWFzR1RXckhMbXBFIn19LCJjYWNoZSI6eyJkaXNhYmxlZCI6ZmFsc2UsInBhdGhzIjpbXSwiY2xlYXIiOmZhbHNlfSwic2VjcmV0cyI6eyJidWlsZENyZWRlbnRpYWxzIjp7ImtleXN0b3JlIjp7ImRhdGFCYXNlNjQiOiIvdTMrN1FBQUFBSUFBQUFCQUFBQUFRQWdaRFJsWkdSaE56QmtNemRrT0dGak1qUXpOV1psTjJNMU1HTXpZVFkwWkRjQUFBR2VoK2J0SXdBQUJRSXdnZ1QrTUE0R0Npc0dBUVFCS2dJUkFRRUZBQVNDQk9yRWt1bnhYRFJSankwa2tkY1pva2xGT0tyeVhKSStxQU1vd3Vlb3NURlV2WVV0TzVQYVAzeTBJSHEwNUdadGpBZkk1YTdPUVBqZDQ2VnY1N01pcTlBZE1JdWFjU1NKRHNveDlqOW85MkI5NGdwSjVvSG83dFpVT0tBVGNaWEVsTlhwaEx6MUxrZDkwYnZYU0VRNFpUdXNDaFVyN2g2bDFmN0lGT0IyV2dFSWYyWjA2dTMzSU5WM2hadmkvOXpBODF3aHB1eEFDaXpmQlV2TnBkMmh2d3Zia2ZkUlhXZmZzVzNvb0JTaTdmRUNPRWo3eFhWMHBGYm9qdDZ2UHR4NjdVNmsyRmp1L21hNkw5S1J5cTI1S2VjY1ZFc3R3NmpmcWlnY2tmNmQwZUV4TnAycXJjaWx2QXNGWFFEc3BYSUppcGpBbkdQN0FlWGVlT3RjOUJHQlVpZG1FbWJISVBMZGdYYTNhc3Fta0xJTHhwaWYxb1JnaFpmTmRnY0VBeUJQL29MNUV1eEFsTGZHMkRCaWZBZ2VyR29aWXJkSUx6RFpXeEV2K0lRSUVVL0d1MnlxVEVqbmdlOU1KQ25aWWRtZ3FVY05ZbzJFWXpvdGlubVZPZ1Y4azhRay9ST1lOU3FCd0lZS2YwMDJoTmRhLzF6c1BLdm0rQlJjakR1d09xZWVMNUxidjhDWlJlbkx6Nk85MnBHOHY1ZWtmZDBKQ1Rqeit6dldkNGhyektjTlpHbWdTOUJvY1E1RmlmVGdLMjhWRTQwbGlFT1RpZGt5aWJyZ0syRkRZckNQaVpuS1FuWXgvb1hSZEdMTnhwWDhRTElrOUx3VzJNbFFYOThkVGh6aVRMMnVyeVdxNk5ZV1dsWkd0cHFKeUxpelA4L2gzbXpXYnJmUmZobEdPNDFnY3RMU1Q4eXZ5QlI1ZjdxYUIrV042WlJHM2MwUktGaURJczJQN0dGSUJIYWVTazd3dW5RUWtkY3V0TDd5Q3h0R3ZxN2VleEh2UTBuSk5HTnhnQXcyeDBNM05DYU9oWFg5cHNoUStMZVlWK0MxblFMMlhhNXlkYXJiaDlzaGdhYjNIWUF6LzN4SEQ3RTNSSmd1YklPK3JaSFB6SXloeEV0Yk9FdW5iMmp2SnRHNzdHYkZvck9ZTDRHM25jOHRzMlNEVmNMbGkzWGUxeWRTcWlmM1V3a0Q3KzhSM1ZLWmFGM003T0hiK1NBdDhWLzdnYXYxaWhraEszNEVsR0h3Zm0zaC9ZU2pjN0VxV0V6N25nV3V2ZnUrbXZqWWRXa05QSGIrcVowUFZYOFFRa0ZZYmFqSU1CQ0l4ckNITmpLR3d6dzFNUitVSEhSUEgwTVJ0czMxSXRMZ2t0VitpclpsbERlYzdkdFVWUWlZSkVjbXF5bFRORnY2LzFDTjhjaUkrUktmWXFIUFVxZ0s3cEtTc01RVGdHRDJpeThRaERDYXhBQXJDcWhkUEUwZzBVdjlaRy9ZeUtOQTBnb1BKV3Q3MHFWSy9yQnNXckcwRzdhZmltNTVJZmx1RUFRWUE2Yk9GVFVBRjI2STJBSWw2MXVYYkI5dGR4SUl1dWNpVXRPSGlMSDVJL3ZHbWVlZC9obnhZVjVNNkdXd0Uxc211dXFSdStEM1djMlNaUmhUTldiNnVDMkN5QTRsaVFkZ3J3R2RjbXZMd0JNWDI2Vk1DTktSMmlIS2dDdU8rU1czdVVEVTdLN0VLUkNxMmlWdVBqNERLVkRiL3BtOXF4OTM3c0dkOUM0elRxWm9DU0QyQkJmREFUU3M5aWM4Z0FkTHJkcUJzT0xnODljbHhYb3ZOWHVEbnV4bDNqM1BxQ3M0K3lvMHBsVm5yV1pGNUx4dy9mZ2pQcWhlbGN0Nlk4ZXJhZGF2b2JOaTVsTzNjNGZYaThqWWErSlRaeGJhblRxODRpU1dUNVNBR0pJdUxQODE1R0hIVlBQOXNqWUVET0ExSXNSeExQSUswYTA3ZXI5OEhMODlzQ1paUXBRQ0xSVUFOcWc0ZjlSd3NUTnY0cGV0Y0REaDZvSTM4eVNIR2NDYW45ZmFXV1pnN3Q1SXFkWUtPUHd6Q3cvL3ZrUXJxM1BSU3hQTE5CQS9FTW01QmlaVlA2SUplMUh5K1JqVERpWGh3VlFzNWxyZGZLWUhRNk13UG40c0JTb3IwMjRybXNsZ05PM1ZXbldDOHRIT1lNTlVYNC9GNnBmSHJqRkpaWG1BUjg5ZDJlSjM3akNhQUFBQUFRQUZXQzQxTURrQUFBTXhNSUlETFRDQ0FoV2dBd0lCQWdJSUZ1Sjh4U3FYWWFZd0RRWUpLb1pJaHZjTkFRRUxCUUF3UkRFTE1Ba0dBMVVFQmhNQ1ZWTXhDVEFIQmdOVkJBZ1RBREVKTUFjR0ExVUVCeE1BTVFrd0J3WURWUVFLRXdBeENUQUhCZ05WQkFzVEFERUpNQWNHQTFVRUF4TUFNQ0FYRFRJMk1EWXdNakV3TXpVeE9Gb1lEekl3TlRNeE1ERTRNVEF6TlRFNFdqQkVNUXN3Q1FZRFZRUUdFd0pWVXpFSk1BY0dBMVVFQ0JNQU1Ra3dCd1lEVlFRSEV3QXhDVEFIQmdOVkJBb1RBREVKTUFjR0ExVUVDeE1BTVFrd0J3WURWUVFERXdBd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUM5ZjZrZDJWVTdRalA2ZGZ4VWhObUdEYmV3S3k4dG8weHpEeUp6eDY3am1GUWQ2RGxoNmZaZys1aHhUeFhaeDdhT2hqREROMzliQk5EUnAxMlBWQkZ3elRsMTAwbzRnc0ZLcXdudThONVM0U2JXbWNxYms1Z0VwODR0OG90eXc0a0NvRlN2aElYdzhYbHhXaGgrSzFya3hTUUtjMFNOM2NUNFg4enFqeW52TG12dTJyc3pSQ3BNeWdXVkg0b04xZnJISzU2LzhBWmNEZmpzSkJFei9ZYTJHMVQ5WHF5ODY2cWludFFoVVBrSkc3Z3ZndDFhaG9lQ0tMbW44Mko4VnZoL0hwQnVYY29SL2t4bGkyUXQ3akZiYjRYakRTcjZPdFF2c1NGMzZrQ1huM2xsRHlDZjYrSkU5MlpZa0c2TzlJdEVOVC9mdmwybFZXZVB5NzhZQzBWdEFnTUJBQUdqSVRBZk1CMEdBMVVkRGdRV0JCUy9CQ0RZRWdCWkFGZ0pqNGNrRGM0MXBJeWgxVEFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBakZiWHFPYnBIWEVPTlJqMGUyaDlWRXBEZzBkMXE5T1k3L0dxemNmcWtaVmtOV2YzaGJGa1NlUkl6cnRVSnlMUkpNckkybDdOQ3hFV1ZJZnRkNTZKTlYzTmdCRmJDTWRiVmhHYUxYZEhnWjN5TEpPRXpUUmJ6dFlQc1N3RE05ZUNzSllPWlpDVjZVMURESXRKWDAvRzFpNFp5c1p5bk94U2plOWlnYlpwRExoV1hUSDdWdVBKWXBHTjBoRWVqVnNobjcwL2k4OGJ6MWs5d1hlUTYxN2NxbDI3MFo4R2lMdEMwSVlTZVlZbEQ3ZWJaM25TOVZMTnY3ZmR2RWxIWlAwWlFXcno2cWZOdnhKS3JNZk9hY1djcXZqVlVPM3FGTGxIbXpJZ2wyR0ppVG5Ud1Bad2g1aENWY21BSXlNa0QwMFdIU2hmcmt0TU9JdStkSjlrWWFuOFcyeXNYb3c2c2MvZHhvNXpIWFlja2gvTEtBbisiLCJrZXlzdG9yZVBhc3N3b3JkIjoiNjFkNTdjYzA2NWM1YTU1OTNkY2QwNDNhNGQwYzBiOTAiLCJrZXlBbGlhcyI6ImQ0ZWRkYTcwZDM3ZDhhYzI0MzVmZTdjNTBjM2E2NGQ3Iiwia2V5UGFzc3dvcmQiOiJhOTY3ZDg1ZDk4M2IzNjZkNzg4NzQ5ZjVlNTM0ZjhmNCJ9fX0sInVwZGF0ZXMiOnsiY2hhbm5lbCI6ImVjMiJ9LCJidWlsZFR5cGUiOiJhcGsiLCJ1c2VybmFtZSI6InhldXkiLCJ2ZXJzaW9uIjp7InZlcnNpb25Db2RlIjoiNDkifSwiZXhwZXJpbWVudGFsIjp7fSwibW9kZSI6ImJ1aWxkIiwidHJpZ2dlcmVkQnkiOiJFQVNfQ0xJIiwiYXBwSWQiOiJjNzM1ZmU3Mi1mNzY0LTQ4NDctOWUxZC0yMzQyZmYxY2JmYzgiLCJpbml0aWF0aW5nVXNlcklkIjoiMjBlM2U2NGUtNTJlNS00MzJjLWJhMjgtMjMxYzA1MTJkZjAxIn0sIm1ldGFkYXRhIjp7InRyYWNraW5nQ29udGV4dCI6eyJ0cmFja2luZ19pZCI6ImI0YjQ3MDNjLTA4OWYtNGFjOS1iMjNkLWRlODQwOTRhNzE1NCIsInBsYXRmb3JtIjoiYW5kcm9pZCIsInNka192ZXJzaW9uIjoiNTEuMC4wIiwiYWNjb3VudF9pZCI6ImZjNWRiODJjLTVhODYtNDM3MS1iZWE0LTY3NGZkYTY0YTI1YiIsInByb2plY3RfaWQiOiJjNzM1ZmU3Mi1mNzY0LTQ4NDctOWUxZC0yMzQyZmYxY2JmYzgiLCJwcm9qZWN0X3R5cGUiOiJtYW5hZ2VkIiwiZGV2X2NsaWVudCI6ZmFsc2UsImRldl9jbGllbnRfdmVyc2lvbiI6IjQuMC4yOSIsIm5vX3dhaXQiOmZhbHNlLCJydW5fZnJvbV9jaSI6ZmFsc2UsImxvY2FsIjp0cnVlfSwiYXBwQnVpbGRWZXJzaW9uIjoiNDkiLCJhcHBWZXJzaW9uIjoiMS4wLjAiLCJjbGlWZXJzaW9uIjoiMjAuMC4wIiwid29ya2Zsb3ciOiJtYW5hZ2VkIiwiY3JlZGVudGlhbHNTb3VyY2UiOiJyZW1vdGUiLCJzZGtWZXJzaW9uIjoiNTEuMC4wIiwicnVudGltZVZlcnNpb24iOiIxLjAuMCIsInJlYWN0TmF0aXZlVmVyc2lvbiI6IjAuNzQuNSIsImV4cG9QYWNrYWdlVmVyc2lvbiI6IjUxLjAuMzkiLCJjaGFubmVsIjoiZWMyIiwiZGlzdHJpYnV0aW9uIjoiaW50ZXJuYWwiLCJhcHBOYW1lIjoiWGV1eSBCaSIsImFwcElkZW50aWZpZXIiOiJjb20ueGV1eS54ZXV5IiwiYnVpbGRQcm9maWxlIjoiZWMyIiwiZ2l0Q29tbWl0SGFzaCI6ImY2MGRmODEwNDFiOTk3ZjJjMWEzNjIxYjViNTRiZWM4NmEwZDVhZWMiLCJnaXRDb21taXRNZXNzYWdlIjoiZml4OiBtdWx0aS1hcmNoIGRvY2tlciBidWlsZCBmb3IgYXJtNjQgRUMyIiwiaXNHaXRXb3JraW5nVHJlZURpcnR5Ijp0cnVlLCJ1c2VybmFtZSI6InhldXkiLCJydW5XaXRoTm9XYWl0RmxhZyI6ZmFsc2UsInJ1bkZyb21DSSI6ZmFsc2UsImRldmVsb3BtZW50Q2xpZW50IjpmYWxzZSwicmVxdWlyZWRQYWNrYWdlTWFuYWdlciI6Im5wbSIsInNpbXVsYXRvciI6ZmFsc2V9fQ== exited with non-zero code: 1
     Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@22.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/offers/[requestId].tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/offers/[requestId].tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+★ eas-cli@23.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.

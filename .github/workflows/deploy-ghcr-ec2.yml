@@ -202,6 +202,9 @@ jobs:
             echo "QWEN_CLOUD_API_KEY=${{ secrets.QWEN_CLOUD_API_KEY }}" >> .env.ec2
             echo "QWEN_CLOUD_BASE_URL=${{ secrets.QWEN_CLOUD_BASE_URL }}" >> .env.ec2
             echo "QWEN_MODEL=${{ secrets.QWEN_MODEL }}" >> .env.ec2
+            echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ec2
+            echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.ec2
+            echo "MAINTENANCE_CRON_DISABLED=${{ secrets.MAINTENANCE_CRON_DISABLED }}" >> .env.ec2
             
 
             # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)

@@ -104,7 +104,9 @@ function ActiveMissionScreen() {
       name: mission?.clientName || mission?.user?.name || '',
       phone: mission?.clientPhone || mission?.user?.phone || '',
       avatar: mission?.user?.avatar,
+      avatarBlurhash: mission?.user?.avatarBlurhash,
       rating: mission?.user?.rating || 4.8,
+      missionsCount: mission?.user?.missionsCount ?? mission?.user?.completedMissions,
       isVerified: mission?.user?.isVerified ?? true,
     }
   }, [mission?.clientName, mission?.clientPhone, mission?.user])
@@ -266,7 +268,7 @@ function ActiveMissionScreen() {
                 <Car size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={s.statusPillText}>
                   {status === 'assigned'
-                    ? t('providerMissionActive.statusAssigned', { defaultValue: 'Mission assignée' })
+                    ? t('providerMissionAssigned.assignedPill', { defaultValue: 'Mission assignée' })
                     : t('providerMissionActive.statusEnRoute', { defaultValue: 'En route vers le client' })}
                 </Text>
               </View>
@@ -277,17 +279,20 @@ function ActiveMissionScreen() {
               contentContainerStyle={s.bottomSheetScroll}
             >
               {/* Horizontal Progression Timeline */}
-              <HorizontalProgressionTimeline status={status} />
+              <HorizontalProgressionTimeline status={status} style={{ marginHorizontal: 0, marginBottom: 0 }} />
 
               {/* Client Card */}
               <ClientCard
                 clientName={clientData.name}
                 clientPhone={clientData.phone}
                 clientAvatar={clientData.avatar}
+                clientAvatarBlurhash={clientData.avatarBlurhash}
                 clientRating={clientData.rating}
+                missionCount={clientData.missionsCount}
                 isVerified={clientData.isVerified}
                 isTyping={isClientTyping}
                 onChat={navigateToChat}
+                style={{ marginHorizontal: 0, marginBottom: 0 }}
               />
 
               {/* Mission Summary Card (Compact Meta) */}
@@ -297,6 +302,7 @@ function ActiveMissionScreen() {
                 reference={missionRefCode}
                 address={clientAddress}
                 compact
+                style={{ marginHorizontal: 0, marginBottom: 0 }}
               />
             </ScrollView>
 
@@ -311,7 +317,7 @@ function ActiveMissionScreen() {
                 >
                   <Car size={18} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 8 }} />
                   <Text style={s.primaryButtonText}>
-                    {t('providerMissionActive.ctaStartMission', { defaultValue: 'Démarrer la mission' })}
+                    {t('providerMissionAssigned.startMission', { defaultValue: 'Démarrer la mission' })}
                   </Text>
                 </TouchableOpacity>
               ) : (
@@ -334,7 +340,7 @@ function ActiveMissionScreen() {
                 onPress={handleReport}
               >
                 <Text style={s.linkReportText}>
-                  {t('providerMissionActive.linkReportProblem', { defaultValue: 'Signaler un problème' })}
+                  {t('providerMissionAssigned.reportProblem', { defaultValue: 'Signaler un problème' })}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -666,14 +672,16 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     marginTop: -28,
+    paddingHorizontal: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    position: 'relative',
   },
   dragHandle: {
-    width: 44,
+    width: 36,
     height: 4,
     borderRadius: 2,
     backgroundColor: '#CBD5E1',
@@ -721,7 +729,8 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
   },
   bottomSheetScroll: {
-    paddingBottom: 100,
+    paddingBottom: 140,
+    gap: 16,
   },
   stickyFooterMap: {
     position: 'absolute',
@@ -731,7 +740,6 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    paddingHorizontal: spacing.lg,
     paddingTop: 12,
   },
   // Layout B: Action Hero
@@ -780,8 +788,8 @@ const s = StyleSheet.create({
     elevation: 6,
   },
   primaryButton: {
-    height: 52,
-    borderRadius: radius.lg,
+    height: 54,
+    borderRadius: 16,
     backgroundColor: '#0F7B4F',
     flexDirection: 'row',
     alignItems: 'center',
@@ -840,7 +848,7 @@ const s = StyleSheet.create({
   linkReport: {
     alignItems: 'center',
     paddingVertical: 10,
-    marginTop: 2,
+    marginTop: 24,
   },
   linkReportText: {
     fontSize: 13,

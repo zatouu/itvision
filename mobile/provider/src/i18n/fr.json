@@ -309,6 +309,14 @@
     "awaitingSubtitle": "Le client vérifie la bonne exécution des travaux pour libérer le paiement.",
     "remindClient": "Relancer le client"
   },
+  "providerMissionAssigned": {
+    "assignedPill": "Mission assignée",
+    "startMission": "Démarrer la mission",
+    "reportProblem": "Signaler un problème",
+    "estimatedTime": "Temps estimé",
+    "distance": "Distance",
+    "missionsCount": "{{count}} missions"
+  },
   "rating": {
     "title": "Notez cette intervention",
     "commentPlaceholder": "Un mot sur votre expérience ? (optionnel)",

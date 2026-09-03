@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps'
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps'
 import { MapPin, Home, Crosshair, Navigation, ArrowLeft, Share2 } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { FloatingMapCard } from './FloatingMapCard'
+import { EtaDistancePill } from './EtaDistancePill'
 import { radius, spacing } from '../../design'
 
 interface LatLng {
@@ -23,7 +23,7 @@ interface Props {
   onRecenter?: () => void
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window')
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
 export const MapHero: React.FC<Props> = ({
   clientLocation,
@@ -38,9 +38,10 @@ export const MapHero: React.FC<Props> = ({
 }) => {
   const insets = useSafeAreaInsets()
   const mapRef = useRef<MapView>(null)
+  const lastFittedRegion = useRef<Region | null>(null)
+  const isFitting = useRef(false)
 
-  const fitCoordinates = () => {
-    if (!mapRef.current) return
+  const buildPoints = (): Array<{ latitude: number; longitude: number }> => {
     const points: Array<{ latitude: number; longitude: number }> = [
       { latitude: clientLocation.lat, longitude: clientLocation.lng },
     ]
@@ -50,16 +51,56 @@ export const MapHero: React.FC<Props> = ({
     if (routeCoordinates.length > 0) {
       points.push(...routeCoordinates)
     }
+    return points
+  }
 
+  const fitCoordinates = () => {
+    if (!mapRef.current) return
+    const points = buildPoints()
+    if (points.length < 2) return
+
+    isFitting.current = true
     mapRef.current.fitToCoordinates(points, {
       edgePadding: {
-        top: insets.top + 80,
-        right: 50,
-        bottom: 80,
-        left: 50,
+        top: 120,
+        right: 70,
+        bottom: 380,
+        left: 70,
       },
       animated: true,
     })
+
+    // Safety: if the native map does not emit onRegionChangeComplete after fitToCoordinates,
+    // we still seed a reference region so the zoom guard can work on the next user interaction.
+    setTimeout(() => {
+      if (!lastFittedRegion.current) {
+        lastFittedRegion.current = estimateRegionFromPoints(points)
+      }
+      isFitting.current = false
+    }, 1000)
+  }
+
+  const estimateRegionFromPoints = (points: Array<{ latitude: number; longitude: number }>): Region => {
+    const lats = points.map((p) => p.latitude)
+    const lngs = points.map((p) => p.longitude)
+    const minLat = Math.min(...lats)
+    const maxLat = Math.max(...lats)
+    const minLng = Math.min(...lngs)
+    const maxLng = Math.max(...lngs)
+
+    const boxLatDelta = Math.max(0.001, maxLat - minLat)
+    const boxLngDelta = Math.max(0.001, maxLng - minLng)
+
+    const mapHeight = SCREEN_HEIGHT * 0.56
+    const latDenominator = Math.max(1, mapHeight - 120 - 380)
+    const lngDenominator = Math.max(1, SCREEN_WIDTH - 70 - 70)
+
+    return {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: boxLatDelta * (mapHeight / latDenominator),
+      longitudeDelta: boxLngDelta * (SCREEN_WIDTH / lngDenominator),
+    }
   }
 
   useEffect(() => {
@@ -67,7 +108,7 @@ export const MapHero: React.FC<Props> = ({
       fitCoordinates()
     }, 400)
     return () => clearTimeout(timer)
-  }, [clientLocation.lat, clientLocation.lng, providerLocation?.lat, providerLocation?.lng])
+  }, [clientLocation.lat, clientLocation.lng, providerLocation?.lat, providerLocation?.lng, distanceText, durationText, routeCoordinates.length])
 
   const initialRegion = {
     latitude: (clientLocation.lat + (providerLocation?.lat ?? clientLocation.lat)) / 2,
@@ -87,6 +128,23 @@ export const MapHero: React.FC<Props> = ({
         ]
       : []
 
+  const handleRegionChangeComplete = (region: Region) => {
+    if (isFitting.current) {
+      lastFittedRegion.current = region
+      isFitting.current = false
+      return
+    }
+    if (!lastFittedRegion.current) return
+
+    const zoomOutThreshold = 1.2
+    if (
+      region.latitudeDelta > lastFittedRegion.current.latitudeDelta * zoomOutThreshold ||
+      region.longitudeDelta > lastFittedRegion.current.longitudeDelta * zoomOutThreshold
+    ) {
+      fitCoordinates()
+    }
+  }
+
   return (
     <View style={s.container}>
       <MapView
@@ -97,6 +155,7 @@ export const MapHero: React.FC<Props> = ({
         showsUserLocation={false}
         showsCompass={false}
         showsMyLocationButton={false}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
         {/* Route Polyline */}
         {polylineCoords.length > 1 && (
@@ -165,9 +224,9 @@ export const MapHero: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Bottom Floating Stats Card */}
-      <View style={s.bottomStats}>
-        <FloatingMapCard duration={durationText} distance={distanceText} />
+      {/* Bottom Floating ETA/Distance Pill */}
+      <View style={s.bottomPill}>
+        <EtaDistancePill duration={durationText} distance={distanceText} />
       </View>
 
       {/* Recenter Button */}
@@ -232,10 +291,10 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#0A1628',
   },
-  bottomStats: {
+  bottomPill: {
     position: 'absolute',
-    bottom: 24,
-    left: spacing.lg,
+    left: 16,
+    bottom: 40,
     zIndex: 10,
   },
   recenterBtn: {

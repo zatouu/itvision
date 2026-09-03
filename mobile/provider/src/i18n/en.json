@@ -309,6 +309,14 @@
     "awaitingSubtitle": "Client is verifying the completed work before releasing payment.",
     "remindClient": "Remind client"
   },
+  "providerMissionAssigned": {
+    "assignedPill": "Mission assigned",
+    "startMission": "Start mission",
+    "reportProblem": "Report a problem",
+    "estimatedTime": "Estimated time",
+    "distance": "Distance",
+    "missionsCount": "{{count}} missions"
+  },
   "rating": {
     "title": "Rate this service",
     "commentPlaceholder": "Anything to say about your experience? (optional)",

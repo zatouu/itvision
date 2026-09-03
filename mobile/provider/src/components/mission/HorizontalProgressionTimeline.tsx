@@ -1,11 +1,12 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, ViewStyle } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { radius, spacing } from '../../design'
 
 interface Props {
   status: string
+  style?: ViewStyle
 }
 
 interface StepItem {
@@ -45,12 +46,12 @@ function getStepIndex(status: string): number {
   }
 }
 
-export const HorizontalProgressionTimeline: React.FC<Props> = ({ status }) => {
+export const HorizontalProgressionTimeline: React.FC<Props> = ({ status, style }) => {
   const { t } = useTranslation()
   const currentIndex = getStepIndex(status)
 
   return (
-    <View style={s.card}>
+    <View style={[s.card, style]}>
       <View style={s.timelineRow}>
         {STEPS.map((step, idx) => {
           const isDone = idx < currentIndex
@@ -182,7 +183,7 @@ const s = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   stepLabel: {
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
   },

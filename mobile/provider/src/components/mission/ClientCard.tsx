@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ViewStyle } from 'react-native'
 import { Image } from 'expo-image'
 import { Phone, MessageSquare, Check, Star } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -9,24 +9,23 @@ interface Props {
   clientName?: string
   clientPhone?: string
   clientAvatar?: string
+  clientAvatarBlurhash?: string
   clientRating?: number
+  missionCount?: number
   isVerified?: boolean
   isTyping?: boolean
   onCall?: () => void
   onChat?: () => void
+  style?: ViewStyle
 }
 
-function getInitials(name?: string, phone?: string): string {
+function getInitials(name?: string): string {
   if (name && name.trim()) {
     const parts = name.trim().split(/\s+/)
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase()
     }
     return parts[0].slice(0, 2).toUpperCase()
-  }
-  if (phone && phone.trim()) {
-    const clean = phone.replace(/[^0-9]/g, '')
-    return clean.slice(-2) || 'CL'
   }
   return 'CL'
 }
@@ -35,16 +34,19 @@ export const ClientCard: React.FC<Props> = ({
   clientName,
   clientPhone,
   clientAvatar,
+  clientAvatarBlurhash,
   clientRating = 4.8,
+  missionCount,
   isVerified = true,
   isTyping = false,
   onCall,
   onChat,
+  style,
 }) => {
   const { t } = useTranslation()
 
-  const displayName = clientName || clientPhone || t('common.client', { defaultValue: 'Client' })
-  const initials = getInitials(clientName, clientPhone)
+  const displayName = clientName || t('common.client', { defaultValue: 'Client' })
+  const initials = getInitials(clientName)
   const hasRealAvatar = !!(
     clientAvatar &&
     typeof clientAvatar === 'string' &&
@@ -62,12 +64,17 @@ export const ClientCard: React.FC<Props> = ({
     }
   }
 
+  const subtitle = typeof missionCount === 'number'
+    ? t('providerMissionAssigned.missionsCount', { count: missionCount, defaultValue: '{{count}} missions' })
+    : t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })
+
   return (
-    <View style={s.card}>
+    <View style={[s.card, style]}>
       <View style={s.avatarWrapper}>
         {hasRealAvatar ? (
           <Image
             source={{ uri: clientAvatar }}
+            placeholder={clientAvatarBlurhash}
             contentFit="cover"
             transition={200}
             style={s.avatar}
@@ -96,7 +103,7 @@ export const ClientCard: React.FC<Props> = ({
           </Text>
           <Text style={s.bullet}>·</Text>
           <Text style={s.verifiedText}>
-            {t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })}
+            {subtitle}
           </Text>
         </View>
       </View>
@@ -106,6 +113,7 @@ export const ClientCard: React.FC<Props> = ({
           style={[s.actionButton, s.callButton]}
           activeOpacity={0.75}
           onPress={handleCall}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
           <Phone size={18} color="#0F7B4F" strokeWidth={2.2} />
         </TouchableOpacity>
@@ -114,6 +122,7 @@ export const ClientCard: React.FC<Props> = ({
           style={[s.actionButton, s.chatButton]}
           activeOpacity={0.75}
           onPress={onChat}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
           <MessageSquare size={18} color="#2563EB" strokeWidth={2.2} />
           {isTyping && <View style={s.typingDot} />}
@@ -214,9 +223,9 @@ const s = StyleSheet.create({
     marginLeft: 6,
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

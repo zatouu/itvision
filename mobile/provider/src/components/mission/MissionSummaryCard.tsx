@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet, ViewStyle } from 'react-native'
 import { MapPin, Lock } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { radius, spacing } from '../../design'
@@ -12,6 +12,7 @@ interface Props {
   address?: string
   paymentMethod?: string
   compact?: boolean
+  style?: ViewStyle
 }
 
 export const MissionSummaryCard: React.FC<Props> = ({
@@ -22,10 +23,13 @@ export const MissionSummaryCard: React.FC<Props> = ({
   address,
   paymentMethod = 'Cash',
   compact = false,
+  style,
 }) => {
   const { t } = useTranslation()
 
-  const displayCategory = category || t('common.service', { defaultValue: 'Service' })
+  const normalizedCategory = (category || '').toLowerCase()
+  const displayCategory = t(`categories.${normalizedCategory}`, { defaultValue: category || t('common.service', { defaultValue: 'Service' }) })
+
   const formattedPrice =
     price !== undefined && price !== null
       ? typeof price === 'number'
@@ -37,7 +41,7 @@ export const MissionSummaryCard: React.FC<Props> = ({
   const displayCode = categoryCode || (displayCategory ? displayCategory.slice(0, 2).toUpperCase() : 'SR')
 
   return (
-    <View style={s.card}>
+    <View style={[s.card, style]}>
       {/* Top Row */}
       <View style={s.topRow}>
         <View style={s.leftCategoryGroup}>
