@@ -18,6 +18,7 @@ import {
 import { humanErrorMessage } from '../errorMessages'
 import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
 import { toast } from '../toast'
+import { getAuthUser, getUserIdFromToken } from '../auth'
 
 export interface ActiveMissionData {
   _id: string
@@ -39,6 +40,7 @@ export interface ActiveMissionData {
   createdAt?: string
   clientName?: string
   clientPhone?: string
+  assignedProviderId?: string
   user?: {
     _id?: string
     name?: string
@@ -147,6 +149,20 @@ export function useMissionActive(requestId: string | null) {
   useEffect(() => {
     loadMission()
   }, [loadMission])
+
+  // 1b. Reload mission when app comes back to foreground
+  useEffect(() => {
+    if (!requestId) return
+    let lastState = AppState.currentState
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (lastState !== 'active' && nextState === 'active') {
+        console.log('[useMissionActive] app to active — refreshing mission')
+        loadMission(true)
+      }
+      lastState = nextState
+    })
+    return () => subscription.remove()
+  }, [requestId, loadMission])
 
   // 2. Timer ticker
   useEffect(() => {
@@ -419,7 +435,18 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      console.log('[useMissionActive] updateStatus', { requestId, currentStatus: missionRef.current?.status, nextStatus, extraPayload })
+      const tokenUserId = getUserIdFromToken()
+      const authUser = getAuthUser()
+      const currentMission = missionRef.current
+      console.log('[useMissionActive] updateStatus', {
+        requestId,
+        currentStatus: currentMission?.status,
+        nextStatus,
+        tokenUserId,
+        authUserId: authUser?._id,
+        assignedProviderId: currentMission?.assignedProviderId,
+        extraPayload,
+      })
 
       // Sync backend
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {

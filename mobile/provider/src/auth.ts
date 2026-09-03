@@ -93,6 +93,20 @@ export function getDeviceId(): string | null { return _deviceId }
 export function getAuthUser(): AuthUser | null { return _user }
 export function isLoggedIn(): boolean { return !!_token }
 
+/** Decode userId from the current JWT token (source of truth for backend auth). */
+export function getUserIdFromToken(): string | null {
+  if (!_token) return null
+  try {
+    const payload = _token.split('.')[1]
+    if (!payload) return null
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const obj = JSON.parse(decoded) as { userId?: string; id?: string; sub?: string }
+    return obj.userId || obj.id || obj.sub || null
+  } catch {
+    return null
+  }
+}
+
 /** Charger le token depuis AsyncStorage au démarrage */
 export async function loadAuth(): Promise<boolean> {
   try {

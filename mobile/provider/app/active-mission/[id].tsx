@@ -44,6 +44,7 @@ import { radius, spacing, colors, typography } from '../../src/design'
 import { apiPost } from '../../src/api'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
+import { getAuthUser, getUserIdFromToken } from '../../src/auth'
 
 function normalizeId(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] || null
@@ -125,6 +126,12 @@ function ActiveMissionScreen() {
   const missionCategory = mission?.category || ''
   const missionPrice = mission?.acceptedOffer?.price || mission?.finalPrice || mission?.price || mission?.budget
   const missionRefCode = mission?.reference || (mission?._id ? `#${mission._id.slice(-6).toUpperCase()}` : '')
+
+  const currentUser = getAuthUser()
+  const tokenUserId = getUserIdFromToken()
+  const effectiveUserId = tokenUserId || currentUser?._id
+  const isCurrentProvider = !mission?.assignedProviderId || String(mission.assignedProviderId) === String(effectiveUserId)
+  console.log('[active-mission] assignment check', { tokenUserId, userId: currentUser?._id, assignedProviderId: mission?.assignedProviderId, isCurrentProvider })
 
   const handleShare = async () => {
     try {
@@ -277,6 +284,13 @@ function ActiveMissionScreen() {
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={s.bottomSheetScroll}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => loadMission(true)}
+                  tintColor="#0F7B4F"
+                />
+              }
             >
               {/* Horizontal Progression Timeline */}
               <HorizontalProgressionTimeline status={status} style={{ marginHorizontal: 0, marginBottom: 0 }} />
@@ -308,7 +322,13 @@ function ActiveMissionScreen() {
 
             {/* Sticky Bottom CTA */}
             <View style={[s.stickyFooterMap, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              {status === 'assigned' ? (
+              {!isCurrentProvider ? (
+                <View style={s.notAssignedBox}>
+                  <Text style={s.notAssignedText}>
+                    {t('providerMissionAssigned.notAssigned', { defaultValue: 'Cette mission est assignée à un autre prestataire' })}
+                  </Text>
+                </View>
+              ) : status === 'assigned' ? (
                 <TouchableOpacity
                   style={s.primaryButton}
                   activeOpacity={0.88}
@@ -334,15 +354,17 @@ function ActiveMissionScreen() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={s.linkReport}
-                activeOpacity={0.7}
-                onPress={handleReport}
-              >
-                <Text style={s.linkReportText}>
-                  {t('providerMissionAssigned.reportProblem', { defaultValue: 'Signaler un problème' })}
-                </Text>
-              </TouchableOpacity>
+              {isCurrentProvider && (
+                <TouchableOpacity
+                  style={s.linkReport}
+                  activeOpacity={0.7}
+                  onPress={handleReport}
+                >
+                  <Text style={s.linkReportText}>
+                    {t('providerMissionAssigned.reportProblem', { defaultValue: 'Signaler un problème' })}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -435,33 +457,41 @@ function ActiveMissionScreen() {
 
           {/* Sticky Bottom Action Area */}
           <View style={[s.stickyFooterAction, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            {status === 'arrived' && (
+            {!isCurrentProvider ? (
+              <View style={s.notAssignedBox}>
+                <Text style={s.notAssignedText}>
+                  {t('providerMissionAssigned.notAssigned', { defaultValue: 'Cette mission est assignée à un autre prestataire' })}
+                </Text>
+              </View>
+            ) : (
               <>
-                <TouchableOpacity
-                  style={s.primaryButton}
-                  activeOpacity={0.88}
-                  disabled={updating}
-                  onPress={startIntervention}
-                >
-                  <Play size={18} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 8 }} />
-                  <Text style={s.primaryButtonText}>
-                    {t('providerMissionActive.ctaStartIntervention', { defaultValue: "Commencer l'intervention" })}
-                  </Text>
-                </TouchableOpacity>
+                {status === 'arrived' && (
+                  <>
+                    <TouchableOpacity
+                      style={s.primaryButton}
+                      activeOpacity={0.88}
+                      disabled={updating}
+                      onPress={startIntervention}
+                    >
+                      <Play size={18} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 8 }} />
+                      <Text style={s.primaryButtonText}>
+                        {t('providerMissionActive.ctaStartIntervention', { defaultValue: "Commencer l'intervention" })}
+                      </Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={s.linkReport}
-                  activeOpacity={0.7}
-                  onPress={handleReport}
-                >
-                  <Text style={s.linkReportText}>
-                    {t('providerMissionActive.linkReportProblem', { defaultValue: 'Signaler un problème' })}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+                    <TouchableOpacity
+                      style={s.linkReport}
+                      activeOpacity={0.7}
+                      onPress={handleReport}
+                    >
+                      <Text style={s.linkReportText}>
+                        {t('providerMissionActive.linkReportProblem', { defaultValue: 'Signaler un problème' })}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
 
-            {status === 'in_progress' && (
+                {status === 'in_progress' && (
               <>
                 {/* Primary Button */}
                 <TouchableOpacity
@@ -534,28 +564,30 @@ function ActiveMissionScreen() {
               </>
             )}
 
-            {status === 'awaiting_validation' && (
-              <View style={s.awaitingContainer}>
-                <Text style={s.awaitingTitle}>
-                  {t('providerMissionActive.awaitingTitle', { defaultValue: 'En attente de validation du client' })}
-                </Text>
-                <Text style={s.awaitingSubtitle}>
-                  {t('providerMissionActive.awaitingSubtitle', {
-                    defaultValue: 'Le client vérifie la bonne exécution des travaux pour libérer le paiement.',
-                  })}
-                </Text>
-                <TouchableOpacity
-                  style={[s.primaryButton, { marginTop: 12 }]}
-                  activeOpacity={0.88}
-                  onPress={() => {
-                    Alert.alert('Rappel envoyé', 'Une notification de rappel a été envoyée au client.')
-                  }}
-                >
-                  <Text style={s.primaryButtonText}>
-                    {t('providerMissionActive.remindClient', { defaultValue: 'Relancer le client' })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                {status === 'awaiting_validation' && (
+                  <View style={s.awaitingContainer}>
+                    <Text style={s.awaitingTitle}>
+                      {t('providerMissionActive.awaitingTitle', { defaultValue: 'En attente de validation du client' })}
+                    </Text>
+                    <Text style={s.awaitingSubtitle}>
+                      {t('providerMissionActive.awaitingSubtitle', {
+                        defaultValue: 'Le client vérifie la bonne exécution des travaux pour libérer le paiement.',
+                      })}
+                    </Text>
+                    <TouchableOpacity
+                      style={[s.primaryButton, { marginTop: 12 }]}
+                      activeOpacity={0.88}
+                      onPress={() => {
+                        Alert.alert('Rappel envoyé', 'Une notification de rappel a été envoyée au client.')
+                      }}
+                    >
+                      <Text style={s.primaryButtonText}>
+                        {t('providerMissionActive.remindClient', { defaultValue: 'Relancer le client' })}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </View>
         </SafeAreaView>
@@ -571,9 +603,9 @@ function ActiveMissionScreen() {
         pausedSeconds={pausedSeconds}
         pauseCount={pauseCount}
         lastActivityAt={lastActivityAt}
-        onPause={status === 'in_progress' ? handlePause : null}
-        onResume={status === 'paused' ? resumeIntervention : null}
-        onDispute={['assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status) ? handleReport : null}
+        onPause={isCurrentProvider && status === 'in_progress' ? handlePause : null}
+        onResume={isCurrentProvider && status === 'paused' ? resumeIntervention : null}
+        onDispute={isCurrentProvider && ['assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status) ? handleReport : null}
       />
 
       {/* Admin Metrics Modal (Long-press on Hero Card) */}
@@ -786,6 +818,20 @@ const s = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 6,
+  },
+  notAssignedBox: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notAssignedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B45309',
+    textAlign: 'center',
   },
   primaryButton: {
     height: 54,

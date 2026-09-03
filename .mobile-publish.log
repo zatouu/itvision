@@ -5295,3 +5295,42 @@ Unsupported platform, macOS or Linux is required to build apps for Android
 [consumer] Build local EAS (APK) profile 'ec2'...
 Unsupported platform, macOS or Linux is required to build apps for Android
     Error: build command failed.
+[consumer] Fichiers modifies depuis b65a3938b212ef7e66b51f48e573c8aa0bc1e7a4 :
+  - mobile/consumer/.env
+  - mobile/consumer/app/create-request.tsx
+  - mobile/consumer/app/index.tsx
+  - mobile/consumer/app/mission-chat.tsx
+  - mobile/consumer/app/mission/[id].tsx
+  - mobile/consumer/app/my-requests.tsx
+  - mobile/consumer/app/notifications.tsx
+  - mobile/consumer/app/offers/[requestId].tsx
+  - mobile/consumer/app/rate-mission.tsx
+  - mobile/consumer/app/verify-otp.tsx
+  - mobile/consumer/app/wallet.tsx
+  - mobile/consumer/consumer-build4.log
+  - mobile/consumer/consumer-build5.log
+  - mobile/consumer/src/__tests__/api.test.ts
+  - mobile/consumer/src/__tests__/auth.test.ts
+  - mobile/consumer/src/__tests__/notifications.test.ts
+  - mobile/consumer/src/__tests__/push.test.ts
+  - mobile/consumer/src/__tests__/socket.test.ts
+  - mobile/consumer/src/api.ts
+  - mobile/consumer/src/components/AiClarifyModal.tsx
+  - mobile/consumer/src/components/BottomSheet.tsx
+  - mobile/consumer/src/components/ErrorBoundary.tsx
+  - mobile/consumer/src/components/LanguagePicker.tsx
+  - mobile/consumer/src/components/TabBar.tsx
+  - mobile/consumer/src/components/VoiceRecorder.tsx
+  - mobile/consumer/src/components/withScreenBoundary.tsx
+  - mobile/consumer/src/i18n/en.json
+  - mobile/consumer/src/i18n/fr.json
+  - mobile/consumer/src/i18n/wo.json
+  - mobile/consumer/src/notifications.ts
+  - mobile/consumer/src/push.ts
+  - mobile/consumer/src/types.ts
+  - mobile/consumer/tsconfig.json
+[consumer] Changements natifs detectes -> mode BUILD
+    NATIF: mobile/consumer/tsconfig.json
+[consumer] Build local EAS (APK) profile 'ec2'...
+Unsupported platform, macOS or Linux is required to build apps for Android
+    Error: build command failed.
