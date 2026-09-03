@@ -419,7 +419,7 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      console.log('[useMissionActive] updateStatus', { requestId, nextStatus, extraPayload })
+      console.log('[useMissionActive] updateStatus', { requestId, currentStatus: missionRef.current?.status, nextStatus, extraPayload })
 
       // Sync backend
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
@@ -453,7 +453,7 @@ export function useMissionActive(requestId: string | null) {
       await loadMission(true)
     } catch (err: any) {
       console.error('[useMissionActive] updateStatus error', err)
-      const msg = humanErrorMessage(err)
+      const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
       hapticWarning()
@@ -494,7 +494,7 @@ export function useMissionActive(requestId: string | null) {
       await loadMission(true)
     } catch (err: any) {
       console.error('[useMissionActive] pauseIntervention error', err)
-      const msg = humanErrorMessage(err)
+      const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
       hapticWarning()
@@ -528,7 +528,7 @@ export function useMissionActive(requestId: string | null) {
       await loadMission(true)
     } catch (err: any) {
       console.error('[useMissionActive] resumeIntervention error', err)
-      const msg = humanErrorMessage(err)
+      const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
       hapticWarning()
@@ -556,7 +556,7 @@ export function useMissionActive(requestId: string | null) {
       await updateStatus('dispute', { disputeReason: reason })
     } catch (err: any) {
       console.error('[useMissionActive] reportProblem error', err)
-      const msg = humanErrorMessage(err)
+      const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
     }
