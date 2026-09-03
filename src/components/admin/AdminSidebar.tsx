@@ -35,6 +35,7 @@ import {
   TrendingDown,
   Banknote,
   Mail,
+  Send,
   Globe,
   Search,
   ImageIcon,
@@ -196,6 +197,25 @@ const menuSections: MenuSection[] = [
         label: 'Garanties',
         icon: Shield,
         href: '/admin/garanties'
+      },
+      {
+        id: 'prospects',
+        label: 'Prospects B2B',
+        icon: Mail,
+        children: [
+          {
+            id: 'leads',
+            label: 'Liste prospects',
+            icon: Users,
+            href: '/admin/prospects'
+          },
+          {
+            id: 'campaigns',
+            label: 'Campagnes email',
+            icon: Send,
+            href: '/admin/campaigns'
+          }
+        ]
       }
     ]
   },
