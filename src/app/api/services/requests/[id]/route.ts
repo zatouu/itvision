@@ -182,13 +182,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const isClient = String(sr.clientId) === String(userId)
     const isProvider = String(sr.assignedProviderId) === String(userId)
     const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role)
-    console.log('[PATCH /api/services/requests/:id] auth context', { id, userId, role, missionRoleFallback: MISSION_ROLE_MAP[role] || (isClient ? 'client' : 'provider'), clientId: sr.clientId, assignedProviderId: sr.assignedProviderId, isClient, isProvider, isAdmin, status: sr.status })
+    const missionRoleFallback: 'client' | 'provider' | 'admin' = isAdmin ? 'admin' : isProvider ? 'provider' : isClient ? 'client' : (MISSION_ROLE_MAP[role] || 'provider')
+    console.log('[PATCH /api/services/requests/:id] auth context', { id, userId, role, missionRoleFallback, clientId: sr.clientId, assignedProviderId: sr.assignedProviderId, isClient, isProvider, isAdmin, status: sr.status })
     if (!isClient && !isProvider && !isAdmin) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }
 
     const body = await request.json()
-    const missionRole = isAdmin ? 'admin' : (MISSION_ROLE_MAP[role] || (isClient ? 'client' : 'provider'))
+    const missionRole: 'client' | 'provider' | 'admin' = isAdmin
+      ? 'admin'
+      : isProvider
+        ? 'provider'
+        : isClient
+          ? 'client'
+          : (MISSION_ROLE_MAP[role] || 'provider')
     const context = {
       ip: request.headers.get('x-forwarded-for') || undefined,
       userAgent: request.headers.get('user-agent') || undefined,

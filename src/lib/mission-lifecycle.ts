@@ -202,6 +202,11 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
     if (from === 'awaiting_validation' && to === 'in_progress' && role !== 'client' && role !== 'admin') {
       return { ok: false, reason: 'Seul le client peut demander des corrections' }
     }
+    // Transitions opérationnelles réservées au prestataire assigné (ou admin) : en route, arrivé, en cours, validation en attente.
+    const providerOnlyTargets: MissionStatus[] = ['on_the_way', 'arrived', 'in_progress', 'awaiting_validation']
+    if (role === 'client' && providerOnlyTargets.includes(to) && from !== 'awaiting_validation') {
+      return { ok: false, reason: 'Cette action est réservée au prestataire assigné' }
+    }
     // Pause depuis arrived/in_progress uniquement (vérifié plus bas via PAUSABLE_STATUSES).
   }
   return { ok: true }
