@@ -186,7 +186,9 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     nextScheduled: Date
   }],
   equipment: [{
-    type: String,
+    // `type` est un mot-clé réservé Mongoose : forme étendue obligatoire
+    // sinon le sous-document est interprété comme `equipment: [String]`
+    type: { type: String },
     quantity: Number,
     location: String,
     serialNumbers: [String]
