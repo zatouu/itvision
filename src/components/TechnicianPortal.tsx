@@ -101,7 +101,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     activeClients: 0
   })
 
-  // Surveillance de la connectivité
+  // Surveillance de la connectivitÃƒÂ©
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
@@ -116,7 +116,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     }
   }, [])
 
-  // Géolocalisation
+  // GÃƒÂ©olocalisation
   useEffect(() => {
     if (navigator.geolocation && session) {
       navigator.geolocation.getCurrentPosition(
@@ -126,12 +126,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             lng: position.coords.longitude
           })
         },
-        (error) => console.log('Géolocalisation non disponible:', error)
+        (error) => console.log('GÃƒÂ©olocalisation non disponible:', error)
       )
     }
   }, [session])
 
-  // Chargement des données du technicien
+  // Chargement des donnÃƒÂ©es du technicien
   useEffect(() => {
     if (session) {
       loadTechnicianData()
@@ -139,7 +139,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     }
   }, [session])
 
-  // Charger la moyenne d'évaluations client (via /api/feedback)
+  // Charger la moyenne d'ÃƒÂ©valuations client (via /api/feedback)
   useEffect(() => {
     (async () => {
       try {
@@ -153,7 +153,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     })()
   }, [session?.name])
 
-  // Auto-auth via cookie (évite double login)
+  // Auto-auth via cookie (ÃƒÂ©vite double login)
   useEffect(() => {
     let cancelled = false
     const checkAuth = async () => {
@@ -163,7 +163,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         const data = await res.json()
         const role = String(data.user?.role || '').toUpperCase()
         if (role !== 'TECHNICIAN') {
-          // Rediriger vers l'interface correspondant au rôle
+          // Rediriger vers l'interface correspondant au rÃƒÂ´le
           if (role === 'ADMIN') router.replace('/admin-reports')
           else router.replace('/compte')
           return
@@ -207,7 +207,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         allReports = (data.reports || []).map((r: any) => ({
           id: r.reportId || r._id,
           _id: r._id,
-          site: r.site || 'Non spécifié',
+          site: r.site || 'Non spÃƒÂ©cifiÃƒÂ©',
           status: r.status || 'draft',
           priority: r.priority || 'medium',
           scheduledTime: r.startTime || '',
@@ -233,7 +233,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           id: i._id,
           _id: i._id,
           kind: 'intervention',
-          site: i.site || i.client || i.title || 'Non spécifié',
+          site: i.site || i.client || i.title || 'Non spÃƒÂ©cifiÃƒÂ©',
           status: i.status || 'pending',
           priority: i.priority || 'medium',
           scheduledTime: i.heureDebut || '',
@@ -268,16 +268,16 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         return d && d >= weekStart
       })
 
-      // Calcul temps moyen réel (basé sur la durée des rapports)
+      // Calcul temps moyen rÃƒÂ©el (basÃƒÂ© sur la durÃƒÂ©e des rapports)
       const durations = allReports
         .map(r => typeof r.durationMinutes === 'number' ? r.durationMinutes : 0)
         .filter(d => d > 0)
       const avgMin = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
       const avgTimeStr = avgMin > 0
         ? `${Math.floor(avgMin / 60)}h${avgMin % 60 > 0 ? ` ${avgMin % 60}min` : ''}`
-        : '–'
+        : 'Ã¢â‚¬â€œ'
 
-      // Calcul heures semaine réelles
+      // Calcul heures semaine rÃƒÂ©elles
       const weekMinutes = weekReports.reduce((sum, r) => sum + (typeof r.durationMinutes === 'number' ? r.durationMinutes : 0), 0)
 
       setStats((prev) => ({
@@ -290,7 +290,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         slaOnTime: combined.length > 0 ? Math.round((completedItems.length / combined.length) * 100) : 0
       }))
     } catch (error) {
-      console.error('Erreur chargement données:', error)
+      console.error('Erreur chargement donnÃƒÂ©es:', error)
     }
   }
 
@@ -312,7 +312,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
   const handleSaveReport = async (data: any) => {
     try {
-      // Recharger les données pour refléter le nouveau brouillon
+      // Recharger les donnÃƒÂ©es pour reflÃƒÂ©ter le nouveau brouillon
       await loadTechnicianData()
     } catch {}
   }
@@ -357,15 +357,15 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       }
       setUiNotice({
         variant: 'success',
-        title: 'Rapport envoyé',
-        message: 'Le brouillon a été soumis pour validation.'
+        title: 'Rapport envoyÃƒÂ©',
+        message: 'Le brouillon a ÃƒÂ©tÃƒÂ© soumis pour validation.'
       })
       await loadTechnicianData()
     } catch (err) {
       setUiNotice({
         variant: 'error',
-        title: 'Erreur réseau',
-        message: 'Veuillez vérifier votre connexion et réessayer.'
+        title: 'Erreur rÃƒÂ©seau',
+        message: 'Veuillez vÃƒÂ©rifier votre connexion et rÃƒÂ©essayer.'
       })
     } finally {
       setSubmittingReportId(null)
@@ -389,137 +389,69 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     setCurrentView('create-report')
   }
 
-  // Redirection hors rendu pour éviter l'avertissement React
+  // Redirection hors rendu pour ÃƒÂ©viter l'avertissement React
   useEffect(() => {
     if (!isCheckingAuth && !session) {
       router.replace('/login')
     }
   }, [isCheckingAuth, session, router])
 
-  // Attendre la vérification / redirection
+  // Attendre la vÃƒÂ©rification / redirection
   if (isCheckingAuth || !session) return null
 
   const renderDashboard = () => (
     <div className="space-y-6">
         {/* Statistiques du jour */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{stats.todayReports}</div>
-              <div className="text-sm text-blue-700">Interventions du jour</div>
-            </div>
-            <Calendar className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-orange-600">{stats.pendingReports}</div>
-              <div className="text-sm text-orange-700">En attente</div>
-            </div>
-            <Clock className="h-8 w-8 text-orange-500" />
-          </div>
-        </div>
-
-        <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-green-600">{stats.completedToday}</div>
-              <div className="text-sm text-green-700">Terminées</div>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-lg font-bold text-purple-600">{stats.avgResponseTime}</div>
-              <div className="text-sm text-purple-700">Temps moyen</div>
-            </div>
-            <Activity className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
-
-          {/* Nouvelles cartes KPI */}
-          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-emerald-600">{stats.weekHours}h</div>
-              <div className="text-sm text-emerald-700">Heures cette semaine</div>
-            </div>
-            <Activity className="h-8 w-8 text-emerald-500" />
-          </div>
-        </div>
-
-        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.clientSatisfaction}</div>
-              <div className="text-sm text-yellow-700">Note clients /5</div>
-            </div>
-            <Star className="h-8 w-8 text-yellow-500" />
-          </div>
-        </div>
-
-          <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-teal-600">{stats.slaOnTime}%</div>
-                <div className="text-sm text-teal-700">SLA respecté</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+          {[
+            { v: stats.todayReports, l: 'Interventions du jour', icon: Calendar, chip: 'bg-sky-50 text-sky-600' },
+            { v: stats.pendingReports, l: 'En attente', icon: Clock, chip: 'bg-amber-50 text-amber-600' },
+            { v: stats.completedToday, l: 'TerminÃ¯Â¿Â½es', icon: CheckCircle, chip: 'bg-emerald-50 text-emerald-600' },
+            { v: stats.avgResponseTime, l: 'Temps moyen', icon: Activity, chip: 'bg-violet-50 text-violet-600' },
+            { v: `${stats.weekHours}h`, l: 'Heures semaine', icon: Activity, chip: 'bg-teal-50 text-teal-600' },
+            { v: stats.clientSatisfaction, l: 'Note clients /5', icon: Star, chip: 'bg-amber-50 text-amber-500' },
+            { v: `${stats.slaOnTime}%`, l: 'SLA respectÃ¯Â¿Â½', icon: Target, chip: 'bg-emerald-50 text-emerald-600' },
+            { v: clients.length, l: 'Clients actifs', icon: Building2, chip: 'bg-indigo-50 text-indigo-600' },
+          ].map(k => {
+            const Icon = k.icon
+            return (
+              <div key={k.l} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${k.chip}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="text-xl font-bold text-stone-900 tabular-nums">{k.v}</div>
+                <div className="text-[11px] font-medium text-stone-400 leading-tight mt-0.5">{k.l}</div>
               </div>
-              <CheckCircle className="h-8 w-8 text-teal-600" />
-            </div>
-          </div>
-
-          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-indigo-600">{clients.length}</div>
-                <div className="text-sm text-indigo-700">Clients actifs</div>
-              </div>
-              <Building2 className="h-8 w-8 text-indigo-600" />
-            </div>
-          </div>
-      </div>
+            )
+          })}
+        </div>
 
       {/* Actions rapides */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <button
-            onClick={() => setCurrentView('create-report')}
-            className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
-          >
-            <Plus className="h-6 w-6" />
-            <span>Nouveau rapport</span>
-          </button>
-            
-            <button
-              onClick={() => setCurrentView('reports')}
-              className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
-            >
-              <FileText className="h-6 w-6" />
-              <span>Mes rapports</span>
-            </button>
-            
-            <button
-              onClick={() => setCurrentView('clients')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
-            >
-              <Building2 className="h-6 w-6" />
-              <span>Annuaire clients</span>
-            </button>
-            
-            <button
-              onClick={() => setCurrentView('marketplace')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
-            >
-              <Briefcase className="h-6 w-6" />
-              <span>Marketplace</span>
-            </button>
+      <div className="rounded-2xl p-5 sm:p-6 border border-stone-200 bg-white shadow-sm">
+        <h2 className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-4">Actions rapides</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <a href="/tech-interface/terrain"
+              className="group flex flex-col items-start gap-2.5 rounded-xl border-2 border-emerald-800 bg-emerald-800 text-white p-4 transition-all hover:bg-emerald-900 hover:shadow-md">
+              <Target className="h-5 w-5 text-emerald-300" />
+              <span className="text-sm font-semibold leading-tight">Vue terrain</span>
+            </a>
+            {[
+              { label: 'Nouveau rapport', icon: Plus, view: 'create-report', chip: 'bg-emerald-50 text-emerald-700' },
+              { label: 'Mes rapports', icon: FileText, view: 'reports', chip: 'bg-sky-50 text-sky-600' },
+              { label: 'Annuaire clients', icon: Building2, view: 'clients', chip: 'bg-indigo-50 text-indigo-600' },
+              { label: 'Marketplace', icon: Briefcase, view: 'marketplace', chip: 'bg-teal-50 text-teal-600' },
+            ].map(a => {
+              const Icon = a.icon
+              return (
+                <button key={a.view} onClick={() => setCurrentView(a.view as any)}
+                  className="group flex flex-col items-start gap-2.5 rounded-xl border border-stone-200 bg-white p-4 text-left transition-all hover:border-stone-300 hover:shadow-md">
+                  <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${a.chip}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-semibold text-stone-800 leading-tight">{a.label}</span>
+                </button>
+              )
+            })}
 
             <button
               onClick={() => {
@@ -532,51 +464,53 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   )
                 }
               }}
-              className="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-colors flex items-center space-x-3"
+              className="group flex flex-col items-start gap-2.5 rounded-xl border border-stone-200 bg-white p-4 text-left transition-all hover:border-stone-300 hover:shadow-md"
             >
-              <Navigation className="h-6 w-6" />
-              <span>Navigation</span>
+              <span className="w-9 h-9 rounded-lg bg-stone-100 text-stone-500 flex items-center justify-center">
+                <Navigation className="h-5 w-5" />
+              </span>
+              <span className="text-sm font-semibold text-stone-800 leading-tight">Navigation</span>
             </button>
         </div>
       </div>
 
       {/* Interventions du jour */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-stone-200 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Interventions programmées</h2>
+          <h2 className="text-lg font-semibold text-stone-900">Interventions programmÃƒÂ©es</h2>
           <button
             onClick={loadTechnicianData}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-sky-600 hover:text-blue-800"
           >
-            Rafraîchir
+            RafraÃƒÂ®chir
           </button>
         </div>
         <div className="space-y-3">
           {reports.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-              <p>Aucune intervention programmée</p>
+            <div className="text-center py-8 text-stone-500">
+              <Calendar className="h-10 w-10 mx-auto mb-2 text-stone-300" />
+              <p>Aucune intervention programmÃƒÂ©e</p>
               <button
                 onClick={() => setCurrentView('create-report')}
-                className="mt-3 text-sm text-green-600 hover:text-green-800 font-medium"
+                className="mt-3 text-sm text-emerald-700 hover:text-emerald-900 font-medium"
               >
-                Créer un rapport
+                CrÃƒÂ©er un rapport
               </button>
             </div>
           ) : (
             reports.slice(0, 10).map((report) => (
-              <div key={report.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={report.id} className="flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:bg-stone-50 hover:border-stone-300 transition-colors">
                 <div className="flex items-center space-x-4">
                   <div className={`w-3 h-3 rounded-full ${
-                    ['pending', 'draft'].includes(report.status) ? 'bg-orange-500' :
-                    ['in_progress', 'scheduled'].includes(report.status) ? 'bg-blue-500' : 'bg-green-500'
+                    ['pending', 'draft'].includes(report.status) ? 'bg-amber-500' :
+                    ['in_progress', 'scheduled'].includes(report.status) ? 'bg-sky-500' : 'bg-green-500'
                   }`}></div>
                   <div>
-                    <div className="font-medium text-gray-900">{report.site}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="font-medium text-stone-900">{report.site}</div>
+                    <div className="text-sm text-stone-600">
                       {report.interventionDate ? new Date(report.interventionDate).toLocaleDateString('fr-FR') : ''}
-                      {report.scheduledTime ? ` • ${report.scheduledTime}` : ''}
-                      {report.estimatedDuration ? ` • ${report.estimatedDuration}` : ''}
+                      {report.scheduledTime ? ` Ã¢â‚¬Â¢ ${report.scheduledTime}` : ''}
+                      {report.estimatedDuration ? ` Ã¢â‚¬Â¢ ${report.estimatedDuration}` : ''}
                     </div>
                   </div>
                 </div>
@@ -584,7 +518,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   {getStatusBadge(report.status)}
                   <button
                     onClick={() => handleViewReport(report)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                    className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
@@ -598,19 +532,19 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   )
 
   const statusLabels: Record<string, { label: string; className: string }> = {
-    draft: { label: 'Brouillon', className: 'bg-gray-100 text-gray-800' },
-    pending: { label: 'En attente', className: 'bg-orange-100 text-orange-800' },
-    pending_validation: { label: 'En validation', className: 'bg-yellow-100 text-yellow-800' },
-    in_progress: { label: 'En cours', className: 'bg-blue-100 text-blue-800' },
-    scheduled: { label: 'Planifié', className: 'bg-indigo-100 text-indigo-800' },
-    completed: { label: 'Terminé', className: 'bg-green-100 text-green-800' },
-    validated: { label: 'Validé', className: 'bg-emerald-100 text-emerald-800' },
-    published: { label: 'Publié', className: 'bg-teal-100 text-teal-800' },
-    archived: { label: 'Archivé', className: 'bg-slate-100 text-slate-800' }
+    draft: { label: 'Brouillon', className: 'bg-stone-100 text-stone-800' },
+    pending: { label: 'En attente', className: 'bg-amber-100 text-amber-800' },
+    pending_validation: { label: 'En validation', className: 'bg-amber-100 text-amber-800' },
+    in_progress: { label: 'En cours', className: 'bg-sky-100 text-sky-800' },
+    scheduled: { label: 'PlanifiÃƒÂ©', className: 'bg-indigo-100 text-indigo-800' },
+    completed: { label: 'TerminÃƒÂ©', className: 'bg-green-100 text-emerald-900' },
+    validated: { label: 'ValidÃƒÂ©', className: 'bg-emerald-100 text-emerald-800' },
+    published: { label: 'PubliÃƒÂ©', className: 'bg-teal-100 text-teal-800' },
+    archived: { label: 'ArchivÃƒÂ©', className: 'bg-slate-100 text-slate-800' }
   }
 
   const getStatusBadge = (status: string) => {
-    const config = statusLabels[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
+    const config = statusLabels[status] || { label: status, className: 'bg-stone-100 text-stone-800' }
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.className}`}>{config.label}</span>
   }
 
@@ -627,20 +561,20 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Mes Rapports</h2>
-          <p className="text-sm text-gray-500 mt-1">{filteredReports.length} sur {reports.length} rapport(s)</p>
+          <h2 className="text-2xl font-bold text-stone-900">Mes Rapports</h2>
+          <p className="text-sm text-stone-500 mt-1">{filteredReports.length} sur {reports.length} rapport(s)</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={loadTechnicianData}
-            className="border border-gray-200 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-lg flex items-center space-x-2"
+            className="border border-stone-200 text-stone-600 hover:bg-stone-100 px-4 py-2 rounded-lg flex items-center space-x-2"
           >
             <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">Rafraîchir</span>
+            <span className="hidden sm:inline">RafraÃƒÂ®chir</span>
           </button>
           <button
             onClick={() => setCurrentView('create-report')}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
           >
             <Plus className="h-5 w-5" />
             <span>Nouveau</span>
@@ -652,74 +586,74 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
-          placeholder="Rechercher par site, client ou référence..."
+          placeholder="Rechercher par site, client ou rÃƒÂ©fÃƒÂ©rence..."
           value={reportSearch}
           onChange={(e) => setReportSearch(e.target.value)}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          className="flex-1 px-4 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-emerald-600"
         />
         <select
           value={reportStatusFilter}
           onChange={(e) => setReportStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          className="px-3 py-2 border border-stone-300 rounded-lg text-sm bg-white"
         >
           <option value="all">Tous les statuts</option>
           <option value="draft">Brouillons</option>
           <option value="pending">En attente</option>
           <option value="pending_validation">En validation</option>
-          <option value="completed">Terminés</option>
-          <option value="validated">Validés</option>
+          <option value="completed">TerminÃƒÂ©s</option>
+          <option value="validated">ValidÃƒÂ©s</option>
         </select>
       </div>
 
       {filteredReports.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {reports.length === 0 ? 'Aucun rapport' : 'Aucun résultat'}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
+          <FileText className="h-12 w-12 text-stone-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-stone-900 mb-2">
+            {reports.length === 0 ? 'Aucun rapport' : 'Aucun rÃƒÂ©sultat'}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-stone-500 mb-4">
             {reports.length === 0
-              ? "Vous n'avez pas encore créé de rapport d'intervention."
+              ? "Vous n'avez pas encore crÃƒÂ©ÃƒÂ© de rapport d'intervention."
               : 'Essayez de modifier vos filtres de recherche.'}
           </p>
           {reports.length === 0 && (
             <button
               onClick={() => setCurrentView('create-report')}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
+              className="bg-emerald-800 hover:bg-emerald-900 text-white px-6 py-2 rounded-lg"
             >
-              Créer mon premier rapport
+              CrÃƒÂ©er mon premier rapport
             </button>
           )}
         </div>
       ) : (
         <>
           {/* Vue tableau (desktop) */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-700">
-                <div>Référence</div>
+          <div className="hidden md:block bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-stone-200 bg-stone-50">
+              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-stone-700">
+                <div>RÃƒÂ©fÃƒÂ©rence</div>
                 <div>Site / Client</div>
                 <div>Date</div>
-                <div>Priorité</div>
+                <div>PrioritÃƒÂ©</div>
                 <div>Statut</div>
                 <div>Actions</div>
               </div>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-stone-200">
               {filteredReports.map((report) => (
-                <div key={report.id} className="p-4 grid grid-cols-6 gap-4 items-center hover:bg-gray-50">
-                  <div className="font-medium text-gray-900 text-sm truncate">{report.id}</div>
+                <div key={report.id} className="p-4 grid grid-cols-6 gap-4 items-center hover:bg-stone-50">
+                  <div className="font-medium text-stone-900 text-sm truncate">{report.id}</div>
                   <div className="min-w-0">
-                    <div className="text-gray-900 text-sm truncate">{report.site}</div>
-                    {report.clientName && <div className="text-xs text-gray-500 truncate">{report.clientName}</div>}
+                    <div className="text-stone-900 text-sm truncate">{report.site}</div>
+                    {report.clientName && <div className="text-xs text-stone-500 truncate">{report.clientName}</div>}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-stone-600">
                     {report.interventionDate ? new Date(report.interventionDate).toLocaleDateString('fr-FR') : '-'}
                   </div>
                   <div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       report.priority === 'high' || report.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                      report.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                      report.priority === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-emerald-900'
                     }`}>
                       {report.priority === 'high' ? 'Haute' : report.priority === 'urgent' ? 'Urgente' :
                        report.priority === 'medium' ? 'Moyenne' : 'Faible'}
@@ -729,8 +663,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => handleViewReport(report)}
-                      title="Voir le détail"
-                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      title="Voir le dÃƒÂ©tail"
+                      className="p-1.5 text-sky-600 hover:bg-blue-100 rounded-lg transition-colors"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
@@ -739,7 +673,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                         <button
                           onClick={() => handleEditDraft(report)}
                           title="Modifier le brouillon"
-                          className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors"
+                          className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
                         >
                           <FileText className="h-4 w-4" />
                         </button>
@@ -747,7 +681,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                           onClick={() => handleSubmitDraft(report)}
                           disabled={submittingReportId === report._id}
                           title="Soumettre pour validation"
-                          className="p-1.5 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                          className="p-1.5 text-emerald-700 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
                         >
                           <Send className="h-4 w-4" />
                         </button>
@@ -762,19 +696,19 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           {/* Vue cartes (mobile) */}
           <div className="md:hidden space-y-3">
             {filteredReports.map((report) => (
-              <div key={report.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+              <div key={report.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="font-semibold text-gray-900">{report.site}</div>
-                    {report.clientName && <div className="text-sm text-gray-500">{report.clientName}</div>}
+                    <div className="font-semibold text-stone-900">{report.site}</div>
+                    {report.clientName && <div className="text-sm text-stone-500">{report.clientName}</div>}
                   </div>
                   {getStatusBadge(report.status)}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-4 text-sm text-stone-600">
                   <span>{report.interventionDate ? new Date(report.interventionDate).toLocaleDateString('fr-FR') : '-'}</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                     report.priority === 'high' || report.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                    report.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                    report.priority === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-emerald-900'
                   }`}>
                     {report.priority === 'high' ? 'Haute' : report.priority === 'urgent' ? 'Urgente' :
                      report.priority === 'medium' ? 'Moyenne' : 'Faible'}
@@ -783,7 +717,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => handleViewReport(report)}
-                    className="flex-1 py-2 text-sm rounded-lg border border-gray-200 text-blue-600 hover:bg-blue-50"
+                    className="flex-1 py-2 text-sm rounded-lg border border-stone-200 text-sky-600 hover:bg-blue-50"
                   >
                     Voir
                   </button>
@@ -791,14 +725,14 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                     <>
                       <button
                         onClick={() => handleEditDraft(report)}
-                        className="flex-1 py-2 text-sm rounded-lg border border-orange-200 text-orange-600 hover:bg-orange-50"
+                        className="flex-1 py-2 text-sm rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50"
                       >
                         Modifier
                       </button>
                       <button
                         onClick={() => handleSubmitDraft(report)}
                         disabled={submittingReportId === report._id}
-                        className="flex-1 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                        className="flex-1 py-2 text-sm rounded-lg bg-emerald-800 text-white hover:bg-green-700 disabled:opacity-50"
                       >
                         Soumettre
                       </button>
@@ -817,19 +751,19 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Clients assignables</h2>
-          <p className="text-sm text-gray-600">Synchronisés depuis l’interface admin. Utilisez ces fiches pour planifier vos interventions ou contacter vos référents.</p>
+          <h2 className="text-2xl font-bold text-stone-900">Clients assignables</h2>
+          <p className="text-sm text-stone-600">SynchronisÃƒÂ©s depuis lÃ¢â‚¬â„¢interface admin. Utilisez ces fiches pour planifier vos interventions ou contacter vos rÃƒÂ©fÃƒÂ©rents.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={loadClientDirectory}
             className="px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm"
           >
-            Rafraîchir
+            RafraÃƒÂ®chir
           </button>
           <button
             onClick={() => setCurrentView('dashboard')}
-            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 text-sm"
+            className="px-4 py-2 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 text-sm"
           >
             Retour tableau
           </button>
@@ -838,36 +772,36 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {clients.map((client) => (
-          <div key={client.id} className="bg-white border border-gray-200 rounded-xl p-5 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+          <div key={client.id} className="bg-white border border-stone-200 rounded-2xl shadow-sm p-5 space-y-3 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-lg font-semibold text-gray-900">{client.company || client.name}</div>
-                <div className="text-xs text-gray-500">ID: {client.clientId}</div>
+                <div className="text-lg font-semibold text-stone-900">{client.company || client.name}</div>
+                <div className="text-xs text-stone-500">ID: {client.clientId}</div>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${client.activeContracts.length > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}`}>
+              <span className={`px-2 py-1 text-xs rounded-full ${client.activeContracts.length > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-stone-100 text-stone-600'}`}>
                 {client.activeContracts.length > 0 ? `${client.activeContracts.length} contrat(s)` : 'Sans contrat'}
               </span>
             </div>
 
             {client.contactPerson && (
-              <div className="flex items-center text-sm text-gray-600">
-                <User className="h-4 w-4 mr-2 text-gray-400" />
+              <div className="flex items-center text-sm text-stone-600">
+                <User className="h-4 w-4 mr-2 text-stone-400" />
                 {client.contactPerson}
               </div>
             )}
 
-            <div className="flex items-center text-sm text-gray-600">
-              <Phone className="h-4 w-4 mr-2 text-gray-400" />
+            <div className="flex items-center text-sm text-stone-600">
+              <Phone className="h-4 w-4 mr-2 text-stone-400" />
               <a href={`tel:${client.phone}`} className="hover:text-emerald-600">{client.phone}</a>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Mail className="h-4 w-4 mr-2 text-gray-400" />
+            <div className="flex items-center text-sm text-stone-600">
+              <Mail className="h-4 w-4 mr-2 text-stone-400" />
               <a href={`mailto:${client.email}`} className="hover:text-emerald-600">{client.email}</a>
             </div>
 
             {client.address && (
-              <div className="text-sm text-gray-500">
-                <Navigation className="h-4 w-4 inline text-gray-400 mr-2" />
+              <div className="text-sm text-stone-500">
+                <Navigation className="h-4 w-4 inline text-stone-400 mr-2" />
                 {client.address}
               </div>
             )}
@@ -875,7 +809,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => handlePlanFromClient(client)}
-                className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-100 transition-colors"
               >
                 Planifier
               </button>
@@ -891,8 +825,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       </div>
 
       {clients.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
-          Aucun client disponible actuellement. Ajoutez des clients côté admin ou rafraîchissez plus tard.
+        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-8 text-center text-stone-500">
+          Aucun client disponible actuellement. Ajoutez des clients cÃƒÂ´tÃƒÂ© admin ou rafraÃƒÂ®chissez plus tard.
         </div>
       )}
     </div>
@@ -905,22 +839,22 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{r.kind === 'intervention' ? 'Détail de l\'intervention' : 'Détail du rapport'}</h2>
-            <p className="text-sm text-gray-500 mt-1">{r.id}</p>
+            <h2 className="text-2xl font-bold text-stone-900">{r.kind === 'intervention' ? 'DÃƒÂ©tail de l\'intervention' : 'DÃƒÂ©tail du rapport'}</h2>
+            <p className="text-sm text-stone-500 mt-1">{r.id}</p>
           </div>
           <div className="flex gap-2">
             {r.status === 'draft' && (
               <>
                 <button
                   onClick={() => handleEditDraft(r)}
-                  className="px-4 py-2 rounded-lg border border-orange-200 text-orange-600 hover:bg-orange-50 text-sm"
+                  className="px-4 py-2 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 text-sm"
                 >
                   Modifier
                 </button>
                 <button
                   onClick={() => handleSubmitDraft(r)}
                   disabled={submittingReportId === r._id}
-                  className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 text-sm disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-emerald-800 text-white hover:bg-green-700 text-sm disabled:opacity-50"
                 >
                   Soumettre
                 </button>
@@ -928,25 +862,25 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             )}
             <button
               onClick={() => { setSelectedReport(null); setCurrentView('reports') }}
-              className="text-gray-600 hover:text-gray-800 flex items-center space-x-1 text-sm"
+              className="text-stone-600 hover:text-stone-800 flex items-center space-x-1 text-sm"
             >
-              <span>← Retour</span>
+              <span>Ã¢â€ Â Retour</span>
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-200">
-          {/* En-tête */}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm divide-y divide-stone-200">
+          {/* En-tÃƒÂªte */}
           <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{r.site}</h3>
-              {r.clientName && <p className="text-sm text-gray-500">{r.clientName}</p>}
+              <h3 className="text-lg font-semibold text-stone-900">{r.site}</h3>
+              {r.clientName && <p className="text-sm text-stone-500">{r.clientName}</p>}
             </div>
             <div className="flex items-center gap-3">
               {getStatusBadge(r.status)}
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 r.priority === 'high' || r.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                r.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                r.priority === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-emerald-900'
               }`}>
                 {r.priority === 'high' ? 'Haute' : r.priority === 'urgent' ? 'Urgente' :
                  r.priority === 'medium' ? 'Moyenne' : 'Faible'}
@@ -957,45 +891,45 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
           {/* Infos intervention */}
           <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className="text-xs font-medium text-gray-500 uppercase mb-1">Date</div>
-              <div className="text-sm text-gray-900">
-                {r.interventionDate ? new Date(r.interventionDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '–'}
+              <div className="text-xs font-medium text-stone-500 uppercase mb-1">Date</div>
+              <div className="text-sm text-stone-900">
+                {r.interventionDate ? new Date(r.interventionDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Ã¢â‚¬â€œ'}
               </div>
             </div>
             <div>
-              <div className="text-xs font-medium text-gray-500 uppercase mb-1">Horaires</div>
-              <div className="text-sm text-gray-900">{r.startTime || '–'} → {r.endTime || '–'}</div>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-1">Horaires</div>
+              <div className="text-sm text-stone-900">{r.startTime || 'Ã¢â‚¬â€œ'} Ã¢â€ â€™ {r.endTime || 'Ã¢â‚¬â€œ'}</div>
             </div>
             <div>
-              <div className="text-xs font-medium text-gray-500 uppercase mb-1">Durée</div>
-              <div className="text-sm text-gray-900">{r.estimatedDuration || '–'}</div>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-1">DurÃƒÂ©e</div>
+              <div className="text-sm text-stone-900">{r.estimatedDuration || 'Ã¢â‚¬â€œ'}</div>
             </div>
           </div>
 
           {/* Observations */}
           {r.initialObservations && (
             <div className="p-6">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Observations initiales</div>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{r.initialObservations}</p>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-2">Observations initiales</div>
+              <p className="text-sm text-stone-800 whitespace-pre-wrap">{r.initialObservations}</p>
             </div>
           )}
 
-          {/* Description problème */}
+          {/* Description problÃƒÂ¨me */}
           {r.problemDescription && (
             <div className="p-6">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Description du problème</div>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{r.problemDescription}</p>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-2">Description du problÃƒÂ¨me</div>
+              <p className="text-sm text-stone-800 whitespace-pre-wrap">{r.problemDescription}</p>
             </div>
           )}
 
-          {/* Tâches réalisées */}
+          {/* TÃƒÂ¢ches rÃƒÂ©alisÃƒÂ©es */}
           {r.tasksPerformed && r.tasksPerformed.length > 0 && r.tasksPerformed.some((t: string) => t.trim()) && (
             <div className="p-6">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Tâches réalisées</div>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-2">TÃƒÂ¢ches rÃƒÂ©alisÃƒÂ©es</div>
               <ul className="space-y-1">
                 {r.tasksPerformed.filter((t: string) => t.trim()).map((task: string, i: number) => (
-                  <li key={i} className="flex items-center text-sm text-gray-800">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                  <li key={i} className="flex items-center text-sm text-stone-800">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 flex-shrink-0" />
                     {task}
                   </li>
                 ))}
@@ -1003,22 +937,22 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             </div>
           )}
 
-          {/* Résultats */}
+          {/* RÃƒÂ©sultats */}
           {r.results && (
             <div className="p-6">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Résultats</div>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{r.results}</p>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-2">RÃƒÂ©sultats</div>
+              <p className="text-sm text-stone-800 whitespace-pre-wrap">{r.results}</p>
             </div>
           )}
 
           {/* Recommandations */}
           {r.recommendations && r.recommendations.length > 0 && r.recommendations.some((rec: string) => rec.trim()) && (
             <div className="p-6">
-              <div className="text-xs font-medium text-gray-500 uppercase mb-2">Recommandations</div>
+              <div className="text-xs font-medium text-stone-500 uppercase mb-2">Recommandations</div>
               <ul className="space-y-1">
                 {r.recommendations.filter((rec: string) => rec.trim()).map((rec: string, i: number) => (
-                  <li key={i} className="flex items-start text-sm text-gray-800">
-                    <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <li key={i} className="flex items-start text-sm text-stone-800">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
                     {rec}
                   </li>
                 ))}
@@ -1060,12 +994,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Modifier le brouillon</h2>
+          <h2 className="text-2xl font-bold text-stone-900">Modifier le brouillon</h2>
           <button
             onClick={() => { setSelectedReport(null); setCurrentView('reports') }}
-            className="text-gray-600 hover:text-gray-800 flex items-center space-x-1 text-sm"
+            className="text-stone-600 hover:text-stone-800 flex items-center space-x-1 text-sm"
           >
-            <span>← Retour</span>
+            <span>Ã¢â€ Â Retour</span>
           </button>
         </div>
 
@@ -1096,12 +1030,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Nouveau Rapport de Maintenance</h2>
+          <h2 className="text-2xl font-bold text-stone-900">Nouveau Rapport de Maintenance</h2>
           <button
             onClick={() => { setPrefillClient(null); setCurrentView('dashboard') }}
-            className="text-gray-600 hover:text-gray-800 flex items-center space-x-2"
+            className="text-stone-600 hover:text-stone-800 flex items-center space-x-2"
           >
-            ← Retour au tableau de bord
+            Ã¢â€ Â Retour au tableau de bord
           </button>
         </div>
 
@@ -1118,51 +1052,57 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* En-tête */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-stone-50">
+      {/* En-tÃƒÂªte premium */}
+      <header className="bg-emerald-950 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="bg-green-600 p-2 rounded-lg">
-                <Wrench className="h-6 w-6 text-white" />
+            <div className="flex items-center space-x-3.5">
+              <div className="w-10 h-10 rounded-xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center">
+                <Wrench className="h-5 w-5 text-emerald-300" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Portail Technicien</h1>
-                <p className="text-sm text-gray-600">Bienvenue, {session.name}</p>
+                <h1 className="text-base font-bold tracking-tight">Portail Technicien</h1>
+                <p className="text-xs text-emerald-300/80">Bienvenue, {session.name}</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Vue terrain */}
+              <a href="/tech-interface/terrain"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 px-3.5 py-1.5 text-xs font-semibold transition-colors">
+                <Target className="h-3.5 w-3.5 text-emerald-300" /> Terrain
+              </a>
+
               {/* Statut de connexion */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5">
                 {isOnline ? (
-                  <Wifi className="h-5 w-5 text-green-600" />
+                  <Wifi className="h-4 w-4 text-emerald-400" />
                 ) : (
-                  <WifiOff className="h-5 w-5 text-red-600" />
+                  <WifiOff className="h-4 w-4 text-red-400" />
                 )}
-                <span className={`text-sm ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`hidden sm:inline text-xs font-medium ${isOnline ? 'text-emerald-300' : 'text-red-300'}`}>
                   {isOnline ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
 
-              {/* Notifications protégées */}
+              {/* Notifications protÃƒÂ©gÃƒÂ©es */}
               <NotificationCenter />
 
               {/* Localisation */}
               {currentLocation && (
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4" />
+                <div className="hidden md:flex items-center space-x-1.5 text-xs text-emerald-200/80">
+                  <MapPin className="h-3.5 w-3.5" />
                   <span>GPS actif</span>
                 </div>
               )}
 
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center space-x-1.5 text-emerald-100/80 hover:text-white px-2.5 py-2 rounded-lg hover:bg-white/10 text-xs font-medium transition-colors"
               >
-                <LogOut className="h-5 w-5" />
-                <span>Déconnexion</span>
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">DÃƒÂ©connexion</span>
               </button>
             </div>
           </div>
@@ -1170,7 +1110,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
+      <nav className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
               {[
@@ -1187,8 +1127,8 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
                   onClick={() => setCurrentView(item.id as any)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
                     currentView === item.id
-                      ? 'border-green-500 text-green-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -1206,7 +1146,7 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
             <SoftMessage
               variant="warning"
               title="Mode hors ligne"
-              message="Certaines actions (soumission, synchronisation) peuvent échouer tant que la connexion n'est pas rétablie."
+              message="Certaines actions (soumission, synchronisation) peuvent ÃƒÂ©chouer tant que la connexion n'est pas rÃƒÂ©tablie."
               className="mb-5"
             />
           )}
@@ -1234,12 +1174,12 @@ export default function TechnicianPortal({ initialSession = null }: TechnicianPo
         isOpen={!!draftToSubmit}
         onClose={() => setDraftToSubmit(null)}
         title="Confirmer la soumission"
-        subtitle="Le brouillon sera envoyé pour validation"
+        subtitle="Le brouillon sera envoyÃƒÂ© pour validation"
         icon={<AlertTriangle className="h-5 w-5 text-white" />}
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             Voulez-vous soumettre ce brouillon maintenant ? Vous pourrez encore le consulter ensuite depuis vos rapports.
           </p>
           <ModalActions>
