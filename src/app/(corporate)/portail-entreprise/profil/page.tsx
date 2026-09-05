@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import {
   User, Building2, Mail, Phone, MapPin, Globe, Shield,
   Loader2, AlertCircle, CheckCircle, Save, Lock, Bell,
-  FileText, Briefcase, StickyNote
+  FileText, Briefcase, StickyNote, Image as ImageIcon, Upload, Trash2
 } from 'lucide-react'
 import { CARD, INPUT, TONE, PageHeader, Pill } from '@/components/portal-ui'
 
@@ -20,6 +20,7 @@ interface ProfileData {
   companyCountry: string | null
   companyContactPerson: string | null
   companyNotes: string | null
+  companyLogo: string | null
   preferences: {
     emailNotifications: boolean
     smsNotifications: boolean
@@ -40,6 +41,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [tab, setTab] = useState<'account' | 'company' | 'preferences'>('account')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   useEffect(() => {
     fetch('/api/client-enterprise/me')
@@ -65,6 +67,46 @@ export default function ProfilePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const saveLogo = async (logo: string | null) => {
+    const res = await fetch('/api/client-enterprise/me', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyLogo: logo })
+    })
+    if (!res.ok) throw new Error()
+    setData(prev => prev ? { ...prev, companyLogo: logo } : prev)
+    setSuccess('Logo mis à jour')
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
+  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !data) return
+    setUploadingLogo(true); setError(''); setSuccess('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'logos')
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const j = await res.json().catch(() => null)
+        throw new Error(j?.error || 'upload')
+      }
+      const j = await res.json()
+      await saveLogo(j.url)
+    } catch (err: any) {
+      setError(err?.message && err.message !== 'upload' ? err.message : "Erreur lors de l'upload du logo")
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    setUploadingLogo(true); setError(''); setSuccess('')
+    try { await saveLogo(null) } catch { setError('Erreur lors de la suppression du logo') } finally { setUploadingLogo(false) }
   }
 
   const update = (field: keyof ProfileData, value: any) => {
@@ -179,6 +221,39 @@ export default function ProfilePage() {
       {/* Company tab */}
       {tab === 'company' && (
         <div className="space-y-4">
+          <div className={`${CARD} p-5`}>
+            <div className="flex items-center gap-2 mb-3">
+              <ImageIcon className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Logo de l'entreprise</h3>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 flex-shrink-0 rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-center overflow-hidden">
+                {data.companyLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={data.companyLogo} alt="Logo" className="h-full w-full object-contain" />
+                ) : (
+                  <Building2 className="w-6 h-6 text-stone-300" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${uploadingLogo ? 'bg-stone-100 text-stone-400 pointer-events-none' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
+                    {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    {data.companyLogo ? 'Changer le logo' : 'Choisir un logo'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                  </label>
+                  {data.companyLogo && (
+                    <button type="button" onClick={handleLogoRemove} disabled={uploadingLogo}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                      <Trash2 className="w-3.5 h-3.5" /> Retirer
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs text-stone-400">PNG, JPG ou WebP, 10 Mo max. Affiché dans la barre latérale du portail.</p>
+              </div>
+            </div>
+          </div>
+
           <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="w-4 h-4 text-emerald-700" />

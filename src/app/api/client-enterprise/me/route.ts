@@ -106,13 +106,26 @@ export async function PUT(request: NextRequest) {
       if (body.companyNotes !== undefined) companyUpdates.notes = body.companyNotes
       if (body.preferences !== undefined) companyUpdates.preferences = body.preferences
 
+      // Logo : n'accepter que des chemins d'upload locaux
+      const companyUnsets: Record<string, 1> = {}
+      if (body.companyLogo !== undefined) {
+        if (typeof body.companyLogo === 'string' && /^\/(api\/)?uploads\//.test(body.companyLogo)) {
+          companyUpdates.logo = body.companyLogo
+        } else if (body.companyLogo === null || body.companyLogo === '') {
+          companyUnsets.logo = 1
+        }
+      }
+
       // Ne jamais ecrire de null (validator $jsonSchema eventuel)
       for (const k of Object.keys(companyUpdates)) {
         if (companyUpdates[k] === null) delete companyUpdates[k]
       }
 
-      if (Object.keys(companyUpdates).length > 0) {
-        await Client.findByIdAndUpdate(new mongoose.Types.ObjectId(companyClientId), { $set: companyUpdates }, { new: true })
+      if (Object.keys(companyUpdates).length > 0 || Object.keys(companyUnsets).length > 0) {
+        const update: any = {}
+        if (Object.keys(companyUpdates).length > 0) update.$set = companyUpdates
+        if (Object.keys(companyUnsets).length > 0) update.$unset = companyUnsets
+        await Client.findByIdAndUpdate(new mongoose.Types.ObjectId(companyClientId), update, { new: true })
       }
     }
 
