@@ -243,7 +243,7 @@ export default function ExpenseManager() {
       unpaid: 'bg-orange-100 text-orange-700',
       partial: 'bg-yellow-100 text-yellow-700',
       paid: 'bg-emerald-100 text-emerald-700',
-      cancelled: 'bg-gray-100 text-gray-500'
+      cancelled: 'bg-stone-100 text-stone-500'
     }
     const labels: Record<string, string> = { unpaid: 'À payer', partial: 'Partiel', paid: 'Payée', cancelled: 'Annulée' }
     return <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${map[s] || ''}`}>{labels[s] || s}</span>
@@ -252,19 +252,19 @@ export default function ExpenseManager() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
               <TrendingDown className="h-6 w-6 text-orange-600" />
               Gestion des dépenses
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Suivi des sorties d'argent par projet et catégorie</p>
+            <p className="text-sm text-stone-500 mt-1">Suivi des sorties d'argent par projet et catégorie</p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={load}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-stone-100 hover:bg-stone-200 rounded-xl"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
@@ -281,45 +281,45 @@ export default function ExpenseManager() {
 
         {/* Totaux */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-5">
-          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-            <p className="text-xs text-gray-500">Nombre</p>
-            <p className="text-xl font-bold text-gray-900">{totals.count}</p>
+          <div className="p-3 rounded-xl bg-stone-50 border border-stone-100">
+            <p className="text-xs text-stone-500">Nombre</p>
+            <p className="text-xl font-bold text-stone-900">{totals.count}</p>
           </div>
           <div className="p-3 rounded-xl bg-orange-50 border border-orange-100">
-            <p className="text-xs text-gray-500">Total dépenses</p>
+            <p className="text-xs text-stone-500">Total dépenses</p>
             <p className="text-xl font-bold text-orange-700">{fmt(totals.total)}</p>
           </div>
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-            <p className="text-xs text-gray-500">Payé (net)</p>
+            <p className="text-xs text-stone-500">Payé (net)</p>
             <p className="text-xl font-bold text-emerald-700">{fmt(totals.paid)}</p>
           </div>
           <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-            <p className="text-xs text-gray-500">Reste à payer</p>
+            <p className="text-xs text-stone-500">Reste à payer</p>
             <p className="text-xl font-bold text-red-700">{fmt(totals.unpaid)}</p>
           </div>
           <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-            <p className="text-xs text-gray-500">BRS retenu</p>
+            <p className="text-xs text-stone-500">BRS retenu</p>
             <p className="text-xl font-bold text-blue-700">{fmt(totals.brsTotal)}</p>
           </div>
         </div>
       </div>
 
       {/* Filtres */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+      <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
           </div>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg"
+            className="px-3 py-2 text-sm border border-stone-200 rounded-lg"
           >
             <option value="">Toutes catégories</option>
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -327,7 +327,7 @@ export default function ExpenseManager() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg"
+            className="px-3 py-2 text-sm border border-stone-200 rounded-lg"
           >
             <option value="">Tous statuts</option>
             <option value="unpaid">À payer</option>
@@ -338,7 +338,7 @@ export default function ExpenseManager() {
           <select
             value={filterProject}
             onChange={(e) => setFilterProject(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg"
+            className="px-3 py-2 text-sm border border-stone-200 rounded-lg"
           >
             <option value="">Tous projets</option>
             {projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
@@ -347,15 +347,15 @@ export default function ExpenseManager() {
       </div>
 
       {/* Liste */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-600 border-t-transparent mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Aucune dépense trouvée</p>
+            <Wallet className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+            <p className="text-stone-500">Aucune dépense trouvée</p>
             <button onClick={openCreate} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100">
               <Plus className="h-4 w-4" /> Créer une dépense
             </button>
@@ -363,36 +363,36 @@ export default function ExpenseManager() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-stone-50 border-b border-stone-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">N°</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Libellé</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Catégorie</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Projet</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Date</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Montant TTC</th>
-                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Statut</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  <th className="text-left px-4 py-3 font-semibold text-stone-700">N°</th>
+                  <th className="text-left px-4 py-3 font-semibold text-stone-700">Libellé</th>
+                  <th className="text-left px-4 py-3 font-semibold text-stone-700">Catégorie</th>
+                  <th className="text-left px-4 py-3 font-semibold text-stone-700">Projet</th>
+                  <th className="text-left px-4 py-3 font-semibold text-stone-700">Date</th>
+                  <th className="text-right px-4 py-3 font-semibold text-stone-700">Montant TTC</th>
+                  <th className="text-center px-4 py-3 font-semibold text-stone-700">Statut</th>
+                  <th className="text-right px-4 py-3 font-semibold text-stone-700">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-stone-100">
                 {filtered.map((e) => {
                   const isOverdue = e.paymentStatus !== 'paid' && e.dueDate && new Date(e.dueDate) < new Date()
                   return (
-                    <tr key={e._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{e.numero}</td>
+                    <tr key={e._id} className="hover:bg-stone-50">
+                      <td className="px-4 py-3 font-mono text-xs text-stone-500">{e.numero}</td>
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-900">{e.label}</p>
-                        {e.supplier?.name && <p className="text-xs text-gray-500">{e.supplier.name}</p>}
+                        <p className="font-semibold text-stone-900">{e.label}</p>
+                        {e.supplier?.name && <p className="text-xs text-stone-500">{e.supplier.name}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[11px] font-medium">
                           <Tag className="h-3 w-3" />
                           {CATEGORIES.find((c) => c.value === e.category)?.label || e.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{e.projectName || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="px-4 py-3 text-stone-600">{e.projectName || '—'}</td>
+                      <td className="px-4 py-3 text-stone-600">
                         {new Date(e.expenseDate).toLocaleDateString('fr-FR')}
                         {isOverdue && (
                           <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1 mt-0.5">
@@ -401,21 +401,21 @@ export default function ExpenseManager() {
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-900">{fmt(e.amountTTC)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-stone-900">{fmt(e.amountTTC)}</td>
                       <td className="px-4 py-3 text-center">{statusBadge(e.paymentStatus)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => togglePaid(e)}
                             title={e.paymentStatus === 'paid' ? 'Marquer impayée' : 'Marquer payée'}
-                            className={`p-1.5 rounded-lg ${e.paymentStatus === 'paid' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                            className={`p-1.5 rounded-lg ${e.paymentStatus === 'paid' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-stone-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
                           >
                             <CheckCircle2 className="h-4 w-4" />
                           </button>
-                          <button onClick={() => openEdit(e)} className="p-1.5 text-gray-500 hover:bg-blue-50 hover:text-blue-600 rounded-lg">
+                          <button onClick={() => openEdit(e)} className="p-1.5 text-stone-500 hover:bg-blue-50 hover:text-blue-600 rounded-lg">
                             <Edit3 className="h-4 w-4" />
                           </button>
-                          <button onClick={() => remove(e._id)} className="p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
+                          <button onClick={() => remove(e._id)} className="p-1.5 text-stone-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -433,11 +433,11 @@ export default function ExpenseManager() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h2 className="text-lg font-bold text-gray-900">
+            <div className="sticky top-0 bg-white border-b border-stone-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-lg font-bold text-stone-900">
                 {editing._id ? 'Modifier la dépense' : 'Nouvelle dépense'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-stone-100 rounded-lg">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -626,8 +626,8 @@ export default function ExpenseManager() {
               </label>
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-3 flex justify-end gap-2 rounded-b-2xl">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl">
+            <div className="sticky bottom-0 bg-white border-t border-stone-100 px-6 py-3 flex justify-end gap-2 rounded-b-2xl">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-semibold bg-stone-100 hover:bg-stone-200 rounded-xl">
                 Annuler
               </button>
               <button
@@ -665,7 +665,7 @@ export default function ExpenseManager() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-stone-700 mb-1">{label}</label>
       {children}
     </div>
   )

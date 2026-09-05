@@ -77,7 +77,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   seller_shipped: { label: 'Expédié vendeur', color: 'bg-orange-100 text-orange-800', icon: Truck },
   received_guangzhou: { label: 'Reçu Guangzhou', color: 'bg-teal-100 text-teal-800', icon: Package },
   quality_check_pending: { label: 'Contrôle à faire', color: 'bg-yellow-100 text-yellow-800', icon: ClipboardCheck },
-  quality_check_passed: { label: 'Contrôle OK', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-green-800', icon: CheckCircle },
   quality_check_failed: { label: 'Contrôle échoué', color: 'bg-red-100 text-red-800', icon: ClipboardCheck },
   quality_check_partial: { label: 'Contrôle partiel', color: 'bg-orange-100 text-orange-800', icon: ClipboardCheck },
   handed_to_freight: { label: 'Remis au fret', color: 'bg-emerald-100 text-emerald-800', icon: Ship },
@@ -183,17 +183,17 @@ export default function AdminChinaPurchasesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Link href="/admin" className="p-2 hover:bg-gray-100 rounded-lg">
+              <Link href="/admin" className="p-2 hover:bg-stone-100 rounded-lg">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Achats Chine</h1>
-                <p className="text-sm text-gray-500">1688, Alipay, réception Guangzhou, contrôle et remise fret</p>
+                <h1 className="text-2xl font-bold text-stone-900">Achats Chine</h1>
+                <p className="text-sm text-stone-500">1688, Alipay, réception Guangzhou, contrôle et remise fret</p>
               </div>
             </div>
             <button
@@ -210,7 +210,7 @@ export default function AdminChinaPurchasesPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {notification && (
-          <div className={`mb-4 p-4 rounded-xl ${notification.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          <div className={`mb-4 p-4 rounded-xl ${notification.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
             {notification.message}
           </div>
         )}
@@ -218,7 +218,7 @@ export default function AdminChinaPurchasesPage() {
         <div className="bg-white rounded-2xl shadow-sm border p-4 mb-6">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
               <input
                 type="text"
                 value={searchTerm}
@@ -245,9 +245,9 @@ export default function AdminChinaPurchasesPage() {
           </div>
         ) : filteredPurchases.length === 0 ? (
           <div className="bg-white rounded-2xl border p-12 text-center">
-            <Package className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900">Aucun achat Chine</h2>
-            <p className="text-gray-500 mt-2">Les achats seront créés automatiquement au lancement d’un achat groupé.</p>
+            <Package className="w-14 h-14 text-stone-300 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-stone-900">Aucun achat Chine</h2>
+            <p className="text-stone-500 mt-2">Les achats seront créés automatiquement au lancement d’un achat groupé.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -273,12 +273,12 @@ export default function AdminChinaPurchasesPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-mono font-bold text-gray-900">{purchase.purchaseId}</h3>
+                            <h3 className="font-mono font-bold text-stone-900">{purchase.purchaseId}</h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-bold ${config.color}`}>{config.label}</span>
-                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">{purchase.platform}</span>
+                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700">{purchase.platform}</span>
                           </div>
-                          <p className="font-bold text-gray-900 mt-2 truncate">{firstItem?.productName || purchase.source?.label || 'Achat Chine'}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
+                          <p className="font-bold text-stone-900 mt-2 truncate">{firstItem?.productName || purchase.source?.label || 'Achat Chine'}</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-500 mt-1">
                             <span>Source : {purchase.source?.type} {purchase.source?.id ? `· ${purchase.source.id}` : ''}</span>
                             <span>Qté : {purchase.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</span>
                             <span>MAJ : {formatDate(purchase.updatedAt)}</span>
@@ -301,42 +301,42 @@ export default function AdminChinaPurchasesPage() {
                     </div>
 
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <p className="text-xs text-gray-500">Attendu client</p>
-                        <p className="font-bold text-gray-900">{formatCurrency(purchase.customerFinancials.expectedAmount, purchase.customerFinancials.currency)}</p>
+                      <div className="bg-stone-50 rounded-xl p-3">
+                        <p className="text-xs text-stone-500">Attendu client</p>
+                        <p className="font-bold text-stone-900">{formatCurrency(purchase.customerFinancials.expectedAmount, purchase.customerFinancials.currency)}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <p className="text-xs text-gray-500">Encaissé</p>
-                        <p className="font-bold text-green-700">{formatCurrency(purchase.customerFinancials.collectedAmount, purchase.customerFinancials.currency)}</p>
+                      <div className="bg-stone-50 rounded-xl p-3">
+                        <p className="text-xs text-stone-500">Encaissé</p>
+                        <p className="font-bold text-emerald-800">{formatCurrency(purchase.customerFinancials.collectedAmount, purchase.customerFinancials.currency)}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <p className="text-xs text-gray-500">Reste</p>
-                        <p className={purchase.customerFinancials.outstandingAmount > 0 ? 'font-bold text-red-700' : 'font-bold text-green-700'}>
+                      <div className="bg-stone-50 rounded-xl p-3">
+                        <p className="text-xs text-stone-500">Reste</p>
+                        <p className={purchase.customerFinancials.outstandingAmount > 0 ? 'font-bold text-red-700' : 'font-bold text-emerald-800'}>
                           {formatCurrency(purchase.customerFinancials.outstandingAmount, purchase.customerFinancials.currency)}
                         </p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <p className="text-xs text-gray-500">Couverture</p>
+                      <div className="bg-stone-50 rounded-xl p-3">
+                        <p className="text-xs text-stone-500">Couverture</p>
                         <p className="font-bold text-purple-700">{purchase.customerFinancials.paymentCoverageRatio}%</p>
                       </div>
                     </div>
 
                     <div className="grid md:grid-cols-4 gap-3 mt-4 text-sm">
                       <div>
-                        <p className="text-gray-500">Commande plateforme</p>
-                        <p className="font-medium text-gray-900">{purchase.platformOrderId || '—'}</p>
+                        <p className="text-stone-500">Commande plateforme</p>
+                        <p className="font-medium text-stone-900">{purchase.platformOrderId || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Paiement Alipay</p>
-                        <p className="font-medium text-gray-900">{purchase.alipay?.reference || '—'}</p>
+                        <p className="text-stone-500">Paiement Alipay</p>
+                        <p className="font-medium text-stone-900">{purchase.alipay?.reference || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Réception Guangzhou</p>
-                        <p className="font-medium text-gray-900">{purchase.guangzhouReception?.collaboratorName || '—'}</p>
+                        <p className="text-stone-500">Réception Guangzhou</p>
+                        <p className="font-medium text-stone-900">{purchase.guangzhouReception?.collaboratorName || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Fret Chine-Dakar</p>
-                        <p className="font-medium text-gray-900">{purchase.freight?.providerName || purchase.freight?.trackingNumber || '—'}</p>
+                        <p className="text-stone-500">Fret Chine-Dakar</p>
+                        <p className="font-medium text-stone-900">{purchase.freight?.providerName || purchase.freight?.trackingNumber || '—'}</p>
                       </div>
                     </div>
                   </div>

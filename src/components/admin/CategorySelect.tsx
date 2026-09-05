@@ -102,7 +102,7 @@ export function CategorySelect({
       <button
         type="button"
         onClick={() => !disabled && setIsOpen((v) => !v)}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 text-left transition hover:border-emerald-300 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 ${heightClass} ${textClass} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-3 text-left transition hover:border-emerald-300 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 ${heightClass} ${textClass} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       >
         <span className="truncate">{selectedLabel || placeholder}</span>
         <span className="flex items-center gap-1">
@@ -114,26 +114,26 @@ export function CategorySelect({
                 e.stopPropagation()
                 onChange('')
               }}
-              className="rounded p-0.5 hover:bg-gray-100"
+              className="rounded p-0.5 hover:bg-stone-100"
             >
-              <X className="h-3.5 w-3.5 text-gray-400" />
+              <X className="h-3.5 w-3.5 text-stone-400" />
             </span>
           )}
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-4 w-4 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </span>
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full min-w-[260px] rounded-lg border border-gray-200 bg-white shadow-lg">
-          <div className="border-b border-gray-100 p-2">
+        <div className="absolute z-50 mt-1 w-full min-w-[260px] rounded-lg border border-stone-200 bg-white shadow-lg">
+          <div className="border-b border-stone-100 p-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher une catégorie..."
-                className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-md border border-stone-200 bg-white py-1.5 pl-8 pr-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
                 autoFocus
               />
             </div>
@@ -147,14 +147,14 @@ export function CategorySelect({
                   onChange('')
                   setIsOpen(false)
                 }}
-                className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${!value ? 'bg-emerald-50 text-emerald-700' : 'text-gray-500 hover:bg-gray-50'}`}
+                className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${!value ? 'bg-emerald-50 text-emerald-700' : 'text-stone-500 hover:bg-stone-50'}`}
               >
                 {emptyLabel}
               </button>
             )}
 
             {filtered.length === 0 && (
-              <div className="px-2 py-3 text-center text-sm text-gray-500">Aucune catégorie trouvée</div>
+              <div className="px-2 py-3 text-center text-sm text-stone-500">Aucune catégorie trouvée</div>
             )}
 
             {filtered.map((opt) => {
@@ -172,7 +172,7 @@ export function CategorySelect({
                         setIsOpen(false)
                       }
                     }}
-                    className={`group flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                    className={`group flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-stone-700 hover:bg-stone-50'}`}
                   >
                     <span className="flex items-center gap-2">
                       {hasSubs ? (
@@ -189,23 +189,23 @@ export function CategorySelect({
                               return n
                             })
                           }}
-                          className="rounded p-0.5 hover:bg-gray-200"
+                          className="rounded p-0.5 hover:bg-stone-200"
                         >
                           <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </span>
                       ) : (
-                        <Tag className="h-4 w-4 text-gray-400" />
+                        <Tag className="h-4 w-4 text-stone-400" />
                       )}
                       <span className="font-medium">{opt.label || opt.name || opt.category}</span>
                       {showCounts && typeof opt.count === 'number' && (
-                        <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{opt.count}</span>
+                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">{opt.count}</span>
                       )}
                     </span>
                     {!hasSubs && isSelected && <span className="text-emerald-600">✓</span>}
                   </button>
 
                   {hasSubs && isExpanded && (
-                    <div className="ml-4 border-l border-gray-100 pl-2">
+                    <div className="ml-4 border-l border-stone-100 pl-2">
                       {opt.subCategories?.map((sub) => {
                         const isSubSelected = value === sub.slug
                         return (
@@ -216,10 +216,10 @@ export function CategorySelect({
                               onChange(sub.slug)
                               setIsOpen(false)
                             }}
-                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${isSubSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${isSubSelected ? 'bg-emerald-50 text-emerald-700' : 'text-stone-600 hover:bg-stone-50'}`}
                           >
                             <span className="flex items-center gap-2">
-                              <Tag className="h-3.5 w-3.5 text-gray-400" />
+                              <Tag className="h-3.5 w-3.5 text-stone-400" />
                               <span>{sub.label || sub.name || sub.slug}</span>
                             </span>
                             {isSubSelected && <span className="text-emerald-600">✓</span>}

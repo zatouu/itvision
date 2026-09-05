@@ -22,14 +22,14 @@ export default async function AdminTresoreriePage() {
       <div className="pt-24 pb-6">
         <div className="max-w-3xl mx-auto text-center bg-white p-8 rounded-xl border">
           <h2 className="text-xl font-bold mb-2">Accès refusé</h2>
-          <p className="text-gray-600">Cette section est réservée aux administrateurs et comptables.</p>
+          <p className="text-stone-600">Cette section est réservée aux administrateurs et comptables.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="pt-16">
         <Breadcrumb backHref="/admin" backLabel="Retour au dashboard" />
       </div>

@@ -72,19 +72,19 @@ export default function AdminManualPaymentsPage() {
   const total = payments.length + topups.length
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-stone-50 p-4 lg:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
               <QrCode className="w-6 h-6 text-cyan-600" />
               Paiements Wave QR en attente
             </h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <p className="text-stone-500 text-sm mt-1">
               Vérifiez la réception sur le compte Wave Business (montant + référence), puis confirmez.
             </p>
           </div>
-          <button onClick={load} className="p-2 text-gray-600 hover:bg-white rounded-lg transition" title="Recharger">
+          <button onClick={load} className="p-2 text-stone-600 hover:bg-white rounded-lg transition" title="Recharger">
             <RotateCw className="w-5 h-5" />
           </button>
         </div>
@@ -96,23 +96,23 @@ export default function AdminManualPaymentsPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-gray-400 py-16">Chargement…</div>
+          <div className="text-center text-stone-400 py-16">Chargement…</div>
         ) : total === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
+          <div className="bg-white rounded-xl border border-stone-200 p-12 text-center text-stone-400">
             <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
             Aucun paiement en attente de validation.
           </div>
         ) : (
           <>
             {payments.map(p => (
-              <div key={p._id} className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col md:flex-row md:items-center gap-4">
+              <div key={p._id} className="bg-white rounded-xl border border-stone-200 p-4 flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-10 h-10 rounded-full bg-cyan-50 flex items-center justify-center">
                     <Briefcase className="w-5 h-5 text-cyan-600" />
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">Mission — {p.amount.toLocaleString('fr-FR')} FCFA</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-semibold text-stone-900">Mission — {p.amount.toLocaleString('fr-FR')} FCFA</div>
+                    <div className="text-xs text-stone-500">
                       Réf: <span className="font-mono font-bold text-amber-700">{p.reference || '—'}</span>
                       {' · '}{new Date(p.createdAt).toLocaleString('fr-FR')}
                       {p.phase ? ` · ${p.phase}` : ''}
@@ -139,16 +139,16 @@ export default function AdminManualPaymentsPage() {
             ))}
 
             {topups.map(tp => (
-              <div key={tp._id} className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col md:flex-row md:items-center gap-4">
+              <div key={tp._id} className="bg-white rounded-xl border border-stone-200 p-4 flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center">
                     <Wallet className="w-5 h-5 text-violet-600" />
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-stone-900">
                       Recharge XC — {tp.amountFcfa.toLocaleString('fr-FR')} FCFA → {tp.points + (tp.bonusCredits || 0)} crédits
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-stone-500">
                       Réf: <span className="font-mono font-bold text-amber-700">{tp.reference || '—'}</span>
                       {' · '}{tp.phone}
                       {' · '}{new Date(tp.createdAt).toLocaleString('fr-FR')}

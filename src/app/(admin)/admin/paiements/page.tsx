@@ -117,7 +117,7 @@ export default function AdminPaymentsPage() {
 
   if (loading || !settings) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-gray-500">
+      <div className="flex items-center justify-center min-h-[60vh] text-stone-500">
         Chargement de la configuration...
       </div>
     )
@@ -131,19 +131,19 @@ export default function AdminPaymentsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-stone-50 p-4 lg:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Configuration des Paiements</h1>
-            <p className="text-gray-500 text-sm mt-1">Gérez les méthodes de paiement, les clés API et les fonctionnalités.</p>
+            <h1 className="text-2xl font-bold text-stone-900">Configuration des Paiements</h1>
+            <p className="text-stone-500 text-sm mt-1">Gérez les méthodes de paiement, les clés API et les fonctionnalités.</p>
           </div>
           <div className="flex items-center gap-2">
              <button
               onClick={load}
-              className="p-2 text-gray-600 hover:bg-white rounded-lg transition"
+              className="p-2 text-stone-600 hover:bg-white rounded-lg transition"
               title="Recharger"
             >
               <RotateCw className="w-5 h-5" />
@@ -171,7 +171,7 @@ export default function AdminPaymentsPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-2 border-b border-gray-200">
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 border-b border-stone-200">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -179,7 +179,7 @@ export default function AdminPaymentsPage() {
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition whitespace-nowrap ${
                 activeTab === tab.id 
                   ? 'bg-white border-b-2 border-emerald-500 text-emerald-700' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -189,12 +189,12 @@ export default function AdminPaymentsPage() {
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 lg:p-8">
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-6 lg:p-8">
           
           {/* GENERAL */}
           {activeTab === 'general' && (
             <div className="space-y-6">
-              <div className={`rounded-xl border-2 p-4 ${settings.providers.mockEnabled ? 'border-amber-400 bg-amber-50' : 'border-gray-200 bg-white'}`}>
+              <div className={`rounded-xl border-2 p-4 ${settings.providers.mockEnabled ? 'border-amber-400 bg-amber-50' : 'border-stone-200 bg-white'}`}>
                 <Toggle
                   label="Mode simulation (paiements fictifs)"
                   description={settings.providers.mockEnabled
@@ -210,7 +210,7 @@ export default function AdminPaymentsPage() {
                 )}
               </div>
 
-              <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Fonctionnalités Achats Groupés</h2>
+              <h2 className="text-lg font-semibold text-stone-900 border-b pb-2">Fonctionnalités Achats Groupés</h2>
               <div className="grid gap-4">
                 <Toggle 
                   label="Activer les achats groupés" 
@@ -239,8 +239,8 @@ export default function AdminPaymentsPage() {
               </div>
 
               <div className="border-t pt-6 space-y-4">
-                <h3 className="text-base font-semibold text-gray-900">Règles métiers paramétrables</h3>
-                <p className="text-xs text-gray-500">
+                <h3 className="text-base font-semibold text-stone-900">Règles métiers paramétrables</h3>
+                <p className="text-xs text-stone-500">
                   Ces valeurs pilotent les seuils et comportements par défaut des achats groupés.
                 </p>
 
@@ -396,7 +396,7 @@ export default function AdminPaymentsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-700">Méthodes de transport autorisées</div>
+                  <div className="text-sm font-medium text-stone-700">Méthodes de transport autorisées</div>
                   <div className="grid md:grid-cols-3 gap-3">
                     {(Object.keys(groupShippingLabels) as Array<keyof typeof groupShippingLabels>).map((method) => {
                       const enabled = settings.groupOrders.rules.allowedShippingMethods[method]
@@ -426,7 +426,7 @@ export default function AdminPaymentsPage() {
                           className={`px-3 py-2 rounded-lg border text-sm text-left transition ${
                             enabled
                               ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                              : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
                           }`}
                         >
                           <div className="font-semibold">{groupShippingLabels[method]}</div>
@@ -435,7 +435,7 @@ export default function AdminPaymentsPage() {
                       )
                     })}
                   </div>
-                  <p className="text-xs text-gray-500">Au moins une méthode doit rester activée.</p>
+                  <p className="text-xs text-stone-500">Au moins une méthode doit rester activée.</p>
                 </div>
               </div>
             </div>
@@ -445,17 +445,17 @@ export default function AdminPaymentsPage() {
           {activeTab === 'manual' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-2">
-                 <h2 className="text-lg font-semibold text-gray-900">Mobile Money (Peer-to-Peer)</h2>
+                 <h2 className="text-lg font-semibold text-stone-900">Mobile Money (Peer-to-Peer)</h2>
                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Mode Manuel</span>
               </div>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-stone-500">
                 Ces numéros seront affichés aux clients pour effectuer leurs transferts manuellement. 
                 Les instructions générées utiliseront ces valeurs.
               </p>
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numéro Marchand Wave</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Numéro Marchand Wave</label>
                   <input 
                     type="text" 
                     value={settings.providers.manual.waveMerchantPhone}
@@ -465,7 +465,7 @@ export default function AdminPaymentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numéro Marchand Orange Money</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Numéro Marchand Orange Money</label>
                   <input 
                     type="text" 
                     value={settings.providers.manual.orangeMerchantPhone}
@@ -475,7 +475,7 @@ export default function AdminPaymentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numéro Marchand Free Money</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Numéro Marchand Free Money</label>
                   <input 
                     type="text" 
                     value={settings.providers.manual.freeMoneyMerchantPhone}
@@ -485,7 +485,7 @@ export default function AdminPaymentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">URL QR Wave (image)</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">URL QR Wave (image)</label>
                   <input 
                     type="text" 
                     value={settings.providers.manual.waveQrUrl}
@@ -493,10 +493,10 @@ export default function AdminPaymentsPage() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                     placeholder="/api/uploads/.../wave-qr.png"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Image du QR code Wave affichée aux clients dans l'app.</p>
+                  <p className="text-xs text-stone-500 mt-1">Image du QR code Wave affichée aux clients dans l'app.</p>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">URL de paiement Wave (lien marchand)</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">URL de paiement Wave (lien marchand)</label>
                   <input
                     type="text"
                     value={settings.providers.manual.wavePayUrl}
@@ -504,7 +504,7 @@ export default function AdminPaymentsPage() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                     placeholder="https://pay.wave.com/m/M_sn_XXXXXX"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-stone-500 mt-1">
                     Lien du compte Wave Business : app Wave Pro → "Recevoir" → partager le lien.
                     Format attendu : https://pay.wave.com/m/&lt;code_marchand&gt;. Ne pas mettre le numéro de téléphone ici.
                   </p>
@@ -512,7 +512,7 @@ export default function AdminPaymentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Instructions complémentaires</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Instructions complémentaires</label>
                 <textarea 
                   rows={4}
                   value={settings.providers.manual.instructions}
@@ -528,7 +528,7 @@ export default function AdminPaymentsPage() {
           {activeTab === 'gateway' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-2">
-                 <h2 className="text-lg font-semibold text-gray-900">Passerelle de Paiement Automatisée</h2>
+                 <h2 className="text-lg font-semibold text-stone-900">Passerelle de Paiement Automatisée</h2>
                  <Toggle 
                     label="Activer l'intégration" 
                     checked={settings.providers.gateway.active} 
@@ -555,7 +555,7 @@ export default function AdminPaymentsPage() {
               
               <div className={`space-y-6 ${!settings.providers.gateway.active ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Fournisseur</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">Fournisseur</label>
                   <div className="flex gap-4">
                     {['paydunya', 'cinetpay', 'stripe'].map(p => (
                       <button
@@ -564,7 +564,7 @@ export default function AdminPaymentsPage() {
                         className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize ${
                           settings.providers.gateway.provider === p 
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-700' 
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                            : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
                         }`}
                       >
                         {p}
@@ -575,7 +575,7 @@ export default function AdminPaymentsPage() {
 
                 {/* Canaux supportés */}
                 {settings.providers.gateway.provider === 'paydunya' && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-emerald-50 border border-green-200 rounded-lg p-4">
                     <p className="text-sm font-semibold text-green-900 mb-2">Canaux de paiement activés</p>
                     <div className="flex flex-wrap gap-2">
                       <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
@@ -591,13 +591,13 @@ export default function AdminPaymentsPage() {
                         📱 Free Money Sénégal
                       </span>
                     </div>
-                    <p className="text-[11px] text-green-600 mt-2">Tous ces canaux sont disponibles automatiquement via PayDunya.</p>
+                    <p className="text-[11px] text-emerald-700 mt-2">Tous ces canaux sont disponibles automatiquement via PayDunya.</p>
                   </div>
                 )}
 
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       {settings.providers.gateway.provider === 'paydunya' ? 'Master Key' : 'Clé API (Public)'}
                     </label>
                     <div className="relative">
@@ -608,14 +608,14 @@ export default function AdminPaymentsPage() {
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
                         placeholder={settings.providers.gateway.provider === 'paydunya' ? 'Ex: wQzk9ZwR-Ucjy-Qvvs-...' : 'Ex: sk_live_...'}
                       />
-                       <button onClick={() => setShowSecrets(!showSecrets)} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                       <button onClick={() => setShowSecrets(!showSecrets)} className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-600">
                         {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                       {settings.providers.gateway.provider === 'paydunya' ? 'Private Key' : 'Token Secret'}
                     </label>
                     <div className="relative">
@@ -630,7 +630,7 @@ export default function AdminPaymentsPage() {
                   </div>
 
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                     <label className="block text-sm font-medium text-stone-700 mb-1">
                        {settings.providers.gateway.provider === 'paydunya' ? 'Token' : 'Identifiant Marchand'}
                      </label>
                      <input 
@@ -657,7 +657,7 @@ export default function AdminPaymentsPage() {
           {/* ESCROW */}
           {activeTab === 'escrow' && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Garantie & Escrow</h2>
+              <h2 className="text-lg font-semibold text-stone-900 border-b pb-2">Garantie & Escrow</h2>
               <div className="space-y-6">
                 <Toggle 
                   label="Afficher la protection achats" 
@@ -667,7 +667,7 @@ export default function AdminPaymentsPage() {
                 />
 
                 <div className="opacity-75">
-                   <label className="block text-sm font-medium text-gray-700 mb-1">Pourcentage de retenue (virtuel)</label>
+                   <label className="block text-sm font-medium text-stone-700 mb-1">Pourcentage de retenue (virtuel)</label>
                    <div className="flex items-center gap-4">
                       <input 
                         type="range" 
@@ -678,9 +678,9 @@ export default function AdminPaymentsPage() {
                         onChange={e => setSettings({ ...settings, providers: { ...settings.providers, escrow: { ...settings.providers.escrow, holdPercentage: parseInt(e.target.value) } } })}
                         className="flex-1"
                       />
-                      <span className="font-bold text-gray-900 w-16 text-right">{settings.providers.escrow.holdPercentage}%</span>
+                      <span className="font-bold text-stone-900 w-16 text-right">{settings.providers.escrow.holdPercentage}%</span>
                    </div>
-                   <p className="text-xs text-gray-500 mt-1">Indique au client quel pourcentage de son paiement est &quot;sécurisé&quot; avant livraison.</p>
+                   <p className="text-xs text-stone-500 mt-1">Indique au client quel pourcentage de son paiement est &quot;sécurisé&quot; avant livraison.</p>
                 </div>
               </div>
             </div>
@@ -707,7 +707,7 @@ function NumberField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>
       <input
         type="number"
         value={value}
@@ -728,15 +728,15 @@ function NumberField({
 
 function Toggle({ label, description, checked, onChange, compact = false }: { label: string, description?: string, checked: boolean, onChange: (v: boolean) => void, compact?: boolean }) {
   return (
-    <div className={`flex items-start justify-between gap-4 ${compact ? '' : 'bg-gray-50 p-4 rounded-lg border border-gray-100'}`}>
+    <div className={`flex items-start justify-between gap-4 ${compact ? '' : 'bg-stone-50 p-4 rounded-lg border border-stone-100'}`}>
       <div>
-        <div className={`font-semibold text-gray-900 ${compact ? 'text-base' : ''}`}>{label}</div>
-        {description && <div className="text-xs text-gray-600 mt-1">{description}</div>}
+        <div className={`font-semibold text-stone-900 ${compact ? 'text-base' : ''}`}>{label}</div>
+        {description && <div className="text-xs text-stone-600 mt-1">{description}</div>}
       </div>
       <button
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-          checked ? 'bg-emerald-600' : 'bg-gray-200'
+          checked ? 'bg-emerald-600' : 'bg-stone-200'
         }`}
       >
         <span

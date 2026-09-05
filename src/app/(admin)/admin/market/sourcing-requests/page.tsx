@@ -117,9 +117,9 @@ const STATUS_BADGES: Record<Status, { bg: string; text: string; label: string }>
   proposal_ready: { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Draft prête' },
   proposal_sent: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Envoyée' },
   accepted: { bg: 'bg-emerald-200', text: 'text-emerald-900', label: 'Acceptée' },
-  rejected: { bg: 'bg-gray-200', text: 'text-gray-700', label: 'Refusée' },
+  rejected: { bg: 'bg-stone-200', text: 'text-stone-700', label: 'Refusée' },
   fulfilled: { bg: 'bg-emerald-300', text: 'text-emerald-900', label: 'Livrée' },
-  cancelled: { bg: 'bg-gray-200', text: 'text-gray-700', label: 'Annulée' },
+  cancelled: { bg: 'bg-stone-200', text: 'text-stone-700', label: 'Annulée' },
   expired: { bg: 'bg-red-100', text: 'text-red-700', label: 'Expirée' }
 }
 
@@ -257,29 +257,29 @@ export default function AdminSourcingRequestsPage() {
     <div className="px-6 py-6 max-w-[1600px] mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Demandes de sourcing</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-stone-900">Demandes de sourcing</h1>
+          <p className="text-sm text-stone-500">
             File "Trouvez-moi ce produit" — SLA 24h ouvrées.
           </p>
         </div>
         <button
           type="button"
           onClick={activeTab === 'requests' ? load : loadSearchLogs}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-stone-200 text-sm font-medium text-stone-700 hover:bg-stone-50"
         >
           <RefreshCw className="h-4 w-4" /> Rafraîchir
         </button>
       </div>
 
       {/* Onglets */}
-      <div className="mt-4 flex gap-2 border-b border-gray-200">
+      <div className="mt-4 flex gap-2 border-b border-stone-200">
         <button
           type="button"
           onClick={() => setActiveTab('requests')}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'requests'
               ? 'border-violet-600 text-violet-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              : 'border-transparent text-stone-500 hover:text-stone-700'
           }`}
         >
           Demandes
@@ -290,11 +290,11 @@ export default function AdminSourcingRequestsPage() {
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'searchLogs'
               ? 'border-violet-600 text-violet-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
+              : 'border-transparent text-stone-500 hover:text-stone-700'
           }`}
         >
           Recherches externes
-          <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+          <span className="ml-1.5 text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded-full">
             {searchLogCounts.success || 0}
           </span>
         </button>
@@ -321,18 +321,18 @@ export default function AdminSourcingRequestsPage() {
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   isActive
                     ? 'bg-violet-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                    : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
                 }`}
               >
                 {opt.label}
-                <span className={`ml-1.5 ${isActive ? 'text-violet-100' : 'text-gray-400'}`}>
+                <span className={`ml-1.5 ${isActive ? 'text-violet-100' : 'text-stone-400'}`}>
                   {count}
                 </span>
               </button>
             )
           })}
         </div>
-        <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-700">
+        <label className="inline-flex items-center gap-2 text-xs font-medium text-stone-700">
           <input
             type="checkbox"
             checked={overdue}
@@ -342,13 +342,13 @@ export default function AdminSourcingRequestsPage() {
           En retard SLA uniquement
         </label>
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher (référence, description, téléphone…)"
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
         </div>
       </div>
@@ -362,8 +362,8 @@ export default function AdminSourcingRequestsPage() {
       {/* Liste + détail */}
       <div className="mt-5 grid lg:grid-cols-[420px_1fr] gap-5">
         {/* Liste */}
-        <div className="rounded-xl bg-white border border-gray-200 overflow-hidden flex flex-col max-h-[calc(100vh-220px)]">
-          <div className="px-4 py-2.5 text-xs uppercase font-semibold text-gray-500 border-b border-gray-100 bg-gray-50">
+        <div className="rounded-xl bg-white border border-stone-200 overflow-hidden flex flex-col max-h-[calc(100vh-220px)]">
+          <div className="px-4 py-2.5 text-xs uppercase font-semibold text-stone-500 border-b border-stone-100 bg-stone-50">
             {items.length} demande{items.length > 1 ? 's' : ''}
           </div>
           <div className="overflow-y-auto flex-1">
@@ -372,7 +372,7 @@ export default function AdminSourcingRequestsPage() {
                 <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
               </div>
             ) : items.length === 0 ? (
-              <div className="text-center py-10 text-gray-400 text-sm">Aucune demande</div>
+              <div className="text-center py-10 text-stone-400 text-sm">Aucune demande</div>
             ) : (
               items.map((row) => {
                 const sla = relativeSla(row.slaDueAt)
@@ -382,8 +382,8 @@ export default function AdminSourcingRequestsPage() {
                     key={row._id}
                     type="button"
                     onClick={() => setSelected(row)}
-                    className={`w-full text-left p-3 border-b border-gray-100 transition-colors ${
-                      isActive ? 'bg-violet-50 border-l-4 border-l-violet-600' : 'hover:bg-gray-50'
+                    className={`w-full text-left p-3 border-b border-stone-100 transition-colors ${
+                      isActive ? 'bg-violet-50 border-l-4 border-l-violet-600' : 'hover:bg-stone-50'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -392,19 +392,19 @@ export default function AdminSourcingRequestsPage() {
                           <img
                             src={row.imageUrl}
                             alt=""
-                            className="w-10 h-10 rounded object-cover bg-gray-100 flex-shrink-0"
+                            className="w-10 h-10 rounded object-cover bg-stone-100 flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <ImageIcon className="h-4 w-4 text-gray-300" />
+                          <div className="w-10 h-10 rounded bg-stone-100 flex items-center justify-center flex-shrink-0">
+                            <ImageIcon className="h-4 w-4 text-stone-300" />
                           </div>
                         )}
                         <div className="min-w-0">
                           <p className="text-xs font-mono text-violet-600 truncate">{row.reference}</p>
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-sm font-medium text-stone-900 truncate">
                             {row.title || row.description.slice(0, 60)}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-stone-500 truncate">
                             {row.contactName || 'Anonyme'} · {row.contactPhone}
                           </p>
                         </div>
@@ -416,7 +416,7 @@ export default function AdminSourcingRequestsPage() {
                       </span>
                     </div>
                     <div className="mt-1.5 flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500">qty {row.qty}</span>
+                      <span className="text-stone-500">qty {row.qty}</span>
                       {['new', 'searching', 'proposal_ready'].includes(row.status) && (
                         <span
                           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold ${
@@ -424,7 +424,7 @@ export default function AdminSourcingRequestsPage() {
                               ? 'bg-red-100 text-red-700'
                               : sla.soon
                               ? 'bg-amber-100 text-amber-700'
-                              : 'bg-gray-100 text-gray-600'
+                              : 'bg-stone-100 text-stone-600'
                           }`}
                         >
                           <Clock className="h-3 w-3" /> {sla.label}
@@ -439,9 +439,9 @@ export default function AdminSourcingRequestsPage() {
         </div>
 
         {/* Détail */}
-        <div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+        <div className="rounded-xl bg-white border border-stone-200 overflow-hidden">
           {!selected ? (
-            <div className="p-10 text-center text-gray-400 text-sm">
+            <div className="p-10 text-center text-stone-400 text-sm">
               Sélectionnez une demande pour voir les détails.
             </div>
           ) : (
@@ -480,11 +480,11 @@ export default function AdminSourcingRequestsPage() {
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   isActive
                     ? 'bg-violet-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                    : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
                 }`}
               >
                 {opt.label}
-                <span className={`ml-1.5 ${isActive ? 'text-violet-100' : 'text-gray-400'}`}>{count}</span>
+                <span className={`ml-1.5 ${isActive ? 'text-violet-100' : 'text-stone-400'}`}>{count}</span>
               </button>
             )
           })}
@@ -495,14 +495,14 @@ export default function AdminSourcingRequestsPage() {
             <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
           </div>
         ) : searchLogs.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-xl border border-gray-200">
+          <div className="text-center py-10 text-stone-400 text-sm bg-white rounded-xl border border-stone-200">
             Aucune recherche externe enregistrée.
           </div>
         ) : (
-          <div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+          <div className="rounded-xl bg-white border border-stone-200 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr className="text-left text-xs font-semibold text-gray-500 uppercase">
+              <thead className="bg-stone-50 border-b border-stone-100">
+                <tr className="text-left text-xs font-semibold text-stone-500 uppercase">
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Statut</th>
                   <th className="px-4 py-3">Résultats</th>
@@ -513,8 +513,8 @@ export default function AdminSourcingRequestsPage() {
               </thead>
               <tbody>
                 {searchLogs.map((log: any) => (
-                  <tr key={log._id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700">
+                  <tr key={log._id} className="border-b border-stone-100 hover:bg-stone-50">
+                    <td className="px-4 py-3 text-stone-700">
                       {new Date(log.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                     <td className="px-4 py-3">
@@ -522,19 +522,19 @@ export default function AdminSourcingRequestsPage() {
                         log.status === 'success' ? 'bg-emerald-100 text-emerald-700' :
                         log.status === 'blocked' ? 'bg-red-100 text-red-700' :
                         log.status === 'no_results' ? 'bg-amber-100 text-amber-700' :
-                        'bg-gray-100 text-gray-700'
+                        'bg-stone-100 text-stone-700'
                       }`}>
                         {log.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{log.resultsCount}</td>
-                    <td className="px-4 py-3 text-gray-500">{log.durationMs ? `${log.durationMs}ms` : '—'}</td>
+                    <td className="px-4 py-3 text-stone-700">{log.resultsCount}</td>
+                    <td className="px-4 py-3 text-stone-500">{log.durationMs ? `${log.durationMs}ms` : '—'}</td>
                     <td className="px-4 py-3">
                       {log.imageUrl ? (
                         <a href={log.imageUrl} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline text-xs">Voir image</a>
                       ) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate" title={log.errorMessage || ''}>
+                    <td className="px-4 py-3 text-stone-500 max-w-xs truncate" title={log.errorMessage || ''}>
                       {log.errorMessage || '—'}
                     </td>
                   </tr>
@@ -647,10 +647,10 @@ function DetailPanel({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-xs font-mono text-violet-600">{request.reference}</p>
-          <h2 className="text-lg font-bold text-gray-900">
+          <h2 className="text-lg font-bold text-stone-900">
             {request.title || request.description.slice(0, 80)}
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-stone-500 mt-0.5">
             Soumise le {fmtDate(request.createdAt)} ·{' '}
             <span className={sla.overdue ? 'text-red-600 font-semibold' : ''}>
               SLA {sla.label}
@@ -667,7 +667,7 @@ function DetailPanel({
             href={trackUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700"
             title="Vue client"
           >
             <ExternalLink className="h-3 w-3" /> Vue client
@@ -679,7 +679,7 @@ function DetailPanel({
       <div className="mt-4 grid sm:grid-cols-2 gap-4">
         <div className="space-y-3 text-sm">
           <Section title="Description">
-            <p className="text-gray-700 whitespace-pre-wrap">{request.description}</p>
+            <p className="text-stone-700 whitespace-pre-wrap">{request.description}</p>
           </Section>
           <Section title="Quantité / Budget / Délai">
             <p>
@@ -697,20 +697,20 @@ function DetailPanel({
             </p>
           </Section>
           <Section title="Contact">
-            <ul className="text-gray-700 space-y-1">
+            <ul className="text-stone-700 space-y-1">
               <li className="flex items-center gap-1.5">
-                <UserIcon className="h-3.5 w-3.5 text-gray-400" />
+                <UserIcon className="h-3.5 w-3.5 text-stone-400" />
                 {request.contactName || (request.isAnonymous ? 'Anonyme' : 'Utilisateur')}
               </li>
               <li className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-gray-400" />
+                <Phone className="h-3.5 w-3.5 text-stone-400" />
                 <a href={`tel:${request.contactPhone}`} className="text-violet-600 hover:underline">
                   {request.contactPhone}
                 </a>
               </li>
               {request.contactEmail && (
                 <li className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-gray-400" />
+                  <Mail className="h-3.5 w-3.5 text-stone-400" />
                   <a href={`mailto:${request.contactEmail}`} className="text-violet-600 hover:underline">
                     {request.contactEmail}
                   </a>
@@ -726,7 +726,7 @@ function DetailPanel({
                 <img
                   src={request.imageUrl}
                   alt="Photo client"
-                  className="rounded-lg max-h-48 object-contain bg-gray-50 border border-gray-200"
+                  className="rounded-lg max-h-48 object-contain bg-stone-50 border border-stone-200"
                 />
               </a>
             </Section>
@@ -750,17 +750,17 @@ function DetailPanel({
                 {request.externalSearchResults.map((r, i) => (
                   <div
                     key={i}
-                    className="flex gap-2 p-2 rounded-lg border border-gray-100 bg-white"
+                    className="flex gap-2 p-2 rounded-lg border border-stone-100 bg-white"
                   >
-                    <div className="w-14 h-14 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                    <div className="w-14 h-14 rounded bg-stone-100 flex-shrink-0 overflow-hidden">
                       <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-gray-900 truncate">{r.title}</p>
+                      <p className="text-xs font-semibold text-stone-900 truncate">{r.title}</p>
                       <p className="text-xs text-violet-600">
                         {r.price1688 ? `¥${r.price1688.toLocaleString('fr-FR')}` : 'Prix N/A'}
                       </p>
-                      {r.supplier && <p className="text-[11px] text-gray-500 truncate">{r.supplier}</p>}
+                      {r.supplier && <p className="text-[11px] text-stone-500 truncate">{r.supplier}</p>}
                       <a
                         href={r.url}
                         target="_blank"
@@ -783,7 +783,7 @@ function DetailPanel({
               onBlur={() => onPatch({ adminNotes: notes })}
               rows={4}
               placeholder="Notes internes (visibles uniquement par l'équipe)…"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
             />
           </Section>
           <div className="flex flex-wrap gap-2">
@@ -811,7 +811,7 @@ function DetailPanel({
                 onClick={() => {
                   if (confirm('Annuler cette demande ?')) onPatch({ status: 'cancelled' })
                 }}
-                className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold"
+                className="px-3 py-1.5 rounded-lg bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 text-xs font-semibold"
               >
                 Annuler la demande
               </button>
@@ -926,12 +926,12 @@ function DetailPanel({
         </div>
 
         <div className="mt-3">
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Notes / argumentaire</label>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">Notes / argumentaire</label>
           <textarea
             value={proposal.notes || ''}
             onChange={(e) => setProposal({ ...proposal, notes: e.target.value })}
             rows={3}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
             placeholder="Détails utiles pour rassurer le client (garantie, marque, etc.)"
           />
         </div>
@@ -958,7 +958,7 @@ function DetailPanel({
             type="button"
             onClick={() => submitProposal(false)}
             disabled={!!sending}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-stone-200 text-stone-700 text-sm font-semibold hover:bg-stone-50 disabled:opacity-50"
           >
             {sending === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Enregistrer draft
@@ -1008,7 +1008,7 @@ function initProposalDraft(req: SourcingRow): ProposalDraft {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 mb-1">{title}</p>
+      <p className="text-[10px] uppercase tracking-wider font-semibold text-stone-400 mb-1">{title}</p>
       <div className="text-sm">{children}</div>
     </div>
   )
@@ -1029,13 +1029,13 @@ function FieldInput({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-gray-700">{label}</span>
+      <span className="text-xs font-semibold text-stone-700">{label}</span>
       <input
         type={type}
         value={value as any}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+        className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
       />
     </label>
   )
@@ -1054,11 +1054,11 @@ function FieldSelect({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold text-gray-700">{label}</span>
+      <span className="text-xs font-semibold text-stone-700">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+        className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -1074,7 +1074,7 @@ function Recap({ label, value, highlight }: { label: string; value: number; high
   return (
     <div
       className={`rounded-lg p-2 text-center ${
-        highlight ? 'bg-violet-600 text-white' : 'bg-white border border-gray-200 text-gray-700'
+        highlight ? 'bg-violet-600 text-white' : 'bg-white border border-stone-200 text-stone-700'
       }`}
     >
       <p className="text-[10px] uppercase font-semibold opacity-80">{label}</p>

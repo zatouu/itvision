@@ -27,7 +27,7 @@ function Toggle({ checked, onChange, id }: { checked: boolean; onChange: (checke
         onChange={(e) => onChange(e.target.checked)}
         className="sr-only peer"
       />
-      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+      <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
     </label>
   )
 }
@@ -150,7 +150,7 @@ export default function AutoImportAdminPage() {
       <div className="flex items-center gap-4 mb-8">
         <Link
           href="/admin"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-emerald-700 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-stone-600 hover:text-emerald-700 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour au dashboard
@@ -159,8 +159,8 @@ export default function AutoImportAdminPage() {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Import automatique</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-stone-900">Import automatique</h1>
+          <p className="text-stone-500 text-sm mt-1">
             Configuration du scraping automatique 1688 / AliExpress
           </p>
         </div>
@@ -169,14 +169,14 @@ export default function AutoImportAdminPage() {
             href="https://github.com/zatouu/itvision/actions/workflows/auto-import.yml"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 text-white px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-stone-900 text-white px-4 py-2 text-sm font-medium hover:bg-stone-800 transition-colors"
           >
             <ExternalLink className="h-4 w-4" />
             GitHub Actions
           </a>
           <button
             onClick={downloadUrlsFile}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white text-stone-700 px-4 py-2 text-sm font-medium hover:bg-stone-50 transition-colors"
           >
             <Download className="h-4 w-4" />
             auto-scrape-urls.txt
@@ -202,17 +202,17 @@ export default function AutoImportAdminPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-emerald-100 rounded-lg">
               <Settings className="h-5 w-5 text-emerald-700" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-900">Paramètres</h2>
+            <h2 className="text-lg font-semibold text-stone-900">Paramètres</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Activé</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Activé</label>
               <div className="flex items-center gap-3">
                 <Toggle
                   checked={config?.enabled || false}
@@ -221,29 +221,29 @@ export default function AutoImportAdminPage() {
                   }
                   id="auto-import-enabled"
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-stone-600">
                   {config?.enabled ? 'Le cron est actif' : 'Le cron est désactivé'}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (cron)</label>
-              <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 bg-gray-50">
-                <Clock className="h-4 w-4 text-gray-500" />
+              <label className="block text-sm font-medium text-stone-700 mb-2">Schedule (cron)</label>
+              <div className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 bg-stone-50">
+                <Clock className="h-4 w-4 text-stone-500" />
                 <input
                   type="text"
                   value={config?.schedule || '0 2 * * *'}
                   onChange={(e) => setConfig(prev => prev ? { ...prev, schedule: e.target.value } : prev)}
-                  className="bg-transparent border-none outline-none text-sm w-full text-gray-900"
+                  className="bg-transparent border-none outline-none text-sm w-full text-stone-900"
                   placeholder="0 2 * * *"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Le cron est exécuté par GitHub Actions. Heure UTC.</p>
+              <p className="text-xs text-stone-500 mt-1">Le cron est exécuté par GitHub Actions. Heure UTC.</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Concurrence</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Concurrence</label>
               <input
                 type="number"
                 min={1}
@@ -254,12 +254,12 @@ export default function AutoImportAdminPage() {
                     prev ? { ...prev, concurrency: Math.min(10, Math.max(1, Number(e.target.value) || 1)) } : prev
                   )
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mode dry-run</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Mode dry-run</label>
               <div className="flex items-center gap-3">
                 <Toggle
                   checked={config?.dryRun || false}
@@ -268,44 +268,44 @@ export default function AutoImportAdminPage() {
                   }
                   id="auto-import-dry-run"
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-stone-600">
                   {config?.dryRun ? 'Scraper sans importer' : 'Importer réellement'}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">URL API (optionnel)</label>
-              <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
-                <Globe className="h-4 w-4 text-gray-500" />
+              <label className="block text-sm font-medium text-stone-700 mb-2">URL API (optionnel)</label>
+              <div className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2">
+                <Globe className="h-4 w-4 text-stone-500" />
                 <input
                   type="url"
                   value={config?.apiBaseUrl || ''}
                   onChange={(e) => setConfig(prev => prev ? { ...prev, apiBaseUrl: e.target.value } : prev)}
-                  className="bg-transparent border-none outline-none text-sm w-full text-gray-900"
+                  className="bg-transparent border-none outline-none text-sm w-full text-stone-900"
                   placeholder="https://app.itvision.sn"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Token API (optionnel)</label>
-              <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
-                <ShieldAlert className="h-4 w-4 text-gray-500" />
+              <label className="block text-sm font-medium text-stone-700 mb-2">Token API (optionnel)</label>
+              <div className="flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2">
+                <ShieldAlert className="h-4 w-4 text-stone-500" />
                 <input
                   type="password"
                   value={config?.apiToken || ''}
                   onChange={(e) => setConfig(prev => prev ? { ...prev, apiToken: e.target.value } : prev)}
-                  className="bg-transparent border-none outline-none text-sm w-full text-gray-900"
+                  className="bg-transparent border-none outline-none text-sm w-full text-stone-900"
                   placeholder="JWT admin"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Laisser vide pour générer un token auto depuis JWT_SECRET.</p>
+              <p className="text-xs text-stone-500 mt-1">Laisser vide pour générer un token auto depuis JWT_SECRET.</p>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <label className="block text-sm font-medium text-stone-700 mb-2 flex items-center gap-2">
               <Link2 className="h-4 w-4" />
               URLs à scraper
             </label>
@@ -314,19 +314,19 @@ export default function AutoImportAdminPage() {
               onChange={(e) => setUrlsText(e.target.value)}
               rows={12}
               placeholder={"# Une URL par ligne\nhttps://www.aliexpress.com/item/33012345678.html\nhttps://detail.1688.com/offer/1234567890.html"}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-y"
+              className="w-full rounded-lg border border-stone-300 px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-y"
             />
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-stone-500 mt-2">
               {urlsText.split('\n').filter(u => u.trim() && (u.includes('1688.com') || u.includes('aliexpress.com'))).length} URL(s) valide(s)
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-stone-100">
             <button
               type="button"
               onClick={loadConfig}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white text-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white text-stone-700 px-4 py-2 text-sm font-medium hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Recharger
@@ -343,26 +343,26 @@ export default function AutoImportAdminPage() {
         </div>
 
         {config?.lastRun && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Calendar className="h-5 w-5 text-blue-700" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Dernier rapport</h2>
+              <h2 className="text-lg font-semibold text-stone-900">Dernier rapport</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Démarré</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(config.lastRun.startedAt)}</p>
+              <div className="bg-stone-50 rounded-xl p-4">
+                <p className="text-xs text-stone-500 mb-1">Démarré</p>
+                <p className="text-sm font-medium text-stone-900">{formatDate(config.lastRun.startedAt)}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Terminé</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(config.lastRun.finishedAt)}</p>
+              <div className="bg-stone-50 rounded-xl p-4">
+                <p className="text-xs text-stone-500 mb-1">Terminé</p>
+                <p className="text-sm font-medium text-stone-900">{formatDate(config.lastRun.finishedAt)}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">URLs</p>
-                <p className="text-sm font-medium text-gray-900">{config.lastRun.urls}</p>
+              <div className="bg-stone-50 rounded-xl p-4">
+                <p className="text-xs text-stone-500 mb-1">URLs</p>
+                <p className="text-sm font-medium text-stone-900">{config.lastRun.urls}</p>
               </div>
               <div className="bg-emerald-50 rounded-xl p-4">
                 <p className="text-xs text-emerald-600 mb-1">Créés</p>

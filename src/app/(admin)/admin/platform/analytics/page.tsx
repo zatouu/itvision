@@ -83,15 +83,15 @@ export default function PlatformAnalyticsPage() {
       : color === 'purple' ? 'bg-purple-100 text-purple-600'
       : color === 'orange' ? 'bg-orange-100 text-orange-600'
       : color === 'rose' ? 'bg-rose-100 text-rose-600'
-      : 'bg-gray-100 text-gray-600'
+      : 'bg-stone-100 text-stone-600'
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+            <p className="text-sm font-medium text-stone-500">{title}</p>
+            <p className="text-2xl font-bold text-stone-900 mt-1">{value}</p>
             {sub && (
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+              <p className="text-xs text-stone-500 mt-1 flex items-center gap-1">
                 {trend === 'up' && <ArrowUpRight className="h-3 w-3 text-emerald-500" />}
                 {trend === 'down' && <ArrowDownRight className="h-3 w-3 text-rose-500" />}
                 {sub}
@@ -127,20 +127,20 @@ export default function PlatformAnalyticsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics Plateforme</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-stone-900">Analytics Plateforme</h1>
+          <p className="text-sm text-stone-500 mt-1">
             Suivi, tendances et KPIs de l'écosystème mobile.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-stone-500">
               Mis à jour {lastUpdated.toLocaleTimeString('fr-FR')}
             </span>
           )}
           <button
             onClick={loadAnalytics}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+            className="inline-flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 transition"
           >
             <Activity className="h-4 w-4" />
             Actualiser
@@ -184,8 +184,8 @@ export default function PlatformAnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Missions trend */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Tendances missions (7 jours)</h3>
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-stone-900 mb-4">Tendances missions (7 jours)</h3>
           <div className="flex items-end gap-2 h-40">
             {data.missions.trend.map((d, i) => {
               const max = Math.max(...data.missions.trend.map(t => t.count), 1)
@@ -197,7 +197,7 @@ export default function PlatformAnalyticsPage() {
                     style={{ height: `${Math.max(height, 4)}%` }}
                     title={`${d.date}: ${d.count} missions`}
                   />
-                  <span className="text-[10px] text-gray-500 truncate w-full text-center">
+                  <span className="text-[10px] text-stone-500 truncate w-full text-center">
                     {d.date.slice(5)}
                   </span>
                 </div>
@@ -207,17 +207,17 @@ export default function PlatformAnalyticsPage() {
         </div>
 
         {/* Missions by status */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Missions par statut</h3>
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-stone-900 mb-4">Missions par statut</h3>
           <div className="space-y-3">
             {Object.entries(data.missions.byStatus).map(([status, count]) => (
               <div key={status} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 capitalize">{status.replace(/_/g, ' ')}</span>
-                <span className="text-sm font-semibold text-gray-900">{count}</span>
+                <span className="text-sm text-stone-600 capitalize">{status.replace(/_/g, ' ')}</span>
+                <span className="text-sm font-semibold text-stone-900">{count}</span>
               </div>
             ))}
             {Object.keys(data.missions.byStatus).length === 0 && (
-              <p className="text-sm text-gray-400">Aucune mission</p>
+              <p className="text-sm text-stone-400">Aucune mission</p>
             )}
           </div>
         </div>
@@ -225,50 +225,50 @@ export default function PlatformAnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Wallet stats */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Wallet className="h-5 w-5 text-emerald-600" />
-            <h3 className="text-sm font-semibold text-gray-900">Économie des points</h3>
+            <h3 className="text-sm font-semibold text-stone-900">Économie des points</h3>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Points gagnés (cumulé)</span>
+              <span className="text-sm text-stone-600">Points gagnés (cumulé)</span>
               <span className="text-sm font-bold text-emerald-600">{data.wallet.totalLifetimeEarned.toLocaleString('fr-FR')}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Points dépensés (cumulé)</span>
+              <span className="text-sm text-stone-600">Points dépensés (cumulé)</span>
               <span className="text-sm font-bold text-rose-600">{data.wallet.totalLifetimeSpent.toLocaleString('fr-FR')}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Recharges (topups)</span>
-              <span className="text-sm font-bold text-gray-900">{data.wallet.totalTopups}</span>
+              <span className="text-sm text-stone-600">Recharges (topups)</span>
+              <span className="text-sm font-bold text-stone-900">{data.wallet.totalTopups}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Frais escrow prélevés</span>
+              <span className="text-sm text-stone-600">Frais escrow prélevés</span>
               <span className="text-sm font-bold text-blue-600">{data.wallet.totalEscrowCharges}</span>
             </div>
           </div>
         </div>
 
         {/* Payments by status */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-blue-600" />
-            <h3 className="text-sm font-semibold text-gray-900">Paiements</h3>
+            <h3 className="text-sm font-semibold text-stone-900">Paiements</h3>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Total transactions</span>
-              <span className="text-sm font-bold text-gray-900">{data.payments.total}</span>
+              <span className="text-sm text-stone-600">Total transactions</span>
+              <span className="text-sm font-bold text-stone-900">{data.payments.total}</span>
             </div>
             {Object.entries(data.payments.byStatus).map(([status, count]) => (
               <div key={status} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 capitalize">{status}</span>
-                <span className="text-sm font-semibold text-gray-900">{count}</span>
+                <span className="text-sm text-stone-600 capitalize">{status}</span>
+                <span className="text-sm font-semibold text-stone-900">{count}</span>
               </div>
             ))}
             {Object.keys(data.payments.byStatus).length === 0 && (
-              <p className="text-sm text-gray-400">Aucun paiement</p>
+              <p className="text-sm text-stone-400">Aucun paiement</p>
             )}
           </div>
         </div>

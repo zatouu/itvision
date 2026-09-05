@@ -85,8 +85,8 @@ export default function AdminReturnsPage() {
       case 'rejected': return 'bg-red-100 text-red-800'
       case 'in_transit': return 'bg-purple-100 text-purple-800'
       case 'received': return 'bg-emerald-100 text-emerald-800'
-      case 'refunded': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'refunded': return 'bg-emerald-100 text-green-800'
+      default: return 'bg-stone-100 text-stone-800'
     }
   }
 
@@ -96,7 +96,7 @@ export default function AdminReturnsPage() {
 
       <div className="max-w-6xl mx-auto px-4 mt-4">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-stone-900 flex items-center gap-2">
             <RefreshCw className="h-6 w-6 text-amber-600" />
             Gestion des retours
           </h1>
@@ -105,7 +105,7 @@ export default function AdminReturnsPage() {
               <button
                 key={s}
                 onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filter === s ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${filter === s ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
               >
                 {s === 'all' ? 'Tous' : statusLabel(s)}
               </button>
@@ -118,26 +118,26 @@ export default function AdminReturnsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
           </div>
         ) : returns.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+          <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-500">
             Aucune demande de retour pour ce filtre.
           </div>
         ) : (
           <div className="space-y-3">
             {returns.map(r => (
-              <div key={r._id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={r._id} className="bg-white rounded-xl border border-stone-200 p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusColor(r.status)}`}>
                         {statusLabel(r.status)}
                       </span>
-                      <span className="text-sm font-medium text-gray-900">{r.orderReference}</span>
+                      <span className="text-sm font-medium text-stone-900">{r.orderReference}</span>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{r.clientName} · {r.clientPhone}</p>
-                    <p className="text-sm text-gray-700 mt-1">
+                    <p className="text-sm text-stone-600 mt-1">{r.clientName} · {r.clientPhone}</p>
+                    <p className="text-sm text-stone-700 mt-1">
                       <span className="font-medium">Raison:</span> {r.reason}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       {r.items.length} article{r.items.length > 1 ? 's' : ''}
                     </p>
                   </div>
@@ -163,12 +163,12 @@ export default function AdminReturnsPage() {
             <div className="space-y-3 mb-4">
               <p className="text-sm"><span className="font-medium">Client:</span> {selected.clientName}</p>
               <p className="text-sm"><span className="font-medium">Raison:</span> {selected.reason}</p>
-              {selected.details && <p className="text-sm text-gray-600">{selected.details}</p>}
+              {selected.details && <p className="text-sm text-stone-600">{selected.details}</p>}
               <div className="text-sm">
                 <span className="font-medium">Articles:</span>
                 <ul className="mt-1 space-y-1">
                   {selected.items.map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-gray-600">
+                    <li key={i} className="flex items-center gap-2 text-stone-600">
                       <Package className="h-4 w-4" /> {item.name} (x{item.qty})
                     </li>
                   ))}
@@ -217,7 +217,7 @@ export default function AdminReturnsPage() {
                 <button
                   disabled={updating}
                   onClick={() => updateStatus(selected._id, 'refunded')}
-                  className="col-span-2 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                  className="col-span-2 flex items-center justify-center gap-1 bg-emerald-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                 >
                   <RefreshCw className="h-4 w-4" /> Rembourser
                 </button>
@@ -227,7 +227,7 @@ export default function AdminReturnsPage() {
             <button
               onClick={() => setSelected(null)}
               disabled={updating}
-              className="w-full py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              className="w-full py-2 border border-stone-300 rounded-lg text-sm font-medium hover:bg-stone-50 disabled:opacity-50"
             >
               Fermer
             </button>

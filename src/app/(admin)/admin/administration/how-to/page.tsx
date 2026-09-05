@@ -143,8 +143,8 @@ export default function AdminHowToPage() {
                 <BookOpen className="h-6 w-6 text-emerald-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Guide d&apos;utilisation Admin</h1>
-                <p className="text-gray-600 mt-1">Documentation complète pour utiliser le panel d&apos;administration</p>
+                <h1 className="text-3xl font-bold text-stone-900">Guide d&apos;utilisation Admin</h1>
+                <p className="text-stone-600 mt-1">Documentation complète pour utiliser le panel d&apos;administration</p>
               </div>
             </div>
           </div>
@@ -155,17 +155,17 @@ export default function AdminHowToPage() {
               return (
                 <div
                   key={section.id}
-                  className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4 mb-4">
                     <div className="p-3 bg-emerald-50 rounded-lg">
                       <Icon className="h-6 w-6 text-emerald-600" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-xl font-semibold text-gray-900 mb-3">{section.title}</h2>
+                      <h2 className="text-xl font-semibold text-stone-900 mb-3">{section.title}</h2>
                       <ul className="space-y-2">
                         {section.content.map((item, index) => (
-                          <li key={index} className="flex items-start gap-2 text-gray-700">
+                          <li key={index} className="flex items-start gap-2 text-stone-700">
                             <span className="text-emerald-500 mt-1.5">•</span>
                             <span>{item}</span>
                           </li>

@@ -746,11 +746,11 @@ export default function AdminQuoteGenerator() {
 
   const getStatusColor = (status: Quote['status']) => {
     switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-700'
+      case 'draft': return 'bg-stone-100 text-stone-700'
       case 'sent': return 'bg-blue-100 text-blue-700'
-      case 'accepted': return 'bg-green-100 text-green-700'
+      case 'accepted': return 'bg-emerald-100 text-emerald-800'
       case 'rejected': return 'bg-red-100 text-red-700'
-      default: return 'bg-gray-100 text-gray-700'
+      default: return 'bg-stone-100 text-stone-700'
     }
   }
 
@@ -799,14 +799,14 @@ export default function AdminQuoteGenerator() {
       </div>
 
       {/* Onglets */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200">
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+        <div className="flex border-b border-stone-200">
           <button
             onClick={() => setActiveTab('list')}
             className={`flex-1 px-6 py-4 font-medium transition-colors ${
               activeTab === 'list'
                 ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:bg-gray-50'
+                : 'text-stone-600 hover:bg-stone-50'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -820,7 +820,7 @@ export default function AdminQuoteGenerator() {
               className={`flex-1 px-6 py-4 font-medium transition-colors ${
                 activeTab === 'create'
                   ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  : 'text-stone-600 hover:bg-stone-50'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -836,9 +836,9 @@ export default function AdminQuoteGenerator() {
           <div className="p-6">
             {quotes.length === 0 ? (
               <div className="text-center py-12">
-                <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun devis</h3>
-                <p className="text-gray-500 mb-6">Commencez par créer votre premier devis</p>
+                <FileText className="h-16 w-16 text-stone-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-stone-900 mb-2">Aucun devis</h3>
+                <p className="text-stone-500 mb-6">Commencez par créer votre premier devis</p>
                 <button
                   onClick={createNewQuote}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
@@ -852,7 +852,7 @@ export default function AdminQuoteGenerator() {
                 {quotes.map((quote) => (
                   <div
                     key={quote.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="border border-stone-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -863,7 +863,7 @@ export default function AdminQuoteGenerator() {
                           </span>
                           {quote.clientResponse && quote.clientResponse !== 'pending' && (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              quote.clientResponse === 'accepted' ? 'bg-green-100 text-green-700' :
+                              quote.clientResponse === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
                               quote.clientResponse === 'rejected' ? 'bg-red-100 text-red-700' :
                               'bg-violet-100 text-violet-700'
                             }`}>
@@ -880,7 +880,7 @@ export default function AdminQuoteGenerator() {
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 gap-4 text-sm text-stone-600">
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4" />
                             {quote.client.name || 'Client non défini'}
@@ -895,7 +895,7 @@ export default function AdminQuoteGenerator() {
                           </div>
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4" />
-                            <span className="font-semibold text-gray-900">
+                            <span className="font-semibold text-stone-900">
                               {quote.total.toLocaleString('fr-FR')} CFA
                             </span>
                           </div>
@@ -905,7 +905,7 @@ export default function AdminQuoteGenerator() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSelectedQuote(quote)}
-                          className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          className="p-2 text-stone-600 hover:bg-stone-50 rounded-lg transition-colors"
                           title="Voir détail"
                         >
                           <Eye className="h-5 w-5" />
@@ -930,7 +930,7 @@ export default function AdminQuoteGenerator() {
                             setCurrentQuote(quote)
                             exportPDF()
                           }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                           title="Télécharger PDF"
                         >
                           <Download className="h-5 w-5" />
@@ -965,38 +965,38 @@ export default function AdminQuoteGenerator() {
             {/* Informations devis */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Numéro de devis
                 </label>
                 <input
                   type="text"
                   value={currentQuote.numero}
                   onChange={(e) => setCurrentQuote({ ...currentQuote, numero: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="2024-046"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Date
                 </label>
                 <input
                   type="date"
                   value={currentQuote.date}
                   onChange={(e) => setCurrentQuote({ ...currentQuote, date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Statut
                 </label>
                 <select
                   value={currentQuote.status}
                   onChange={(e) => setCurrentQuote({ ...currentQuote, status: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="draft">Brouillon</option>
                   <option value="sent">Envoyé</option>
@@ -1021,26 +1021,26 @@ export default function AdminQuoteGenerator() {
                   placeholder="Rechercher : TEYLIOMS, Coralia…"
                   className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 bg-white"
                 />
-                {clientSearching && <span className="absolute right-3 top-2.5 text-xs text-gray-400">…</span>}
+                {clientSearching && <span className="absolute right-3 top-2.5 text-xs text-stone-400">…</span>}
                 {currentQuote?.clientCompanyId && !showClientDrop && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-xs text-blue-700">
                     <CheckCircle className="h-3.5 w-3.5 text-blue-600" />
-                    Lié au portail <span className="font-mono text-[10px] text-gray-400 ml-1">{currentQuote.clientCompanyId.slice(-6)}</span>
-                    <button onClick={() => setCurrentQuote({ ...currentQuote, clientCompanyId: undefined })} className="ml-auto text-gray-400 hover:text-red-500"><X className="h-3 w-3" /></button>
+                    Lié au portail <span className="font-mono text-[10px] text-stone-400 ml-1">{currentQuote.clientCompanyId.slice(-6)}</span>
+                    <button onClick={() => setCurrentQuote({ ...currentQuote, clientCompanyId: undefined })} className="ml-auto text-stone-400 hover:text-red-500"><X className="h-3 w-3" /></button>
                   </div>
                 )}
                 {showClientDrop && clientResults.length > 0 && (
-                  <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                  <ul className="absolute z-20 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
                     {clientResults.map((c) => (
                       <li key={String(c._id || c.id)}
                         onMouseDown={() => selectClient(c)}
                         className="flex items-start gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer">
-                        <Building className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <Building className="h-4 w-4 text-stone-400 flex-shrink-0 mt-0.5" />
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-gray-900 truncate">{c.company || c.name}</div>
-                          <div className="text-xs text-gray-400 truncate">{c.email} · {c.phone}</div>
+                          <div className="text-sm font-semibold text-stone-900 truncate">{c.company || c.name}</div>
+                          <div className="text-xs text-stone-400 truncate">{c.email} · {c.phone}</div>
                         </div>
-                        {c.isActive && <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full flex-shrink-0">Actif</span>}
+                        {c.isActive && <span className="ml-auto text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">Actif</span>}
                       </li>
                     ))}
                   </ul>
@@ -1049,61 +1049,61 @@ export default function AdminQuoteGenerator() {
             </div>
 
             {/* Informations client */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <div className="bg-stone-50 rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-stone-900 flex items-center gap-2">
                 <Building className="h-5 w-5 text-blue-600" />
                 Devis pour
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Nom du client *
                   </label>
                   <input
                     type="text"
                     value={currentQuote.client.name}
                     onChange={(e) => updateClientInfo('name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Coralia"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Téléphone
                   </label>
                   <input
                     type="tel"
                     value={currentQuote.client.phone}
                     onChange={(e) => updateClientInfo('phone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="+221 77 413 34 40"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Adresse
                   </label>
                   <input
                     type="text"
                     value={currentQuote.client.address}
                     onChange={(e) => updateClientInfo('address', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="11 Cité Lessine, Nord Foire"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Email
                   </label>
                   {clientEmails.length > 1 ? (
                     <select
                       value={currentQuote.client.email}
                       onChange={(e) => updateClientInfo('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       {clientEmails.map(email => (
                         <option key={email} value={email}>{email}</option>
@@ -1115,7 +1115,7 @@ export default function AdminQuoteGenerator() {
                       type="email"
                       value={currentQuote.client.email}
                       onChange={(e) => updateClientInfo('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="contact@client.sn"
                     />
                   )}
@@ -1124,34 +1124,34 @@ export default function AdminQuoteGenerator() {
                       type="email"
                       value={currentQuote.client.email}
                       onChange={(e) => updateClientInfo('email', e.target.value)}
-                      className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-2 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="Saisir un autre email"
                     />
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     RC N° / SN DDER
                   </label>
                   <input
                     type="text"
                     value={currentQuote.client.rcn || ''}
                     onChange={(e) => updateClientInfo('rcn', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="SN DDER 2019 A 10739"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     NINEA
                   </label>
                   <input
                     type="text"
                     value={currentQuote.client.ninea || ''}
                     onChange={(e) => updateClientInfo('ninea', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="007305734"
                   />
                 </div>
@@ -1161,7 +1161,7 @@ export default function AdminQuoteGenerator() {
             {/* Produits */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="font-semibold text-stone-900 flex items-center gap-2">
                   <Package className="h-5 w-5 text-blue-600" />
                   Articles du devis
                 </h3>
@@ -1175,7 +1175,7 @@ export default function AdminQuoteGenerator() {
                   </button>
                   <button
                     onClick={addCustomProduct}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
+                    className="px-4 py-2 bg-emerald-800 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
                     Article personnalisé
@@ -1184,34 +1184,34 @@ export default function AdminQuoteGenerator() {
               </div>
 
               {currentQuote.products.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">Aucun article ajouté</p>
+                <div className="text-center py-8 border-2 border-dashed border-stone-300 rounded-lg">
+                  <Package className="h-12 w-12 text-stone-400 mx-auto mb-3" />
+                  <p className="text-stone-500">Aucun article ajouté</p>
                 </div>
               ) : (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="border border-stone-200 rounded-lg overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-stone-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Quantité</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Description</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Prix unitaire</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Imposable?</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Main-d'œuvre?</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase">Montant</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase"></th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Quantité</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Description</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Prix unitaire</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Imposable?</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Main-d'œuvre?</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-stone-700 uppercase">Montant</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-stone-200">
                       {currentQuote.products.map((product) => (
-                        <tr key={product.id} className="hover:bg-gray-50">
+                        <tr key={product.id} className="hover:bg-stone-50">
                           <td className="px-4 py-3">
                             <input
                               type="number"
                               min="1"
                               value={product.quantity}
                               onChange={(e) => updateProduct(product.id, 'quantity', Number(e.target.value))}
-                              className="w-20 px-2 py-1 border border-gray-300 rounded text-center focus:ring-2 focus:ring-blue-500"
+                              className="w-20 px-2 py-1 border border-stone-300 rounded text-center focus:ring-2 focus:ring-blue-500"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -1219,7 +1219,7 @@ export default function AdminQuoteGenerator() {
                               type="text"
                               value={product.description}
                               onChange={(e) => updateProduct(product.id, 'description', e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
                               placeholder="Description de l'article"
                             />
                           </td>
@@ -1230,9 +1230,9 @@ export default function AdminQuoteGenerator() {
                                 min="0"
                                 value={product.unitPrice}
                                 onChange={(e) => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
-                                className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                className="w-32 px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
                               />
-                              <span className="text-sm text-gray-600">CFA</span>
+                              <span className="text-sm text-stone-600">CFA</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1240,7 +1240,7 @@ export default function AdminQuoteGenerator() {
                               type="checkbox"
                               checked={product.taxable}
                               onChange={(e) => updateProduct(product.id, 'taxable', e.target.checked)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-stone-300 text-blue-600 focus:ring-blue-500"
                             />
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1248,10 +1248,10 @@ export default function AdminQuoteGenerator() {
                               type="checkbox"
                               checked={product.isLabor}
                               onChange={(e) => updateProduct(product.id, 'isLabor', e.target.checked)}
-                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                              className="rounded border-stone-300 text-emerald-700 focus:ring-emerald-600"
                             />
                           </td>
-                          <td className="px-4 py-3 text-right font-medium text-gray-900">
+                          <td className="px-4 py-3 text-right font-medium text-stone-900">
                             {product.total.toLocaleString('fr-FR')} CFA
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1272,17 +1272,17 @@ export default function AdminQuoteGenerator() {
             </div>
 
             {/* Totaux */}
-            <div className="bg-gray-50 rounded-lg p-6">
+            <div className="bg-stone-50 rounded-lg p-6">
               <div className="max-w-md ml-auto space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Sous-total</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-stone-600">Sous-total</span>
+                  <span className="font-medium text-stone-900">
                     {currentQuote.subtotal.toLocaleString('fr-FR')} CFA
                   </span>
                 </div>
                 
                 <div className="flex justify-between text-sm items-center">
-                  <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
+                  <label className="flex items-center gap-2 text-stone-600 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={currentQuote.applyBRS}
@@ -1290,31 +1290,31 @@ export default function AdminQuoteGenerator() {
                         const updatedQuote = { ...currentQuote, applyBRS: e.target.checked }
                         calculateTotals(updatedQuote)
                       }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-stone-300 text-blue-600 focus:ring-blue-500"
                     />
                     BRS (main-d'œuvre)
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">5.00%</span>
-                    <span className="text-[10px] text-gray-400">(si MO &gt; {currentQuote.brsThreshold.toLocaleString('fr-FR')} FCFA)</span>
+                    <span className="text-[10px] text-stone-400">(si MO &gt; {currentQuote.brsThreshold.toLocaleString('fr-FR')} FCFA)</span>
                   </label>
                   <span className="font-medium text-orange-700">
                     -{currentQuote.brsAmount.toLocaleString('fr-FR')} CFA
                   </span>
                 </div>
-                <div className="text-[11px] text-gray-400 ml-6">
+                <div className="text-[11px] text-stone-400 ml-6">
                   {currentQuote.applyBRS
                     ? `Main-d'œuvre détectée : ${currentQuote.products.filter(p => p.isLabor).reduce((s, p) => s + p.total, 0).toLocaleString('fr-FR')} FCFA`
                     : "Cochez pour appliquer la retenue BRS (entreprises uniquement)"}
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Taxe de vente</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-stone-600">Taxe de vente</span>
+                  <span className="font-medium text-stone-900">
                     {currentQuote.taxAmount.toLocaleString('fr-FR')} CFA
                   </span>
                 </div>
                 
                 <div className="flex justify-between text-sm items-center">
-                  <span className="text-gray-600">Autres</span>
+                  <span className="text-stone-600">Autres</span>
                   <input
                     type="number"
                     min="0"
@@ -1323,13 +1323,13 @@ export default function AdminQuoteGenerator() {
                       const updatedQuote = { ...currentQuote, other: Number(e.target.value) }
                       calculateTotals(updatedQuote)
                     }}
-                    className="w-32 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-blue-500 text-sm"
+                    className="w-32 px-2 py-1 border border-stone-300 rounded text-right focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                 </div>
                 
-                <div className="pt-3 border-t-2 border-gray-300">
+                <div className="pt-3 border-t-2 border-stone-300">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-lg text-gray-900">TOTAL</span>
+                    <span className="font-bold text-lg text-stone-900">TOTAL</span>
                     <span className="font-bold text-2xl text-blue-600">
                       {currentQuote.total.toLocaleString('fr-FR')} CFA
                     </span>
@@ -1340,13 +1340,13 @@ export default function AdminQuoteGenerator() {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-stone-700 mb-2">
                 Notes additionnelles
               </label>
               <textarea
                 value={currentQuote.notes || ''}
                 onChange={(e) => setCurrentQuote({ ...currentQuote, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 placeholder="Conditions de paiement: 80%"
               />
@@ -1354,10 +1354,10 @@ export default function AdminQuoteGenerator() {
 
             {/* Documents joints */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Documents joints</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Documents joints</label>
               <div className="space-y-2">
                 {(currentQuote.attachments || []).map(att => (
-                  <div key={att.url} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={att.url} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg border border-stone-200">
                     <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate max-w-[70%]">
                       {att.name} {att.category ? `(${att.category})` : ''}
                     </a>
@@ -1374,7 +1374,7 @@ export default function AdminQuoteGenerator() {
                 <div className="flex gap-2">
                   <select
                     id="quote-doc-category"
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    className="px-2 py-1 border border-stone-300 rounded text-sm"
                     defaultValue="autre"
                   >
                     <option value="bon_commande">Bon de commande</option>
@@ -1399,7 +1399,7 @@ export default function AdminQuoteGenerator() {
                         e.target.value = ''
                       }}
                     />
-                    <span className="block w-full text-center px-4 py-2 border border-dashed border-gray-400 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                    <span className="block w-full text-center px-4 py-2 border border-dashed border-stone-400 rounded-lg text-sm text-stone-600 hover:bg-stone-50">
                       + Ajouter un document
                     </span>
                   </label>
@@ -1414,7 +1414,7 @@ export default function AdminQuoteGenerator() {
                   setCurrentQuote(null)
                   setActiveTab('list')
                 }}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="flex-1 px-6 py-3 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors font-medium"
               >
                 Annuler
               </button>
@@ -1438,7 +1438,7 @@ export default function AdminQuoteGenerator() {
               <button
                 onClick={exportPDF}
                 disabled={!currentQuote.client.name || currentQuote.products.length === 0}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-emerald-800 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="h-5 w-5" />
                 Exporter PDF
@@ -1452,27 +1452,27 @@ export default function AdminQuoteGenerator() {
       {showProductModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-stone-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">Catalogue de produits</h3>
+                <h3 className="text-xl font-semibold text-stone-900">Catalogue de produits</h3>
                 <button
                   onClick={() => {
                     setShowProductModal(false)
                     setSearchProduct('')
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
               
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
                 <input
                   type="text"
                   value={searchProduct}
                   onChange={(e) => setSearchProduct(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Rechercher un produit..."
                 />
               </div>
@@ -1481,24 +1481,24 @@ export default function AdminQuoteGenerator() {
             <div className="flex-1 overflow-y-auto p-6">
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Aucun produit trouvé</p>
+                  <Package className="h-16 w-16 text-stone-300 mx-auto mb-4" />
+                  <p className="text-stone-500">Aucun produit trouvé</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredProducts.map((product) => (
                     <div
                       key={product._id}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className="border border-stone-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 truncate">{product.name}</h4>
-                          <p className="text-sm text-gray-500">{product.category}</p>
+                          <h4 className="font-medium text-stone-900 truncate">{product.name}</h4>
+                          <p className="text-sm text-stone-500">{product.category}</p>
                         </div>
                         <div className="flex gap-1 ml-2 flex-shrink-0">
                           {product.inStock && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full">
                               En stock
                             </span>
                           )}
@@ -1517,7 +1517,7 @@ export default function AdminQuoteGenerator() {
                               <span className="text-lg font-bold text-purple-600">
                                 {product.b2bPrice.toLocaleString('fr-FR')} CFA
                               </span>
-                              <span className="text-xs text-gray-400 ml-2 line-through">
+                              <span className="text-xs text-stone-400 ml-2 line-through">
                                 {(product.price || 0).toLocaleString('fr-FR')}
                               </span>
                             </>
@@ -1549,19 +1549,19 @@ export default function AdminQuoteGenerator() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Envoyer le devis {sendModalQuote.numero}</h3>
-              <button onClick={() => setSendModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-stone-900">Envoyer le devis {sendModalQuote.numero}</h3>
+              <button onClick={() => setSendModalOpen(false)} className="text-stone-400 hover:text-stone-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             {loadingContacts ? (
-              <p className="text-gray-500 text-sm">Chargement des contacts…</p>
+              <p className="text-stone-500 text-sm">Chargement des contacts…</p>
             ) : (
               <>
-                <p className="text-sm text-gray-600 mb-3">Sélectionnez les destinataires :</p>
+                <p className="text-sm text-stone-600 mb-3">Sélectionnez les destinataires :</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
                   {sendContacts.length === 0 && sendModalQuote.client?.email && (
-                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-50 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedRecipients.includes(sendModalQuote.client.email)}
@@ -1575,7 +1575,7 @@ export default function AdminQuoteGenerator() {
                     </label>
                   )}
                   {sendContacts.map(contact => (
-                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-50 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={selectedRecipients.includes(contact.email)}
@@ -1586,13 +1586,13 @@ export default function AdminQuoteGenerator() {
                       />
                       <div className="text-sm">
                         <div className="font-medium">{contact.nom} {contact.isPrimary && <span className="text-xs text-purple-600">(principal)</span>}</div>
-                        <div className="text-gray-500">{contact.email}</div>
+                        <div className="text-stone-500">{contact.email}</div>
                       </div>
                     </label>
                   ))}
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Annuler</button>
+                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-stone-700 hover:bg-stone-50">Annuler</button>
                   <button
                     onClick={confirmSendQuote}
                     disabled={selectedRecipients.length === 0 || sendingQuoteId === sendModalQuote.id}
@@ -1667,23 +1667,23 @@ function QuoteDetailView({
 
   return (
     <div>
-      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h3 className="text-xl font-bold text-gray-900">Devis {quote.numero}</h3>
+      <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between">
+        <h3 className="text-xl font-bold text-stone-900">Devis {quote.numero}</h3>
         <div className="flex items-center gap-2">
-          <button onClick={onEdit} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+          <button onClick={onEdit} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-2">
             <Edit3 className="h-4 w-4" /><span>Modifier</span>
           </button>
-          <button onClick={onExport} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+          <button onClick={onExport} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
             <Download className="h-4 w-4" /><span>PDF</span>
           </button>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-600">
             <X className="h-6 w-6" />
           </button>
         </div>
       </div>
 
       <div className="p-6 space-y-6">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg p-6">
+        <div className="bg-gradient-to-r from-emerald-900 to-emerald-950 text-white rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">🔧 IT VISION</h2>
@@ -1699,43 +1699,43 @@ function QuoteDetailView({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-3">📅 Dates</h4>
+          <div className="bg-stone-50 rounded-lg p-4">
+            <h4 className="font-semibold text-stone-900 mb-3">📅 Dates</h4>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Date:</span><span className="font-medium">{new Date(quote.date).toLocaleDateString('fr-FR')}</span></div>
-              {quote.bonCommande && <div className="flex justify-between"><span className="text-gray-600">Bon de commande:</span><span className="font-medium">{quote.bonCommande}</span></div>}
+              <div className="flex justify-between"><span className="text-stone-600">Date:</span><span className="font-medium">{new Date(quote.date).toLocaleDateString('fr-FR')}</span></div>
+              {quote.bonCommande && <div className="flex justify-between"><span className="text-stone-600">Bon de commande:</span><span className="font-medium">{quote.bonCommande}</span></div>}
             </div>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-3">👤 Client</h4>
+          <div className="bg-stone-50 rounded-lg p-4">
+            <h4 className="font-semibold text-stone-900 mb-3">👤 Client</h4>
             <div className="space-y-1 text-sm">
               <div className="font-medium">{quote.client.name}</div>
-              <div className="text-gray-600">{quote.client.address}</div>
-              <div className="text-gray-600">{quote.client.phone}</div>
-              <div className="text-gray-600">{quote.client.email}</div>
+              <div className="text-stone-600">{quote.client.address}</div>
+              <div className="text-stone-600">{quote.client.phone}</div>
+              <div className="text-stone-600">{quote.client.email}</div>
             </div>
           </div>
         </div>
 
         <div>
-          <h4 className="font-semibold text-gray-900 mb-4">📦 Produits</h4>
+          <h4 className="font-semibold text-stone-900 mb-4">📦 Produits</h4>
           <div className="overflow-x-auto">
-            <table className="w-full border border-gray-200 rounded-lg">
-              <thead className="bg-gray-50">
+            <table className="w-full border border-stone-200 rounded-lg">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Description</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Qté</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Prix Unit.</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Total</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-stone-500">Description</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-stone-500">Qté</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-stone-500">Prix Unit.</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-stone-500">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-stone-200">
                 {quote.products.map((item, idx) => (
                   <tr key={idx}>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(item.unitPrice)}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.total)}</td>
+                    <td className="px-4 py-3 text-sm text-stone-900">{item.description}</td>
+                    <td className="px-4 py-3 text-sm text-stone-900 text-center">{item.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-stone-900 text-right">{formatCurrency(item.unitPrice)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-stone-900 text-right">{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1743,12 +1743,12 @@ function QuoteDetailView({
           </div>
         </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
           <div className="space-y-2">
-            <div className="flex justify-between"><span className="text-gray-700">Sous-total HT:</span><span className="font-medium">{formatCurrency(quote.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>
-            {quote.other > 0 && <div className="flex justify-between"><span className="text-gray-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
+            <div className="flex justify-between"><span className="text-stone-700">Sous-total HT:</span><span className="font-medium">{formatCurrency(quote.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-stone-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>
+            <div className="flex justify-between"><span className="text-stone-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>
+            {quote.other > 0 && <div className="flex justify-between"><span className="text-stone-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
             <div className="border-t border-green-300 pt-2">
               <div className="flex justify-between text-lg font-bold text-green-800"><span>TOTAL TTC:</span><span>{formatCurrency(quote.total)}</span></div>
             </div>
@@ -1758,16 +1758,16 @@ function QuoteDetailView({
         {/* Documents joints */}
         {(quote.attachments && quote.attachments.length > 0) && (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3">📎 Documents joints</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">📎 Documents joints</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quote.attachments.map((att, i) => (
                 <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg border border-stone-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{att.name}</div>
-                    <div className="text-xs text-gray-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
+                    <div className="text-sm font-medium text-stone-900 truncate">{att.name}</div>
+                    <div className="text-xs text-stone-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
                   </div>
                 </a>
               ))}
@@ -1778,15 +1778,15 @@ function QuoteDetailView({
         {/* Signature électronique client */}
         {quote.clientSignature && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
-            <h4 className="font-semibold text-gray-900 mb-3">✍️ Signature électronique</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">✍️ Signature électronique</h4>
             <div className="flex flex-wrap items-center gap-5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={quote.clientSignature.signature} alt="Signature client"
                 className="h-16 rounded-lg bg-white border border-emerald-200 object-contain px-3" />
               <div className="text-sm space-y-0.5">
-                <p className="font-medium text-gray-900">{quote.clientSignature.name}</p>
-                <p className="text-gray-600">Signé le {quote.clientSignature.signedAt ? new Date(quote.clientSignature.signedAt).toLocaleString('fr-FR') : '—'}</p>
-                {quote.clientSignature.ip && <p className="text-xs text-gray-400">IP : {quote.clientSignature.ip}</p>}
+                <p className="font-medium text-stone-900">{quote.clientSignature.name}</p>
+                <p className="text-stone-600">Signé le {quote.clientSignature.signedAt ? new Date(quote.clientSignature.signedAt).toLocaleString('fr-FR') : '—'}</p>
+                {quote.clientSignature.ip && <p className="text-xs text-stone-400">IP : {quote.clientSignature.ip}</p>}
               </div>
             </div>
           </div>
@@ -1794,8 +1794,8 @@ function QuoteDetailView({
 
         {quote.notes && (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">📝 Notes</h4>
-            <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg">{quote.notes}</p>
+            <h4 className="font-semibold text-stone-900 mb-2">📝 Notes</h4>
+            <p className="text-sm text-stone-700 bg-stone-50 p-4 rounded-lg">{quote.notes}</p>
           </div>
         )}
       </div>

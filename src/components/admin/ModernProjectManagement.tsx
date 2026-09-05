@@ -550,7 +550,7 @@ export default function ModernProjectManagement() {
           }
           const iconBg: Record<string, string> = {
             blue: 'bg-blue-500',
-            green: 'bg-green-500',
+            green: 'bg-emerald-500',
             purple: 'bg-purple-500',
             emerald: 'bg-emerald-500'
           }
@@ -574,13 +574,13 @@ export default function ModernProjectManagement() {
               </div>
               <div className={`text-3xl font-bold ${textColor[kpi.color]}`}>{kpi.value}</div>
               <div className="flex items-center gap-1 mt-2 text-xs">
-                {kpi.trend === 'up' && <ArrowUp className="h-3 w-3 text-green-600" />}
+                {kpi.trend === 'up' && <ArrowUp className="h-3 w-3 text-emerald-700" />}
                 {kpi.trend === 'down' && <ArrowDown className="h-3 w-3 text-red-600" />}
-                {kpi.trend === 'stable' && <Minus className="h-3 w-3 text-gray-600" />}
-                <span className={kpi.trend === 'up' ? 'text-green-600' : kpi.trend === 'down' ? 'text-red-600' : 'text-gray-600'}>
+                {kpi.trend === 'stable' && <Minus className="h-3 w-3 text-stone-600" />}
+                <span className={kpi.trend === 'up' ? 'text-emerald-700' : kpi.trend === 'down' ? 'text-red-600' : 'text-stone-600'}>
                   {kpi.change > 0 ? '+' : ''}{kpi.change}%
                 </span>
-                <span className="text-gray-500 ml-1">vs dernier mois</span>
+                <span className="text-stone-500 ml-1">vs dernier mois</span>
               </div>
             </div>
           )
@@ -588,17 +588,17 @@ export default function ModernProjectManagement() {
       </div>
 
       {/* Barre d'outils */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      <div className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col lg:flex-row gap-4 items-center">
           {/* Recherche */}
           <div className="flex-1 w-full relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
             <input
               type="text"
               placeholder="Rechercher par nom, client..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              className="w-full pl-12 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-stone-50"
             />
           </div>
           
@@ -607,7 +607,7 @@ export default function ModernProjectManagement() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-stone-50"
             >
               <option value="all">Tous les statuts</option>
               <option value="lead">Prospects</option>
@@ -622,7 +622,7 @@ export default function ModernProjectManagement() {
               <select
                 value={serviceTypeFilter}
                 onChange={(e) => setServiceTypeFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-stone-50"
               >
                 <option value="all">Tous les services</option>
                 {serviceTypeOptions.map(st => (
@@ -632,22 +632,22 @@ export default function ModernProjectManagement() {
             )}
 
             {/* Mode de vue */}
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+            <div className="flex gap-1 bg-stone-100 p-1 rounded-xl">
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'kanban' ? 'bg-white shadow-sm text-blue-600' : 'text-stone-600 hover:text-stone-900'}`}
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-stone-600 hover:text-stone-900'}`}
               >
                 <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('analytics')}
-                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'analytics' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`px-4 py-2 rounded-lg transition-colors ${viewMode === 'analytics' ? 'bg-white shadow-sm text-blue-600' : 'text-stone-600 hover:text-stone-900'}`}
               >
                 <BarChart3 className="h-4 w-4" />
               </button>
@@ -678,10 +678,10 @@ export default function ModernProjectManagement() {
           <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-          <Briefcase className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun projet trouvé</h3>
-          <p className="text-gray-600 mb-6">
+        <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center">
+          <Briefcase className="h-16 w-16 text-stone-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-stone-900 mb-2">Aucun projet trouvé</h3>
+          <p className="text-stone-600 mb-6">
             {searchTerm || statusFilter !== 'all'
               ? 'Aucun projet ne correspond à vos critères'
               : 'Commencez par créer votre premier projet'}
@@ -701,12 +701,12 @@ export default function ModernProjectManagement() {
             <div className="flex gap-4 overflow-x-auto pb-4">
               {projectsByStatus.map(column => (
                 <div key={column.status} className="flex-shrink-0 w-80">
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                  <div className="bg-stone-50 rounded-xl border border-stone-200 p-4">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(column.status)}
-                        <h3 className="font-semibold text-gray-900">{column.label}</h3>
-                        <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs rounded-full font-medium">
+                        <h3 className="font-semibold text-stone-900">{column.label}</h3>
+                        <span className="px-2 py-0.5 bg-stone-200 text-stone-700 text-xs rounded-full font-medium">
                           {column.projects.length}
                         </span>
                       </div>
@@ -717,10 +717,10 @@ export default function ModernProjectManagement() {
                         <div
                           key={project._id}
                           onClick={() => openProjectDetail(project)}
-                          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer group"
+                          className="bg-white border border-stone-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer group"
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-gray-900 text-sm line-clamp-2 flex-1">
+                            <h4 className="font-semibold text-stone-900 text-sm line-clamp-2 flex-1">
                               {project.name}
                             </h4>
                             <button
@@ -731,34 +731,34 @@ export default function ModernProjectManagement() {
                               }}
                               aria-label="Modifier ce projet"
                             >
-                              <MoreVertical className="h-4 w-4 text-gray-400" />
+                              <MoreVertical className="h-4 w-4 text-stone-400" />
                             </button>
                           </div>
                           
                           {project.clientSnapshot?.company && (
-                            <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
+                            <div className="flex items-center gap-1.5 text-xs text-stone-600 mb-2">
                               <Building2 className="h-3 w-3" />
                               <span className="truncate">{project.clientSnapshot.company}</span>
                             </div>
                           )}
                           
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div className="flex-1 bg-stone-200 rounded-full h-2">
                               <div 
                                 className="bg-blue-600 h-2 rounded-full transition-all"
                                 style={{ width: `${project.progress}%` }}
                               />
                             </div>
-                            <span className="text-xs font-medium text-gray-700">{project.progress}%</span>
+                            <span className="text-xs font-medium text-stone-700">{project.progress}%</span>
                           </div>
                           
-                          <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center justify-between text-xs text-stone-500">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {new Date(project.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                             </div>
                             {project.value && (
-                              <div className="flex items-center gap-1 font-medium text-gray-700">
+                              <div className="flex items-center gap-1 font-medium text-stone-700">
                                 <DollarSign className="h-3 w-3" />
                                 {(project.value / 1000).toFixed(0)}K
                               </div>
@@ -775,38 +775,38 @@ export default function ModernProjectManagement() {
 
           {/* Vue Liste */}
           {viewMode === 'list' && (
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
+              <table className="min-w-full divide-y divide-stone-200">
+                <thead className="bg-stone-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Projet
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Client
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Statut
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Progrès
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Valeur
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Date début
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-stone-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-stone-200">
                   {filteredProjects.map(project => (
                     <tr 
                       key={project._id} 
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      className="hover:bg-stone-50 transition-colors cursor-pointer"
                       onClick={() => openProjectDetail(project)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -815,16 +815,16 @@ export default function ModernProjectManagement() {
                             {project.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{project.name}</div>
+                            <div className="text-sm font-medium text-stone-900">{project.name}</div>
                             {project.currentPhase && (
-                              <div className="text-xs text-gray-500">{project.currentPhase}</div>
+                              <div className="text-xs text-stone-500">{project.currentPhase}</div>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{project.clientSnapshot?.company || '-'}</div>
-                        <div className="text-xs text-gray-500">{project.clientSnapshot?.contact || ''}</div>
+                        <div className="text-sm text-stone-900">{project.clientSnapshot?.company || '-'}</div>
+                        <div className="text-xs text-stone-500">{project.clientSnapshot?.contact || ''}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-${getStatusColor(project.status)}-100 text-${getStatusColor(project.status)}-700`}>
@@ -834,19 +834,19 @@ export default function ModernProjectManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="w-24 bg-stone-200 rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full"
                               style={{ width: `${project.progress}%` }}
                             />
                           </div>
-                          <span className="text-sm font-medium text-gray-700">{project.progress}%</span>
+                          <span className="text-sm font-medium text-stone-700">{project.progress}%</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-900">
                         {project.value ? `${(project.value / 1000).toFixed(0)}K FCFA` : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
                         {new Date(project.startDate).toLocaleDateString('fr-FR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -864,7 +864,7 @@ export default function ModernProjectManagement() {
                             e.stopPropagation()
                             redirectToProjectEditor(project._id)
                           }}
-                          className="text-gray-600 hover:text-gray-900 mr-3"
+                          className="text-stone-600 hover:text-stone-900 mr-3"
                           aria-label="Modifier le projet"
                         >
                           <Edit3 className="h-4 w-4" />
@@ -891,8 +891,8 @@ export default function ModernProjectManagement() {
           {viewMode === 'analytics' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Répartition par statut */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white border border-stone-200 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
                   <PieChart className="h-5 w-5" />
                   Répartition par Statut
                 </h3>
@@ -905,10 +905,10 @@ export default function ModernProjectManagement() {
                     return (
                       <div key={column.status}>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">{column.label}</span>
-                          <span className="text-sm text-gray-600">{column.projects.length} ({percentage}%)</span>
+                          <span className="text-sm font-medium text-stone-700">{column.label}</span>
+                          <span className="text-sm text-stone-600">{column.projects.length} ({percentage}%)</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-stone-200 rounded-full h-2">
                           <div 
                             className={`bg-${column.color}-600 h-2 rounded-full transition-all`}
                             style={{ width: `${percentage}%` }}
@@ -921,8 +921,8 @@ export default function ModernProjectManagement() {
               </div>
 
               {/* Projets par mois */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white border border-stone-200 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
                   Performance Globale
                 </h3>
@@ -937,16 +937,16 @@ export default function ModernProjectManagement() {
                     <Activity className="h-8 w-8 text-blue-600" />
                   </div>
                   
-                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
                     <div>
-                      <div className="text-sm text-green-700 font-medium">Taux de succès</div>
+                      <div className="text-sm text-emerald-800 font-medium">Taux de succès</div>
                       <div className="text-2xl font-bold text-green-900">
                         {projects.length > 0 
                           ? Math.round((projects.filter(p => p.status === 'completed').length / projects.length) * 100) 
                           : 0}%
                       </div>
                     </div>
-                    <Award className="h-8 w-8 text-green-600" />
+                    <Award className="h-8 w-8 text-emerald-700" />
                   </div>
                   
                   <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl">
@@ -970,11 +970,11 @@ export default function ModernProjectManagement() {
           <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Créer un nouveau projet</h3>
-                <p className="text-sm text-gray-500">Définissez les informations essentielles avant lancement</p>
+                <h3 className="text-lg font-semibold text-stone-900">Créer un nouveau projet</h3>
+                <p className="text-sm text-stone-500">Définissez les informations essentielles avant lancement</p>
               </div>
-              <button onClick={closeCreateModal} className="p-2 rounded-xl hover:bg-gray-100 transition-colors" aria-label="Fermer la fenêtre de création">
-                <X className="h-5 w-5 text-gray-500" />
+              <button onClick={closeCreateModal} className="p-2 rounded-xl hover:bg-stone-100 transition-colors" aria-label="Fermer la fenêtre de création">
+                <X className="h-5 w-5 text-stone-500" />
               </button>
             </div>
 
@@ -987,18 +987,18 @@ export default function ModernProjectManagement() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Nom du projet *</label>
+                  <label className="text-sm font-medium text-stone-700">Nom du projet *</label>
                   <input
                     type="text"
                     value={newProjectData.name}
                     onChange={e => handleNewProjectFieldChange('name', e.target.value)}
                     placeholder="Installation fibre client VIP"
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">Client *</label>
+                    <label className="text-sm font-medium text-stone-700">Client *</label>
                     <button
                       type="button"
                       onClick={() => fetchClients()}
@@ -1012,7 +1012,7 @@ export default function ModernProjectManagement() {
                   <select
                     value={newProjectData.clientId}
                     onChange={e => handleNewProjectFieldChange('clientId', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                   >
                     <option value="">Sélectionner un client</option>
                     {clients.map(client => (
@@ -1028,7 +1028,7 @@ export default function ModernProjectManagement() {
 
                 <div className="md:col-span-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">Entreprise (optionnel)</label>
+                    <label className="text-sm font-medium text-stone-700">Entreprise (optionnel)</label>
                     <button
                       type="button"
                       onClick={() => fetchCompanies()}
@@ -1042,49 +1042,49 @@ export default function ModernProjectManagement() {
                   <select
                     value={newProjectData.clientCompanyId}
                     onChange={e => handleNewProjectFieldChange('clientCompanyId', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                   >
                     <option value="">Aucune</option>
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>{c.label}</option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">Lie le projet à une entreprise (portail entreprise + documents).</p>
+                  <p className="mt-1 text-xs text-stone-500">Lie le projet à une entreprise (portail entreprise + documents).</p>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Adresse *</label>
+                  <label className="text-sm font-medium text-stone-700">Adresse *</label>
                   <input
                     type="text"
                     value={newProjectData.address}
                     onChange={e => handleNewProjectFieldChange('address', e.target.value)}
                     placeholder="Adresse complète du site"
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Date de début *</label>
+                  <label className="text-sm font-medium text-stone-700">Date de début *</label>
                   <input
                     type="date"
                     value={newProjectData.startDate}
                     onChange={e => handleNewProjectFieldChange('startDate', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Date de fin</label>
+                  <label className="text-sm font-medium text-stone-700">Date de fin</label>
                   <input
                     type="date"
                     value={newProjectData.endDate}
                     onChange={e => handleNewProjectFieldChange('endDate', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Statut</label>
+                  <label className="text-sm font-medium text-stone-700">Statut</label>
                   <select
                     value={newProjectData.status}
                     onChange={e => handleNewProjectFieldChange('status', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                   >
                     <option value="lead">Prospect</option>
                     <option value="quoted">Devis envoyé</option>
@@ -1096,107 +1096,107 @@ export default function ModernProjectManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Type / Service</label>
+                  <label className="text-sm font-medium text-stone-700">Type / Service</label>
                   <input
                     type="text"
                     value={newProjectData.serviceType}
                     onChange={e => handleNewProjectFieldChange('serviceType', e.target.value)}
                     placeholder="Fibre, vidéosurveillance..."
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Phase actuelle</label>
+                  <label className="text-sm font-medium text-stone-700">Phase actuelle</label>
                   <input
                     type="text"
                     value={newProjectData.currentPhase}
                     onChange={e => handleNewProjectFieldChange('currentPhase', e.target.value)}
                     placeholder="Installation, recette..."
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Valeur (FCFA)</label>
+                  <label className="text-sm font-medium text-stone-700">Valeur (FCFA)</label>
                   <input
                     type="number"
                     min="0"
                     value={newProjectData.value}
                     onChange={e => handleNewProjectFieldChange('value', e.target.value)}
                     placeholder="0"
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Progression (%)</label>
+                  <label className="text-sm font-medium text-stone-700">Progression (%)</label>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={newProjectData.progress}
                     onChange={e => handleNewProjectFieldChange('progress', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">Description</label>
+                <label className="text-sm font-medium text-stone-700">Description</label>
                 <textarea
                   value={newProjectData.description}
                   onChange={e => handleNewProjectFieldChange('description', e.target.value)}
                   rows={4}
-                  className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="mt-1 w-full rounded-2xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   placeholder="Contexte, objectifs, contraintes..."
                 />
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-gray-800 mb-2">Détails client (optionnel)</p>
+                <p className="text-sm font-semibold text-stone-800 mb-2">Détails client (optionnel)</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-600">Société</label>
+                    <label className="text-xs text-stone-600">Société</label>
                     <input
                       type="text"
                       value={newProjectData.clientCompany}
                       onChange={e => handleNewProjectFieldChange('clientCompany', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                      className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600">Personne de contact</label>
+                    <label className="text-xs text-stone-600">Personne de contact</label>
                     <input
                       type="text"
                       value={newProjectData.clientContact}
                       onChange={e => handleNewProjectFieldChange('clientContact', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                      className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600">Téléphone</label>
+                    <label className="text-xs text-stone-600">Téléphone</label>
                     <input
                       type="tel"
                       value={newProjectData.clientPhone}
                       onChange={e => handleNewProjectFieldChange('clientPhone', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                      className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600">Email</label>
+                    <label className="text-xs text-stone-600">Email</label>
                     <input
                       type="email"
                       value={newProjectData.clientEmail}
                       onChange={e => handleNewProjectFieldChange('clientEmail', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2"
+                      className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50 rounded-b-3xl">
+            <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-end gap-3 bg-stone-50 rounded-b-3xl">
               <button
                 onClick={closeCreateModal}
-                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors"
+                className="px-5 py-2.5 rounded-xl border border-stone-200 text-stone-700 hover:bg-white transition-colors"
               >
                 Annuler
               </button>
@@ -1220,19 +1220,19 @@ export default function ModernProjectManagement() {
               <div className="flex items-center gap-3 text-red-600 mb-4">
                 <AlertTriangle className="h-6 w-6" />
                 <div>
-                  <p className="text-lg font-semibold text-gray-900">Supprimer le projet ?</p>
-                  <p className="text-sm text-gray-500">Cette action est irréversible.</p>
+                  <p className="text-lg font-semibold text-stone-900">Supprimer le projet ?</p>
+                  <p className="text-sm text-stone-500">Cette action est irréversible.</p>
                 </div>
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                Confirmez la suppression de <span className="font-semibold text-gray-900">{projectPendingDeletion.name}</span>. 
+              <p className="text-sm text-stone-700 leading-relaxed">
+                Confirmez la suppression de <span className="font-semibold text-stone-900">{projectPendingDeletion.name}</span>. 
                 Toutes les données associées seront définitivement retirées de la plateforme.
               </p>
             </div>
-            <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+            <div className="px-6 py-4 bg-stone-50 rounded-b-2xl flex justify-end gap-3">
               <button
                 onClick={cancelProjectDeletion}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-white transition-colors"
+                className="px-4 py-2 rounded-xl border border-stone-200 text-stone-700 hover:bg-white transition-colors"
               >
                 Annuler
               </button>

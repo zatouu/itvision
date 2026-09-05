@@ -138,8 +138,8 @@ function B2bPricingContent() {
           <Tag className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pricing B2B en masse</h1>
-          <p className="text-sm text-gray-500">Calculer et appliquer le b2bPrice (prix volume) sur tous les produits</p>
+          <h1 className="text-2xl font-bold text-stone-900">Pricing B2B en masse</h1>
+          <p className="text-sm text-stone-500">Calculer et appliquer le b2bPrice (prix volume) sur tous les produits</p>
         </div>
       </div>
 
@@ -147,12 +147,12 @@ function B2bPricingContent() {
       {summary && (
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border p-4 text-center">
-            <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
-            <p className="text-xs text-gray-500 mt-1">Produits total</p>
+            <p className="text-2xl font-bold text-stone-900">{summary.total}</p>
+            <p className="text-xs text-stone-500 mt-1">Produits total</p>
           </div>
-          <div className="bg-green-50 rounded-xl border border-green-200 p-4 text-center">
-            <p className="text-2xl font-bold text-green-700">{summary.withB2bPrice}</p>
-            <p className="text-xs text-green-600 mt-1">Avec b2bPrice ✓</p>
+          <div className="bg-emerald-50 rounded-xl border border-green-200 p-4 text-center">
+            <p className="text-2xl font-bold text-emerald-800">{summary.withB2bPrice}</p>
+            <p className="text-xs text-emerald-700 mt-1">Avec b2bPrice ✓</p>
           </div>
           <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 text-center">
             <p className="text-2xl font-bold text-amber-700">{summary.withoutB2bPrice}</p>
@@ -163,11 +163,11 @@ function B2bPricingContent() {
 
       {/* Paramètres */}
       <div className="bg-white rounded-xl border p-6 space-y-4">
-        <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+        <h2 className="font-semibold text-stone-800 flex items-center gap-2">
           <Zap className="w-4 h-4 text-violet-600" />
           Paramètres du calcul
         </h2>
-        <div className="text-xs text-gray-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+        <div className="text-xs text-stone-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
           Prix volume appliqué à partir de <strong>5 unités</strong> (ou dès 1 unité pour comptes Pro/Revendeur/Partenaire).
           {typeof defaultDiscountPercent === 'number' && (
             <span className="ml-1">Taux par défaut actuel: <strong>-{defaultDiscountPercent}%</strong>.</span>
@@ -175,7 +175,7 @@ function B2bPricingContent() {
         </div>
         <div className="grid grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-stone-700 mb-1">
               Remise volume : <span className="text-violet-700 font-bold">-{discountPercent}%</span>
             </label>
             <input
@@ -187,12 +187,12 @@ function B2bPricingContent() {
               onChange={e => setDiscountPercent(Number(e.target.value))}
               className="w-full accent-violet-600"
             />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <div className="flex justify-between text-xs text-stone-400 mt-1">
               <span>-5%</span>
               <span>{typeof defaultDiscountPercent === 'number' ? `-${defaultDiscountPercent}% (défaut)` : 'Défaut système'}</span>
               <span>-40%</span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-stone-500 mt-2">
               Ex: produit à 10 000 FCFA → b2bPrice = {Math.round(10000 * (1 - discountPercent / 100)).toLocaleString('fr-FR')} FCFA
             </p>
             <button
@@ -211,7 +211,7 @@ function B2bPricingContent() {
                 onChange={e => setForce(e.target.checked)}
                 className="w-4 h-4 accent-violet-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-stone-700">
                 <strong>Forcer</strong> — recalculer même les produits qui ont déjà un b2bPrice
               </span>
             </label>
@@ -222,7 +222,7 @@ function B2bPricingContent() {
                 onChange={e => setDryRun(e.target.checked)}
                 className="w-4 h-4 accent-violet-600"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-stone-700">
                 <strong>Simulation</strong> — aperçu sans modifier la base
               </span>
             </label>
@@ -233,7 +233,7 @@ function B2bPricingContent() {
           <button
             onClick={() => { setDryRun(true); handleRun() }}
             disabled={applying}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium text-sm transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg font-medium text-sm transition disabled:opacity-50"
           >
             <Eye className="w-4 h-4" />
             Aperçu (simulation)
@@ -257,7 +257,7 @@ function B2bPricingContent() {
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-sm">
+        <div className="flex items-center gap-2 bg-emerald-50 border border-green-200 text-emerald-800 rounded-xl p-4 text-sm">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
           {success}
         </div>
@@ -265,11 +265,11 @@ function B2bPricingContent() {
       {batchResult && (
         <div className="bg-white rounded-xl border p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-800">
+            <h3 className="font-semibold text-stone-800">
               {batchResult.dryRun ? '📋 Aperçu' : '✅ Résultat'} — {batchResult.previewCount} produit(s) {batchResult.dryRun ? 'à mettre à jour' : 'mis à jour'}
             </h3>
             {!batchResult.dryRun && (
-              <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-1 rounded-full">
+              <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded-full">
                 {batchResult.updatedCount} modifiés en base
               </span>
             )}
@@ -277,7 +277,7 @@ function B2bPricingContent() {
           <div className="overflow-auto max-h-72">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b">
+                <tr className="text-left text-xs text-stone-500 border-b">
                   <th className="pb-2 pr-4">Produit</th>
                   <th className="pb-2 pr-4 text-right">Prix retail</th>
                   <th className="pb-2 pr-4 text-right">Ancien b2bPrice</th>
@@ -286,10 +286,10 @@ function B2bPricingContent() {
               </thead>
               <tbody>
                 {batchResult.preview.slice(0, 50).map(r => (
-                  <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-2 pr-4 font-medium text-gray-800 truncate max-w-xs">{r.name}</td>
-                    <td className="py-2 pr-4 text-right text-gray-600">{formatCurrency(r.retailPrice)}</td>
-                    <td className="py-2 pr-4 text-right text-gray-400">{r.oldB2bPrice ? formatCurrency(r.oldB2bPrice) : '—'}</td>
+                  <tr key={r.id} className="border-b last:border-0 hover:bg-stone-50">
+                    <td className="py-2 pr-4 font-medium text-stone-800 truncate max-w-xs">{r.name}</td>
+                    <td className="py-2 pr-4 text-right text-stone-600">{formatCurrency(r.retailPrice)}</td>
+                    <td className="py-2 pr-4 text-right text-stone-400">{r.oldB2bPrice ? formatCurrency(r.oldB2bPrice) : '—'}</td>
                     <td className="py-2 text-right text-violet-700 font-semibold">{formatCurrency(r.newB2bPrice)}</td>
                   </tr>
                 ))}
@@ -302,14 +302,14 @@ function B2bPricingContent() {
       {/* Liste produits */}
       <div className="bg-white rounded-xl border">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-gray-800">Catalogue actuel</h2>
+          <h2 className="font-semibold text-stone-800">Catalogue actuel</h2>
           <div className="flex gap-2">
             {(['all', 'missing', 'has'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 text-xs rounded-full font-medium transition ${
-                  filter === f ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  filter === f ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                 }`}
               >
                 {f === 'all' ? 'Tous' : f === 'missing' ? 'Sans b2bPrice' : 'Avec b2bPrice'}
@@ -318,12 +318,12 @@ function B2bPricingContent() {
           </div>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Chargement...</div>
+          <div className="p-8 text-center text-stone-400 text-sm">Chargement...</div>
         ) : (
           <div className="overflow-auto max-h-96">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-500 border-b sticky top-0 bg-white">
+                <tr className="text-left text-xs text-stone-500 border-b sticky top-0 bg-white">
                   <th className="p-3">Produit</th>
                   <th className="p-3">Catégorie</th>
                   <th className="p-3 text-right">Prix retail</th>
@@ -333,23 +333,23 @@ function B2bPricingContent() {
               </thead>
               <tbody>
                 {filteredProducts.map(p => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="p-3 font-medium text-gray-800 max-w-xs truncate">{p.name}</td>
-                    <td className="p-3 text-gray-500 text-xs">{p.category}</td>
-                    <td className="p-3 text-right text-gray-700">{formatCurrency(p.price)}</td>
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-stone-50">
+                    <td className="p-3 font-medium text-stone-800 max-w-xs truncate">{p.name}</td>
+                    <td className="p-3 text-stone-500 text-xs">{p.category}</td>
+                    <td className="p-3 text-right text-stone-700">{formatCurrency(p.price)}</td>
                     <td className="p-3 text-right text-violet-700 font-semibold">
-                      {p.b2bPrice ? formatCurrency(p.b2bPrice) : <span className="text-gray-400">—</span>}
+                      {p.b2bPrice ? formatCurrency(p.b2bPrice) : <span className="text-stone-400">—</span>}
                     </td>
                     <td className="p-3 text-right">
                       {p.hasB2bPrice
-                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ OK</span>
+                        ? <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">✓ OK</span>
                         : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⚠ Manquant</span>
                       }
                     </td>
                   </tr>
                 ))}
                 {filteredProducts.length === 0 && (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-400 text-sm">Aucun produit</td></tr>
+                  <tr><td colSpan={5} className="p-8 text-center text-stone-400 text-sm">Aucun produit</td></tr>
                 )}
               </tbody>
             </table>

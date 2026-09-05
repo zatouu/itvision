@@ -437,19 +437,19 @@ export default function MaintenanceContractModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center overflow-y-auto px-4 py-10">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl border border-gray-100">
-        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl border border-stone-100">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-stone-100">
           <div>
             <p className="text-xs font-semibold uppercase text-emerald-600">Nouveau contrat</p>
-            <h2 className="text-2xl font-bold text-gray-900 mt-1">
+            <h2 className="text-2xl font-bold text-stone-900 mt-1">
               {selectedTemplate.label}
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-stone-500">
               Reliez le contrat à un client portal et à son projet puis personnalisez les clauses.
             </p>
           </div>
           <button
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+            className="p-2 rounded-full hover:bg-stone-100 text-stone-500"
             onClick={onClose}
             disabled={creating}
           >
@@ -459,15 +459,15 @@ export default function MaintenanceContractModal({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 py-6 max-h-[80vh] overflow-y-auto">
           <div className="lg:col-span-2 space-y-6">
-            <section className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500">1. Client & projet</p>
+            <section className="bg-stone-50 border border-stone-100 rounded-2xl p-4 space-y-3">
+              <p className="text-xs uppercase tracking-wide text-stone-500">1. Client & projet</p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-500">Client</label>
+                  <label className="text-xs text-stone-500">Client</label>
                   <select
                     value={selectedClientId}
                     onChange={(e) => setSelectedClientId(e.target.value)}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">Sélectionner un client</option>
                     {clients.map((client) => (
@@ -478,12 +478,12 @@ export default function MaintenanceContractModal({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Projet couvert (optionnel)</label>
+                  <label className="text-xs text-stone-500">Projet couvert (optionnel)</label>
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                     disabled={!filteredProjects.length}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm disabled:bg-gray-100"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm disabled:bg-stone-100"
                   >
                     <option value="">Aucun projet</option>
                     {filteredProjects.map((project) => (
@@ -496,8 +496,8 @@ export default function MaintenanceContractModal({
               </div>
             </section>
 
-            <section className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">2. Modèle</p>
+            <section className="bg-stone-50 border border-stone-100 rounded-2xl p-4 space-y-4">
+              <p className="text-xs uppercase tracking-wide text-stone-500">2. Modèle</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {maintenanceTemplates.map((template) => (
                   <button
@@ -507,63 +507,63 @@ export default function MaintenanceContractModal({
                     className={`text-left border rounded-2xl p-3 transition ${
                       selectedTemplateId === template.id
                         ? 'border-emerald-500 bg-white shadow-sm'
-                        : 'border-transparent bg-white hover:border-gray-200'
+                        : 'border-transparent bg-white hover:border-stone-200'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm font-semibold text-stone-900">
                         {template.label}
                       </span>
                       {selectedTemplateId === template.id && (
                         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+                    <p className="text-xs text-stone-500 mt-1">{template.description}</p>
                   </button>
                 ))}
               </div>
             </section>
 
-            <section className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">3. Paramètres</p>
+            <section className="bg-stone-50 border border-stone-100 rounded-2xl p-4 space-y-4">
+              <p className="text-xs uppercase tracking-wide text-stone-500">3. Paramètres</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500">Nom du contrat</label>
+                  <label className="text-xs text-stone-500">Nom du contrat</label>
                   <input
                     value={formState.name}
                     onChange={(e) => updateFormState('name', e.target.value)}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Prix annuel</label>
+                  <label className="text-xs text-stone-500">Prix annuel</label>
                   <input
                     type="number"
                     value={formState.annualPrice}
                     onChange={(e) => updateFormState('annualPrice', Number(e.target.value))}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Date de début</label>
+                  <label className="text-xs text-stone-500">Date de début</label>
                   <input
                     type="date"
                     value={formState.startDate}
                     onChange={(e) => updateFormState('startDate', e.target.value)}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Date de fin</label>
+                  <label className="text-xs text-stone-500">Date de fin</label>
                   <input
                     type="date"
                     value={formState.endDate}
                     onChange={(e) => updateFormState('endDate', e.target.value)}
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">SLA / Délai</label>
+                  <label className="text-xs text-stone-500">SLA / Délai</label>
                   <input
                     value={formState.coverage.responseTime}
                     onChange={(e) =>
@@ -572,11 +572,11 @@ export default function MaintenanceContractModal({
                         responseTime: e.target.value
                       })
                     }
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Support</label>
+                  <label className="text-xs text-stone-500">Support</label>
                   <input
                     value={formState.coverage.supportHours}
                     onChange={(e) =>
@@ -585,30 +585,30 @@ export default function MaintenanceContractModal({
                         supportHours: e.target.value
                       })
                     }
-                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Modalités de paiement</label>
+                <label className="text-xs text-stone-500">Modalités de paiement</label>
                 <textarea
                   value={formState.paymentTerms}
                   onChange={(e) => updateFormState('paymentTerms', e.target.value)}
                   rows={2}
-                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                 />
               </div>
             </section>
 
-            <section className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-4">
+            <section className="bg-stone-50 border border-stone-100 rounded-2xl p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wide text-gray-500">4. Équipements couverts</p>
+                <p className="text-xs uppercase tracking-wide text-stone-500">4. Équipements couverts</p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     disabled={!projectEquipment.length}
                     onClick={applyProjectEquipment}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-200 text-gray-600 hover:text-emerald-700 hover:border-emerald-300 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border border-stone-200 text-stone-600 hover:text-emerald-700 hover:border-emerald-300 disabled:opacity-50"
                   >
                     Import projet
                   </button>
@@ -623,40 +623,40 @@ export default function MaintenanceContractModal({
                 </div>
               </div>
               {projectEquipmentLoading && (
-                <p className="text-xs text-gray-500">Chargement des équipements du projet…</p>
+                <p className="text-xs text-stone-500">Chargement des équipements du projet…</p>
               )}
               {formState.equipment.length === 0 ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-stone-500">
                   Aucun équipement listé. Ajoutez-les manuellement ou importez-les depuis un projet.
                 </p>
               ) : (
                 <div className="space-y-3">
                   {formState.equipment.map((equipment, index) => (
-                    <div key={`${equipment.type}-${index}`} className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white rounded-2xl border border-gray-100 p-3">
+                    <div key={`${equipment.type}-${index}`} className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white rounded-2xl border border-stone-100 p-3">
                       <div>
-                        <label className="text-xs text-gray-500">Équipement</label>
+                        <label className="text-xs text-stone-500">Équipement</label>
                         <input
                           value={equipment.type}
                           onChange={(e) => updateEquipmentItem(index, 'type', e.target.value)}
-                          className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                          className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Quantité</label>
+                        <label className="text-xs text-stone-500">Quantité</label>
                         <input
                           type="number"
                           min={0}
                           value={equipment.quantity}
                           onChange={(e) => updateEquipmentItem(index, 'quantity', e.target.value)}
-                          className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                          className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Site / localisation</label>
+                        <label className="text-xs text-stone-500">Site / localisation</label>
                         <input
                           value={equipment.location || ''}
                           onChange={(e) => updateEquipmentItem(index, 'location', e.target.value)}
-                          className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                          className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                         />
                       </div>
                       <div className="flex items-end justify-end">
@@ -675,40 +675,40 @@ export default function MaintenanceContractModal({
               )}
             </section>
 
-            <section className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">5. Clauses</p>
+            <section className="bg-stone-50 border border-stone-100 rounded-2xl p-4 space-y-4">
+              <p className="text-xs uppercase tracking-wide text-stone-500">5. Clauses</p>
               <textarea
                 value={contractText}
                 onChange={(e) => setContractText(e.target.value)}
                 rows={16}
-                className="w-full border border-gray-200 rounded-2xl px-3 py-2 text-sm font-mono"
+                className="w-full border border-stone-200 rounded-2xl px-3 py-2 text-sm font-mono"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-stone-500">
                 Ce texte sera sauvegardé dans les notes du contrat et pourra alimenter la génération PDF.
               </p>
             </section>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="bg-white border border-stone-100 rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="h-5 w-5 text-emerald-600" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Résumé</p>
-                  <p className="text-xs text-gray-500">Sync portail & projet</p>
+                  <p className="text-sm font-semibold text-stone-900">Résumé</p>
+                  <p className="text-xs text-stone-500">Sync portail & projet</p>
                 </div>
               </div>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-stone-600">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-gray-400" />
+                  <Building2 className="h-4 w-4 text-stone-400" />
                   {selectedClient ? (
                     <span>{selectedClient.company || selectedClient.name}</span>
                   ) : (
-                    <span className="text-gray-400">Client non sélectionné</span>
+                    <span className="text-stone-400">Client non sélectionné</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-gray-400" />
+                  <Globe className="h-4 w-4 text-stone-400" />
                   {selectedClient?.permissions?.canAccessPortal ? (
                     <span>Portail client actif</span>
                   ) : (
@@ -716,27 +716,27 @@ export default function MaintenanceContractModal({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-gray-400" />
+                  <Wallet className="h-4 w-4 text-stone-400" />
                   <span>{formatCurrency(formState.annualPrice)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CalendarRange className="h-4 w-4 text-gray-400" />
+                  <CalendarRange className="h-4 w-4 text-stone-400" />
                   <span>
                     {formState.startDate || '—'} → {formState.endDate || '—'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 text-gray-400" />
+                  <ClipboardCheck className="h-4 w-4 text-stone-400" />
                   <span>{formState.coverage.responseTime}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="bg-white border border-stone-100 rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Techniciens attitrés</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-semibold text-stone-900">Techniciens attitrés</p>
+                  <p className="text-xs text-stone-500">
                     Ils seront prioritaires sur la planification préventive et le marketplace.
                   </p>
                 </div>
@@ -750,12 +750,12 @@ export default function MaintenanceContractModal({
                   value={technicianFilter}
                   onChange={(e) => setTechnicianFilter(e.target.value)}
                   placeholder="Filtrer par nom, zone ou compétence"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
               <div className="max-h-56 overflow-auto pr-1 space-y-2">
                 {filteredTechniciansList.length === 0 ? (
-                  <p className="text-xs text-gray-500">Aucun technicien disponible.</p>
+                  <p className="text-xs text-stone-500">Aucun technicien disponible.</p>
                 ) : (
                   filteredTechniciansList.map((tech) => {
                     const checked = formState.preferredTechnicians.includes(tech._id)
@@ -763,21 +763,21 @@ export default function MaintenanceContractModal({
                       <label
                         key={tech._id}
                         className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm cursor-pointer transition ${
-                          checked ? 'border-emerald-200 bg-emerald-50' : 'border-gray-100 hover:border-emerald-200'
+                          checked ? 'border-emerald-200 bg-emerald-50' : 'border-stone-100 hover:border-emerald-200'
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => togglePreferredTechnician(tech._id)}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          className="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
                         />
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-900 flex items-center gap-2">
+                          <p className="font-semibold text-stone-900 flex items-center gap-2">
                             <Users className="h-4 w-4 text-emerald-600" />
                             {tech.name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-stone-500">
                             {tech.zone || 'Zone non définie'}
                             {tech.phone ? ` • ${tech.phone}` : ''}
                           </p>
@@ -789,13 +789,13 @@ export default function MaintenanceContractModal({
               </div>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2 text-sm text-gray-600">
-              <p className="text-xs font-semibold uppercase text-gray-500">Sites couverts</p>
+            <div className="bg-white border border-stone-100 rounded-2xl p-4 shadow-sm space-y-2 text-sm text-stone-600">
+              <p className="text-xs font-semibold uppercase text-stone-500">Sites couverts</p>
               {selectedTemplate.sites.map((site) => (
-                <div key={site.name} className="border border-gray-100 rounded-xl p-3">
-                  <p className="font-semibold text-gray-900">{site.name}</p>
-                  <p className="text-xs text-gray-500">{site.address}</p>
-                  <p className="text-xs text-gray-400 mt-1">
+                <div key={site.name} className="border border-stone-100 rounded-xl p-3">
+                  <p className="font-semibold text-stone-900">{site.name}</p>
+                  <p className="text-xs text-stone-500">{site.address}</p>
+                  <p className="text-xs text-stone-400 mt-1">
                     {site.equipment.length} équipement(s) référencés
                   </p>
                 </div>

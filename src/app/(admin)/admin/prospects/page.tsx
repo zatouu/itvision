@@ -39,10 +39,10 @@ const SECTORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   new: 'bg-blue-100 text-blue-700',
   contacted: 'bg-yellow-100 text-yellow-700',
-  interested: 'bg-green-100 text-green-700',
+  interested: 'bg-emerald-100 text-emerald-800',
   not_interested: 'bg-red-100 text-red-700',
   converted: 'bg-emerald-100 text-emerald-700',
-  bounced: 'bg-gray-100 text-gray-500',
+  bounced: 'bg-stone-100 text-stone-500',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -146,8 +146,8 @@ export default function LeadsPage() {
             <Users className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Prospects B2B</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-stone-900">Prospects B2B</h1>
+            <p className="text-sm text-stone-500">
               Gérez vos prospects entreprise et envoyez-leur des campagnes email ciblées.
             </p>
           </div>
@@ -155,43 +155,43 @@ export default function LeadsPage() {
 
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-xs text-gray-500">Total prospects</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            <div className="bg-white border border-stone-200 rounded-lg p-4">
+              <p className="text-xs text-stone-500">Total prospects</p>
+              <p className="text-2xl font-bold text-stone-900">{stats.total}</p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-xs text-gray-500">Nouveaux</p>
+            <div className="bg-white border border-stone-200 rounded-lg p-4">
+              <p className="text-xs text-stone-500">Nouveaux</p>
               <p className="text-2xl font-bold text-blue-600">{stats.byStatus?.new || 0}</p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-xs text-gray-500">Contactés</p>
+            <div className="bg-white border border-stone-200 rounded-lg p-4">
+              <p className="text-xs text-stone-500">Contactés</p>
               <p className="text-2xl font-bold text-yellow-600">{stats.byStatus?.contacted || 0}</p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-xs text-gray-500">Convertis</p>
+            <div className="bg-white border border-stone-200 rounded-lg p-4">
+              <p className="text-xs text-stone-500">Convertis</p>
               <p className="text-2xl font-bold text-emerald-600">{stats.byStatus?.converted || 0}</p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+      <div className="bg-white border border-stone-200 rounded-xl shadow-sm">
+        <div className="p-4 border-b border-stone-200 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
           <div className="flex items-center gap-2 flex-1">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
               <input
                 type="text"
                 placeholder="Rechercher..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <select
               value={sectorFilter}
               onChange={e => { setSectorFilter(e.target.value); setPage(1) }}
-              className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
+              className="px-3 py-2 rounded-lg border border-stone-300 text-sm"
             >
               <option value="">Tous secteurs</option>
               {Object.entries(SECTORS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -199,7 +199,7 @@ export default function LeadsPage() {
             <select
               value={statusFilter}
               onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-              className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
+              className="px-3 py-2 rounded-lg border border-stone-300 text-sm"
             >
               <option value="">Tous statuts</option>
               {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -208,7 +208,7 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowImportModal(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm text-gray-700"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-300 hover:bg-stone-50 text-sm text-stone-700"
             >
               <Upload className="w-4 h-4" /> Importer
             </button>
@@ -223,7 +223,7 @@ export default function LeadsPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-gray-700 font-medium">
+            <thead className="bg-stone-50 text-stone-700 font-medium">
               <tr>
                 <th className="px-4 py-3">Entreprise</th>
                 <th className="px-4 py-3">Contact</th>
@@ -233,35 +233,35 @@ export default function LeadsPage() {
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-stone-100">
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Chargement...
                 </td></tr>
               ) : leads.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                   Aucun prospect. Cliquez sur "Ajouter" ou "Importer" pour commencer.
                 </td></tr>
               ) : leads.map(lead => (
-                <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
+                <tr key={lead._id} className="hover:bg-stone-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <Building2 className="w-4 h-4 text-stone-400 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-gray-900">{lead.companyName}</p>
-                        {lead.website && <p className="text-xs text-gray-400">{lead.website}</p>}
+                        <p className="font-medium text-stone-900">{lead.companyName}</p>
+                        {lead.website && <p className="text-xs text-stone-400">{lead.website}</p>}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-gray-700">{lead.contactName || '-'}</p>
-                    <p className="text-xs text-gray-400">{lead.email}</p>
-                    {lead.phone && <p className="text-xs text-gray-400">{lead.phone}</p>}
+                    <p className="text-stone-700">{lead.contactName || '-'}</p>
+                    <p className="text-xs text-stone-400">{lead.email}</p>
+                    {lead.phone && <p className="text-xs text-stone-400">{lead.phone}</p>}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{SECTORS[lead.sector] || lead.sector}</td>
-                  <td className="px-4 py-3 text-gray-600">{lead.city || '-'}</td>
+                  <td className="px-4 py-3 text-stone-600">{SECTORS[lead.sector] || lead.sector}</td>
+                  <td className="px-4 py-3 text-stone-600">{lead.city || '-'}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[lead.status] || 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[lead.status] || 'bg-stone-100 text-stone-600'}`}>
                       {STATUS_LABELS[lead.status] || lead.status}
                     </span>
                   </td>
@@ -269,7 +269,7 @@ export default function LeadsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => { setEditingLead(lead); setShowAddModal(true) }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                        className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500"
                         title="Modifier"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -290,18 +290,18 @@ export default function LeadsPage() {
         </div>
 
         {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">{total} prospect(s) — Page {page} / {totalPages}</p>
+          <div className="p-4 border-t border-stone-200 flex items-center justify-between">
+            <p className="text-sm text-stone-500">{total} prospect(s) — Page {page} / {totalPages}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 text-sm"
+                className="px-3 py-1.5 rounded-lg border border-stone-300 hover:bg-stone-50 disabled:opacity-40 text-sm"
               >Précédent</button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 text-sm"
+                className="px-3 py-1.5 rounded-lg border border-stone-300 hover:bg-stone-50 disabled:opacity-40 text-sm"
               >Suivant</button>
             </div>
           </div>
@@ -342,65 +342,65 @@ function LeadModal({ lead, onClose, onSave }: { lead: Lead | null; onClose: () =
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">{lead ? 'Modifier le prospect' : 'Nouveau prospect'}</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
+        <div className="p-5 border-b border-stone-200 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-stone-900">{lead ? 'Modifier le prospect' : 'Nouveau prospect'}</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-stone-100"><X className="w-5 h-5 text-stone-500" /></button>
         </div>
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700">Entreprise *</label>
+              <label className="text-sm font-medium text-stone-700">Entreprise *</label>
               <input value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Contact</label>
+              <label className="text-sm font-medium text-stone-700">Contact</label>
               <input value={form.contactName} onChange={e => setForm({ ...form, contactName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Email *</label>
+              <label className="text-sm font-medium text-stone-700">Email *</label>
               <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Téléphone</label>
+              <label className="text-sm font-medium text-stone-700">Téléphone</label>
               <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Secteur</label>
+              <label className="text-sm font-medium text-stone-700">Secteur</label>
               <select value={form.sector} onChange={e => setForm({ ...form, sector: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1">
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1">
                 {Object.entries(SECTORS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Ville</label>
+              <label className="text-sm font-medium text-stone-700">Ville</label>
               <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Site web</label>
+              <label className="text-sm font-medium text-stone-700">Site web</label>
               <input value={form.website} onChange={e => setForm({ ...form, website: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Statut</label>
+              <label className="text-sm font-medium text-stone-700">Statut</label>
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1">
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1">
                 {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">Notes</label>
+            <label className="text-sm font-medium text-stone-700">Notes</label>
             <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              rows={3} className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm mt-1" />
+              rows={3} className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm mt-1" />
           </div>
         </div>
-        <div className="p-5 border-t border-gray-200 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm">Annuler</button>
+        <div className="p-5 border-t border-stone-200 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-stone-300 hover:bg-stone-50 text-sm">Annuler</button>
           <button onClick={() => onSave(form)} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
             {lead ? 'Enregistrer' : 'Créer'}
           </button>
@@ -453,16 +453,16 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Importer des prospects</h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
+        <div className="p-5 border-b border-stone-200 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-stone-900">Importer des prospects</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-stone-100"><X className="w-5 h-5 text-stone-500" /></button>
         </div>
         <div className="p-5 space-y-4">
           {result ? (
             <div className="text-center py-6">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-medium text-gray-900">{result.created} prospect(s) importé(s)</p>
-              {result.skipped > 0 && <p className="text-sm text-gray-500">{result.skipped} ignoré(s) (doublons ou incomplets)</p>}
+              <p className="text-lg font-medium text-stone-900">{result.created} prospect(s) importé(s)</p>
+              {result.skipped > 0 && <p className="text-sm text-stone-500">{result.skipped} ignoré(s) (doublons ou incomplets)</p>}
               <button onClick={onClose} className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm">Fermer</button>
             </div>
           ) : (
@@ -477,10 +477,10 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
                 onChange={e => setCsvText(e.target.value)}
                 rows={8}
                 placeholder="Ex: BICIS,contact@bicis.sn,Ahamed Diop,771234567,banque_finance,Dakar"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono"
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono"
               />
               <div className="flex justify-end gap-2">
-                <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm">Annuler</button>
+                <button onClick={onClose} className="px-4 py-2 rounded-lg border border-stone-300 hover:bg-stone-50 text-sm">Annuler</button>
                 <button
                   onClick={handleImport}
                   disabled={importing || !csvText.trim()}

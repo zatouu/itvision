@@ -102,8 +102,8 @@ export default function PlatformConfigPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Configuration Plateforme</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-stone-900">Configuration Plateforme</h1>
+        <p className="text-sm text-stone-500 mt-1">
           Activez/désactivez les fonctionnalités et ajustez les paramètres de monétisation.
         </p>
       </div>
@@ -124,50 +124,50 @@ export default function PlatformConfigPage() {
       {config && (
         <div className="space-y-6">
           {/* ─── Monétisation ─── */}
-          <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-emerald-100 p-2 rounded-lg">
                 <Coins className="h-5 w-5 text-emerald-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Monétisation</h2>
+              <h2 className="text-lg font-semibold text-stone-900">Monétisation</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Mode de monétisation
                 </label>
                 <select
                   value={config.monetization.mode}
                   onChange={(e) => updateMonetization('mode', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="free">Gratuit (accumulation de XC)</option>
                   <option value="points">XC (consommation)</option>
                   <option value="commission">Commission (% sur transactions)</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-stone-500 mt-1">
                   En mode gratuit, les XC s'accumulent mais ne sont pas consommés.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Gratuit jusqu'au
                 </label>
                 <input
                   type="date"
                   value={config.monetization.freeUntil ? config.monetization.freeUntil.split('T')[0] : ''}
                   onChange={(e) => updateMonetization('freeUntil', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-stone-500 mt-1">
                   Laissez vide pour ne pas définir de date butoir.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   XC par mission gagnée (provider)
                 </label>
                 <input
@@ -175,12 +175,12 @@ export default function PlatformConfigPage() {
                   min={0}
                   value={config.monetization.pointsPerWonMission}
                   onChange={(e) => updateMonetization('pointsPerWonMission', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   XC de bienvenue (nouveau user)
                 </label>
                 <input
@@ -188,12 +188,12 @@ export default function PlatformConfigPage() {
                   min={0}
                   value={config.monetization.welcomePoints}
                   onChange={(e) => updateMonetization('welcomePoints', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Bonus parrainage (XC)
                 </label>
                 <input
@@ -201,12 +201,12 @@ export default function PlatformConfigPage() {
                   min={0}
                   value={config.monetization.referralBonusPoints}
                   onChange={(e) => updateMonetization('referralBonusPoints', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Commission (%)
                 </label>
                 <input
@@ -215,12 +215,12 @@ export default function PlatformConfigPage() {
                   max={100}
                   value={config.monetization.commissionRate}
                   onChange={(e) => updateMonetization('commissionRate', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   FCFA par XC (taux recharge)
                 </label>
                 <input
@@ -228,12 +228,12 @@ export default function PlatformConfigPage() {
                   min={1}
                   value={config.monetization.fcfaPerPoint}
                   onChange={(e) => updateMonetization('fcfaPerPoint', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Coût escrow (XC client)
                 </label>
                 <input
@@ -241,9 +241,9 @@ export default function PlatformConfigPage() {
                   min={0}
                   value={config.monetization.escrowCostPoints}
                   onChange={(e) => updateMonetization('escrowCostPoints', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-stone-500 mt-1">
                   XC prélevés au client pour chaque paiement sécurisé.
                 </p>
               </div>
@@ -251,17 +251,17 @@ export default function PlatformConfigPage() {
           </section>
 
           {/* ─── Escrow ─── */}
-          <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-blue-100 p-2 rounded-lg">
                 <ToggleLeft className="h-5 w-5 text-blue-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">Escrow & Litiges</h2>
+              <h2 className="text-lg font-semibold text-stone-900">Escrow & Litiges</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-center justify-between md:block">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Escrow activé
                 </label>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -271,12 +271,12 @@ export default function PlatformConfigPage() {
                     onChange={(e) => updateEscrow('enabled', e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                  <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
                 </label>
               </div>
 
               <div className="flex items-center justify-between md:block">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Escrow obligatoire
                 </label>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -286,12 +286,12 @@ export default function PlatformConfigPage() {
                     onChange={(e) => updateEscrow('mandatory', e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                  <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
                 </label>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Fenêtre de litige (heures)
                 </label>
                 <input
@@ -299,7 +299,7 @@ export default function PlatformConfigPage() {
                   min={1}
                   value={config.escrow.disputeWindowHours}
                   onChange={(e) => updateEscrow('disputeWindowHours', Number(e.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             </div>
@@ -318,7 +318,7 @@ export default function PlatformConfigPage() {
             <button
               onClick={fetchConfig}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 text-gray-700 px-5 py-2.5 text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-300 text-stone-700 px-5 py-2.5 text-sm font-medium hover:bg-stone-50 transition disabled:opacity-50"
             >
               <RotateCcw className="h-4 w-4" />
               Réinitialiser

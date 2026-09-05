@@ -240,25 +240,25 @@ export default function AdminImageEmbeddingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Recherche par image</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <h1 className="text-2xl font-bold text-stone-900 dark:text-white">Recherche par image</h1>
+        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
           Indexation des produits via perceptual hash (dHash + histogramme couleur). Plus la couverture
           est élevée, meilleurs sont les résultats côté utilisateur.
         </p>
       </div>
 
       {/* Couverture ─────────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Couverture du catalogue</h2>
+            <h2 className="text-lg font-bold text-stone-900 dark:text-white">Couverture du catalogue</h2>
           </div>
           <button
             type="button"
             onClick={loadCoverage}
             disabled={coverageLoading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-300 dark:hover:bg-slate-800"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${coverageLoading ? 'animate-spin' : ''}`} />
             Rafraîchir
@@ -275,43 +275,43 @@ export default function AdminImageEmbeddingsPage() {
         {coverage ? (
           <>
             <div className="mb-2 flex items-baseline justify-between">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
+              <span className="text-3xl font-bold text-stone-900 dark:text-white">
                 {coverage.indexed.toLocaleString('fr-FR')}
-                <span className="ml-1 text-base font-medium text-gray-500">
+                <span className="ml-1 text-base font-medium text-stone-500">
                   / {coverage.totalIndexable.toLocaleString('fr-FR')}
                 </span>
               </span>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+              <span className="text-2xl font-bold text-stone-900 dark:text-white">
                 {percent.toFixed(1)}%
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-slate-800">
               <div
                 className={`h-full bg-gradient-to-r ${percentColor} transition-all`}
                 style={{ width: `${Math.min(100, percent)}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
               {coverage.missing > 0
                 ? `${coverage.missing.toLocaleString('fr-FR')} produit${coverage.missing > 1 ? 's' : ''} en attente d'indexation.`
                 : 'Tous les produits avec image sont indexés.'}
             </p>
           </>
         ) : (
-          <div className="text-sm text-gray-500">Chargement…</div>
+          <div className="text-sm text-stone-500">Chargement…</div>
         )}
       </section>
 
       {/* Backfill ────────────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-violet-600" />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Indexer le catalogue</h2>
+          <h2 className="text-lg font-bold text-stone-900 dark:text-white">Indexer le catalogue</h2>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">
+            <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">
               Taille du lot
             </label>
             <input
@@ -320,9 +320,9 @@ export default function AdminImageEmbeddingsPage() {
               max={200}
               value={batchLimit}
               onChange={(e) => setBatchLimit(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
-            <p className="mt-1 text-[11px] text-gray-400">1 à 200 par appel (timeout 60s)</p>
+            <p className="mt-1 text-[11px] text-stone-400">1 à 200 par appel (timeout 60s)</p>
           </div>
           <div>
             <label className="flex items-center gap-2 mt-6">
@@ -330,9 +330,9 @@ export default function AdminImageEmbeddingsPage() {
                 type="checkbox"
                 checked={force}
                 onChange={(e) => setForce(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-stone-300"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-200">
+              <span className="text-sm text-stone-700 dark:text-stone-200">
                 Recalcul forcé (réindexe les produits déjà indexés)
               </span>
             </label>
@@ -344,9 +344,9 @@ export default function AdminImageEmbeddingsPage() {
                 checked={autoRun}
                 onChange={(e) => setAutoRun(e.target.checked)}
                 disabled={running}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-stone-300"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-200">
+              <span className="text-sm text-stone-700 dark:text-stone-200">
                 Auto-enchaîner jusqu'à 100%
               </span>
             </label>
@@ -380,7 +380,7 @@ export default function AdminImageEmbeddingsPage() {
         </div>
 
         {lastRun && (
-          <div className="mt-5 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+          <div className="mt-5 rounded-lg border border-stone-100 bg-stone-50 p-4 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex items-center gap-2 mb-2">
               {lastRun.success ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -397,7 +397,7 @@ export default function AdminImageEmbeddingsPage() {
                 <summary className="cursor-pointer text-xs text-red-600">
                   Voir {lastRun.errors.length} erreur{lastRun.errors.length > 1 ? 's' : ''}
                 </summary>
-                <ul className="mt-2 max-h-40 overflow-y-auto space-y-1 text-[11px] text-gray-600 dark:text-gray-300">
+                <ul className="mt-2 max-h-40 overflow-y-auto space-y-1 text-[11px] text-stone-600 dark:text-stone-300">
                   {lastRun.errors.map((e, i) => (
                     <li key={i} className="font-mono">
                       <strong>{e.name}</strong> — {e.error}
@@ -411,11 +411,11 @@ export default function AdminImageEmbeddingsPage() {
       </section>
 
       {/* Test live ──────────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
           <Search className="h-5 w-5 text-emerald-600" />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Test live</h2>
-          <span className="text-xs text-gray-400">
+          <h2 className="text-lg font-bold text-stone-900 dark:text-white">Test live</h2>
+          <span className="text-xs text-stone-400">
             Simule exactement ce que voit un utilisateur final
           </span>
         </div>
@@ -424,7 +424,7 @@ export default function AdminImageEmbeddingsPage() {
           {/* Colonne gauche : upload + paramètres */}
           <div>
             {!preview ? (
-              <label className="flex h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:bg-emerald-900/10">
+              <label className="flex h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:bg-emerald-900/10">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -435,22 +435,22 @@ export default function AdminImageEmbeddingsPage() {
                     if (f) onPickFile(f)
                   }}
                 />
-                <Upload className="h-7 w-7 text-gray-400" />
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                <Upload className="h-7 w-7 text-stone-400" />
+                <div className="text-sm font-medium text-stone-700 dark:text-stone-200">
                   Cliquez pour sélectionner une image
                 </div>
-                <div className="text-xs text-gray-400">JPG / PNG / WebP · max 5 Mo</div>
+                <div className="text-xs text-stone-400">JPG / PNG / WebP · max 5 Mo</div>
               </label>
             ) : (
               <div className="space-y-3">
-                <div className="relative aspect-video overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-slate-700 dark:bg-slate-800">
+                <div className="relative aspect-video overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-slate-700 dark:bg-slate-800">
                   <img src={preview} alt="aperçu" className="h-full w-full object-contain" />
                   <button
                     type="button"
                     onClick={resetSearch}
                     className="absolute top-2 right-2 rounded-full bg-white/90 p-1.5 shadow hover:bg-white"
                   >
-                    <X className="h-4 w-4 text-gray-700" />
+                    <X className="h-4 w-4 text-stone-700" />
                   </button>
                 </div>
                 <input
@@ -459,7 +459,7 @@ export default function AdminImageEmbeddingsPage() {
                   onChange={(e) => setSearchText(e.target.value)}
                   placeholder="Texte optionnel (ex: caméra dome Hikvision)"
                   maxLength={200}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
                 <button
                   type="button"
@@ -491,10 +491,10 @@ export default function AdminImageEmbeddingsPage() {
 
           {/* Colonne droite : résultats */}
           <div>
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Résultats</h3>
+            <h3 className="text-sm font-bold text-stone-700 dark:text-stone-200 mb-2">Résultats</h3>
             {!searchResults && (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800/40">
-                <ImageIcon className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+              <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-6 text-center text-sm text-stone-500 dark:border-slate-700 dark:bg-slate-800/40">
+                <ImageIcon className="mx-auto mb-2 h-8 w-8 text-stone-300" />
                 Aucune recherche lancée pour le moment.
               </div>
             )}
@@ -508,7 +508,7 @@ export default function AdminImageEmbeddingsPage() {
             {searchResults && searchResults.length > 0 && (
               <>
                 {searchMeta && (
-                  <div className="mb-2 text-[11px] text-gray-500">
+                  <div className="mb-2 text-[11px] text-stone-500">
                     {searchResults.length} résultat{searchResults.length > 1 ? 's' : ''} ·{' '}
                     {searchMeta.totalAnalyzed ?? '?'} produits comparés · couverture{' '}
                     {searchMeta.embeddingsCoverage ?? 0}%
@@ -524,9 +524,9 @@ export default function AdminImageEmbeddingsPage() {
                       href={`/produits/${r.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group rounded-lg border border-gray-200 bg-white p-2 hover:border-emerald-400 hover:shadow dark:border-slate-700 dark:bg-slate-800/60"
+                      className="group rounded-lg border border-stone-200 bg-white p-2 hover:border-emerald-400 hover:shadow dark:border-slate-700 dark:bg-slate-800/60"
                     >
-                      <div className="relative aspect-square overflow-hidden rounded bg-gray-50">
+                      <div className="relative aspect-square overflow-hidden rounded bg-stone-50">
                         {r.image ? (
                           <img
                             src={r.image}
@@ -535,14 +535,14 @@ export default function AdminImageEmbeddingsPage() {
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
-                            <ImageIcon className="h-6 w-6 text-gray-300" />
+                            <ImageIcon className="h-6 w-6 text-stone-300" />
                           </div>
                         )}
                         <span className="absolute top-1 right-1 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                           {r.similarity}%
                         </span>
                       </div>
-                      <p className="mt-1.5 line-clamp-2 text-[11px] font-medium text-gray-800 dark:text-gray-200">
+                      <p className="mt-1.5 line-clamp-2 text-[11px] font-medium text-stone-800 dark:text-stone-200">
                         {r.name}
                       </p>
                       {r.priceAmount ? (

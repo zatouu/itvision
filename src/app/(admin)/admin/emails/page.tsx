@@ -80,7 +80,7 @@ export default function EmailHistoryPage() {
     switch (status) {
       case 'sent':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
             <CheckCircle2 className="w-3 h-3" />
             Envoyé
           </span>
@@ -94,14 +94,14 @@ export default function EmailHistoryPage() {
         )
       case 'simulated':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">
             <AlertCircle className="w-3 h-3" />
             Simulé
           </span>
         )
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">
             <Clock className="w-3 h-3" />
             {status}
           </span>
@@ -128,24 +128,24 @@ export default function EmailHistoryPage() {
             <Mail className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Historique des emails</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-stone-900">Historique des emails</h1>
+            <p className="text-sm text-stone-500">
               Consultez tous les emails envoyés. Une copie est automatiquement envoyée à contact@itvisionplus.sn.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+      <div className="bg-white border border-stone-200 rounded-xl shadow-sm">
+        <div className="p-4 border-b border-stone-200 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
           <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
             <input
               type="text"
               placeholder="Rechercher par sujet, destinataire..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -155,7 +155,7 @@ export default function EmailHistoryPage() {
                 setStatusFilter(e.target.value)
                 setPagination(p => ({ ...p, page: 1 }))
               }}
-              className="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Tous les statuts</option>
               <option value="sent">Envoyé</option>
@@ -164,7 +164,7 @@ export default function EmailHistoryPage() {
             </select>
             <button
               onClick={fetchEmails}
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600"
+              className="p-2 rounded-lg border border-stone-300 hover:bg-stone-50 text-stone-600"
               title="Rafraîchir"
             >
               <Send className="w-4 h-4" />
@@ -174,7 +174,7 @@ export default function EmailHistoryPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-gray-700 font-medium">
+            <thead className="bg-stone-50 text-stone-700 font-medium">
               <tr>
                 <th className="px-4 py-3">Statut</th>
                 <th className="px-4 py-3">Sujet</th>
@@ -184,37 +184,37 @@ export default function EmailHistoryPage() {
                 <th className="px-4 py-3">Message ID</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-stone-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                     Chargement...
                   </td>
                 </tr>
               ) : emails.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                     Aucun email trouvé
                   </td>
                 </tr>
               ) : (
                 emails.map(email => (
-                  <tr key={email._id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={email._id} className="hover:bg-stone-50 transition-colors">
                     <td className="px-4 py-3">{statusBadge(email.status)}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate" title={email.subject}>
+                    <td className="px-4 py-3 font-medium text-stone-900 max-w-xs truncate" title={email.subject}>
                       {email.subject}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={email.to.join(', ')}>
+                    <td className="px-4 py-3 text-stone-600 max-w-xs truncate" title={email.to.join(', ')}>
                       {email.to.join(', ')}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={email.bcc || '-'}>
+                    <td className="px-4 py-3 text-stone-600 max-w-xs truncate" title={email.bcc || '-'}>
                       {email.bcc || '-'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                    <td className="px-4 py-3 text-stone-600 whitespace-nowrap">
                       {formatDate(email.sentAt || email.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs max-w-xs truncate" title={email.messageId || '-'}>
+                    <td className="px-4 py-3 text-stone-500 font-mono text-xs max-w-xs truncate" title={email.messageId || '-'}>
                       {email.messageId || '-'}
                     </td>
                   </tr>
@@ -225,22 +225,22 @@ export default function EmailHistoryPage() {
         </div>
 
         {pagination.totalPages > 1 && (
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+          <div className="p-4 border-t border-stone-200 flex items-center justify-between">
+            <p className="text-sm text-stone-500">
               {pagination.total} résultat(s) — Page {pagination.page} / {pagination.totalPages}
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
                 disabled={pagination.page <= 1}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600"
+                className="p-2 rounded-lg border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed text-stone-600"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setPagination(p => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
                 disabled={pagination.page >= pagination.totalPages}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600"
+                className="p-2 rounded-lg border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed text-stone-600"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

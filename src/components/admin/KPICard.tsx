@@ -32,8 +32,8 @@ export default function KPICard({
     },
     green: {
       bg: 'from-green-500 to-emerald-600',
-      light: 'bg-green-100',
-      text: 'text-green-600',
+      light: 'bg-emerald-100',
+      text: 'text-emerald-700',
       stroke: '#10b981'
     },
     purple: {
@@ -64,7 +64,7 @@ export default function KPICard({
   const dashOffset = circumference - (percentage / 100) * circumference
 
   return (
-    <div className="relative group overflow-hidden bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300">
+    <div className="relative group overflow-hidden bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-lg transition-all duration-300">
       {/* Fond gradient animé au hover */}
       <div className={`absolute inset-0 bg-gradient-to-br ${colors.bg} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
       
@@ -72,14 +72,14 @@ export default function KPICard({
         {/* En-tête avec icône */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+            <p className="text-xs font-medium text-stone-500 uppercase tracking-wide mb-1">
               {title}
             </p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-gray-900">{value}</span>
+              <span className="text-3xl font-bold text-stone-900">{value}</span>
               {trend !== 'neutral' && (
                 <span className={`text-xs font-medium ${
-                  trend === 'up' ? 'text-green-600' : 'text-red-600'
+                  trend === 'up' ? 'text-emerald-700' : 'text-red-600'
                 }`}>
                   {trend === 'up' ? '↑' : '↓'} 
                   {Math.abs(percentage - 50)}%
@@ -106,7 +106,7 @@ export default function KPICard({
                 stroke="currentColor"
                 strokeWidth="6"
                 fill="transparent"
-                className="text-gray-200"
+                className="text-stone-200"
               />
               {/* Cercle de progression */}
               <circle

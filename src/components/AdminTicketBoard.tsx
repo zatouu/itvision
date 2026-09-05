@@ -70,7 +70,7 @@ const CATEGORY_BADGE: Record<string, string> = {
   billing: 'bg-amber-50 text-amber-700 border-amber-200',
   change: 'bg-sky-50 text-sky-700 border-sky-200',
   urgent: 'bg-red-100 text-red-800 border-red-300',
-  general: 'bg-gray-100 text-gray-600 border-gray-200'
+  general: 'bg-stone-100 text-stone-600 border-stone-200'
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -78,11 +78,11 @@ const STATUS_BADGE: Record<string, string> = {
   in_progress: 'bg-blue-50 text-blue-700 border-blue-200',
   waiting_client: 'bg-amber-50 text-amber-700 border-amber-200',
   resolved: 'bg-teal-50 text-teal-700 border-teal-200',
-  closed: 'bg-gray-100 text-gray-700 border-gray-200'
+  closed: 'bg-stone-100 text-stone-700 border-stone-200'
 }
 
 const PRIORITY_BADGE: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
+  low: 'bg-stone-100 text-stone-700',
   medium: 'bg-sky-100 text-sky-700',
   high: 'bg-orange-100 text-orange-700',
   urgent: 'bg-red-100 text-red-700'
@@ -222,13 +222,13 @@ export default function AdminTicketBoard() {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="bg-white border border-stone-200 rounded-2xl shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-stone-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-500" /> Support tickets</h1>
-          <p className="text-sm text-gray-500">Suivi temps réel des demandes clients et interventions terrain.</p>
+          <h1 className="text-lg font-semibold text-stone-900 flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-500" /> Support tickets</h1>
+          <p className="text-sm text-stone-500">Suivi temps réel des demandes clients et interventions terrain.</p>
         </div>
-        <button onClick={fetchTickets} className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+        <button onClick={fetchTickets} className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50">
           <RefreshCcw className="h-4 w-4" /> Rafraîchir
         </button>
       </div>
@@ -236,19 +236,19 @@ export default function AdminTicketBoard() {
       <div className="grid gap-6 px-6 py-6 xl:grid-cols-5">
         <aside className="xl:col-span-2 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-stone-500">
               <Filter className="h-4 w-4" />
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-stone-200 rounded-lg px-2 py-1 text-xs">
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs">
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="border border-stone-200 rounded-lg px-2 py-1 text-xs">
                 {CATEGORY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs">
+              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="border border-stone-200 rounded-lg px-2 py-1 text-xs">
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -258,32 +258,32 @@ export default function AdminTicketBoard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Recherche"
-              className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
-          <div className="rounded-2xl border border-gray-100 max-h-[420px] overflow-y-auto divide-y">
-            {loadingList && <p className="text-sm text-gray-500 p-4">Chargement des tickets...</p>}
-            {!loadingList && tickets.length === 0 && <p className="text-sm text-gray-500 p-4">Aucun ticket pour le moment.</p>}
+          <div className="rounded-2xl border border-stone-100 max-h-[420px] overflow-y-auto divide-y">
+            {loadingList && <p className="text-sm text-stone-500 p-4">Chargement des tickets...</p>}
+            {!loadingList && tickets.length === 0 && <p className="text-sm text-stone-500 p-4">Aucun ticket pour le moment.</p>}
             {tickets.map((ticket) => {
               const active = ticket.id === selectedId
               return (
                 <button
                   key={ticket.id}
                   onClick={() => setSelectedId(ticket.id)}
-                  className={`w-full text-left px-4 py-3 transition ${active ? 'bg-emerald-50 border-l-4 border-emerald-500' : 'hover:bg-gray-50'}`}
+                  className={`w-full text-left px-4 py-3 transition ${active ? 'bg-emerald-50 border-l-4 border-emerald-500' : 'hover:bg-stone-50'}`}
                 >
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-stone-500">
                     <span>{PRIORITY_OPTIONS.find((p) => p.value === ticket.priority)?.label || ticket.priority}</span>
                     <span>{formatDate(ticket.updatedAt)}</span>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{ticket.title}</p>
+                  <p className="text-sm font-semibold text-stone-900 truncate">{ticket.title}</p>
                   <span className="inline-flex items-center gap-1.5 mt-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[ticket.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[ticket.status] || 'bg-stone-100 text-stone-600 border-stone-200'}`}>
                       {STATUS_OPTIONS.find((s) => s.value === ticket.status)?.label || ticket.status}
                     </span>
                     {ticket.category && ticket.category !== 'general' && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${CATEGORY_BADGE[ticket.category] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${CATEGORY_BADGE[ticket.category] || 'bg-stone-100 text-stone-600 border-stone-200'}`}>
                         {CATEGORY_OPTIONS.find((c) => c.value === ticket.category)?.label || ticket.category}
                       </span>
                     )}
@@ -294,26 +294,26 @@ export default function AdminTicketBoard() {
           </div>
         </aside>
 
-        <section className="xl:col-span-3 border border-gray-100 rounded-2xl p-6 space-y-4 min-h-[460px]">
-          {loadingDetail && <p className="text-sm text-gray-500">Chargement du ticket...</p>}
+        <section className="xl:col-span-3 border border-stone-100 rounded-2xl p-6 space-y-4 min-h-[460px]">
+          {loadingDetail && <p className="text-sm text-stone-500">Chargement du ticket...</p>}
 
           {!loadingDetail && detail && (
             <div className="space-y-5">
-              <div className="flex flex-col gap-2 border-b border-gray-100 pb-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-2 border-b border-stone-100 pb-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{detail.title}</h2>
-                  <p className="text-xs text-gray-500 flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[detail.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                  <h2 className="text-lg font-semibold text-stone-900">{detail.title}</h2>
+                  <p className="text-xs text-stone-500 flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[detail.status] || 'bg-stone-100 text-stone-600 border-stone-200'}`}>
                       {STATUS_OPTIONS.find((s) => s.value === detail.status)?.label || detail.status}
                     </span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${PRIORITY_BADGE[detail.priority] || 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${PRIORITY_BADGE[detail.priority] || 'bg-stone-100 text-stone-600'}`}>
                       {PRIORITY_OPTIONS.find((p) => p.value === detail.priority)?.label || detail.priority}
                     </span>
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">Créé le {formatDate(detail.createdAt)}</p>
+                  <p className="text-xs text-stone-400 mt-1">Créé le {formatDate(detail.createdAt)}</p>
                 </div>
                 <div className="flex gap-2 text-xs">
-                  <button onClick={() => updateTicket({ status: 'in_progress' })} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+                  <button onClick={() => updateTicket({ status: 'in_progress' })} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50">
                     <Users2 className="h-4 w-4" /> Prendre en charge
                   </button>
                   <button onClick={() => updateTicket({ status: 'resolved' })} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50">
@@ -324,12 +324,12 @@ export default function AdminTicketBoard() {
 
               <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
                 {detail.messages.map((message, idx) => (
-                  <div key={`${message.createdAt}-${idx}`} className={`rounded-xl border p-4 ${message.authorRole === 'CLIENT' ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div key={`${message.createdAt}-${idx}`} className={`rounded-xl border p-4 ${message.authorRole === 'CLIENT' ? 'bg-emerald-50 border-emerald-100' : 'bg-stone-50 border-stone-100'}`}>
+                    <div className="flex items-center justify-between text-xs text-stone-500">
                       <span className="font-medium">{message.authorRole === 'CLIENT' ? 'Client' : message.authorRole === 'TECHNICIAN' ? 'Technicien' : 'Admin'}</span>
                       <span>{formatDate(message.createdAt)}</span>
                     </div>
-                    <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{message.message}</p>
+                    <p className="text-sm text-stone-800 mt-1 whitespace-pre-wrap">{message.message}</p>
                     {message.attachments?.length ? (
                       <ul className="mt-2 text-xs text-emerald-600 space-y-1">
                         {message.attachments.map((att, index) => (
@@ -342,15 +342,15 @@ export default function AdminTicketBoard() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs text-gray-500">Répondre au ticket</label>
+                <label className="text-xs text-stone-500">Répondre au ticket</label>
                 <textarea
                   value={messageDraft}
                   onChange={(e) => setMessageDraft(e.target.value)}
                   rows={3}
-                  className="w-full text-sm px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-sm px-3 py-2 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Écrivez votre message ou compte rendu"
                 />
-                <div className="flex justify-between items-center text-xs text-gray-500">
+                <div className="flex justify-between items-center text-xs text-stone-500">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex items-center gap-1 text-red-600"><ShieldAlert className="h-4 w-4" /> SLA : {selectedTicket ? formatDate(selectedTicket.updatedAt) : '—'}</span>
                     <span className="inline-flex items-center gap-1 text-blue-600"><BellRing className="h-4 w-4" /> Notifications envoyées</span>
@@ -359,7 +359,7 @@ export default function AdminTicketBoard() {
                     type="button"
                     onClick={handleSendMessage}
                     disabled={sendingMessage || !messageDraft.trim()}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${sendingMessage || !messageDraft.trim() ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${sendingMessage || !messageDraft.trim() ? 'bg-stone-200 text-stone-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                   >
                     {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Envoyer
                   </button>
@@ -369,7 +369,7 @@ export default function AdminTicketBoard() {
           )}
 
           {!loadingDetail && !detail && (
-            <div className="h-full flex items-center justify-center text-sm text-gray-500">
+            <div className="h-full flex items-center justify-center text-sm text-stone-500">
               Sélectionnez un ticket pour afficher les détails.
             </div>
           )}

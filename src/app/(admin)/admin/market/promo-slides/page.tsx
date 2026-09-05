@@ -184,10 +184,10 @@ export default function PromoSlidesPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <div className="animate-pulse h-8 w-48 bg-gray-200 rounded mb-6" />
+        <div className="animate-pulse h-8 w-48 bg-stone-200 rounded mb-6" />
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-gray-100 rounded-2xl" />
+            <div key={i} className="h-24 bg-stone-100 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -198,8 +198,8 @@ export default function PromoSlidesPage() {
     <div className="p-6 lg:p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Slides promotionnelles</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-stone-900">Slides promotionnelles</h1>
+          <p className="text-sm text-stone-500 mt-1">
             Gérez les slides du carrousel en page d&apos;accueil. Les slides actives et dans la période de validité s&apos;affichent.
           </p>
         </div>
@@ -224,61 +224,61 @@ export default function PromoSlidesPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+          className="mb-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">
+            <h2 className="text-lg font-bold text-stone-900">
               {editing ? 'Modifier la slide' : 'Nouvelle slide'}
             </h2>
-            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+            <button onClick={handleCancel} className="text-stone-400 hover:text-stone-600">
               <X className="h-5 w-5" />
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Titre *</label>
               <input
                 type="text"
                 value={form.title || ''}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                 placeholder="Titre de la slide"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sous-titre</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Sous-titre</label>
               <input
                 type="text"
                 value={form.subtitle || ''}
                 onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                 placeholder="Description courte"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Texte du bouton</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Texte du bouton</label>
               <input
                 type="text"
                 value={form.ctaText || ''}
                 onChange={(e) => setForm((f) => ({ ...f, ctaText: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lien du bouton</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Lien du bouton</label>
               <input
                 type="text"
                 value={form.ctaLink || ''}
                 onChange={(e) => setForm((f) => ({ ...f, ctaLink: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                 placeholder="/produits"
               />
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Couleur de fond</label>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Couleur de fond</label>
             <div className="flex flex-wrap gap-2">
               {DEFAULT_COLORS.map((c) => (
                 <button
@@ -290,7 +290,7 @@ export default function PromoSlidesPage() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                     form.bgColor === c.value
                       ? 'border-emerald-500 ring-2 ring-emerald-200 bg-emerald-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-stone-200 hover:border-stone-300'
                   }`}
                 >
                   {c.label}
@@ -301,16 +301,16 @@ export default function PromoSlidesPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ordre</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Ordre</label>
               <input
                 type="number"
                 value={form.order ?? 0}
                 onChange={(e) => setForm((f) => ({ ...f, order: parseInt(e.target.value) || 0 }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Date début</label>
               <input
                 type="datetime-local"
                 value={form.startDate ? new Date(form.startDate).toISOString().slice(0, 16) : ''}
@@ -320,11 +320,11 @@ export default function PromoSlidesPage() {
                     startDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Date fin</label>
               <input
                 type="datetime-local"
                 value={form.endDate ? new Date(form.endDate).toISOString().slice(0, 16) : ''}
@@ -334,20 +334,20 @@ export default function PromoSlidesPage() {
                     endDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-stone-700 mb-1">
               Images (une URL par ligne, max 4)
             </label>
             <textarea
               value={imageInput}
               onChange={(e) => setImageInput(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+              className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
               placeholder="https://exemple.com/image1.jpg&#10;https://exemple.com/image2.jpg"
             />
           </div>
@@ -362,7 +362,7 @@ export default function PromoSlidesPage() {
             </button>
             <button
               onClick={handleCancel}
-              className="px-5 py-2.5 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl font-medium text-stone-600 hover:bg-stone-100 transition-colors"
             >
               Annuler
             </button>
@@ -373,10 +373,10 @@ export default function PromoSlidesPage() {
       {/* Liste */}
       <div className="space-y-3">
         {slides.length === 0 ? (
-          <div className="text-center py-12 bg-white border border-gray-200 rounded-2xl">
-            <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Aucune slide configurée</p>
-            <p className="text-sm text-gray-400">Les slides par défaut s&apos;afficheront sur le site</p>
+          <div className="text-center py-12 bg-white border border-stone-200 rounded-2xl">
+            <ImageIcon className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+            <p className="text-stone-500">Aucune slide configurée</p>
+            <p className="text-sm text-stone-400">Les slides par défaut s&apos;afficheront sur le site</p>
           </div>
         ) : (
           slides.map((slide) => (
@@ -385,34 +385,34 @@ export default function PromoSlidesPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-shadow hover:shadow-sm ${
-                slide.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'
+                slide.isActive ? 'border-stone-200' : 'border-stone-200 opacity-60'
               }`}
             >
-              <div className="text-gray-400">
+              <div className="text-stone-400">
                 <GripVertical className="h-4 w-4" />
               </div>
 
               <div
-                className={`w-12 h-12 rounded-xl bg-gradient-to-r ${slide.bgColor || 'from-gray-100 to-gray-200'} flex-shrink-0`}
+                className={`w-12 h-12 rounded-xl bg-gradient-to-r ${slide.bgColor || 'from-stone-100 to-stone-200'} flex-shrink-0`}
               />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900 truncate">{slide.title}</h3>
+                  <h3 className="font-bold text-stone-900 truncate">{slide.title}</h3>
                   {slide.isActive ? (
                     <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
                       <Eye className="h-3 w-3" />
                       Active
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1 bg-stone-100 text-stone-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
                       <EyeOff className="h-3 w-3" />
                       Inactive
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 truncate">{slide.subtitle}</p>
-                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                <p className="text-sm text-stone-500 truncate">{slide.subtitle}</p>
+                <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
                   <span>Ordre: {slide.order}</span>
                   <span>·</span>
                   <span>{slide.images?.length || 0} image(s)</span>
@@ -428,21 +428,21 @@ export default function PromoSlidesPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleActive(slide)}
-                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                  className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
                   title={slide.isActive ? 'Désactiver' : 'Activer'}
                 >
                   {slide.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
                 <button
                   onClick={() => handleEdit(slide)}
-                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                  className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
                   title="Modifier"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleDelete(slide._id)}
-                  className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+                  className="p-2 rounded-lg hover:bg-red-50 text-stone-500 hover:text-red-600 transition-colors"
                   title="Supprimer"
                 >
                   <Trash2 className="h-4 w-4" />

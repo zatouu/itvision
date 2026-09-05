@@ -421,10 +421,10 @@ export default function AdminOrdersPage() {
       confirmed: 'bg-blue-100 text-blue-800',
       processing: 'bg-purple-100 text-purple-800',
       shipped: 'bg-indigo-100 text-indigo-800',
-      delivered: 'bg-green-100 text-green-800',
+      delivered: 'bg-emerald-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800'
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return colors[status] || 'bg-stone-100 text-stone-800'
   }
 
   const paymentBadgeColor = (status: string) => {
@@ -433,11 +433,11 @@ export default function AdminOrdersPage() {
       completed: 'bg-emerald-100 text-emerald-800',
       failed: 'bg-red-100 text-red-800'
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return colors[status] || 'bg-stone-100 text-stone-800'
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-stone-50">
       {/* Notifications */}
       <AnimatePresence>
         {notificationMessage && (
@@ -538,18 +538,18 @@ export default function AdminOrdersPage() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg mb-8"
+          className="bg-white rounded-2xl border border-stone-200 p-6 shadow-lg mb-8"
         >
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Recherche */}
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-3 w-5 h-5 text-stone-400" />
               <input
                 type="text"
                 placeholder="Chercher par ID, nom, téléphone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
             </div>
 
@@ -558,7 +558,7 @@ export default function AdminOrdersPage() {
               <select
                 value={filterStatus || 'all'}
                 onChange={(e) => setFilterStatus(e.target.value === 'all' ? null : e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente</option>
@@ -575,7 +575,7 @@ export default function AdminOrdersPage() {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               >
                 <option value="all">Toutes les dates</option>
                 <option value="today">Aujourd&apos;hui</option>
@@ -589,7 +589,7 @@ export default function AdminOrdersPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               >
                 <option value="date">Plus récentes</option>
                 <option value="amount">Montant décroissant</option>
@@ -611,33 +611,33 @@ export default function AdminOrdersPage() {
         {/* Tableau des commandes */}
         {loading ? (
           <div className="flex items-center justify-center h-96">
-            <div className="text-gray-500">Chargement des commandes...</div>
+            <div className="text-stone-500">Chargement des commandes...</div>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-red-700">
             Erreur: {error}
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center text-gray-500">
+          <div className="bg-stone-50 border border-stone-200 rounded-lg p-12 text-center text-stone-500">
             Aucune commande trouvée
           </div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden"
+            className="bg-white rounded-2xl border border-stone-200 shadow-lg overflow-hidden"
           >
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-stone-50 border-b border-stone-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">ID Commande</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Client</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Montant</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Statut</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Paiement</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Date</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">Actions</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">ID Commande</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Client</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Montant</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Statut</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Paiement</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Date</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-stone-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -647,19 +647,19 @@ export default function AdminOrdersPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: idx * 0.02 }}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition"
+                      className="border-b border-stone-200 hover:bg-stone-50 transition"
                     >
                       <td className="px-6 py-4">
                         <span className="font-mono text-sm font-bold text-blue-600">{order.orderId}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="font-semibold text-gray-900">{order.clientName}</span>
-                          <span className="text-xs text-gray-500">{order.clientPhone}</span>
+                          <span className="font-semibold text-stone-900">{order.clientName}</span>
+                          <span className="text-xs text-stone-500">{order.clientPhone}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-bold text-gray-900">{formatCurrency(order.total)}</span>
+                        <span className="font-bold text-stone-900">{formatCurrency(order.total)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeColor(order.status)}`}>
@@ -671,7 +671,7 @@ export default function AdminOrdersPage() {
                           {paymentLabels[order.paymentStatus] || order.paymentStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-stone-600">
                         {formatDate(order.createdAt)}
                       </td>
                       <td className="px-6 py-4">
@@ -794,46 +794,46 @@ export default function AdminOrdersPage() {
               <div className="p-6 space-y-6">
                 {/* Client */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-stone-900 mb-3 flex items-center gap-2">
                     <User className="w-5 h-5 text-blue-600" />
                     Informations Client
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-gray-600">Nom:</span> <span className="font-semibold">{selectedOrder.clientName}</span></p>
-                    <p><span className="text-gray-600">Téléphone:</span> <span className="font-semibold">{selectedOrder.clientPhone}</span></p>
-                    {selectedOrder.clientEmail && <p><span className="text-gray-600">Email:</span> <span className="font-semibold">{selectedOrder.clientEmail}</span></p>}
+                    <p><span className="text-stone-600">Nom:</span> <span className="font-semibold">{selectedOrder.clientName}</span></p>
+                    <p><span className="text-stone-600">Téléphone:</span> <span className="font-semibold">{selectedOrder.clientPhone}</span></p>
+                    {selectedOrder.clientEmail && <p><span className="text-stone-600">Email:</span> <span className="font-semibold">{selectedOrder.clientEmail}</span></p>}
                   </div>
                 </div>
 
                 {/* Adresse */}
                 {selectedOrder.address && (
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-stone-900 mb-3 flex items-center gap-2">
                       <MapPin className="w-5 h-5 text-emerald-600" />
                       Adresse de Livraison
                     </h3>
-                    <div className="space-y-1 text-sm bg-gray-50 p-4 rounded-lg">
+                    <div className="space-y-1 text-sm bg-stone-50 p-4 rounded-lg">
                       <p className="font-semibold">{selectedOrder.address.street}</p>
                       <p>{[selectedOrder.address.neighborhood, selectedOrder.address.city, selectedOrder.address.department].filter(Boolean).join(', ')}</p>
                       <p>{selectedOrder.address.region || 'Sénégal'}</p>
-                      {selectedOrder.address.additionalInfo && <p className="text-gray-600 italic mt-2">Note: {selectedOrder.address.additionalInfo}</p>}
+                      {selectedOrder.address.additionalInfo && <p className="text-stone-600 italic mt-2">Note: {selectedOrder.address.additionalInfo}</p>}
                     </div>
                   </div>
                 )}
 
                 {/* Articles */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">Articles ({selectedOrder.items.length})</h3>
+                  <h3 className="text-lg font-bold text-stone-900 mb-3">Articles ({selectedOrder.items.length})</h3>
                   <div className="space-y-2">
                     {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                      <div key={item.id} className="flex justify-between p-3 bg-stone-50 rounded-lg text-sm">
                         <div className="flex flex-col">
                           <span className="font-medium">{item.name}</span>
-                          <span className="text-xs text-gray-500">Variante: {item.variantId || 'Standard'}</span>
+                          <span className="text-xs text-stone-500">Variante: {item.variantId || 'Standard'}</span>
                         </div>
                         <div className="text-right">
                           <div>{formatCurrency(item.price * (item.qty || 1))}</div>
-                          <div className="text-xs text-gray-500">{item.qty || 1} x {formatCurrency(item.price)}</div>
+                          <div className="text-xs text-stone-500">{item.qty || 1} x {formatCurrency(item.price)}</div>
                         </div>
                       </div>
                     ))}
@@ -845,11 +845,11 @@ export default function AdminOrdersPage() {
                   {selectedOrder.fees && (
                     <>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Coût fournisseur:</span>
+                        <span className="text-stone-600">Coût fournisseur:</span>
                         <span className="font-medium">{formatCurrency(selectedOrder.fees.supplierCost)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Frais de service ({selectedOrder.fees.serviceFeeRate}%):</span>
+                        <span className="text-stone-600">Frais de service ({selectedOrder.fees.serviceFeeRate}%):</span>
                         <span className="font-medium">{formatCurrency(selectedOrder.fees.serviceFeeAmount)}</span>
                       </div>
                       {selectedOrder.fees.serviceFeeSavings > 0 && (
@@ -859,7 +859,7 @@ export default function AdminOrdersPage() {
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Assurance ({selectedOrder.fees.insuranceRate}%):</span>
+                        <span className="text-stone-600">Assurance ({selectedOrder.fees.insuranceRate}%):</span>
                         <span className="font-medium">{formatCurrency(selectedOrder.fees.insuranceAmount)}</span>
                       </div>
                       {selectedOrder.fees.quantityDiscount && selectedOrder.fees.quantityDiscount.amount > 0 && (
@@ -868,7 +868,7 @@ export default function AdminOrdersPage() {
                           <span className="font-medium">-{formatCurrency(selectedOrder.fees.quantityDiscount.amount)}</span>
                         </div>
                       )}
-                      <div className="border-t border-gray-300 my-2" />
+                      <div className="border-t border-stone-300 my-2" />
                     </>
                   )}
                   
@@ -888,7 +888,7 @@ export default function AdminOrdersPage() {
                   </div>
                   
                   {/* Détails poids */}
-                  <div className="text-xs text-gray-500 space-y-1 pt-1">
+                  <div className="text-xs text-stone-500 space-y-1 pt-1">
                     {selectedOrder.shipping.weightDetails?.actualWeight != null && selectedOrder.shipping.weightDetails.actualWeight > 0 && (
                       <p>Poids réel: {selectedOrder.shipping.weightDetails.actualWeight.toFixed(2)}kg</p>
                     )}
@@ -896,7 +896,7 @@ export default function AdminOrdersPage() {
                       <p>Poids volumétrique: {selectedOrder.shipping.weightDetails.volumetricWeight.toFixed(2)}kg</p>
                     )}
                     {selectedOrder.shipping.weightDetails?.billedWeight != null && selectedOrder.shipping.weightDetails.billedWeight > 0 && (
-                      <p className="font-medium text-gray-600">Poids facturé: {selectedOrder.shipping.weightDetails.billedWeight.toFixed(2)}kg</p>
+                      <p className="font-medium text-stone-600">Poids facturé: {selectedOrder.shipping.weightDetails.billedWeight.toFixed(2)}kg</p>
                     )}
                     {selectedOrder.shipping.totalVolume > 0 && (
                       <p>Volume: {selectedOrder.shipping.totalVolume.toFixed(4)}m³</p>

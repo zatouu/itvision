@@ -20,7 +20,7 @@ export default async function AdminComptabilitePage() {
       <div className="pt-2 pb-6">
         <div className="max-w-3xl mx-auto text-center bg-white p-8 rounded-xl border">
           <h2 className="text-xl font-bold mb-2">Accès refusé</h2>
-          <p className="text-gray-600">Cette section est réservée aux administrateurs et comptables.</p>
+          <p className="text-stone-600">Cette section est réservée aux administrateurs et comptables.</p>
         </div>
       </div>
     )

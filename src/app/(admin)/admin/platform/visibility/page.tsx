@@ -148,7 +148,7 @@ export default function VisibilityConfigPage() {
     max?: number
   }) => (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-stone-700">{label}</label>
       <input
         type="number"
         min={min}
@@ -168,14 +168,14 @@ export default function VisibilityConfigPage() {
             <Eye className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Visibilité & Notifications</h1>
-            <p className="text-sm text-gray-500">Paramètres du moteur d'escalade et de diffusion des missions</p>
+            <h1 className="text-2xl font-bold text-stone-900">Visibilité & Notifications</h1>
+            <p className="text-sm text-stone-500">Paramètres du moteur d'escalade et de diffusion des missions</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleReset}
-            className="flex items-center gap-2 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg text-stone-700 hover:bg-stone-50"
           >
             <RotateCcw className="w-4 h-4" />
             Réinitialiser
@@ -192,19 +192,19 @@ export default function VisibilityConfigPage() {
       </div>
 
       {error && <div className="mb-4 bg-red-50 text-red-700 p-4 rounded-lg text-sm">{error}</div>}
-      {success && <div className="mb-4 bg-green-50 text-green-700 p-4 rounded-lg text-sm">{success}</div>}
+      {success && <div className="mb-4 bg-emerald-50 text-emerald-800 p-4 rounded-lg text-sm">{success}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Radio className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Interrupteurs principaux</h2>
+            <h2 className="font-semibold text-stone-900">Interrupteurs principaux</h2>
           </div>
           <div className="space-y-4">
-            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-stone-50 cursor-pointer">
               <div>
-                <div className="font-medium text-gray-900">Visibility Engine activé</div>
-                <div className="text-xs text-gray-500">Si désactivé, retour au mode legacy</div>
+                <div className="font-medium text-stone-900">Visibility Engine activé</div>
+                <div className="text-xs text-stone-500">Si désactivé, retour au mode legacy</div>
               </div>
               <input
                 type="checkbox"
@@ -213,10 +213,10 @@ export default function VisibilityConfigPage() {
                 className="w-5 h-5 text-blue-600 rounded"
               />
             </label>
-            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-stone-50 cursor-pointer">
               <div>
-                <div className="font-medium text-gray-900">Exiger KYC pour recevoir les notifications</div>
-                <div className="text-xs text-gray-500">Off = tout prestataire géolocalisé est notifié</div>
+                <div className="font-medium text-stone-900">Exiger KYC pour recevoir les notifications</div>
+                <div className="text-xs text-stone-500">Off = tout prestataire géolocalisé est notifié</div>
               </div>
               <input
                 type="checkbox"
@@ -226,8 +226,8 @@ export default function VisibilityConfigPage() {
               />
             </label>
             <div className="p-3 border rounded-lg">
-              <div className="font-medium text-gray-900 mb-1">Demandes visibles dans l'app prestataire</div>
-              <div className="text-xs text-gray-500 mb-3">Portée de navigation (écran "Demandes à proximité")</div>
+              <div className="font-medium text-stone-900 mb-1">Demandes visibles dans l'app prestataire</div>
+              <div className="text-xs text-stone-500 mb-3">Portée de navigation (écran "Demandes à proximité")</div>
               <div className="space-y-2">
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input
@@ -238,8 +238,8 @@ export default function VisibilityConfigPage() {
                     className="mt-1 w-4 h-4 text-blue-600"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Uniquement ses métiers (recommandé)</div>
-                    <div className="text-xs text-gray-500">Le prestataire ne voit que les demandes de ses catégories et sous-catégories</div>
+                    <div className="text-sm font-medium text-stone-900">Uniquement ses métiers (recommandé)</div>
+                    <div className="text-xs text-stone-500">Le prestataire ne voit que les demandes de ses catégories et sous-catégories</div>
                   </div>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer">
@@ -251,8 +251,8 @@ export default function VisibilityConfigPage() {
                     className="mt-1 w-4 h-4 text-blue-600"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Toutes les catégories</div>
-                    <div className="text-xs text-gray-500">Le prestataire voit toutes les demandes de la zone, quel que soit son métier</div>
+                    <div className="text-sm font-medium text-stone-900">Toutes les catégories</div>
+                    <div className="text-xs text-stone-500">Le prestataire voit toutes les demandes de la zone, quel que soit son métier</div>
                   </div>
                 </label>
               </div>
@@ -263,7 +263,7 @@ export default function VisibilityConfigPage() {
         <div className="bg-white border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sliders className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Paramètres généraux</h2>
+            <h2 className="font-semibold text-stone-900">Paramètres généraux</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <NumberField
@@ -302,7 +302,7 @@ export default function VisibilityConfigPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Vagues d'escalade</h2>
+            <h2 className="font-semibold text-stone-900">Vagues d'escalade</h2>
           </div>
           <button
             onClick={addStage}
@@ -313,7 +313,7 @@ export default function VisibilityConfigPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-stone-50 text-stone-600">
               <tr>
                 <th className="px-3 py-2 text-left">Palier</th>
                 <th className="px-3 py-2 text-left">Rayon (km)</th>
@@ -384,7 +384,7 @@ export default function VisibilityConfigPage() {
         <div className="bg-white border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Poids du scoring</h2>
+            <h2 className="font-semibold text-stone-900">Poids du scoring</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(config.scoreWeights).map(([key, val]) => (
@@ -408,11 +408,11 @@ export default function VisibilityConfigPage() {
         <div className="bg-white border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Radio className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Fallbacks</h2>
+            <h2 className="font-semibold text-stone-900">Fallbacks</h2>
           </div>
           <div className="space-y-4">
-            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <div className="font-medium text-gray-900">Dernière position connue</div>
+            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-stone-50 cursor-pointer">
+              <div className="font-medium text-stone-900">Dernière position connue</div>
               <input
                 type="checkbox"
                 checked={config.fallback.useLastKnownPosition}
@@ -425,8 +425,8 @@ export default function VisibilityConfigPage() {
                 className="w-5 h-5 text-blue-600 rounded"
               />
             </label>
-            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <div className="font-medium text-gray-900">Ville du profil</div>
+            <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-stone-50 cursor-pointer">
+              <div className="font-medium text-stone-900">Ville du profil</div>
               <input
                 type="checkbox"
                 checked={config.fallback.useProfileCity}
@@ -443,7 +443,7 @@ export default function VisibilityConfigPage() {
         </div>
       </div>
 
-      <div className="text-xs text-gray-400">
+      <div className="text-xs text-stone-400">
         Modification sans redéploiement. Prise en compte dans les 30 secondes (cache de configuration).
       </div>
     </div>

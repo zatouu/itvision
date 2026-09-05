@@ -177,9 +177,9 @@ const getStatusChipClasses = (status: string) => {
     case 'on_hold':
       return 'bg-amber-100 text-amber-700'
     case 'draft':
-      return 'bg-gray-100 text-gray-600'
+      return 'bg-stone-100 text-stone-600'
     default:
-      return 'bg-gray-100 text-gray-600'
+      return 'bg-stone-100 text-stone-600'
   }
 }
 
@@ -465,7 +465,7 @@ export default function MaintenanceCenter() {
         value: formatCurrency(annualRevenue),
         subLabel: 'Portefeuille annuel',
         icon: PieChart,
-        accent: 'text-gray-900'
+        accent: 'text-stone-900'
       },
       {
         label: 'Clients couverts',
@@ -487,13 +487,13 @@ export default function MaintenanceCenter() {
   const renderStatusFilters = () => (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
       <div>
-        <label className="text-xs text-gray-500">Statut</label>
+        <label className="text-xs text-stone-500">Statut</label>
         <div className="relative mt-1">
-          <Filter className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Filter className="h-4 w-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            className="w-full pl-10 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -504,11 +504,11 @@ export default function MaintenanceCenter() {
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-500">Type de contrat</label>
+        <label className="text-xs text-stone-500">Type de contrat</label>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white mt-1"
+          className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white mt-1"
         >
           {typeOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -518,11 +518,11 @@ export default function MaintenanceCenter() {
         </select>
       </div>
       <div>
-        <label className="text-xs text-gray-500">Portail client</label>
+        <label className="text-xs text-stone-500">Portail client</label>
         <select
           value={portalFilter}
           onChange={(e) => setPortalFilter(e.target.value as 'all' | 'portal' | 'noPortal')}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white mt-1"
+          className="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white mt-1"
         >
           {portalOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -532,14 +532,14 @@ export default function MaintenanceCenter() {
         </select>
       </div>
       <div>
-        <label className="text-xs text-gray-500">Vue</label>
+        <label className="text-xs text-stone-500">Vue</label>
         <div className="flex gap-2 mt-1">
           <button
             onClick={() => setViewMode('clients')}
             className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium border ${
               viewMode === 'clients'
                 ? 'bg-emerald-600 text-white border-emerald-600'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                : 'border-stone-200 text-stone-600 hover:bg-stone-50'
             }`}
           >
             Clients
@@ -549,7 +549,7 @@ export default function MaintenanceCenter() {
             className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium border ${
               viewMode === 'contracts'
                 ? 'bg-emerald-600 text-white border-emerald-600'
-                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                : 'border-stone-200 text-stone-600 hover:bg-stone-50'
             }`}
           >
             Contrats
@@ -562,7 +562,7 @@ export default function MaintenanceCenter() {
   const renderClientCard = (summary: ClientMaintenanceSummary) => {
     const { contracts } = summary
     return (
-      <div key={summary.clientKey} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div key={summary.clientKey} className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -570,14 +570,14 @@ export default function MaintenanceCenter() {
                 {(summary.company || summary.clientName).charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-lg font-semibold text-gray-900">{summary.company || summary.clientName}</p>
-                <p className="text-sm text-gray-500 flex items-center gap-2">
+                <p className="text-lg font-semibold text-stone-900">{summary.company || summary.clientName}</p>
+                <p className="text-sm text-stone-500 flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
                   {summary.clientName}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 mt-3 text-xs text-gray-500">
+            <div className="flex flex-wrap gap-3 mt-3 text-xs text-stone-500">
               {summary.portalEnabled ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
                   <Globe className="h-3.5 w-3.5" />
@@ -589,26 +589,26 @@ export default function MaintenanceCenter() {
                   Portail inactif
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 text-stone-700">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 {summary.activeContracts} contrat(s) actifs
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 text-stone-700">
                 <PieChart className="h-3.5 w-3.5" />
                 {formatCurrency(summary.totalValue)}
               </span>
             </div>
           </div>
-          <div className="flex flex-col gap-2 text-sm text-gray-600">
+          <div className="flex flex-col gap-2 text-sm text-stone-600">
             {summary.phone && (
-              <a href={`tel:${summary.phone}`} className="inline-flex items-center gap-2 hover:text-gray-900">
-                <Phone className="h-4 w-4 text-gray-400" />
+              <a href={`tel:${summary.phone}`} className="inline-flex items-center gap-2 hover:text-stone-900">
+                <Phone className="h-4 w-4 text-stone-400" />
                 {summary.phone}
               </a>
             )}
             {summary.email && (
-              <a href={`mailto:${summary.email}`} className="inline-flex items-center gap-2 hover:text-gray-900">
-                <Mail className="h-4 w-4 text-gray-400" />
+              <a href={`mailto:${summary.email}`} className="inline-flex items-center gap-2 hover:text-stone-900">
+                <Mail className="h-4 w-4 text-stone-400" />
                 {summary.email}
               </a>
             )}
@@ -626,7 +626,7 @@ export default function MaintenanceCenter() {
                 href="/portail-entreprise"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-gray-900"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 hover:text-stone-900"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 Portail client
@@ -641,7 +641,7 @@ export default function MaintenanceCenter() {
                         'pdf'
                       )
                     }
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-emerald-700"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 hover:text-emerald-700"
                   >
                     <FileText className="h-3.5 w-3.5" />
                     PDF
@@ -654,7 +654,7 @@ export default function MaintenanceCenter() {
                         'docx'
                       )
                     }
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-emerald-700"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 hover:text-emerald-700"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Word
@@ -666,16 +666,16 @@ export default function MaintenanceCenter() {
         </div>
 
             {summary.contracts.length > 0 && summary.contracts[0].preferredTechnicians?.length ? (
-              <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+              <div className="grid grid-cols-2 gap-3 text-xs text-stone-600">
                 {summary.contracts[0].preferredTechnicians?.map((tech) => (
                   <div
                     key={`${summary.clientKey}-${tech._id}`}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-100 bg-stone-50"
                   >
                     <Users className="h-3.5 w-3.5 text-emerald-600" />
                     <div>
-                      <p className="font-semibold text-gray-900">{tech.name}</p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="font-semibold text-stone-900">{tech.name}</p>
+                      <p className="text-[11px] text-stone-500">
                         {tech.email || '—'} {tech.phone ? `• ${tech.phone}` : ''}
                       </p>
                     </div>
@@ -685,24 +685,24 @@ export default function MaintenanceCenter() {
             ) : null}
 
             {summary.projects.length > 0 && (
-          <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+          <div className="rounded-xl bg-stone-50 border border-stone-100 p-4">
+            <div className="flex items-center justify-between text-xs text-stone-500 mb-2">
               <span>Projets couverts</span>
-              <span className="font-semibold text-gray-700">{summary.projects.length}</span>
+              <span className="font-semibold text-stone-700">{summary.projects.length}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {summary.projects.slice(0, 4).map((project) => (
                 <Link
                   key={project._id}
                   href={`/admin/projects?projectId=${project._id}`}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-gray-200 text-xs text-gray-600 hover:border-emerald-200 hover:text-emerald-700"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-stone-200 text-xs text-stone-600 hover:border-emerald-200 hover:text-emerald-700"
                 >
                   <FolderKanban className="h-3.5 w-3.5" />
                   {project.name}
                 </Link>
               ))}
               {summary.projects.length > 4 && (
-                <span className="text-xs text-gray-500 px-3 py-1 rounded-full bg-white border border-dashed border-gray-200">
+                <span className="text-xs text-stone-500 px-3 py-1 rounded-full bg-white border border-dashed border-stone-200">
                   +{summary.projects.length - 4} autres
                 </span>
               )}
@@ -714,12 +714,12 @@ export default function MaintenanceCenter() {
           {contracts.map((contract) => (
             <div
               key={contract._id}
-              className="border border-gray-100 rounded-2xl p-4 hover:border-emerald-200 hover:bg-emerald-50/40 transition"
+              className="border border-stone-100 rounded-2xl p-4 hover:border-emerald-200 hover:bg-emerald-50/40 transition"
             >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{contract.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-semibold text-stone-900">{contract.name}</p>
+                  <p className="text-xs text-stone-500">
                     #{contract.contractNumber || contract._id?.slice(-6)}
                   </p>
                 </div>
@@ -729,7 +729,7 @@ export default function MaintenanceCenter() {
                   >
                     {contract.status.toUpperCase()}
                   </span>
-                  <span className="text-xs font-semibold text-gray-500 capitalize">{contract.type}</span>
+                  <span className="text-xs font-semibold text-stone-500 capitalize">{contract.type}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
@@ -738,7 +738,7 @@ export default function MaintenanceCenter() {
                   onClick={() =>
                     handleExportContract(contract._id || contract.contractNumber || contract.name, 'pdf')
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-emerald-300"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-stone-200 text-stone-600 hover:border-emerald-300"
                 >
                   <FileText className="h-3 w-3" />
                   PDF
@@ -748,7 +748,7 @@ export default function MaintenanceCenter() {
                   onClick={() =>
                     handleExportContract(contract._id || contract.contractNumber || contract.name, 'docx')
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-emerald-300"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-stone-200 text-stone-600 hover:border-emerald-300"
                 >
                   <Download className="h-3 w-3" />
                   Word
@@ -757,36 +757,36 @@ export default function MaintenanceCenter() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-xs">
                 <div>
-                  <p className="text-gray-500">Expiration</p>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-stone-500">Expiration</p>
+                  <p className="text-stone-900 font-semibold">
                     {formatDays(contract.daysUntilExpiration ?? null, contract.isExpired)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Valeur annuelle</p>
-                  <p className="text-gray-900 font-semibold">{formatCurrency(contract.annualPrice)}</p>
+                  <p className="text-stone-500">Valeur annuelle</p>
+                  <p className="text-stone-900 font-semibold">{formatCurrency(contract.annualPrice)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">SLA</p>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-stone-500">SLA</p>
+                  <p className="text-stone-900 font-semibold">
                     {contract.coverage?.responseTime || '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Support</p>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-stone-500">Support</p>
+                  <p className="text-stone-900 font-semibold">
                     {contract.coverage?.supportHours || 'Heures ouvrées'}
                   </p>
                 </div>
               </div>
 
               {contract.projectId?.name && (
-                <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
+                <div className="flex items-center gap-2 mt-3 text-xs text-stone-500">
                   <FolderKanban className="h-3.5 w-3.5" />
                   Projet :{' '}
                   <Link
                     href={`/admin/projects?projectId=${typeof contract.projectId === 'object' ? contract.projectId._id : contract.projectId}`}
-                    className="text-gray-900 font-semibold hover:text-emerald-600"
+                    className="text-stone-900 font-semibold hover:text-emerald-600"
                   >
                     {contract.projectId.name}
                   </Link>
@@ -795,19 +795,19 @@ export default function MaintenanceCenter() {
 
               {contract.equipment && contract.equipment.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-xs text-gray-500 mb-1">Équipements couverts</p>
+                  <p className="text-xs text-stone-500 mb-1">Équipements couverts</p>
                   <div className="flex flex-wrap gap-2">
                     {contract.equipment.slice(0, 4).map((equipment, idx) => (
                       <span
                         key={`${contract._id}-${equipment.type}-${idx}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[11px] text-gray-600"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-stone-200 text-[11px] text-stone-600"
                       >
                         {equipment.quantity}× {equipment.type}
-                        {equipment.location ? <span className="text-gray-400">• {equipment.location}</span> : null}
+                        {equipment.location ? <span className="text-stone-400">• {equipment.location}</span> : null}
                       </span>
                     ))}
                     {contract.equipment.length > 4 && (
-                      <span className="px-2.5 py-1 rounded-full bg-white border border-dashed border-gray-200 text-[11px] text-gray-500">
+                      <span className="px-2.5 py-1 rounded-full bg-white border border-dashed border-stone-200 text-[11px] text-stone-500">
                         +{contract.equipment.length - 4}
                       </span>
                     )}
@@ -816,13 +816,13 @@ export default function MaintenanceCenter() {
               )}
 
               <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center justify-between text-xs text-stone-500">
                   <span>Utilisation</span>
-                  <span className="text-gray-900 font-semibold">
+                  <span className="text-stone-900 font-semibold">
                     {Math.min(100, Math.max(0, Math.round(contract.usageRate || 0)))}%
                   </span>
                 </div>
-                <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="mt-2 h-2 bg-stone-100 rounded-full overflow-hidden">
                   <div
                     className={`h-2 rounded-full ${
                       contract.isNearExpiration ? 'bg-orange-400' : 'bg-emerald-500'
@@ -847,11 +847,11 @@ export default function MaintenanceCenter() {
     const project = projectId ? projectMap.get(projectId) : undefined
 
     return (
-      <div key={contract._id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
+      <div key={contract._id} className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-base font-semibold text-gray-900">{contract.name}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-base font-semibold text-stone-900">{contract.name}</p>
+            <p className="text-xs text-stone-500">
               {contract.clientId?.company || contract.clientId?.name || 'Client'}
             </p>
           </div>
@@ -867,7 +867,7 @@ export default function MaintenanceCenter() {
             onClick={() =>
               handleExportContract(contract._id || contract.contractNumber || contract.name, 'pdf')
             }
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-300"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-50 border border-stone-200 text-stone-600 hover:border-emerald-300"
           >
             <FileText className="h-3 w-3" />
             PDF
@@ -877,41 +877,41 @@ export default function MaintenanceCenter() {
             onClick={() =>
               handleExportContract(contract._id || contract.contractNumber || contract.name, 'docx')
             }
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-300"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-50 border border-stone-200 text-stone-600 hover:border-emerald-300"
           >
             <Download className="h-3 w-3" />
             Word
           </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-stone-600">
           <div>
-            <p className="text-gray-500">Expiration</p>
-            <p className="text-gray-900 font-semibold">
+            <p className="text-stone-500">Expiration</p>
+            <p className="text-stone-900 font-semibold">
               {formatDays(contract.daysUntilExpiration ?? null, contract.isExpired)}
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Valeur</p>
-            <p className="text-gray-900 font-semibold">{formatCurrency(contract.annualPrice)}</p>
+            <p className="text-stone-500">Valeur</p>
+            <p className="text-stone-900 font-semibold">{formatCurrency(contract.annualPrice)}</p>
           </div>
           <div>
-            <p className="text-gray-500">Type</p>
-            <p className="text-gray-900 font-semibold capitalize">{contract.type}</p>
+            <p className="text-stone-500">Type</p>
+            <p className="text-stone-900 font-semibold capitalize">{contract.type}</p>
           </div>
           <div>
-            <p className="text-gray-500">Portail</p>
-            <p className={`font-semibold ${portalEnabled ? 'text-emerald-600' : 'text-gray-500'}`}>
+            <p className="text-stone-500">Portail</p>
+            <p className={`font-semibold ${portalEnabled ? 'text-emerald-600' : 'text-stone-500'}`}>
               {portalEnabled ? 'Actif' : 'À activer'}
             </p>
           </div>
         </div>
         {project && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-stone-500">
             <FolderKanban className="h-3.5 w-3.5" />
             Projet couvert :
             <Link
               href={`/admin/projects?projectId=${project._id}`}
-              className="text-gray-900 font-semibold hover:text-emerald-600"
+              className="text-stone-900 font-semibold hover:text-emerald-600"
             >
               {project.name}
             </Link>
@@ -919,19 +919,19 @@ export default function MaintenanceCenter() {
         )}
         {contract.equipment && contract.equipment.length > 0 && (
           <div className="mt-2">
-            <p className="text-xs text-gray-500 mb-1">Équipements</p>
+            <p className="text-xs text-stone-500 mb-1">Équipements</p>
             <div className="flex flex-wrap gap-2">
               {contract.equipment.slice(0, 3).map((equipment, idx) => (
                 <span
                   key={`${contract._id}-chip-${idx}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-50 border border-gray-100 text-[11px] text-gray-600"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-50 border border-stone-100 text-[11px] text-stone-600"
                 >
                   {equipment.quantity}× {equipment.type}
-                  {equipment.location ? <span className="text-gray-400">• {equipment.location}</span> : null}
+                  {equipment.location ? <span className="text-stone-400">• {equipment.location}</span> : null}
                 </span>
               ))}
               {contract.equipment.length > 3 && (
-                <span className="px-2.5 py-1 rounded-full bg-gray-50 border border-dashed border-gray-200 text-[11px] text-gray-500">
+                <span className="px-2.5 py-1 rounded-full bg-stone-50 border border-dashed border-stone-200 text-[11px] text-stone-500">
                   +{contract.equipment.length - 3}
                 </span>
               )}
@@ -939,17 +939,17 @@ export default function MaintenanceCenter() {
           </div>
         )}
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 text-stone-600">
             <Clock className="h-3.5 w-3.5" />
             {contract.coverage?.responseTime || 'SLA 24h'}
           </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 text-stone-600">
             <Calendar className="h-3.5 w-3.5" />
             {contract.paymentFrequency || 'Annuel'}
           </span>
         </div>
-        <div className="pt-3 border-t border-gray-100 space-y-2">
-          <p className="text-xs font-semibold text-gray-500">Techniciens attitrés</p>
+        <div className="pt-3 border-t border-stone-100 space-y-2">
+          <p className="text-xs font-semibold text-stone-500">Techniciens attitrés</p>
           {contract.preferredTechnicians?.length ? (
             <div className="flex flex-wrap gap-2">
               {contract.preferredTechnicians.map((tech) => (
@@ -964,7 +964,7 @@ export default function MaintenanceCenter() {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Aucun technicien référent pour l’instant</p>
+            <p className="text-xs text-stone-500">Aucun technicien référent pour l’instant</p>
           )}
         </div>
       </div>
@@ -1024,22 +1024,22 @@ export default function MaintenanceCenter() {
         </div>
       </section>
 
-      <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+      <section className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Filtres & recherche</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-lg font-semibold text-stone-900">Filtres & recherche</h2>
+            <p className="text-sm text-stone-500">
               Filtrez les contrats par statut, type ou activation du portail client.
             </p>
           </div>
           <div className="relative w-full md:w-80">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="h-4 w-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Rechercher client, contrat, projet..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-10 pr-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
         </div>
@@ -1056,15 +1056,15 @@ export default function MaintenanceCenter() {
       {loading ? (
         <div className="grid grid-cols-1 gap-4">
           {Array.from({ length: 3 }).map((_, idx) => (
-            <div key={idx} className="h-64 rounded-2xl bg-gray-100 animate-pulse" />
+            <div key={idx} className="h-64 rounded-2xl bg-stone-100 animate-pulse" />
           ))}
         </div>
       ) : viewMode === 'clients' ? (
         filteredClientSummaries.length === 0 ? (
-          <div className="text-center py-16 bg-white border border-dashed border-gray-200 rounded-2xl">
-            <ShieldCheck className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 font-semibold">Aucun client ne correspond aux filtres actuels</p>
-            <p className="text-sm text-gray-500">Ajustez les filtres ou créez un nouveau contrat de maintenance.</p>
+          <div className="text-center py-16 bg-white border border-dashed border-stone-200 rounded-2xl">
+            <ShieldCheck className="h-12 w-12 text-stone-300 mx-auto mb-4" />
+            <p className="text-stone-600 font-semibold">Aucun client ne correspond aux filtres actuels</p>
+            <p className="text-sm text-stone-500">Ajustez les filtres ou créez un nouveau contrat de maintenance.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5">
@@ -1072,9 +1072,9 @@ export default function MaintenanceCenter() {
           </div>
         )
       ) : filteredContracts.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-dashed border-gray-200 rounded-2xl">
-          <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600 font-semibold">Aucun contrat pour ces filtres</p>
+        <div className="text-center py-16 bg-white border border-dashed border-stone-200 rounded-2xl">
+          <FileText className="h-12 w-12 text-stone-300 mx-auto mb-4" />
+          <p className="text-stone-600 font-semibold">Aucun contrat pour ces filtres</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1082,7 +1082,7 @@ export default function MaintenanceCenter() {
         </div>
       )}
 
-      <section className="bg-gray-900 text-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-4">
+      <section className="bg-stone-900 text-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-wide text-white/70">Relation client</p>

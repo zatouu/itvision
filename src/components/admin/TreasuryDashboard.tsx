@@ -127,7 +127,7 @@ export default function TreasuryDashboard() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 border-t-transparent mx-auto" />
-          <p className="text-sm text-gray-600 mt-3">Chargement de la trésorerie...</p>
+          <p className="text-sm text-stone-600 mt-3">Chargement de la trésorerie...</p>
         </div>
       </div>
     )
@@ -239,60 +239,60 @@ export default function TreasuryDashboard() {
 
       {/* Sous-KPIs : créances/dettes / BRS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="bg-blue-100 p-2 rounded-lg"><ArrowDownRight className="h-4 w-4 text-blue-600" /></div>
-              <h3 className="text-sm font-semibold text-gray-900">Créances clients</h3>
+              <h3 className="text-sm font-semibold text-stone-900">Créances clients</h3>
             </div>
             <Link href="/admin/factures" className="text-xs text-blue-600 hover:underline">Voir →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-blue-50">
-              <p className="text-xs text-gray-500">Total ouvert</p>
+              <p className="text-xs text-stone-500">Total ouvert</p>
               <p className="text-xl font-bold text-blue-700">{fmt(k.receivablesOpen)}</p>
             </div>
             <div className="p-3 rounded-xl bg-red-50">
-              <p className="text-xs text-gray-500">En retard</p>
+              <p className="text-xs text-stone-500">En retard</p>
               <p className="text-xl font-bold text-red-700">{fmt(k.receivablesOverdue)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="bg-orange-100 p-2 rounded-lg"><ArrowUpRight className="h-4 w-4 text-orange-600" /></div>
-              <h3 className="text-sm font-semibold text-gray-900">Dettes fournisseurs</h3>
+              <h3 className="text-sm font-semibold text-stone-900">Dettes fournisseurs</h3>
             </div>
             <Link href="/admin/depenses" className="text-xs text-orange-600 hover:underline">Voir →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-orange-50">
-              <p className="text-xs text-gray-500">Total ouvert</p>
+              <p className="text-xs text-stone-500">Total ouvert</p>
               <p className="text-xl font-bold text-orange-700">{fmt(k.payablesOpen)}</p>
             </div>
             <div className="p-3 rounded-xl bg-red-50">
-              <p className="text-xs text-gray-500">En retard</p>
+              <p className="text-xs text-stone-500">En retard</p>
               <p className="text-xl font-bold text-red-700">{fmt(k.payablesOverdue)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="bg-blue-100 p-2 rounded-lg"><Receipt className="h-4 w-4 text-blue-600" /></div>
-              <h3 className="text-sm font-semibold text-gray-900">Retenue BRS</h3>
+              <h3 className="text-sm font-semibold text-stone-900">Retenue BRS</h3>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-blue-50">
-              <p className="text-xs text-gray-500">Total retenu</p>
+              <p className="text-xs text-stone-500">Total retenu</p>
               <p className="text-xl font-bold text-blue-700">{fmt(k.brsRetained)}</p>
             </div>
             <div className="p-3 rounded-xl bg-yellow-50">
-              <p className="text-xs text-gray-500">À déclarer (non payé)</p>
+              <p className="text-xs text-stone-500">À déclarer (non payé)</p>
               <p className="text-xl font-bold text-yellow-700">{fmt(k.brsPending)}</p>
             </div>
           </div>
@@ -302,11 +302,11 @@ export default function TreasuryDashboard() {
       {/* Cashflow + Pipeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Cashflow chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Cashflow mensuel</h3>
-              <p className="text-xs text-gray-500">Encaissements vs décaissements</p>
+              <h3 className="text-base font-semibold text-stone-900">Cashflow mensuel</h3>
+              <p className="text-xs text-stone-500">Encaissements vs décaissements</p>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500" />Revenus</span>
@@ -315,8 +315,8 @@ export default function TreasuryDashboard() {
             </div>
           </div>
           {data.cashflow.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 text-sm">
-              <Calendar className="h-10 w-10 mx-auto mb-2 text-gray-300" />
+            <div className="text-center py-12 text-stone-400 text-sm">
+              <Calendar className="h-10 w-10 mx-auto mb-2 text-stone-300" />
               Aucun mouvement sur la période
             </div>
           ) : (
@@ -342,7 +342,7 @@ export default function TreasuryDashboard() {
                       <div className={`text-[11px] font-bold ${c.net >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                         {fmtCompact(c.net)}
                       </div>
-                      <div className="text-[10px] text-gray-500">{c.period}</div>
+                      <div className="text-[10px] text-stone-500">{c.period}</div>
                     </div>
                   )
                 })}
@@ -352,14 +352,14 @@ export default function TreasuryDashboard() {
         </div>
 
         {/* Pipeline */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Pipeline commercial</h3>
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-stone-900 mb-4">Pipeline commercial</h3>
           <div className="space-y-3">
             <PipelineRow label="Brouillons" amount={data.pipeline.draft} color="gray" />
             <PipelineRow label="Devis envoyés" amount={data.pipeline.sent} color="blue" />
             <PipelineRow label="Devis acceptés" amount={data.pipeline.accepted} color="emerald" />
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="mt-4 pt-4 border-t border-stone-100">
             <Link
               href="/admin/devis"
               className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
@@ -374,13 +374,13 @@ export default function TreasuryDashboard() {
       {/* Dépenses par catégorie + P&L par projet */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Catégories */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-900">Dépenses par catégorie</h3>
+            <h3 className="text-base font-semibold text-stone-900">Dépenses par catégorie</h3>
             <Link href="/admin/depenses" className="text-xs text-emerald-600 hover:underline">+ Nouvelle dépense</Link>
           </div>
           {data.expensesByCategory.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm">Aucune dépense enregistrée</div>
+            <div className="text-center py-10 text-stone-400 text-sm">Aucune dépense enregistrée</div>
           ) : (
             <div className="space-y-3">
               {data.expensesByCategory.map((c) => {
@@ -388,10 +388,10 @@ export default function TreasuryDashboard() {
                 return (
                   <div key={c.category}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-700">{CATEGORY_LABELS[c.category] || c.category}</span>
-                      <span className="text-gray-900 font-semibold">{fmt(c.total)} <span className="text-xs text-gray-400">({c.count})</span></span>
+                      <span className="font-medium text-stone-700">{CATEGORY_LABELS[c.category] || c.category}</span>
+                      <span className="text-stone-900 font-semibold">{fmt(c.total)} <span className="text-xs text-stone-400">({c.count})</span></span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-orange-400 to-red-500" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -402,19 +402,19 @@ export default function TreasuryDashboard() {
         </div>
 
         {/* P&L projets */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-900">Rentabilité par projet</h3>
+            <h3 className="text-base font-semibold text-stone-900">Rentabilité par projet</h3>
             <Link href="/admin/projects" className="text-xs text-emerald-600 hover:underline">Voir projets →</Link>
           </div>
           {data.projectsPL.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm">Pas de données par projet</div>
+            <div className="text-center py-10 text-stone-400 text-sm">Pas de données par projet</div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {data.projectsPL.slice(0, 8).map((p) => (
-                <div key={p.projectId} className="p-3 rounded-xl border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition">
+                <div key={p.projectId} className="p-3 rounded-xl border border-stone-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition">
                   <div className="flex items-center justify-between mb-2">
-                    <Link href={`/admin/projects/${p.projectId}`} className="text-sm font-semibold text-gray-900 hover:text-emerald-700 truncate">
+                    <Link href={`/admin/projects/${p.projectId}`} className="text-sm font-semibold text-stone-900 hover:text-emerald-700 truncate">
                       {p.projectName}
                     </Link>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.margin >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
@@ -423,15 +423,15 @@ export default function TreasuryDashboard() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <p className="text-gray-500">Facturé</p>
-                      <p className="font-semibold text-gray-900">{fmtCompact(p.revenueBilled)}</p>
+                      <p className="text-stone-500">Facturé</p>
+                      <p className="font-semibold text-stone-900">{fmtCompact(p.revenueBilled)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Dépenses</p>
+                      <p className="text-stone-500">Dépenses</p>
                       <p className="font-semibold text-orange-700">{fmtCompact(p.expensesTotal)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Marge</p>
+                      <p className="text-stone-500">Marge</p>
                       <p className={`font-semibold ${p.margin >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCompact(p.margin)}</p>
                     </div>
                   </div>
@@ -444,27 +444,27 @@ export default function TreasuryDashboard() {
 
       {/* Échéances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-stone-900 mb-4 flex items-center gap-2">
             <Receipt className="h-4 w-4 text-blue-600" /> Factures à encaisser
           </h3>
           {data.topReceivables.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
+            <div className="text-center py-8 text-stone-400 text-sm">
               <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-300" />
               Aucune créance en cours
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-stone-100">
               {data.topReceivables.map((r) => (
                 <li key={r.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{r.numero}</p>
-                    <p className="text-xs text-gray-500 truncate">{r.clientName || '—'}</p>
+                    <p className="text-sm font-semibold text-stone-900 truncate">{r.numero}</p>
+                    <p className="text-xs text-stone-500 truncate">{r.clientName || '—'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">{fmt(r.total)}</p>
+                    <p className="text-sm font-bold text-stone-900">{fmt(r.total)}</p>
                     {r.dueDate && (
-                      <p className={`text-[11px] ${r.isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                      <p className={`text-[11px] ${r.isOverdue ? 'text-red-600 font-semibold' : 'text-stone-500'}`}>
                         {r.isOverdue && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
                         {new Date(r.dueDate).toLocaleDateString('fr-FR')}
                       </p>
@@ -476,31 +476,31 @@ export default function TreasuryDashboard() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h3 className="text-base font-semibold text-stone-900 mb-4 flex items-center gap-2">
             <Banknote className="h-4 w-4 text-orange-600" /> Dépenses à payer
           </h3>
           {data.topPayables.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
+            <div className="text-center py-8 text-stone-400 text-sm">
               <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-300" />
               Aucune dépense en attente
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-stone-100">
               {data.topPayables.map((p) => {
                 const isOverdue = p.dueDate && new Date(p.dueDate) < new Date()
                 return (
                   <li key={p.id} className="py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{p.label}</p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-sm font-semibold text-stone-900 truncate">{p.label}</p>
+                      <p className="text-xs text-stone-500 truncate">
                         {p.supplier || '—'} {p.projectName && <span className="text-emerald-600">• {p.projectName}</span>}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">{fmt(p.remaining)}</p>
+                      <p className="text-sm font-bold text-stone-900">{fmt(p.remaining)}</p>
                       {p.dueDate && (
-                        <p className={`text-[11px] ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                        <p className={`text-[11px] ${isOverdue ? 'text-red-600 font-semibold' : 'text-stone-500'}`}>
                           {isOverdue && <AlertTriangle className="inline h-3 w-3 mr-0.5" />}
                           {new Date(p.dueDate).toLocaleDateString('fr-FR')}
                         </p>
@@ -519,7 +519,7 @@ export default function TreasuryDashboard() {
         <Link href="/admin/depenses" className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700">
           <Plus className="h-4 w-4" /> Nouvelle dépense
         </Link>
-        <Link href="/admin/factures" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">
+        <Link href="/admin/factures" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-xl font-semibold hover:bg-stone-50">
           <Receipt className="h-4 w-4" /> Factures
         </Link>
       </div>
@@ -530,39 +530,39 @@ export default function TreasuryDashboard() {
 function KpiCard({ label, value, sub, icon: Icon, color, accent }: any) {
   const colorClasses: Record<string, { bg: string; text: string; ring: string }> = {
     emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200' },
-    green: { bg: 'bg-green-100', text: 'text-green-700', ring: 'ring-green-200' },
+    green: { bg: 'bg-emerald-100', text: 'text-emerald-800', ring: 'ring-green-200' },
     blue: { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-200' },
     orange: { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-200' },
     red: { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-200' }
   }
   const c = colorClasses[color] || colorClasses.blue
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition ${accent ? `ring-2 ${c.ring}` : ''}`}>
+    <div className={`bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition ${accent ? `ring-2 ${c.ring}` : ''}`}>
       <div className="flex items-start justify-between mb-3">
         <div className={`${c.bg} p-2.5 rounded-xl`}>
           <Icon className={`h-5 w-5 ${c.text}`} />
         </div>
       </div>
-      <p className="text-xs text-gray-500 font-medium">{label}</p>
+      <p className="text-xs text-stone-500 font-medium">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${c.text}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-stone-500 mt-1">{sub}</p>}
     </div>
   )
 }
 
 function PipelineRow({ label, amount, color }: { label: string; amount: number; color: string }) {
   const colors: Record<string, string> = {
-    gray: 'bg-gray-400',
+    gray: 'bg-stone-400',
     blue: 'bg-blue-500',
     emerald: 'bg-emerald-500'
   }
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
+    <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50">
       <div className="flex items-center gap-2">
         <span className={`w-2.5 h-2.5 rounded-full ${colors[color]}`} />
-        <span className="text-sm text-gray-700">{label}</span>
+        <span className="text-sm text-stone-700">{label}</span>
       </div>
-      <span className="text-sm font-bold text-gray-900">{fmt(amount)}</span>
+      <span className="text-sm font-bold text-stone-900">{fmt(amount)}</span>
     </div>
   )
 }

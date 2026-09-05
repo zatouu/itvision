@@ -83,20 +83,20 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 })
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  draft: { label: 'Brouillon', color: 'bg-gray-100 text-gray-800' },
-  open: { label: 'Ouvert', color: 'bg-green-100 text-green-800' },
+  draft: { label: 'Brouillon', color: 'bg-stone-100 text-stone-800' },
+  open: { label: 'Ouvert', color: 'bg-emerald-100 text-green-800' },
   filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800' },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800' },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800' },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800' },
-  delivered: { label: 'Livré', color: 'bg-green-100 text-green-800' },
+  delivered: { label: 'Livré', color: 'bg-emerald-100 text-green-800' },
   cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800' }
 }
 
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'bg-yellow-100 text-yellow-800' },
   partial: { label: 'Partiel', color: 'bg-orange-100 text-orange-800' },
-  paid: { label: 'Payé', color: 'bg-green-100 text-green-800' },
+  paid: { label: 'Payé', color: 'bg-emerald-100 text-green-800' },
   refunded: { label: 'Remboursé', color: 'bg-red-100 text-red-800' }
 }
 
@@ -107,7 +107,7 @@ const chinaPurchaseStatusConfig: Record<string, { label: string; color: string }
   seller_shipped: { label: 'Expédié vendeur', color: 'bg-orange-100 text-orange-800' },
   received_guangzhou: { label: 'Reçu Guangzhou', color: 'bg-teal-100 text-teal-800' },
   quality_check_pending: { label: 'Contrôle à faire', color: 'bg-yellow-100 text-yellow-800' },
-  quality_check_passed: { label: 'Contrôle OK', color: 'bg-green-100 text-green-800' },
+  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-green-800' },
   quality_check_failed: { label: 'Contrôle échoué', color: 'bg-red-100 text-red-800' },
   quality_check_partial: { label: 'Contrôle partiel', color: 'bg-orange-100 text-orange-800' },
   handed_to_freight: { label: 'Remis au fret', color: 'bg-emerald-100 text-emerald-800' },
@@ -422,7 +422,7 @@ export default function AdminGroupOrdersPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
-              notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              notification.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
             }`}
           >
             {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
@@ -490,20 +490,20 @@ export default function AdminGroupOrdersPage() {
         >
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-3 w-5 h-5 text-stone-400" />
               <input
                 type="text"
                 placeholder="Rechercher..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
             
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="all">Tous les statuts</option>
               <option value="open">Ouverts</option>
@@ -518,7 +518,7 @@ export default function AdminGroupOrdersPage() {
             <select
               value={filterPayment}
               onChange={(e) => setFilterPayment(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="all">Tous les paiements</option>
               <option value="unpaid">Avec impayés</option>
@@ -529,7 +529,7 @@ export default function AdminGroupOrdersPage() {
             
             <button
               onClick={fetchGroups}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
+              className="px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50 flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Actualiser
@@ -551,7 +551,7 @@ export default function AdminGroupOrdersPage() {
             <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
           </div>
         ) : filteredGroups.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-12 text-center text-gray-500">
+          <div className="bg-stone-50 rounded-lg p-12 text-center text-stone-500">
             Aucun achat groupé trouvé
           </div>
         ) : (
@@ -562,16 +562,16 @@ export default function AdminGroupOrdersPage() {
           >
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-stone-50 border-b">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">ID / Produit</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Statut</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Progression</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Paiements</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Fournisseur</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Prix</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">Deadline</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">Actions</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">ID / Produit</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Statut</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Progression</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Paiements</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Fournisseur</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Prix</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-stone-700">Deadline</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-stone-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -585,12 +585,12 @@ export default function AdminGroupOrdersPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: idx * 0.02 }}
-                        className="border-b hover:bg-gray-50"
+                        className="border-b hover:bg-stone-50"
                       >
                         <td className="px-6 py-4">
                           <div>
                             <span className="font-mono text-sm font-bold text-purple-600">{group.groupId}</span>
-                            <p className="text-sm text-gray-900 font-semibold mt-1">{group.product.name}</p>
+                            <p className="text-sm text-stone-900 font-semibold mt-1">{group.product.name}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -604,9 +604,9 @@ export default function AdminGroupOrdersPage() {
                               <span>{group.participants.length} participants</span>
                               <span className="font-bold">{group.currentQty}/{group.targetQty}</span>
                             </div>
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${progress >= 100 ? 'bg-green-500' : 'bg-purple-500'}`}
+                                className={`h-full rounded-full ${progress >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`}
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
@@ -620,18 +620,18 @@ export default function AdminGroupOrdersPage() {
                             return (
                               <div className="w-28">
                                 <div className="flex justify-between text-xs mb-1">
-                                  <span className={paidCount === total && total > 0 ? 'text-green-700 font-bold' : 'text-gray-600'}>
+                                  <span className={paidCount === total && total > 0 ? 'text-emerald-800 font-bold' : 'text-stone-600'}>
                                     {paidCount}/{total} payés
                                   </span>
-                                  <span className="font-bold text-gray-500">{pct}%</span>
+                                  <span className="font-bold text-stone-500">{pct}%</span>
                                 </div>
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : pct > 0 ? 'bg-yellow-400' : 'bg-gray-300'}`}
+                                    className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-yellow-400' : 'bg-stone-300'}`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-stone-500 mt-1">
                                   {formatCurrency(group.participants.reduce((s, p) => s + p.paidAmount, 0))}
                                 </p>
                               </div>
@@ -641,23 +641,23 @@ export default function AdminGroupOrdersPage() {
                         <td className="px-6 py-4">
                           {group.chinaPurchase ? (
                             <div className="w-36">
-                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[group.chinaPurchase.status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[group.chinaPurchase.status]?.color || 'bg-stone-100 text-stone-800'}`}>
                                 {chinaPurchaseStatusConfig[group.chinaPurchase.status]?.label || group.chinaPurchase.status}
                               </span>
-                              <p className="font-mono text-xs text-gray-500 mt-1">{group.chinaPurchase.purchaseId}</p>
-                              <p className={group.chinaPurchase.outstandingAmount > 0 ? 'text-xs text-red-600 mt-1' : 'text-xs text-green-700 mt-1'}>
+                              <p className="font-mono text-xs text-stone-500 mt-1">{group.chinaPurchase.purchaseId}</p>
+                              <p className={group.chinaPurchase.outstandingAmount > 0 ? 'text-xs text-red-600 mt-1' : 'text-xs text-emerald-800 mt-1'}>
                                 {group.chinaPurchase.paymentCoverageRatio}% couvert
                               </p>
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-400">Non lancé</span>
+                            <span className="text-xs text-stone-400">Non lancé</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="font-bold text-gray-900">{formatCurrency(group.currentUnitPrice)}</span>
-                          <p className="text-xs text-gray-500">Total: {formatCurrency(group.participants.reduce((s, p) => s + p.totalAmount, 0))}</p>
+                          <span className="font-bold text-stone-900">{formatCurrency(group.currentUnitPrice)}</span>
+                          <p className="text-xs text-stone-500">Total: {formatCurrency(group.participants.reduce((s, p) => s + p.totalAmount, 0))}</p>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-stone-600">
                           {formatDate(group.deadline)}
                         </td>
                         <td className="px-6 py-4">
@@ -689,7 +689,7 @@ export default function AdminGroupOrdersPage() {
                               <button
                                 onClick={() => updateGroupStatus(group.groupId, 'open')}
                                 disabled={actionLoading === group.groupId}
-                                className="p-2 hover:bg-green-100 text-green-600 rounded-lg disabled:opacity-50"
+                                className="p-2 hover:bg-emerald-100 text-emerald-700 rounded-lg disabled:opacity-50"
                                 title="Publier (ouvrir)"
                               >
                                 {actionLoading === group.groupId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -732,7 +732,7 @@ export default function AdminGroupOrdersPage() {
                               <button
                                 onClick={() => updateGroupStatus(group.groupId, 'delivered')}
                                 disabled={actionLoading === group.groupId}
-                                className="p-2 hover:bg-green-100 text-green-600 rounded-lg disabled:opacity-50"
+                                className="p-2 hover:bg-emerald-100 text-emerald-700 rounded-lg disabled:opacity-50"
                                 title="Marquer livré"
                               >
                                 {actionLoading === group.groupId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
@@ -745,7 +745,7 @@ export default function AdminGroupOrdersPage() {
                                   e.stopPropagation()
                                   setShowActionsMenu(showActionsMenu === group.groupId ? null : group.groupId)
                                 }}
-                                className="p-2 hover:bg-gray-100 text-gray-600 rounded-lg"
+                                className="p-2 hover:bg-stone-100 text-stone-600 rounded-lg"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
@@ -825,35 +825,35 @@ export default function AdminGroupOrdersPage() {
                   <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
                           <ShoppingCart className="w-5 h-5 text-purple-600" />
                           Achat Chine
                         </h3>
                         <p className="font-mono text-sm text-purple-700 mt-1">{selectedGroup.chinaPurchase.purchaseId}</p>
                         <p className="text-xs text-purple-700 mt-1">Plateforme : {selectedGroup.chinaPurchase.platform}</p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[selectedGroup.chinaPurchase.status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${chinaPurchaseStatusConfig[selectedGroup.chinaPurchase.status]?.color || 'bg-stone-100 text-stone-800'}`}>
                         {chinaPurchaseStatusConfig[selectedGroup.chinaPurchase.status]?.label || selectedGroup.chinaPurchase.status}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
                       <div className="bg-white rounded-xl p-3">
-                        <p className="text-gray-500">Montant attendu</p>
-                        <p className="font-bold text-gray-900">{formatCurrency(selectedGroup.chinaPurchase.expectedAmount)}</p>
+                        <p className="text-stone-500">Montant attendu</p>
+                        <p className="font-bold text-stone-900">{formatCurrency(selectedGroup.chinaPurchase.expectedAmount)}</p>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <p className="text-gray-500">Encaissé</p>
-                        <p className="font-bold text-green-700">{formatCurrency(selectedGroup.chinaPurchase.collectedAmount)}</p>
+                        <p className="text-stone-500">Encaissé</p>
+                        <p className="font-bold text-emerald-800">{formatCurrency(selectedGroup.chinaPurchase.collectedAmount)}</p>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <p className="text-gray-500">Reste</p>
-                        <p className={selectedGroup.chinaPurchase.outstandingAmount > 0 ? 'font-bold text-red-700' : 'font-bold text-green-700'}>
+                        <p className="text-stone-500">Reste</p>
+                        <p className={selectedGroup.chinaPurchase.outstandingAmount > 0 ? 'font-bold text-red-700' : 'font-bold text-emerald-800'}>
                           {formatCurrency(selectedGroup.chinaPurchase.outstandingAmount)}
                         </p>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <p className="text-gray-500">Couverture</p>
+                        <p className="text-stone-500">Couverture</p>
                         <p className="font-bold text-purple-700">{selectedGroup.chinaPurchase.paymentCoverageRatio}%</p>
                       </div>
                     </div>
@@ -861,14 +861,14 @@ export default function AdminGroupOrdersPage() {
                 )}
                 {/* Participants */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
                     <Users className="w-5 h-5 text-purple-600" />
                     Participants ({selectedGroup.participants.length})
                   </h3>
                   
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-stone-50">
                         <tr>
                           <th className="px-4 py-2 text-left">Nom</th>
                           <th className="px-4 py-2 text-left">Contact</th>
@@ -885,11 +885,11 @@ export default function AdminGroupOrdersPage() {
                             <td className="px-4 py-3 font-semibold">{p.name}</td>
                             <td className="px-4 py-3">
                               <p>{p.phone}</p>
-                              {p.email && <p className="text-xs text-gray-500">{p.email}</p>}
+                              {p.email && <p className="text-xs text-stone-500">{p.email}</p>}
                             </td>
                             <td className="px-4 py-3 text-center font-bold">{p.qty}</td>
                             <td className="px-4 py-3 text-right">{formatCurrency(p.totalAmount)}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-green-600">{formatCurrency(p.paidAmount)}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatCurrency(p.paidAmount)}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${paymentStatusConfig[p.paymentStatus]?.color}`}>
                                 {paymentStatusConfig[p.paymentStatus]?.label}
@@ -908,7 +908,7 @@ export default function AdminGroupOrdersPage() {
                                 {p.paymentStatus !== 'paid' && (
                                   <button
                                     onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
-                                    className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold hover:bg-green-200"
+                                    className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold hover:bg-green-200"
                                   >
                                     Marquer payé
                                   </button>
@@ -947,11 +947,11 @@ export default function AdminGroupOrdersPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-gray-50 font-bold">
+                      <tfoot className="bg-stone-50 font-bold">
                         <tr>
                           <td colSpan={3} className="px-4 py-3">TOTAL</td>
                           <td className="px-4 py-3 text-right">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.totalAmount, 0))}</td>
-                          <td className="px-4 py-3 text-right text-green-600">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
+                          <td className="px-4 py-3 text-right text-emerald-700">{formatCurrency(selectedGroup.participants.reduce((s, p) => s + p.paidAmount, 0))}</td>
                           <td colSpan={2}></td>
                         </tr>
                       </tfoot>
@@ -962,8 +962,8 @@ export default function AdminGroupOrdersPage() {
                 {/* Paliers de prix */}
                 {selectedGroup.priceTiers.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-green-600" />
+                    <h3 className="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
+                      <TrendingDown className="w-5 h-5 text-emerald-700" />
                       Paliers de prix
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -971,10 +971,10 @@ export default function AdminGroupOrdersPage() {
                         <div
                           key={i}
                           className={`p-3 rounded-lg border ${
-                            selectedGroup.currentQty >= tier.minQty ? 'bg-green-50 border-green-300' : 'bg-gray-50'
+                            selectedGroup.currentQty >= tier.minQty ? 'bg-emerald-50 border-green-300' : 'bg-stone-50'
                           }`}
                         >
-                          <p className="text-sm text-gray-600">{tier.minQty}+ unités</p>
+                          <p className="text-sm text-stone-600">{tier.minQty}+ unités</p>
                           <p className="text-lg font-bold">{formatCurrency(tier.price)}</p>
                         </div>
                       ))}
@@ -1006,35 +1006,35 @@ export default function AdminGroupOrdersPage() {
             >
               <div className="p-5 border-b flex items-start justify-between">
                 <div>
-                  <div className="text-sm text-gray-500">Liens de paiement</div>
-                  <div className="text-lg font-bold text-gray-900">{paymentLinksModal.participantName}</div>
-                  <div className="text-xs text-gray-600">{paymentLinksModal.participantPhone}</div>
+                  <div className="text-sm text-stone-500">Liens de paiement</div>
+                  <div className="text-lg font-bold text-stone-900">{paymentLinksModal.participantName}</div>
+                  <div className="text-xs text-stone-600">{paymentLinksModal.participantPhone}</div>
                 </div>
-                <button onClick={() => setPaymentLinksModal(null)} className="text-gray-500 hover:text-gray-900 text-2xl">×</button>
+                <button onClick={() => setPaymentLinksModal(null)} className="text-stone-500 hover:text-stone-900 text-2xl">×</button>
               </div>
               <div className="p-5 space-y-3">
                 <div className="text-sm">
-                  <span className="text-gray-600">Référence:</span>{' '}
+                  <span className="text-stone-600">Référence:</span>{' '}
                   <span className="font-mono font-semibold">{paymentLinksModal.reference || '-'}</span>
                 </div>
                 <div className="text-sm">
-                  <span className="text-gray-600">Montant:</span>{' '}
-                  <span className="font-semibold text-green-700">{formatCurrency(paymentLinksModal.amount)}</span>
+                  <span className="text-stone-600">Montant:</span>{' '}
+                  <span className="font-semibold text-emerald-800">{formatCurrency(paymentLinksModal.amount)}</span>
                 </div>
 
                 <div className="mt-3 space-y-2">
                   {paymentLinksModal.links.length === 0 ? (
-                    <div className="text-sm text-gray-600">Aucun lien retourné.</div>
+                    <div className="text-sm text-stone-600">Aucun lien retourné.</div>
                   ) : (
                     paymentLinksModal.links.map((l, idx) => (
                       <div key={idx} className="border rounded-xl p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="text-sm font-bold text-gray-900">{l.provider}</div>
-                            {l.phoneNumber && <div className="text-xs text-gray-600">Num: {l.phoneNumber}</div>}
+                            <div className="text-sm font-bold text-stone-900">{l.provider}</div>
+                            {l.phoneNumber && <div className="text-xs text-stone-600">Num: {l.phoneNumber}</div>}
                           </div>
                           <button
-                            className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold"
+                            className="px-3 py-1.5 rounded-lg bg-stone-900 text-white text-xs font-semibold"
                             onClick={async () => {
                               try {
                                 await navigator.clipboard.writeText(l.url)
@@ -1050,7 +1050,7 @@ export default function AdminGroupOrdersPage() {
                         <div className="mt-2 text-xs break-all text-blue-700">
                           <a className="underline" href={l.url} target="_blank" rel="noreferrer">{l.url}</a>
                         </div>
-                        {l.instructions && <div className="mt-2 text-xs text-gray-600">{l.instructions}</div>}
+                        {l.instructions && <div className="mt-2 text-xs text-stone-600">{l.instructions}</div>}
                       </div>
                     ))
                   )}
