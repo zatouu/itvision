@@ -17,6 +17,8 @@ export interface IClient extends Document {
   country?: string
   contactPerson?: string
   notes?: string
+  logo?: string
+  brandColor?: string
   tags?: string[]
   category?: string
   rating?: number
@@ -118,6 +120,14 @@ const ClientSchema = new Schema<IClient>({
     trim: true
   },
   notes: {
+    type: String,
+    trim: true
+  },
+  logo: {
+    type: String,
+    trim: true
+  },
+  brandColor: {
     type: String,
     trim: true
   },

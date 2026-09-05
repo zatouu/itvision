@@ -36,7 +36,7 @@ export function PageHeader({
             {eyebrow}
           </p>
         )}
-        <h1 className={`mt-2 font-bold tracking-tight text-stone-900 ${xl ? 'text-3xl lg:text-4xl' : 'text-2xl lg:text-3xl'}`}>
+        <h1 className={`mt-2 font-brand font-bold tracking-tight text-stone-900 ${xl ? 'text-3xl lg:text-4xl' : 'text-2xl lg:text-3xl'}`}>
           {title}
         </h1>
         {subtitle && <p className={`text-sm text-stone-500 ${xl ? 'mt-1.5' : 'mt-1'}`}>{subtitle}</p>}
@@ -108,7 +108,7 @@ export function DetailHeader({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-stone-900 lg:text-3xl">{title}</h1>
+            <h1 className="truncate font-brand text-2xl font-bold tracking-tight text-stone-900 lg:text-3xl">{title}</h1>
             {badges}
           </div>
           {meta && <div className="mt-1 text-sm text-stone-500">{meta}</div>}

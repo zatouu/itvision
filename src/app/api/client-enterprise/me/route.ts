@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     const company = await Client.findById(new mongoose.Types.ObjectId(companyClientId))
-      .select('name company email phone address city country contactPerson notes logo preferences permissions')
+      .select('name company email phone address city country contactPerson notes logo brandColor preferences permissions')
       .lean() as any
 
     const dbUser = profileData?.user || (await User.findById(auth.user.id)
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       companyContactPerson: company?.contactPerson || null,
       companyNotes: company?.notes || null,
       companyLogo: company?.logo || null,
+      companyBrandColor: company?.brandColor || null,
       preferences: company?.preferences || { emailNotifications: true, smsNotifications: false, reportFormat: 'web', language: 'fr' },
       permissions: company?.permissions || { canViewReports: true, canRequestMaintenance: true, canAccessPortal: true },
     })
