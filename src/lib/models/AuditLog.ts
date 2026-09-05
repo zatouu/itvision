@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IAuditLog extends Document {
-  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User'
+  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client'
   entityId: mongoose.Types.ObjectId
   action: string // e.g. 'status_changed', 'created', 'updated', 'deleted', 'validated', 'assigned'
   previousState?: Record<string, any>
@@ -9,6 +9,7 @@ export interface IAuditLog extends Document {
   changedFields?: string[]
   userId?: mongoose.Types.ObjectId
   userRole?: string
+  clientCompanyId?: mongoose.Types.ObjectId
   ip?: string
   userAgent?: string
   metadata?: Record<string, any>
@@ -19,7 +20,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
   entityType: {
     type: String,
     required: true,
-    enum: ['Intervention', 'MaintenanceReport', 'MaintenanceContract', 'Technician', 'User']
+    enum: ['Intervention', 'MaintenanceReport', 'MaintenanceContract', 'Technician', 'User', 'AdminQuote', 'Ticket', 'Client']
   },
   entityId: { type: Schema.Types.ObjectId, required: true, },
   action: { type: String, required: true },
@@ -28,6 +29,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
   changedFields: [{ type: String }],
   userId: { type: Schema.Types.ObjectId, ref: 'User', },
   userRole: { type: String },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client' },
   ip: { type: String },
   userAgent: { type: String },
   metadata: { type: Schema.Types.Mixed }
@@ -37,6 +39,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
 
 // Index composés pour requêtes fréquentes
 AuditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 })
+AuditLogSchema.index({ clientCompanyId: 1, createdAt: -1 })
 AuditLogSchema.index({ userId: 1, createdAt: -1 })
 AuditLogSchema.index({ action: 1, createdAt: -1 })
 AuditLogSchema.index({ createdAt: -1 })

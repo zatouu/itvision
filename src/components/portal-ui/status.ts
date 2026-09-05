@@ -4,7 +4,7 @@
 
 import {
   AlertTriangle, Ban, CheckCircle, Clock, FileText, FolderKanban,
-  LifeBuoy, MessageSquare, Receipt, Shield, Wrench,
+  History, LifeBuoy, MessageSquare, Receipt, Shield, Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { TONE } from './tokens'
@@ -195,4 +195,5 @@ export const activityIcon: Record<string, { icon: LucideIcon; color: string }> =
   invoice: { icon: Receipt, color: 'bg-stone-100 text-stone-600' },
   ticket: { icon: LifeBuoy, color: 'bg-orange-50 text-orange-700' },
   comment: { icon: MessageSquare, color: 'bg-stone-100 text-stone-500' },
+  audit: { icon: History, color: 'bg-stone-100 text-stone-500' },
 }

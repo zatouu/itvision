@@ -48,6 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     endDate: contract.endDate,
     annualPrice: contract.annualPrice,
     description: contract.description,
+    autoRenewal: !!contract.autoRenewal,
     coverage: contract.coverage || {},
     equipment: (contract.equipmentCovered || []).map((e: any) => ({
       name: e.name,

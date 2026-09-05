@@ -7,6 +7,7 @@ import { Wrench, Calendar, MapPin, CheckCircle, Clock, Shield, ChevronRight } fr
 import Intervention from '@/lib/models/Intervention'
 import RequestInterventionButton from '@/components/client/RequestInterventionButton'
 import InterventionFeedback from '@/components/client/InterventionFeedback'
+import InterventionsView from '@/components/portal/InterventionsView'
 import {
   PageHeader,
   BackLink,
@@ -48,22 +49,33 @@ export default async function InterventionsPage() {
         />
       )}
 
-      {upcoming.length > 0 && (
-        <section>
-          <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">À venir</h2>
-          <div className="space-y-3">
-            {upcoming.map(i => <InterventionCard key={String(i._id)} i={i} />)}
-          </div>
-        </section>
-      )}
+      {interventions.length > 0 && (
+        <InterventionsView items={interventions.map(i => ({
+          id: String(i._id),
+          title: i.title || 'Intervention',
+          date: i.date ? new Date(i.date).toISOString() : '',
+          status: i.status || 'pending',
+          heureDebut: i.heureDebut,
+          site: i.site,
+        }))}>
+          {upcoming.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">À venir</h2>
+              <div className="space-y-3">
+                {upcoming.map(i => <InterventionCard key={String(i._id)} i={i} />)}
+              </div>
+            </section>
+          )}
 
-      {past.length > 0 && (
-        <section>
-          <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">Historique</h2>
-          <div className="space-y-3">
-            {past.map(i => <InterventionCard key={String(i._id)} i={i} />)}
-          </div>
-        </section>
+          {past.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">Historique</h2>
+              <div className="space-y-3">
+                {past.map(i => <InterventionCard key={String(i._id)} i={i} />)}
+              </div>
+            </section>
+          )}
+        </InterventionsView>
       )}
     </div>
   )

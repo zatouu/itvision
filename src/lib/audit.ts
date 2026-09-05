@@ -2,7 +2,7 @@ import AuditLog from '@/lib/models/AuditLog'
 import mongoose from 'mongoose'
 
 interface AuditOptions {
-  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User'
+  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client'
   entityId: string | mongoose.Types.ObjectId
   action: string
   previousState?: Record<string, any>
@@ -10,6 +10,7 @@ interface AuditOptions {
   changedFields?: string[]
   userId?: string | mongoose.Types.ObjectId
   userRole?: string
+  clientCompanyId?: string | mongoose.Types.ObjectId
   ip?: string
   userAgent?: string
   metadata?: Record<string, any>
@@ -32,6 +33,7 @@ export async function logAuditEvent(opts: AuditOptions) {
       changedFields,
       userId: opts.userId ? (typeof opts.userId === 'string' ? new mongoose.Types.ObjectId(opts.userId) : opts.userId) : undefined,
       userRole: opts.userRole,
+      clientCompanyId: opts.clientCompanyId ? (typeof opts.clientCompanyId === 'string' ? new mongoose.Types.ObjectId(opts.clientCompanyId) : opts.clientCompanyId) : undefined,
       ip: opts.ip,
       userAgent: opts.userAgent,
       metadata: opts.metadata

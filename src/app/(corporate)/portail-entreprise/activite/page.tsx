@@ -14,11 +14,27 @@ import Project from '@/lib/models/Project'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Ticket from '@/lib/models/Ticket'
+import AuditLog from '@/lib/models/AuditLog'
+
+const AUDIT_LABEL: Record<string, string> = {
+  client_accepted: 'Devis accepté',
+  client_rejected: 'Devis refusé',
+  client_counter_proposed: 'Contre-proposition envoyée',
+  client_comment: 'Commentaire ajouté sur un devis',
+  created: 'Créé',
+  client_reply: 'Réponse envoyée',
+  profile_updated: 'Profil mis à jour',
+}
+const AUDIT_HREF: Record<string, string> = {
+  AdminQuote: '/portail-entreprise/documents',
+  Ticket: '/portail-entreprise/support',
+  Client: '/portail-entreprise/profil',
+}
 
 type TimelineEvent = {
   id: string
   date: Date
-  type: 'contract' | 'intervention' | 'project' | 'quote' | 'invoice' | 'ticket' | 'comment'
+  type: 'contract' | 'intervention' | 'project' | 'quote' | 'invoice' | 'ticket' | 'comment' | 'audit'
   title: string
   subtitle: string
   status?: string
@@ -33,7 +49,7 @@ type TimelineEvent = {
 export default async function ActivitePage() {
   const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/activite')
 
-  const [contracts, interventions, projects, quotes, invoices, tickets] = await Promise.all([
+  const [contracts, interventions, projects, quotes, invoices, tickets, auditLogs] = await Promise.all([
     MaintenanceContract.find({ ...companyScope({ userId, companyId }) })
       .sort({ updatedAt: -1 }).limit(10)
       .select('name status type createdAt updatedAt endDate').lean() as Promise<any[]>,
@@ -52,6 +68,9 @@ export default async function ActivitePage() {
     Ticket.find({ ...companyScope({ userId, companyId }) })
       .sort({ updatedAt: -1 }).limit(10)
       .select('title category priority status createdAt updatedAt').lean() as Promise<any[]>,
+    AuditLog.find(companyId ? { clientCompanyId: companyId } : { userId })
+      .sort({ createdAt: -1 }).limit(15)
+      .select('entityType action changedFields metadata createdAt').lean() as Promise<any[]>,
   ])
 
   const events: TimelineEvent[] = []
@@ -187,6 +206,28 @@ export default async function ActivitePage() {
       badge: isUrgent && !['resolved', 'closed'].includes(t.status) ? 'Urgent' : undefined,
       badgeColor: activityBadge.alert,
       urgent: isUrgent && !['resolved', 'closed'].includes(t.status),
+    })
+  }
+
+  // Journal d'audit (actions sensibles du compte)
+  for (const a of auditLogs) {
+    const ic = activityIcon.audit
+    const target = a.entityType === 'AdminQuote'
+      ? `Devis ${a.metadata?.numero ? `#${a.metadata.numero}` : ''}`.trim()
+      : a.entityType === 'Ticket'
+        ? `Ticket « ${a.metadata?.title || '—'} »`
+        : 'Compte entreprise'
+    events.push({
+      id: `audit-${a._id}`,
+      date: new Date(a.createdAt),
+      type: 'audit',
+      title: AUDIT_LABEL[a.action] || a.action,
+      subtitle: `${target}${a.changedFields?.length ? ` · ${a.changedFields.length} champ${a.changedFields.length > 1 ? 's' : ''} modifié${a.changedFields.length > 1 ? 's' : ''}` : ''}`,
+      href: AUDIT_HREF[a.entityType] || '/portail-entreprise/activite',
+      icon: ic.icon,
+      color: ic.color,
+      badge: 'Journal',
+      badgeColor: activityBadge.neutral,
     })
   }
 

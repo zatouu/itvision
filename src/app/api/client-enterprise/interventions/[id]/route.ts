@@ -66,6 +66,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       type: d.type,
       uploadedAt: d.uploadedAt,
     })),
+    photosAvant: (intervention.photosAvant || []).map((p: any) => ({ url: p.url, caption: p.caption, timestamp: p.timestamp })),
+    photosApres: (intervention.photosApres || []).map((p: any) => ({ url: p.url, caption: p.caption, timestamp: p.timestamp })),
+    signatures: intervention.signatures ? {
+      technician: intervention.signatures.technician ? { signature: intervention.signatures.technician.signature, name: intervention.signatures.technician.name, timestamp: intervention.signatures.technician.timestamp } : null,
+      client: intervention.signatures.client ? { signature: intervention.signatures.client.signature, name: intervention.signatures.client.name, title: intervention.signatures.client.title, timestamp: intervention.signatures.client.timestamp } : null,
+    } : null,
     feedback: intervention.feedback ? {
       rating: intervention.feedback.rating,
       comment: intervention.feedback.comment,

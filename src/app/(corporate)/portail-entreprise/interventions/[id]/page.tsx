@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import {
   Clock, MapPin, Wrench,
   CheckCircle, Loader2, AlertCircle, FileText, Download, Star,
-  Activity, Package, ListChecks, Receipt, MessageSquare
+  Activity, Package, ListChecks, Receipt, MessageSquare, Camera, PenLine
 } from 'lucide-react'
 import {
   Card,
@@ -27,8 +27,45 @@ const TABS = [
   { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
   { id: 'tasks', label: 'Tâches', icon: ListChecks },
   { id: 'materials', label: 'Matériaux', icon: Package },
+  { id: 'rapport', label: 'Rapport', icon: Camera },
   { id: 'documents', label: 'Documents', icon: FileText },
 ] as const
+
+function PhotoGallery({ photos, empty }: { photos: any[]; empty: string }) {
+  if (!photos || photos.length === 0) {
+    return <p className="text-xs text-stone-400 py-3">{empty}</p>
+  }
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      {photos.map((p: any, i: number) => (
+        <a key={i} href={p.url} target="_blank" rel="noopener noreferrer" className="group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={p.url} alt={p.caption || ''} loading="lazy"
+            className="aspect-[4/3] w-full rounded-xl border border-stone-200 object-cover transition-opacity group-hover:opacity-90" />
+          {p.caption && <p className="mt-1 text-[11px] text-stone-400 truncate">{p.caption}</p>}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function SignatureBlock({ title, sig }: { title: string; sig: any }) {
+  return (
+    <div className="rounded-xl border border-stone-200 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-400">{title}</p>
+      {sig ? (
+        <div className="mt-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={sig.signature} alt={`Signature ${title}`} className="h-16 rounded-lg bg-stone-50 object-contain" />
+          <p className="mt-2 text-sm font-medium text-stone-900">{sig.name}{sig.title ? ` — ${sig.title}` : ''}</p>
+          <p className="text-[11px] text-stone-400">{fmtDate(sig.timestamp)}</p>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-stone-400">Non signé</p>
+      )}
+    </div>
+  )
+}
 
 export default function InterventionDetailPage() {
   const { id } = useParams() as { id: string }
@@ -170,6 +207,31 @@ export default function InterventionDetailPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'rapport' && (
+        <div className="space-y-4">
+          {(iv.photosAvant || []).length === 0 && (iv.photosApres || []).length === 0 && !iv.signatures?.technician && !iv.signatures?.client ? (
+            <EmptyState icon={Camera} title="Aucun rapport photo pour cette intervention" className="px-0 sm:px-0 py-16 sm:py-16" />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card title="Avant" icon={Camera}>
+                  <PhotoGallery photos={iv.photosAvant} empty="Aucune photo avant travaux" />
+                </Card>
+                <Card title="Après" icon={Camera}>
+                  <PhotoGallery photos={iv.photosApres} empty="Aucune photo après travaux" />
+                </Card>
+              </div>
+              <Card title="Signatures" icon={PenLine}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <SignatureBlock title="Technicien" sig={iv.signatures?.technician} />
+                  <SignatureBlock title="Client" sig={iv.signatures?.client} />
+                </div>
+              </Card>
+            </>
           )}
         </div>
       )}

@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import {
   FileText, Calendar, AlertTriangle,
   Shield, Wrench, Package, Receipt, Download, Activity, BarChart3,
-  Loader2, AlertCircle, TrendingUp
+  Loader2, AlertCircle, TrendingUp, RefreshCw, Timer, CheckCircle2
 } from 'lucide-react'
 import {
   Card,
@@ -50,6 +50,28 @@ export default function ContractDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<typeof TABS[number]['id']>('overview')
+  const [renewalState, setRenewalState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  const requestRenewal = async () => {
+    if (!contract || renewalState === 'sending' || renewalState === 'sent') return
+    setRenewalState('sending')
+    try {
+      const res = await fetch('/api/client-enterprise/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Demande de renouvellement — Contrat ${contract.contractNumber}`,
+          category: 'request',
+          priority: 'medium',
+          description: `Le client souhaite renouveler le contrat « ${contract.name} » (n° ${contract.contractNumber}), arrivant à échéance le ${fmtDate(contract.endDate)}.`,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      setRenewalState('sent')
+    } catch {
+      setRenewalState('error')
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/client-enterprise/contracts/${id}`)
@@ -86,23 +108,46 @@ export default function ContractDetailPage() {
         meta={<>Contrat n° <span className="font-mono">{contract.contractNumber}</span></>}
       />
 
-      {days !== null && days <= 60 && days > 0 && contract.status === 'active' && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-amber-900">Expiration proche</p>
-            <p className="text-xs text-amber-700 mt-0.5">Ce contrat expire dans {days} jour{days > 1 ? 's' : ''} ({fmtDate(contract.endDate)}). Contactez-nous pour le renouveler.</p>
+      {(days !== null && days <= 60 && days > 0 && contract.status === 'active' || contract.status === 'expired') && (() => {
+        const expired = contract.status === 'expired'
+        return (
+          <div className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${expired ? 'border-red-200 bg-red-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${expired ? 'text-red-600' : 'text-amber-600'}`} />
+              <div>
+                <p className={`text-sm font-semibold ${expired ? 'text-red-900' : 'text-amber-900'}`}>
+                  {expired ? 'Contrat expiré' : 'Expiration proche'}
+                </p>
+                <p className={`text-xs mt-0.5 ${expired ? 'text-red-700' : 'text-amber-700'}`}>
+                  {expired
+                    ? `Ce contrat est arrivé à échéance le ${fmtDate(contract.endDate)}.`
+                    : `Ce contrat expire dans ${days} jour${days! > 1 ? 's' : ''} (${fmtDate(contract.endDate)}).`}
+                  {contract.autoRenewal ? ' Le renouvellement automatique est activé.' : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={requestRenewal}
+              disabled={renewalState === 'sending' || renewalState === 'sent'}
+              className={`inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full px-4 py-2 text-xs font-semibold transition-colors flex-shrink-0 ${
+                renewalState === 'sent'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : expired
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+              } disabled:opacity-70`}
+            >
+              {renewalState === 'sending' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {renewalState === 'sent' && <CheckCircle2 className="w-3.5 h-3.5" />}
+              {renewalState !== 'sending' && renewalState !== 'sent' && <RefreshCw className="w-3.5 h-3.5" />}
+              {renewalState === 'sent' ? 'Demande envoyée' : renewalState === 'error' ? 'Réessayer' : 'Demander le renouvellement'}
+            </button>
           </div>
-        </div>
-      )}
-      {contract.status === 'expired' && (
-        <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-red-900">Contrat expiré</p>
-            <p className="text-xs text-red-700 mt-0.5">Ce contrat est arrivé à échéance le {fmtDate(contract.endDate)}. Contactez-nous pour un renouvellement.</p>
-          </div>
-        </div>
+        )
+      })()}
+      {renewalState === 'sent' && (
+        <p className="text-xs text-emerald-700 -mt-2">Votre demande a été transmise à IT Vision — un ticket est visible dans <a href="/portail-entreprise/support" className="underline font-medium">Support</a>.</p>
       )}
 
       {/* Tabs */}
@@ -129,6 +174,7 @@ export default function ContractDetailPage() {
             <Row label="Date début" value={fmtDate(contract.startDate)} />
             <Row label="Date fin" value={fmtDate(contract.endDate)} />
             <Row label="Coût annuel" value={`${fmtNum(contract.annualPrice)} FCFA`} bold />
+            <Row label="Renouvellement" value={contract.autoRenewal ? 'Automatique' : 'Manuel'} />
             {contract.description && <Row label="Description" value={contract.description} />}
           </Card>
           <Card title="Statistiques d'utilisation" icon={Activity}>
@@ -183,10 +229,38 @@ export default function ContractDetailPage() {
           </Card>
           <Card title="Garantie" icon={Shield}>
             <Row label="Garantie matériel" value={coverage.warrantyDurationMonths ? `${coverage.warrantyDurationMonths} mois` : '—'} />
-            <Row label="Réponse SLA" value={coverage.responseTimeHours ? `${coverage.responseTimeHours}h` : '—'} />
-            <Row label="Heures de service" value={coverage.serviceHours || '—'} />
+            <Row label="Réponse SLA" value={coverage.responseTimeHours ? `${coverage.responseTimeHours}h` : (coverage.responseTime || '—')} />
+            <Row label="Heures de service" value={coverage.serviceHours || coverage.supportHours || '—'} />
             <Row label="Jours couverts" value={coverage.coverageDays || '—'} />
           </Card>
+          {(() => {
+            const slaTarget = coverage.responseTimeHours ?? (typeof coverage.responseTime === 'string' ? parseFloat(coverage.responseTime) : null)
+            const slaActual = contract.stats?.averageResponseTime ?? null
+            if (!slaTarget) return null
+            const ratio = slaActual !== null ? Math.min(Math.round((slaActual / slaTarget) * 100), 200) : null
+            const respected = slaActual !== null && slaActual <= slaTarget
+            return (
+              <Card title="Engagement de service (SLA)" icon={Timer}>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-stone-500">Temps de réponse contractuel</span>
+                    <span className="font-semibold text-stone-700 tabular-nums">{slaTarget}h</span>
+                  </div>
+                  {slaActual !== null ? (
+                    <>
+                      <ProgressBar value={Math.min(ratio!, 100)} tone={respected ? 'bg-emerald-600' : 'bg-red-500'} />
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-stone-400">Moyenne constatée : <span className="font-semibold text-stone-700 tabular-nums">{slaActual}h</span></span>
+                        <StatusBadge status={respected ? 'active' : 'overdue'} map={{ active: { label: 'SLA respecté', color: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' }, overdue: { label: 'SLA dépassé', color: 'bg-red-50 text-red-700 ring-red-600/20' } }} icon={false} />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-stone-400">Pas encore de données de réponse mesurées sur ce contrat.</p>
+                  )}
+                </div>
+              </Card>
+            )
+          })()}
           {contract.stats && (
             <Card title="Chiffres clés" icon={TrendingUp}>
               <Row label="Interventions totales" value={`${contract.stats.totalInterventions || 0}`} />

@@ -11,13 +11,14 @@ import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import SoftMessage from '@/components/ui/SoftMessage'
+import FinanceExport from '@/components/portal/FinanceExport'
 import {
   BackLink, CARD, EmptyState, KpiStrip, MiniStat, PageHeader, Panel, ProgressBar,
   fmtDate, fmtMonth, fmtNum,
 } from '@/components/portal-ui'
 
 export default async function FinancesPage() {
-  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/finances')
+  const { userId, companyId, companyName } = await getEnterpriseSession('/portail-entreprise/finances')
   const filter = { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] }
 
   const [invoices, quotes, contracts] = await Promise.all([
@@ -57,11 +58,19 @@ export default async function FinancesPage() {
   }
   const maxBilled = Math.max(...months.map(m => m.billed), 1)
 
-  // Prochaines échéances (factures)
-  const upcomingDue = invoices
+  // Échéancier : factures à régler groupées par mois d'échéance
+  const unpaid = invoices
     .filter((i: any) => ['sent', 'overdue'].includes(i.status) && i.dueDate)
     .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .slice(0, 5)
+  const schedule: { key: string; label: string; total: number; items: any[] }[] = []
+  for (const inv of unpaid) {
+    const d = new Date(inv.dueDate)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    let g = schedule.find(s => s.key === key)
+    if (!g) { g = { key, label: fmtMonth(d), total: 0, items: [] }; schedule.push(g) }
+    g.items.push(inv)
+    g.total += inv.total || 0
+  }
 
   // Historique paiements
   const paidInvoices = invoices
@@ -104,6 +113,7 @@ export default async function FinancesPage() {
         subtitle="Vue consolidée de votre relation financière avec IT Vision"
       >
         <BackLink />
+        <FinanceExport companyName={companyName} />
       </PageHeader>
 
       {/* KPI Cards */}
@@ -157,34 +167,48 @@ export default async function FinancesPage() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* Prochaines échéances */}
+        {/* Échéancier des paiements */}
         <Panel
-          title="Prochaines échéances"
+          title="Échéancier des paiements"
           icon={Calendar}
           iconClassName="text-amber-600"
           action={<Link href="/portail-entreprise/documents" className="text-xs font-medium text-stone-400 hover:text-emerald-700 transition-colors">Voir tout</Link>}
         >
-          {upcomingDue.length === 0 ? (
+          {schedule.length === 0 ? (
             <EmptyState bare icon={CheckCircle} iconClassName="text-emerald-200" title="Aucune échéance en attente" />
           ) : (
-            <ul className="divide-y divide-stone-100">
-              {upcomingDue.map((inv: any) => {
-                const days = Math.floor((new Date(inv.dueDate).getTime() - Date.now()) / 86400000)
-                const isOverdue = inv.status === 'overdue'
-                return (
-                  <li key={String(inv._id)} className={`flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 ${isOverdue ? 'bg-red-50/40' : ''}`}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-stone-900">Facture #{inv.numero}</p>
-                      <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-600 font-medium' : 'text-stone-400'}`}>
-                        {isOverdue ? `En retard de ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}` : `Échéance dans ${days} jour${days > 1 ? 's' : ''}`}
-                        {' · '}{fmtDate(inv.dueDate)}
-                      </p>
-                    </div>
-                    <p className={`text-sm font-bold flex-shrink-0 tabular-nums ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtNum(inv.total)} F</p>
-                  </li>
-                )
-              })}
-            </ul>
+            <div>
+              {schedule.map(g => (
+                <div key={g.key}>
+                  <div className="flex items-center justify-between px-4 sm:px-5 py-2 bg-stone-50/80 border-y border-stone-100 first:border-t-0">
+                    <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-stone-500">{g.label}</span>
+                    <span className="text-xs font-semibold text-stone-500 tabular-nums">{fmtNum(g.total)} F</span>
+                  </div>
+                  <ul className="divide-y divide-stone-100">
+                    {g.items.map((inv: any) => {
+                      const days = Math.floor((new Date(inv.dueDate).getTime() - Date.now()) / 86400000)
+                      const isOverdue = inv.status === 'overdue'
+                      return (
+                        <li key={String(inv._id)} className={`flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 ${isOverdue ? 'bg-red-50/40' : ''}`}>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-stone-900">Facture #{inv.numero}</p>
+                            <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-600 font-medium' : 'text-stone-400'}`}>
+                              {isOverdue ? `En retard de ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}` : days === 0 ? "Aujourd'hui" : `Échéance dans ${days} jour${days > 1 ? 's' : ''}`}
+                              {' · '}{fmtDate(inv.dueDate)}
+                            </p>
+                          </div>
+                          <p className={`text-sm font-bold flex-shrink-0 tabular-nums ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtNum(inv.total)} F</p>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+              <div className="flex justify-between items-center px-4 sm:px-5 py-3 border-t border-stone-200 bg-stone-50/60">
+                <span className="text-xs font-semibold text-stone-500">Total à régler</span>
+                <span className="text-sm font-bold text-amber-700 tabular-nums">{fmtNum(totalDue)} FCFA</span>
+              </div>
+            </div>
           )}
         </Panel>
 

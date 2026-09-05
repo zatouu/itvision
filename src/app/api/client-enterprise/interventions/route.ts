@@ -13,10 +13,17 @@ export async function GET(request: NextRequest) {
   const companyId = access.profiles.companyClientId
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
   const page = parseInt(searchParams.get('page') || '1')
-  const limit = 15
+  const limit = Math.min(parseInt(searchParams.get('limit') || '15'), 200)
   const filter: any = companyScope({ userId, companyId })
   if (status) filter.status = status
+  if (from || to) {
+    filter.date = {}
+    if (from) filter.date.$gte = new Date(from)
+    if (to) filter.date.$lte = new Date(to)
+  }
 
   const [interventions, total] = await Promise.all([
     Intervention.find(filter)

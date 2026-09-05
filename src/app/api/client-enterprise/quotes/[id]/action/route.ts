@@ -6,8 +6,19 @@ import AdminQuote from '@/lib/models/AdminQuote'
 import emailService from '@/lib/email-service'
 import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
+import { applyRateLimit, quoteActionRateLimiter } from '@/lib/rate-limiter'
+import { logAuditEvent } from '@/lib/audit'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
+
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 function normalizeQuoteForResponse(quote: any) {
   if (!quote) return quote
@@ -39,15 +50,15 @@ function buildAdminNotificationHtml(quote: any, action: string, message: string,
   </style></head><body><div class="container">
     <div class="header"><h2>Portail Client — Action sur Devis</h2></div>
     <div class="content">
-      <p>Le client <strong>${clientName || 'Inconnu'}</strong> a effectué une action sur le devis <strong>${quote.numero}</strong>.</p>
+      <p>Le client <strong>${esc(clientName) || 'Inconnu'}</strong> a effectué une action sur le devis <strong>${esc(quote.numero)}</strong>.</p>
       <div style="text-align:center;margin:16px 0"><span class="badge">${actionLabel}</span></div>
       <div class="box">
-        <strong>Devis :</strong> ${quote.numero} — ${quote.title || 'Devis'}<br>
+        <strong>Devis :</strong> ${esc(quote.numero)} — ${esc(quote.title) || 'Devis'}<br>
         <strong>Montant :</strong> ${fmt(quote.total)} FCFA<br>
         ${counterAmount ? `<strong>Contre-proposition :</strong> ${fmt(counterAmount)} FCFA<br>` : ''}
         <strong>Date :</strong> ${new Date().toLocaleDateString('fr-FR')}
       </div>
-      ${message ? `<div class="box"><strong>Message du client :</strong><br><em>${message}</em></div>` : ''}
+      ${message ? `<div class="box"><strong>Message du client :</strong><br><em>${esc(message)}</em></div>` : ''}
       <a href="${brand.url}/admin" class="btn">Voir dans l'admin</a>
     </div>
     <div class="footer">© ${new Date().getFullYear()} ${brand.name}</div>
@@ -70,12 +81,12 @@ function buildClientConfirmHtml(quote: any, action: string, clientName: string, 
     .btn{display:inline-block;background:linear-gradient(135deg,#22c55e,#7c3aed);color:white;padding:12px 24px;text-decoration:none;border-radius:8px;margin:16px 0}
     .footer{text-align:center;font-size:12px;color:#888;margin-top:16px}
   </style></head><body><div class="container">
-    <div class="header"><h2>Confirmation — Devis ${quote.numero}</h2></div>
+    <div class="header"><h2>Confirmation — Devis ${esc(quote.numero)}</h2></div>
     <div class="content">
-      <p>Bonjour <strong>${clientName}</strong>,</p>
-      <p>Nous confirmons que votre réponse au devis <strong>${quote.numero}</strong> a bien été <strong>${actionLabel}</strong>.</p>
+      <p>Bonjour <strong>${esc(clientName)}</strong>,</p>
+      <p>Nous confirmons que votre réponse au devis <strong>${esc(quote.numero)}</strong> a bien été <strong>${actionLabel}</strong>.</p>
       <div class="box">
-        <strong>Devis :</strong> ${quote.numero} — ${quote.title || 'Devis'}<br>
+        <strong>Devis :</strong> ${esc(quote.numero)} — ${esc(quote.title) || 'Devis'}<br>
         <strong>Montant :</strong> ${fmt(quote.total)} FCFA<br>
         <strong>Date :</strong> ${new Date().toLocaleDateString('fr-FR')}
       </div>
@@ -88,6 +99,9 @@ function buildClientConfirmHtml(quote: any, action: string, clientName: string, 
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await applyRateLimit(request, quoteActionRateLimiter)
+  if (rateLimit) return rateLimit
+
   const { id } = await params
   const brand = getBrandFromHost(request.nextUrl.host)
   const auth = await verifyAuthServer(request)
@@ -206,6 +220,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     counterAmount: Number(counterAmount || 0) || undefined,
     clientUserId: auth.user.id,
     clientCompanyId: auth.user.companyClientId
+  })
+
+  void logAuditEvent({
+    entityType: 'AdminQuote',
+    entityId: quote._id,
+    action: `client_${action}`,
+    userId: auth.user.id,
+    userRole: 'CLIENT',
+    clientCompanyId: auth.user.companyClientId,
+    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage },
   })
 
   return NextResponse.json({ success: true, action, quote: normalizedQuote })

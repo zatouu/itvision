@@ -3,6 +3,7 @@ import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Ticket from '@/lib/models/Ticket'
+import { logAuditEvent } from '@/lib/audit'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -121,6 +122,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   ticket.updatedAt = now
 
   await ticket.save()
+
+  void logAuditEvent({
+    entityType: 'Ticket',
+    entityId: ticket._id,
+    action: 'client_reply',
+    userId: access.userId,
+    userRole: 'CLIENT',
+    clientCompanyId: companyId,
+    metadata: { title: ticket.title },
+  })
 
   const lastMessage = ticket.messages[ticket.messages.length - 1]
 

@@ -3,6 +3,7 @@ import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Ticket from '@/lib/models/Ticket'
+import { logAuditEvent } from '@/lib/audit'
 
 export async function GET(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -54,6 +55,16 @@ export async function POST(request: NextRequest) {
     messages: description ? [{ authorId: userId, authorRole: 'CLIENT', message: description, createdAt: now }] : [],
     history: [{ authorId: userId, authorRole: 'CLIENT', action: 'note', createdAt: now }],
     sla: { targetHours: slaHours, startedAt: now, deadlineAt: deadline, breached: false }
+  })
+
+  void logAuditEvent({
+    entityType: 'Ticket',
+    entityId: ticket._id,
+    action: 'created',
+    userId: access.userId,
+    userRole: 'CLIENT',
+    clientCompanyId: access.profiles.companyClientId,
+    metadata: { title, category },
   })
 
   return NextResponse.json({ ticket }, { status: 201 })

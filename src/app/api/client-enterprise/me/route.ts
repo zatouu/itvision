@@ -7,6 +7,7 @@ import Client from '@/lib/models/Client'
 import CorporateProfile from '@/lib/models/CorporateProfile'
 import { loadUserWithProfiles } from '@/lib/user-profiles'
 import { resolveUserAccess } from '@/lib/domain-access'
+import { logAuditEvent } from '@/lib/audit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,10 +82,12 @@ export async function PUT(request: NextRequest) {
 
     const userUpdates: any = {}
     const userUnsets: Record<string, 1> = {}
-    if (body.userName !== undefined && body.userName !== null) userUpdates.name = body.userName
+    const auditFields: string[] = []
+    if (body.userName !== undefined && body.userName !== null) { userUpdates.name = body.userName; auditFields.push('name') }
     if (body.userPhone !== undefined) {
       if (body.userPhone) userUpdates.phone = body.userPhone
       else userUnsets.phone = 1
+      auditFields.push('phone')
     }
     if (Object.keys(userUpdates).length > 0 || Object.keys(userUnsets).length > 0) {
       const update: any = {}
@@ -122,6 +125,7 @@ export async function PUT(request: NextRequest) {
       }
 
       if (Object.keys(companyUpdates).length > 0 || Object.keys(companyUnsets).length > 0) {
+        auditFields.push(...Object.keys(companyUpdates).map(k => `company.${k}`), ...Object.keys(companyUnsets).map(k => `company.${k}`))
         const update: any = {}
         if (Object.keys(companyUpdates).length > 0) update.$set = companyUpdates
         if (Object.keys(companyUnsets).length > 0) update.$unset = companyUnsets
@@ -144,6 +148,18 @@ export async function PUT(request: NextRequest) {
         { $set: corporateUpdates },
         { new: true, upsert: true }
       )
+    }
+
+    if (auditFields.length > 0) {
+      void logAuditEvent({
+        entityType: 'Client',
+        entityId: companyClientId || userId,
+        action: 'profile_updated',
+        userId,
+        userRole: 'CLIENT',
+        clientCompanyId: companyClientId,
+        changedFields: auditFields,
+      })
     }
 
     return NextResponse.json({ success: true })
