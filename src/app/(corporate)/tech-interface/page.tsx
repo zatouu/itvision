@@ -64,6 +64,17 @@ export default function TechInterfacePage() {
           backLabel="Retour à l'accueil"
         />
       </div>
+      {/* Accès rapide : vue terrain mobile-first */}
+      <div className="max-w-5xl mx-auto px-4 pt-4">
+        <a href="/tech-interface/terrain"
+          className="flex items-center justify-between rounded-2xl bg-emerald-900 text-white px-5 py-4 shadow-md hover:bg-emerald-800 transition-colors">
+          <div>
+            <p className="text-sm font-bold">Vue terrain</p>
+            <p className="text-xs text-emerald-200">Interventions du jour, photos avant/après, signature client</p>
+          </div>
+          <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold">Ouvrir →</span>
+        </a>
+      </div>
       <TechnicianPortal />
     </div>
   )
