@@ -79,10 +79,17 @@ export async function PUT(request: NextRequest) {
     const corporateProfile = profileData?.corporateProfile
 
     const userUpdates: any = {}
-    if (body.userName !== undefined) userUpdates.name = body.userName
-    if (body.userPhone !== undefined) userUpdates.phone = body.userPhone
-    if (Object.keys(userUpdates).length > 0) {
-      await User.findByIdAndUpdate(userId, userUpdates, { new: true })
+    const userUnsets: Record<string, 1> = {}
+    if (body.userName !== undefined && body.userName !== null) userUpdates.name = body.userName
+    if (body.userPhone !== undefined) {
+      if (body.userPhone) userUpdates.phone = body.userPhone
+      else userUnsets.phone = 1
+    }
+    if (Object.keys(userUpdates).length > 0 || Object.keys(userUnsets).length > 0) {
+      const update: any = {}
+      if (Object.keys(userUpdates).length > 0) update.$set = userUpdates
+      if (Object.keys(userUnsets).length > 0) update.$unset = userUnsets
+      await User.findByIdAndUpdate(userId, update, { new: true })
     }
 
     // Mise à jour entreprise
@@ -98,17 +105,22 @@ export async function PUT(request: NextRequest) {
       if (body.companyNotes !== undefined) companyUpdates.notes = body.companyNotes
       if (body.preferences !== undefined) companyUpdates.preferences = body.preferences
 
+      // Ne jamais ecrire de null (validator $jsonSchema eventuel)
+      for (const k of Object.keys(companyUpdates)) {
+        if (companyUpdates[k] === null) delete companyUpdates[k]
+      }
+
       if (Object.keys(companyUpdates).length > 0) {
-        await Client.findByIdAndUpdate(new mongoose.Types.ObjectId(companyClientId), companyUpdates, { new: true })
+        await Client.findByIdAndUpdate(new mongoose.Types.ObjectId(companyClientId), { $set: companyUpdates }, { new: true })
       }
     }
 
     // Mise à jour du profil corporate découplé
     const corporateUpdates: any = {}
-    if (body.companyName !== undefined) corporateUpdates.company = body.companyName
-    if (body.companyAddress !== undefined) corporateUpdates.address = body.companyAddress
-    if (body.companyCity !== undefined) corporateUpdates.city = body.companyCity
-    if (body.companyCountry !== undefined) corporateUpdates.country = body.companyCountry
+    if (body.companyName) corporateUpdates.company = body.companyName
+    if (body.companyAddress) corporateUpdates.address = body.companyAddress
+    if (body.companyCity) corporateUpdates.city = body.companyCity
+    if (body.companyCountry) corporateUpdates.country = body.companyCountry
     if (companyClientId && corporateProfile && !corporateProfile.companyClientId) {
       corporateUpdates.companyClientId = new mongoose.Types.ObjectId(companyClientId)
     }
