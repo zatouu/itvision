@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     // Génération du token JWT (rôle normalisé en majuscules)
     const normalizedRole = String(user.role || '').toUpperCase()
     const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
-    const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId })
+    const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId, email: user.email, username: user.username })
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),

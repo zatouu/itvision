@@ -4,9 +4,20 @@ type UserCategoryInput = {
   role?: string | null
   companyClientId?: unknown
   providerProfileId?: unknown
+  email?: string | null
+  username?: string | null
 }
 
-export function resolveUserCategory({ role, companyClientId, providerProfileId }: UserCategoryInput): UserCategory {
+/**
+ * Marqueur des comptes créés par l'app mobile Xeuy Bi :
+ * email synthétique `<phone>@xeuy.bi` ou username `mobile_<phone>`.
+ * Ces comptes seront migrés vers la branche dédiée Xeuy.
+ */
+export function isXeuyMobileAccount(email?: string | null, username?: string | null): boolean {
+  return /@xeuy\.bi$/i.test(String(email || '')) || String(username || '').startsWith('mobile_')
+}
+
+export function resolveUserCategory({ role, companyClientId, providerProfileId, email, username }: UserCategoryInput): UserCategory {
   const normalizedRole = String(role || '').toUpperCase()
   const hasEnterpriseLink = !!companyClientId
   const hasProviderProfile = !!providerProfileId
@@ -16,13 +27,11 @@ export function resolveUserCategory({ role, companyClientId, providerProfileId }
   }
 
   if (normalizedRole === 'CLIENT') {
+    if (isXeuyMobileAccount(email, username)) return 'XEUY_CLIENT'
     return hasEnterpriseLink ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT'
   }
 
-  if (normalizedRole === 'TECHNICIAN') {
-    return 'ENTERPRISE_CLIENT'
-  }
-
+  // ADMIN, SUPER_ADMIN, TECHNICIAN, ACCOUNTANT, SUPPORT, etc. = staff plateforme
   return 'PLATFORM_USER'
 }
 

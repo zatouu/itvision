@@ -53,10 +53,14 @@ export async function GET(request: NextRequest) {
             { companyClientId: { $exists: false } },
             { companyClientId: null }
           ]
-        }
+        },
+        // Exclure les comptes de l'app mobile Xeuy (email synthétique @xeuy.bi / username mobile_*)
+        { email: { $not: /@xeuy\.bi$/i } },
+        { username: { $not: /^mobile_/ } }
       ]
     } else if (userCategory === 'ENTERPRISE_CLIENT') {
-      query.role = { $in: ['CLIENT', 'TECHNICIAN'] }
+      // Comptes clients liés à une société corporate (les techniciens sont du staff plateforme)
+      query.role = 'CLIENT'
       query.$and = [
         ...(query.$and || []),
         { companyClientId: { $exists: true, $ne: null } }
@@ -67,16 +71,16 @@ export async function GET(request: NextRequest) {
         { providerProfileId: { $exists: true, $ne: null } }
       ]
     } else if (userCategory === 'XEUY_CLIENT') {
+      // Comptes de l'app mobile Xeuy Bi (isolés en vue de la migration dédiée)
       query.role = 'CLIENT'
       query.$and = [
         ...(query.$and || []),
         {
           $or: [
-            { companyClientId: { $exists: false } },
-            { companyClientId: null }
+            { email: /@xeuy\.bi$/i },
+            { username: /^mobile_/ }
           ]
-        },
-        { providerProfileId: { $exists: false } }
+        }
       ]
     } else if (userCategory === 'PLATFORM_USER') {
       query.role = { $nin: ['CLIENT', 'PROVIDER'] }
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     const usersWithCategory = users.map((user: any) => ({
       ...user,
-      userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: user.providerProfileId })
+      userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: user.providerProfileId, email: user.email, username: user.username })
     }))
 
     return NextResponse.json({ success: true, users: usersWithCategory, total, skip, limit })

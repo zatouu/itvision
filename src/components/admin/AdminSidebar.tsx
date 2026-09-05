@@ -40,7 +40,8 @@ import {
   Search,
   ImageIcon,
   Eye,
-  Scale
+  Scale,
+  Smartphone
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -283,12 +284,6 @@ const menuSections: MenuSection[] = [
         href: '/admin/auto-import'
       },
       {
-        id: 'clients-marketplace',
-        label: 'Clients marketplace',
-        icon: Users,
-        href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
-      },
-      {
         id: 'marketplace-comptes-pro',
         label: 'Comptes Pro',
         icon: UsersRound,
@@ -378,29 +373,58 @@ const menuSections: MenuSection[] = [
           }
         ]
       },
+    ]
+  },
+
+  // ─── COMPTES UTILISATEURS (regroupé par rôle / domaine) ────────
+  {
+    id: 'comptes',
+    label: 'Comptes utilisateurs',
+    icon: Users,
+    color: 'slate',
+    items: [
       {
-        id: 'xeuy-providers',
-        label: 'Prestataires Xeuy Bi',
-        icon: Wrench,
-        href: '/admin/users?userCategory=XEUY_PROVIDER'
-      },
-      {
-        id: 'xeuy-clients',
-        label: 'Clients Xeuy Bi',
+        id: 'comptes-tous',
+        label: 'Tous les comptes',
         icon: Users,
-        href: '/admin/users?userCategory=XEUY_CLIENT'
+        href: '/admin/users'
       },
       {
-        id: 'utilisateurs-plateforme',
-        label: 'Utilisateurs plateforme',
+        id: 'comptes-staff',
+        label: 'Staff & admins',
         icon: Shield,
         href: '/admin/users?userCategory=PLATFORM_USER'
       },
       {
-        id: 'clients-entreprise-comptes',
-        label: 'Clients entreprise (comptes)',
-        icon: UsersRound,
+        id: 'comptes-entreprise',
+        label: 'Clients entreprise',
+        icon: Building2,
         href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
+      },
+      {
+        id: 'comptes-marketplace',
+        label: 'Clients marketplace',
+        icon: ShoppingCart,
+        href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
+      },
+      {
+        id: 'comptes-xeuy',
+        label: 'App mobile Xeuy (migration)',
+        icon: Smartphone,
+        children: [
+          {
+            id: 'comptes-xeuy-prestataires',
+            label: 'Prestataires Xeuy Bi',
+            icon: Wrench,
+            href: '/admin/users?userCategory=XEUY_PROVIDER'
+          },
+          {
+            id: 'comptes-xeuy-clients',
+            label: 'Clients Xeuy Bi',
+            icon: Users,
+            href: '/admin/users?userCategory=XEUY_CLIENT'
+          }
+        ]
       }
     ]
   },
@@ -470,7 +494,11 @@ export default function AdminSidebar() {
     let active = pathname.startsWith(targetPath)
     if (!active) return false
 
-    if (!targetQuery) return true
+    if (!targetQuery) {
+      // "Tous les comptes" n'est actif que si aucun filtre de catégorie n'est posé
+      if (targetPath === '/admin/users' && new URLSearchParams(search).has('userCategory')) return false
+      return true
+    }
 
     const expectedParams = new URLSearchParams(targetQuery)
     const currentParams = new URLSearchParams(search)

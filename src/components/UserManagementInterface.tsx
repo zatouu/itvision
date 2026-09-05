@@ -38,7 +38,7 @@ import {
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
-import { getUserCategoryLabel, type UserCategory } from '@/lib/user-segmentation'
+import { getUserCategoryLabel, resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
 
 // Types
 interface UserData {
@@ -853,7 +853,7 @@ export default function UserManagementInterface() {
   }
 
   const getUserCategoryBadge = (user: UserData) => {
-    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : user.role === 'PROVIDER' ? 'XEUY_PROVIDER' : 'PLATFORM_USER')
+    const category = user.userCategory || resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: (user as any).providerProfileId, email: user.email, username: user.username })
 
     if (category === 'ENTERPRISE_CLIENT') {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">{getUserCategoryLabel(category)}</span>
@@ -982,15 +982,13 @@ export default function UserManagementInterface() {
           )}
         </AnimatePresence>
 
-        {/* Onglets de filtrage par entité */}
-        <div className="mb-4 flex gap-2 flex-wrap">
+        {/* Onglets de filtrage par entité — regroupés par domaine */}
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
           {[
             { key: 'all', label: 'Tous', color: 'bg-gray-100 text-gray-700 border-gray-300', activeColor: 'bg-gray-700 text-white border-gray-700' },
-            { key: 'ENTERPRISE_CLIENT', label: 'Corporate', color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
+            { key: 'ENTERPRISE_CLIENT', label: 'Entreprise', color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
             { key: 'MARKETPLACE_CLIENT', label: 'Marketplace', color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
-            { key: 'XEUY_PROVIDER', label: 'Xeuy Bi Prestataires', color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
-            { key: 'XEUY_CLIENT', label: 'Xeuy Bi Clients', color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
-            { key: 'PLATFORM_USER', label: 'Plateforme / Admin', color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
+            { key: 'PLATFORM_USER', label: 'Staff & Admin', color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
           ].map(tab => {
             const isActiveTab = userCategoryFilter === tab.key || (tab.key === 'all' && userCategoryFilter === 'all')
             return (
@@ -1006,7 +1004,46 @@ export default function UserManagementInterface() {
               </button>
             )
           })}
+
+          {/* Groupe isolé : comptes de l'app mobile Xeuy Bi (migration prévue) */}
+          <div className="flex items-center gap-2 pl-3 ml-1 border-l-2 border-dashed border-amber-300">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 whitespace-nowrap">
+              App mobile — migration prévue
+            </span>
+            {[
+              { key: 'XEUY_PROVIDER', label: 'Prestataires Xeuy', color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
+              { key: 'XEUY_CLIENT', label: 'Clients Xeuy', color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
+            ].map(tab => {
+              const isActiveTab = userCategoryFilter === tab.key
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    setUserCategoryFilter(tab.key as 'all' | UserCategory)
+                    setCurrentPage(1)
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
+
+        {/* Bannière isolation Xeuy */}
+        {(userCategoryFilter === 'XEUY_PROVIDER' || userCategoryFilter === 'XEUY_CLIENT') && (
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-800">Comptes de l'app mobile Xeuy Bi</p>
+              <p className="text-amber-700">
+                Ces utilisateurs sont gérés par l'app mobile (auth OTP par téléphone, emails synthétiques <code>@xeuy.bi</code>).
+                Ils seront migrés vers la branche dédiée Xeuy — éviter toute modification manuelle ici.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Filtres */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
