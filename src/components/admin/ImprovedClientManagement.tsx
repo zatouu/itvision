@@ -34,6 +34,7 @@ interface Client {
   category?: string
   rating?: number
   lastContact?: string
+  membersCount?: number
 }
 
 interface Metrics {
@@ -685,6 +686,13 @@ export default function ImprovedClientManagement() {
                     <div className="flex items-center gap-1 text-xs text-orange-600 font-semibold">
                       <FileText className="h-3.5 w-3.5" />
                       {client.activeContracts.length}
+                    </div>
+                  )}
+
+                  {(client.membersCount ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-sky-600 font-semibold" title="Membres de l'équipe portail">
+                      <Users className="h-3.5 w-3.5" />
+                      {client.membersCount}
                     </div>
                   )}
                 </div>

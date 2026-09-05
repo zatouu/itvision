@@ -52,8 +52,18 @@ export async function GET(request: NextRequest) {
       Client.countDocuments({ 'permissions.canAccessPortal': true })
     ])
 
+    // Nombre de membres de l'équipe par société (comptes portail liés)
+    const clientIds = clientsRaw.map((c: any) => c._id)
+    const memberCounts = await User.aggregate([
+      { $match: { companyClientId: { $in: clientIds } } },
+      { $group: { _id: '$companyClientId', count: { $sum: 1 } } },
+    ])
+    const memberCountMap = new Map(memberCounts.map((m: any) => [String(m._id), m.count]))
+
     // Enrichir les clients avec les contrats actifs calculés
     const clients = clientsRaw.map((client: any) => ({
+      ...client,
+      membersCount: memberCountMap.get(String(client._id)) || 0,
       ...client,
       activeContracts: Array.isArray(client.contracts)
         ? client.contracts.filter((contract: any) => {

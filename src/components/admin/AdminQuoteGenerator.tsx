@@ -58,6 +58,7 @@ interface Quote {
   clientCounterAmount?: number
   clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
   clientCompanyId?: string
+  clientSignature?: { signature: string; name: string; signedAt: string; ip?: string; userAgent?: string }
   attachments?: Array<{ name: string; url: string; type: string; size: number; uploadedAt?: string; category?: string }>
 }
 
@@ -147,6 +148,13 @@ export default function AdminQuoteGenerator() {
       clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
       clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined,
       clientCompanyId: q?.clientCompanyId ? String(q.clientCompanyId) : undefined,
+      clientSignature: q?.clientSignature?.signature ? {
+        signature: q.clientSignature.signature,
+        name: q.clientSignature.name,
+        signedAt: q.clientSignature.signedAt,
+        ip: q.clientSignature.ip,
+        userAgent: q.clientSignature.userAgent,
+      } : undefined,
       attachments: Array.isArray(q?.attachments) ? q.attachments : undefined,
     }
   }
@@ -1763,6 +1771,23 @@ function QuoteDetailView({
                   </div>
                 </a>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Signature électronique client */}
+        {quote.clientSignature && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
+            <h4 className="font-semibold text-gray-900 mb-3">✍️ Signature électronique</h4>
+            <div className="flex flex-wrap items-center gap-5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={quote.clientSignature.signature} alt="Signature client"
+                className="h-16 rounded-lg bg-white border border-emerald-200 object-contain px-3" />
+              <div className="text-sm space-y-0.5">
+                <p className="font-medium text-gray-900">{quote.clientSignature.name}</p>
+                <p className="text-gray-600">Signé le {quote.clientSignature.signedAt ? new Date(quote.clientSignature.signedAt).toLocaleString('fr-FR') : '—'}</p>
+                {quote.clientSignature.ip && <p className="text-xs text-gray-400">IP : {quote.clientSignature.ip}</p>}
+              </div>
             </div>
           </div>
         )}

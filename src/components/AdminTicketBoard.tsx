@@ -52,6 +52,27 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' }
 ]
 
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'Toutes catégories' },
+  { value: 'request', label: 'Demande / Renouvellement' },
+  { value: 'incident', label: 'Incident' },
+  { value: 'technical', label: 'Technique' },
+  { value: 'billing', label: 'Facturation' },
+  { value: 'change', label: 'Changement' },
+  { value: 'urgent', label: 'Urgent' },
+  { value: 'general', label: 'Général' }
+]
+
+const CATEGORY_BADGE: Record<string, string> = {
+  request: 'bg-violet-50 text-violet-700 border-violet-200',
+  incident: 'bg-red-50 text-red-700 border-red-200',
+  technical: 'bg-blue-50 text-blue-700 border-blue-200',
+  billing: 'bg-amber-50 text-amber-700 border-amber-200',
+  change: 'bg-sky-50 text-sky-700 border-sky-200',
+  urgent: 'bg-red-100 text-red-800 border-red-300',
+  general: 'bg-gray-100 text-gray-600 border-gray-200'
+}
+
 const STATUS_BADGE: Record<string, string> = {
   open: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   in_progress: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -81,6 +102,7 @@ export default function AdminTicketBoard() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [statusFilter, setStatusFilter] = useState('open')
   const [priorityFilter, setPriorityFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [messageDraft, setMessageDraft] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
@@ -91,6 +113,7 @@ export default function AdminTicketBoard() {
       const params = new URLSearchParams({ limit: '100', sortBy: 'updatedAt', sortDir: 'desc' })
       if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
       if (priorityFilter && priorityFilter !== 'all') params.set('priority', priorityFilter)
+      if (categoryFilter && categoryFilter !== 'all') params.set('category', categoryFilter)
       if (search.trim()) params.set('search', search.trim())
       const res = await fetch(`/api/tickets?${params.toString()}`, { credentials: 'include' })
       if (!res.ok) throw new Error('Erreur chargement tickets')
@@ -115,7 +138,7 @@ export default function AdminTicketBoard() {
     } finally {
       setLoadingList(false)
     }
-  }, [statusFilter, priorityFilter, search, selectedId])
+  }, [statusFilter, priorityFilter, categoryFilter, search, selectedId])
 
   const fetchDetail = useCallback(async (id: string) => {
     setLoadingDetail(true)
@@ -220,6 +243,11 @@ export default function AdminTicketBoard() {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs">
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
               <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs">
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
@@ -250,8 +278,15 @@ export default function AdminTicketBoard() {
                     <span>{formatDate(ticket.updatedAt)}</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-900 truncate">{ticket.title}</p>
-                  <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[ticket.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                    {STATUS_OPTIONS.find((s) => s.value === ticket.status)?.label || ticket.status}
+                  <span className="inline-flex items-center gap-1.5 mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${STATUS_BADGE[ticket.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {STATUS_OPTIONS.find((s) => s.value === ticket.status)?.label || ticket.status}
+                    </span>
+                    {ticket.category && ticket.category !== 'general' && (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${CATEGORY_BADGE[ticket.category] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                        {CATEGORY_OPTIONS.find((c) => c.value === ticket.category)?.label || ticket.category}
+                      </span>
+                    )}
                   </span>
                 </button>
               )

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const clientId = searchParams.get('clientId')
     const projectId = searchParams.get('projectId')
     const status = searchParams.get('status')
+    const category = searchParams.get('category')
     const priority = searchParams.get('priority')
     const assignedTo = searchParams.get('assignedTo')
     const search = (searchParams.get('search') || '').trim()
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     const query: any = {}
     if (projectId) query.projectId = projectId
     if (status && status !== 'all') query.status = status
+    if (category && category !== 'all') query.category = category
     if (priority && priority !== 'all') query.priority = priority
     if (role === 'CLIENT') {
       query.clientId = userId
