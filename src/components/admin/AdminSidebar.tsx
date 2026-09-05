@@ -64,7 +64,7 @@ interface MenuSection {
 const SECTION_COLORS: Record<string, {
   activeBg: string; activeText: string; bar: string; header: string; dot: string; collapsedBar: string
 }> = {
-  gray:    { activeBg: 'bg-gray-100',    activeText: 'text-gray-700',    bar: 'bg-gray-500',    header: 'text-gray-600',    dot: 'bg-gray-500',    collapsedBar: 'bg-gray-400' },
+  gray:    { activeBg: 'bg-stone-100',    activeText: 'text-stone-700',    bar: 'bg-stone-500',    header: 'text-stone-600',    dot: 'bg-stone-500',    collapsedBar: 'bg-stone-400' },
   blue:    { activeBg: 'bg-blue-50',     activeText: 'text-blue-700',   bar: 'bg-blue-500',    header: 'text-blue-600',    dot: 'bg-blue-500',    collapsedBar: 'bg-blue-400' },
   purple:  { activeBg: 'bg-purple-50',   activeText: 'text-purple-700', bar: 'bg-purple-500',  header: 'text-purple-600',  dot: 'bg-purple-500',  collapsedBar: 'bg-purple-400' },
   emerald: { activeBg: 'bg-emerald-50',  activeText: 'text-emerald-700',bar: 'bg-emerald-500', header: 'text-emerald-600', dot: 'bg-emerald-500', collapsedBar: 'bg-emerald-400' },
@@ -573,7 +573,7 @@ export default function AdminSidebar() {
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
                 ? `${activeBg} ${activeText}`
-                : 'text-gray-700 hover:bg-gray-50'
+                : 'text-stone-700 hover:bg-stone-50'
             } ${isCollapsed ? 'justify-center' : ''}`}
           >
             <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
@@ -589,7 +589,7 @@ export default function AdminSidebar() {
             )}
           </button>
           {isOpen && !isCollapsed && (
-            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-stone-200 pl-3">
               {item.children!.map(child => renderMenuItem(child, level + 1, colors))}
             </div>
           )}
@@ -605,7 +605,7 @@ export default function AdminSidebar() {
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
             ? `${activeBg} ${activeText} font-medium`
-            : 'text-gray-700 hover:bg-gray-50'
+            : 'text-stone-700 hover:bg-stone-50'
         }`}
         style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
       >
@@ -645,24 +645,24 @@ export default function AdminSidebar() {
 
   return (
     <aside 
-      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
+      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-stone-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
     >
       {/* Header avec logo */}
-      <div className={`p-4 border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className={`p-4 border-b border-stone-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         {!isCollapsed ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-emerald-950 rounded-lg flex items-center justify-center">
                 <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-gray-900">Admin Panel</h2>
-                <p className="text-xs text-gray-500">IT Vision</p>
+                <h2 className="text-sm font-bold text-stone-900">Admin Panel</h2>
+                <p className="text-xs text-stone-500">IT Vision</p>
               </div>
             </div>
             <button
               onClick={toggleCollapse}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
               title="Réduire le menu"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -671,7 +671,7 @@ export default function AdminSidebar() {
         ) : (
           <button
             onClick={toggleCollapse}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
             title="Agrandir le menu"
           >
             <Menu className="h-5 w-5" />
@@ -686,8 +686,8 @@ export default function AdminSidebar() {
 
       {/* Footer avec version */}
       {!isCollapsed && (
-        <div className="p-3 border-t border-gray-200 text-xs text-gray-400 text-center">
-          v1.0.0
+        <div className="p-3 border-t border-stone-200 text-xs text-stone-400 text-center">
+          Admin · IT Vision
         </div>
       )}
     </aside>

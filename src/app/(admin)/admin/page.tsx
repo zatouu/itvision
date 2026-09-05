@@ -347,10 +347,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 to-green-50">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-600 border-t-transparent mx-auto"></div>
-          <p className="text-sm text-gray-600">Chargement du tableau de bord...</p>
+          <p className="text-sm text-stone-600">Chargement du tableau de bord...</p>
         </div>
       </div>
     )
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
       case 'expired':
         return 'bg-red-100 text-red-700'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-stone-100 text-stone-700'
     }
   }
 
@@ -398,13 +398,13 @@ export default function AdminDashboard() {
   const getUsageRateDisplay = (usageRate: number) => Math.min(100, Math.max(0, Math.round(usageRate || 0)))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/30 to-emerald-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-green-50/30 to-emerald-50/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         
-        {/* En-tête avec gradient vert */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 text-white p-8 lg:p-12 shadow-2xl">
+        {/* En-tête premium */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 text-white p-8 lg:p-12 shadow-2xl">
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-green-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
+            <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl animate-pulse delay-700" />
           </div>
           
@@ -523,25 +523,25 @@ export default function AdminDashboard() {
         {/* Graphiques de performance */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Revenus contrats maintenance */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Revenus annuels contrats</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrencyValue(maintenanceMetrics.annualRevenue)}</p>
-                <span className="text-xs text-gray-500 font-medium">Maintenance</span>
+                <h3 className="text-sm font-medium text-stone-500">Revenus annuels contrats</h3>
+                <p className="text-2xl font-bold text-stone-900 mt-1">{formatCurrencyValue(maintenanceMetrics.annualRevenue)}</p>
+                <span className="text-xs text-stone-500 font-medium">Maintenance</span>
               </div>
-              <div className="bg-green-100 p-3 rounded-xl">
-                <BarChart3 className="h-5 w-5 text-green-600" />
+              <div className="bg-emerald-100 p-3 rounded-xl">
+                <BarChart3 className="h-5 w-5 text-emerald-700" />
               </div>
             </div>
           </div>
 
           {/* Taux de conversion */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Conversion devis → projets</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{kpis.quotes > 0 ? Math.round((kpis.projectsActive / kpis.quotes) * 100) : 0}%</p>
+                <h3 className="text-sm font-medium text-stone-500">Conversion devis → projets</h3>
+                <p className="text-2xl font-bold text-stone-900 mt-1">{kpis.quotes > 0 ? Math.round((kpis.projectsActive / kpis.quotes) * 100) : 0}%</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-xl">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -558,11 +558,11 @@ export default function AdminDashboard() {
           </div>
 
           {/* Utilisation moyenne contrats maintenance */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Utilisation moyenne contrats</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{maintenanceMetrics.avgUsageRate}%</p>
+                <h3 className="text-sm font-medium text-stone-500">Utilisation moyenne contrats</h3>
+                <p className="text-2xl font-bold text-stone-900 mt-1">{maintenanceMetrics.avgUsageRate}%</p>
               </div>
               <div className="bg-purple-100 p-3 rounded-xl">
                 <Activity className="h-5 w-5 text-purple-600" />
@@ -580,148 +580,148 @@ export default function AdminDashboard() {
         </section>
 
         {/* Actions rapides - Simplifié */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Actions rapides</h2>
+        <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-stone-900 mb-6">Actions rapides</h2>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <Link 
               href="/admin/devis" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
             >
-              <div className="bg-green-100 p-3 rounded-xl group-hover:bg-green-200 transition">
-                <FileText className="h-6 w-6 text-green-600" />
+              <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition">
+                <FileText className="h-6 w-6 text-emerald-700" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Nouveau devis</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Nouveau devis</span>
             </Link>
 
             <Link 
               href="/admin/clients" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
             >
               <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition">
                 <Building2 className="h-6 w-6 text-blue-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Créer client</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Créer client</span>
             </Link>
 
             <Link 
               href="/admin/planning" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
             >
               <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition">
                 <Calendar className="h-6 w-6 text-purple-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Planifier</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Planifier</span>
             </Link>
 
             <Link 
               href="/admin/technicians" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
             >
               <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition">
                 <Wrench className="h-6 w-6 text-orange-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Techniciens</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Techniciens</span>
             </Link>
 
             <Link 
               href="/admin/users" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all"
             >
               <div className="bg-teal-100 p-3 rounded-xl group-hover:bg-teal-200 transition">
                 <Users2 className="h-6 w-6 text-teal-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Utilisateurs</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Utilisateurs</span>
             </Link>
 
             <Link 
               href="/admin/produits" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-pink-300 hover:bg-pink-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-pink-300 hover:bg-pink-50/50 transition-all"
             >
               <div className="bg-pink-100 p-3 rounded-xl group-hover:bg-pink-200 transition">
                 <Package className="h-6 w-6 text-pink-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Catalogue</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Catalogue</span>
             </Link>
 
             <Link 
               href="/admin/auto-import" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
             >
               <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition">
                 <Download className="h-6 w-6 text-orange-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Auto Import</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Auto Import</span>
             </Link>
 
             <Link 
               href="/admin/maintenance" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
             >
               <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition">
                 <ShieldCheck className="h-6 w-6 text-emerald-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Centre maintenance</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Centre maintenance</span>
             </Link>
 
             <Link 
               href="/admin/marketplace" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
             >
               <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition">
                 <Briefcase className="h-6 w-6 text-blue-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Marketplace</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Marketplace</span>
             </Link>
 
             <Link 
               href="/admin/tresorerie" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all"
             >
               <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition">
                 <Wallet className="h-6 w-6 text-emerald-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Trésorerie 360°</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Trésorerie 360°</span>
             </Link>
 
             <Link 
               href="/admin/depenses" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all"
             >
               <div className="bg-orange-100 p-3 rounded-xl group-hover:bg-orange-200 transition">
                 <TrendingDown className="h-6 w-6 text-orange-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Dépenses</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Dépenses</span>
             </Link>
 
             <Link 
               href="/admin/comptabilite" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
             >
               <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition">
                 <Calculator className="h-6 w-6 text-purple-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Comptabilité</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Comptabilité</span>
             </Link>
 
             <Link 
               href="/admin/analytics" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all"
             >
               <div className="bg-indigo-100 p-3 rounded-xl group-hover:bg-indigo-200 transition">
                 <BarChart3 className="h-6 w-6 text-indigo-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Analytics</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Analytics</span>
             </Link>
 
             <Link 
               href="/admin/tickets" 
-              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50/50 transition-all"
+              className="group flex flex-col items-center gap-3 p-4 rounded-xl border border-stone-200 hover:border-red-300 hover:bg-red-50/50 transition-all"
             >
               <div className="bg-red-100 p-3 rounded-xl group-hover:bg-red-200 transition">
                 <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">Support</span>
+              <span className="text-sm font-medium text-stone-700 text-center">Support</span>
             </Link>
           </div>
         </section>
@@ -730,9 +730,9 @@ export default function AdminDashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Projets actifs */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Projets en cours</h2>
+              <h2 className="text-lg font-semibold text-stone-900">Projets en cours</h2>
               <Link href="/admin/planning" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
                 Voir tout →
               </Link>
@@ -740,8 +740,8 @@ export default function AdminDashboard() {
             
             {projectHighlights.length === 0 ? (
               <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Aucun projet en cours</p>
+                <Calendar className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+                <p className="text-sm text-stone-500">Aucun projet en cours</p>
                 <Link 
                   href="/admin/planning"
                   className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 transition"
@@ -753,15 +753,15 @@ export default function AdminDashboard() {
             ) : (
               <div className="space-y-3">
                 {projectHighlights.slice(0, 3).map((project) => (
-                  <div key={project.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition">
+                  <div key={project.id} className="flex items-center gap-3 p-3 rounded-lg border border-stone-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition">
                     <div className={`w-2 h-2 rounded-full ${
-                      project.status === 'IN_PROGRESS' ? 'bg-green-500' : 'bg-gray-300'
+                      project.status === 'IN_PROGRESS' ? 'bg-green-500' : 'bg-stone-300'
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
-                      <p className="text-xs text-gray-500">{project.client}</p>
+                      <p className="text-sm font-medium text-stone-900 truncate">{project.name}</p>
+                      <p className="text-xs text-stone-500">{project.client}</p>
                     </div>
-                    <span className="text-xs text-gray-400">{project.serviceType}</span>
+                    <span className="text-xs text-stone-400">{project.serviceType}</span>
                   </div>
                 ))}
               </div>
@@ -769,9 +769,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Clients récents */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Clients récents</h2>
+              <h2 className="text-lg font-semibold text-stone-900">Clients récents</h2>
               <Link href="/admin/clients" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
                 Voir tout →
               </Link>
@@ -779,8 +779,8 @@ export default function AdminDashboard() {
             
             {recentClients.length === 0 ? (
               <div className="text-center py-8">
-                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Aucun client enregistré</p>
+                <Building2 className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+                <p className="text-sm text-stone-500">Aucun client enregistré</p>
                 <Link 
                   href="/admin/clients"
                   className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition"
@@ -792,18 +792,18 @@ export default function AdminDashboard() {
             ) : (
               <div className="space-y-3">
                 {recentClients.slice(0, 3).map((client) => (
-                  <div key={client.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition">
+                  <div key={client.id} className="flex items-center gap-3 p-3 rounded-lg border border-stone-100 hover:border-blue-200 hover:bg-blue-50/30 transition">
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
                       {(client.company || client.name).charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-stone-900 truncate">
                         {client.company || client.name}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">{client.email}</p>
+                      <p className="text-xs text-stone-500 truncate">{client.email}</p>
                     </div>
                     {client.activeContracts > 0 && (
-                      <span className="flex-shrink-0 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                      <span className="flex-shrink-0 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
                         {client.activeContracts}
                       </span>
                     )}
@@ -816,11 +816,11 @@ export default function AdminDashboard() {
 
         {/* Maintenance & Contrats */}
         <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Maintenance clients</h2>
-                <p className="text-sm text-gray-500">Contrats actifs, renouvellements et couverture SLA</p>
+                <h2 className="text-lg font-semibold text-stone-900">Maintenance clients</h2>
+                <p className="text-sm text-stone-500">Contrats actifs, renouvellements et couverture SLA</p>
               </div>
               <Link
                 href="/admin/clients"
@@ -841,14 +841,14 @@ export default function AdminDashboard() {
               </Link>
               <Link
                 href="/admin/projects?filter=maintenance"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-700 hover:border-emerald-200 hover:text-emerald-700 transition"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-stone-200 text-xs font-semibold text-stone-700 hover:border-emerald-200 hover:text-emerald-700 transition"
               >
                 <FileText className="h-3.5 w-3.5" />
                 Voir les contrats
               </Link>
               <button
                 onClick={loadDashboardData}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-100 text-stone-700 text-xs font-semibold hover:bg-stone-200 transition"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                 Actualiser les données
@@ -859,11 +859,11 @@ export default function AdminDashboard() {
               {[
                 { label: 'Contrats actifs', value: maintenanceMetrics.active.toString(), accent: 'text-emerald-600' },
                 { label: 'Expirent < 60j', value: maintenanceMetrics.expiringSoon.toString(), accent: 'text-orange-600' },
-                { label: 'CA récurrent', value: formatCurrencyValue(maintenanceMetrics.annualRevenue), accent: 'text-gray-900' },
+                { label: 'CA récurrent', value: formatCurrencyValue(maintenanceMetrics.annualRevenue), accent: 'text-stone-900' },
                 { label: 'Utilisation moyenne', value: `${maintenanceMetrics.avgUsageRate}%`, accent: 'text-purple-600' }
               ].map((stat) => (
-                <div key={stat.label} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs text-gray-500">{stat.label}</p>
+                <div key={stat.label} className="p-3 rounded-xl bg-stone-50 border border-stone-100">
+                  <p className="text-xs text-stone-500">{stat.label}</p>
                   <p className={`text-xl font-semibold ${stat.accent}`}>{stat.value}</p>
                 </div>
               ))}
@@ -871,21 +871,21 @@ export default function AdminDashboard() {
 
             {maintenanceContracts.length === 0 ? (
               <div className="text-center py-10">
-                <ShieldCheck className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Aucun contrat de maintenance enregistré</p>
-                <p className="text-xs text-gray-400 mt-1">Créez un contrat depuis la fiche client.</p>
+                <ShieldCheck className="h-10 w-10 text-stone-300 mx-auto mb-3" />
+                <p className="text-sm text-stone-500">Aucun contrat de maintenance enregistré</p>
+                <p className="text-xs text-stone-400 mt-1">Créez un contrat depuis la fiche client.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {maintenanceContracts.map((contract) => (
                   <div
                     key={contract.id}
-                    className="p-4 border border-gray-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/30 transition"
+                    className="p-4 border border-stone-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50/30 transition"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{contract.name}</p>
-                        <p className="text-xs text-gray-500">{contract.clientName}</p>
+                        <p className="text-sm font-semibold text-stone-900">{contract.name}</p>
+                        <p className="text-xs text-stone-500">{contract.clientName}</p>
                       </div>
                       <span
                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${getMaintenanceStatusClasses(contract.status)}`}
@@ -897,7 +897,7 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={() => window.open(`/api/maintenance/contracts/${contract.id}/export?format=pdf`, '_blank')}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:border-emerald-300 hover:text-emerald-700"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-stone-200 text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         PDF
@@ -907,7 +907,7 @@ export default function AdminDashboard() {
                         onClick={() =>
                           window.open(`/api/maintenance/contracts/${contract.id}/export?format=docx`, '_blank')
                         }
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:border-emerald-300 hover:text-emerald-700"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-stone-200 text-stone-700 hover:border-emerald-300 hover:text-emerald-700"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Word
@@ -915,28 +915,28 @@ export default function AdminDashboard() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 text-xs">
                       <div>
-                        <p className="text-gray-500">Expiration</p>
-                        <p className="text-gray-900 font-semibold">
+                        <p className="text-stone-500">Expiration</p>
+                        <p className="text-stone-900 font-semibold">
                           {formatDaysUntilExpiration(contract.daysUntilExpiration, contract.isExpired)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Type</p>
-                        <p className="text-gray-900 font-semibold capitalize">{contract.type}</p>
+                        <p className="text-stone-500">Type</p>
+                        <p className="text-stone-900 font-semibold capitalize">{contract.type}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Valeur</p>
-                        <p className="text-gray-900 font-semibold">{formatCurrencyValue(contract.annualPrice)}</p>
+                        <p className="text-stone-500">Valeur</p>
+                        <p className="text-stone-900 font-semibold">{formatCurrencyValue(contract.annualPrice)}</p>
                       </div>
                     </div>
                     <div className="mt-4">
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center justify-between text-xs text-stone-500">
                         <span>Utilisation</span>
-                        <span className="text-gray-900 font-semibold">
+                        <span className="text-stone-900 font-semibold">
                           {getUsageRateDisplay(contract.usageRate)}%
                         </span>
                       </div>
-                      <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="mt-2 h-2 bg-stone-100 rounded-full overflow-hidden">
                         <div
                           className={`h-2 rounded-full ${contract.isNearExpiration ? 'bg-orange-400' : 'bg-emerald-500'}`}
                           style={{ width: `${getUsageRateDisplay(contract.usageRate)}%` }}
@@ -944,19 +944,19 @@ export default function AdminDashboard() {
                       </div>
                       {contract.equipment && contract.equipment.length > 0 && (
                         <div className="mt-3">
-                          <p className="text-xs text-gray-500 mb-1">Équipements</p>
+                          <p className="text-xs text-stone-500 mb-1">Équipements</p>
                           <div className="flex flex-wrap gap-2">
                             {contract.equipment.slice(0, 3).map((equipment, idx) => (
                               <span
                                 key={`${contract.id}-equip-${idx}`}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[11px] text-gray-600"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-stone-200 text-[11px] text-stone-600"
                               >
                                 {equipment.quantity}× {equipment.type}
-                                {equipment.location ? <span className="text-gray-400">• {equipment.location}</span> : null}
+                                {equipment.location ? <span className="text-stone-400">• {equipment.location}</span> : null}
                               </span>
                             ))}
                             {contract.equipment.length > 3 && (
-                              <span className="px-2.5 py-1 rounded-full bg-white border border-dashed border-gray-200 text-[11px] text-gray-500">
+                              <span className="px-2.5 py-1 rounded-full bg-white border border-dashed border-stone-200 text-[11px] text-stone-500">
                                 +{contract.equipment.length - 3}
                               </span>
                             )}
@@ -964,17 +964,17 @@ export default function AdminDashboard() {
                         </div>
                       )}
                       {(contract.responseTime || contract.supportHours) && (
-                        <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-500">
+                        <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-stone-500">
                           {contract.responseTime && (
                             <div>
                               <p>Délai</p>
-                              <p className="text-gray-900 font-semibold">{contract.responseTime}</p>
+                              <p className="text-stone-900 font-semibold">{contract.responseTime}</p>
                             </div>
                           )}
                           {contract.supportHours && (
                             <div>
                               <p>Support</p>
-                              <p className="text-gray-900 font-semibold">{contract.supportHours}</p>
+                              <p className="text-stone-900 font-semibold">{contract.supportHours}</p>
                             </div>
                           )}
                         </div>
@@ -986,21 +986,21 @@ export default function AdminDashboard() {
             )}
 
             {maintenanceTopClients.length > 0 && (
-              <div className="mt-8 border-t border-gray-100 pt-6">
+              <div className="mt-8 border-t border-stone-100 pt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900">Top clients maintenance</h3>
-                  <span className="text-xs text-gray-500">{maintenanceTopClients.length} comptes suivis</span>
+                  <h3 className="text-sm font-semibold text-stone-900">Top clients maintenance</h3>
+                  <span className="text-xs text-stone-500">{maintenanceTopClients.length} comptes suivis</span>
                 </div>
                 <div className="space-y-3">
                   {maintenanceTopClients.map((client) => (
-                    <div key={client.clientName} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div key={client.clientName} className="p-3 rounded-xl bg-stone-50 border border-stone-100">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">{client.clientName}</p>
+                        <p className="text-sm font-semibold text-stone-900">{client.clientName}</p>
                         <p className="text-sm font-semibold text-emerald-600">
                           {formatCurrencyValue(client.totalValue)}
                         </p>
                       </div>
-                      <div className="text-xs text-gray-500 mt-2 flex items-center gap-4">
+                      <div className="text-xs text-stone-500 mt-2 flex items-center gap-4">
                         <span>{client.activeContracts} contrat(s) actif(s)</span>
                         {client.expiringSoon > 0 && (
                           <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
@@ -1069,19 +1069,19 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div>
               <div className="text-3xl font-bold text-emerald-700">{technicians.total}</div>
-              <div className="text-sm text-gray-600 mt-1">Techniciens</div>
+              <div className="text-sm text-stone-600 mt-1">Techniciens</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-green-700">{portalMetrics.totalClients}</div>
-              <div className="text-sm text-gray-600 mt-1">Clients</div>
+              <div className="text-3xl font-bold text-emerald-800">{portalMetrics.totalClients}</div>
+              <div className="text-sm text-stone-600 mt-1">Clients</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-teal-700">{kpis.projectsActive}</div>
-              <div className="text-sm text-gray-600 mt-1">Projets actifs</div>
+              <div className="text-sm text-stone-600 mt-1">Projets actifs</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-emerald-700">{kpis.quotes}</div>
-              <div className="text-sm text-gray-600 mt-1">Devis en cours</div>
+              <div className="text-sm text-stone-600 mt-1">Devis en cours</div>
             </div>
           </div>
         </section>
