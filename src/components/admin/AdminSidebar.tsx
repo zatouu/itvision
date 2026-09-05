@@ -491,7 +491,7 @@ export default function AdminSidebar() {
       return pathname === '/admin'
     }
 
-    let active = pathname.startsWith(targetPath)
+    const active = pathname.startsWith(targetPath)
     if (!active) return false
 
     if (!targetQuery) {
