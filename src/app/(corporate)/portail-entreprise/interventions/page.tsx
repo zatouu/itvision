@@ -3,36 +3,20 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
-import { connectDB } from '@/lib/db'
-import { Wrench, Calendar, MapPin, AlertTriangle, CheckCircle, Clock, Shield } from 'lucide-react'
+import { Wrench, Calendar, MapPin, CheckCircle, Clock, Shield, ChevronRight } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
-import SoftMessage from '@/components/ui/SoftMessage'
 import RequestInterventionButton from '@/components/client/RequestInterventionButton'
 import InterventionFeedback from '@/components/client/InterventionFeedback'
-
-const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-  critical: { label: 'Critique',  color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  urgent:   { label: 'Urgent',   color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  high:     { label: 'Haute',    color: 'bg-orange-100 text-orange-700' },
-  medium:   { label: 'Normale',  color: 'bg-yellow-100 text-yellow-700' },
-  low:      { label: 'Basse',    color: 'bg-gray-100 text-gray-500' },
-}
-const TYPE_LABELS: Record<string, string> = {
-  emergency: 'Urgence', maintenance: 'Maintenance', installation: 'Installation', repair: 'Réparation', inspection: 'Inspection'
-}
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  pending:      { label: 'Planifiée',  color: 'bg-blue-100 text-blue-700' },
-  in_progress:  { label: 'En cours',   color: 'bg-yellow-100 text-yellow-700' },
-  completed:    { label: 'Terminée',   color: 'bg-green-100 text-green-700' },
-  cancelled:    { label: 'Annulée',    color: 'bg-gray-100 text-gray-400' },
-  scheduled:    { label: 'Planifiée',  color: 'bg-blue-100 text-blue-700' },
-  draft:        { label: 'Brouillon',  color: 'bg-gray-100 text-gray-400' },
-}
-
-function fmtDate(d: any) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
-}
+import {
+  PageHeader,
+  BackLink,
+  StatusBadge,
+  EmptyState,
+  interventionStatus,
+  priority,
+  interventionTypeLabel,
+  fmtDate,
+} from '@/components/portal-ui'
 
 export default async function InterventionsPage() {
   const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/interventions')
@@ -45,37 +29,28 @@ export default async function InterventionsPage() {
   const past = interventions.filter(i => !upcoming.includes(i))
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-blue-600" /> Fiches d&apos;intervention
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {interventions.length} intervention{interventions.length > 1 ? 's' : ''}
-            {upcoming.length > 0 && ` · ${upcoming.length} à venir`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <RequestInterventionButton />
-          <Link href="/portail-entreprise" className="text-sm text-gray-400 hover:text-gray-600">← Tableau de bord</Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
+      <PageHeader
+        icon={Wrench}
+        eyebrow="Maintenance"
+        title="Fiches d'intervention"
+        subtitle={`${interventions.length} intervention${interventions.length > 1 ? 's' : ''}${upcoming.length > 0 ? ` · ${upcoming.length} à venir` : ''}`}
+      >
+        <RequestInterventionButton />
+        <BackLink />
+      </PageHeader>
 
       {interventions.length === 0 && (
-        <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center">
-          <SoftMessage
-            variant="info"
-            title="Aucune intervention enregistrée"
-            message="Les interventions planifiées et terminées apparaîtront ici dès qu'elles seront créées."
-            className="mx-auto max-w-xl text-left"
-          />
-        </div>
+        <EmptyState
+          soft
+          title="Aucune intervention enregistrée"
+          message="Les interventions planifiées et terminées apparaîtront ici dès qu'elles seront créées."
+        />
       )}
 
       {upcoming.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide mb-3">À venir</h2>
+          <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">À venir</h2>
           <div className="space-y-3">
             {upcoming.map(i => <InterventionCard key={String(i._id)} i={i} />)}
           </div>
@@ -84,7 +59,7 @@ export default async function InterventionsPage() {
 
       {past.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide mb-3">Historique</h2>
+          <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">Historique</h2>
           <div className="space-y-3">
             {past.map(i => <InterventionCard key={String(i._id)} i={i} />)}
           </div>
@@ -95,57 +70,55 @@ export default async function InterventionsPage() {
 }
 
 function InterventionCard({ i }: { i: any }) {
-  const priority = PRIORITY_CONFIG[i.priority] || { label: i.priority, color: 'bg-gray-100 text-gray-500' }
-  const status = STATUS_CONFIG[i.status] || { label: i.status || '—', color: 'bg-gray-100 text-gray-400' }
   const hasSignature = !!i.signatures?.client?.signature
   const photoCount = ((i.photosAvant || []).length + (i.photosApres || []).length)
   const isCompleted = i.status === 'completed'
 
   return (
-    <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-      <div className="flex items-start justify-between gap-3 p-4">
+    <div className="rounded-2xl border border-stone-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="flex items-start justify-between gap-3 p-4 sm:p-5">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="flex-shrink-0 mt-0.5 w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-            <Wrench className="w-4 h-4 text-blue-600" />
+          <div className="flex-shrink-0 mt-0.5 w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center">
+            <Wrench className="w-4 h-4 text-sky-700" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-medium text-gray-900 dark:text-white">{i.title}</h3>
+              <h3 className="text-sm font-semibold text-stone-900">{i.title}</h3>
               {i.interventionNumber && (
-                <span className="text-xs text-gray-400 font-mono">{i.interventionNumber}</span>
+                <span className="text-xs text-stone-400 font-mono">{i.interventionNumber}</span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center gap-3 mt-1 text-xs text-stone-400 flex-wrap">
               {i.date && (
                 <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> {new Date(i.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  <Calendar className="w-3 h-3" /> {fmtDate(i.date)}
                   {i.heureDebut && ` · ${i.heureDebut}`}
                 </span>
               )}
               {i.site && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {i.site}</span>}
               {i.service && <span>{i.service}</span>}
-              {i.typeIntervention && <span>{TYPE_LABELS[i.typeIntervention] || i.typeIntervention}</span>}
+              {i.typeIntervention && <span>{interventionTypeLabel[i.typeIntervention] || i.typeIntervention}</span>}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${priority.color}`}>{priority.label}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.color}`}>{status.label}</span>
+          <StatusBadge status={i.priority} map={priority} />
+          <StatusBadge status={i.status} map={interventionStatus} />
         </div>
       </div>
 
       {(i.activites || i.observations || i.recommandations?.length > 0) && (
-        <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-3 space-y-2">
+        <div className="border-t border-stone-100 px-4 sm:px-5 py-3 space-y-2">
           {i.activites && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Activités</p>
-              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{i.activites}</p>
+              <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-0.5">Activités</p>
+              <p className="text-xs text-stone-600 line-clamp-2">{i.activites}</p>
             </div>
           )}
           {i.observations && (
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Observations</p>
-              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{i.observations}</p>
+              <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-0.5">Observations</p>
+              <p className="text-xs text-stone-600 line-clamp-2">{i.observations}</p>
             </div>
           )}
         </div>
@@ -153,17 +126,17 @@ function InterventionCard({ i }: { i: any }) {
 
       {/* Feedback client */}
       {i.clientFeedback?.rating && (
-        <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2 flex items-center gap-2 text-xs">
-          <span className="text-yellow-500">{'★'.repeat(i.clientFeedback.rating)}{'☆'.repeat(5 - i.clientFeedback.rating)}</span>
+        <div className="border-t border-stone-100 px-4 sm:px-5 py-2.5 flex items-center gap-2 text-xs">
+          <span className="text-amber-500">{'★'.repeat(i.clientFeedback.rating)}{'☆'.repeat(5 - i.clientFeedback.rating)}</span>
           {i.clientFeedback.comment && (
-            <span className="text-gray-500 truncate">{i.clientFeedback.comment}</span>
+            <span className="text-stone-500 truncate">{i.clientFeedback.comment}</span>
           )}
         </div>
       )}
 
       {/* Actions client post-intervention */}
       {isCompleted && (
-        <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2">
+        <div className="border-t border-stone-100 px-4 sm:px-5 py-2.5">
           <InterventionFeedback
             interventionId={String(i._id)}
             existingFeedback={i.clientFeedback}
@@ -172,27 +145,27 @@ function InterventionCard({ i }: { i: any }) {
         </div>
       )}
 
-      <div className="border-t border-gray-50 dark:border-slate-800 px-4 py-2 flex items-center justify-between">
+      <div className="border-t border-stone-100 px-4 sm:px-5 py-2.5 flex items-center justify-between gap-3">
         <Link href={`/portail-entreprise/interventions/${String(i._id)}`}
-          className="text-xs font-semibold text-green-600 hover:text-green-700 flex items-center gap-1">
-          Voir le détail →
+          className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group">
+          Voir le détail <ChevronRight className="w-3.5 h-3.5 text-stone-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
         </Link>
-        <div className="flex items-center gap-4 text-xs text-gray-400">
-        {i.isCoveredByContract && (
-          <span className="flex items-center gap-1 text-green-600">
-            <Shield className="w-3 h-3" /> Couvert contrat
-          </span>
-        )}
-        {hasSignature && (
-          <span className="flex items-center gap-1 text-green-600">
-            <CheckCircle className="w-3 h-3" /> Signé
-          </span>
-        )}
-        {photoCount > 0 && (
-          <span>{photoCount} photo{photoCount > 1 ? 's' : ''}</span>
-        )}
-        {i.duree && <span><Clock className="w-3 h-3 inline mr-0.5" />{i.duree}min</span>}
-      </div>
+        <div className="flex items-center gap-4 text-xs text-stone-400 flex-wrap">
+          {i.isCoveredByContract && (
+            <span className="flex items-center gap-1 text-emerald-700">
+              <Shield className="w-3 h-3" /> Couvert contrat
+            </span>
+          )}
+          {hasSignature && (
+            <span className="flex items-center gap-1 text-emerald-700">
+              <CheckCircle className="w-3 h-3" /> Signé
+            </span>
+          )}
+          {photoCount > 0 && (
+            <span className="tabular-nums">{photoCount} photo{photoCount > 1 ? 's' : ''}</span>
+          )}
+          {i.duree && <span className="tabular-nums"><Clock className="w-3 h-3 inline mr-0.5" />{i.duree}min</span>}
+        </div>
       </div>
     </div>
   )

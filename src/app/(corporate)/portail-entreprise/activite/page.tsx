@@ -3,31 +3,17 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
-import { connectDB } from '@/lib/db'
+import { Activity, ChevronRight } from 'lucide-react'
 import {
-  Activity, FileText, Wrench, FolderKanban, Receipt,
-  LifeBuoy, Shield, MessageSquare, CheckCircle, Clock,
-  AlertTriangle, ChevronRight
-} from 'lucide-react'
+  BackLink, EmptyState, PageHeader, Pill,
+  activityBadge, activityIcon, fmtRelative, projectStatus, statusDef,
+} from '@/components/portal-ui'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
 import Project from '@/lib/models/Project'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Ticket from '@/lib/models/Ticket'
-import SoftMessage from '@/components/ui/SoftMessage'
-
-function fmtDate(d: any) {
-  if (!d) return '—'
-  const date = new Date(d)
-  const now = new Date()
-  const diff = Math.floor((now.getTime() - date.getTime()) / 60000) // minutes
-  if (diff < 1) return "À l'instant"
-  if (diff < 60) return `Il y a ${diff} min`
-  if (diff < 1440) return `Il y a ${Math.floor(diff / 60)}h`
-  if (diff < 10080) return `Il y a ${Math.floor(diff / 1440)}j`
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
-}
 
 type TimelineEvent = {
   id: string
@@ -42,16 +28,6 @@ type TimelineEvent = {
   badge?: string
   badgeColor?: string
   urgent?: boolean
-}
-
-const ICON_CONFIG = {
-  contract:     { icon: Shield,       color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' },
-  intervention: { icon: Wrench,       color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
-  project:      { icon: FolderKanban, color: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' },
-  quote:        { icon: FileText,     color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' },
-  invoice:      { icon: Receipt,      color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  ticket:       { icon: LifeBuoy,     color: 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' },
-  comment:      { icon: MessageSquare, color: 'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400' },
 }
 
 export default async function ActivitePage() {
@@ -82,7 +58,7 @@ export default async function ActivitePage() {
 
   // Contrats
   for (const c of contracts) {
-    const ic = ICON_CONFIG.contract
+    const ic = activityIcon.contract
     events.push({
       id: `contract-${c._id}`,
       date: new Date(c.updatedAt || c.createdAt),
@@ -93,13 +69,13 @@ export default async function ActivitePage() {
       icon: ic.icon,
       color: ic.color,
       badge: c.status === 'active' ? 'Actif' : c.status,
-      badgeColor: c.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500',
+      badgeColor: c.status === 'active' ? activityBadge.ok : activityBadge.neutral,
     })
   }
 
   // Interventions
   for (const i of interventions) {
-    const ic = ICON_CONFIG.intervention
+    const ic = activityIcon.intervention
     events.push({
       id: `intervention-${i._id}`,
       date: new Date(i.date || i.createdAt),
@@ -110,24 +86,20 @@ export default async function ActivitePage() {
       icon: ic.icon,
       color: ic.color,
       badge: i.priority === 'urgent' || i.priority === 'critical' ? i.priority : undefined,
-      badgeColor: 'bg-red-100 text-red-700',
+      badgeColor: activityBadge.alert,
       urgent: i.priority === 'urgent' || i.priority === 'critical',
     })
   }
 
   // Projets
   for (const p of projects) {
-    const ic = ICON_CONFIG.project
-    const statusLabels: Record<string, string> = {
-      in_progress: 'En cours', completed: 'Terminé', approved: 'Approuvé',
-      quoted: 'Devis', lead: 'Prospect', testing: 'Tests', on_hold: 'En pause'
-    }
+    const ic = activityIcon.project
     events.push({
       id: `project-${p._id}`,
       date: new Date(p.updatedAt || p.createdAt),
       type: 'project',
       title: p.name,
-      subtitle: `${p.serviceType || 'Projet'} · ${statusLabels[p.status] || p.status}${p.progress != null ? ` · ${p.progress}%` : ''}`,
+      subtitle: `${p.serviceType || 'Projet'} · ${statusDef(projectStatus, p.status).label}${p.progress != null ? ` · ${p.progress}%` : ''}`,
       href: '/portail-entreprise/projets',
       icon: ic.icon,
       color: ic.color,
@@ -136,7 +108,7 @@ export default async function ActivitePage() {
 
   // Devis + commentaires
   for (const q of quotes) {
-    const ic = ICON_CONFIG.quote
+    const ic = activityIcon.quote
     const needsAction = q.status === 'sent' && (!q.clientResponse || q.clientResponse === 'pending')
     events.push({
       id: `quote-${q._id}`,
@@ -150,15 +122,15 @@ export default async function ActivitePage() {
         `Statut : ${q.status}`,
       href: '/portail-entreprise/documents',
       icon: ic.icon,
-      color: needsAction ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30' : ic.color,
+      color: needsAction ? 'bg-amber-50 text-amber-700' : ic.color,
       badge: needsAction ? 'Action requise' : undefined,
-      badgeColor: 'bg-orange-100 text-orange-700',
+      badgeColor: activityBadge.action,
       urgent: needsAction,
     })
     // Commentaires récents sur ce devis
     if (q.clientComments?.length) {
       for (const cm of q.clientComments.slice(-2)) {
-        const icm = ICON_CONFIG.comment
+        const icm = activityIcon.comment
         events.push({
           id: `comment-${q._id}-${String(cm._id || Math.random())}`,
           date: new Date(cm.createdAt),
@@ -175,7 +147,7 @@ export default async function ActivitePage() {
 
   // Factures
   for (const inv of invoices) {
-    const ic = ICON_CONFIG.invoice
+    const ic = activityIcon.invoice
     const isOverdue = inv.status === 'overdue'
     const isDueSoon = inv.dueDate && !isOverdue && Math.floor((new Date(inv.dueDate).getTime() - Date.now()) / 86400000) <= 7
     events.push({
@@ -184,7 +156,7 @@ export default async function ActivitePage() {
       type: 'invoice',
       title: `Facture #${inv.numero}`,
       subtitle: inv.status === 'paid'
-        ? `Payée — ${inv.total?.toLocaleString('fr-FR')} FCFA`
+        ? `Payée — ${inv.total?.toLocaleString('fr-FR')} F`
         : isOverdue
         ? `En retard · Échéance dépassée`
         : isDueSoon
@@ -192,16 +164,16 @@ export default async function ActivitePage() {
         : `À régler · Échéance ${new Date(inv.dueDate || inv.date).toLocaleDateString('fr-FR')}`,
       href: '/portail-entreprise/documents',
       icon: ic.icon,
-      color: isOverdue ? 'bg-red-100 text-red-600 dark:bg-red-900/30' : ic.color,
+      color: isOverdue ? 'bg-red-50 text-red-700' : ic.color,
       badge: isOverdue ? 'En retard' : inv.status === 'paid' ? 'Payée' : undefined,
-      badgeColor: isOverdue ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700',
+      badgeColor: isOverdue ? activityBadge.alert : activityBadge.ok,
       urgent: isOverdue,
     })
   }
 
   // Tickets
   for (const t of tickets) {
-    const ic = ICON_CONFIG.ticket
+    const ic = activityIcon.ticket
     const isUrgent = t.priority === 'urgent' || t.priority === 'high'
     events.push({
       id: `ticket-${t._id}`,
@@ -211,9 +183,9 @@ export default async function ActivitePage() {
       subtitle: `${t.category} · ${t.status === 'open' ? 'Ouvert' : t.status === 'in_progress' ? 'En traitement' : t.status === 'resolved' ? 'Résolu' : t.status}`,
       href: '/portail-entreprise/support',
       icon: ic.icon,
-      color: isUrgent && t.status !== 'resolved' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30' : ic.color,
+      color: isUrgent && t.status !== 'resolved' ? 'bg-red-50 text-red-700' : ic.color,
       badge: isUrgent && !['resolved', 'closed'].includes(t.status) ? 'Urgent' : undefined,
-      badgeColor: 'bg-red-100 text-red-700',
+      badgeColor: activityBadge.alert,
       urgent: isUrgent && !['resolved', 'closed'].includes(t.status),
     })
   }
@@ -237,66 +209,68 @@ export default async function ActivitePage() {
   const urgentCount = events.filter(e => e.urgent).length
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-green-600" /> Activité récente
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
+      <PageHeader
+        icon={Activity}
+        eyebrow="Portail entreprise"
+        title="Activité récente"
+        subtitle={
+          <>
             Timeline de tous les événements de votre portail
-            {urgentCount > 0 && <span className="ml-2 rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-xs font-semibold">{urgentCount} action{urgentCount > 1 ? 's' : ''} requise{urgentCount > 1 ? 's' : ''}</span>}
-          </p>
-        </div>
-        <Link href="/portail-entreprise" className="text-sm text-gray-400 hover:text-gray-600">← Dashboard</Link>
-      </div>
+            {urgentCount > 0 && (
+              <Pill color={activityBadge.action} className="ml-2">
+                {urgentCount} action{urgentCount > 1 ? 's' : ''} requise{urgentCount > 1 ? 's' : ''}
+              </Pill>
+            )}
+          </>
+        }
+      >
+        <BackLink />
+      </PageHeader>
 
       {events.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-16 text-center">
-          <SoftMessage
-            variant="info"
-            title="Aucune activité pour l'instant"
-            message="Les nouveaux événements (tickets, devis, factures, interventions) apparaîtront ici automatiquement."
-            className="mx-auto max-w-xl text-left"
-          />
-        </div>
+        <EmptyState
+          soft
+          title="Aucune activité pour l'instant"
+          message="Les nouveaux événements (tickets, devis, factures, interventions) apparaîtront ici automatiquement."
+        />
       ) : (
         <div className="space-y-6">
           {grouped.map(group => (
             <div key={group.dayLabel}>
-              <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-                <span className="flex-1 border-t border-gray-100 dark:border-slate-800" />
+              <h2 className="mb-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-400">
+                <span className="flex-1 border-t border-stone-200" />
                 {group.dayLabel}
-                <span className="flex-1 border-t border-gray-100 dark:border-slate-800" />
+                <span className="flex-1 border-t border-stone-200" />
               </h2>
-              <div className="space-y-2">
+              <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 {group.events.map(ev => {
                   const Icon = ev.icon
                   return (
-                    <Link key={ev.id} href={ev.href}
-                      className={`flex items-start gap-3 rounded-xl border bg-white dark:bg-slate-900 p-4 hover:shadow-md transition-all group ${
-                        ev.urgent ? 'border-orange-200 dark:border-orange-900/40 bg-orange-50/30 dark:bg-orange-900/5' : 'border-gray-100 dark:border-slate-800'
-                      }`}>
-                      <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${ev.color}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{ev.title}</p>
-                          {ev.badge && (
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ev.badgeColor}`}>{ev.badge}</span>
-                          )}
+                    <li key={ev.id} className={ev.urgent ? 'bg-amber-50/40' : ''}>
+                      <Link href={ev.href}
+                        className="flex items-start gap-3 px-4 sm:px-5 py-3.5 group transition-colors hover:bg-emerald-50/40">
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${ev.color}`}>
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{ev.subtitle}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="text-[10px] text-gray-400">{fmtDate(ev.date)}</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                      </div>
-                    </Link>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-stone-900 group-hover:text-emerald-800 transition-colors">{ev.title}</p>
+                            {ev.badge && (
+                              <Pill color={ev.badgeColor}>{ev.badge}</Pill>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-500 mt-0.5">{ev.subtitle}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[11px] text-stone-400 tabular-nums">{fmtRelative(ev.date)}</span>
+                          <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                      </Link>
+                    </li>
                   )
                 })}
-              </div>
+              </ul>
             </div>
           ))}
         </div>

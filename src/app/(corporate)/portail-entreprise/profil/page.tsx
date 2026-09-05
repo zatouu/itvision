@@ -4,8 +4,9 @@ import Link from 'next/link'
 import {
   User, Building2, Mail, Phone, MapPin, Globe, Shield,
   Loader2, AlertCircle, CheckCircle, Save, Lock, Bell,
-  FileText, ChevronLeft, Briefcase, StickyNote
+  FileText, Briefcase, StickyNote
 } from 'lucide-react'
+import { CARD, INPUT, TONE, PageHeader, Pill } from '@/components/portal-ui'
 
 interface ProfileData {
   userName: string
@@ -76,13 +77,13 @@ export default function ProfilePage() {
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      <Loader2 className="w-6 h-6 animate-spin text-stone-300" />
     </div>
   )
 
   if (error && !data) return (
-    <div className="p-6">
-      <div className="rounded-xl border border-red-100 bg-red-50 dark:bg-red-900/20 p-6 text-center">
+    <div className="p-4 sm:p-6">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
         <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
         <p className="text-sm text-red-700">{error}</p>
       </div>
@@ -92,41 +93,37 @@ export default function ProfilePage() {
   if (!data) return null
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-5">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/portail-entreprise" className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 transition-colors">
-            <ChevronLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Mon profil</h1>
-            <p className="text-sm text-gray-500">Gérez vos informations et préférences</p>
-          </div>
-        </div>
+      <PageHeader
+        icon={User}
+        eyebrow="Paramètres"
+        title="Mon profil"
+        subtitle="Gérez vos informations et préférences"
+      >
         <button onClick={handleSave} disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
+          className="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50 transition-colors flex-shrink-0">
           <Save className="w-4 h-4" />
           {saving ? 'Enregistrement...' : 'Enregistrer'}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Alerts */}
       {success && (
-        <div className="rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-900/40 p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <p className="text-sm font-medium text-green-700">{success}</p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-emerald-800">{success}</p>
         </div>
       )}
       {error && data && (
-        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900/40 p-4 flex items-center gap-3">
+        <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
           <p className="text-sm font-medium text-red-700">{error}</p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-100 dark:border-slate-800">
+      <div className="flex gap-1 border-b border-stone-200 overflow-x-auto">
         {[
           { id: 'account', label: 'Mon compte', icon: User },
           { id: 'company', label: 'Mon entreprise', icon: Building2 },
@@ -136,8 +133,8 @@ export default function ProfilePage() {
           const active = tab === t.id
           return (
             <button key={t.id} onClick={() => setTab(t.id as any)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
-                active ? 'border-green-500 text-green-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors ${
+                active ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-stone-400 hover:text-stone-600'
               }`}>
               <I className="w-3.5 h-3.5" />{t.label}
             </button>
@@ -148,14 +145,14 @@ export default function ProfilePage() {
       {/* Account tab */}
       {tab === 'account' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+          <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-10 h-10 rounded-full bg-emerald-800 flex items-center justify-center text-emerald-50 font-bold text-sm">
                 {data.userName?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{data.userName}</p>
-                <p className="text-xs text-gray-400">{data.userEmail}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-900 truncate">{data.userName}</p>
+                <p className="text-xs text-stone-400 truncate">{data.userEmail}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -165,14 +162,14 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+          <div className={`${CARD} p-5`}>
             <div className="flex items-center gap-2 mb-4">
-              <Shield className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Sécurité</h3>
+              <Shield className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Sécurité</h3>
             </div>
-            <p className="text-xs text-gray-400 mb-3">Pour changer votre mot de passe, utilisez la page de votre compte marketplace.</p>
+            <p className="text-xs text-stone-400 mb-3">Pour changer votre mot de passe, utilisez la page de votre compte marketplace.</p>
             <Link href="/compte/profil?tab=security"
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+              className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-xs font-medium text-stone-600 hover:border-emerald-400 hover:text-emerald-800 transition-colors">
               <Lock className="w-3.5 h-3.5" />Modifier le mot de passe
             </Link>
           </div>
@@ -182,10 +179,10 @@ export default function ProfilePage() {
       {/* Company tab */}
       {tab === 'company' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+          <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Informations société</h3>
+              <Building2 className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Informations société</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Nom de l'entreprise" icon={Briefcase} value={data.companyName} onChange={v => update('companyName', v)} />
@@ -198,42 +195,41 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+          <div className={`${CARD} p-5`}>
             <div className="flex items-center gap-2 mb-3">
-              <StickyNote className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notes internes</h3>
+              <StickyNote className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Notes internes</h3>
             </div>
             <textarea
               rows={3}
               value={data.companyNotes || ''}
               onChange={e => update('companyNotes', e.target.value)}
               placeholder="Notes visibles par vous et IT Vision..."
-              className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className={`${INPUT} resize-none`}
             />
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+          <div className={`${CARD} p-5`}>
             <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Permissions portail</h3>
+              <Shield className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Permissions portail</h3>
             </div>
-            <div className="space-y-2">
+            <div className="divide-y divide-stone-100">
               {[
                 { key: 'canViewReports', label: 'Consulter les rapports' },
                 { key: 'canRequestMaintenance', label: 'Demander une intervention' },
                 { key: 'canAccessPortal', label: 'Accéder au portail' },
-              ].map(p => (
-                <div key={p.key} className="flex items-center justify-between py-1.5">
-                  <span className="text-sm text-gray-700 dark:text-gray-200">{p.label}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    (data.permissions as any)[p.key] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {(data.permissions as any)[p.key] ? 'Activé' : 'Désactivé'}
-                  </span>
-                </div>
-              ))}
+              ].map(p => {
+                const on = (data.permissions as any)[p.key]
+                return (
+                  <div key={p.key} className="flex items-center justify-between py-2.5">
+                    <span className="text-sm text-stone-700">{p.label}</span>
+                    <Pill color={on ? TONE.emerald : TONE.neutral}>{on ? 'Activé' : 'Désactivé'}</Pill>
+                  </div>
+                )
+              })}
             </div>
-            <p className="text-xs text-gray-400 mt-2">Contactez IT Vision pour modifier vos permissions.</p>
+            <p className="text-xs text-stone-400 mt-3">Contactez IT Vision pour modifier vos permissions.</p>
           </div>
         </div>
       )}
@@ -241,10 +237,10 @@ export default function ProfilePage() {
       {/* Preferences tab */}
       {tab === 'preferences' && (
         <div className="space-y-4">
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+          <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Bell className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
+              <Bell className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Notifications</h3>
             </div>
             <Toggle
               label="Notifications par email"
@@ -260,29 +256,29 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+          <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Rapports & langue</h3>
+              <FileText className="w-4 h-4 text-emerald-700" />
+              <h3 className="text-sm font-semibold text-stone-900">Rapports & langue</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Format des rapports</label>
+                <label className="block text-xs font-medium text-stone-600 mb-1.5">Format des rapports</label>
                 <select
                   value={data.preferences.reportFormat}
                   onChange={e => updatePref('reportFormat', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={INPUT}
                 >
                   <option value="web">Web (en ligne)</option>
                   <option value="pdf">PDF (téléchargeable)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Langue</label>
+                <label className="block text-xs font-medium text-stone-600 mb-1.5">Langue</label>
                 <select
                   value={data.preferences.language}
                   onChange={e => updatePref('language', e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={INPUT}
                 >
                   <option value="fr">Français</option>
                   <option value="en">English</option>
@@ -307,8 +303,8 @@ function Field({ label, icon: I, value, onChange, disabled, placeholder, classNa
 }) {
   return (
     <div className={className}>
-      <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-        <I className="w-3.5 h-3.5 text-gray-400" />{label}
+      <label className="flex items-center gap-1.5 text-xs font-medium text-stone-600 mb-1.5">
+        <I className="w-3.5 h-3.5 text-stone-400" />{label}
       </label>
       <input
         type="text"
@@ -316,9 +312,7 @@ function Field({ label, icon: I, value, onChange, disabled, placeholder, classNa
         onChange={e => onChange?.(e.target.value)}
         disabled={disabled}
         placeholder={placeholder}
-        className={`w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 ${
-          disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
-        }`}
+        className={`${INPUT} ${disabled ? 'bg-stone-50 text-stone-400 cursor-not-allowed' : ''}`}
       />
     </div>
   )
@@ -333,14 +327,14 @@ function Toggle({ label, description, checked, onChange }: {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
       <div>
-        <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+        <p className="text-sm font-medium text-stone-900">{label}</p>
+        <p className="text-xs text-stone-400 mt-0.5">{description}</p>
       </div>
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          checked ? 'bg-green-500' : 'bg-gray-200 dark:bg-slate-700'
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+          checked ? 'bg-emerald-600' : 'bg-stone-200'
         }`}>
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
           checked ? 'translate-x-6' : 'translate-x-1'
