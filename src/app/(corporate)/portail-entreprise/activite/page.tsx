@@ -24,6 +24,9 @@ const AUDIT_LABEL: Record<string, string> = {
   created: 'Créé',
   client_reply: 'Réponse envoyée',
   profile_updated: 'Profil mis à jour',
+  team_invite: 'Membre invité',
+  team_role: 'Rôle modifié',
+  team_remove: 'Membre retiré',
 }
 const AUDIT_HREF: Record<string, string> = {
   AdminQuote: '/portail-entreprise/documents',
@@ -216,7 +219,7 @@ export default async function ActivitePage() {
       ? `Devis ${a.metadata?.numero ? `#${a.metadata.numero}` : ''}`.trim()
       : a.entityType === 'Ticket'
         ? `Ticket « ${a.metadata?.title || '—'} »`
-        : 'Compte entreprise'
+        : (a.metadata?.invitedEmail || 'Compte entreprise')
     events.push({
       id: `audit-${a._id}`,
       date: new Date(a.createdAt),

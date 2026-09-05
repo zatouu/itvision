@@ -60,10 +60,18 @@ export const LEGACY_EVENTS: Record<string, SocketDomain> = {
 /** Préfixes de rooms par domaine (pour référence et future isolation). */
 export const ROOM_PREFIXES: Record<SocketDomain, string[]> = {
   xeuy: ['request-', 'provider-', 'mission-', 'providers-online', 'nearby-providers'],
-  corp: ['project-', 'ticket-'],
+  corp: ['project-', 'ticket-', 'company-'],
   mkt: [],
   shared: ['user-', 'clients', 'admins', 'technicians'],
 }
+
+/** Événements namespacés `<domaine>:<entité>:<action>` émis par les API routes. */
+export const NAMESPACED_EVENTS = [
+  'corp:notification',      // notification in-app poussée vers une room company-*
+  'corp:ticket:message',    // nouveau message dans un ticket support
+  'corp:intervention:updated',
+  'corp:quote:updated',
+] as const
 
 /** Domaine d'un événement legacy ; null si inconnu/non déclaré. */
 export function getEventDomain(event: string): SocketDomain | null {

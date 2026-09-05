@@ -78,7 +78,8 @@ async function verifyToken(token) {
     return {
       userId: payload.userId,
       role: payload.role || 'USER',
-      email: payload.email || ''
+      email: payload.email || '',
+      companyClientId: payload.companyClientId || null
     }
   } catch (error) {
     console.error('Erreur vérification token:', error.message)
@@ -180,7 +181,12 @@ app.prepare().then(() => {
 
   // Middleware d'authentification Socket.io
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '')
+    // Fallback : cookie httpOnly `auth-token` (portail web, même origine)
+    let token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '')
+    if (!token && socket.handshake.headers.cookie) {
+      const m = socket.handshake.headers.cookie.match(/(?:^|;\s*)auth-token=([^;]+)/)
+      if (m) token = decodeURIComponent(m[1])
+    }
     
     if (!token) {
       console.log('❌ Connexion refusée: pas de token')
@@ -210,7 +216,13 @@ app.prepare().then(() => {
 
     // Rejoindre les rooms personnelles
     socket.join(`user-${userId}`)
-    
+
+    // Room entreprise (portail corporate) — tous les utilisateurs de la société
+    if (socket.user.companyClientId) {
+      socket.join(`company-${socket.user.companyClientId}`)
+      console.log(`   🏢 Room entreprise: company-${socket.user.companyClientId}`)
+    }
+
     if (role === 'CLIENT') {
       socket.join('clients')
     } else if (role === 'ADMIN') {

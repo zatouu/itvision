@@ -121,8 +121,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
 
   const body = await request.json()
-  const { action, message, counterAmount } = body
+  const { action, message, counterAmount, signature, signatureName } = body
   const trimmedMessage = typeof message === 'string' ? message.trim() : ''
+
+  // Signature électronique : data URL PNG, taille raisonnable
+  const sig = typeof signature === 'string' && signature.startsWith('data:image/png;base64,') && signature.length < 600_000
+    ? signature
+    : null
+  const sigName = typeof signatureName === 'string' ? signatureName.trim().slice(0, 120) : ''
 
   if (!['accepted', 'rejected', 'counter_proposed', 'comment'].includes(action)) {
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 })
@@ -145,6 +151,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (action === 'accepted') {
       setUpdate.status = 'accepted'
       setUpdate.acceptedAt = now
+      if (sig) {
+        setUpdate.clientSignature = {
+          signature: sig,
+          name: sigName || auth.user.name || auth.user.email || 'Client',
+          signedAt: now,
+          ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '',
+          userAgent: (request.headers.get('user-agent') || '').slice(0, 300),
+        }
+      }
     } else if (action === 'rejected') {
       setUpdate.status = 'rejected'
       setUpdate.rejectedAt = now
@@ -229,7 +244,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     userId: auth.user.id,
     userRole: 'CLIENT',
     clientCompanyId: auth.user.companyClientId,
-    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage },
+    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage, signed: !!sig },
   })
 
   return NextResponse.json({ success: true, action, quote: normalizedQuote })

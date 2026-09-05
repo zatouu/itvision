@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       companyContactPerson: company?.contactPerson || null,
       companyNotes: company?.notes || null,
       companyLogo: company?.logo || null,
+    companyRole: dbUser?.companyRole || 'owner',
       companyBrandColor: company?.brandColor || null,
       preferences: company?.preferences || { emailNotifications: true, smsNotifications: false, reportFormat: 'web', language: 'fr' },
       permissions: company?.permissions || { canViewReports: true, canRequestMaintenance: true, canAccessPortal: true },

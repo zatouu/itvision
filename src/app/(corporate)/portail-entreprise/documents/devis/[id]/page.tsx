@@ -160,6 +160,19 @@ export default function QuoteDetailPage() {
           {q.clientCounterAmount && (
             <p className="text-sm text-emerald-800 font-semibold tabular-nums mt-1">Contre-proposition : {fmtNum(q.clientCounterAmount)} FCFA</p>
           )}
+          {q.clientSignature && (
+            <div className="mt-4 pt-4 border-t border-stone-100">
+              <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-2">Signature électronique</p>
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={q.clientSignature.signature} alt="Signature" className="h-14 rounded-lg bg-stone-50 border border-stone-200 object-contain px-2" />
+                <div>
+                  <p className="text-sm font-medium text-stone-900">{q.clientSignature.name}</p>
+                  <p className="text-xs text-stone-400">Signé le {fmtDate(q.clientSignature.signedAt)}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

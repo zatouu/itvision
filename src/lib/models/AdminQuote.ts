@@ -62,6 +62,14 @@ export interface IAdminQuote extends Document {
   clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
   clientRespondedAt?: Date
   clientCounterAmount?: number
+  // Signature électronique du client lors de l'acceptation
+  clientSignature?: {
+    signature: string // data URL PNG
+    name: string
+    signedAt: Date
+    ip?: string
+    userAgent?: string
+  }
   clientComments?: Array<{
     _id?: mongoose.Types.ObjectId
     authorId: mongoose.Types.ObjectId
@@ -131,6 +139,13 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   clientResponse: { type: String, enum: ['pending', 'accepted', 'rejected', 'counter_proposed'], default: 'pending' },
   clientRespondedAt: { type: Date },
   clientCounterAmount: { type: Number },
+  clientSignature: {
+    signature: { type: String },
+    name: { type: String },
+    signedAt: { type: Date },
+    ip: { type: String },
+    userAgent: { type: String },
+  },
   clientComments: { type: [{
     authorId: { type: Schema.Types.ObjectId, required: true },
     authorRole: { type: String, enum: ['CLIENT', 'ADMIN'], required: true },

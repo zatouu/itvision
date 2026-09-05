@@ -5,6 +5,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Ticket from '@/lib/models/Ticket'
 import { TicketService, getTicketById } from '@/lib/services/tickets'
 import { requireAuth } from '@/lib/jwt'
+import { emitNewMessage, emitUserNotification } from '@/lib/socket-emit'
 
 async function verify(request: NextRequest) {
   const decoded = await requireAuth(request)
@@ -100,6 +101,26 @@ export async function POST(request: NextRequest, context: any) {
     }
 
     await ticket.save()
+
+    // Temps réel : chat live dans la room du ticket + notif push au client
+    const lastMsg = ticket.messages[ticket.messages.length - 1]
+    if (lastMsg) {
+      emitNewMessage(String(ticket._id), {
+        authorId: String(lastMsg.authorId),
+        authorName: '',
+        authorRole: role,
+        message: lastMsg.message,
+        createdAt: lastMsg.createdAt,
+      })
+      if (role !== 'CLIENT' && ticket.clientId) {
+        emitUserNotification(String(ticket.clientId), {
+          type: 'info',
+          title: 'Réponse à votre ticket',
+          message: ticket.title,
+          data: { actionUrl: '/portail-entreprise/support' },
+        })
+      }
+    }
 
       return NextApiResponse.json({ success: true, ticket: await TicketService.serialize(ticket) })
   } catch (error) {

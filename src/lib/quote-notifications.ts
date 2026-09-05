@@ -1,4 +1,5 @@
 import InAppNotification from '@/lib/models/InAppNotification'
+import { emitCompanyNotification, emitUserNotification } from '@/lib/socket-emit'
 import { addNotification } from '@/lib/notifications-memory'
 import { CORPORATE_BRAND } from '@/lib/branding'
 
@@ -128,7 +129,7 @@ export async function notifyQuoteWorkflowEvent(params: QuoteNotificationParams):
   }
 
   try {
-    await InAppNotification.create({
+    const notif = await InAppNotification.create({
       ...(params.clientUserId ? { userId: params.clientUserId } : {}),
       ...(params.clientCompanyId ? { teamId: params.clientCompanyId } : {}),
       roles: ['CLIENT'],
@@ -144,6 +145,19 @@ export async function notifyQuoteWorkflowEvent(params: QuoteNotificationParams):
         comment: params.message
       }
     })
+
+    // Push temps réel : room entreprise + room utilisateur
+    const payloadRt = {
+      _id: String(notif._id),
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      actionUrl: notif.actionUrl,
+      createdAt: notif.createdAt,
+      readBy: []
+    }
+    if (params.clientCompanyId) emitCompanyNotification(params.clientCompanyId, payloadRt)
+    if (params.clientUserId) emitUserNotification(params.clientUserId, payloadRt)
   } catch (error) {
     console.error('[notifyQuoteWorkflowEvent] notification client non envoyée:', error)
   }

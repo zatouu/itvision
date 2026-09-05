@@ -56,6 +56,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     clientResponse: quote.clientResponse,
     clientRespondedAt: quote.clientRespondedAt,
     clientCounterAmount: quote.clientCounterAmount,
+    clientSignature: quote.clientSignature ? {
+      signature: quote.clientSignature.signature,
+      name: quote.clientSignature.name,
+      signedAt: quote.clientSignature.signedAt,
+    } : null,
     clientComments: (quote.clientComments || []).map((c: any) => ({
       _id: String(c._id || c.authorId),
       authorRole: c.authorRole,

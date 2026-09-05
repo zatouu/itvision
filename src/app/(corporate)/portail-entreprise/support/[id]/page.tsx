@@ -7,6 +7,7 @@ import {
   MessageSquare, History
 } from 'lucide-react'
 import { CARD, INPUT, BTN_PRIMARY, fmtDate, fmtDateTime, hoursLeft, ticketStatus, priority, ticketCategoryLabel, ticketActionLabel, StatusBadge, EmptyState, DetailHeader } from '@/components/portal-ui'
+import { initSocket, joinTicket, leaveTicket, onSocketEvent } from '@/lib/socket-client'
 
 export default function TicketDetailPage() {
   const { id } = useParams() as { id: string }
@@ -24,6 +25,28 @@ export default function TicketDetailPage() {
       .then(r => { if (!r.ok) throw new Error('Introuvable'); return r.json() })
       .then(d => { setTicket(d.ticket); setLoading(false) })
       .catch(() => { setError('Impossible de charger le ticket.'); setLoading(false) })
+  }, [id])
+
+  // Chat live : room ticket + réception des nouveaux messages
+  useEffect(() => {
+    try {
+      initSocket()
+      joinTicket(id)
+      const off = onSocketEvent('new-message', (data: any) => {
+        if (data?.ticketId !== id) return
+        setTicket((prev: any) => {
+          if (!prev) return prev
+          const exists = (prev.messages || []).some((m: any) =>
+            m.message === data.message && String(m.authorId) === String(data.authorId) && Math.abs(new Date(m.createdAt).getTime() - new Date(data.createdAt || data.timestamp).getTime()) < 5000
+          )
+          if (exists) return prev
+          return { ...prev, messages: [...prev.messages, { authorId: data.authorId, authorRole: data.authorRole, message: data.message, createdAt: data.createdAt || data.timestamp }] }
+        })
+      })
+      return () => { off(); leaveTicket(id) }
+    } catch {
+      return undefined
+    }
   }, [id])
 
   useEffect(() => {

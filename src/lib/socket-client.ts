@@ -75,16 +75,18 @@ export interface ConversationNewMessageEvent {
 /**
  * Initialiser la connexion Socket.io
  */
-export function initSocket(token: string): Socket {
+export function initSocket(token?: string): Socket {
   if (socket?.connected) {
     console.log('🔌 Socket déjà connecté')
     return socket
   }
 
-  const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'
+  // Par défaut : même origine — le cookie httpOnly `auth-token` est envoyé
+  // automatiquement sur le handshake et sert de fallback d'auth côté serveur.
+  const url = process.env.NEXT_PUBLIC_SOCKET_URL || undefined
 
   socket = io(url, {
-    auth: { token },
+    auth: token ? { token } : {},
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
@@ -294,6 +296,13 @@ export function onUserTyping(callback: (data: TypingEvent) => void): () => void 
  */
 export function onNotification(callback: (data: NotificationEvent) => void): () => void {
   return onSocketEvent<NotificationEvent>('notification', callback)
+}
+
+/**
+ * Écouter les notifications namespacées du domaine corporate (room company-*)
+ */
+export function onCorpNotification(callback: (data: any) => void): () => void {
+  return onSocketEvent<any>('corp:notification', callback)
 }
 
 /**

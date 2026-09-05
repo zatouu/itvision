@@ -202,6 +202,30 @@ export function emitQuoteUpdate(clientId: string, quote: {
 }
 
 /**
+ * Émettre un événement namespacé vers la room d'une entreprise cliente
+ * (tous les utilisateurs connectés de la société — multi-appareils/multi-users)
+ */
+export function emitCompanyEvent(companyId: string, event: string, data: Record<string, any>) {
+  const io = getIO()
+  if (!io) return
+
+  io.to(`company-${companyId}`).emit(event, { ...data, timestamp: new Date() })
+}
+
+/**
+ * Notification in-app en temps réel vers une entreprise cliente
+ */
+export function emitCompanyNotification(companyId: string, notification: {
+  type: 'info' | 'success' | 'warning' | 'error'
+  title: string
+  message: string
+  actionUrl?: string
+  [key: string]: any
+}) {
+  emitCompanyEvent(companyId, 'corp:notification', notification)
+}
+
+/**
  * Diffuser un événement global (broadcast)
  */
 export function broadcastEvent(event: string, data: any) {

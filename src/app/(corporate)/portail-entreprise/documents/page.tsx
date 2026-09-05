@@ -8,6 +8,7 @@ import {
   Loader2, Calendar, Package, ChevronRight, ShoppingCart
 } from 'lucide-react'
 import SoftMessage from '@/components/ui/SoftMessage'
+import SignaturePad from '@/components/portal/SignaturePad'
 import {
   CARD, INPUT, BTN_PRIMARY, TONE,
   fmtNum, fmtDate,
@@ -26,6 +27,9 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
   const [error, setError] = useState('')
   const [newComment, setNewComment] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
+  const [signature, setSignature] = useState<string | null>(null)
+  const [signatureName, setSignatureName] = useState('')
+  const [consent, setConsent] = useState(false)
 
   const canRespond = quote.status === 'sent' && (!quote.clientResponse || quote.clientResponse === 'pending')
   const comments = quote.clientComments || []
@@ -40,7 +44,8 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
         body: JSON.stringify({
           action,
           message,
-          counterAmount: counterAmount ? parseFloat(counterAmount) : undefined
+          counterAmount: counterAmount ? parseFloat(counterAmount) : undefined,
+          ...(action === 'accepted' ? { signature, signatureName } : {})
         })
       })
       const data = await res.json()
@@ -308,6 +313,27 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
                     />
                   </div>
 
+                  {/* Signature électronique — requise pour accepter */}
+                  {action === 'accepted' && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-stone-600 mb-1.5">Nom du signataire *</label>
+                        <input
+                          className={INPUT}
+                          placeholder="Nom et prénom du signataire"
+                          value={signatureName}
+                          onChange={e => setSignatureName(e.target.value)}
+                        />
+                      </div>
+                      <SignaturePad onChange={setSignature} />
+                      <label className="flex items-start gap-2.5 text-xs text-stone-600 cursor-pointer">
+                        <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
+                          className="mt-0.5 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600" />
+                        <span>Je reconnais que cette signature électronique vaut engagement de la société {quote.client?.name || ''} et accepte le devis n° {quote.numero} pour un montant de {fmtNum(quote.total)} FCFA.</span>
+                      </label>
+                    </div>
+                  )}
+
                   {error && (
                     <SoftMessage
                       variant="error"
@@ -317,9 +343,11 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
                     />
                   )}
 
-                  <button type="submit" disabled={loading} className={`${BTN_PRIMARY} w-full py-3`}>
+                  <button type="submit"
+                    disabled={loading || (action === 'accepted' && (!signature || !signatureName.trim() || !consent))}
+                    className={`${BTN_PRIMARY} w-full py-3`}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    {loading ? 'Envoi...' : `Confirmer — ${action === 'accepted' ? 'Accepter' : action === 'rejected' ? 'Refuser' : 'Envoyer la contre-proposition'}`}
+                    {loading ? 'Envoi...' : `Confirmer — ${action === 'accepted' ? 'Accepter et signer' : action === 'rejected' ? 'Refuser' : 'Envoyer la contre-proposition'}`}
                   </button>
                   <p className="text-xs text-center text-stone-400">Un email de confirmation vous sera envoyé et l&apos;équipe IT Vision sera notifiée immédiatement.</p>
                 </form>

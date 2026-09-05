@@ -14,6 +14,8 @@ export interface IUser extends Document {
   country?: string
   // Liaison optionnelle vers un enregistrement Client (entreprise)
   companyClientId?: mongoose.Types.ObjectId
+  // Rôle interne dans l'entreprise cliente (portail B2B) — owner = compte d'origine
+  companyRole?: 'owner' | 'admin' | 'finance' | 'technical' | 'viewer'
   // Profils découplés par domaine
   marketplaceProfileId?: mongoose.Types.ObjectId
   corporateProfileId?: mongoose.Types.ObjectId
@@ -66,6 +68,7 @@ const UserSchema = new Schema<IUser>({
   city: { type: String, trim: true },
   country: { type: String, trim: true },
   companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
+  companyRole: { type: String, enum: ['owner', 'admin', 'finance', 'technical', 'viewer'] },
   marketplaceProfileId: { type: Schema.Types.ObjectId, ref: 'MarketplaceProfile', sparse: true, index: true },
   corporateProfileId: { type: Schema.Types.ObjectId, ref: 'CorporateProfile', sparse: true, index: true },
   providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import { initSocket, onSocketEvent } from '@/lib/socket-client'
 import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle, AlertCircle, ChevronRight, Loader2, Inbox, Filter, Trash2, Eye } from 'lucide-react'
 
 type Notif = { _id: string; type: 'info'|'success'|'warning'|'error'; title: string; message: string; actionUrl?: string; createdAt: string; readBy: string[] }
@@ -57,6 +58,22 @@ export default function NotificationBell({ userId }: { userId?: string }) {
   }, [])
 
   useEffect(() => { fetchNotifs(); const t = setInterval(fetchNotifs, 30000); return () => clearInterval(t) }, [fetchNotifs])
+
+  // Push temps réel : events `corp:notification` (room company-*) + `notification` (room user-*)
+  useEffect(() => {
+    try {
+      initSocket() // auth via cookie httpOnly `auth-token` (fallback serveur)
+      const push = (n: any) => {
+        if (!n?.title) return
+        setNotifs(prev => prev.some(x => x._id === n._id) ? prev : [{ readBy: [], ...n }, ...prev])
+      }
+      const off1 = onSocketEvent('corp:notification', push)
+      const off2 = onSocketEvent('notification', push)
+      return () => { off1(); off2() }
+    } catch {
+      return undefined
+    }
+  }, [])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }

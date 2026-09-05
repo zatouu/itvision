@@ -3,10 +3,11 @@ import { useState, useEffect, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import {
   User, Building2, Mail, Phone, MapPin, Globe, Shield,
-  Loader2, AlertCircle, CheckCircle, Save, Lock, Bell,
+  Loader2, AlertCircle, CheckCircle, Save, Lock, Bell, Users,
   FileText, Briefcase, StickyNote, Image as ImageIcon, Upload, Trash2
 } from 'lucide-react'
 import { CARD, INPUT, TONE, PageHeader, Pill } from '@/components/portal-ui'
+import TeamSection from '@/components/portal/TeamSection'
 
 interface ProfileData {
   userName: string
@@ -40,7 +41,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [tab, setTab] = useState<'account' | 'company' | 'preferences'>('account')
+  const [tab, setTab] = useState<'account' | 'company' | 'team' | 'preferences'>('account')
   const [uploadingLogo, setUploadingLogo] = useState(false)
 
   useEffect(() => {
@@ -169,6 +170,7 @@ export default function ProfilePage() {
         {[
           { id: 'account', label: 'Mon compte', icon: User },
           { id: 'company', label: 'Mon entreprise', icon: Building2 },
+          { id: 'team', label: 'Équipe', icon: Users },
           { id: 'preferences', label: 'Préférences', icon: Bell },
         ].map(t => {
           const I = t.icon
@@ -308,6 +310,9 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Team tab */}
+      {tab === 'team' && <TeamSection />}
 
       {/* Preferences tab */}
       {tab === 'preferences' && (

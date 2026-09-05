@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Ticket from '@/lib/models/Ticket'
 import { logAuditEvent } from '@/lib/audit'
+import { emitNewMessage, emitCompanyEvent } from '@/lib/socket-emit'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -134,6 +135,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   })
 
   const lastMessage = ticket.messages[ticket.messages.length - 1]
+
+  // Temps réel : room du ticket (chat live) + room entreprise
+  emitNewMessage(String(ticket._id), {
+    authorId: String(lastMessage.authorId),
+    authorName: access.email || 'Client',
+    authorRole: 'CLIENT',
+    message: lastMessage.message,
+    createdAt: lastMessage.createdAt,
+  })
+  if (companyId) {
+    emitCompanyEvent(String(companyId), 'corp:ticket:message', {
+      ticketId: String(ticket._id),
+      title: ticket.title,
+      authorRole: 'CLIENT',
+    })
+  }
 
   return NextResponse.json({
     message: {
