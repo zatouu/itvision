@@ -131,7 +131,6 @@ function ActiveMissionScreen() {
   const tokenUserId = getUserIdFromToken()
   const effectiveUserId = tokenUserId || currentUser?._id
   const isCurrentProvider = !mission?.assignedProviderId || String(mission.assignedProviderId) === String(effectiveUserId)
-  console.log('[active-mission] assignment check', { tokenUserId, userId: currentUser?._id, assignedProviderId: mission?.assignedProviderId, isCurrentProvider })
 
   const handleShare = async () => {
     try {

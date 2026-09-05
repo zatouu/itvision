@@ -182,8 +182,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const isClient = String(sr.clientId) === String(userId)
     const isProvider = String(sr.assignedProviderId) === String(userId)
     const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(role)
-    const missionRoleFallback: 'client' | 'provider' | 'admin' = isAdmin ? 'admin' : isProvider ? 'provider' : isClient ? 'client' : (MISSION_ROLE_MAP[role] || 'provider')
-    console.log('[PATCH /api/services/requests/:id] auth context', { id, userId, role, missionRoleFallback, clientId: sr.clientId, assignedProviderId: sr.assignedProviderId, isClient, isProvider, isAdmin, status: sr.status })
     if (!isClient && !isProvider && !isAdmin) {
       return NextResponse.json({ error: 'Interdit' }, { status: 403 })
     }

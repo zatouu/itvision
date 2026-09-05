@@ -250,20 +250,8 @@ export async function transition(
   const isProvider = String(sr.assignedProviderId) === String(actor.userId)
   // Provider non assigné peut soumettre la première offre (created → broadcasted).
   const isBroadcastingCreated = actor.role === 'provider' && from === 'created' && to === 'broadcasted'
-  console.log('[mission-lifecycle:transition] auth check', {
-    requestId,
-    from,
-    to,
-    actorUserId: actor.userId,
-    actorRole: actor.role,
-    clientId: sr.clientId,
-    assignedProviderId: sr.assignedProviderId,
-    isOwner,
-    isProvider,
-    isBroadcastingCreated,
-  })
-  if (actor.role === 'client' && !isOwner) throw new Error(`Action interdite: client ${actor.userId} n'est pas le propriétaire ${sr.clientId}`)
-  if (actor.role === 'provider' && !isProvider && !isBroadcastingCreated) throw new Error(`Action interdite: provider ${actor.userId} n'est pas l'assigné ${sr.assignedProviderId}`)
+  if (actor.role === 'client' && !isOwner) throw new Error('Action interdite')
+  if (actor.role === 'provider' && !isProvider && !isBroadcastingCreated) throw new Error('Action interdite')
 
   // Transition vers 'accepted' : doit fournir l'offre retenue et le prestataire.
   if (to === 'accepted') {
@@ -373,17 +361,8 @@ export async function pause(requestId: string, options: PauseOptions) {
 
   const isOwner = String(sr.clientId) === String(options.actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(options.actor.userId)
-  console.log('[mission-lifecycle:pause] auth check', {
-    requestId,
-    actorUserId: options.actor.userId,
-    actorRole: options.actor.role,
-    clientId: sr.clientId,
-    assignedProviderId: sr.assignedProviderId,
-    isOwner,
-    isProvider,
-  })
-  if (options.actor.role === 'client' && !isOwner) throw new Error(`Action interdite: client ${options.actor.userId} n'est pas le propriétaire ${sr.clientId}`)
-  if (options.actor.role === 'provider' && !isProvider) throw new Error(`Action interdite: provider ${options.actor.userId} n'est pas l'assigné ${sr.assignedProviderId}`)
+  if (options.actor.role === 'client' && !isOwner) throw new Error('Action interdite')
+  if (options.actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
   if (!options.reason) throw new Error('La raison de la pause est obligatoire')
 
   const now = new Date()
@@ -432,17 +411,8 @@ export async function resume(requestId: string, actor: { userId: string; role: M
 
   const isOwner = String(sr.clientId) === String(actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(actor.userId)
-  console.log('[mission-lifecycle:resume] auth check', {
-    requestId,
-    actorUserId: actor.userId,
-    actorRole: actor.role,
-    clientId: sr.clientId,
-    assignedProviderId: sr.assignedProviderId,
-    isOwner,
-    isProvider,
-  })
-  if (actor.role === 'client' && !isOwner) throw new Error(`Action interdite: client ${actor.userId} n'est pas le propriétaire ${sr.clientId}`)
-  if (actor.role === 'provider' && !isProvider) throw new Error(`Action interdite: provider ${actor.userId} n'est pas l'assigné ${sr.assignedProviderId}`)
+  if (actor.role === 'client' && !isOwner) throw new Error('Action interdite')
+  if (actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
 
   const now = new Date()
   const previous = normalizeStatus((sr as any).pausedFromStatus || 'in_progress')

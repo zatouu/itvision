@@ -18,7 +18,6 @@ import {
 import { humanErrorMessage } from '../errorMessages'
 import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
 import { toast } from '../toast'
-import { getAuthUser, getUserIdFromToken } from '../auth'
 
 export interface ActiveMissionData {
   _id: string
@@ -156,7 +155,6 @@ export function useMissionActive(requestId: string | null) {
     let lastState = AppState.currentState
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (lastState !== 'active' && nextState === 'active') {
-        console.log('[useMissionActive] app to active — refreshing mission')
         loadMission(true)
       }
       lastState = nextState
@@ -435,18 +433,7 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      const tokenUserId = getUserIdFromToken()
-      const authUser = getAuthUser()
       const currentMission = missionRef.current
-      console.log('[useMissionActive] updateStatus', {
-        requestId,
-        currentStatus: currentMission?.status,
-        nextStatus,
-        tokenUserId,
-        authUserId: authUser?._id,
-        assignedProviderId: currentMission?.assignedProviderId,
-        extraPayload,
-      })
 
       // Sync backend
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
@@ -454,10 +441,7 @@ export function useMissionActive(requestId: string | null) {
         ...extraPayload,
       })
 
-      if (!res) {
-        console.warn('[useMissionActive] updateStatus queued (offline)')
-        return
-      }
+      if (!res) return
 
       const actualStatus = (res as any)?.item?.status || (res as any)?.status || nextStatus
       console.log('[useMissionActive] updateStatus success', { actualStatus })
@@ -479,7 +463,6 @@ export function useMissionActive(requestId: string | null) {
 
       await loadMission(true)
     } catch (err: any) {
-      console.error('[useMissionActive] updateStatus error', err)
       const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
@@ -499,17 +482,13 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      console.log('[useMissionActive] pauseIntervention', { requestId, reason })
 
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
         action: 'pause',
         reason: reason || 'Pause opérateur',
       })
 
-      if (!res) {
-        console.warn('[useMissionActive] pauseIntervention queued (offline)')
-        return
-      }
+      if (!res) return
 
       const nextCount = pauseCount + 1
       setPauseCount(nextCount)
@@ -520,7 +499,6 @@ export function useMissionActive(requestId: string | null) {
 
       await loadMission(true)
     } catch (err: any) {
-      console.error('[useMissionActive] pauseIntervention error', err)
       const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
@@ -536,16 +514,12 @@ export function useMissionActive(requestId: string | null) {
     setUpdating(true)
     try {
       hapticSuccess()
-      console.log('[useMissionActive] resumeIntervention', { requestId })
 
       const res = await apiPatchQueued(`/api/services/requests/${requestId}`, {
         action: 'resume',
       })
 
-      if (!res) {
-        console.warn('[useMissionActive] resumeIntervention queued (offline)')
-        return
-      }
+      if (!res) return
 
       await savePersistedMission(requestId, { status: 'in_progress', lastActivityAt: Date.now() })
 
@@ -554,7 +528,6 @@ export function useMissionActive(requestId: string | null) {
 
       await loadMission(true)
     } catch (err: any) {
-      console.error('[useMissionActive] resumeIntervention error', err)
       const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
@@ -582,7 +555,6 @@ export function useMissionActive(requestId: string | null) {
       })
       await updateStatus('dispute', { disputeReason: reason })
     } catch (err: any) {
-      console.error('[useMissionActive] reportProblem error', err)
       const msg = err?.message || humanErrorMessage(err)
       setError(msg)
       toast.error(msg)
