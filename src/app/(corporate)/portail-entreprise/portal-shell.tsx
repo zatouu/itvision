@@ -2,14 +2,15 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
   ChevronRight, Settings, BarChart2, Activity, ClipboardList,
-  User
+  User, Search
 } from 'lucide-react'
 import NotificationBell from '@/components/portal/NotificationBell'
+import { CommandPalette, type PaletteItem } from '@/components/portal-ui'
 
 const navItems = [
   { href: '/portail-entreprise', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
@@ -148,9 +149,29 @@ export default function PortalShell({ children }: { children: React.ReactNode })
   const [companyLogo, setCompanyLogo] = useState<string | undefined>(undefined)
   const [userId, setUserId] = useState<string | undefined>(undefined)
   const [userName, setUserName] = useState<string | undefined>(undefined)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [isMac, setIsMac] = useState(false)
   const pathname = usePathname()
 
   useEffect(() => { setMobileSidebarOpen(false) }, [pathname])
+  useEffect(() => { setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform)) }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(o => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const paletteItems = useMemo<PaletteItem[]>(() => [
+    ...navItems.map(n => ({ id: n.href, label: n.label, icon: n.icon, hint: 'Page', href: n.href })),
+    { id: '/portail-entreprise/profil', label: 'Mon profil · Paramètres', icon: Settings, hint: 'Page', href: '/portail-entreprise/profil', keywords: ['parametres', 'compte', 'logo', 'entreprise', 'preferences'] },
+    { id: 'new-ticket', label: 'Nouvelle demande de support', icon: LifeBuoy, hint: 'Action', href: '/portail-entreprise/support', keywords: ['ticket', 'incident', 'aide', 'nouveau'] },
+    { id: 'new-maintenance', label: 'Demander une intervention', icon: Wrench, hint: 'Action', href: '/portail-entreprise/support', keywords: ['maintenance', 'intervention', 'technicien', 'demande'] },
+  ], [])
 
   useEffect(() => {
     fetch('/api/client-enterprise/me')
@@ -228,6 +249,14 @@ export default function PortalShell({ children }: { children: React.ReactNode })
           </button>
           <Wordmark compact />
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Rechercher"
+              className="p-2 rounded-lg text-emerald-200/70 hover:bg-white/10"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             <NotificationBell userId={userId} />
             <button
               type="button"
@@ -249,6 +278,25 @@ export default function PortalShell({ children }: { children: React.ReactNode })
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="hidden md:flex items-center gap-2 min-w-[190px] rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-400 transition-colors hover:border-emerald-300 hover:bg-emerald-50/50"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Rechercher…</span>
+              <kbd className="ml-auto rounded border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
+                {isMac ? '⌘K' : 'Ctrl K'}
+              </kbd>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Rechercher"
+              className="md:hidden p-2 rounded-lg text-stone-500 hover:bg-stone-100"
+            >
+              <Search className="h-4 w-4" />
+            </button>
             <NotificationBell userId={userId} />
             <Link
               href="/portail-entreprise/profil"
@@ -270,6 +318,13 @@ export default function PortalShell({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        items={paletteItems}
+        onSelect={item => { if (item.href) router.push(item.href) }}
+      />
     </div>
   )
 }

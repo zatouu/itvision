@@ -3,16 +3,17 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import {
   FileText, Wrench, FolderKanban, Receipt, LifeBuoy,
-  Building2, ChevronRight, Calendar, Zap
+  Building2, ChevronRight, Calendar, Zap, MapPin, Clock, HardHat
 } from 'lucide-react'
 import {
   AlertRow, KpiStrip, PageHeader, ProgressBar, SectionCard, StatusBadge,
-  daysLeft, fmtDate, fmtNum, genericStatus, statusDef,
+  daysLeft, fmtDate, fmtNum, genericStatus, interventionStatus, statusDef,
 } from '@/components/portal-ui'
 import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
+import '@/lib/models/Technician'
 import Project from '@/lib/models/Project'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
@@ -65,6 +66,21 @@ export default async function EnterprisePortalDashboard() {
 
   const amountDue = (kpiInvoiceAgg as any[])[0]?.total ?? 0
   const city = companyCity || ''
+
+  // Mission control : intervention en cours ou prochaine planifiée
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const nextIntervention = await Intervention.findOne({
+    ...companyScope({ userId, companyId }),
+    $or: [
+      { status: 'in_progress' },
+      { status: 'scheduled', date: { $gte: startOfToday } },
+    ]
+  })
+    .sort({ date: 1 })
+    .select('interventionNumber title typeIntervention status date heureDebut heureFin site technicienId')
+    .populate({ path: 'technicienId', select: 'name' })
+    .lean() as any
 
   const expiringContract = (contractsData as any[]).find(c => {
     const days = daysLeft(c.endDate)
@@ -124,6 +140,50 @@ export default async function EnterprisePortalDashboard() {
           )}
         </div>
       )}
+
+      {/* ── Mission control : prochaine intervention ── */}
+      {nextIntervention && (() => {
+        const ni = nextIntervention
+        const inProgress = ni.status === 'in_progress'
+        const dl = daysLeft(ni.date)
+        const eta = inProgress ? 'En cours' : dl === 0 ? "Aujourd'hui" : dl === 1 ? 'Demain' : dl !== null ? `Dans ${dl} j` : ''
+        const tech = ni.technicienId && typeof ni.technicienId === 'object' ? ni.technicienId : null
+        return (
+          <Link href={`/portail-entreprise/interventions/${String(ni._id)}`} className="group block">
+            <div className="relative overflow-hidden rounded-2xl bg-emerald-950 px-5 py-5 sm:px-7 sm:py-6 text-white shadow-sm transition-shadow group-hover:shadow-md">
+              <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-emerald-400/10 blur-2xl" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-emerald-400">
+                    {inProgress ? 'Intervention en cours' : 'Prochaine intervention'}
+                  </p>
+                  <h3 className="mt-1.5 font-brand text-lg sm:text-xl font-bold truncate">{ni.title}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-emerald-100/70">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {fmtDate(ni.date)}
+                      {ni.heureDebut && (
+                        <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{ni.heureDebut}–{ni.heureFin}</span>
+                      )}
+                    </span>
+                    {ni.site && <span className="inline-flex items-center gap-1.5 truncate"><MapPin className="w-3.5 h-3.5 flex-shrink-0" />{ni.site}</span>}
+                    {tech?.name && <span className="inline-flex items-center gap-1.5"><HardHat className="w-3.5 h-3.5" />{tech.name}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
+                    inProgress ? 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30' : 'bg-white/10 text-white ring-white/20'
+                  }`}>
+                    {inProgress && <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" /></span>}
+                    {eta || statusDef(interventionStatus, ni.status).label}
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-emerald-400/60 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </div>
+            </div>
+          </Link>
+        )
+      })()}
 
       {/* ── KPI strip ── */}
       <KpiStrip items={kpis} cols={5} />
