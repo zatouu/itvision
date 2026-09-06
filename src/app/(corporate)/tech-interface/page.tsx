@@ -43,10 +43,10 @@ export default function TechInterfacePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Vérification d'accès technicien...</p>
+          <p className="text-stone-600">Vérification d'accès technicien...</p>
         </div>
       </div>
     )
@@ -57,7 +57,7 @@ export default function TechInterfacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="pt-16">
         <Breadcrumb 
           backHref="/" 

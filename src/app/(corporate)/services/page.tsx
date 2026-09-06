@@ -214,7 +214,7 @@ export default function ServicesPage() {
         'Rapport détaillé + photos + recommandations',
         'Simulation budget pièces critiques'
       ],
-      accent: 'from-emerald-50 to-green-50',
+      accent: 'from-emerald-50 to-emerald-50',
       highlight: true
     },
     {
@@ -249,7 +249,7 @@ export default function ServicesPage() {
         'Rapport exécutif + KPIs trimestriels',
         'Préparation du renouvellement automatique'
       ],
-      accent: 'from-purple-50 to-indigo-50'
+      accent: 'from-emerald-50 to-indigo-50'
     }
   ]
 
@@ -315,26 +315,26 @@ export default function ServicesPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-20">
+      <section className="bg-gradient-to-br from-white via-stone-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content pt-28 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
-              Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Services</span>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-stone-900 dark:text-white">
+              Nos <span className="bg-gradient-to-r from-emerald-600 to-emerald-600 bg-clip-text text-transparent">Services</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-stone-600 dark:text-stone-300 max-w-3xl mx-auto mb-8">
               Solutions complètes de sécurité électronique adaptées à tous vos besoins, 
               de la conception à la maintenance.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-stone-900 dark:text-stone-200">
                 <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Devis gratuit</span>
               </div>
-              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-stone-900 dark:text-stone-200">
                 <Clock className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Intervention 24h/7j</span>
               </div>
-              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-gray-900 dark:text-gray-200">
+              <div className="flex items-center bg-white dark:bg-slate-900 rounded-full px-4 py-2 shadow-md text-stone-900 dark:text-stone-200">
                 <Star className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium">Actifs depuis 2019</span>
               </div>
@@ -353,10 +353,10 @@ export default function ServicesPage() {
               return (
                 <div
                   key={service.id}
-                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-800 overflow-hidden modern-card hover:shadow-2xl transition-all duration-300"
+                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-stone-100 dark:border-slate-800 overflow-hidden modern-card hover:shadow-2xl transition-all duration-300"
                 >
                   {/* Service Header */}
-                  <div className="bg-gradient-to-r from-emerald-500 to-purple-600 p-6 text-white">
+                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -378,13 +378,13 @@ export default function ServicesPage() {
                   <div className="p-6">
                     {/* Features */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                      <h3 className="text-lg font-semibold text-stone-900 dark:text-white mb-3 flex items-center">
                         <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
                         Fonctionnalités
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {service.features.map((feature, idx) => (
-                          <div key={idx} className="flex items-start text-sm text-gray-600 dark:text-gray-300">
+                          <div key={idx} className="flex items-start text-sm text-stone-600 dark:text-stone-300">
                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                             {feature}
                           </div>
@@ -394,14 +394,14 @@ export default function ServicesPage() {
                     
                     {/* Benefits */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
-                        <ArrowRight className="h-5 w-5 text-purple-600 mr-2" />
+                      <h3 className="text-lg font-semibold text-stone-900 dark:text-white mb-3 flex items-center">
+                        <ArrowRight className="h-5 w-5 text-emerald-600 mr-2" />
                         Avantages
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {service.benefits.map((benefit, idx) => (
-                          <div key={idx} className="flex items-start text-sm text-gray-600 dark:text-gray-300">
-                            <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2 mr-2 flex-shrink-0"></div>
+                          <div key={idx} className="flex items-start text-sm text-stone-600 dark:text-stone-300">
+                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                             {benefit}
                           </div>
                         ))}
@@ -409,21 +409,21 @@ export default function ServicesPage() {
                     </div>
 
                     {/* Testimonial */}
-                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 mb-6">
-                      <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{service.testimonial}"</p>
+                    <div className="bg-stone-50 dark:bg-slate-800 rounded-lg p-4 mb-6">
+                      <p className="text-sm text-stone-600 dark:text-stone-300 italic">"{service.testimonial}"</p>
                       <div className="flex items-center mt-2">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className="h-3 w-3 text-yellow-400 fill-current" />
                         ))}
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Client vérifié</span>
+                        <span className="text-xs text-stone-500 dark:text-stone-400 ml-2">Client vérifié</span>
                       </div>
                     </div>
                     
                     {/* Price & CTA */}
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800 rounded-lg p-4">
+                    <div className="bg-gradient-to-r from-stone-50 to-stone-100 dark:from-slate-900 dark:to-slate-800 rounded-lg p-4">
                       <div className="text-center mb-4">
                         <p className="text-2xl font-bold text-emerald-600">{service.price}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-stone-500 dark:text-stone-400">
                           {service.id === 'maintenance' ? 'Devis basé sur votre équipement' : 'Installation et configuration incluses'}
                         </p>
                       </div>
@@ -443,7 +443,7 @@ export default function ServicesPage() {
                               href={`https://wa.me/221774133440?text=Bonjour, je souhaite recevoir un devis pour le service ${service.title}. Voici mes informations:%0A- Nom:%0A- Adresse:%0A- Type de projet:%0A- Budget approximatif:%0AMerci`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
                               <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
@@ -452,7 +452,7 @@ export default function ServicesPage() {
                             </a>
                             <Link
                               href="/contact"
-                              className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
                               <Phone className="h-4 w-4 mr-2" />
                               Formulaire de contact
@@ -474,7 +474,7 @@ export default function ServicesPage() {
                               href={`https://wa.me/221774133440?text=Bonjour, je souhaite recevoir un devis pour le service ${service.title}. Voici mes informations:%0A- Nom:%0A- Adresse:%0A- Type de projet:%0A- Budget approximatif:%0AMerci`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
                               <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
@@ -483,7 +483,7 @@ export default function ServicesPage() {
                             </a>
                             <Link
                               href="/contact"
-                              className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                             >
                               <Phone className="h-4 w-4 mr-2" />
                               Formulaire de contact
@@ -497,7 +497,7 @@ export default function ServicesPage() {
                             href={`https://wa.me/221774133440?text=Bonjour, je souhaite recevoir un devis pour le service ${service.title}. Voici mes informations:%0A- Nom:%0A- Adresse:%0A- Type de projet:%0A- Budget approximatif:%0AMerci`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                           >
                             <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
@@ -506,7 +506,7 @@ export default function ServicesPage() {
                           </a>
                           <Link
                             href="/contact"
-                            className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 inline-flex items-center justify-center text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                           >
                             <Phone className="h-4 w-4 mr-2" />
                             Formulaire de contact
@@ -530,10 +530,10 @@ export default function ServicesPage() {
               <ShieldCheck className="h-4 w-4" />
               Après l'installation
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-4xl md:text-5xl font-bold text-stone-900 dark:text-white">
               Maintenance & Support pilotés par contrat
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+            <p className="text-lg text-stone-600 dark:text-stone-300 max-w-3xl mx-auto">
               On ne se contente pas d'installer. Nous encadrons vos équipements dans des contrats clairs,
               planifions les visites et assurons un reporting complet pour sécuriser votre investissement.
             </p>
@@ -548,10 +548,10 @@ export default function ServicesPage() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-2xl font-bold text-stone-900 dark:text-white mb-3">
                     ⚠️ Sans maintenance, la sécurité se dégrade silencieusement
                   </h3>
-                  <p className="text-gray-700 dark:text-gray-300">
+                  <p className="text-stone-700 dark:text-stone-300">
                     Un système peut sembler fonctionner alors que les enregistrements sont incomplets,
                     les firmwares obsolètes ou les capteurs décalés. La vraie stabilité vient d'un plan
                     de maintenance pensé dès le devis.
@@ -569,9 +569,9 @@ export default function ServicesPage() {
                     <li>• Obsolescence prématurée</li>
                   </ul>
                 </div>
-                <div className="bg-green-50 dark:bg-emerald-900/20 border-l-4 border-green-400 dark:border-emerald-500/50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-green-800 dark:text-emerald-200 mb-2">Avec IT Vision :</h4>
-                  <ul className="text-green-700 dark:text-emerald-200 text-sm space-y-1.5">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-emerald-400 dark:border-emerald-500/50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-emerald-800 dark:text-emerald-200 mb-2">Avec IT Vision :</h4>
+                  <ul className="text-emerald-700 dark:text-emerald-200 text-sm space-y-1.5">
                     <li>• Prévention des pannes critiques</li>
                     <li>• Performance optimisée 24h/24</li>
                     <li>• KPIs disponibles dans le portail</li>
@@ -641,13 +641,13 @@ export default function ServicesPage() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-300">Contrats standardisés</p>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-2">Choisissez votre contrat de maintenance</h3>
-                <p className="text-gray-600 dark:text-gray-300 mt-2 max-w-2xl">
+                <h3 className="text-3xl font-bold text-stone-900 dark:text-white mt-2">Choisissez votre contrat de maintenance</h3>
+                <p className="text-stone-600 dark:text-stone-300 mt-2 max-w-2xl">
                   Chaque contrat inclut la programmation des visites, les rapports numériques et un accès au portail client
                   pour suivre les interventions et les recommandations.
                 </p>
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-sm text-stone-500 dark:text-stone-400">
                 Tarifs indicatifs – ajustés après audit de votre parc.
               </div>
             </div>
@@ -659,13 +659,13 @@ export default function ServicesPage() {
                   <div
                     key={plan.id}
                     className={`rounded-2xl border p-6 shadow-lg bg-gradient-to-br ${plan.accent} ${
-                      isHighlighted ? 'border-emerald-300 shadow-emerald-200/60' : 'border-gray-100 dark:border-slate-800'
+                      isHighlighted ? 'border-emerald-300 shadow-emerald-200/60' : 'border-stone-100 dark:border-slate-800'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <span
                         className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                          isHighlighted ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-200'
+                          isHighlighted ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-700 dark:bg-slate-800 dark:text-stone-200'
                         }`}
                       >
                         {plan.badge}
@@ -674,17 +674,17 @@ export default function ServicesPage() {
                         <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Recommandé</span>
                       )}
                     </div>
-                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">{plan.title}</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">{plan.description}</p>
+                    <h4 className="text-xl font-bold text-stone-900 dark:text-white">{plan.title}</h4>
+                    <p className="text-sm text-stone-500 dark:text-stone-300 mt-1">{plan.description}</p>
                     <div className="mt-5">
                       <p className="text-3xl font-bold text-emerald-600">{plan.price}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.visits}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.sla}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-300">{plan.support}</p>
+                      <p className="text-sm text-stone-500 dark:text-stone-300">{plan.visits}</p>
+                      <p className="text-sm text-stone-500 dark:text-stone-300">{plan.sla}</p>
+                      <p className="text-sm text-stone-500 dark:text-stone-300">{plan.support}</p>
                     </div>
                     <ul className="mt-6 space-y-2">
                       {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <li key={idx} className="flex items-start gap-2 text-sm text-stone-700 dark:text-stone-300">
                           <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                           {feature}
                         </li>
@@ -707,7 +707,7 @@ export default function ServicesPage() {
             </div>
           </div>
 
-          <div className="bg-gray-900 rounded-3xl p-8 text-white shadow-2xl">
+          <div className="bg-stone-900 rounded-3xl p-8 text-white shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
               <div>
                 <p className="text-sm uppercase tracking-wide text-emerald-200">Parcours maintenance</p>
@@ -744,12 +744,12 @@ export default function ServicesPage() {
             {maintenanceOperations.map((operation) => {
               const Icon = operation.icon
               return (
-                <div key={operation.title} className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-6 shadow-lg">
+                <div key={operation.title} className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-100 dark:border-slate-800 p-6 shadow-lg">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 text-sm font-semibold mb-4">
                     <Icon className="h-4 w-4" />
                     {operation.title}
                   </div>
-                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                  <ul className="space-y-2 text-sm text-stone-600 dark:text-stone-300">
                     {operation.points.map((point) => (
                       <li key={point} className="flex items-start gap-2">
                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2" />
@@ -790,7 +790,7 @@ export default function ServicesPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-emerald-600 via-teal-600 to-purple-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-5xl font-bold mb-6">
             Prêt à sécuriser votre propriété ?
@@ -804,7 +804,7 @@ export default function ServicesPage() {
               href="https://wa.me/221774133440?text=Bonjour, je souhaite un audit sécurité gratuit. Voici mes informations:%0A- Nom:%0A- Entreprise:%0A- Adresse:%0A- Type de bâtiment:%0A- Besoins spécifiques:%0AMerci"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-lg font-semibold transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
@@ -813,7 +813,7 @@ export default function ServicesPage() {
             </a>
             <Link
               href="/contact"
-              className="w-full sm:w-auto bg-white text-emerald-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              className="w-full sm:w-auto bg-white text-emerald-600 px-8 py-4 rounded-lg font-semibold hover:bg-stone-100 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               Audit gratuit
               <ArrowRight className="h-5 w-5 ml-2" />

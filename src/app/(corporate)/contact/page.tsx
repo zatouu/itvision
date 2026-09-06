@@ -28,7 +28,7 @@ export default function ContactPage() {
       title: 'Prise de RDV Digitale',
       description: 'Planifiez votre intervention en ligne',
       icon: Calendar,
-      color: 'from-blue-500 to-purple-600',
+      color: 'from-blue-500 to-emerald-600',
       component: DigitalBooking
     },
     {
@@ -46,13 +46,13 @@ export default function ContactPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 dark:from-black dark:via-black dark:to-black page-content py-20">
+      <section className="bg-gradient-to-br from-emerald-50 via-emerald-50 to-stone-50 dark:from-black dark:via-black dark:to-black page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Contactez-<span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">nous</span>
+              Contactez-<span className="bg-gradient-to-r from-emerald-600 to-emerald-600 bg-clip-text text-transparent">nous</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-stone-700 dark:text-stone-300 max-w-3xl mx-auto mb-8">
               Notre équipe d&apos;experts est à votre disposition pour vous accompagner dans vos projets de sécurité électronique
             </p>
             
@@ -63,11 +63,11 @@ export default function ContactPage() {
                 <div className="text-sm text-blue-100">Support technique</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="text-2xl font-bold text-green-300">&lt; 1h</div>
+                <div className="text-2xl font-bold text-emerald-300">&lt; 1h</div>
                 <div className="text-sm text-blue-100">Temps de réponse</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="text-2xl font-bold text-purple-300">15+</div>
+                <div className="text-2xl font-bold text-emerald-300">15+</div>
                 <div className="text-sm text-blue-100">Années d&apos;expérience</div>
               </div>
             </div>
@@ -76,13 +76,13 @@ export default function ContactPage() {
       </section>
 
       {/* Options de Contact Digitales */}
-      <section className="py-16 bg-gradient-to-br from-gray-50 to-white dark:from-black dark:to-black">
+      <section className="py-16 bg-gradient-to-br from-stone-50 to-white dark:from-black dark:to-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl font-bold text-stone-900 dark:text-white mb-4">
               Comment souhaitez-vous <span className="text-blue-600">nous contacter ?</span>
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-stone-600 dark:text-stone-300 max-w-2xl mx-auto">
               Choisissez la méthode qui vous convient le mieux pour obtenir rapidement un devis ou des informations
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function ContactPage() {
                   className={`flex items-center space-x-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-300 ${
                     activeDigitalTool === option.id
                       ? `bg-gradient-to-r ${option.color} text-white shadow-lg scale-105`
-                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800 shadow-md'
+                      : 'bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-slate-800 border border-stone-200 dark:border-slate-800 shadow-md'
                   }`}
                 >
                   <IconComponent className="h-5 w-5" />
@@ -121,12 +121,12 @@ export default function ContactPage() {
           {!activeDigitalTool && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Contact immédiat */}
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl p-6">
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl p-6">
                 <div className="flex items-center mb-4">
                   <MessageCircle className="h-8 w-8 mr-3" />
                   <h3 className="text-xl font-bold">Contact Immédiat</h3>
                 </div>
-                <p className="text-green-100 mb-6">Pour une réponse instantanée</p>
+                <p className="text-emerald-100 mb-6">Pour une réponse instantanée</p>
                 
                 <div className="space-y-4">
                   <a
@@ -141,7 +141,7 @@ export default function ContactPage() {
                       </svg>
                       <div>
                         <div className="font-semibold">WhatsApp Business</div>
-                        <div className="text-sm text-green-100">+221 77 413 34 40</div>
+                        <div className="text-sm text-emerald-100">+221 77 413 34 40</div>
                       </div>
                     </div>
                   </a>
@@ -154,7 +154,7 @@ export default function ContactPage() {
                       <Phone className="h-5 w-5 mr-3" />
                       <div>
                         <div className="font-semibold">Téléphone</div>
-                        <div className="text-sm text-green-100">+221 77 413 34 40</div>
+                        <div className="text-sm text-emerald-100">+221 77 413 34 40</div>
                       </div>
                     </div>
                   </a>
@@ -162,7 +162,7 @@ export default function ContactPage() {
               </div>
 
               {/* Email */}
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-2xl p-6">
+              <div className="bg-gradient-to-br from-blue-500 to-emerald-600 text-white rounded-2xl p-6">
                 <div className="flex items-center mb-4">
                   <Mail className="h-8 w-8 mr-3" />
                   <h3 className="text-xl font-bold">Email Professionnel</h3>

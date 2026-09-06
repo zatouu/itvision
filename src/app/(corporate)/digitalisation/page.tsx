@@ -563,23 +563,23 @@ export default function DigitalisationPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="page-content bg-gradient-to-br from-emerald-50 via-purple-50 to-gray-50 dark:from-black dark:via-black dark:to-black py-20">
+      <section className="page-content bg-gradient-to-br from-emerald-50 via-emerald-50 to-stone-50 dark:from-black dark:via-black dark:to-black py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-emerald-600 via-purple-600 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-600 to-emerald-400 bg-clip-text text-transparent">
                 Digitalisez vos processus,
               </span>
               <br />
-              <span className="text-gray-900 dark:text-white">gagnez en efficacité</span>
+              <span className="text-stone-900 dark:text-white">gagnez en efficacité</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+            <p className="text-xl md:text-2xl text-stone-700 dark:text-stone-300 max-w-3xl mx-auto mb-8">
               Accompagnement complet pour PME et grandes entreprises dans leur transformation numérique
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={startDiagnostic}
-                className="bg-gradient-to-r from-emerald-500 to-purple-600 hover:from-emerald-600 hover:to-purple-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 📋 Diagnostic Gratuit
               </button>
@@ -598,10 +598,10 @@ export default function DigitalisationPage() {
       <section className="py-16 bg-white dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white mb-4">
               Pourquoi digitaliser votre entreprise ?
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-xl text-stone-600 dark:text-stone-300 max-w-2xl mx-auto">
               Les bénéfices concrets de la transformation digitale pour votre PME
             </p>
           </div>
@@ -611,24 +611,24 @@ export default function DigitalisationPage() {
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <Clock className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Gain de temps</h3>
-              <p className="text-gray-600 dark:text-gray-300">Automatisez les tâches répétitives et libérez vos équipes pour des activités à plus forte valeur ajoutée.</p>
+              <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Gain de temps</h3>
+              <p className="text-stone-600 dark:text-stone-300">Automatisez les tâches répétitives et libérez vos équipes pour des activités à plus forte valeur ajoutée.</p>
             </div>
             
             <div className="text-center p-6">
-              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg mx-auto mb-4">
+              <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <Shield className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Réduction des erreurs</h3>
-              <p className="text-gray-600 dark:text-gray-300">Éliminez les erreurs humaines et assurez une qualité constante dans vos processus métier.</p>
+              <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Réduction des erreurs</h3>
+              <p className="text-stone-600 dark:text-stone-300">Éliminez les erreurs humaines et assurez une qualité constante dans vos processus métier.</p>
             </div>
             
             <div className="text-center p-6">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg mx-auto mb-4">
                 <TrendingUp className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Visibilité temps réel</h3>
-              <p className="text-gray-600 dark:text-gray-300">Pilotez votre entreprise avec des données en temps réel et des tableaux de bord intuitifs.</p>
+              <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Visibilité temps réel</h3>
+              <p className="text-stone-600 dark:text-stone-300">Pilotez votre entreprise avec des données en temps réel et des tableaux de bord intuitifs.</p>
             </div>
           </div>
         </div>
@@ -636,79 +636,79 @@ export default function DigitalisationPage() {
 
       {/* Wizard Diagnostic */}
       {showWizard && !showResults && (
-        <section id="diagnostic-wizard" className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50 dark:from-black dark:to-black">
+        <section id="diagnostic-wizard" className="py-16 bg-gradient-to-br from-emerald-50 to-emerald-50 dark:from-black dark:to-black">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white dark:bg-black rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-3xl font-bold text-stone-900 dark:text-white mb-2">
                   📋 Diagnostic Digital PME
                 </h2>
-                <p className="text-gray-600 dark:text-gray-300">Évaluez votre maturité digitale en 5 minutes</p>
+                <p className="text-stone-600 dark:text-stone-300">Évaluez votre maturité digitale en 5 minutes</p>
                 <div className="mt-4">
                   <div className="flex justify-center space-x-2">
                     {wizardSteps.map((_, index) => (
                       <div
                         key={index}
                         className={`w-3 h-3 rounded-full ${
-                          index <= currentStep ? 'bg-emerald-500' : 'bg-gray-300'
+                          index <= currentStep ? 'bg-emerald-500' : 'bg-stone-300'
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-sm text-stone-500 mt-2">
                     Étape {currentStep + 1} sur {wizardSteps.length}
                   </p>
                 </div>
               </div>
 
               <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-xl font-semibold text-stone-900 mb-2">
                   {wizardSteps[currentStep].title}
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-stone-600 mb-6">
                   {wizardSteps[currentStep].question}
                 </p>
 
                 {wizardSteps[currentStep].type === 'contact' ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet</label>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">Nom complet</label>
                       <input
                         type="text"
                         value={answers.contact.name}
                         onChange={(e) => saveAnswers({ contact: { ...answers.contact, name: e.target.value } })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full border border-stone-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         placeholder="Votre nom complet"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">Email</label>
                       <input
                         type="email"
                         value={answers.contact.email}
                         onChange={(e) => saveAnswers({ contact: { ...answers.contact, email: e.target.value } })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full border border-stone-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         placeholder="votre@email.com"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">Téléphone</label>
                       <input
                         type="tel"
                         value={answers.contact.phone}
                         onChange={(e) => saveAnswers({ contact: { ...answers.contact, phone: e.target.value } })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full border border-stone-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         placeholder="+221 XX XXX XX XX"
                       />
                     </div>
-                    <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <label className="flex items-start gap-3 p-3 rounded-lg border border-stone-200 bg-stone-50">
                       <input
                         type="checkbox"
                         checked={answers.consentToContact}
                         onChange={(e) => saveAnswers({ consentToContact: e.target.checked })}
                         className="mt-1"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-stone-700">
                         J'accepte d'être recontacté par IT Vision Plus pour la restitution de ce diagnostic.
                       </span>
                     </label>
@@ -716,7 +716,7 @@ export default function DigitalisationPage() {
                 ) : (
                   <div className="space-y-3">
                     {wizardSteps[currentStep].options?.map((option) => (
-                      <label key={option.value} className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <label key={option.value} className="flex items-center p-4 border border-stone-200 rounded-lg hover:bg-stone-50 cursor-pointer">
                         <input
                           type={wizardSteps[currentStep].type}
                           name={wizardSteps[currentStep].title}
@@ -760,18 +760,18 @@ export default function DigitalisationPage() {
                           }}
                           className="mr-3"
                         />
-                        <span className="text-gray-700">{option.label}</span>
+                        <span className="text-stone-700">{option.label}</span>
                       </label>
                     ))}
 
                     {wizardSteps[currentStep].id === 'digitalToolsUsage' && answers.digitalToolsUsage === 'yes' && (
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Quels outils utilisez-vous actuellement ?</label>
+                        <label className="block text-sm font-medium text-stone-700 mb-2">Quels outils utilisez-vous actuellement ?</label>
                         <input
                           type="text"
                           value={answers.toolsUsed}
                           onChange={(e) => saveAnswers({ toolsUsed: e.target.value })}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="w-full border border-stone-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                           placeholder="Ex: Odoo, Excel, Google Sheets, Sage, Zoho CRM..."
                         />
                       </div>
@@ -790,14 +790,14 @@ export default function DigitalisationPage() {
                 <button
                   onClick={handleWizardPrev}
                   disabled={currentStep === 0}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 border border-stone-300 rounded-lg text-stone-700 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Précédent
                 </button>
                 <button
                   onClick={handleWizardNext}
                   disabled={isSubmittingDiagnostic}
-                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-purple-600 text-white rounded-lg hover:from-emerald-600 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {currentStep === wizardSteps.length - 1 ? (isSubmittingDiagnostic ? 'Envoi en cours...' : 'Recevoir mon diagnostic') : 'Suivant'}
                 </button>
@@ -809,14 +809,14 @@ export default function DigitalisationPage() {
 
       {/* Résultats du Diagnostic */}
       {showWizard && showResults && diagnosticResult && (
-        <section className="py-16 bg-gradient-to-br from-emerald-50 to-purple-50">
+        <section className="py-16 bg-gradient-to-br from-emerald-50 to-emerald-50">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="text-3xl font-bold text-stone-900 mb-2">
                   🎯 Votre Diagnostic Digital
                 </h2>
-                <p className="text-gray-600">Analyse personnalisée de votre maturité digitale</p>
+                <p className="text-stone-600">Analyse personnalisée de votre maturité digitale</p>
                 {submissionStatus === 'sent' && (
                   <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
                     ✅ Diagnostic envoyé à notre équipe. Vous serez recontacté rapidement.
@@ -858,7 +858,7 @@ export default function DigitalisationPage() {
                         <div className={`text-4xl font-bold ${getScoreColor(diagnosticResult.score)}`}>
                           {diagnosticResult.score}
                         </div>
-                        <div className="text-sm text-gray-500">/10</div>
+                        <div className="text-sm text-stone-500">/10</div>
                       </div>
                     </div>
                   </div>
@@ -869,42 +869,42 @@ export default function DigitalisationPage() {
               </div>
 
               {/* Estimation Budgétaire */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
+              <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-lg p-6 mb-6">
                 <div className="flex items-center mb-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mr-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-emerald-600 rounded-lg mr-3">
                     <Award className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900">Estimation Budgétaire</h3>
+                  <h3 className="text-xl font-semibold text-stone-900">Estimation Budgétaire</h3>
                 </div>
                 <p className="text-2xl font-bold text-blue-600 mb-2">{diagnosticResult.budgetRange}</p>
-                <p className="text-gray-600">Budget indicatif basé sur votre profil et vos objectifs</p>
+                <p className="text-stone-600">Budget indicatif basé sur votre profil et vos objectifs</p>
               </div>
 
               {/* Recommandation */}
-              <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg p-6 mb-6">
+              <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 rounded-lg p-6 mb-6">
                 <div className="flex items-center mb-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg mr-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg mr-3">
                     <Target className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900">Recommandation</h3>
+                  <h3 className="text-xl font-semibold text-stone-900">Recommandation</h3>
                 </div>
-                <p className="text-gray-700 text-lg leading-relaxed">{diagnosticResult.recommendation}</p>
+                <p className="text-stone-700 text-lg leading-relaxed">{diagnosticResult.recommendation}</p>
               </div>
 
               {/* Solutions Suggérées */}
               <div className="mb-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <Rocket className="h-5 w-5 text-purple-600 mr-2" />
+                <h3 className="text-xl font-semibold text-stone-900 mb-4 flex items-center">
+                  <Rocket className="h-5 w-5 text-emerald-600 mr-2" />
                   Solutions Recommandées
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {diagnosticResult.suggestedSolutions.map((solution, index) => (
-                    <div key={index} className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+                    <div key={index} className="bg-gradient-to-br from-emerald-50 to-pink-50 rounded-lg p-4 border border-emerald-200">
                       <div className="flex items-center mb-2">
-                        <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-2">
+                        <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-emerald-500 to-pink-600 rounded-lg mr-2">
                           <CheckCircle className="h-4 w-4 text-white" />
                         </div>
-                        <span className="font-semibold text-gray-900">{solution}</span>
+                        <span className="font-semibold text-stone-900">{solution}</span>
                       </div>
                     </div>
                   ))}
@@ -915,7 +915,7 @@ export default function DigitalisationPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/contact"
-                  className="bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 text-center"
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 text-center"
                 >
                   🚀 Obtenir un devis personnalisé
                 </Link>
@@ -947,7 +947,7 @@ export default function DigitalisationPage() {
                     setStepError('')
                     setSubmissionStatus('idle')
                   }}
-                  className="border border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 text-center"
+                  className="border border-stone-300 text-stone-700 px-8 py-3 rounded-lg font-semibold hover:bg-stone-50 transition-all duration-300 text-center"
                 >
                   🔄 Refaire le diagnostic
                 </button>
@@ -958,13 +958,13 @@ export default function DigitalisationPage() {
       )}
 
       {/* Solutions Section */}
-      <section id="solutions" className="py-20 bg-gray-50">
+      <section id="solutions" className="py-20 bg-stone-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-stone-900 mb-4">
               Nos <span className="text-emerald-600">Solutions Digitales</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-stone-600 max-w-3xl mx-auto">
               Des solutions sur mesure pour transformer votre entreprise et accélérer votre croissance
             </p>
           </div>
@@ -973,31 +973,31 @@ export default function DigitalisationPage() {
             {solutions.map((solution) => {
               const IconComponent = solution.icon
               return (
-                <div key={solution.id} className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                <div key={solution.id} className="bg-white rounded-2xl shadow-lg border border-stone-200 overflow-hidden hover:shadow-xl transition-all duration-300 group">
                   {/* Solution Header */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-purple-50 p-6 border-b">
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-50 p-6 border-b">
                     <div className="flex items-center mb-4">
-                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-lg shadow-lg">
+                      <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-lg">
                         <IconComponent className="h-6 w-6 text-white" />
                       </div>
                       <div className="ml-4">
-                        <h3 className="text-xl font-bold text-gray-900">{solution.title}</h3>
-                        <p className="text-sm text-gray-600">{solution.subtitle}</p>
+                        <h3 className="text-xl font-bold text-stone-900">{solution.title}</h3>
+                        <p className="text-sm text-stone-600">{solution.subtitle}</p>
                       </div>
                     </div>
-                    <p className="text-gray-700">{solution.description}</p>
+                    <p className="text-stone-700">{solution.description}</p>
                   </div>
 
                   <div className="p-6">
                     {/* Benefits */}
                     <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <h4 className="font-semibold text-stone-900 mb-3 flex items-center">
                         <Star className="h-4 w-4 text-yellow-500 mr-2" />
                         Résultats obtenus
                       </h4>
                       <ul className="space-y-2">
                         {solution.benefits.map((benefit, idx) => (
-                          <li key={idx} className="flex items-center text-sm text-gray-600">
+                          <li key={idx} className="flex items-center text-sm text-stone-600">
                             <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 flex-shrink-0" />
                             {benefit}
                           </li>
@@ -1007,7 +1007,7 @@ export default function DigitalisationPage() {
 
                     {/* Technologies */}
                     <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <h4 className="font-semibold text-stone-900 mb-3 flex items-center">
                         <Code className="h-4 w-4 text-blue-500 mr-2" />
                         Stack technique
                       </h4>
@@ -1024,7 +1024,7 @@ export default function DigitalisationPage() {
                     <div className="space-y-3">
                       <Link
                         href="/contact"
-                        className="w-full bg-gradient-to-r from-emerald-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-emerald-600 hover:to-purple-700 transition-all duration-300 text-center block"
+                        className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 text-center block"
                       >
                         {solution.cta}
                       </Link>
@@ -1049,10 +1049,10 @@ export default function DigitalisationPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Notre <span className="text-purple-600">Méthodologie</span>
+            <h2 className="text-4xl font-bold text-stone-900 mb-4">
+              Notre <span className="text-emerald-600">Méthodologie</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-stone-600 max-w-3xl mx-auto">
               Un processus éprouvé pour garantir le succès de votre transformation digitale
             </p>
           </div>
@@ -1063,15 +1063,15 @@ export default function DigitalisationPage() {
               return (
               <div key={index} className="text-center">
                 <div className="relative mb-6">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-emerald-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full text-white font-bold text-xl mx-auto shadow-lg">
                     {step.step}
                   </div>
                   {index < processSteps.length - 1 && (
-                      <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-purple-300 to-emerald-300 transform -translate-y-1/2"></div>
+                      <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-emerald-300 to-emerald-300 transform -translate-y-1/2"></div>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600 text-sm">{step.description}</p>
+                <h3 className="text-lg font-semibold text-stone-900 mb-2">{step.title}</h3>
+                <p className="text-stone-600 text-sm">{step.description}</p>
               </div>
               )
             })}
@@ -1080,7 +1080,7 @@ export default function DigitalisationPage() {
       </section>
 
       {/* CTA Final */}
-      <section className="py-16 bg-gradient-to-r from-emerald-600 to-purple-600">
+      <section className="py-16 bg-gradient-to-r from-emerald-600 to-emerald-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Accélérez votre transformation numérique dès aujourd'hui
@@ -1090,7 +1090,7 @@ export default function DigitalisationPage() {
           </p>
           <button
             onClick={startDiagnostic}
-            className="bg-white text-emerald-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            className="bg-white text-emerald-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-stone-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             🚀 Lancer mon diagnostic
           </button>

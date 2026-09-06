@@ -5,7 +5,7 @@ import Breadcrumb from '@/components/Breadcrumb'
 
 export default function GenerateurDevisPage() {
   return (
-    <main className="bg-gray-50 min-h-screen">
+    <main className="bg-stone-50 min-h-screen">
       <Header />
       <div className="pt-16">
         <Breadcrumb backHref="/gestion-projets" backLabel="Retour aux Projets" />

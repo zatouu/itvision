@@ -166,13 +166,13 @@ export default function RealisationsPage() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-white via-gray-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content py-20">
+      <section className="bg-gradient-to-br from-white via-stone-50 to-emerald-50 dark:from-black dark:via-black dark:to-black page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Nos <span className="bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">Réalisations</span>
+              Nos <span className="bg-gradient-to-r from-emerald-600 to-emerald-600 bg-clip-text text-transparent">Réalisations</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-stone-600 dark:text-stone-300 max-w-3xl mx-auto">
               Découvrez nos réalisations phares mettant en avant notre expertise technique en sécurité électronique
             </p>
           </div>
@@ -189,7 +189,7 @@ export default function RealisationsPage() {
                 className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
                   index === 0 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 dark:bg-slate-900 text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600'
+                    : 'bg-stone-100 dark:bg-slate-900 text-stone-600 dark:text-stone-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600'
                 }`}
               >
                 {category}
@@ -200,7 +200,7 @@ export default function RealisationsPage() {
       </section>
 
       {/* Projects Section */}
-      <section className="py-20 bg-gray-50 dark:bg-black">
+      <section className="py-20 bg-stone-50 dark:bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-16">
             {projects.map((project, index) => {
@@ -228,10 +228,10 @@ export default function RealisationsPage() {
                           </span>
                         </div>
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                      <h2 className="text-2xl md:text-3xl font-bold text-stone-900 mb-2">
                         {project.title}
                       </h2>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
+                      <div className="flex flex-wrap gap-4 text-sm text-stone-600 mb-4">
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 mr-1" />
                           {project.location}
@@ -248,11 +248,11 @@ export default function RealisationsPage() {
                     </div>
 
                     {/* Description */}
-                    <p className="text-lg text-gray-600 mb-6">{project.description}</p>
+                    <p className="text-lg text-stone-600 mb-6">{project.description}</p>
 
                     {/* Services */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Services réalisés</h3>
+                      <h3 className="text-lg font-semibold text-stone-900 mb-3">Services réalisés</h3>
                       <div className="flex flex-wrap gap-2">
                         {project.services.map((service, idx) => (
                           <span
@@ -267,12 +267,12 @@ export default function RealisationsPage() {
 
                     {/* Stats */}
                     <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Chiffres clés</h3>
+                      <h3 className="text-lg font-semibold text-stone-900 mb-3">Chiffres clés</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {Object.entries(project.stats).map(([key, value], idx) => (
                           <div key={idx} className="bg-white rounded-lg p-4 text-center border">
                             <div className="text-xl font-bold text-blue-600">{value}</div>
-                            <div className="text-xs text-gray-500 capitalize">{key}</div>
+                            <div className="text-xs text-stone-500 capitalize">{key}</div>
                           </div>
                         ))}
                       </div>
@@ -281,10 +281,10 @@ export default function RealisationsPage() {
                     {/* Challenges & Solutions */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Défis</h3>
+                        <h3 className="text-lg font-semibold text-stone-900 mb-3">Défis</h3>
                         <ul className="space-y-2">
                           {project.challenges.map((challenge, idx) => (
-                            <li key={idx} className="flex items-start text-gray-600">
+                            <li key={idx} className="flex items-start text-stone-600">
                               <div className="w-2 h-2 bg-red-500 rounded-full mr-3 mt-2 flex-shrink-0"></div>
                               {challenge}
                             </li>
@@ -292,11 +292,11 @@ export default function RealisationsPage() {
                         </ul>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Solutions</h3>
+                        <h3 className="text-lg font-semibold text-stone-900 mb-3">Solutions</h3>
                         <ul className="space-y-2">
                           {project.solutions.map((solution, idx) => (
-                            <li key={idx} className="flex items-start text-gray-600">
-                              <div className="w-2 h-2 bg-green-500 rounded-full mr-3 mt-2 flex-shrink-0"></div>
+                            <li key={idx} className="flex items-start text-stone-600">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3 mt-2 flex-shrink-0"></div>
                               {solution}
                             </li>
                           ))}
@@ -306,10 +306,10 @@ export default function RealisationsPage() {
 
                     {/* Testimonial */}
                     <div className="bg-white rounded-lg p-6 border-l-4 border-blue-600">
-                      <p className="text-gray-700 italic mb-4">"{project.testimonial.text}"</p>
+                      <p className="text-stone-700 italic mb-4">"{project.testimonial.text}"</p>
                       <div>
-                        <p className="font-semibold text-gray-900">{project.testimonial.author}</p>
-                        <p className="text-sm text-gray-600">{project.testimonial.role}</p>
+                        <p className="font-semibold text-stone-900">{project.testimonial.author}</p>
+                        <p className="text-sm text-stone-600">{project.testimonial.role}</p>
                       </div>
                     </div>
                   </div>
@@ -328,7 +328,7 @@ export default function RealisationsPage() {
                           alt={project.title}
                           className="w-full h-full object-cover"
                         />
-                        <div className="absolute top-4 right-4 bg-white bg-opacity-95 backdrop-blur-sm text-gray-900 px-3 py-2 rounded-full text-sm font-semibold shadow-lg">
+                        <div className="absolute top-4 right-4 bg-white bg-opacity-95 backdrop-blur-sm text-stone-900 px-3 py-2 rounded-full text-sm font-semibold shadow-lg">
                           {project.category}
                         </div>
                       </div>
@@ -377,7 +377,7 @@ export default function RealisationsPage() {
           </p>
           <Link
             href="/contact"
-            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-stone-100 transition-colors inline-flex items-center justify-center"
           >
             Démarrer mon projet
           </Link>
