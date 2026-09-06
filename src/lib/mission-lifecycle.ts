@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import ServiceRequest from './models/ServiceRequest'
+import Offer from './models/Offer'
 import MissionAuditLog from './models/MissionAuditLog'
 import Payment from './models/Payment'
 import { refreshMissionAnomalies } from './mission-anomalies'
@@ -7,6 +8,7 @@ import {
   getAppConfig,
   creditCashBalance,
   refundEscrowPoints,
+  releaseMissionReservation,
 } from './wallet'
 import { sendPushToUser } from './push'
 import {
@@ -325,6 +327,9 @@ export async function transition(
   }
   if (to === 'cancelled') {
     await handleCancellationSideEffects(updated, prevStatus, actor)
+  }
+  if (to === 'cancelled' || to === 'expired' || to === 'archived') {
+    await closeOpenOffers(String(updated._id), to)
   }
 
   await notifyStatusChange(updated, prevStatus, actor, metadata)
@@ -876,6 +881,35 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
     }
   } catch (e) {
     console.error('[lifecycle] cancellation payment side effect', e)
+  }
+}
+
+/**
+ * Demande close (annulée/expirée/archivée) : expire les offres encore
+ * soumises et libère les réservations de crédits des prestataires.
+ * Idempotent : releaseMissionReservation ne traite que les 'reserved'.
+ */
+async function closeOpenOffers(requestId: string, toStatus: MissionStatus) {
+  try {
+    const openOffers = await Offer.find({ requestId, status: 'submitted' })
+      .select('_id providerId')
+      .lean() as any[]
+    if (openOffers.length === 0) return
+
+    await Offer.updateMany(
+      { requestId, status: 'submitted' },
+      { $set: { status: 'expired' } }
+    )
+
+    for (const offer of openOffers) {
+      try {
+        await releaseMissionReservation(String(offer.providerId), requestId, `Mission ${toStatus}`)
+      } catch (err) {
+        console.error('[lifecycle] releaseMissionReservation on close', String(offer._id), err)
+      }
+    }
+  } catch (e) {
+    console.error('[lifecycle] closeOpenOffers', e)
   }
 }
 

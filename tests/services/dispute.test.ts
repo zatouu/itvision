@@ -13,6 +13,7 @@ test.afterEach(async () => {
 
 test.describe('Service dispute lifecycle', () => {
   test('client opens a dispute and admin resolves with full refund', async ({ request, page, browser }) => {
+    test.setTimeout(90_000) // dev-server: compile à froid des pages admin
     const users = await ensureTestUsers()
     const { requestId } = await createTestServiceMission(users.client.userId, users.tech.userId, 10000)
 
