@@ -34,6 +34,18 @@ export const LEGACY_EVENTS: Record<string, SocketDomain> = {
   'ai:advice_updated': 'xeuy',
   'user:offer-received': 'xeuy',
   'user:request-assigned': 'xeuy',
+  // Émis par les API routes / server.js — consommés par les apps déployées
+  'chat:message': 'xeuy',
+  'offer:new': 'xeuy',
+  'offer:updated': 'xeuy',
+  'offer:accepted': 'xeuy',
+  'offer:rejected': 'xeuy',
+  'offer:counter': 'xeuy',
+  'offer:counter-accepted': 'xeuy',
+  'offer:counter-rejected': 'xeuy',
+  'request:assigned': 'xeuy',
+  'request:nearby': 'xeuy',
+  'mission:status-changed': 'xeuy',
 
   // ── Corporate (portail entreprise / admin) ──
   'join-project': 'corp',
