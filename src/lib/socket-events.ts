@@ -46,6 +46,9 @@ export const LEGACY_EVENTS: Record<string, SocketDomain> = {
   'request:assigned': 'xeuy',
   'request:nearby': 'xeuy',
   'mission:status-changed': 'xeuy',
+  'mission:eta_updated': 'xeuy',
+  'request:viewers_updated': 'xeuy',
+  'notification:new': 'xeuy',
 
   // ── Corporate (portail entreprise / admin) ──
   'join-project': 'corp',

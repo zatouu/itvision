@@ -126,6 +126,15 @@ function isStale(pos) {
   return !pos || Date.now() - (pos.updatedAt || 0) > STALE_POSITION_MS
 }
 
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
 // Keep in-memory cache in sync for legacy code that reads providerPresence directly
 function updatePresence(userId, patch) {
   const existing = providerPresence.get(userId) || {}
@@ -334,11 +343,12 @@ app.prepare().then(() => {
       if (existing && existing.lastEmitAt && now - existing.lastEmitAt < EMIT_THROTTLE_MS) return
 
       // Vérifier que le provider est bien assigné à cette mission
+      let srDoc = null
       try {
         await ensureMongo()
-        const sr = await ServiceRequest.findById(data.requestId).select('assignedProviderId status').lean()
-        if (!sr || String(sr.assignedProviderId) !== String(userId)) return
-        if (!['accepted', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(sr.status)) return
+        srDoc = await ServiceRequest.findById(data.requestId).select('assignedProviderId status location').lean()
+        if (!srDoc || String(srDoc.assignedProviderId) !== String(userId)) return
+        if (!['accepted', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(srDoc.status)) return
       } catch (verifyErr) {
         console.error('[WS] provider:location verification error', verifyErr)
         return
@@ -353,17 +363,38 @@ app.prepare().then(() => {
         email,
         lastEmitAt: now,
       })
+      // ETA : priorité à la valeur calculée par l'app (routing API) ;
+      // fallback serveur = haversine × facteur route 1.35, ~25 km/h urbain.
+      let eta = data.eta ?? null
+      let distance = data.distance ?? null
+      const [reqLng, reqLat] = srDoc.location?.coordinates || []
+      if ((eta == null || distance == null) && typeof reqLat === 'number' && typeof reqLng === 'number') {
+        const distMeters = haversineMeters(data.lat, data.lng, reqLat, reqLng)
+        if (distance == null) distance = Math.round(distMeters)
+        if (eta == null) eta = Math.max(1, Math.round((distMeters / 1000) * 1.35 / 25 * 60))
+      }
       socket.to(`request-${data.requestId}`).emit('provider:location', {
+        requestId: data.requestId,
         providerId: userId,
         providerName: email?.split('@')[0] || data.providerName || 'Prestataire',
         lat: data.lat,
         lng: data.lng,
         heading: data.heading || null,
         speed: data.speed || null,
-        distance: data.distance ?? null,
-        eta: data.eta ?? null,
+        distance,
+        eta,
         timestamp: now,
       })
+      // ETA live : event dédié consommé par les apps (throttlé par EMIT_THROTTLE_MS).
+      // io.to (et non socket.to) : le provider app écoute aussi cet event pour sa propre mission.
+      if (eta != null || distance != null) {
+        io.to(`request-${data.requestId}`).emit('mission:eta_updated', {
+          requestId: data.requestId,
+          eta,
+          distance,
+          timestamp: now,
+        })
+      }
     })
 
     // Chat mission — rejoindre/quitter la room de chat
@@ -377,6 +408,19 @@ app.prepare().then(() => {
 
     // ── PRESENCE VIEWERS ──
     // Provider signale qu'il consulte une demande → relayé au consumer
+    // Nombre de providers consultant une demande → badge "X prestataires intéressés" côté client
+    const emitViewersCount = (requestId) => {
+      let count = 0
+      for (const [, p] of providerPresence.entries()) {
+        if (p.viewingRequestId === requestId && !isStale(p)) count++
+      }
+      io.to(`request-${requestId}`).emit('request:viewers_updated', {
+        requestId,
+        count,
+        timestamp: Date.now(),
+      })
+    }
+
     socket.on('request:viewing', (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
@@ -396,6 +440,7 @@ app.prepare().then(() => {
         lng: data?.lng || existing?.lng || null,
         timestamp: Date.now(),
       })
+      emitViewersCount(requestId)
     })
     socket.on('request:stop-viewing', (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
@@ -409,6 +454,7 @@ app.prepare().then(() => {
       socket.to(`request-${requestId}`).emit('request:stop-viewing', {
         providerId: userId,
       })
+      emitViewersCount(requestId)
     })
 
     // Provider est en train de rédiger une offre → notifier le client

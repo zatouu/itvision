@@ -9,7 +9,10 @@ import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
 const MAX_BUDGET = 10_000_000
-const REQUEST_TTL_HOURS = 2 // une demande non assignée expire après 2h
+// TTL différencié (pratique industrie InDriver/Gojek) : une demande urgente
+// non pourvue doit expirer vite pour déclencher un reciblage, pas stagner 2h.
+const REQUEST_TTL_HOURS = 2 // demande standard
+const REQUEST_TTL_URGENT_MIN = 45 // demande urgente
 
 export async function GET(request: NextRequest) {
   try {
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { category, subcategory, description, media, location, budget, channel, attributes } = body as any
+    const { category, subcategory, description, media, location, budget, channel, attributes, urgent } = body as any
 
     // Validation catégorie
     const validCategories = await getActiveCategorySlugs()
@@ -132,9 +135,13 @@ export async function POST(request: NextRequest) {
       ? Object.fromEntries(Object.entries(attributes).filter(([k, v]) => typeof k === 'string' && v !== undefined))
       : {}
 
-    const expiresAt = new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
+    const isUrgent = urgent === true || urgent === 'true' || urgent === 1
+    const expiresAt = isUrgent
+      ? new Date(Date.now() + REQUEST_TTL_URGENT_MIN * 60 * 1000)
+      : new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
     const created = await ServiceRequest.create({
       clientId: userId, category,
+      urgent: isUrgent,
       subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,

@@ -19,6 +19,7 @@ import {
 } from '../src/notifications'
 import { confirm } from '../src/confirm'
 import { apiPost } from '../src/api'
+import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
 import { Bell } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
@@ -101,8 +102,12 @@ function NotificationsScreen() {
     const unsubscribe = subscribeNotifications(next => {
       if (mounted) setItems([...next])
     })
+    // Temps réel : le serveur émet 'notification:new' à chaque push envoyé
+    const unsubSocket = onNotification(() => {
+      loadBackendNotifications().then(fresh => { if (mounted) setItems([...fresh]) }).catch(() => {})
+    })
     const interval = setInterval(() => setTick(v => v + 1), 60_000)
-    return () => { mounted = false; unsubscribe(); clearInterval(interval) }
+    return () => { mounted = false; unsubscribe(); unsubSocket(); clearInterval(interval) }
   }, [])
 
   // Recharger depuis AsyncStorage + backend quand l'écran regagne le focus

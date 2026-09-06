@@ -132,8 +132,8 @@ export function onMissionStatus(callback: (data: { requestId: string; status: st
 
 export function onProviderLocation(callback: (data: { requestId: string; lat: number; lng: number }) => void) {
   const s = connectSocket()
-  s.on('mission:provider_location', callback)
-  return () => { s.off('mission:provider_location', callback) }
+  s.on('provider:location', callback)
+  return () => { s.off('provider:location', callback) }
 }
 
 export function onNewOffer(callback: (offer: any) => void) {

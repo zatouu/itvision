@@ -212,6 +212,29 @@ function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provi
 export async function sendPushToUser(userId: string, message: PushMessage): Promise<PushResult> {
   try {
     await connectMongoose()
+
+    // Notification in-app : persistée + poussée en temps réel via socket,
+    // indépendamment des tokens push (l'utilisateur peut avoir refusé la permission).
+    try {
+      const safeAppType: 'consumer' | 'provider' | undefined =
+        message.appType === 'consumer' || message.appType === 'provider' ? message.appType : undefined
+      const { kind, link } = buildAppNotification(message, safeAppType)
+      addAppNotification(userId, kind, message.title, message.body, link, message.data)
+      const io = (global as any).io
+      if (io && typeof io.to === 'function') {
+        io.to(`user-${userId}`).emit('notification:new', {
+          kind,
+          title: message.title,
+          body: message.body,
+          link,
+          data: message.data || {},
+          createdAt: new Date().toISOString(),
+        })
+      }
+    } catch (err) {
+      console.warn('[Push] Failed to persist/emit app notification:', err)
+    }
+
     const query: any = { userId }
     if (message.appType) query.appType = message.appType
     const tokens = await PushToken.find(query).select('token').lean()
@@ -220,17 +243,6 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
     }
     console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
-
-    // Persist an in-app notification so it appears in the mobile notification tab even when
-    // the push was received in the background or the local cache was cleared.
-    try {
-      const safeAppType: 'consumer' | 'provider' | undefined =
-        message.appType === 'consumer' || message.appType === 'provider' ? message.appType : undefined
-      const { kind, link } = buildAppNotification(message, safeAppType)
-      addAppNotification(userId, kind, message.title, message.body, link, message.data)
-    } catch (err) {
-      console.warn('[Push] Failed to persist app notification:', err)
-    }
 
     const messages = tokens.map((t: any) => ({
       to: t.token,
