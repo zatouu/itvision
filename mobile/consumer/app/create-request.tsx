@@ -13,7 +13,7 @@ import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
 import { loadCategories, getCategoryLabel, getSubCategoryLabel, getAttributeLabel, ServiceCategory, SubCategory, Attribute } from '../src/categories'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown, Sparkles } from 'lucide-react-native'
+import { ArrowLeft, X, Check, MapPin, Plus, HelpCircle, ChevronDown, Sparkles, Zap } from 'lucide-react-native'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import AiClarifyModal, { ClarifyQuestion, ClarifyAnswer } from '../src/components/AiClarifyModal'
 import { getCategoryIcon } from '../src/categoryIcons'
@@ -44,8 +44,9 @@ function mediaLabel(media: PickedMedia): string {
 }
 
 function CreateRequest() {
-  const params = useLocalSearchParams<{ category?: string; subcategory?: string }>()
-  const [step, setStep] = useState(1)
+  const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string }>()
+  const isUrgent = params.urgent === 'true' || params.urgent === '1'
+  const [step, setStep] = useState(isUrgent && params.category ? 2 : 1)
   const [category, setCategory] = useState(params.category || '')
   const [description, setDescription] = useState('')
   const [budget, setBudget] = useState('')
@@ -193,6 +194,7 @@ function CreateRequest() {
         budget: Number(budget.replace(/\s/g, '')) || undefined,
         channel: 'mobile',
         attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+        urgent: isUrgent,
       }, t('request.queuedOffline'))
       await cacheClear('home-requests')
       await cacheClear('my-requests')
@@ -231,6 +233,16 @@ function CreateRequest() {
           <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
       </View>
+
+      {isUrgent && (
+        <View style={s.urgentBanner}>
+          <View style={s.urgentPill}>
+            <Zap size={16} color={colors.danger} fill={colors.danger} />
+            <Text style={s.urgentText}>{t('request.urgentBanner')}</Text>
+          </View>
+          <Text style={s.urgentSub}>{t('request.urgentSub')}</Text>
+        </View>
+      )}
 
       {/* Stepper dots */}
       <View style={s.stepper}>
@@ -638,6 +650,10 @@ const s = StyleSheet.create({
   backIcon: { color: colors.text },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
   cancelText: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  urgentBanner: { marginHorizontal: spacing.xl, marginBottom: spacing.md, padding: spacing.md, borderRadius: radius.xl, backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger },
+  urgentPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  urgentText: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.danger },
+  urgentSub: { fontSize: 12, color: colors.danger, marginTop: spacing.xs, opacity: 0.85 },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingTop: spacing.sm },
   stepperItem: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center' },
   stepperDot: { width: 12, height: 12, borderRadius: 6 },

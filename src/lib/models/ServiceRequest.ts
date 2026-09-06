@@ -27,6 +27,7 @@ const PauseLogSchema = new Schema({
 const ServiceRequestSchema = new Schema({
   clientId: { type: String, required: true },
   category: { type: String, required: true },
+  urgent: { type: Boolean, default: false },
   subcategory: { type: String },
   description: { type: String },
   media: { type: [MediaSchema], default: [] },

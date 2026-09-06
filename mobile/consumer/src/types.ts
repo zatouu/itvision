@@ -26,6 +26,7 @@ export interface ServiceRequest {
   subCategory?: string
   description: string
   budget?: number
+  urgent?: boolean
   status: MissionStatus
   address?: string
   location?: { type: 'Point'; coordinates: [number, number] }
