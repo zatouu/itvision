@@ -18,6 +18,39 @@ function formatDistance(km?: number | null): string | null {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
 }
 
+function isPhoneLike(s: string): boolean {
+  const digits = s.replace(/\D/g, '')
+  return /^\+?[\d\s]{7,}$/.test(s.trim()) || digits.length >= 9
+}
+
+function formatPhone(phone: string, full = true): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length >= 9) {
+    const local = digits.slice(-9)
+    const prefix = digits.slice(0, -9)
+    const localFormatted = local.replace(/(\d{2})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4')
+    return full ? `${prefix ? '+' + prefix + ' ' : ''}${localFormatted}` : localFormatted
+  }
+  return phone
+}
+
+function formatProviderName(raw: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  if (isPhoneLike(trimmed)) return formatPhone(trimmed, false)
+  return trimmed.split(/\s+/)[0]
+}
+
+function getInitials(raw: string): string {
+  if (!raw) return '?'
+  const trimmed = raw.trim()
+  if (isPhoneLike(trimmed)) {
+    const digits = trimmed.replace(/\D/g, '')
+    return digits.slice(-2).toUpperCase() || '?'
+  }
+  return trimmed.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
 // Compact "around you" strip — avatar pills of live nearby providers (variant B style).
 export default function NearbyStrip({ providers, onlineCount }: { providers: NearbyProvider[]; onlineCount: number }) {
   const { t } = useTranslation()
@@ -43,8 +76,9 @@ export default function NearbyStrip({ providers, onlineCount }: { providers: Nea
           contentContainerStyle={s.rail}
         >
           {shown.map((p, i) => {
-            const name = (p.name || t('home.newProvider')).trim().split(/\s+/)[0]
-            const initials = name.slice(0, 2).toUpperCase()
+            const rawName = p.name || t('home.newProvider')
+            const name = formatProviderName(rawName) || t('home.newProvider')
+            const initials = getInitials(rawName)
             const dist = formatDistance(p.distanceKm)
             const eta = p.etaMinutes != null ? `${p.etaMinutes} min` : null
             const sub = [dist, eta].filter(Boolean).join(' · ')

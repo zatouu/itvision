@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
+import User from '@/lib/models/User'
+import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { enqueueDispatch } from '@/lib/visibility'
@@ -69,9 +71,40 @@ export async function GET(request: NextRequest) {
           }
         }
       }
+      // Enrichir les missions actives avec l'offre acceptee et les coordonnees du prestataire
+      const activeStatuses = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress']
+      const activeIds = (items as any[]).filter((it: any) => activeStatuses.includes(it.status)).map((it: any) => it._id)
+      const acceptedByRequest = new Map<string, any>()
+      if (activeIds.length > 0) {
+        const acceptedOffers = await Offer.find({ requestId: { $in: activeIds }, status: 'accepted' }).lean()
+        const providerIds = acceptedOffers.map((o: any) => String(o.providerId))
+        const [users, profiles] = await Promise.all([
+          providerIds.length ? User.find({ _id: { $in: providerIds } }).select('_id name phone kycVerified').lean() : [],
+          providerIds.length ? ProviderProfile.find({ userId: { $in: providerIds } }).select('userId kycVerified').lean() : [],
+        ])
+        const userMap = new Map((users as any[]).map((u: any) => [String(u._id), u]))
+        const profileMap = new Map((profiles as any[]).map((p: any) => [String(p.userId), p]))
+        for (const offer of acceptedOffers as any[]) {
+          const user = userMap.get(String(offer.providerId))
+          const profile = profileMap.get(String(offer.providerId))
+          acceptedByRequest.set(String(offer.requestId), {
+            ...offer,
+            providerName: offer.providerName || user?.name || 'Prestataire',
+            providerPhone: user?.phone || '',
+            providerVerified: !!(profile?.kycVerified || user?.kycVerified),
+          })
+        }
+      }
+
       const enriched = items.map((item: any) => {
         const c = countsByRequest.get(String(item._id)) || { total: 0, pending: 0, unseen: 0 }
-        return { ...item, offerCount: c.total, pendingOfferCount: c.pending, unseenOfferCount: c.unseen }
+        return {
+          ...item,
+          offerCount: c.total,
+          pendingOfferCount: c.pending,
+          unseenOfferCount: c.unseen,
+          acceptedOffer: acceptedByRequest.get(String(item._id)),
+        }
       })
       return NextResponse.json({ items: enriched })
     }

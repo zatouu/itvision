@@ -469,7 +469,7 @@ function Home() {
                 <View style={[s.catIcon, { backgroundColor: c.color }]}>
                   <CatIcon size={18} color={colors.surface} />
                 </View>
-                <Text style={s.catLabel} numberOfLines={2}>{c.label}</Text>
+                <Text style={s.catLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{c.label}</Text>
               </TouchableOpacity>
             )
           })}
