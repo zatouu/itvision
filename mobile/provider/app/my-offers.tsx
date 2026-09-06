@@ -4,7 +4,7 @@ import { colors, radius, shadows } from '../src/design'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput, Alert, ActivityIndicator } from 'react-native'
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPost } from '../src/api'
+import { apiGet, apiPost, apiDelete } from '../src/api'
 import { toast } from '../src/toast'
 import { humanErrorMessage } from '../src/errorMessages'
 import { connectSocket } from '../src/socket'
@@ -47,6 +47,7 @@ function MyOffers() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'done' | 'pending' | 'counter'>(filter === 'active' ? 'active' : 'all')
   const [respondLoading, setRespondLoading] = useState<string | null>(null)
+  const [withdrawLoading, setWithdrawLoading] = useState<string | null>(null)
 
   const busyRef = useRef(false)
   const load = useCallback(async (isRefresh = false) => {
@@ -143,6 +144,27 @@ function MyOffers() {
       toast.error(t('common.error'), humanErrorMessage(e))
     }
     setRespondLoading(null)
+  }
+
+  const withdrawOffer = (offerId: string) => {
+    Alert.alert(t('offers.withdrawTitle'), t('offers.withdrawMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('offers.withdraw'),
+        style: 'destructive',
+        onPress: async () => {
+          setWithdrawLoading(offerId)
+          try {
+            await apiDelete(`/api/services/offers/${offerId}`)
+            toast.success(t('offers.withdrawn'), '')
+            load(true)
+          } catch (e: any) {
+            toast.error(t('offers.withdrawError'), humanErrorMessage(e))
+          }
+          setWithdrawLoading(null)
+        },
+      },
+    ])
   }
 
   return (
@@ -327,6 +349,22 @@ function MyOffers() {
                   </View>
                 )}
 
+                {/* Retrait : disponible tant que l'offre est soumise */}
+                {it.status === 'submitted' && (
+                  <TouchableOpacity
+                    style={s.withdrawBtn}
+                    onPress={() => withdrawOffer(it._id)}
+                    disabled={withdrawLoading === it._id}
+                    accessibilityLabel={t('offers.withdraw')}
+                  >
+                    {withdrawLoading === it._id ? (
+                      <ActivityIndicator size="small" color="#B91C1C" />
+                    ) : (
+                      <Text style={s.withdrawBtnText}>{t('offers.withdraw')}</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+
                 {it.status === 'accepted' && missionSt && (
                   <View style={[s.acceptedBanner, { backgroundColor: missionSt.bg, borderColor: missionSt.color + '33' }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -407,6 +445,8 @@ const s = StyleSheet.create({
   counterBtnAcceptText: { color: colors.surface, fontSize: 13, fontWeight: '700' },
   counterBtnReject: { backgroundColor: colors.dangerLight },
   counterBtnRejectText: { color: '#B91C1C', fontSize: 13, fontWeight: '700' },
+  withdrawBtn: { marginTop: 10, borderRadius: 8, paddingVertical: 9, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  withdrawBtnText: { color: '#B91C1C', fontSize: 12, fontWeight: '600' },
   counterAcceptedBanner: { backgroundColor: '#F0FDF4', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0' },
   counterAcceptedText: { fontSize: 12, color: '#15803D', fontWeight: '600' },
   counterRejectedBanner: { backgroundColor: '#FEF2F2', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FECACA' },

@@ -158,6 +158,11 @@
     "counterRejectTitle": "Counter-offer rejected",
     "counterRejectMsg": "You rejected the client's counter-offer.",
     "errorRespond": "Could not respond",
+    "withdraw": "Withdraw",
+    "withdrawTitle": "Withdraw this offer?",
+    "withdrawMsg": "The client will no longer see your offer. This cannot be undone.",
+    "withdrawn": "Offer withdrawn",
+    "withdrawError": "Could not withdraw the offer",
     "loadError": "Could not load offers"
   },
   "mission": {

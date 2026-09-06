@@ -158,6 +158,11 @@
     "counterRejectTitle": "Ofr bu ñu bañ",
     "counterRejectMsg": "Bañ nga ofr bu kliyaŋ bi.",
     "errorRespond": "Maneesula tontu",
+    "withdraw": "Dindi",
+    "withdrawTitle": "Dindi ofr bii ?",
+    "withdrawMsg": "Kliyaŋ bi du ko gis ofr bi itam. Du am njëkk.",
+    "withdrawn": "Ofr dindi na",
+    "withdrawError": "Maneesul dindi ofr bi",
     "loadError": "Maneesul yókkat ofr yi"
   },
   "mission": {

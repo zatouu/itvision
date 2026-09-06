@@ -158,6 +158,11 @@
     "counterRejectTitle": "Contre-offre refusée",
     "counterRejectMsg": "Vous avez refusé la contre-offre du client.",
     "errorRespond": "Impossible de répondre",
+    "withdraw": "Retirer",
+    "withdrawTitle": "Retirer cette offre ?",
+    "withdrawMsg": "Le client ne verra plus votre offre. Cette action est définitive.",
+    "withdrawn": "Offre retirée",
+    "withdrawError": "Impossible de retirer l'offre",
     "loadError": "Impossible de charger les offres"
   },
   "mission": {
