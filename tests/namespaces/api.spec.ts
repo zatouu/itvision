@@ -44,7 +44,9 @@ function expectItemIdsNotPresent(items: any[], unexpectedIds: string[]) {
 
 test.describe('Namespace API endpoints', () => {
   test.beforeAll(async () => {
-    anonCtx = await pwRequest.newContext({ baseURL })
+    // État vide : sinon le cookie auth-token du storageState du projet
+    // ferait passer les appels « anonymes » pour authentifiés.
+    anonCtx = await pwRequest.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
     productIds = await createNamespaceTestProducts()
     provider = await createNamespaceTestProvider()
   })

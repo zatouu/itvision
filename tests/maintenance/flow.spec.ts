@@ -74,6 +74,7 @@ test.afterAll(async () => {
 test.describe('Step 1 — Client demande une intervention', () => {
   test.use({ storageState: 'tests/.auth/client.json' })
   test('le client peut naviguer vers le portail et demander une intervention', async ({ page }) => {
+    test.setTimeout(90_000) // dev-server: première compile de la page peut dépasser 30s
     // Se connecter comme client (via storage state déjà injecté)
     await page.goto('/portail-entreprise')
 

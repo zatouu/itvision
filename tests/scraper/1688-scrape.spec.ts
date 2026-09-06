@@ -7,6 +7,10 @@ import { scrape1688WithBrowser } from '@/lib/browser-scraper'
  */
 
 test.describe('Scraper 1688', () => {
+  // Dépend du réseau externe (1688.com) — CAPTCHA/timeouts fréquents.
+  // Activé uniquement via RUN_LIVE_SCRAPER=1.
+  test.skip(!process.env.RUN_LIVE_SCRAPER, 'Test live externe — définir RUN_LIVE_SCRAPER=1 pour l’exécuter')
+
   test('scrape une page produit 1688 et retourne les données structurées', async () => {
     const url = 'https://detail.1688.com/offer/860338935387.html?offerId=860338935387&hotSaleSkuId=5784344749081&spm=a260k.home2025.recommendpart.113'
 

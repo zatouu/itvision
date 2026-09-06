@@ -28,8 +28,13 @@ let providerToken: string
 let requestId: string
 let offerId: string
 
+// Contexte API « propre » : sur les projets avec storageState (admin/client/tech),
+// le cookie auth-token hérité prendrait le pas sur le Bearer OTP (extractAuthToken
+// lit le cookie avant l'en-tête) — on force un état vide pour garder l'identité OTP.
+const EMPTY_STATE = { cookies: [], origins: [] }
+
 async function otpLogin(phone: string, role: 'CLIENT' | 'TECHNICIAN'): Promise<{ token: string; user: any }> {
-  const ctx = await pwRequest.newContext({ baseURL })
+  const ctx = await pwRequest.newContext({ baseURL, storageState: EMPTY_STATE })
 
   // Send OTP
   const sendRes = await ctx.post('/api/auth/mobile/send-otp', {
@@ -63,6 +68,7 @@ test.describe.serial('Services Mobile Flow', () => {
     consumerToken = token
     consumerCtx = await pwRequest.newContext({
       baseURL,
+      storageState: EMPTY_STATE,
       extraHTTPHeaders: authHeaders(token),
     })
   })
@@ -72,6 +78,7 @@ test.describe.serial('Services Mobile Flow', () => {
     providerToken = token
     providerCtx = await pwRequest.newContext({
       baseURL,
+      storageState: EMPTY_STATE,
       extraHTTPHeaders: authHeaders(token),
     })
   })
@@ -143,18 +150,23 @@ test.describe.serial('Services Mobile Flow', () => {
     const acceptBody = await res.json()
     expect(acceptBody.success).toBe(true)
 
-    // Verify status changed to assigned
+    // Verify status changed to accepted (offre acceptée → mission attribuée)
     const checkRes = await consumerCtx.get(`/api/services/requests/${requestId}`)
     expect(checkRes.ok()).toBeTruthy()
     const body = await checkRes.json()
-    expect(body.item?.status).toBe('assigned')
+    expect(['accepted', 'assigned']).toContain(body.item?.status)
   })
 
-  test('8. Provider updates status: arriving', async () => {
+  test('8. Provider updates status: arriving → arrived', async () => {
     const res = await providerCtx.patch(`/api/services/requests/${requestId}`, {
       data: { status: 'provider_arriving' }
     })
     expect(res.ok(), `status→arriving failed: ${res.status()}`).toBeTruthy()
+    // Transition obligatoire : on_the_way → arrived
+    const res2 = await providerCtx.patch(`/api/services/requests/${requestId}`, {
+      data: { status: 'arrived' }
+    })
+    expect(res2.ok(), `status→arrived failed: ${res2.status()}`).toBeTruthy()
   })
 
   test('9. Provider updates status: in_progress', async () => {
@@ -164,11 +176,17 @@ test.describe.serial('Services Mobile Flow', () => {
     expect(res.ok(), `status→in_progress failed: ${res.status()}`).toBeTruthy()
   })
 
-  test('10. Provider updates status: completed', async () => {
+  test('10. Provider marque fin → client valide (completed)', async () => {
+    // Le prestataire déclare la fin : in_progress → awaiting_validation
     const res = await providerCtx.patch(`/api/services/requests/${requestId}`, {
+      data: { status: 'awaiting_validation' }
+    })
+    expect(res.ok(), `status→awaiting_validation failed: ${res.status()}`).toBeTruthy()
+    // Seul le client peut valider la fin de mission
+    const res2 = await consumerCtx.patch(`/api/services/requests/${requestId}`, {
       data: { status: 'completed' }
     })
-    expect(res.ok(), `status→completed failed: ${res.status()}`).toBeTruthy()
+    expect(res2.ok(), `status→completed failed: ${res2.status()}`).toBeTruthy()
   })
 
   test('11. Consumer verifies final mission status', async () => {

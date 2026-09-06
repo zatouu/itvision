@@ -12,12 +12,13 @@ test.afterEach(async () => {
 })
 
 test.describe('Service dispute lifecycle', () => {
-  test('client opens a dispute and admin resolves with full refund', async ({ request, page }) => {
+  test('client opens a dispute and admin resolves with full refund', async ({ request, page, browser }) => {
     const users = await ensureTestUsers()
     const { requestId } = await createTestServiceMission(users.client.userId, users.tech.userId, 10000)
 
     // 1. Client opens the dispute
-    const clientCtx = await request.newContext({ storageState: 'tests/.auth/client.json' })
+    const clientPage = await browser.newPage({ storageState: 'tests/.auth/client.json' })
+    const clientCtx = clientPage.request
     const openRes = await clientCtx.patch(`/api/services/requests/${requestId}`, {
       data: { action: 'dispute', reason: 'qualite' },
     })
@@ -36,7 +37,7 @@ test.describe('Service dispute lifecycle', () => {
       data: { action: 'dispute-evidence', type: 'image', url: '/api/uploads/disputes/e2e-proof.jpg' },
     })
     expect(evidenceRes.ok()).toBeTruthy()
-    await clientCtx.dispose()
+    await clientPage.close()
 
     // 3. Admin resolves with refund
     const resolveRes = await request.patch(`/api/services/requests/${requestId}`, {
@@ -61,20 +62,23 @@ test.describe('Service dispute lifecycle', () => {
     await page.goto('/admin/services/disputes')
     await expect(page.locator('text=Litiges services')).toBeVisible()
     await page.goto(`/admin/services/disputes/${requestId}`)
-    await expect(page.locator('text=Remboursement intégral')).toBeVisible()
+    // La page charge les données en fetch côté client — attendre le détail
+    await expect(page.locator('h1', { hasText: 'Litige #' })).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('text=Remboursement intégral')).toBeVisible({ timeout: 20_000 })
     await expect(page.locator('text=10 000 FCFA')).toBeVisible()
   })
 
-  test('admin resolves with partial refund and provider payout', async ({ request }) => {
+  test('admin resolves with partial refund and provider payout', async ({ request, browser }) => {
     const users = await ensureTestUsers()
     const { requestId } = await createTestServiceMission(users.client.userId, users.tech.userId, 10000)
 
-    const clientCtx = await request.newContext({ storageState: 'tests/.auth/client.json' })
+    const clientPage = await browser.newPage({ storageState: 'tests/.auth/client.json' })
+    const clientCtx = clientPage.request
     const openRes = await clientCtx.patch(`/api/services/requests/${requestId}`, {
       data: { action: 'dispute', reason: 'retard' },
     })
     expect(openRes.ok()).toBeTruthy()
-    await clientCtx.dispose()
+    await clientPage.close()
 
     const resolveRes = await request.patch(`/api/services/requests/${requestId}`, {
       data: { action: 'resolve-dispute', decision: 'partial_refund', refundAmount: 3000, adminNote: 'Remboursement partiel 3000' },
@@ -90,16 +94,17 @@ test.describe('Service dispute lifecycle', () => {
     expect(detail.payments[0].refundAmount).toBe(3000)
   })
 
-  test('admin resolves releasing escrow to provider', async ({ request }) => {
+  test('admin resolves releasing escrow to provider', async ({ request, browser }) => {
     const users = await ensureTestUsers()
     const { requestId } = await createTestServiceMission(users.client.userId, users.tech.userId, 10000)
 
-    const clientCtx = await request.newContext({ storageState: 'tests/.auth/client.json' })
+    const clientPage = await browser.newPage({ storageState: 'tests/.auth/client.json' })
+    const clientCtx = clientPage.request
     const openRes = await clientCtx.patch(`/api/services/requests/${requestId}`, {
       data: { action: 'dispute', reason: 'comportement' },
     })
     expect(openRes.ok()).toBeTruthy()
-    await clientCtx.dispose()
+    await clientPage.close()
 
     const resolveRes = await request.patch(`/api/services/requests/${requestId}`, {
       data: { action: 'resolve-dispute', decision: 'release_escrow', adminNote: 'Paiement libéré au prestataire' },

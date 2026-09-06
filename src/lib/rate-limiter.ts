@@ -130,6 +130,9 @@ export async function applyRateLimit(
   request: NextRequest, 
   limiter: RateLimiter = apiRateLimiter
 ): Promise<Response | null> {
+  // Bypass E2E : les suites Playwright multi-projets effectuent des dizaines
+  // de logins/créations en quelques minutes — sans bypass, tout finit en 429.
+  if (process.env.DISABLE_RATE_LIMIT === 'true') return null
   const result = await limiter.check(request)
   
   if (!result.allowed) {

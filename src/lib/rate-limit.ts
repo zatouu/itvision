@@ -32,6 +32,8 @@ export async function rateLimitRequest(
   req: NextRequest,
   options: RateLimitOptions = {}
 ): Promise<{ ok: boolean; retryAfter: number } | null> {
+  // Bypass E2E (voir rate-limiter.ts)
+  if (process.env.DISABLE_RATE_LIMIT === 'true') return { ok: true, retryAfter: 0 }
   const { windowMs = 60_000, max = 10, keyPrefix = '' } = options
   const now = Date.now()
   const ip = getClientIp(req)

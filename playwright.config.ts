@@ -61,5 +61,6 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
+        env: { DISABLE_RATE_LIMIT: 'true' },
       },
 })
