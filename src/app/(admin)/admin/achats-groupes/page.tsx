@@ -84,19 +84,19 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', 
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: 'Brouillon', color: 'bg-stone-100 text-stone-800' },
-  open: { label: 'Ouvert', color: 'bg-emerald-100 text-green-800' },
+  open: { label: 'Ouvert', color: 'bg-emerald-100 text-emerald-800' },
   filled: { label: 'Objectif atteint', color: 'bg-violet-100 text-violet-800' },
   ordering: { label: 'En commande', color: 'bg-purple-100 text-purple-800' },
   ordered: { label: 'Commandé', color: 'bg-indigo-100 text-indigo-800' },
   shipped: { label: 'Expédié', color: 'bg-orange-100 text-orange-800' },
-  delivered: { label: 'Livré', color: 'bg-emerald-100 text-green-800' },
+  delivered: { label: 'Livré', color: 'bg-emerald-100 text-emerald-800' },
   cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-800' }
 }
 
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'bg-yellow-100 text-yellow-800' },
   partial: { label: 'Partiel', color: 'bg-orange-100 text-orange-800' },
-  paid: { label: 'Payé', color: 'bg-emerald-100 text-green-800' },
+  paid: { label: 'Payé', color: 'bg-emerald-100 text-emerald-800' },
   refunded: { label: 'Remboursé', color: 'bg-red-100 text-red-800' }
 }
 
@@ -107,7 +107,7 @@ const chinaPurchaseStatusConfig: Record<string, { label: string; color: string }
   seller_shipped: { label: 'Expédié vendeur', color: 'bg-orange-100 text-orange-800' },
   received_guangzhou: { label: 'Reçu Guangzhou', color: 'bg-teal-100 text-teal-800' },
   quality_check_pending: { label: 'Contrôle à faire', color: 'bg-yellow-100 text-yellow-800' },
-  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-green-800' },
+  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-emerald-800' },
   quality_check_failed: { label: 'Contrôle échoué', color: 'bg-red-100 text-red-800' },
   quality_check_partial: { label: 'Contrôle partiel', color: 'bg-orange-100 text-orange-800' },
   handed_to_freight: { label: 'Remis au fret', color: 'bg-emerald-100 text-emerald-800' },
@@ -459,7 +459,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Ouverts</p>
-              <p className="text-2xl font-bold text-green-200">{stats.open}</p>
+              <p className="text-2xl font-bold text-emerald-200">{stats.open}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Objectif atteint</p>
@@ -471,7 +471,7 @@ export default function AdminGroupOrdersPage() {
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">Encaissé</p>
-              <p className="text-lg font-bold text-green-200">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-lg font-bold text-emerald-200">{formatCurrency(stats.totalRevenue)}</p>
             </div>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4">
               <p className="text-white/80 text-sm">En attente</p>
@@ -908,7 +908,7 @@ export default function AdminGroupOrdersPage() {
                                 {p.paymentStatus !== 'paid' && (
                                   <button
                                     onClick={() => updatePaymentStatus(selectedGroup.groupId, p.phone, 'paid', p.totalAmount)}
-                                    className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold hover:bg-green-200"
+                                    className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold hover:bg-emerald-200"
                                   >
                                     Marquer payé
                                   </button>
@@ -971,7 +971,7 @@ export default function AdminGroupOrdersPage() {
                         <div
                           key={i}
                           className={`p-3 rounded-lg border ${
-                            selectedGroup.currentQty >= tier.minQty ? 'bg-emerald-50 border-green-300' : 'bg-stone-50'
+                            selectedGroup.currentQty >= tier.minQty ? 'bg-emerald-50 border-emerald-300' : 'bg-stone-50'
                           }`}
                         >
                           <p className="text-sm text-stone-600">{tier.minQty}+ unités</p>

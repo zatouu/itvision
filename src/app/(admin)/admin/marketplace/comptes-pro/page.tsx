@@ -18,7 +18,7 @@ interface MarketplaceUser {
 
 const TIER_BADGES: Record<string, { label: string; className: string }> = {
   standard: { label: 'Standard', className: 'bg-stone-100 text-stone-700 border-stone-200' },
-  pro: { label: 'Pro', className: 'bg-emerald-100 text-emerald-800 border-green-200' },
+  pro: { label: 'Pro', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border-violet-200' },
   partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
 }
@@ -111,7 +111,7 @@ export default function ComptesProPage() {
                   {user.marketplaceTier !== 'pro' && (
                     <button
                       onClick={() => changeTier(user._id, 'pro')}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-800 border border-green-200 hover:bg-emerald-100 transition"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition"
                       title="Promouvoir Pro"
                     >
                       Pro

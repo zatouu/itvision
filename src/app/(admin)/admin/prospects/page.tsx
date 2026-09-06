@@ -460,7 +460,7 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
         <div className="p-5 space-y-4">
           {result ? (
             <div className="text-center py-6">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
               <p className="text-lg font-medium text-stone-900">{result.created} prospect(s) importé(s)</p>
               {result.skipped > 0 && <p className="text-sm text-stone-500">{result.skipped} ignoré(s) (doublons ou incomplets)</p>}
               <button onClick={onClose} className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm">Fermer</button>

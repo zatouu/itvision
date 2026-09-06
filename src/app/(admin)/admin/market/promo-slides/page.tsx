@@ -34,7 +34,7 @@ interface PromoSlide {
 
 const DEFAULT_COLORS = [
   { label: 'Amber', value: 'from-amber-50 via-yellow-50 to-orange-50', accent: 'bg-black' },
-  { label: 'Emeraude', value: 'from-emerald-50 via-green-50 to-teal-50', accent: 'bg-emerald-600' },
+  { label: 'Emeraude', value: 'from-emerald-50 via-emerald-50 to-teal-50', accent: 'bg-emerald-600' },
   { label: 'Violet', value: 'from-violet-50 via-purple-50 to-fuchsia-50', accent: 'bg-violet-600' },
   { label: 'Bleu', value: 'from-blue-50 via-sky-50 to-cyan-50', accent: 'bg-blue-600' },
   { label: 'Rose', value: 'from-rose-50 via-pink-50 to-red-50', accent: 'bg-rose-600' },

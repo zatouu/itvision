@@ -150,7 +150,7 @@ function B2bPricingContent() {
             <p className="text-2xl font-bold text-stone-900">{summary.total}</p>
             <p className="text-xs text-stone-500 mt-1">Produits total</p>
           </div>
-          <div className="bg-emerald-50 rounded-xl border border-green-200 p-4 text-center">
+          <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4 text-center">
             <p className="text-2xl font-bold text-emerald-800">{summary.withB2bPrice}</p>
             <p className="text-xs text-emerald-700 mt-1">Avec b2bPrice ✓</p>
           </div>
@@ -257,7 +257,7 @@ function B2bPricingContent() {
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 bg-emerald-50 border border-green-200 text-emerald-800 rounded-xl p-4 text-sm">
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-4 text-sm">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
           {success}
         </div>

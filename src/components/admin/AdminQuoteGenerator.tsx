@@ -1175,7 +1175,7 @@ export default function AdminQuoteGenerator() {
                   </button>
                   <button
                     onClick={addCustomProduct}
-                    className="px-4 py-2 bg-emerald-800 text-white rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
+                    className="px-4 py-2 bg-emerald-800 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
                     Article personnalisé
@@ -1438,7 +1438,7 @@ export default function AdminQuoteGenerator() {
               <button
                 onClick={exportPDF}
                 disabled={!currentQuote.client.name || currentQuote.products.length === 0}
-                className="flex-1 px-6 py-3 bg-emerald-800 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-emerald-800 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="h-5 w-5" />
                 Exporter PDF
@@ -1673,7 +1673,7 @@ function QuoteDetailView({
           <button onClick={onEdit} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-2">
             <Edit3 className="h-4 w-4" /><span>Modifier</span>
           </button>
-          <button onClick={onExport} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+          <button onClick={onExport} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
             <Download className="h-4 w-4" /><span>PDF</span>
           </button>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600">
@@ -1749,8 +1749,8 @@ function QuoteDetailView({
             <div className="flex justify-between"><span className="text-stone-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>
             <div className="flex justify-between"><span className="text-stone-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>
             {quote.other > 0 && <div className="flex justify-between"><span className="text-stone-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
-            <div className="border-t border-green-300 pt-2">
-              <div className="flex justify-between text-lg font-bold text-green-800"><span>TOTAL TTC:</span><span>{formatCurrency(quote.total)}</span></div>
+            <div className="border-t border-emerald-300 pt-2">
+              <div className="flex justify-between text-lg font-bold text-emerald-800"><span>TOTAL TTC:</span><span>{formatCurrency(quote.total)}</span></div>
             </div>
           </div>
         </div>

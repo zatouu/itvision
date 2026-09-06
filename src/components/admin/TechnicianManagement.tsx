@@ -396,14 +396,14 @@ export default function TechnicianManagement() {
           <div className="text-xs text-blue-600 mt-1">Dans l'équipe</div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-emerald-800">Actifs</div>
             <div className="p-2.5 bg-emerald-500 rounded-xl">
               <CheckCircle2 className="h-5 w-5 text-white" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-green-900">{metrics.active}</div>
+          <div className="text-3xl font-bold text-emerald-900">{metrics.active}</div>
           <div className="text-xs text-emerald-700 mt-1">
             {metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 0}% du total
           </div>
@@ -723,12 +723,12 @@ export default function TechnicianManagement() {
                       <div className="font-semibold text-blue-900 break-all">{selectedTech.email}</div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
                       <div className="text-sm text-emerald-800 font-medium mb-1 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         Téléphone
                       </div>
-                      <div className="font-semibold text-green-900">{selectedTech.phone}</div>
+                      <div className="font-semibold text-emerald-900">{selectedTech.phone}</div>
                     </div>
                     
                     <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
@@ -768,13 +768,13 @@ export default function TechnicianManagement() {
                   {/* Certifications */}
                   {selectedTech.certifications && selectedTech.certifications.length > 0 && (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                      <div className="text-sm font-semibold text-green-900 mb-2 flex items-center gap-2">
+                      <div className="text-sm font-semibold text-emerald-900 mb-2 flex items-center gap-2">
                         <Award className="h-4 w-4" />
                         Certifications
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {selectedTech.certifications.map((cert, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-green-200 text-green-800 text-sm rounded-lg font-medium">
+                          <span key={idx} className="px-3 py-1 bg-emerald-200 text-emerald-800 text-sm rounded-lg font-medium">
                             {cert}
                           </span>
                         ))}
@@ -983,7 +983,7 @@ export default function TechnicianManagement() {
                             <button
                               type="button"
                               onClick={() => removeCertification(cert)}
-                              className="hover:bg-green-200 rounded p-0.5"
+                              className="hover:bg-emerald-200 rounded p-0.5"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -1007,7 +1007,7 @@ export default function TechnicianManagement() {
                         <button
                           type="button"
                           onClick={addCertification}
-                          className="px-4 py-2 bg-emerald-800 text-white rounded-xl hover:bg-green-700 transition-colors"
+                          className="px-4 py-2 bg-emerald-800 text-white rounded-xl hover:bg-emerald-700 transition-colors"
                         >
                           <Plus className="h-5 w-5" />
                         </button>

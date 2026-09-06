@@ -413,8 +413,8 @@ export default function ImprovedClientManagement() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4">
       {/* En-tête avec gradient vert IT Vision */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-green-500 to-teal-500 text-white p-8 shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-green-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 text-white p-8 shadow-2xl">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse delay-700" />
         
         <div className="relative z-10">
@@ -474,14 +474,14 @@ export default function ImprovedClientManagement() {
           <div className="text-xs text-blue-600 mt-1">Base complète</div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-emerald-800">Actifs</div>
             <div className="p-2.5 bg-emerald-500 rounded-xl">
               <CheckCircle2 className="h-5 w-5 text-white" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-green-900">{metrics.active}</div>
+          <div className="text-3xl font-bold text-emerald-900">{metrics.active}</div>
           <div className="text-xs text-emerald-700 mt-1">
             {metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 0}% du total
           </div>
@@ -610,7 +610,7 @@ export default function ImprovedClientManagement() {
                 </div>
 
                 {/* Avatar avec initiales */}
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-2xl mb-4 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-2xl mb-4 shadow-lg">
                   {client.name.charAt(0).toUpperCase()}
                 </div>
 
@@ -762,7 +762,7 @@ export default function ImprovedClientManagement() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto my-8 shadow-2xl">
             {/* En-tête modale */}
-            <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-green-500 text-white px-6 py-5 flex items-center justify-between rounded-t-3xl">
+            <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-5 flex items-center justify-between rounded-t-3xl">
               <h2 className="text-2xl font-bold">
                 {modalMode === 'add' && '✨ Nouveau client'}
                 {modalMode === 'edit' && '✏️ Modifier le client'}
@@ -782,7 +782,7 @@ export default function ImprovedClientManagement() {
                 // Mode Vue
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
                       {selectedClient.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -805,12 +805,12 @@ export default function ImprovedClientManagement() {
                       <div className="font-semibold text-blue-900">{selectedClient.email}</div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
                       <div className="text-sm text-emerald-800 font-medium mb-1 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         Téléphone
                       </div>
-                      <div className="font-semibold text-green-900">{selectedClient.phone}</div>
+                      <div className="font-semibold text-emerald-900">{selectedClient.phone}</div>
                     </div>
                     
                     {selectedClient.address && (
@@ -884,7 +884,7 @@ export default function ImprovedClientManagement() {
                         closeModal()
                         setTimeout(() => openModal('edit', selectedClient), 100)
                       }}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-xl hover:from-emerald-700 hover:to-green-600 transition-all font-semibold shadow-lg hover:scale-105"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all font-semibold shadow-lg hover:scale-105"
                     >
                       <Edit3 className="h-5 w-5" />
                       Modifier ce client
@@ -1134,7 +1134,7 @@ export default function ImprovedClientManagement() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-xl hover:from-emerald-700 hover:to-green-600 transition-all font-semibold shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all font-semibold shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                       {saving ? (
                         <span className="flex items-center justify-center gap-2">

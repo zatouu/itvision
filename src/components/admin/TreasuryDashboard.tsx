@@ -148,7 +148,7 @@ export default function TreasuryDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle,_rgba(255,255,255,0.4)_1px,_transparent_1px)] bg-[length:20px_20px]" />
         <div className="relative">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -530,7 +530,7 @@ export default function TreasuryDashboard() {
 function KpiCard({ label, value, sub, icon: Icon, color, accent }: any) {
   const colorClasses: Record<string, { bg: string; text: string; ring: string }> = {
     emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200' },
-    green: { bg: 'bg-emerald-100', text: 'text-emerald-800', ring: 'ring-green-200' },
+    green: { bg: 'bg-emerald-100', text: 'text-emerald-800', ring: 'ring-emerald-200' },
     blue: { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-200' },
     orange: { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-200' },
     red: { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-200' }

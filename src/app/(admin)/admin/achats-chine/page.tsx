@@ -77,7 +77,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   seller_shipped: { label: 'Expédié vendeur', color: 'bg-orange-100 text-orange-800', icon: Truck },
   received_guangzhou: { label: 'Reçu Guangzhou', color: 'bg-teal-100 text-teal-800', icon: Package },
   quality_check_pending: { label: 'Contrôle à faire', color: 'bg-yellow-100 text-yellow-800', icon: ClipboardCheck },
-  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-green-800', icon: CheckCircle },
+  quality_check_passed: { label: 'Contrôle OK', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
   quality_check_failed: { label: 'Contrôle échoué', color: 'bg-red-100 text-red-800', icon: ClipboardCheck },
   quality_check_partial: { label: 'Contrôle partiel', color: 'bg-orange-100 text-orange-800', icon: ClipboardCheck },
   handed_to_freight: { label: 'Remis au fret', color: 'bg-emerald-100 text-emerald-800', icon: Ship },
@@ -210,7 +210,7 @@ export default function AdminChinaPurchasesPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {notification && (
-          <div className={`mb-4 p-4 rounded-xl ${notification.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          <div className={`mb-4 p-4 rounded-xl ${notification.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
             {notification.message}
           </div>
         )}

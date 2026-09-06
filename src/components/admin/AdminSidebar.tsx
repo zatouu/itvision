@@ -482,6 +482,7 @@ export default function AdminSidebar() {
   const [search, setSearch] = useState('')
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const isActive = (href?: string) => {
     if (!href) return false
@@ -542,6 +543,13 @@ export default function AdminSidebar() {
     }
   }, [pathname])
 
+  // Ouvrir/fermer le menu sur mobile depuis le header
+  useEffect(() => {
+    const onToggle = () => setMobileOpen(prev => !prev)
+    window.addEventListener('admin:toggle-mobile', onToggle)
+    return () => window.removeEventListener('admin:toggle-mobile', onToggle)
+  }, [])
+
   // Sauvegarder l'état de collapse
   const toggleCollapse = () => {
     const newState = !isCollapsed
@@ -561,8 +569,8 @@ export default function AdminSidebar() {
     const hasChildren = item.children && item.children.length > 0
     const isOpen = openMenus.includes(item.id)
     const active = isActive(item.href) || hasActiveChild(item)
-    const activeBg = colors?.activeBg || 'bg-green-50'
-    const activeText = colors?.activeText || 'text-green-700'
+    const activeBg = colors?.activeBg || 'bg-stone-100'
+    const activeText = colors?.activeText || 'text-stone-700'
 
     if (hasChildren) {
       return (
@@ -601,6 +609,7 @@ export default function AdminSidebar() {
       <Link
         key={item.id}
         href={item.href || '#'}
+        onClick={() => setMobileOpen(false)}
         title={isCollapsed ? item.label : undefined}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
@@ -644,52 +653,70 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside 
-      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-stone-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
-    >
-      {/* Header avec logo */}
-      <div className={`p-4 border-b border-stone-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-        {!isCollapsed ? (
-          <>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-950 rounded-lg flex items-center justify-center">
-                <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+    <>
+      {/* Overlay mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 z-50 h-screen
+          bg-white border-r border-stone-200 flex-shrink-0
+          transition-all duration-300 ease-in-out flex flex-col
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          w-64
+          ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}
+        `}
+      >
+        {/* Header avec logo */}
+        <div className={`p-4 border-b border-stone-200 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+          {!isCollapsed ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-emerald-950 rounded-lg flex items-center justify-center">
+                  <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-900">Admin Panel</h2>
+                  <p className="text-xs text-stone-500">IT Vision</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-stone-900">Admin Panel</h2>
-                <p className="text-xs text-stone-500">IT Vision</p>
-              </div>
-            </div>
+              <button
+                onClick={toggleCollapse}
+                className="hidden lg:block p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+                title="Réduire le menu"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
             <button
               onClick={toggleCollapse}
-              className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
-              title="Réduire le menu"
+              className="hidden lg:block p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+              title="Agrandir le menu"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Menu className="h-5 w-5" />
             </button>
-          </>
-        ) : (
-          <button
-            onClick={toggleCollapse}
-            className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
-            title="Agrandir le menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
-        {menuSections.map(section => renderSection(section))}
-      </nav>
-
-      {/* Footer avec version */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-stone-200 text-xs text-stone-400 text-center">
-          Admin · IT Vision
+          )}
         </div>
-      )}
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
+          {menuSections.map(section => renderSection(section))}
+        </nav>
+
+        {/* Footer avec version */}
+        {!isCollapsed && (
+          <div className="p-3 border-t border-stone-200 text-xs text-stone-400 text-center">
+            Admin · IT Vision
+          </div>
+        )}
+      </aside>
+    </>
   )
 }

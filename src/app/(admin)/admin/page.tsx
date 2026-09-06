@@ -1,27 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 'use client'
 
 import Link from 'next/link'
@@ -347,7 +323,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 to-emerald-50">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-600 border-t-transparent mx-auto"></div>
           <p className="text-sm text-stone-600">Chargement du tableau de bord...</p>
@@ -398,7 +374,7 @@ export default function AdminDashboard() {
   const getUsageRateDisplay = (usageRate: number) => Math.min(100, Math.max(0, Math.round(usageRate || 0)))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-green-50/30 to-emerald-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-emerald-50/30 to-stone-100/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         
         {/* En-tête premium */}
@@ -755,7 +731,7 @@ export default function AdminDashboard() {
                 {projectHighlights.slice(0, 3).map((project) => (
                   <div key={project.id} className="flex items-center gap-3 p-3 rounded-lg border border-stone-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition">
                     <div className={`w-2 h-2 rounded-full ${
-                      project.status === 'IN_PROGRESS' ? 'bg-green-500' : 'bg-stone-300'
+                      project.status === 'IN_PROGRESS' ? 'bg-emerald-500' : 'bg-stone-300'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-stone-900 truncate">{project.name}</p>
@@ -1016,7 +992,7 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_rgba(255,255,255,0.4)_1px,_transparent_1px)] bg-[length:20px_20px]" />
             <div className="relative space-y-5">
               <div className="flex items-start justify-between">
@@ -1065,7 +1041,7 @@ export default function AdminDashboard() {
         </section>
 
         {/* Footer stats */}
-        <section className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl border border-emerald-100 p-6">
+        <section className="bg-gradient-to-r from-emerald-50 to-stone-50 rounded-2xl border border-emerald-100 p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div>
               <div className="text-3xl font-bold text-emerald-700">{technicians.total}</div>

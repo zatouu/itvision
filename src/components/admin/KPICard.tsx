@@ -31,7 +31,7 @@ export default function KPICard({
       stroke: '#3b82f6'
     },
     green: {
-      bg: 'from-green-500 to-emerald-600',
+      bg: 'from-emerald-500 to-emerald-600',
       light: 'bg-emerald-100',
       text: 'text-emerald-700',
       stroke: '#10b981'

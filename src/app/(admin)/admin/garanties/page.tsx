@@ -156,12 +156,12 @@ function StatCard({
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string; bg: string }> = {
     pending_payment: { label: 'En attente', color: 'text-amber-400', bg: 'bg-amber-500/20' },
-    payment_received: { label: 'Payé', color: 'text-green-400', bg: 'bg-emerald-500/20' },
+    payment_received: { label: 'Payé', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     funds_secured: { label: 'Sécurisé', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     order_placed: { label: 'Commandé', color: 'text-blue-400', bg: 'bg-blue-500/20' },
     order_confirmed: { label: 'Confirmé', color: 'text-blue-400', bg: 'bg-blue-500/20' },
     in_transit: { label: 'En transit', color: 'text-indigo-400', bg: 'bg-indigo-500/20' },
-    delivered: { label: 'Livré', color: 'text-green-400', bg: 'bg-emerald-500/20' },
+    delivered: { label: 'Livré', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     verification: { label: 'Vérification', color: 'text-amber-400', bg: 'bg-amber-500/20' },
     completed: { label: 'Terminé', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     disputed: { label: 'Litige', color: 'text-red-400', bg: 'bg-red-500/20' },

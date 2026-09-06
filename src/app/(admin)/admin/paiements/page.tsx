@@ -575,19 +575,19 @@ export default function AdminPaymentsPage() {
 
                 {/* Canaux supportés */}
                 {settings.providers.gateway.provider === 'paydunya' && (
-                  <div className="bg-emerald-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-green-900 mb-2">Canaux de paiement activés</p>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-emerald-900 mb-2">Canaux de paiement activés</p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-full font-medium">
                         💳 Visa / Mastercard
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-full font-medium">
                         📱 Wave Sénégal
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-full font-medium">
                         📱 Orange Money Sénégal
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-green-200 text-green-800 px-2.5 py-1 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1 text-xs bg-white border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-full font-medium">
                         📱 Free Money Sénégal
                       </span>
                     </div>

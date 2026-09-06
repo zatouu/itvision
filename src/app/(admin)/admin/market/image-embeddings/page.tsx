@@ -235,7 +235,7 @@ export default function AdminImageEmbeddingsPage() {
       ? 'from-red-500 to-orange-500'
       : percent < 70
         ? 'from-amber-500 to-yellow-500'
-        : 'from-emerald-500 to-green-600'
+        : 'from-emerald-500 to-emerald-600'
 
   return (
     <div className="space-y-6">

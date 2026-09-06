@@ -720,7 +720,7 @@ export default function ProjectDetailPage() {
 /* ---------- UI Helpers ---------- */
 
 function KpiCard({ label, value, color, icon: Icon }: { label: string; value: string; color: string; icon: any }) {
-  const map: Record<string, string> = { blue: 'bg-blue-50 border-blue-100', emerald: 'bg-emerald-50 border-emerald-100', orange: 'bg-orange-50 border-orange-100', green: 'bg-emerald-50 border-green-100', red: 'bg-red-50 border-red-100' }
+  const map: Record<string, string> = { blue: 'bg-blue-50 border-blue-100', emerald: 'bg-emerald-50 border-emerald-100', orange: 'bg-orange-50 border-orange-100', green: 'bg-emerald-50 border-emerald-100', red: 'bg-red-50 border-red-100' }
   const textMap: Record<string, string> = { blue: 'text-blue-700', emerald: 'text-emerald-700', orange: 'text-orange-700', green: 'text-emerald-800', red: 'text-red-700' }
   return (
     <div className={`p-4 rounded-xl border ${map[color] || map.blue}`}>

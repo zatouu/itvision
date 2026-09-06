@@ -206,7 +206,7 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
             {editable.description && <p className="text-sm text-stone-500 mt-0.5">{editable.description}</p>}
             <div className="flex items-center gap-3 mt-2 text-xs text-stone-500">
               {editable.dueDate && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Échéance : {new Date(editable.dueDate).toLocaleDateString('fr-FR')}</span>}
-              {editable.completedDate && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" />Terminé le : {new Date(editable.completedDate).toLocaleDateString('fr-FR')}</span>}
+              {editable.completedDate && <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" />Terminé le : {new Date(editable.completedDate).toLocaleDateString('fr-FR')}</span>}
             </div>
             {/* Progress bar */}
             <div className="mt-2 h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -280,7 +280,7 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
                 {(editable.checklist || []).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-stone-200 rounded-xl hover:shadow-sm transition-shadow">
                     <button onClick={() => toggleCheck(idx)} className="flex-shrink-0">
-                      {item.done ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Circle className="w-5 h-5 text-stone-300" />}
+                      {item.done ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Circle className="w-5 h-5 text-stone-300" />}
                     </button>
                     <span className={`flex-1 text-sm ${item.done ? 'line-through text-stone-400' : 'text-stone-900'}`}>{item.label}</span>
                     {item.required && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-red-50 text-red-600 rounded">Requis</span>}
@@ -306,7 +306,7 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
                 {(editable.expectedDeliverables || []).map((d, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-stone-200 rounded-xl">
                     <button onClick={() => toggleDeliverable(idx)} className="flex-shrink-0">
-                      {d.done ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Circle className="w-5 h-5 text-stone-300" />}
+                      {d.done ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Circle className="w-5 h-5 text-stone-300" />}
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium ${d.done ? 'line-through text-stone-400' : 'text-stone-900'}`}>{d.name}</p>

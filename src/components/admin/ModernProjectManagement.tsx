@@ -544,7 +544,7 @@ export default function ModernProjectManagement() {
           const Icon = kpi.icon
           const gradients: Record<string, string> = {
             blue: 'from-blue-50 to-blue-100 border-blue-200',
-            green: 'from-green-50 to-green-100 border-green-200',
+            green: 'from-emerald-50 to-emerald-100 border-emerald-200',
             purple: 'from-purple-50 to-purple-100 border-purple-200',
             emerald: 'from-emerald-50 to-emerald-100 border-emerald-200'
           }
@@ -556,7 +556,7 @@ export default function ModernProjectManagement() {
           }
           const textColor: Record<string, string> = {
             blue: 'text-blue-900',
-            green: 'text-green-900',
+            green: 'text-emerald-900',
             purple: 'text-purple-900',
             emerald: 'text-emerald-900'
           }
@@ -940,7 +940,7 @@ export default function ModernProjectManagement() {
                   <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
                     <div>
                       <div className="text-sm text-emerald-800 font-medium">Taux de succès</div>
-                      <div className="text-2xl font-bold text-green-900">
+                      <div className="text-2xl font-bold text-emerald-900">
                         {projects.length > 0 
                           ? Math.round((projects.filter(p => p.status === 'completed').length / projects.length) * 100) 
                           : 0}%

@@ -85,7 +85,7 @@ export default function AdminReturnsPage() {
       case 'rejected': return 'bg-red-100 text-red-800'
       case 'in_transit': return 'bg-purple-100 text-purple-800'
       case 'received': return 'bg-emerald-100 text-emerald-800'
-      case 'refunded': return 'bg-emerald-100 text-green-800'
+      case 'refunded': return 'bg-emerald-100 text-emerald-800'
       default: return 'bg-stone-100 text-stone-800'
     }
   }
@@ -217,7 +217,7 @@ export default function AdminReturnsPage() {
                 <button
                   disabled={updating}
                   onClick={() => updateStatus(selected._id, 'refunded')}
-                  className="col-span-2 flex items-center justify-center gap-1 bg-emerald-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                  className="col-span-2 flex items-center justify-center gap-1 bg-emerald-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
                 >
                   <RefreshCw className="h-4 w-4" /> Rembourser
                 </button>
