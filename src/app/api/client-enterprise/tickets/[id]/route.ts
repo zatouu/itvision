@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Ticket from '@/lib/models/Ticket'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
 
   const { id } = await params
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -16,11 +15,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = access.profiles.companyClientId
 
   const ticket = await Ticket.findOne({
     _id: new mongoose.Types.ObjectId(id),
-    clientId: userId,
+    ...companyScope({ userId, companyId }),
   }).lean() as any
 
   if (!ticket) {
@@ -76,10 +76,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
 
   const { id } = await params
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -93,11 +92,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = access.profiles.companyClientId
 
   const ticket = await Ticket.findOne({
     _id: new mongoose.Types.ObjectId(id),
-    clientId: userId,
+    ...companyScope({ userId, companyId }),
   })
 
   if (!ticket) {

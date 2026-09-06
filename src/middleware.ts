@@ -172,6 +172,14 @@ export async function middleware(request: NextRequest) {
     if (requiredRole === 'CLIENT' && !['CLIENT', ...ADMIN_ROLES].includes(role || '')) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
+
+    if (requiredRole === 'VENDOR' && !['VENDOR', ...ADMIN_ROLES].includes(role || '')) {
+      return NextResponse.redirect(new URL('/compte', request.url))
+    }
+
+    if (requiredRole === 'PROVIDER' && !['PROVIDER', ...ADMIN_ROLES].includes(role || '')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
     
     if (requiredRole === 'TECHNICIAN' && !['TECHNICIAN', ...ADMIN_ROLES].includes(role || '')) {
       return NextResponse.redirect(new URL('/login', request.url))

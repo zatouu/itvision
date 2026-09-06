@@ -1,43 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import { Order } from '@/lib/models/Order' // Import Order
 import bcrypt from 'bcryptjs'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { requireAuth } from '@/lib/jwt'
 import { findRegionByDepartment } from '@/lib/senegal-address' // Import helper
-
-interface DecodedToken {
-  userId: string
-  role: string
-  email: string
-}
-
-async function verifyToken(request: NextRequest): Promise<DecodedToken> {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Non authentifié')
-  }
-
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  
-  if (!payload.userId || !payload.role || !payload.email) {
-    throw new Error('Token invalide')
-  }
-  
-  return {
-    userId: payload.userId as string,
-    role: payload.role as string,
-    email: payload.email as string
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await verifyToken(request)
+    const { userId } = await requireAuth(request)
     await connectMongoose()
 
     // Chercher dans User puis dans Client
@@ -123,7 +95,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await verifyToken(request)
+    const { userId } = await requireAuth(request)
     await connectMongoose()
 
     const body = await request.json()

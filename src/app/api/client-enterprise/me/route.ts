@@ -6,6 +6,7 @@ import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import CorporateProfile from '@/lib/models/CorporateProfile'
 import { loadUserWithProfiles } from '@/lib/user-profiles'
+import { resolveUserAccess } from '@/lib/domain-access'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,16 +20,10 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    let companyClientId = auth.user.companyClientId
+    const access = await resolveUserAccess({ userId: auth.user.id, role: auth.user.role, email: auth.user.email, companyClientId: auth.user.companyClientId })
+    const companyClientId = access?.profiles.companyClientId
     const profileData = await loadUserWithProfiles(auth.user.id)
     const corporateProfile = profileData?.corporateProfile
-
-    // Fallback DB si absent du JWT (vieux token)
-    if (!companyClientId) {
-      companyClientId = corporateProfile?.companyClientId
-        ? String(corporateProfile.companyClientId)
-        : (profileData?.user?.companyClientId ? String(profileData.user.companyClientId) : undefined)
-    }
 
     if (!companyClientId) {
       return NextResponse.json({ companyName: null, isEnterprise: false })
@@ -78,15 +73,10 @@ export async function PUT(request: NextRequest) {
     await connectDB()
 
     const userId = auth.user.id
-    let companyClientId = auth.user.companyClientId
+    const access = await resolveUserAccess({ userId, role: auth.user.role, email: auth.user.email, companyClientId: auth.user.companyClientId })
+    const companyClientId = access?.profiles.companyClientId
     const profileData = await loadUserWithProfiles(userId)
     const corporateProfile = profileData?.corporateProfile
-
-    if (!companyClientId) {
-      companyClientId = corporateProfile?.companyClientId
-        ? String(corporateProfile.companyClientId)
-        : (profileData?.user?.companyClientId ? String(profileData.user.companyClientId) : undefined)
-    }
 
     const userUpdates: any = {}
     if (body.userName !== undefined) userUpdates.name = body.userName

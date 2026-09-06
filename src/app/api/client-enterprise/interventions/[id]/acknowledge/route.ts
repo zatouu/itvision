@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
@@ -8,14 +8,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
 
   await connectDB()
   const { id } = await params
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = access.profiles.companyClientId
   const body = await request.json()
 
   const { signature, name, title } = body
@@ -25,7 +25,7 @@ export async function POST(
 
   const intervention = await Intervention.findOne({
     _id: new mongoose.Types.ObjectId(id),
-    clientId: userId
+    ...companyScope({ userId, companyId })
   }).lean() as any
 
   if (!intervention) {

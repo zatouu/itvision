@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Project from '@/lib/models/Project'
@@ -12,10 +12,9 @@ function fmt(v: number) {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await verifyAuthServer(request)
-    if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
+    const result = await requireDomainAccess(request, 'corporate')
+    if (!result.ok) return result.response
+    const { access } = result
 
     const { id } = await params
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -23,12 +22,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     await connectDB()
-    const userId = new mongoose.Types.ObjectId(auth.user.id)
-    const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+    const userId = new mongoose.Types.ObjectId(access.userId)
+    const companyId = access.profiles.companyClientId
 
     const project = await Project.findOne({
       _id: new mongoose.Types.ObjectId(id),
-      $or: [{ clientId: userId }, { clientCompanyId: companyId }]
+      ...companyScope({ userId, companyId })
     }).lean() as any
 
     if (!project) {

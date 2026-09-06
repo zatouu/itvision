@@ -372,7 +372,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
             {notifications.length > 0 && (
               <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
                 <a
-                  href="/client-portal"
+                  href="/portail-entreprise"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center justify-center gap-2 w-full text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >

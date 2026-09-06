@@ -1,35 +1,22 @@
-// Routes publiques (pas de vérification)
-export const PUBLIC_ROUTES = [
-  '/login',
-  '/register',
+/**
+ * Routage middleware — DÉRIVÉ du registre src/lib/domains.ts.
+ * Ne plus éditer les listes à la main : modifier le registre.
+ * Les libellés de rôle ('CLIENT_ENTERPRISE', 'AUTH'...) sont conservés
+ * pour compatibilité avec la logique de middleware.ts existante.
+ */
+import { PAGE_RULES, getPageRule, type RouteRule } from '@/lib/domains'
+
+// Routes publiques = toutes les pages déclarées 'public' + entrées API transversales
+export const PUBLIC_ROUTES: string[] = [
+  ...PAGE_RULES.filter(r => r.access === 'public').map(r => r.prefix),
   '/market/creer-compte',
-  '/register-corporate',
-  '/forgot-password',
-  '/reset-password',
-  '/retrouver-ma-commande',
   '/api/auth',
   '/api/health',
-  '/',
-  '/about',
-  '/services',
-  '/produits',
-  '/corporate-produits',
-  '/contact',
-  '/realisations',
-  '/cgv',
-  '/mentions-legales',
-  '/politique-confidentialite',
-  '/digitalisation',
-  '/domotique',
-  '/maintenance-digital',
-  '/portail-valeur',
-  '/generateur-devis',
-  '/intervention',
-  '/mobile-app',
-  '/gestion-projets',
 ]
 
-// Routes propres à la marketplace (accessible sur market.itvisionplus.sn)
+// Routes propres à la marketplace (accessibles sur market.itvisionplus.sn)
+// NOTE : liste explicitement figée — ne pas dériver du registre sans revue,
+// car /produits et assimilés ont un comportement spécial sur le domaine principal.
 export const MARKETPLACE_ROUTES = [
   '/panier',
   '/checkout',
@@ -77,28 +64,31 @@ export function isMobileApiRoute(pathname: string): boolean {
   )
 }
 
-export function getRequiredRole(pathname: string): string | null {
-  if (pathname === '/messages' || pathname.startsWith('/messages/')) return 'AUTH'
-  if (pathname === '/compte' || pathname.startsWith('/compte/')) return 'AUTH'
-  if (pathname === '/market/compte' || pathname.startsWith('/market/compte/')) return 'AUTH'
-  if (pathname === '/espace-vendeur' || pathname.startsWith('/espace-vendeur/')) return 'VENDOR'
-
-  const adminRoutes = [
-    '/admin',
-    '/admin-reports',
-    '/admin-factures',
-    '/admin-prix',
-    '/admin-produits',
-    '/validation-rapports',
-    '/workflows',
-  ]
-
-  for (const route of adminRoutes) {
-    if (pathname === route || pathname.startsWith(route + '/')) return 'ADMIN'
+/**
+ * Traduit l'accès déclaré du registre vers le libellé de rôle historique
+ * attendu par middleware.ts. Retourne null si aucune vérification requise.
+ */
+function accessToRequiredRole(rule: RouteRule): string | null {
+  const access = rule.access
+  if (access === 'public') return null
+  if (access === 'auth') return 'AUTH'
+  if ('profile' in access) {
+    switch (access.profile) {
+      case 'companyClient': return 'CLIENT_ENTERPRISE'
+      case 'vendor': return 'VENDOR'
+      case 'provider': return 'PROVIDER'
+      default: return 'AUTH'
+    }
   }
-
-  if (pathname.startsWith('/client-portal')) return 'CLIENT'
-  if (pathname.startsWith('/tech-interface')) return 'TECHNICIAN'
-  if (pathname.startsWith('/portail-entreprise')) return 'CLIENT_ENTERPRISE'
+  if ('staffRoles' in access) {
+    return access.staffRoles.includes('TECHNICIAN') ? 'TECHNICIAN' : 'ADMIN'
+  }
   return null
+}
+
+export function getRequiredRole(pathname: string): string | null {
+  const rule = getPageRule(pathname)
+  if (!rule) return null
+  if (rule.domain === 'deprecated') return null // les routes mortes ne doivent plus résoudre
+  return accessToRequiredRole(rule)
 }

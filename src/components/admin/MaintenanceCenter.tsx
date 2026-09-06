@@ -623,7 +623,7 @@ export default function MaintenanceCenter() {
                 </Link>
               )}
               <a
-                href={`/client-portal?client=${summary.portalClientId || summary.adminClientId || summary.clientKey}`}
+                href="/portail-entreprise"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-gray-900"
@@ -1094,7 +1094,7 @@ export default function MaintenanceCenter() {
             </p>
           </div>
           <Link
-            href="/client-portal"
+            href="/portail-entreprise"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 transition"
           >
             Voir un portail client

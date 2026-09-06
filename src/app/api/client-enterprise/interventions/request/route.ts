@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
@@ -7,13 +7,13 @@ import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { addNotification } from '@/lib/notifications-memory'
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access, user } = result
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = access.profiles.companyClientId
   const body = await request.json()
 
   const { title, description, typeIntervention, priority, site, preferredDate } = body
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   // Auto-détection contrat actif
   const now = new Date()
   const activeContract = await MaintenanceContract.findOne({
-    clientId: userId,
+    ...companyScope({ userId, companyId }),
     status: 'active',
     startDate: { $lte: now },
     endDate: { $gte: now }
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     userId: 'admin',
     type: 'info',
     title: 'Nouvelle demande intervention client',
-    message: `${auth.user.name || auth.user.email} a demandé une intervention : ${title}`,
+    message: `${user.username || user.email} a demandé une intervention : ${title}`,
     actionUrl: `/admin/maintenance/interventions/${intervention._id}`,
     metadata: { interventionId: String(intervention._id), clientId: String(userId) }
   })

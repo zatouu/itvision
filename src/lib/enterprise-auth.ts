@@ -6,9 +6,9 @@
  */
 import { redirect } from 'next/navigation'
 import { verifyAuthServer } from '@/lib/auth-server'
-import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
-import User from '@/lib/models/User'
+import { resolveUserAccess } from '@/lib/domain-access'
+import { connectDB } from '@/lib/db'
 import Client from '@/lib/models/Client'
 
 export interface EnterpriseSession {
@@ -33,19 +33,14 @@ export async function getEnterpriseSession(redirectTo?: string): Promise<Enterpr
     redirect('/login')
   }
 
-  let companyClientId = auth.user!.companyClientId
-
-  // Fallback DB si companyClientId absent du JWT (token émis avant la mise à jour)
-  if (!companyClientId && !isAdmin) {
-    await connectDB()
-    const dbUser = await User.findById(auth.user!.id)
-      .select('companyClientId')
-      .lean() as any
-    if (!dbUser?.companyClientId) {
-      redirect('/compte')
-    }
-    companyClientId = String(dbUser.companyClientId)
-  }
+  // Résolution centralisée : profils + fallback companyClientId (vieux tokens)
+  const access = isAdmin ? null : await resolveUserAccess({
+    userId: auth.user!.id,
+    role: auth.user!.role,
+    email: auth.user!.email,
+    companyClientId: auth.user!.companyClientId,
+  })
+  const companyClientId = access?.profiles.companyClientId
 
   if (!companyClientId) {
     redirect('/compte')

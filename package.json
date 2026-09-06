@@ -14,6 +14,8 @@
     "fix-code": "node scripts/fix-eslint.js",
     "quality-check": "npm run type-check && npm run lint",
     "test:features": "node scripts/test-features.js",
+    "test:domains": "tsx scripts/validate-domains.ts",
+    "test:boundaries": "tsx scripts/check-domain-boundaries.ts",
     "test:xeuy": "tsx tests/xeuy/run-all.ts",
     "test:xeuy:auth": "tsx tests/xeuy/test-auth.ts",
     "test:xeuy:user": "tsx tests/xeuy/test-user.ts",

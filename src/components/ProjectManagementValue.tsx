@@ -422,7 +422,7 @@ export default function ProjectManagementValue() {
             </a>
             
             <a
-              href="/client-portal"
+              href="/portail-entreprise"
               className="border-2 border-white text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-white hover:text-blue-600 transition-colors flex items-center space-x-2"
             >
               <Play className="h-5 w-5" />
