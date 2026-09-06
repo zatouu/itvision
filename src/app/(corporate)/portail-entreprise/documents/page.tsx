@@ -266,7 +266,7 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
                   {/* Choix action */}
                   <div>
                     <p className="text-sm font-medium text-stone-700 mb-2">Votre décision</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {[
                         { id: 'accepted', label: 'Accepter', icon: ThumbsUp, color: 'border-emerald-400 bg-emerald-50 text-emerald-800' },
                         { id: 'rejected', label: 'Refuser', icon: ThumbsDown, color: 'border-red-300 bg-red-50 text-red-700' },

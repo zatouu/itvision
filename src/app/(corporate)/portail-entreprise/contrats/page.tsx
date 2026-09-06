@@ -136,7 +136,7 @@ export default async function ContratsPage() {
 
                 {/* Stats */}
                 {c.stats && (
-                  <div className="border-t border-stone-100 px-4 sm:px-5 py-3 grid grid-cols-3 gap-3">
+                  <div className="border-t border-stone-100 px-4 sm:px-5 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="text-center">
                       <p className="text-lg font-bold text-stone-900 tabular-nums">{c.stats.totalInterventions}</p>
                       <p className="text-[10px] text-stone-400">Total inter.</p>
