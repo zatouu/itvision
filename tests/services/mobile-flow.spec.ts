@@ -33,7 +33,8 @@ let offerId: string
 // lit le cookie avant l'en-tête) — on force un état vide pour garder l'identité OTP.
 const EMPTY_STATE = { cookies: [], origins: [] }
 
-async function otpLogin(phone: string, role: 'CLIENT' | 'TECHNICIAN'): Promise<{ token: string; user: any }> {
+// NB : l'API verify-otp n'accepte que 'PROVIDER' (tout autre rôle → CLIENT)
+async function otpLogin(phone: string, role: 'CLIENT' | 'PROVIDER'): Promise<{ token: string; user: any }> {
   const ctx = await pwRequest.newContext({ baseURL, storageState: EMPTY_STATE })
 
   // Send OTP
@@ -74,7 +75,7 @@ test.describe.serial('Services Mobile Flow', () => {
   })
 
   test('2. OTP login provider', async () => {
-    const { token } = await otpLogin(PROVIDER_PHONE, 'TECHNICIAN')
+    const { token } = await otpLogin(PROVIDER_PHONE, 'PROVIDER')
     providerToken = token
     providerCtx = await pwRequest.newContext({
       baseURL,

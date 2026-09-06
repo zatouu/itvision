@@ -54,7 +54,6 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@floating-ui/dom": "^1.7.5",
     "@heroicons/react": "^2.2.0",
-    "@next/font": "^14.2.15",
     "@prisma/client": "^6.15.0",
     "@tiptap/extension-placeholder": "^3.14.0",
     "@tiptap/extension-underline": "^3.14.0",
