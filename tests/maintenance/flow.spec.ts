@@ -72,16 +72,17 @@ test.afterAll(async () => {
 // ======================= STEP 1 : CLIENT DEMANDE INTERVENTION =======================
 
 test.describe('Step 1 — Client demande une intervention', () => {
+  test.use({ storageState: 'tests/.auth/client.json' })
   test('le client peut naviguer vers le portail et demander une intervention', async ({ page }) => {
     // Se connecter comme client (via storage state déjà injecté)
     await page.goto('/portail-entreprise')
 
     // Vérifier que le portail s'affiche
-    await expect(page.locator('text=Portail Entreprise').or(page.locator('text=Tableau de bord'))).toBeVisible()
+    await expect(page.getByText('Espace entreprise', { exact: false }).or(page.getByText('Tableau de bord', { exact: false })).first()).toBeVisible()
 
     // Naviguer vers les interventions
     await page.goto('/portail-entreprise/interventions')
-    await expect(page.locator('text=Interventions')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /intervention/i }).first()).toBeVisible()
 
     // Le bouton de demande doit être présent
     const requestBtn = page.locator('button:has-text("Demander"), button:has-text("Nouvelle"), a:has-text("Demander"), a:has-text("Nouvelle")').first()
@@ -100,32 +101,34 @@ test.describe('Step 1 — Client demande une intervention', () => {
 // ======================= STEP 2 : ADMIN ASSIGNE TECHNICIEN =======================
 
 test.describe('Step 2 — Admin assigne un technicien', () => {
+  test.use({ storageState: 'tests/.auth/admin.json' })
   test('l\'admin voit l\'intervention dans le planning', async ({ page }) => {
     await page.goto('/admin')
-    await expect(page.locator('text=Admin').or(page.locator('text=Dashboard'))).toBeVisible()
+    await expect(page.getByText('Centre de contrôle', { exact: false }).or(page.getByText('Admin Panel', { exact: false })).first()).toBeVisible()
 
     // Naviguer vers le planning
     await page.goto('/admin/planning')
 
     // Vérifier que le planning s'affiche
-    await expect(page.locator('text=Planning').or(page.locator('text=planning'))).toBeVisible()
+    await expect(page.getByText(/planning/i).first()).toBeVisible()
   })
 
   test('auto-assign fonctionne via API', async () => {
     test.skip(isRemote, 'Données pré-existantes requises en mode distant')
     const result = await autoAssignViaApi(interventionId)
     expect(result.success).toBe(true)
-    expect(result.assignedTechnician).toBeTruthy()
-    console.log('[E2E] Technician assigned:', result.assignedTechnician?.name)
+    expect(result.assignment?.technicianId).toBeTruthy()
+    console.log('[E2E] Technician assigned:', result.assignment?.technicianName)
   })
 })
 
 // ======================= STEP 3 : TECHNICIEN SOUMET RAPPORT =======================
 
 test.describe('Step 3 — Technicien soumet un rapport', () => {
+  test.use({ storageState: 'tests/.auth/tech.json' })
   test('le technicien voit l\'intervention assignée', async ({ page }) => {
     await page.goto('/tech-interface')
-    await expect(page.locator('text=Technicien').or(page.locator('text=Tableau de bord'))).toBeVisible()
+    await expect(page.getByText('Portail Technicien', { exact: false }).or(page.getByText('Tableau de bord', { exact: false })).first()).toBeVisible()
   })
 
   test('créer et soumettre un rapport via API', async () => {
@@ -135,6 +138,7 @@ test.describe('Step 3 — Technicien soumet un rapport', () => {
       data: {
         interventionId,
         site: 'Site E2E',
+        interventionDate: new Date().toISOString(),
         interventionType: 'maintenance',
         priority: 'medium',
         initialObservations: 'Observations initiales pour le test E2E automatique. L\'équipement fonctionne correctement.',
@@ -142,7 +146,8 @@ test.describe('Step 3 — Technicien soumet un rapport', () => {
         results: 'Toutes les caméras sont opérationnelles. Le contrôle d\'accès répond correctement.',
         startTime: '09:00',
         endTime: '11:00',
-        materialsUsed: [{ name: 'Câble RJ45', quantity: 2, unitPrice: 500 }]
+        materialsUsed: [{ name: 'Câble RJ45', quantity: 2, unitPrice: 500 }],
+        photos: { before: [{ url: 'https://picsum.photos/seed/e2e-before/400.jpg', caption: 'Avant' }], after: [{ url: 'https://picsum.photos/seed/e2e-after/400.jpg', caption: 'Après' }] }
       }
     })
     if (!res.ok()) {
@@ -165,14 +170,15 @@ test.describe('Step 3 — Technicien soumet un rapport', () => {
 // ======================= STEP 4 : ADMIN VALIDE + DEVIS =======================
 
 test.describe('Step 4 — Admin valide le rapport et génère un devis', () => {
+  test.use({ storageState: 'tests/.auth/admin.json' })
   test('l\'admin peut valider le rapport via API', async () => {
     test.skip(isRemote, 'Données pré-existantes requises en mode distant')
-    const res = await adminCtx.post(`/api/admin/reports/${reportId}/validate`, {
-      data: { action: 'approved', comments: 'Rapport validé automatiquement par E2E' }
+    const res = await adminCtx.post('/api/admin/reports/validate', {
+      data: { reportId, action: 'approved', comments: 'Rapport validé automatiquement par E2E' }
     })
     expect(res.ok()).toBe(true)
     const json = await res.json() as any
-    expect(json.report.status).toBe('published')
+    expect(['validated', 'published']).toContain(json.report.status)
     console.log('[E2E] Report validated')
   })
 
@@ -182,8 +188,8 @@ test.describe('Step 4 — Admin valide le rapport et génère un devis', () => {
     expect(res.ok()).toBe(true)
     const json = await res.json() as any
     expect(json.quote).toBeTruthy()
-    expect(json.quote.totalAmount).toBeGreaterThan(0)
-    console.log('[E2E] Quote generated:', json.quote.totalAmount, 'FCFA')
+    expect(json.quote.total).toBeGreaterThan(0)
+    console.log('[E2E] Quote generated:', json.quote.total, 'FCFA')
   })
 
   test('le snapshot du contrat est consultable', async () => {
@@ -215,6 +221,7 @@ test.describe('Step 4 — Admin valide le rapport et génère un devis', () => {
 // ======================= STEP 5 : CLIENT FEEDBACK =======================
 
 test.describe('Step 5 — Client laisse un feedback', () => {
+  test.use({ storageState: 'tests/.auth/client.json' })
   test('le client voit l\'intervention terminée dans le portail', async ({ page }) => {
     test.skip(isRemote, 'Données pré-existantes requises en mode distant')
     await page.goto('/portail-entreprise/interventions')

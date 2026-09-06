@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     const items = profiles.map((p) => {
       const user = userMap[String(p.userId)]
       return {
+        id: String(p._id),
         providerId: String(p._id),
         userId: String(p.userId),
         name: user?.name || '',

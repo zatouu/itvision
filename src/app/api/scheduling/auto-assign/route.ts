@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Technician from '@/lib/models/Technician'
-import { requireInterventionAccess } from '@/app/api/interventions/route'
+import { requireInterventionAccess } from '@/lib/interventions-access'
 
 interface ScoredTechnician {
   _id: mongoose.Types.ObjectId

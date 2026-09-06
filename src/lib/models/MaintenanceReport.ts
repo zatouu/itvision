@@ -455,7 +455,9 @@ MaintenanceReportSchema.index({ 'followUpRecommendations.status': 1 })
 MaintenanceReportSchema.index({ 'issuesDetected.severity': 1 })
 
 // Middleware pour auto-générer reportId
-MaintenanceReportSchema.pre('save', function(next) {
+// pre('validate') et non pre('save') : la validation Mongoose s'exécute
+// avant les hooks pre('save') — reportId serait sinon toujours manquant.
+MaintenanceReportSchema.pre('validate', function(next) {
   if (!this.reportId) {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
     const random = crypto.randomUUID().replace(/-/g, '').substr(0, 4).toUpperCase()

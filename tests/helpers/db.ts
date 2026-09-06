@@ -6,8 +6,10 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import Client from '@/lib/models/Client'
 import Technician from '@/lib/models/Technician'
 import Intervention from '@/lib/models/Intervention'
+import Project from '@/lib/models/Project'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Product from '@/lib/models/Product.validated'
 import ProviderProfile from '@/lib/models/ProviderProfile'
@@ -57,6 +59,38 @@ export async function ensureTestUsers(): Promise<{
       passwordHash,
       role: 'CLIENT',
       isActive: true
+    })
+  }
+
+  // Société liée (obligatoire pour le portail entreprise / scoping companyScope)
+  let clientCompany = await Client.findOne({ email: 'e2e-client@itvision.sn' }).lean() as any
+  if (!clientCompany) {
+    clientCompany = await Client.create({
+      clientId: 'CL-E2E-001',
+      name: 'E2E Client',
+      email: 'e2e-client@itvision.sn',
+      phone: '+221770000000',
+      company: 'E2E Company SARL',
+      city: 'Dakar',
+      country: 'Sénégal',
+      isActive: true,
+      permissions: { canAccessPortal: true }
+    })
+  }
+  if (String(clientUser.companyClientId) !== String(clientCompany._id)) {
+    await User.updateOne({ _id: clientUser._id }, { $set: { companyClientId: clientCompany._id } })
+  }
+
+  // Projet actif — requis par /api/maintenance/reports pour résoudre projectId
+  const existingProject = await Project.findOne({ clientId: clientUser._id }).lean() as any
+  if (!existingProject) {
+    await Project.create({
+      name: 'Projet E2E',
+      address: 'Site E2E, Dakar',
+      clientId: clientUser._id,
+      clientCompanyId: clientCompany._id,
+      status: 'in_progress',
+      startDate: new Date()
     })
   }
 

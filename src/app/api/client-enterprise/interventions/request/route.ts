@@ -5,6 +5,7 @@ import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { addNotification } from '@/lib/notifications-memory'
+import { logAuditEvent } from '@/lib/audit'
 
 export async function POST(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -64,6 +65,18 @@ export async function POST(request: NextRequest) {
     maintenanceContractId,
     isCoveredByContract
   })
+
+  // Audit trail — la demande d'intervention est un événement traçable
+  logAuditEvent({
+    entityType: 'Intervention',
+    entityId: intervention._id,
+    action: 'created',
+    newState: { status: intervention.status, typeIntervention, priority: intervention.priority },
+    userId: access.userId,
+    userRole: 'CLIENT',
+    clientCompanyId: companyId,
+    metadata: { coveredByContract: isCoveredByContract }
+  }).catch(e => console.error('[Audit] intervention request:', e))
 
   // Notification admin
   addNotification({

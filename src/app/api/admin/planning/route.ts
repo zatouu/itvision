@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Technician from '@/lib/models/Technician'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
-import { requireInterventionAccess } from '@/app/api/interventions/route'
+import { requireInterventionAccess } from '@/lib/interventions-access'
 
 // GET — Planning admin unifié (calendrier + liste)
 export async function GET(request: NextRequest) {

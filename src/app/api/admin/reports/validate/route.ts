@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
+import Intervention from '@/lib/models/Intervention'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 import { logFailedAuth, logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
@@ -160,6 +161,19 @@ export async function POST(request: NextRequest) {
     )
     
     await report.save()
+
+    // Clôturer l'intervention liée : un rapport validé marque la fin du terrain.
+    // Sans ce passage, les endpoints client (feedback, accusé de réception) restent bloqués.
+    if (action === 'approved' && report.interventionId) {
+      try {
+        await Intervention.updateOne(
+          { _id: report.interventionId },
+          { $set: { status: 'completed' } }
+        )
+      } catch (e) {
+        console.error('[Report] Clôture intervention impossible:', e)
+      }
+    }
 
     // Temps réel + audit
     try {

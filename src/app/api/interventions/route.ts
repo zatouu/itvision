@@ -4,19 +4,9 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
+import { requireInterventionAccess } from '@/lib/interventions-access'
 import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
 import { logAuditEvent } from '@/lib/audit'
-
-export async function requireInterventionAccess(request: NextRequest) {
-  try {
-    const { role } = await requireAuth(request)
-    const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
-    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
-    return { ok: true as const }
-  } catch {
-    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
-  }
-}
 
 function computeEndTime(start: string, durationHours: number) {
   const [h, m] = start.split(':').map((part) => parseInt(part, 10))

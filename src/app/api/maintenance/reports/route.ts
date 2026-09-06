@@ -13,6 +13,7 @@ import type {
 import Technician from '@/lib/models/Technician'
 import Project from '@/lib/models/Project'
 import Intervention from '@/lib/models/Intervention'
+import '@/lib/models/Client' // registration nécessaire pour .populate('clientId')
 import { verifyJwtPayload } from '@/lib/jwt'
 
 async function verifyTechnicianToken(request: NextRequest) {
