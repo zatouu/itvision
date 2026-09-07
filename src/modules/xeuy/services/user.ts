@@ -8,6 +8,7 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import ProviderProfile from '@/lib/models/ProviderProfile'
+import { isPhoneLike } from '@/lib/sms'
 import type { XeuyRole, XeuyUser } from '../types'
 
 const ALPHANUM = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -134,7 +135,7 @@ export async function findXeuyUserByPhone(phone: string): Promise<XeuyUser | nul
   if (!user) return null
   const name = user.name || user.phone
   // isNew = user never completed setup-profile (name is empty or just their phone number)
-  const isNew = !name?.trim() || /^\d{7,}$/.test(name.trim())
+  const isNew = !name?.trim() || isPhoneLike(name.trim())
   return {
     _id: String(user._id),
     phone: user.phone,

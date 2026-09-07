@@ -77,6 +77,7 @@
     "recentActivity": "Recent activity",
     "noActivity": "No recent activity",
     "publishRequest": "Post a request",
+    "addName": "Add my name",
     "publishRequestSub": "Get offers in minutes",
     "activeRequests": "{{count}} active request",
     "activeRequests_plural": "{{count}} active requests",

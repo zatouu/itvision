@@ -5,6 +5,7 @@ import Client from '@/lib/models/Client'
 import { Order } from '@/lib/models/Order' // Import Order
 import bcrypt from 'bcryptjs'
 import { requireAuth } from '@/lib/jwt'
+import { isPhoneLike } from '@/lib/sms'
 import { findRegionByDepartment } from '@/lib/senegal-address' // Import helper
 
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Self-healing: si le nom est en fait un numéro de téléphone (ancien bug), on le vide
     let profileName = profileData.name || ''
-    if (profileName && /^\d{7,}$/.test(profileName)) {
+    if (profileName && isPhoneLike(profileName)) {
       profileName = ''
       await User.updateOne({ _id: profileData._id }, { $set: { name: '' } }).catch(() => {})
     }

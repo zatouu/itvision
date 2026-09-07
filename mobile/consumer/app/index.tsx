@@ -362,7 +362,9 @@ function Home() {
     }
   }
 
-  const displayName = (userName ? (isPhoneLike(userName) ? formatPhone(userName) : userName) : '') || formatPhone(getAuthUser()?.phone)
+  const hasRealName = !!userName && !isPhoneLike(userName)
+  const displayName = (hasRealName ? userName : '') || formatPhone(getAuthUser()?.phone)
+  const showNamePrompt = !hasRealName
 
   return (
     <SafeAreaView style={s.safe}>
@@ -399,7 +401,16 @@ function Home() {
         {/* Greeting */}
         <View style={s.greeting}>
           <Text style={s.greetTitle}>{greetingByHour(t)} 👋</Text>
-          {!!displayName && <Text style={s.greetName} numberOfLines={1}>{displayName}</Text>}
+          {showNamePrompt ? (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/profile')}>
+              <Text style={s.greetName} numberOfLines={1}>{displayName}</Text>
+              <Text style={s.greetNameHint}>{t('home.addName')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/profile')}>
+              <Text style={s.greetName} numberOfLines={1}>{displayName}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Hero — Mission active / Offres reçues / Vide */}
@@ -629,6 +640,7 @@ const s = StyleSheet.create({
   greeting: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
   greetTitle: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
   greetName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.4, marginTop: 2 },
+  greetNameHint: { fontSize: 12, color: colors.primary, fontWeight: typography.weight.semibold as any, marginTop: 2 },
 
   // Secondary strip
   stripScroll: { marginTop: 10 },

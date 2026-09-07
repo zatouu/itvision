@@ -77,6 +77,7 @@
     "recentActivity": "Activité récente",
     "noActivity": "Aucune activité récente",
     "publishRequest": "Publier une demande",
+    "addName": "Ajouter mon nom",
     "publishRequestSub": "Recevez des offres en quelques minutes",
     "activeRequests": "{{count}} demande active",
     "activeRequests_plural": "{{count}} demandes actives",

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 import { colors } from '../src/design'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, TextInput } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -24,11 +24,29 @@ function Profile() {
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(getAuthUser())
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState(user?.name || '')
 
   useEffect(() => {
-    const unsub = subscribeAuth(() => setUser(getAuthUser()))
+    const unsub = subscribeAuth(() => {
+      setUser(getAuthUser())
+      setNameValue(getAuthUser()?.name || '')
+    })
     return unsub
   }, [])
+
+  const saveName = async () => {
+    const trimmed = nameValue.trim()
+    if (!trimmed) return
+    setEditingName(false)
+    try {
+      await apiPatch('/api/users/me', { name: trimmed })
+      await updateAuthUser({ name: trimmed })
+      setUser(getAuthUser())
+    } catch (e: any) {
+      toast.error('Erreur', humanErrorMessage(e))
+    }
+  }
 
   useEffect(() => {
     apiGet('/api/users/me')
@@ -121,7 +139,28 @@ function Profile() {
               <Camera size={16} color={colors.surface} />
             </View>
           </TouchableOpacity>
-          <Text style={s.name}>{user?.name || t('profile.defaultName')}</Text>
+          {editingName ? (
+            <View style={s.nameEditRow}>
+              <TextInput
+                style={s.nameInput}
+                value={nameValue}
+                onChangeText={setNameValue}
+                autoFocus
+                placeholder={t('setup.namePlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="words"
+                maxLength={100}
+                onSubmitEditing={saveName}
+              />
+              <TouchableOpacity style={s.nameSaveBtn} onPress={saveName}>
+                <Text style={s.nameSaveText}>{t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => setEditingName(true)}>
+              <Text style={s.name}>{user?.name || t('profile.defaultName')}</Text>
+            </TouchableOpacity>
+          )}
           <Text style={s.phone}>{user?.phone || ''}</Text>
         </View>
 
@@ -212,6 +251,10 @@ const s = StyleSheet.create({
   avatarText: { color: colors.surface, fontSize: 28, fontWeight: '700' },
   cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
   name: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  nameInput: { flex: 1, fontSize: 18, fontWeight: '700', color: '#111827', borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: colors.surface, textAlign: 'center' },
+  nameSaveBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  nameSaveText: { color: colors.surface, fontWeight: '700', fontSize: 13 },
   phone: { fontSize: 14, color: colors.textSecondary },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: colors.border },

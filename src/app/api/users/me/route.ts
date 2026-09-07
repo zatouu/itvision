@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
+import { isPhoneLike } from '@/lib/sms'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Self-healing: si le nom est en fait un numéro de téléphone (ancien bug), on le vide
     let userName = user.name || ''
-    if (userName && /^\d{7,}$/.test(userName)) {
+    if (userName && isPhoneLike(userName)) {
       userName = ''
       await User.updateOne({ _id: user._id }, { $set: { name: '' } })
     }

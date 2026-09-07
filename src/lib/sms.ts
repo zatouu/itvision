@@ -69,6 +69,11 @@ async function sendViaTwilio(to: string, body: string): Promise<boolean> {
  * Autre    : +33612345678, +18001234567, etc.
  * Retourne : +221771234567, +212612345678, +33612345678...
  */
+export function isPhoneLike(s: string): boolean {
+  const cleaned = s.replace(/[\s\-().]/g, '')
+  return /^\+?\d{8,15}$/.test(cleaned)
+}
+
 export function normalizePhone(phone: string): string | null {
   const cleaned = phone.replace(/[\s\-().]/g, '')
 
