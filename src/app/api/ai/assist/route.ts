@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/jwt'
+import { verifyAuthServer } from '@/lib/auth-server'
 import { aiAssist, type AssistType } from '@/lib/ai/assist'
-import { checkAiAvailability } from '@/lib/ai/qwen'
+import { checkAiAvailability, AiConfigMissingError, AiServiceUnavailableError } from '@/lib/ai/qwen'
 import { applyRateLimit, aiRateLimiter } from '@/lib/rate-limiter'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import ProviderProfile from '@/lib/models/ProviderProfile'
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips', 'suggest_offer']
 
@@ -65,8 +68,11 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse
 
   try {
-    const { userId } = await requireAuth(request)
-    if (!userId) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    const auth = await verifyAuthServer(request)
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ error: auth.error || 'Non authentifié' }, { status: 401 })
+    }
+    const userId = auth.user.id
 
     const body = await request.json().catch(() => null)
     if (!body || typeof body !== 'object') {
@@ -101,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     // For suggest_offer, compute market prices and provider stats
-    let marketPrices: any
+    let marketPrices: Awaited<ReturnType<typeof computeMarketPrices>>
     let providerCompletedMissions: number | undefined
     let providerRating: number | undefined
 
@@ -141,10 +147,13 @@ export async function POST(request: NextRequest) {
       source: result.source,
       model: result.model,
     })
-  } catch (e: any) {
-    if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+  } catch (e: unknown) {
     console.error('[POST /api/ai/assist]', e)
-    return NextResponse.json({ error: 'Service AI temporairement indisponible' }, { status: 503 })
+    if (e instanceof AiConfigMissingError || e instanceof AiServiceUnavailableError) {
+      return NextResponse.json({ error: e.message }, { status: 503 })
+    }
+    const message = e instanceof Error ? e.message : 'Service AI temporairement indisponible'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 

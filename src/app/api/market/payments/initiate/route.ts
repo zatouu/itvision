@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const amount = Math.max((order.total || 0) + (order.addOnsTotal || 0), 100)
+    const amount = Math.max(order.total || 0, 100)
     const description = `DDM+ Marketplace - Commande ${orderId}`
     const clientId = order.clientId ? String(order.clientId) : orderId
 

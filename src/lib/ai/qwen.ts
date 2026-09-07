@@ -35,6 +35,27 @@ export interface QwenResult {
   model: string
 }
 
+export class AiConfigMissingError extends Error {
+  constructor() {
+    super('QWEN_CLOUD_API_KEY not configured')
+    this.name = 'AiConfigMissingError'
+  }
+}
+
+export class AiServiceUnavailableError extends Error {
+  constructor() {
+    super('AI service unavailable')
+    this.name = 'AiServiceUnavailableError'
+  }
+}
+
+export class AiVisionServiceUnavailableError extends Error {
+  constructor() {
+    super('AI vision service unavailable')
+    this.name = 'AiVisionServiceUnavailableError'
+  }
+}
+
 type ChatCompletionResponse = {
   choices?: Array<{ message?: { content?: string } }>
   message?: { content?: string }
@@ -61,7 +82,7 @@ async function callWithTimeout<T = ChatCompletionResponse>(url: string, body: { 
 }
 
 async function callQwenCloud(messages: ChatMessage[], maxTokens = 800): Promise<QwenResult> {
-  if (!QWEN_CLOUD_KEY) throw new Error('QWEN_CLOUD_API_KEY not configured')
+  if (!QWEN_CLOUD_KEY) throw new AiConfigMissingError()
   const payload = {
     model: QWEN_MODEL,
     messages,
@@ -100,10 +121,15 @@ async function callOllama(messages: ChatMessage[], maxTokens = 800): Promise<Qwe
  * Call Qwen with fallback: QwenCloud → Ollama → throw
  */
 export async function qwenChat(messages: ChatMessage[], maxTokens?: number): Promise<QwenResult> {
+  let configError: AiConfigMissingError | undefined
+
   // Try QwenCloud first
   try {
     return await callQwenCloud(messages, maxTokens)
   } catch (cloudErr) {
+    if (cloudErr instanceof AiConfigMissingError) {
+      configError = cloudErr
+    }
     console.warn('[Qwen] Cloud failed, trying Ollama:', (cloudErr as Error).message)
   }
 
@@ -112,12 +138,12 @@ export async function qwenChat(messages: ChatMessage[], maxTokens?: number): Pro
     return await callOllama(messages, maxTokens)
   } catch (ollamaErr) {
     console.warn('[Qwen] Ollama also failed:', (ollamaErr as Error).message)
-    throw new Error('AI service unavailable')
+    throw configError || new AiServiceUnavailableError()
   }
 }
 
 async function callQwenVision(messages: VisionMessage[]): Promise<QwenResult> {
-  if (!QWEN_CLOUD_KEY) throw new Error('QWEN_CLOUD_API_KEY not configured')
+  if (!QWEN_CLOUD_KEY) throw new AiConfigMissingError()
   const payload = {
     model: QWEN_VL_MODEL,
     messages,
@@ -169,20 +195,125 @@ async function callOllamaVision(messages: VisionMessage[]): Promise<QwenResult> 
 
 const MAX_DATA_URI_LENGTH = 5 * 1024 * 1024 // 5 MB
 
-function isInternalOrPrivateHost(url: string): boolean {
-  try {
-    const { hostname } = new URL(url)
-    const lower = hostname.toLowerCase()
-    if (lower === 'localhost') return true
-    if (lower.endsWith('.localhost')) return true
-    if (lower.endsWith('.local')) return true
-    if (/^127\./.test(lower)) return true
-    if (/^10\./.test(lower)) return true
-    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(lower)) return true
-    if (/^192\.168\./.test(lower)) return true
-    if (lower.startsWith('[') && (lower.includes('::1') || lower === '[::1]')) return true
-  } catch { /* ignore */ }
+function isValidIPv4(host: string): boolean {
+  const rawParts = host.split('.')
+  if (rawParts.length !== 4) return false
+  return rawParts.every((p) => {
+    if (p === '') return false
+    if (p.length > 1 && p[0] === '0') return false
+    const n = Number(p)
+    return Number.isInteger(n) && n >= 0 && n <= 255
+  })
+}
+
+function isPrivateIPv4(host: string): boolean {
+  const rawParts = host.split('.')
+  if (rawParts.length !== 4 || rawParts.some((p) => p === '' || (p.length > 1 && p[0] === '0'))) {
+    return false
+  }
+  const parts = rawParts.map(Number)
+  if (parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) return false
+  const [a, b, c] = parts
+  if (a === 0) return true
+  if (a === 10) return true
+  if (a === 100 && b >= 64 && b <= 127) return true
+  if (a === 127) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192) {
+    if (b === 168) return true
+    if (b === 0 && c === 0) return true
+    if (b === 0 && c === 2) return true
+    if (b === 31 && c === 196) return true
+    if (b === 52 && c === 193) return true
+    if (b === 175 && c === 48) return true
+  }
+  if (a === 198) {
+    if (b === 18) return true
+    if (b === 51 && c === 100) return true
+    if (b === 97 && c === 38) return true
+  }
+  if (a === 203 && b === 0 && c === 113) return true
+  if (a >= 224) return true
   return false
+}
+
+function unbracket(addr: string): string {
+  return addr.replace(/^\[|\]$/g, '')
+}
+
+function expandIPv6(addr: string): string[] | null {
+  let a = unbracket(addr).toLowerCase().split('%')[0]
+  if (a === '::') a = '0::0'
+  const parts = a.split('::')
+  if (parts.length > 2) return null
+  const left = parts[0] ? parts[0].split(':') : []
+  const right = parts[1] ? parts[1].split(':') : []
+  if (parts.length === 2) {
+    const missing = 8 - (left.length + right.length)
+    if (missing < 0) return null
+    const middle = Array(missing).fill('0')
+    return [...left, ...middle, ...right].map((p) => p || '0')
+  }
+  if (left.length !== 8) return null
+  return left.map((p) => p || '0')
+}
+
+function ipv6ToIPv4(groups: string[]): string | null {
+  if (groups.length !== 8) return null
+  const ffffIndex = groups.findIndex((g) => g.toLowerCase() === 'ffff')
+  if (ffffIndex === -1) return null
+  const last = groups[7]
+  if (last.includes('.')) return last
+  if (ffffIndex === 5 && groups.length - ffffIndex - 1 === 2) {
+    const high = parseInt(groups[6], 16)
+    const low = parseInt(groups[7], 16)
+    if (Number.isNaN(high) || Number.isNaN(low)) return null
+    const a = (high >> 8) & 0xff
+    const b = high & 0xff
+    const c = (low >> 8) & 0xff
+    const d = low & 0xff
+    return `${a}.${b}.${c}.${d}`
+  }
+  return null
+}
+
+function isPrivateIPv6(groups: string[]): boolean {
+  if (groups.length !== 8) return true
+  if (groups.every((g) => g === '0')) return true
+  if (groups.slice(0, 7).every((g) => g === '0') && groups[7] === '1') return true
+  const first = parseInt(groups[0], 16)
+  if (Number.isNaN(first)) return true
+  if (first >= 0xfc00 && first <= 0xfdff) return true
+  if (first >= 0xfe80 && first <= 0xfebf) return true
+  if (first >= 0xff00) return true
+  const mapped = ipv6ToIPv4(groups)
+  if (mapped) {
+    if (!isValidIPv4(mapped) || isPrivateIPv4(mapped)) return true
+  }
+  return false
+}
+
+export function isInternalOrPrivateHost(url: string): boolean {
+  try {
+    const { hostname: raw } = new URL(url)
+    const hostname = raw.toLowerCase()
+    if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) return true
+    // Reject hex-integer or mixed hex/dotted IP literals (e.g. 0x7f.0.0.1 or 0x7f000001)
+    if (/^0x[0-9a-f]+(?:\.[0-9a-fx]+)*$/i.test(hostname)) return true
+    if (/^[0-9.]+$/.test(hostname)) {
+      if (isValidIPv4(hostname)) return isPrivateIPv4(hostname)
+      return true
+    }
+    if (hostname.includes(':')) {
+      const groups = expandIPv6(hostname)
+      if (!groups) return true
+      return isPrivateIPv6(groups)
+    }
+    return false
+  } catch {
+    return true
+  }
 }
 
 function normalizeImageUrl(url: string): string {
@@ -219,10 +350,14 @@ export async function qwenVision(prompt: string, images: string[]): Promise<Qwen
   if (content.length === 1) throw new Error('No valid image URLs provided')
 
   const messages: VisionMessage[] = [{ role: 'user', content }]
+  let configError: AiConfigMissingError | undefined
 
   try {
     return await callQwenVision(messages)
   } catch (cloudErr) {
+    if (cloudErr instanceof AiConfigMissingError) {
+      configError = cloudErr
+    }
     console.warn('[Qwen Vision] Cloud failed, trying Ollama:', (cloudErr as Error).message)
   }
 
@@ -230,7 +365,7 @@ export async function qwenVision(prompt: string, images: string[]): Promise<Qwen
     return await callOllamaVision(messages)
   } catch (ollamaErr) {
     console.warn('[Qwen Vision] Ollama also failed:', (ollamaErr as Error).message)
-    throw new Error('AI vision service unavailable')
+    throw configError || new AiVisionServiceUnavailableError()
   }
 }
 

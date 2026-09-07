@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { jwtVerify } from 'jose'
 import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { verifyDevToken } from '@/lib/auth-dev'
 
 function getAuthCookieDomain(): string | undefined {
   // En production, partager le cookie entre itvisionplus.sn et *.itvisionplus.sn
@@ -69,7 +70,7 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
       try {
         const cookieStore = await cookies()
         token = cookieStore.get('auth-token')?.value || cookieStore.get('admin-auth-token')?.value
-      } catch (error) {
+      } catch {
         // Si on est dans le middleware, cookies() ne fonctionne pas
         return { isAuthenticated: false, error: 'Contexte invalide' }
       }
@@ -77,6 +78,21 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
 
     if (!token) {
       return { isAuthenticated: false, error: 'Token manquant' }
+    }
+
+    // Dev mobile tokens statiques — acceptés uniquement en développement
+    const dev = verifyDevToken(token)
+    if (dev) {
+      return {
+        isAuthenticated: true,
+        user: {
+          id: dev.id,
+          role: dev.role,
+          email: dev.email,
+          name: dev.name,
+          marketplaceTier: dev.marketplaceTier,
+        },
+      }
     }
 
     // If Keycloak is enabled, verify via JWKS; otherwise fallback to internal secret
@@ -96,7 +112,9 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
     }
 
     const { payload } = await jwtVerify(token, getJwtSecretKey())
-    
+    const rawClaims = payload as Record<string, unknown>
+    const allowedTiers = ['standard', 'pro', 'reseller', 'partner'] as const
+
     return {
       isAuthenticated: true,
       user: {
@@ -104,11 +122,15 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
         role: String(payload.role || '').toUpperCase(),
         email: typeof payload.email === 'string' ? payload.email : undefined,
         name: typeof payload.name === 'string' ? payload.name : undefined,
-        marketplaceTier: (payload as any).marketplaceTier || 'standard',
-        companyClientId: typeof (payload as any).companyClientId === 'string' ? (payload as any).companyClientId : undefined
-      }
+        marketplaceTier:
+          typeof rawClaims.marketplaceTier === 'string' &&
+          (allowedTiers as readonly string[]).includes(rawClaims.marketplaceTier)
+            ? (rawClaims.marketplaceTier as (typeof allowedTiers)[number])
+            : 'standard',
+        companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
+      },
     }
-  } catch (error) {
+  } catch {
     return { isAuthenticated: false, error: 'Token invalide' }
   }
 }

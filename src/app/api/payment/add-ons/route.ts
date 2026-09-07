@@ -119,7 +119,14 @@ export async function POST(req: NextRequest) {
 
       order.addOns = selectedAddOns
       order.addOnsTotal = addOnsTotal
-      order.total = (order.subtotal || 0) + (order.shipping?.totalCost || 0) + addOnsTotal
+      order.total = Math.max(
+        0,
+        (order.subtotal || 0) +
+          (order.shipping?.totalCost || 0) +
+          addOnsTotal -
+          (order.grainsDiscount || 0) -
+          (order.promoDiscount || 0)
+      )
       await order.save()
       return NextResponse.json({ success: true, addOns: selectedAddOns, addOnsTotal, total: order.total })
     }

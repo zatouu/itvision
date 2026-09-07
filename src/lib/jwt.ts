@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
 import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { verifyDevToken } from '@/lib/auth-dev'
 import type { NextRequest } from 'next/server'
 
 export type JwtUser = {
@@ -23,12 +24,15 @@ export function extractAuthToken(request: NextRequest): string | null {
 
 export async function verifyAuthToken(token: string): Promise<JwtUser> {
   // Dev mobile tokens statiques — acceptés uniquement en développement
-  const isDev = process.env.NODE_ENV !== 'production'
-  if (isDev && process.env.DEV_MOBILE_TOKEN && token === process.env.DEV_MOBILE_TOKEN) {
-    return { userId: 'dev-mobile-user', role: 'CLIENT', email: 'dev@mobile' }
-  }
-  if (isDev && process.env.DEV_PROVIDER_TOKEN && token === process.env.DEV_PROVIDER_TOKEN) {
-    return { userId: 'dev-provider-user', role: 'PROVIDER', email: 'dev@provider' }
+  const dev = verifyDevToken(token)
+  if (dev) {
+    return {
+      userId: dev.userId,
+      role: dev.role,
+      email: dev.email,
+      username: dev.name,
+      marketplaceTier: dev.marketplaceTier,
+    }
   }
 
   if (keycloakEnabled()) {
@@ -59,14 +63,25 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
     throw new Error('Token invalide')
   }
 
+  const rawClaims = payload as Record<string, unknown>
+  const allowedTiers = ['standard', 'pro', 'reseller', 'partner'] as const
+
   return {
     userId,
     role,
     email: typeof payload.email === 'string' ? payload.email : undefined,
     username: typeof payload.username === 'string' ? payload.username : undefined,
-    marketplaceTier: (payload as any).marketplaceTier || 'standard',
-    companyClientId: typeof (payload as any).companyClientId === 'string' ? (payload as any).companyClientId : undefined,
-    userCategory: typeof (payload as any).userCategory === 'string' ? (payload as any).userCategory : undefined
+    marketplaceTier:
+      typeof rawClaims.marketplaceTier === 'string' &&
+      (allowedTiers as readonly string[]).includes(rawClaims.marketplaceTier)
+        ? (rawClaims.marketplaceTier as JwtUser['marketplaceTier'])
+        : 'standard',
+    companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
+    userCategory:
+      typeof rawClaims.userCategory === 'string' &&
+      ['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(rawClaims.userCategory)
+        ? (rawClaims.userCategory as JwtUser['userCategory'])
+        : undefined,
   }
 }
 

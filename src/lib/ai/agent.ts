@@ -36,16 +36,20 @@ export interface AgentRunResult {
   raw: string
 }
 
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export type ToolHandler = (
   args: Record<string, unknown>,
   confirmed: boolean,
   caller: { userId: string; role: string }
 ) => Promise<unknown>
 
-const MAX_ITERATIONS = 5
+const MAX_ITERATIONS = 4
 const AGENT_MAX_TOKENS = 1200
 
-function extractJson(raw: string): any {
+function extractJson(raw: string): unknown {
   const cleaned = raw.replace(/```(?:json)?/g, '').trim()
   const start = cleaned.indexOf('{')
   const end = cleaned.lastIndexOf('}')
@@ -97,6 +101,10 @@ OUTILS DISPONIBLES:
 ${toolList}`
 }
 
+function getString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
 export async function runAdminAgent(
   userMessage: string,
   tools: AgentToolDefinition[],
@@ -121,9 +129,9 @@ export async function runAdminAgent(
     modelName = result.model
     lastRaw = result.text
 
-    let parsed: any
+    let rawParsed: unknown
     try {
-      parsed = extractJson(result.text)
+      rawParsed = extractJson(result.text)
     } catch (err) {
       console.warn('[AdminAgent] Failed to parse JSON:', err, result.text)
       messages.push({ role: 'assistant', content: result.text })
@@ -133,32 +141,47 @@ export async function runAdminAgent(
       })
       continue
     }
+    const parsed = isPlainRecord(rawParsed) ? rawParsed : {}
 
+    const toolInput = isPlainRecord(parsed.toolInput) ? parsed.toolInput : undefined
     const step: AgentStep = {
-      thought: parsed.thought,
-      tool: parsed.tool,
-      toolInput: parsed.toolInput,
+      thought: getString(parsed.thought),
+      tool: getString(parsed.tool),
+      toolInput,
     }
 
-    if (parsed.finalAnswer) {
+    const finalAnswer = getString(parsed.finalAnswer)
+    if (finalAnswer) {
       step.observation = 'final'
       trace.push(step)
 
-      if (parsed.pendingAction && !confirmed) {
-        const pending = parsed.pendingAction as AgentPendingAction
-        return {
-          finalAnswer: parsed.finalAnswer,
-          trace,
-          actions: [],
-          pendingAction: pending,
-          source: modelSource,
-          model: modelName,
-          raw: lastRaw,
+      if (!confirmed) {
+        const rawPending = parsed.pendingAction
+        if (isPlainRecord(rawPending)) {
+          const pendingTool = getString(rawPending.tool)
+          const pendingReasoning = getString(rawPending.reasoning)
+          const pendingArgs = isPlainRecord(rawPending.args) ? rawPending.args : {}
+          if (pendingTool) {
+            const pendingAction: AgentPendingAction = {
+              tool: pendingTool,
+              args: pendingArgs,
+              reasoning: pendingReasoning || "Action demandée par l'administrateur",
+            }
+            return {
+              finalAnswer,
+              trace,
+              actions: [],
+              pendingAction,
+              source: modelSource,
+              model: modelName,
+              raw: lastRaw,
+            }
+          }
         }
       }
 
       return {
-        finalAnswer: parsed.finalAnswer,
+        finalAnswer,
         trace,
         actions: [],
         source: modelSource,
@@ -167,7 +190,7 @@ export async function runAdminAgent(
       }
     }
 
-    if (!parsed.tool || typeof parsed.tool !== 'string') {
+    if (!step.tool) {
       step.observation = 'no tool selected'
       trace.push(step)
       return {
@@ -180,28 +203,28 @@ export async function runAdminAgent(
       }
     }
 
-    const toolDef = tools.find((t) => t.name === parsed.tool)
+    const toolDef = tools.find((t) => t.name === step.tool)
     if (!toolDef) {
-      step.observation = `unknown tool: ${parsed.tool}`
+      step.observation = `unknown tool: ${step.tool}`
       trace.push(step)
       messages.push({ role: 'assistant', content: result.text })
       messages.push({
         role: 'user',
-        content: `L'outil "${parsed.tool}" n'existe pas. Choisis un outil valide parmi : ${tools.map((t) => t.name).join(', ')}.`,
+        content: `L'outil "${step.tool}" n'existe pas. Choisis un outil valide parmi : ${tools.map((t) => t.name).join(', ')}.`,
       })
       continue
     }
 
-    const toolInput = typeof parsed.toolInput === 'object' && parsed.toolInput !== null ? parsed.toolInput : {}
+    const effectiveToolInput = toolInput ?? {}
 
     // If the tool is a write action and not confirmed, stop and ask for confirmation
     if (!toolDef.readOnly && !confirmed) {
       trace.push({ ...step, observation: 'waiting for confirmation' })
       return {
-        finalAnswer: `Je vais effectuer l'action "${toolDef.name}" avec les paramètres suivants : ${JSON.stringify(toolInput)}. Veuillez confirmer pour exécuter cette action.`,
+        finalAnswer: `Je vais effectuer l'action "${toolDef.name}" avec les paramètres suivants : ${JSON.stringify(effectiveToolInput)}. Veuillez confirmer pour exécuter cette action.`,
         trace,
         actions: [],
-        pendingAction: { tool: toolDef.name, args: toolInput, reasoning: parsed.thought || 'Action demandée par l\'administrateur' },
+        pendingAction: { tool: toolDef.name, args: effectiveToolInput, reasoning: step.thought || "Action demandée par l'administrateur" },
         source: modelSource,
         model: modelName,
         raw: lastRaw,
@@ -223,7 +246,7 @@ export async function runAdminAgent(
     }
 
     try {
-      const observation = await handler(toolInput, confirmed, caller)
+      const observation = await handler(effectiveToolInput, confirmed, caller)
       step.observation = observation
       trace.push(step)
 
@@ -233,8 +256,8 @@ export async function runAdminAgent(
         role: 'user',
         content: `Résultat de l'outil ${toolDef.name}:\n${observationText}\n\nContinue jusqu'à obtenir une réponse finale.`,
       })
-    } catch (err: any) {
-      const errorMsg = err?.message || String(err)
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
       step.observation = { error: errorMsg }
       trace.push(step)
       messages.push({ role: 'assistant', content: result.text })

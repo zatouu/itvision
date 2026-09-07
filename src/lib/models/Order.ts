@@ -131,6 +131,7 @@ export interface IOrder extends Document {
   confirmedAt?: Date
   shippedAt?: Date
   deliveredAt?: Date
+  updatedBy?: string
 
   // Suivi transporteur
   delivery?: {
@@ -291,6 +292,7 @@ const OrderSchema = new Schema<IOrder>({
   confirmedAt: { type: Date, sparse: true },
   shippedAt: { type: Date, sparse: true },
   deliveredAt: { type: Date, sparse: true },
+  updatedBy: { type: String },
 
   delivery: {
     carrier: { type: String },
