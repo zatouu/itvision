@@ -287,7 +287,6 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   EscrowTransaction: 'xeuy',
   MissionAuditLog: 'xeuy',
   MissionUnlock: 'xeuy',
-  Payment: 'xeuy',
   TopupPayment: 'xeuy',
   Wallet: 'xeuy',
   WalletTransaction: 'xeuy',
@@ -312,6 +311,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   RefreshToken: 'shared',
   SentEmail: 'shared',
   OtpCode: 'shared',
+  Payment: 'shared',
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
