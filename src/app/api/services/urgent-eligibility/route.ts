@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
     let geo = (global as any).geo
     if (!geo || typeof geo.findNearbyProviders !== 'function') {
       try {
-        // @ts-ignore
-        const geoMod = require('@/../lib/redis-geo')
+        const mod: any = await import('@/../lib/redis-geo')
+        const geoMod = mod.default || mod
         if (geoMod && typeof geoMod.findNearbyProviders === 'function') {
           geo = geoMod
         }

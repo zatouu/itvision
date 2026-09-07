@@ -251,7 +251,7 @@ export default function SourcingRequestModal({
         externalUrl: tab === 'link' ? externalUrl.trim() : undefined
       }
 
-      let token = csrfToken || (await fetchCsrfToken())
+      const token = csrfToken || (await fetchCsrfToken())
 
       const doSearch = async (csrf: string | null): Promise<Response> => {
         const headers: Record<string, string> = {}
@@ -402,7 +402,7 @@ export default function SourcingRequestModal({
         externalSearchResults: externalResults || undefined
       }
 
-      let token = csrfToken || (await fetchCsrfToken())
+      const token = csrfToken || (await fetchCsrfToken())
 
       const doSubmit = async (csrf: string | null): Promise<Response> => {
         const headers: Record<string, string> = {}

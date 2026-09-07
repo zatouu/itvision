@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
     
     // Vérification que le client existe
     // clientId peut être un User._id (compte client) ou un Client._id (entreprise)
-    let resolvedClientId = asObjectIdString(projectData.clientId)
+    const resolvedClientId = asObjectIdString(projectData.clientId)
     let resolvedClient: any = null
     let resolvedCompanyId = asObjectIdString(projectData.clientCompanyId)
 

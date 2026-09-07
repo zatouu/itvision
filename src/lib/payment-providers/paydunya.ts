@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { PaymentSettings } from '@/lib/payments/settings'
 
 interface PayDunyaConfig {
@@ -174,9 +175,7 @@ export class PayDunyaService {
    */
   verifyIpnHash(receivedHash: string, transactionData: string): boolean {
     try {
-      const crypto = require('crypto')
-      const computed = crypto
-        .createHash('sha512')
+      const computed = createHash('sha512')
         .update(this.config.masterKey + transactionData + this.config.privateKey)
         .digest('hex')
       return computed === receivedHash

@@ -11,6 +11,7 @@
  * (KYC, catégories, charge, note moyenne) et son tier d'abonnement (monétisation).
  */
 
+import { Types } from 'mongoose'
 import { IVisibilityConfig } from '../models/AppConfig'
 import ProviderProfile from '../models/ProviderProfile'
 import ProviderSubscription from '../models/ProviderSubscription'
@@ -43,8 +44,8 @@ async function getGpsPresence(center: GeoPoint, radiusKm: number): Promise<RawPr
   let geo = (global as any).geo
   if (!geo || typeof geo.findNearbyProviders !== 'function') {
     try {
-      // @ts-ignore
-      geo = require('@/../lib/redis-geo')
+      const mod: any = await import('@/../lib/redis-geo')
+      geo = mod.default || mod
       if (geo && typeof geo.findNearbyProviders === 'function') {
         console.log('[Visibility] getGpsPresence: loaded redis-geo.js directly')
       } else {
@@ -157,8 +158,6 @@ async function getRatingAverages(providerIds: string[]): Promise<Map<string, num
 
 function toObjectId(id: string): any {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Types } = require('mongoose')
     return Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : null
   } catch {
     return null

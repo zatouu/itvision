@@ -6,6 +6,7 @@ import {
   Shield, Wrench, Package, Receipt, Download, Activity, BarChart3,
   Loader2, AlertCircle, TrendingUp, RefreshCw, Timer, CheckCircle2
 } from 'lucide-react'
+import Link from 'next/link'
 import {
   Card,
   EmptyState,
@@ -147,7 +148,7 @@ export default function ContractDetailPage() {
         )
       })()}
       {renewalState === 'sent' && (
-        <p className="text-xs text-emerald-700 -mt-2">Votre demande a été transmise à IT Vision — un ticket est visible dans <a href="/portail-entreprise/support" className="underline font-medium">Support</a>.</p>
+        <p className="text-xs text-emerald-700 -mt-2">Votre demande a été transmise à IT Vision — un ticket est visible dans <Link href="/portail-entreprise/support" className="underline font-medium">Support</Link>.</p>
       )}
 
       {/* Tabs */}

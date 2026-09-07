@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Met à jour la présence in-memory / Redis via le module redis-geo.js
     try {
-      const geo = require('@/../lib/redis-geo')
+      const mod: any = await import('@/../lib/redis-geo')
+      const geo = mod.default || mod
       if (geo && typeof geo.updateProviderPosition === 'function') {
         await geo.updateProviderPosition(userId, { lat, lng, status, name, email })
       }

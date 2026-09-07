@@ -41,7 +41,7 @@ export function generateMissionReceiptPdf(data: MissionReceiptData): ArrayBuffer
   doc.setFont('helvetica', 'normal')
   doc.text('Reçu de mission', 40, 58)
 
-  let y = 110
+  const y = 110
   doc.setTextColor(10, 22, 40)
 
   // Référence

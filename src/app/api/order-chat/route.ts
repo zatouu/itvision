@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 import { connectDB } from '@/lib/db'
 import { Order } from '@/lib/models/Order'
 import OrderChatMessage from '@/lib/models/OrderChatMessage'
@@ -6,8 +7,7 @@ import { requireAuth } from '@/lib/jwt'
 import { requireAdminApi } from '@/lib/api-auth'
 
 function hashTrackingToken(token: string): string {
-  const crypto = require('crypto')
-  return crypto.createHash('sha256').update(token).digest('hex')
+  return createHash('sha256').update(token).digest('hex')
 }
 
 export async function GET(req: NextRequest) {

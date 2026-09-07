@@ -154,11 +154,10 @@ export async function POST(request: NextRequest) {
         Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
         Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
         Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] })
-        // @ts-ignore
+        // @ts-expect-error browser globals
         window.chrome = { runtime: {} }
-        // @ts-ignore
         if (window.Notification) {
-          // @ts-ignore
+          // @ts-expect-error browser globals
           window.Notification.permission = 'default'
         }
       })

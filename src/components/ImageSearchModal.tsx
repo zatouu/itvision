@@ -155,7 +155,7 @@ export default function ImageSearchModal({
           return null
         }
       }
-      let csrfToken = await fetchCsrf()
+      const csrfToken = await fetchCsrf()
 
       const doSearch = async (csrf: string | null): Promise<Response> => {
         const headers: Record<string, string> = {}

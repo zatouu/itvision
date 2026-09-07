@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const STALE_MS = 10 * 60 * 1000
 
     let geoNearby: any[] = []
-    let presenceNearby: any[] = []
+    const presenceNearby: any[] = []
     let candidates: any[] = []
 
     if (center) {

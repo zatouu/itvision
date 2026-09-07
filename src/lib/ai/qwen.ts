@@ -60,13 +60,13 @@ async function callWithTimeout<T = ChatCompletionResponse>(url: string, body: { 
   }
 }
 
-async function callQwenCloud(messages: ChatMessage[]): Promise<QwenResult> {
+async function callQwenCloud(messages: ChatMessage[], maxTokens = 800): Promise<QwenResult> {
   if (!QWEN_CLOUD_KEY) throw new Error('QWEN_CLOUD_API_KEY not configured')
   const payload = {
     model: QWEN_MODEL,
     messages,
     temperature: 0.7,
-    max_tokens: 800,
+    max_tokens: maxTokens,
     enable_thinking: false,
   }
   const data = await callWithTimeout<ChatCompletionResponse>(
@@ -79,12 +79,12 @@ async function callQwenCloud(messages: ChatMessage[]): Promise<QwenResult> {
   return { text, source: 'qwencloud', model: QWEN_MODEL }
 }
 
-async function callOllama(messages: ChatMessage[]): Promise<QwenResult> {
+async function callOllama(messages: ChatMessage[], maxTokens = 800): Promise<QwenResult> {
   const payload = {
     model: OLLAMA_MODEL,
     messages,
     stream: false,
-    options: { temperature: 0.7, num_predict: 800 },
+    options: { temperature: 0.7, num_predict: maxTokens },
   }
   const data = await callWithTimeout<ChatCompletionResponse>(
     `${OLLAMA_BASE}/api/chat`,
@@ -99,17 +99,17 @@ async function callOllama(messages: ChatMessage[]): Promise<QwenResult> {
 /**
  * Call Qwen with fallback: QwenCloud → Ollama → throw
  */
-export async function qwenChat(messages: ChatMessage[]): Promise<QwenResult> {
+export async function qwenChat(messages: ChatMessage[], maxTokens?: number): Promise<QwenResult> {
   // Try QwenCloud first
   try {
-    return await callQwenCloud(messages)
+    return await callQwenCloud(messages, maxTokens)
   } catch (cloudErr) {
     console.warn('[Qwen] Cloud failed, trying Ollama:', (cloudErr as Error).message)
   }
 
   // Fallback to Ollama local
   try {
-    return await callOllama(messages)
+    return await callOllama(messages, maxTokens)
   } catch (ollamaErr) {
     console.warn('[Qwen] Ollama also failed:', (ollamaErr as Error).message)
     throw new Error('AI service unavailable')

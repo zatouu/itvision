@@ -1,5 +1,5 @@
 import type { Document } from 'mongoose'
-import type { DisputeEntity } from '../domain/entity'
+import { DisputeEntity } from '../domain/entity'
 import type {
   DisputeProps,
   DisputeMessageProps,
@@ -54,7 +54,6 @@ export function toDisputeProps(doc: IDispute): DisputeProps {
 }
 
 export function toDisputeEntity(doc: IDispute): DisputeEntity {
-  const { DisputeEntity } = require('../domain/entity')
   return new DisputeEntity(toDisputeProps(doc))
 }
 

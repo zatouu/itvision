@@ -406,7 +406,7 @@ export async function POST(request: NextRequest) {
     technicianId = String(technician._id)
 
     // Résoudre client/projet/site via l'intervention si fournie, sinon via le projectId
-    let interventionId: string | undefined = reportData.interventionId
+    const interventionId: string | undefined = reportData.interventionId
     let clientId: string | undefined = reportData.clientId
     let projectId: string | undefined = reportData.projectId
     let interventionDate = new Date(reportData.interventionDate)

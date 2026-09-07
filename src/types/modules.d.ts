@@ -12,7 +12,7 @@ declare module 'pdf-parse' {
 }
 
 declare module 'xlsx' {
-  export interface WorkSheet {}
+  export interface WorkSheet { [key: string]: unknown }
   export interface WorkBook {
     SheetNames: string[]
     Sheets: Record<string, WorkSheet>

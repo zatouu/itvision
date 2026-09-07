@@ -61,6 +61,12 @@ export default function ProductPricing1688({
   const [loading, setLoading] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
+  // Reset simulation when props change
+  useEffect(() => {
+    setSimulation(null)
+    setShowDetails(false)
+  }, [pricing1688, weightKg, volumeM3, baseCost, orderQuantity])
+
   if (!pricing1688) return null
 
   const calculatePrice = async () => {
@@ -97,13 +103,7 @@ export default function ProductPricing1688({
   }
 
   const productCostFCFA = pricing1688.price1688 * pricing1688.exchangeRate
-// Reset simulation when props change
-  useEffect(() => {
-    setSimulation(null)
-    setShowDetails(false)
-  }, [pricing1688, weightKg, volumeM3, baseCost, orderQuantity])
 
-  
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
       <div className="flex items-center justify-between mb-4">

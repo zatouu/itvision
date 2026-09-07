@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Défi introuvable' }, { status: 404 })
     }
 
-    let uc = await UserChallenge.findOne({ userId: auth.userId, challengeId }).lean() as any
+    const uc = await UserChallenge.findOne({ userId: auth.userId, challengeId }).lean() as any
     if (!uc) {
       return NextResponse.json({ success: false, error: 'Défi non commencé' }, { status: 400 })
     }

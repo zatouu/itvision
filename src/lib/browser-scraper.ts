@@ -180,9 +180,9 @@ export class BrowserScraper {
     await context.addInitScript(() => {
       // Workaround tsx/esbuild + Playwright: __name helper injecté par le transpileur
       // n'est pas défini dans le contexte de la page
-      // @ts-ignore
+      // @ts-expect-error playwright page globals
       if (typeof window.__name === 'undefined') {
-        // @ts-ignore
+        // @ts-expect-error playwright page globals
         window.__name = (func: unknown) => func
       }
 
@@ -192,12 +192,12 @@ export class BrowserScraper {
       Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR', 'fr', 'en-US', 'en'] })
       
       // Masquer chrome.runtime
-      // @ts-ignore
+      // @ts-expect-error playwright page globals
       window.chrome = { runtime: {} }
       
       // Masquer permissions
       const originalQuery = window.navigator.permissions.query
-      // @ts-ignore
+      // @ts-expect-error playwright page globals
       window.navigator.permissions.query = (parameters: any) => 
         parameters.name === 'notifications' 
           ? Promise.resolve({ state: Notification.permission })

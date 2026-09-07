@@ -52,7 +52,7 @@ export async function computeUnlockCost(input: UnlockCostInput): Promise<UnlockC
       ]
 
   const budget = input.budget ?? 0
-  let base = tiers.find(t => budget <= t.maxBudget)?.cost ?? tiers[tiers.length - 1].cost
+  const base = tiers.find(t => budget <= t.maxBudget)?.cost ?? tiers[tiers.length - 1].cost
 
   const premiumCategories: Record<string, number> = cfg.premiumCategories || {}
   const category = input.category || 'default'
