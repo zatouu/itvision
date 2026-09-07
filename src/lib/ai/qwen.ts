@@ -167,12 +167,38 @@ async function callOllamaVision(messages: VisionMessage[]): Promise<QwenResult> 
   return { text, source: 'ollama', model: OLLAMA_VL_MODEL }
 }
 
+const MAX_DATA_URI_LENGTH = 5 * 1024 * 1024 // 5 MB
+
+function isInternalOrPrivateHost(url: string): boolean {
+  try {
+    const { hostname } = new URL(url)
+    const lower = hostname.toLowerCase()
+    if (lower === 'localhost') return true
+    if (lower.endsWith('.localhost')) return true
+    if (lower.endsWith('.local')) return true
+    if (/^127\./.test(lower)) return true
+    if (/^10\./.test(lower)) return true
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(lower)) return true
+    if (/^192\.168\./.test(lower)) return true
+    if (lower.startsWith('[') && (lower.includes('::1') || lower === '[::1]')) return true
+  } catch { /* ignore */ }
+  return false
+}
+
 function normalizeImageUrl(url: string): string {
   const u = url.trim()
   if (!u) return ''
-  if (u.startsWith('data:')) return u
-  if (u.startsWith('//')) return `https:${u}`
+  if (u.startsWith('data:')) {
+    if (u.length > MAX_DATA_URI_LENGTH) return ''
+    return u
+  }
+  if (u.startsWith('//')) {
+    const withScheme = `https:${u}`
+    if (isInternalOrPrivateHost(withScheme)) return ''
+    return withScheme
+  }
   if (!/^https?:\/\//i.test(u)) return ''
+  if (isInternalOrPrivateHost(u)) return ''
   return u
 }
 

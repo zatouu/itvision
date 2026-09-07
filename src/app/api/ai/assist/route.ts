@@ -73,7 +73,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
 
-    const { type, category, description, attributes, answers, question, missionStatus, profile, nearbyCount, earnings, rating, requestBudget } = body as any
+    const raw = body as Record<string, unknown>
+
+    const type = raw.type as AssistType
+    const category = typeof raw.category === 'string' ? raw.category.slice(0, 100) : undefined
+    const description = typeof raw.description === 'string' ? raw.description.slice(0, 2000) : undefined
+    const attributes = Array.isArray(raw.attributes) ? raw.attributes.slice(0, 50) : undefined
+    const answers = Array.isArray(raw.answers)
+      ? raw.answers
+          .filter((a: unknown): a is { question?: unknown; answer?: unknown } => typeof a === 'object' && a !== null)
+          .map((a) => ({
+            question: typeof a.question === 'string' ? a.question.slice(0, 200) : '',
+            answer: typeof a.answer === 'string' ? a.answer.slice(0, 500) : '',
+          }))
+          .slice(0, 20)
+      : undefined
+    const question = typeof raw.question === 'string' ? raw.question.slice(0, 500) : undefined
+    const missionStatus = typeof raw.missionStatus === 'string' ? raw.missionStatus.slice(0, 50) : undefined
+    const profile = typeof raw.profile === 'string' ? raw.profile.slice(0, 2000) : undefined
+    const nearbyCount = typeof raw.nearbyCount === 'number' ? raw.nearbyCount : undefined
+    const earnings = typeof raw.earnings === 'number' ? raw.earnings : undefined
+    const rating = typeof raw.rating === 'number' ? raw.rating : undefined
+    const requestBudget = typeof raw.requestBudget === 'number' ? raw.requestBudget : undefined
 
     if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
@@ -123,11 +144,14 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/ai/assist]', e)
-    return NextResponse.json({ error: e.message || 'AI service unavailable' }, { status: 503 })
+    return NextResponse.json({ error: 'Service AI temporairement indisponible' }, { status: 503 })
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const rateLimitResponse = await applyRateLimit(request, aiRateLimiter)
+  if (rateLimitResponse) return rateLimitResponse
+
   const status = await checkAiAvailability()
   return NextResponse.json(status)
 }
