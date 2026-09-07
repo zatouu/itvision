@@ -1,13 +1,28 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Plus } from 'lucide-react-native'
+import { Plus, Zap } from 'lucide-react-native'
 import { colors, spacing, typography } from '../../design'
+
+export type UrgentEligibility = {
+  eligible: boolean
+  count: number
+  bestEta: number | null
+  radiusKm: number
+  maxEta: number
+}
 
 // Empty state — green gradient card (variant A). The CSS gradient is simulated
 // with a darker base + lighter translucent discs (no extra dependency).
-export default function EmptyHero() {
+export default function EmptyHero({
+  urgentEligibility,
+  onUrgent,
+}: {
+  urgentEligibility: UrgentEligibility | null
+  onUrgent: () => void
+}) {
   const { t } = useTranslation()
+  const eligible = !!urgentEligibility?.eligible
   return (
     <View style={s.hero}>
       <View style={s.discLight} />
@@ -17,16 +32,36 @@ export default function EmptyHero() {
         <Text style={s.eyebrow}>{t('home.noActiveMissions')}</Text>
         <Text style={s.title}>{t('home.needToday')}</Text>
         <Text style={s.sub}>{t('home.verifiedEta')}</Text>
-        <TouchableOpacity
-          style={s.cta}
-          onPress={() => router.push('/create-request' as any)}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.publishRequest')}
-        >
-          <Plus size={18} color={colors.navy} strokeWidth={2.5} />
-          <Text style={s.ctaText}>{t('home.publishRequest')}</Text>
-        </TouchableOpacity>
+        <View style={s.ctaRow}>
+          <TouchableOpacity
+            style={s.ctaPrimary}
+            onPress={() => router.push('/create-request' as any)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.publishRequest')}
+          >
+            <Plus size={18} color={colors.navy} strokeWidth={2.5} />
+            <Text style={s.ctaPrimaryText}>{t('home.publishRequest')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.ctaUrgent, !eligible && s.ctaUrgentDisabled]}
+            onPress={onUrgent}
+            disabled={!eligible}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.emergencyRepair')}
+          >
+            <Zap
+              size={16}
+              color={eligible ? '#fff' : colors.textMuted}
+              fill={eligible ? '#fff' : 'transparent'}
+              strokeWidth={2.4}
+            />
+            <Text style={[s.ctaUrgentText, !eligible && s.ctaUrgentTextDisabled]}>
+              {t('home.emergencyRepair')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   )
@@ -66,10 +101,23 @@ const s = StyleSheet.create({
     letterSpacing: -0.4, marginTop: 6, lineHeight: 26,
   },
   sub: { color: '#fff', fontSize: 13, opacity: 0.85, marginTop: 6 },
-  cta: {
-    marginTop: 16, alignSelf: 'flex-start', backgroundColor: '#fff',
-    paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+  ctaRow: {
+    marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap',
   },
-  ctaText: { color: colors.navy, fontSize: 14, fontWeight: typography.weight.bold as any },
+  ctaPrimary: {
+    flex: 1, minWidth: 140,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  ctaPrimaryText: { color: colors.navy, fontSize: 14, fontWeight: typography.weight.bold as any },
+  ctaUrgent: {
+    flex: 1, minWidth: 140,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  ctaUrgentDisabled: { backgroundColor: colors.slate100 },
+  ctaUrgentText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.bold as any },
+  ctaUrgentTextDisabled: { color: colors.textMuted },
 })

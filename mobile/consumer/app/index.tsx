@@ -21,7 +21,7 @@ import OffersHero from '../src/components/home/OffersHero'
 import NearbyStrip from '../src/components/home/NearbyStrip'
 import Skeleton from '../src/components/Skeleton'
 import { colors, radius, spacing, typography } from '../src/design'
-import { BellRing, ChevronRight, Zap, Menu, Star, LucideIcon } from 'lucide-react-native'
+import { BellRing, ChevronRight, Menu, Star, LucideIcon } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
 
@@ -407,7 +407,7 @@ function Home() {
             offerCount={heroOffer.unseenOfferCount ?? heroOffer.pendingOfferCount ?? 0}
           />
         ) : (
-          <EmptyHero />
+          <EmptyHero urgentEligibility={urgentEligibility} onUrgent={openUrgent} />
         )}
 
         {/* Secondary strip — autres demandes */}
@@ -449,26 +449,6 @@ function Home() {
             })}
           </ScrollView>
         )}
-
-        {/* Urgent — strip compacte dynamique */}
-        <TouchableOpacity
-          style={[s.urgentStrip, !urgentEligibility?.eligible && s.urgentStripDisabled]}
-          onPress={openUrgent}
-          disabled={!urgentEligibility?.eligible}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.emergencyRepair')}
-        >
-          <Zap
-            size={16}
-            color={urgentEligibility?.eligible ? colors.danger : colors.textMuted}
-            fill={urgentEligibility?.eligible ? colors.danger : 'transparent'}
-            strokeWidth={2.4}
-          />
-          <Text style={[s.urgentStripText, !urgentEligibility?.eligible && s.urgentStripTextDisabled]}>
-            {t('home.emergencyRepair')}
-          </Text>
-        </TouchableOpacity>
 
         {/* Catégories — compact */}
         <View style={s.sectionRow}>
@@ -630,17 +610,6 @@ const s = StyleSheet.create({
   stripStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   stripDot: { width: 6, height: 6, borderRadius: 3 },
   stripStatus: { fontSize: 11, fontWeight: typography.weight.semibold as any },
-
-  // Urgent strip — sous le hero, compacte et centrée
-  urgentStrip: {
-    marginHorizontal: spacing.lg, marginTop: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 13, borderRadius: 14,
-    backgroundColor: '#FEF4F2', borderWidth: 1, borderColor: '#FCD8D4',
-  },
-  urgentStripDisabled: { backgroundColor: colors.slate100, borderColor: colors.border },
-  urgentStripText: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.danger },
-  urgentStripTextDisabled: { color: colors.textMuted },
 
   // Categories
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: spacing.lg, marginBottom: 12, marginTop: 22 },
