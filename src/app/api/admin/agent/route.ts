@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAdminAgent } from '@/lib/ai/agent'
 import { applyRateLimit, aiRateLimiter } from '@/lib/rate-limiter'
-import { requireAdminApi } from '@/lib/api-auth'
+import { verifyAuthServer } from '@/lib/auth-server'
 import { adminAgentTools, adminAgentHandlers } from './tools'
 
 export async function POST(request: NextRequest) {
   const rateLimitResponse = await applyRateLimit(request, aiRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 
-  const auth = await requireAdminApi(request)
-  if (!auth.ok) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const auth = await verifyAuthServer(request)
+  if (!auth.isAuthenticated || !auth.user) {
+    return NextResponse.json({ error: auth.error || 'Non authentifié' }, { status: 401 })
+  }
+  const allowedRoles = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER']
+  if (!allowedRoles.includes(String(auth.user.role || '').toUpperCase())) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
   }
 
   try {
