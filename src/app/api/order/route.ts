@@ -14,7 +14,9 @@ import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligib
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
-import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance, GRAIN_VALUE_FCFA } from '@/lib/grains'
+import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance, GRAIN_VALUE_FCFA, getGrainsBalance } from '@/lib/grains'
+import PromoCode from '@/lib/models/PromoCode'
+import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import { syncUserToProfiles } from '@/lib/user-profiles'
 import mongoose from 'mongoose'
 import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
@@ -237,11 +239,42 @@ export async function POST(req: NextRequest) {
       totalQuantity
     } = calculation
 
-    // Appliquer les réductions promo et grains validées côté client
-    const grainsUsed = Math.max(0, Math.min(grainsAmount || 0, Math.floor(subtotal / GRAIN_VALUE_FCFA)))
-    const grainsDiscount = Math.min(grainsUsed * GRAIN_VALUE_FCFA, subtotal)
-    const promoDiscount = Math.min(promo?.discount || 0, subtotal - grainsDiscount)
-    const total = Math.max(0, calculatedTotal - grainsDiscount - promoDiscount)
+    // Appliquer les réductions promo et grains validées côté serveur
+    let validatedGrainsAmount = 0
+    let validatedPromoDiscount = 0
+
+    if (grainsAmount && grainsAmount > 0) {
+      const maxGrains = Math.floor(subtotal * 0.5 / GRAIN_VALUE_FCFA)
+      const balance = auth?.userId ? await getGrainsBalance(auth.userId) : 0
+      validatedGrainsAmount = Math.max(0, Math.min(grainsAmount, maxGrains, balance))
+    }
+
+    let grainsDiscount = validatedGrainsAmount * GRAIN_VALUE_FCFA
+    grainsDiscount = Math.min(grainsDiscount, subtotal * 0.5)
+
+    if (promo?.code) {
+      const promoDoc = await PromoCode.findOne({ code: promo.code.toUpperCase(), active: true })
+      const now = new Date()
+      if (
+        promoDoc &&
+        (!promoDoc.validFrom || promoDoc.validFrom <= now) &&
+        (!promoDoc.validUntil || promoDoc.validUntil >= now) &&
+        (promoDoc.usedCount || 0) < (promoDoc.maxUses || Infinity) &&
+        (subtotal >= (promoDoc.minOrderAmount || 0))
+      ) {
+        if (promoDoc.discountPercent) {
+          validatedPromoDiscount = Math.round(subtotal * (promoDoc.discountPercent / 100))
+        } else if (promoDoc.discountAmount) {
+          validatedPromoDiscount = promoDoc.discountAmount
+        }
+        if (promoDoc.maxDiscountAmount) {
+          validatedPromoDiscount = Math.min(validatedPromoDiscount, promoDoc.maxDiscountAmount)
+        }
+        validatedPromoDiscount = Math.min(validatedPromoDiscount, subtotal - grainsDiscount)
+      }
+    }
+
+    const total = Math.max(0, calculatedTotal - grainsDiscount - validatedPromoDiscount)
 
     if (internalMethod === 'sea_freight') {
       const seaFreightEligibility = readSeaFreightEligibilitySettings()
@@ -346,7 +379,9 @@ export async function POST(req: NextRequest) {
         } : undefined
       },
       grainsDiscount,
-      promoDiscount,
+      promoDiscount: validatedPromoDiscount,
+      promoCode: promo?.code || undefined,
+      grainsUsed: validatedGrainsAmount,
       total,
       
       address: {
@@ -364,6 +399,30 @@ export async function POST(req: NextRequest) {
     })
 
     await orderDoc.save()
+
+    // Consommer les grains et incrémenter le promo dès la création de commande (restituer en cas d'annulation)
+    if (auth?.userId && validatedGrainsAmount > 0) {
+      try {
+        await GrainsTransaction.create({
+          userId: auth.userId,
+          amount: -validatedGrainsAmount,
+          type: 'spent',
+          source: 'order',
+          sourceId: orderDoc._id,
+          description: `Grains utilisés sur la commande ${orderId}`,
+        })
+      } catch (grainsErr) {
+        console.error('[order] Erreur débit grains:', grainsErr)
+      }
+    }
+
+    if (validatedPromoDiscount > 0 && promo?.code) {
+      try {
+        await PromoCode.updateOne({ code: promo.code.toUpperCase() }, { $inc: { usedCount: 1 } })
+      } catch (promoErr) {
+        console.error('[order] Erreur incrément promo:', promoErr)
+      }
+    }
 
     // Décrémenter le stock et enregistrer les réservations d'inventaire (best effort, loggé si erreur)
     const reservations: any[] = []

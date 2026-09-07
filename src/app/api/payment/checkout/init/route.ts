@@ -4,14 +4,23 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { Order } from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { getActivePaymentGateway } from '@/lib/payment-gateway'
+import { verifyAuthServer } from '@/lib/auth-server'
+import crypto from 'crypto'
+
+function hashTrackingToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { reference } = await request.json()
+    const body = await request.json()
+    const { reference, token } = body
 
     if (!reference) {
       return NextResponse.json({ error: 'Référence manquante' }, { status: 400 })
     }
+
+    const auth = await verifyAuthServer(request).catch(() => null)
 
     const settings = readPaymentSettings()
     const gateway = getActivePaymentGateway(settings)
@@ -34,6 +43,10 @@ export async function POST(request: NextRequest) {
       )
 
       if (participant) {
+        const isOwner = auth?.user?.id && participant.userId && String(participant.userId) === String(auth.user.id)
+        if (!isOwner) {
+          return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+        }
         if (participant.paymentStatus === 'paid') {
           return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
         }
@@ -49,6 +62,12 @@ export async function POST(request: NextRequest) {
       const standardOrder = await Order.findOne({ orderId: reference })
 
       if (standardOrder) {
+        const isOwner = auth?.user?.id && standardOrder.clientId && String(standardOrder.clientId) === String(auth.user.id)
+        const tokenValid = token && standardOrder.trackingAccessTokenHash === hashTrackingToken(token)
+        if (!isOwner && !tokenValid) {
+          return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+        }
+
         if (standardOrder.paymentStatus === 'completed') {
           return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
         }

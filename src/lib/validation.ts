@@ -36,6 +36,7 @@ export const paymentInitSchema = z.object({
   provider: z.enum(['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']),
   clientPhone: z.string().min(8),
   phase: z.enum(['deposit', 'balance', 'full']).optional().default('full'),
+  token: z.string().optional(),
 })
 
 export const offerPaymentInitSchema = z.object({

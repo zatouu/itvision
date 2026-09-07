@@ -106,6 +106,8 @@ export interface IOrder extends Document {
   addOnsTotal?: number               // Total des options
   grainsDiscount?: number            // Remise Grains
   promoDiscount?: number             // Remise code promo
+  promoCode?: string                 // Code promo appliqué
+  grainsUsed?: number                // Grains utilisés
   total: number                      // Subtotal + transport + addOns - réductions
   
   address: {
@@ -255,6 +257,8 @@ const OrderSchema = new Schema<IOrder>({
   addOnsTotal: { type: Number, default: 0 },
   grainsDiscount: { type: Number, default: 0 },
   promoDiscount: { type: Number, default: 0 },
+  promoCode: { type: String },
+  grainsUsed: { type: Number, default: 0 },
   total: { type: Number, required: true },
   
   address: {

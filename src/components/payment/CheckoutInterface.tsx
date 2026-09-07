@@ -154,6 +154,18 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
 
   const amount = participant.amount + addedOns.reduce((sum, id) => sum + (ADD_ONS.find((a) => a.id === id)?.price || 0), 0)
 
+  // Charger les options persistées au montage
+  useEffect(() => {
+    fetch(`/api/payment/add-ons?reference=${encodeURIComponent(participant.reference)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.success && Array.isArray(data.addOns)) {
+          setAddedOns(data.addOns.map((a: any) => a.id))
+        }
+      })
+      .catch(() => {})
+  }, [participant.reference])
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((t) => (t > 0 ? t - 1 : 0))

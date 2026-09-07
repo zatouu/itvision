@@ -6,6 +6,12 @@ import { initiatePayment, PaymentProvider, InitiateResult } from '@/lib/payment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { paymentInitSchema, validate } from '@/lib/validation'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { verifyAuthServer } from '@/lib/auth-server'
+import crypto from 'crypto'
+
+function hashTrackingToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash']
 
@@ -37,6 +43,20 @@ export async function POST(request: NextRequest) {
     const order = await Order.findOne({ orderId })
     if (!order) {
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+    }
+
+    // Autorisation : authentifié et propriétaire, ou token de suivi valide
+    const auth = await verifyAuthServer(request).catch(() => null)
+    const isOwner = auth?.user?.id && order.clientId && String(order.clientId) === String(auth.user.id)
+    const token = rawBody?.token
+    const tokenValid = token ? order.trackingAccessTokenHash === hashTrackingToken(token) : false
+    if (!isOwner && !tokenValid) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Vérifier que le téléphone correspond à la commande
+    if (clientPhone && order.clientPhone && clientPhone.replace(/\+/g, '') !== order.clientPhone.replace(/\+/g, '')) {
+      return NextResponse.json({ error: 'Téléphone non reconnu pour cette commande' }, { status: 403 })
     }
 
     if (order.paymentStatus === 'completed') {
@@ -99,8 +119,8 @@ export async function POST(request: NextRequest) {
     order.transactionId = result.externalId
     await order.save()
 
-    // En dev ou cash : simuler le paiement confirmé pour permettre les tests sans compte marchand
-    if (isMockMode() || provider === 'cash') {
+    // En dev : simuler le paiement confirmé pour permettre les tests sans compte marchand
+    if (isMockMode()) {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()
