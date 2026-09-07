@@ -129,6 +129,7 @@
     "eta": "ETA",
     "call": "Call",
     "message": "Message",
+    "validate": "Validate",
     "stepAssigned": "Assigned",
     "stepEnRoute": "On the way",
     "stepArriving": "Arriving",

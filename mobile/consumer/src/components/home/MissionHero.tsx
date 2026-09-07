@@ -41,6 +41,7 @@ const STEP_INDEX: Record<string, number> = {
   on_the_way: 1,
   provider_arriving: 2,
   in_progress: 3,
+  awaiting_validation: 3,
 }
 
 function PulseDot({ color = GREEN, size = 8 }: { color?: string; size?: number }) {
@@ -87,6 +88,7 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
     on_the_way: 'mission.step_arriving',
     provider_arriving: 'mission.step_arriving',
     in_progress: 'mission.step_in_progress',
+    awaiting_validation: 'mission.step_awaiting_validation',
   }
   const statusText = t(statusTextKey[status] || 'mission.step_assigned')
 
@@ -244,14 +246,24 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
         {/* Actions */}
         <View style={s.actions}>
           <TouchableOpacity
-            style={[s.actionBtn, s.actionPrimary, !offer.providerPhone && { opacity: 0.5 }]}
-            onPress={callProvider}
+            style={[
+              s.actionBtn,
+              status === 'awaiting_validation' ? s.actionValidate : s.actionPrimary,
+              status !== 'awaiting_validation' && !offer.providerPhone && { opacity: 0.5 },
+            ]}
+            onPress={status === 'awaiting_validation' ? openDetails : callProvider}
             activeOpacity={0.8}
-            disabled={!offer.providerPhone}
-            accessibilityLabel={t('home.call')}
+            disabled={status !== 'awaiting_validation' && !offer.providerPhone}
+            accessibilityLabel={status === 'awaiting_validation' ? t('home.validate') : t('home.call')}
           >
-            <Phone size={16} color={INK} />
-            <Text style={s.actionPrimaryText}>{t('home.call')}</Text>
+            {status === 'awaiting_validation' ? (
+              <Check size={16} color="#fff" />
+            ) : (
+              <Phone size={16} color={INK} />
+            )}
+            <Text style={status === 'awaiting_validation' ? s.actionValidateText : s.actionPrimaryText}>
+              {status === 'awaiting_validation' ? t('home.validate') : t('home.call')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.actionBtn, s.actionGhost]} onPress={openChat} activeOpacity={0.8} accessibilityLabel={t('home.message')}>
             <MessageCircle size={16} color="#fff" />
@@ -336,6 +348,8 @@ const s = StyleSheet.create({
   actionBtn: { flex: 1, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   actionPrimary: { backgroundColor: '#fff' },
   actionPrimaryText: { color: INK, fontSize: 13.5, fontWeight: typography.weight.bold as any },
+  actionValidate: { backgroundColor: GREEN },
+  actionValidateText: { color: '#fff', fontSize: 13.5, fontWeight: typography.weight.bold as any },
   actionGhost: { backgroundColor: GLASS, borderWidth: 1, borderColor: GLASS_BORDER },
   actionGhostText: { color: '#fff', fontSize: 13.5, fontWeight: typography.weight.bold as any },
 })
