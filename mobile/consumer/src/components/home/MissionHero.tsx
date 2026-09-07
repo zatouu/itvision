@@ -81,6 +81,7 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
 
   const status = mission?.status || 'assigned'
   const stepIndex = STEP_INDEX[status] ?? 0
+  const mapRef = useRef<MapView | null>(null)
   const stepKeys = ['home.stepAssigned', 'home.stepEnRoute', 'home.stepArriving', 'home.stepInProgress']
   const statusTextKey: Record<string, string> = {
     accepted: 'mission.step_assigned',
@@ -116,6 +117,12 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
     }
   }, [providerCoord?.lat, providerCoord?.lng, destCoord?.lat, destCoord?.lng, userLocation?.lat, userLocation?.lng])
 
+  useEffect(() => {
+    if (region && mapRef.current?.animateToRegion) {
+      mapRef.current.animateToRegion(region, 1200)
+    }
+  }, [region?.latitude, region?.longitude, region?.latitudeDelta, region?.longitudeDelta])
+
   const callProvider = () => {
     if (offer.providerPhone) Linking.openURL(`tel:${offer.providerPhone}`).catch(() => {})
   }
@@ -142,10 +149,10 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
       {region && (
         <View style={s.mapWrap}>
           <MapView
+            ref={mapRef}
             provider={PROVIDER_DEFAULT}
             style={StyleSheet.absoluteFillObject}
             initialRegion={region}
-            region={region}
             scrollEnabled={false}
             zoomEnabled={false}
             pitchEnabled={false}

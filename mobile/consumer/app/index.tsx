@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
 import { getAuthUser } from '../src/auth'
 import { fetchWithCache } from '../src/storage'
-import { connectSocket, requestOnlineProviders, onOnlineProvidersCount } from '../src/socket'
+import { connectSocket, requestOnlineProviders, onOnlineProvidersCount, joinRequestRoom, leaveRequestRoom, onProviderLocation } from '../src/socket'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { getCategoryIcon } from '../src/categoryIcons'
@@ -120,6 +120,13 @@ function Home() {
     distanceKm?: number | null
     etaMinutes?: number | null
   }>>([])
+  const [missionLive, setMissionLive] = useState<{
+    providerId: string
+    name?: string
+    lat: number
+    lng: number
+    etaMinutes?: number | null
+  } | null>(null)
   const [recommended, setRecommended] = useState<any[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const { t, i18n } = useTranslation()
@@ -292,8 +299,37 @@ function Home() {
   const heroId = heroMission?._id || heroOffer?._id
   const secondaryItems = recent.filter(it => String(it._id) !== String(heroId)).slice(0, 6)
   const hasNoActivity = recent.length === 0 && !loadingRecent
+
+  // ── Live socket subscription for the active mission ───────────────
+  useEffect(() => {
+    if (!heroMission?._id) {
+      setMissionLive(null)
+      return
+    }
+    const requestId = String(heroMission._id)
+    joinRequestRoom(requestId)
+    const unsub = onProviderLocation((data: any) => {
+      if (String(data.requestId) !== requestId) return
+      if (!Number.isFinite(Number(data.lat)) || !Number.isFinite(Number(data.lng))) return
+      setMissionLive({
+        providerId: String(data.providerId),
+        name: data.providerName,
+        lat: Number(data.lat),
+        lng: Number(data.lng),
+        etaMinutes: data.eta ?? null,
+      })
+    })
+    return () => {
+      leaveRequestRoom(requestId)
+      unsub()
+      setMissionLive(null)
+    }
+  }, [heroMission?._id])
+
   const heroLive = heroMission
-    ? liveProviders.find(p => String(p.providerId) === String(heroMission.acceptedOffer?.providerId)) || null
+    ? (missionLive
+        ? { ...missionLive, status: 'assigned' }
+        : liveProviders.find(p => String(p.providerId) === String(heroMission.acceptedOffer?.providerId)) || null)
     : null
 
   const catFor = (it: any) => cats.find(c => c.id === it.category)
