@@ -277,6 +277,9 @@ export async function GET(request: NextRequest) {
        addDerivedFields.__textScore = { $meta: 'textScore' }
      }
 
+     // Identifiant string pour jointure avec reviews
+     addDerivedFields.__productIdStr = { $toString: '$_id' }
+
      const pipeline: any[] = [{ $match: match }, { $addFields: addDerivedFields }]
 
     if (isIdLookup) {
@@ -311,6 +314,39 @@ export async function GET(request: NextRequest) {
        pipeline.push({ $match: { __deliveryDaysEst: range } })
      }
 
+     // Enrichissement avis pour tri par rating
+     if (sortBy === 'rating-desc') {
+       pipeline.push(
+         { $lookup: {
+             from: 'reviews',
+             localField: '__productIdStr',
+             foreignField: 'productId',
+             as: '__reviewsRaw'
+           }
+         },
+         { $addFields: {
+             __approvedReviews: {
+               $filter: {
+                 input: '$__reviewsRaw',
+                 cond: { $eq: ['$this.status', 'approved'] }
+               }
+             }
+           }
+         },
+         { $addFields: {
+             __reviewCount: { $size: '$__approvedReviews' },
+             __rating: {
+               $cond: [
+                 { $gt: [{ $size: '$__approvedReviews' }, 0] },
+                 { $avg: '$__approvedReviews.rating' },
+                 0
+               ]
+             }
+           }
+         }
+       )
+     }
+
      // Tri
      const sort: any = (() => {
        if (useTextSearch && (sortBy === 'default' || sortBy === 'rating-desc')) {
@@ -326,8 +362,7 @@ export async function GET(request: NextRequest) {
          case 'name-desc':
            return { name: -1, createdAt: -1 }
          case 'rating-desc':
-           // Pas de champ rating persisté: approximation via isFeatured
-           return { isFeatured: -1, updatedAt: -1 }
+           return { __rating: -1, __reviewCount: -1, isFeatured: -1, createdAt: -1 }
          case 'groupbuy-discount-desc':
            return { groupBuyEnabled: -1, __groupBuyDiscountCalc: -1, __bestTierPrice: 1, name: 1 }
          case 'default':
@@ -433,7 +468,9 @@ export async function GET(request: NextRequest) {
          sellerRating: product.sellerRating ?? null,
          createdAt: product.createdAt,
          updatedAt: product.updatedAt,
-         isFeatured: product.isFeatured ?? false
+         isFeatured: product.isFeatured ?? false,
+        rating: typeof product.__rating === 'number' ? product.__rating : null,
+        reviewCount: typeof product.__reviewCount === 'number' ? product.__reviewCount : 0
        }
      })
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Heart, Truck } from 'lucide-react'
+import { Heart, Truck, Zap, Sparkles, Users, Package } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export interface CatalogProduct {
@@ -83,28 +83,28 @@ export default function CatalogProductCard({
         {/* Badges floating top-right stack */}
         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10 pointer-events-none">
           {product.isFlash && (
-            <span className="bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
-              ⚡ Flash
+            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <Zap className="w-2.5 h-2.5" /> Flash
             </span>
           )}
           {product.isGroupBuy && (
-            <span className="bg-violet-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-              👥 Groupe
+            <span className="inline-flex items-center gap-1 bg-violet-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <Users className="w-2.5 h-2.5" /> Groupe
             </span>
           )}
           {product.isNew && (
-            <span className="bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-              ✨ Nouveau
+            <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <Sparkles className="w-2.5 h-2.5" /> Nouveau
             </span>
           )}
           {product.origin === 'Stock Dakar' && (
-            <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-              Stock Dakar
+            <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <Package className="w-2.5 h-2.5" /> Stock Dakar
             </span>
           )}
           {product.origin === 'Import Chine' && (
-            <span className="bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-              Import Chine
+            <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <Truck className="w-2.5 h-2.5" /> Import Chine
             </span>
           )}
         </div>
@@ -168,21 +168,24 @@ export default function CatalogProductCard({
           )}
         </div>
 
-        {/* Price row - Alibaba/Temu style : big red price */}
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-sm font-bold text-red-600">
-            {formatPrice(product.price, product.currency)}
-          </span>
-          {product.originalPrice && product.originalPrice > product.price && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
-              {formatPrice(product.originalPrice, product.currency)}
+        {/* Price row - prix import attractif avec transparence */}
+        <div className="space-y-0.5">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-emerald-600">
+              {formatPrice(product.price, product.currency)}
             </span>
-          )}
-          {product.discount && product.discount > 0 && (
-            <span className="text-[10px] bg-red-50 dark:bg-red-950/30 text-red-600 px-1 rounded">
-              -{product.discount}%
-            </span>
-          )}
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
+                {formatPrice(product.originalPrice, product.currency)}
+              </span>
+            )}
+            {product.discount && product.discount > 0 && (
+              <span className="text-[10px] bg-red-50 dark:bg-red-950/30 text-red-600 px-1 rounded">
+                -{product.discount}%
+              </span>
+            )}
+          </div>
+          <p className="text-[9px] text-slate-500 dark:text-slate-400">Prix import (frais & assurance ajoutés sur la fiche)</p>
         </div>
 
         {/* Color swatches mini */}
@@ -223,6 +226,9 @@ export default function CatalogProductCard({
             <span>Livraison {product.deliveryDays ?? 3}j</span>
             {product.origin === 'Stock Dakar' && (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">· En stock</span>
+            )}
+            {product.origin === 'Import Chine' && (
+              <span className="text-blue-600 dark:text-blue-400 font-medium">· Sous {product.deliveryDays ?? 15}j</span>
             )}
           </div>
         )}

@@ -2,6 +2,12 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export type OrderDomain = 'marketplace' | 'corporate' | 'services'
 
+export interface IOrderAddOn {
+  id: string
+  name: string
+  price: number
+}
+
 export interface IOrderItemDelivery {
   carrier?: string
   trackingNumber?: string
@@ -96,7 +102,11 @@ export interface IOrder extends Document {
   subtotal: number                   // Produits avec frais inclus
   subtotalBeforeDiscounts: number     // Avant réduction quantité
   shipping: IOrderShipping
-  total: number                      // Subtotal + transport
+  addOns?: IOrderAddOn[]             // Options ajoutées au checkout
+  addOnsTotal?: number               // Total des options
+  grainsDiscount?: number            // Remise Grains
+  promoDiscount?: number             // Remise code promo
+  total: number                      // Subtotal + transport + addOns - réductions
   
   address: {
     street?: string
@@ -135,6 +145,12 @@ export interface IOrder extends Document {
   source: 'web' | 'app' | 'api' // Source de commande
   tags?: string[]
 }
+
+const OrderAddOnSchema = new Schema<IOrderAddOn>({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  price: { type: Number, required: true, min: 0 },
+}, { _id: false })
 
 const OrderItemSchema = new Schema<IOrderItem>({
   id: { type: String, required: true },
@@ -235,6 +251,10 @@ const OrderSchema = new Schema<IOrder>({
   subtotal: { type: Number, required: true },
   subtotalBeforeDiscounts: { type: Number, required: true },
   shipping: { type: OrderShippingSchema, required: true },
+  addOns: { type: [OrderAddOnSchema], default: [] },
+  addOnsTotal: { type: Number, default: 0 },
+  grainsDiscount: { type: Number, default: 0 },
+  promoDiscount: { type: Number, default: 0 },
   total: { type: Number, required: true },
   
   address: {

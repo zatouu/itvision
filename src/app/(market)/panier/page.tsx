@@ -25,7 +25,8 @@ import TrustBadge from '@/components/cart/TrustBadge'
 import CompactProductCard from '@/components/cart/CompactProductCard'
 import GroupBuyOpportunityCard from '@/components/cart/GroupBuyOpportunityCard'
 import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
-import { getServiceFeeTier, SERVICE_FEE_TIERS, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
+import { SERVICE_FEE_TIERS, type ServiceFeeTier } from '@/lib/pricing/tiered-service-fees'
+import { GRAIN_VALUE_FCFA, MAX_GRAINS_DISCOUNT_RATIO } from '@/lib/grains'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
 import { resolveProductPrice, type MarketplaceTier } from '@/lib/pricing/resolve-product-price'
 import { ServiceFeeTierProgress } from '@/components/ServiceFeeTierProgress'
@@ -135,7 +136,12 @@ export default function PanierPage() {
         const raw = localStorage.getItem('cart:items')
         const parsed = raw ? JSON.parse(raw) : []
         setItems(parsed)
-        setSelectedIds(new Set(parsed.map((i: any) => i.id)))
+        const selectedRaw = localStorage.getItem('cart:selectedIds')
+        if (selectedRaw) {
+          setSelectedIds(new Set(JSON.parse(selectedRaw)))
+        } else {
+          setSelectedIds(new Set(parsed.map((i: any) => i.id)))
+        }
       } catch {
         setItems([])
       }
@@ -148,6 +154,12 @@ export default function PanierPage() {
       window.removeEventListener('cart:updated', syncCartItems as EventListener)
     }
   }, [])
+
+  // Persist selected IDs
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('cart:selectedIds', JSON.stringify([...selectedIds]))
+  }, [selectedIds])
 
   // Recent viewed
   useEffect(() => {
@@ -305,6 +317,8 @@ export default function PanierPage() {
     let products = 0
     let retailProducts = 0
     let totalQuantity = 0
+    let serviceFees = 0
+    let insurance = 0
     for (const it of items) totalQuantity += it.qty || 1
     for (const it of items) {
       const qty = it.qty || 1
@@ -318,17 +332,18 @@ export default function PanierPage() {
       })
       products += resolved.appliedPrice * qty
       retailProducts += retailPrice * qty
+      // Frais déjà inclus dans le prix unitaire (transparence)
+      serviceFees += (typeof it.serviceFee === 'number' ? it.serviceFee : 0) * qty
+      insurance += (typeof it.insurance === 'number' ? it.insurance : 0) * qty
     }
     const pricingTier = applyTierDiscount(products, totalQuantity)
     const wholesaleDiscount = retailProducts > products ? retailProducts - products : 0
 
-    const serviceFeeRate = getServiceFeeTier(pricingTier.finalPrice, serviceFeeTiers).feeRate / 100
-    const serviceFees = Math.round(pricingTier.finalPrice * serviceFeeRate)
-    const insurance = Math.round(pricingTier.finalPrice * 0.02)
-
-    const subtotal = pricingTier.finalPrice + serviceFees + insurance
+    // Les frais de service et assurance sont déjà inclus dans le prix de chaque article.
+    // On les affiche uniquement à titre informatif et on ne les ajoute pas de nouveau.
+    const subtotal = pricingTier.finalPrice
     const promoDiscount = promo?.discount || 0
-    const grainsDiscount = useGrains ? Math.min(grainsBalance * 2, subtotal * 0.5) : 0
+    const grainsDiscount = useGrains ? Math.min(grainsBalance * GRAIN_VALUE_FCFA, subtotal * MAX_GRAINS_DISCOUNT_RATIO) : 0
     const total = subtotal + transportGlobal - promoDiscount - grainsDiscount
 
     return {
@@ -440,18 +455,25 @@ export default function PanierPage() {
     addToast(`${product.name} ajouté au panier`, 'success')
   }, [items, addToast])
 
-  const applyPromo = (code: string) => {
+  const applyPromo = async (code: string) => {
     if (!code.trim()) return
-    // Simulate promo: DDM10 = -10%, DDM20 = -20%
-    let discount = 0
-    if (code === 'DDM10') discount = Math.round(breakdown.subtotal * 0.1)
-    else if (code === 'DDM20') discount = Math.round(breakdown.subtotal * 0.2)
-    else {
-      addToast('Code promo invalide', 'error')
-      return
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotal: breakdown.subtotal }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        addToast(data.error || 'Code promo invalide', 'error')
+        return
+      }
+      const discount = Math.min(data.discount || 0, breakdown.subtotal)
+      setPromo({ code, discount })
+      addToast(`Code promo ${code} appliqué : -${formatCurrency(discount)}`, 'success')
+    } catch {
+      addToast('Service promo indisponible', 'error')
     }
-    setPromo({ code, discount })
-    addToast(`Code promo ${code} appliqué : -${formatCurrency(discount)}`, 'success')
   }
 
   const handleGrainsToggle = (use: boolean, amount: number) => {
@@ -469,7 +491,7 @@ export default function PanierPage() {
         shippingMethod,
         promo,
         useGrains,
-        grainsAmount: useGrains ? Math.min(grainsBalance, breakdown.subtotal * 0.5 / 2) : 0,
+        grainsAmount: useGrains ? Math.min(grainsBalance, breakdown.subtotal * MAX_GRAINS_DISCOUNT_RATIO / GRAIN_VALUE_FCFA) : 0,
       }))
     }
     router.push('/checkout/adresse')
@@ -501,26 +523,26 @@ export default function PanierPage() {
     return [
       {
         id: 'express',
-        label: express?.label || 'Express 3j',
-        duration: `${express?.durationDays || 3} jours ouvrés · 12 000 F/kg`,
+        label: express?.label || 'Express 3-5j',
+        duration: `${express?.durationDays || 4} jours · ${express?.rate?.toLocaleString('fr-FR') || '12 000'} F/kg`,
         price: transportGlobal,
-        weightPrice: '12 000 F/kg',
+        weightPrice: `${express?.rate?.toLocaleString('fr-FR') || '12 000'} F/kg`,
         recommended: false,
       },
       {
         id: 'air',
         label: air?.label || 'Aérien 10-15j',
-        duration: `${air?.durationDays || '10-15'} jours · 8 500 F/kg`,
+        duration: `${air?.durationDays || 13} jours · ${air?.rate?.toLocaleString('fr-FR') || '8 500'} F/kg`,
         price: transportGlobal,
-        weightPrice: '8 500 F/kg',
+        weightPrice: `${air?.rate?.toLocaleString('fr-FR') || '8 500'} F/kg`,
         bestPrice: true,
       },
       {
         id: 'sea',
         label: sea?.label || 'Maritime 45-60j',
-        duration: `${sea?.durationDays || '45-60'} jours · 6 000 F/kg`,
+        duration: `${sea?.durationDays || 48} jours · ${sea?.rate?.toLocaleString('fr-FR') || '180 000'} F/m³`,
         price: transportGlobal,
-        weightPrice: '6 000 F/kg',
+        weightPrice: `${sea?.rate?.toLocaleString('fr-FR') || '180 000'} F/m³`,
         recommended: false,
       },
     ]
@@ -784,7 +806,7 @@ export default function PanierPage() {
               {grainsBalance > 0 && (
                 <GrainsToggle
                   balance={grainsBalance}
-                  maxUsable={Math.min(grainsBalance, Math.floor(breakdown.subtotal * 0.5 / 2))}
+                  maxUsable={Math.min(grainsBalance, Math.floor(breakdown.subtotal * MAX_GRAINS_DISCOUNT_RATIO / GRAIN_VALUE_FCFA))}
                   onToggle={handleGrainsToggle}
                 />
               )}

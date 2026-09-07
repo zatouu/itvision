@@ -20,6 +20,8 @@ export interface IGroupOrderParticipant {
   chatAccessTokenCreatedAt?: Date
   joinedAt: Date
   notes?: string
+  addOns?: { id: string; name: string; price: number }[]
+  addOnsTotal?: number
 }
 
 export interface IGroupOrder extends Document {
@@ -113,7 +115,16 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
   chatAccessTokenHash: { type: String, index: true },
   chatAccessTokenCreatedAt: { type: Date },
   joinedAt: { type: Date, default: () => new Date() },
-  notes: { type: String }
+  notes: { type: String },
+  addOns: {
+    type: [new Schema({
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      price: { type: Number, required: true, min: 0 },
+    }, { _id: false })],
+    default: []
+  },
+  addOnsTotal: { type: Number, default: 0 }
 }, { _id: true })
 
 const GroupOrderSchema = new Schema<IGroupOrder>({

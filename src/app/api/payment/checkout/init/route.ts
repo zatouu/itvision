@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
         }
 
-        amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))
+        const addOnsTotal = participant.addOnsTotal || 0
+        amount = (participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))) + addOnsTotal
         description = `Paiement Achat Groupé #${groupOrder.groupId} - ${groupOrder.product.name} (${participant.qty}x)`
         customerName = participant.name
         customerPhone = participant.phone
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
         }
 
-        amount = standardOrder.total
+        const addOnsTotal = standardOrder.addOnsTotal || 0
+        amount = (standardOrder.total || 0) + addOnsTotal
         description = `Commande #${standardOrder.orderId}`
         customerName = standardOrder.clientName || 'Client'
         customerPhone = standardOrder.clientPhone || ''

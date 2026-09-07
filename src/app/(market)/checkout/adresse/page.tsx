@@ -38,6 +38,7 @@ const deliveryOptions = [
 export default function AddressPage() {
   const router = useRouter()
   const [items, setItems] = useState<any[]>([])
+  const [checkoutMeta, setCheckoutMeta] = useState<{ promo: { code: string; discount: number } | null; grainsAmount: number }>({ promo: null, grainsAmount: 0 })
   const [authMode, setAuthMode] = useState<'guest' | 'login' | 'register'>('guest')
   const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
@@ -67,6 +68,10 @@ export default function AddressPage() {
       try {
         const checkout = JSON.parse(raw)
         setItems(checkout.items || [])
+        setCheckoutMeta({
+          promo: checkout.promo || null,
+          grainsAmount: checkout.grainsAmount || 0,
+        })
       } catch {
         setItems([])
       }
@@ -235,6 +240,8 @@ export default function AddressPage() {
           country: 'Sénégal',
         },
         shippingMethod: deliveryMethodMap[selectedDelivery] || 'air_15j',
+        grainsAmount: checkoutMeta.grainsAmount,
+        promo: checkoutMeta.promo,
       }
 
       const res = await fetch('/api/order', {

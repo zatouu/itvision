@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, ShoppingBag, Package, Users, Heart,
   Home, Store, UserRound, Truck, Sparkles, Gem,
-  BarChart3, Search
+  BarChart3, Search, Shield, Headphones
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
@@ -98,12 +98,12 @@ export default function MarketHeader() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs font-semibold">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5" />
-            Import Chine → Sénégal, achats groupés et futurs shops partenaires
+            Import Chine → Sénégal · Achats groupés · Shops partenaires
           </div>
           <div className="flex items-center gap-5 text-white/90">
             <span className="flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" /> Livraison Dakar & régions</span>
-            <span>Support commande</span>
-            <span>Contrôle qualité</span>
+            <span className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Contrôle qualité</span>
+            <span className="flex items-center gap-1.5"><Headphones className="h-3.5 w-3.5" /> Support 7j/7</span>
           </div>
         </div>
       </div>

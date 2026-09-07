@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { requireAuth } from '@/lib/jwt'
 import { defaultProductCategories } from '@/lib/data/default-categories'
+import { qwenChat, qwenVision } from '@/lib/ai/qwen'
 
 /**
  * POST /api/admin/products/smart-import
@@ -199,101 +200,159 @@ function filterProductImages(images: string[]): string[] {
   return out
 }
 
+function buildEnrichmentPrompt(categoriesList: string): string {
+  return `Tu es un assistant e-commerce pour un marketplace d'import Chine destiné à l'Afrique de l'Ouest francophone (Sénégal, Côte d'Ivoire).
+Tu reçois les données brutes d'un produit importé depuis 1688 ou AliExpress.
+Nettoie-les et retourne UNIQUEMENT un JSON valide sans markdown avec cette structure exacte :
+{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."] }
+
+Règles :
+- name : nom produit propre et vendeur en français (max 80 caractères). Traduis depuis le chinois/anglais. Conserve marque et modèle. Supprime spam, emojis excessifs, mentions vendeur/promo.
+- category : choisis EXACTEMENT une catégorie dans cette liste :
+${categoriesList}
+- subCategory : choisis une sous-catégorie pertinente parmi celles de la catégorie choisie, ou laisse vide.
+- description : 3-5 phrases claires en français, vendeuses, sans jargon inutile.
+- features : 4-8 bullet points courts en français.
+- tags : 3-6 tags pertinents en minuscules, en français.
+Ne traduis pas les noms de marque. Supprime les infos inutiles (politique retour vendeur chinois, etc).`
+}
+
+function parseEnrichmentJson(content: string, fallback: { name: string; description: string; features: string[]; tags: string[] }) {
+  const jsonMatch = content.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return fallback
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0])
+    return {
+      name: parsed.name || fallback.name,
+      category: parsed.category || undefined,
+      subCategory: parsed.subCategory || undefined,
+      description: parsed.description || fallback.description,
+      features: Array.isArray(parsed.features) ? parsed.features : fallback.features,
+      tags: Array.isArray(parsed.tags) ? parsed.tags : fallback.tags,
+    }
+  } catch {
+    return fallback
+  }
+}
+
+async function callOpenAiEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: buildEnrichmentPrompt(categoriesList) },
+        {
+          role: 'user',
+          content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 700,
+    }),
+  })
+
+  if (!response.ok) throw new Error(`OpenAI API error ${response.status}`)
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content?.trim() || ''
+}
+
+async function callQwenEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
+  const result = await qwenChat([
+    { role: 'system', content: buildEnrichmentPrompt(categoriesList) },
+    {
+      role: 'user',
+      content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
+    },
+  ])
+  return result.text
+}
+
 async function enrichProduct(
   raw: Record<string, unknown>
 ): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[] }> {
-  const apiKey = process.env.OPENAI_API_KEY
   const rawName = String(raw.name || '')
   const rawDescription = String(raw.description || '')
-
-  // Fallback si pas d'API key ou nom vide
-  if (!apiKey || !rawName.trim()) {
-    return {
-      name: rawName,
-      description: rawDescription,
-      features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
-      tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : ['import-chine'],
-    }
+  const fallback = {
+    name: rawName,
+    description: rawDescription,
+    features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
+    tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : ['import-chine'],
   }
 
-  // Catégories IT Vision pour le prompt
+  if (!rawName.trim()) return fallback
+
   const categoriesList = defaultProductCategories
     .map((c) => `- ${c.name}${c.subCategories ? ` (${c.subCategories.map((s) => s.name).join(', ')})` : ''}`)
     .join('\n')
 
+  let content = ''
+
+  // Priorité Qwen (ton modèle disponible), fallback OpenAI
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Tu es un assistant e-commerce pour un marketplace d'import Chine destiné à l'Afrique de l'Ouest francophone (Sénégal, Côte d'Ivoire).\nTu reçois les données brutes d'un produit importé depuis 1688 ou AliExpress.\nNettoie-les et retourne UNIQUEMENT un JSON valide sans markdown avec cette structure exacte :\n{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."] }\n\nRègles :\n- name : nom produit propre et vendeur en français (max 80 caractères). Traduis depuis le chinois/anglais. Conserve marque et modèle. Supprime spam, emojis excessifs, mentions vendeur/promo.\n- category : choisis EXACTEMENT une catégorie dans cette liste :\n${categoriesList}\n- subCategory : choisis une sous-catégorie pertinente parmi celles de la catégorie choisie, ou laisse vide.\n- description : 3-5 phrases claires en français, vendeuses, sans jargon inutile.\n- features : 4-8 bullet points courts en français.\n- tags : 3-6 tags pertinents en minuscules, en français.\nNe traduis pas les noms de marque. Supprime les infos inutiles (politique retour vendeur chinois, etc).`,
-          },
-          {
-            role: 'user',
-            content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 700,
-      }),
-    })
-
-    if (!response.ok) {
-      console.error('OpenAI API error:', response.status)
-      return {
-        name: rawName,
-        description: rawDescription,
-        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
-        tags: ['import-chine'],
-      }
-    }
-
-    const data = await response.json()
-    const content = data.choices?.[0]?.message?.content?.trim()
-    if (!content) {
-      return {
-        name: rawName,
-        description: rawDescription,
-        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
-        tags: ['import-chine'],
-      }
-    }
-
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      return {
-        name: rawName,
-        description: rawDescription,
-        features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
-        tags: ['import-chine'],
-      }
-    }
-
-    const parsed = JSON.parse(jsonMatch[0])
-    return {
-      name: parsed.name || rawName,
-      category: parsed.category || undefined,
-      subCategory: parsed.subCategory || undefined,
-      description: parsed.description || rawDescription,
-      features: Array.isArray(parsed.features) ? parsed.features : [],
-      tags: Array.isArray(parsed.tags) ? parsed.tags : ['import-chine'],
+    if (process.env.QWEN_CLOUD_API_KEY || process.env.DASHSCOPE_API_KEY) {
+      content = await callQwenEnrich(rawName, rawDescription, raw, categoriesList)
+    } else if (process.env.OPENAI_API_KEY) {
+      content = await callOpenAiEnrich(rawName, rawDescription, raw, categoriesList)
+    } else {
+      return fallback
     }
   } catch (err) {
-    console.error('Erreur enrichissement OpenAI:', err)
-    return {
-      name: rawName,
-      description: rawDescription,
-      features: Array.isArray(raw.features) ? (raw.features as string[]) : [],
-      tags: ['import-chine'],
+    console.error('Erreur enrichissement IA:', err)
+    // Dernier essai OpenAI si Qwen a échoué
+    try {
+      if (process.env.OPENAI_API_KEY) {
+        content = await callOpenAiEnrich(rawName, rawDescription, raw, categoriesList)
+      }
+    } catch (err2) {
+      console.error('Fallback OpenAI échoué:', err2)
+      return fallback
     }
+    if (!content) return fallback
   }
+
+  if (!content) return fallback
+  return parseEnrichmentJson(content, fallback)
+}
+
+async function selectProductImagesWithVision(images: string[]): Promise<string[]> {
+  if (images.length === 0) return []
+  if (!process.env.QWEN_CLOUD_API_KEY && !process.env.DASHSCOPE_API_KEY) return images
+
+  const sample = images.slice(0, 8)
+  const prompt = `Tu es un contrôleur qualité e-commerce. Je te montre plusieurs images d'une fiche produit provenant de 1688/AliExpress.
+Certaines sont des photos du produit, d'autres sont des logos, bannières, icônes de paiement, promotions, QR codes, emballages, ou images de vendeur.
+
+Retourne UNIQUEMENT un JSON de cette forme :
+{ "keep": ["url1", "url2"], "rejected": ["url3"] }
+
+Règles:
+- Garde uniquement les images qui montrent clairement le produit (photo produit seul, en situation, détail, ou variante).
+- Rejette: logos, badges, bannières promo, icônes de paiement, QR codes, watermark vendeur, emballages vides, schémas techniques sans produit.
+- L'ordre de "keep" doit être du meilleur au moins bon pour une galerie e-commerce.
+- Toutes les URLs fournies doivent être présentes dans keep ou rejected.`
+
+  try {
+    const result = await qwenVision(prompt, sample)
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return images
+    const parsed = JSON.parse(jsonMatch[0])
+    if (Array.isArray(parsed.keep) && parsed.keep.length > 0) {
+      return parsed.keep.filter((u: string) => typeof u === 'string' && images.includes(u))
+    }
+  } catch (err) {
+    console.warn('[smart-import] Vision image filtering failed:', err)
+  }
+
+  return images
 }
 
 export async function POST(req: NextRequest) {
@@ -416,8 +475,15 @@ export async function POST(req: NextRequest) {
         const cleanImages = shouldFilterImages
           ? filterProductImages(rawImages)
           : rawImages.map(normalizeImageUrl).filter(Boolean)
+
+        // 1b. Filtre vision Qwen pour éliminer les images promo / logo / bruit
+        let visionFilteredImages = cleanImages
+        if (shouldFilterImages && cleanImages.length > 0 && (process.env.QWEN_CLOUD_API_KEY || process.env.DASHSCOPE_API_KEY)) {
+          visionFilteredImages = await selectProductImagesWithVision(cleanImages)
+        }
+
         // Limiter a 10 images max
-        const finalImages = cleanImages.slice(0, 10)
+        const finalImages = visionFilteredImages.slice(0, 10)
         const cleanDescriptionImages = filterProductImages(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []).slice(0, 30)
 
         // 2. Enrichissement IA (nom + catégorie + description + features + tags)

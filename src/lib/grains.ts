@@ -5,6 +5,9 @@ import User from '@/lib/models/User'
 import { Order } from '@/lib/models/Order'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 
+export const GRAIN_VALUE_FCFA = 2
+export const MAX_GRAINS_DISCOUNT_RATIO = 0.5
+
 export const GRAINS_RULES = {
   ORDER: { ratePerFcfa: 1 / 1000, min: 1, max: 5000, description: (amount: number) => `Grains gagnés sur commande de ${amount.toLocaleString('fr-FR')} FCFA` },
   GROUP_JOIN: { amount: 25, description: 'Grains gagnés en rejoignant un achat groupé' },

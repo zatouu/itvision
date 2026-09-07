@@ -33,7 +33,7 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react'
-import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './ProductDetailExperience'
+import type { ProductDetailData, ProductVariant, ProductVariantGroup } from './product/types'
 import type { ShippingOptionPricing } from '@/lib/logistics'
 import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 import { trackEvent } from '@/utils/analytics'

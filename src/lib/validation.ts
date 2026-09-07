@@ -27,6 +27,8 @@ export const orderCreateSchema = z.object({
     notes: z.string().optional(),
   }),
   shippingMethod: z.string().optional(),
+  grainsAmount: z.number().int().min(0).optional(),
+  promo: z.object({ code: z.string(), discount: z.number().min(0) }).optional(),
 })
 
 export const paymentInitSchema = z.object({

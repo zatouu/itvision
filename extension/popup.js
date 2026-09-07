@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const apiUrlInput = document.getElementById('api-url');
   const apiTokenInput = document.getElementById('api-token');
   const autoExtractToggle = document.getElementById('auto-extract');
+  const autoExportToggle = document.getElementById('auto-export');
 
   // Charger settings
   const settings = await chrome.storage.local.get(['apiUrl', 'apiToken', 'settings']);
@@ -21,6 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const storedSettings = settings.settings || {};
   if (autoExtractToggle) {
     autoExtractToggle.checked = storedSettings.autoExtract !== false;
+  }
+  if (autoExportToggle) {
+    autoExportToggle.checked = storedSettings.autoExport !== false;
   }
 
   // Sauvegarder settings
@@ -31,7 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       settings: {
         apiUrl: apiUrlInput.value,
         apiToken: apiTokenInput.value,
-        autoExtract: autoExtractToggle ? autoExtractToggle.checked : true
+        autoExtract: autoExtractToggle ? autoExtractToggle.checked : true,
+        autoExport: autoExportToggle ? autoExportToggle.checked : true,
       }
     });
   };
@@ -39,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   apiTokenInput.addEventListener('change', saveSettings);
   if (autoExtractToggle) {
     autoExtractToggle.addEventListener('change', saveSettings);
+  }
+  if (autoExportToggle) {
+    autoExportToggle.addEventListener('change', saveSettings);
   }
 
   // Charger produits extraits
@@ -235,14 +243,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
+  const IMAGE_NOISE_PATTERNS = [
+    /paypal|klarna|afterpay|clearpay|stripe|alipay|wechat.?pay|visa|mastercard|amex|unionpay|discover|sezzle|affirm|tabby|tamara/i,
+    /badge|banner|coupon|promo|sale|discount|clearance|offer|deal|gift|bundle|save\s|\%\s*off|cashback|voucher/i,
+    /logo|watermark|brand|seller|shop|store|official|verified|certified|guarantee|warranty|authentic/i,
+    /qrcode|qr.?code|qr\b|barcode|wechat|whatsapp|telegram|line|kakao|zalo/i,
+    /review|feedback|rating|avatar|profile|buyer|customer|testimonial/i,
+    /icon|button|arrow|cart|bag|search|menu|close|loader|spinner|placeholder|tracker|pixel|beacon/i,
+    /\.svg(\?|$)/i,
+    /\.gif(\?|$)/i,
+  ];
+
   const isLikelyValidImageUrl = (url) => {
     if (typeof url !== 'string') return false;
     const value = url.trim();
     if (!value || !/^https?:\/\//i.test(value)) return false;
     const lower = value.toLowerCase();
-    if (/paypal|klarna|afterpay|clearpay|payment|badge|banner|coupon|promo|logo|watermark|qrcode|icon|avatar|review|feedback|recommend/i.test(lower)) return false;
-    if (/\.svg($|\?)/i.test(lower)) return false;
-    return /\.(jpe?g|png|webp)(\?|$)/i.test(lower) || /alicdn|aliexpress|1688|imgextra/i.test(lower);
+    for (const pattern of IMAGE_NOISE_PATTERNS) {
+      if (pattern.test(lower)) return false;
+    }
+    return /\.(jpe?g|png|webp)(\?|$)/i.test(lower) || /alicdn|aliexpress|1688|imgextra|cbu\d+\.alicdn|img\.alicdn|sc\d+\.alicdn/i.test(lower);
   };
 
   const dedupeImages = (images) => {

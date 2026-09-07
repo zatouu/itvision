@@ -8,8 +8,6 @@ import { z } from 'zod'
 const updateSchema = z.object({
   stockQuantity: z.number().int().min(0).optional(),
   stockStatus: z.enum(['in_stock', 'preorder', 'out_of_stock']).optional(),
-  sellerName: z.string().trim().min(1).optional(),
-  sellerVerified: z.boolean().optional(),
 })
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -40,9 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const data = parsed.data
     if (data.stockQuantity !== undefined) product.stockQuantity = data.stockQuantity
-    if (data.stockStatus) product.stockStatus = data.stockStatus
-    if (data.sellerName !== undefined) product.sellerName = data.sellerName
-    if (data.sellerVerified !== undefined) product.sellerVerified = data.sellerVerified
+    if (data.stockStatus !== undefined) product.stockStatus = data.stockStatus
 
     // Auto-adjust stockStatus if quantity set to zero and not provided
     if (data.stockQuantity === 0 && !data.stockStatus) product.stockStatus = 'out_of_stock'

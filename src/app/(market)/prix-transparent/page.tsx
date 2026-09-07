@@ -104,7 +104,7 @@ export default function PrixTransparentPage() {
               <div>
                 <h3 className="font-bold text-gray-900">1. Coût Fournisseur</h3>
                 <p className="text-gray-600 text-sm">Prix du produit sur 1688.com converti en FCFA</p>
-                <p className="text-sm text-gray-500 mt-1">Taux de change : 1 ¥ ≈ 85 FCFA (taux réel)</p>
+                <p className="text-sm text-gray-500 mt-1">Taux de change indicatif : 1 ¥ ≈ 100 FCFA (sous réserve de fluctuation)</p>
               </div>
             </div>
 
@@ -148,9 +148,9 @@ export default function PrixTransparentPage() {
                 <div className="mt-2 bg-gray-50 rounded-lg p-3">
                   <p className="text-sm font-medium text-gray-700 mb-2">Modes disponibles :</p>
                   <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Express (3-5 jours) : 15,000 FCFA/kg</li>
+                    <li>• Express (3-5 jours) : 12,000 FCFA/kg</li>
                     <li>• Aérien (10-15 jours) : 8,500 FCFA/kg</li>
-                    <li>• Maritime (45-50 jours) : 3,500 FCFA/m³</li>
+                    <li>• Maritime (45-50 jours) : 180,000 FCFA/m³</li>
                   </ul>
                 </div>
               </div>
@@ -170,27 +170,27 @@ export default function PrixTransparentPage() {
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6">
             <div className="mb-4">
               <p className="text-sm text-gray-600">Produit : Caméra de surveillance Hikvision</p>
-              <p className="text-sm text-gray-600">Prix 1688 : ¥350 (~29,750 FCFA)</p>
+              <p className="text-sm text-gray-600">Prix 1688 : ¥350 (~35,000 FCFA au taux indicatif)</p>
               <p className="text-sm text-gray-600">Quantité : 10 unités</p>
               <p className="text-sm text-gray-600">Poids total : 12kg (volumétrique : 15kg)</p>
             </div>
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Coût fournisseur (10 × 29,750)</span>
-                <span className="font-medium">297,500 FCFA</span>
+                <span className="text-gray-600">Coût fournisseur (10 × 35,000)</span>
+                <span className="font-medium">350,000 FCFA</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Frais de service (10%)</span>
-                <span className="font-medium">29,750 FCFA</span>
+                <span className="font-medium">35,000 FCFA</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Assurance (2.5%)</span>
-                <span className="font-medium">7,438 FCFA</span>
+                <span className="font-medium">8,750 FCFA</span>
               </div>
               <div className="border-t border-gray-300 pt-2 flex justify-between">
                 <span className="font-semibold">Sous-total</span>
-                <span className="font-semibold">334,688 FCFA</span>
+                <span className="font-semibold">393,750 FCFA</span>
               </div>
               <div className="flex justify-between text-amber-700">
                 <span className="flex items-center gap-1">
@@ -201,7 +201,7 @@ export default function PrixTransparentPage() {
               </div>
               <div className="bg-emerald-50 border-t-2 border-emerald-200 pt-3 mt-2 flex justify-between text-lg font-bold text-emerald-700">
                 <span>TOTAL</span>
-                <span>462,188 FCFA</span>
+                <span>521,250 FCFA</span>
               </div>
             </div>
 

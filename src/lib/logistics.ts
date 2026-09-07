@@ -186,8 +186,9 @@ export const computeProductPricing = (
       insuranceAmount
     }
 
-    // totalWithFees: montant visible au client hors transport — coût fournisseur + frais (sans marge)
-    totalWithFees = roundCurrency(productCostFCFA + serviceFeeAmount + insuranceAmount)
+    // totalWithFees: montant visible au client hors transport.
+    // Coût fournisseur + marge (salePrice) + frais de service + assurance.
+    totalWithFees = roundCurrency(salePrice + serviceFeeAmount + insuranceAmount)
   }
 
   const shippingOptions: ShippingOptionPricing[] = isInStock

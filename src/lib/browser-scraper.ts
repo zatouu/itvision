@@ -178,6 +178,14 @@ export class BrowserScraper {
 
     // Inject script pour masquer automation
     await context.addInitScript(() => {
+      // Workaround tsx/esbuild + Playwright: __name helper injecté par le transpileur
+      // n'est pas défini dans le contexte de la page
+      // @ts-ignore
+      if (typeof window.__name === 'undefined') {
+        // @ts-ignore
+        window.__name = (func: unknown) => func
+      }
+
       // Masquer les propriétés automation
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
@@ -212,16 +220,17 @@ export class BrowserScraper {
       const page = await context.newPage()
 
       try {
-        // Navigation avec attente réseau idle
+        // Navigation : domcontentloaded est plus robuste que networkidle sur 1688/AE
+        // (beaucoup de requêtes analytics/temps réel empêchent networkidle de se déclencher)
         await page.goto(url, {
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
           timeout: this.config.timeout,
         })
 
-        // Attente aléatoire pour simuler comportement humain
-        await page.waitForTimeout(1000 + Math.random() * 2000)
+        // Attendre que le contenu principal se stabilise
+        await page.waitForTimeout(2000 + Math.random() * 1500)
 
-        // Scroll progressif
+        // Scroll progressif pour déclencher lazy-load
         await this.humanScroll(page)
 
         // Extraction des données

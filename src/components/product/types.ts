@@ -65,8 +65,10 @@ export interface ProductDetailData {
   currency?: string | null
   pricing: ProductPricing
   availability: ProductAvailability
-  logistics: ProductLogistics
+  logistics: ProductLogistics & { weightKg?: number | null }
   isImported?: boolean
+  weights?: { netWeightKg?: number | null }
+  pricing1688?: any
   b2bPrice?: number | null
   groupBuyEnabled?: boolean
   groupBuyBestPrice?: number | null

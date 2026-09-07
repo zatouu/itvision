@@ -167,6 +167,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/account', domain: 'market', access: 'auth' },
   { prefix: '/api/catalog', domain: 'market', access: 'public' },
   { prefix: '/api/products', domain: 'market', access: 'public' },
+  { prefix: '/api/promo', domain: 'market', access: 'public' },
   { prefix: '/api/pricing', domain: 'market', access: 'public' },
   { prefix: '/api/shops', domain: 'market', access: 'public' },
   { prefix: '/api/promo-slides', domain: 'market', access: 'public' },
@@ -179,6 +180,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/reviews', domain: 'market', access: 'auth' },
   { prefix: '/api/vendor', domain: 'market', access: { profile: 'vendor' } },
   { prefix: '/api/payment', domain: 'market', access: 'auth' },
+  { prefix: '/api/payment/add-ons', domain: 'market', access: 'auth' },
   { prefix: '/api/scrape', domain: 'market', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
   { prefix: '/api/shipping', domain: 'market', access: 'auth' },
   { prefix: '/api/shipping-rates', domain: 'market', access: 'public' },
@@ -266,6 +268,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   GroupOrderChatMessage: 'market',
   Campaign: 'market',
   PromoSlide: 'market',
+  PromoCode: 'market',
   ExternalSearchLog: 'market',
   VisibilityDispatch: 'market',
 

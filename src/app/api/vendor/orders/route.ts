@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const status = searchParams.get('status')
+    const rawStatus = searchParams.get('status')
+    const status = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].includes(rawStatus || '') ? rawStatus : undefined
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100)
     const page = Math.max(parseInt(searchParams.get('page') || '1', 10), 1)
     const skip = (page - 1) * limit
@@ -41,26 +42,25 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .lean()
 
-    const payload = (orders as any[]).map(order => ({
-      orderId: order.orderId,
-      status: order.status,
-      paymentStatus: order.paymentStatus,
-      total: order.total,
-      currency: order.currency,
-      clientName: order.clientName,
-      clientEmail: order.clientEmail,
-      clientPhone: order.clientPhone,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      items: (order.items || [])
-        .filter((item: any) => productIds.includes(item.id))
-        .map((item: any) => ({
+    const payload = (orders as any[]).map(order => {
+      const vendorItems = (order.items || []).filter((item: any) => productIds.includes(item.id))
+      const vendorTotal = vendorItems.reduce((sum: number, item: any) => sum + (item.qty * item.price), 0)
+      return {
+        orderId: order.orderId,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        total: vendorTotal,
+        currency: order.currency,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        items: vendorItems.map((item: any) => ({
           productId: item.id,
           name: item.name,
           qty: item.qty,
           price: item.price,
         })),
-    }))
+      }
+    })
 
     return NextResponse.json({ success: true, orders: payload })
   } catch (error) {

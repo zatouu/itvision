@@ -139,6 +139,7 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
   const [paymentStatus, setPaymentStatus] = useState(participant.status)
   const [addedOns, setAddedOns] = useState<string[]>([])
   const [timeLeft, setTimeLeft] = useState(30 * 60)
+  const [addOnsSaving, setAddOnsSaving] = useState(false)
 
   const showToast = useCallback((msg: string, type: 'error' | 'success' = 'error') => {
     setToast({ msg, type })
@@ -253,8 +254,25 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const toggleAddOn = (id: string) => {
-    setAddedOns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  const toggleAddOn = async (id: string) => {
+    const next = addedOns.includes(id) ? addedOns.filter((x) => x !== id) : [...addedOns, id]
+    setAddedOns(next)
+    setAddOnsSaving(true)
+    try {
+      const res = await fetch('/api/payment/add-ons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: participant.reference, addOnIds: next }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        showToast(data.error || 'Erreur mise à jour options')
+      }
+    } catch {
+      showToast('Erreur réseau options')
+    } finally {
+      setAddOnsSaving(false)
+    }
   }
 
   const whatsappHref = (message: string) => {

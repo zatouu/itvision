@@ -3,16 +3,19 @@
 import { useState } from 'react'
 import { Coins } from 'lucide-react'
 
+import { GRAIN_VALUE_FCFA } from '@/lib/grains'
+
 interface GrainsToggleProps {
   balance: number
   maxUsable: number
+  grainValue?: number
   onToggle: (use: boolean, amount: number) => void
 }
 
-export default function GrainsToggle({ balance, maxUsable, onToggle }: GrainsToggleProps) {
+export default function GrainsToggle({ balance, maxUsable, grainValue = GRAIN_VALUE_FCFA, onToggle }: GrainsToggleProps) {
   const [enabled, setEnabled] = useState(false)
   const usable = Math.min(balance, maxUsable)
-  const valueFcfa = usable * 2
+  const valueFcfa = usable * grainValue
 
   const handleChange = () => {
     const next = !enabled

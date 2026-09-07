@@ -65,7 +65,7 @@ export default function PriceBreakdown({
       {totalSavings > 0 && (
         <div className="flex justify-between text-xs text-ddm-emerald">
           <span>Économies totales</span>
-          <span className="font-medium">{formatCurrency(totalSavings)} (-13%)</span>
+          <span className="font-medium">{formatCurrency(totalSavings)}</span>
         </div>
       )}
       <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">

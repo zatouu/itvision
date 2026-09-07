@@ -24,6 +24,24 @@ import path from 'path'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import { ExternalSearchLog } from '@/lib/models/ExternalSearchLog'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
+
+const searchExternalLimiter = new RateLimiter(60 * 60 * 1000, 5)
+
+function isAllowedExternalImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    const host = u.hostname.toLowerCase()
+    // Interdire IP privées / localhost / réseau interne
+    if (/^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|0\.0\.0\.0|localhost)$/.test(host)) return false
+    if (host.includes('metadata.google.internal') || host.includes('169.254.')) return false
+    return true
+  } catch {
+    return false
+  }
+}
 
 interface ExternalProductResult {
   title: string
@@ -53,6 +71,15 @@ export async function POST(request: NextRequest) {
   let imageUrl = ''
   let description = ''
 
+  // Authentification requise + rate limiting
+  const auth = await verifyAuthServer(request)
+  if (!auth.isAuthenticated) {
+    return NextResponse.json({ success: false, error: 'Authentification requise' }, { status: 401 })
+  }
+
+  const limited = await applyRateLimit(request, searchExternalLimiter)
+  if (limited) return limited
+
   try {
     body = await request.json().catch(() => ({}))
     imageUrl = body.imageUrl?.trim() || ''
@@ -60,6 +87,10 @@ export async function POST(request: NextRequest) {
     if (!imageUrl) {
       console.warn('[search-external] 400 — imageUrl manquant. Body:', JSON.stringify(body))
       return NextResponse.json({ success: false, error: 'imageUrl requis' }, { status: 400 })
+    }
+
+    if (!imageUrl.startsWith('/api/uploads/') && !isAllowedExternalImageUrl(imageUrl)) {
+      return NextResponse.json({ success: false, error: 'URL image non autorisée' }, { status: 400 })
     }
 
     // Résoudre le chemin local de l'image

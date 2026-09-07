@@ -14,7 +14,7 @@ import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligib
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
 import { requireAuth } from '@/lib/jwt'
-import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
+import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance, GRAIN_VALUE_FCFA } from '@/lib/grains'
 import { syncUserToProfiles } from '@/lib/user-profiles'
 import mongoose from 'mongoose'
 import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: validated.error }, { status: 400 })
     }
 
-    const { cart, name, phone, email, address, shippingMethod } = validated.data
+    const { cart, name, phone, email, address, shippingMethod, grainsAmount, promo } = validated.data
     const { region, department, neighborhood, street } = address
 
     // Générer un numéro de commande unique
@@ -233,9 +233,15 @@ export async function POST(req: NextRequest) {
       quantityDiscount,
       subtotal,
       shipping,
-      total,
+      total: calculatedTotal,
       totalQuantity
     } = calculation
+
+    // Appliquer les réductions promo et grains validées côté client
+    const grainsUsed = Math.max(0, Math.min(grainsAmount || 0, Math.floor(subtotal / GRAIN_VALUE_FCFA)))
+    const grainsDiscount = Math.min(grainsUsed * GRAIN_VALUE_FCFA, subtotal)
+    const promoDiscount = Math.min(promo?.discount || 0, subtotal - grainsDiscount)
+    const total = Math.max(0, calculatedTotal - grainsDiscount - promoDiscount)
 
     if (internalMethod === 'sea_freight') {
       const seaFreightEligibility = readSeaFreightEligibilitySettings()
@@ -339,6 +345,8 @@ export async function POST(req: NextRequest) {
           billingMethod: shipping.billingMethod
         } : undefined
       },
+      grainsDiscount,
+      promoDiscount,
       total,
       
       address: {

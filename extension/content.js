@@ -48,45 +48,89 @@
     return clean;
   };
 
-  /** Filtrer les images de bruit (logos, icônes, paiement, etc.) */
+  /**
+   * Patterns de bruit pour les URLs d'images 1688/AliExpress.
+   * On veut éliminer: logos, bannières, promos, icônes de paiement, QR codes,
+   * avis, badges, watermark vendeur, images de catégorie, etc.
+   */
+  const IMAGE_NOISE_PATTERNS = {
+    payment: /(?:paypal|klarna|afterpay|clearpay|stripe|alipay|wechat.?pay|visa|mastercard|amex|unionpay|discover|diners|jcb|sezzle|laybuy|zip\.co|affirm|grabpay|payme|tng|gcash|maya|dana|ovo|gopay|linkaja|shopee.?pay|pagaleve|ebanx|billet|mercado.?pago|pix|pagos|pago|pago.?facil|rapipago|redcompra|webpay|khipu|spei|conekt|openpay|culqi|payu|epay|2c2p|molpay|billdesk|paytm|phonepe|upi|razorpay|instamojo|ccavenue|paystack|flutterwave|chippercash|wave|orange.?money|mtn.?money|moov|free.?money|sama|thunes|moneygram|western.?union|ria|wise|revolut|n26|monzo|starling|bunq|klarna|tabby|tamara|spotii|postpay|cashew|jazzcash|easypaisa|bank.?transfer|bank.?deposit|wire.?transfer|swift|iban|ach|sepa|direct.?debit|sofort|giropay|ideal|bancontact|eps|p24|blik|trustly|zimpler|vipps|mobilepay|swish|vipps|satispay|twint|payconiq|anyday|valu|sympl|forsa|souhoola|aman|shahry|contact.?carrefour|fawry|vodafone.?cash|etisalat.?cash|we.?pay|me.?pay|qpay|benefitpay|knet|knetpay|mada|stcpay|sadad|mobicash|wari|orange|coris|bci|wave|cb|paypal)/i,
+    logo: /(?:\blogo\b|brand.?logo|shop.?logo|store.?logo|seller.?logo|company.?logo|official.?store|verified.?store|flagship|maintenance|certified|authorized|distributor)/i,
+    badge: /(?:badge|certification|certificate|verified|guarantee|warranty|authentic|genuine|original|official|choice|top.?choice|recommended|bestseller|best.?seller|hot.?sale|flash.?sale|big.?sale|super.?deal|mega.?sale|clearance|promotion|promo|discount|coupon|voucher|code|gift|freebies|free.?gift|bundle|combo|save|off|%\s*off|cashback|refund|return|shipping.?free|free.?shipping|express|fast.?delivery|local.?delivery|warehouse|origin|made.?in|factory|direct|wholesale|retail|dropship)/i,
+    banner: /(?:banner|header|footer|sidebar|widget|popup|modal|toast|notification|announcement|promo.?bar|top.?bar|sticky|floating|ad\b|ads|advertisement|sponsored|promoted)/i,
+    qrcode: /(?:qrcode|qr.?code|qr\b|barcode|scan|wechat|whatsapp|telegram|line|kakao|zalo|viber|signal|skype|messenger)/i,
+    review: /(?:review|feedback|rating|comment|testimonial|avatar|profile|buyer|customer|user.?pic|verified.?purchase|purchase.?proof)/i,
+    ui: /(?:icon|button|arrow|check|star|heart|cart|bag|search|menu|close|hamburger|loader|spinner|placeholder|no.?image|image.?error|blank|transparent|spacer|gif\b|svg\b)/i,
+    size: /(?:1x1|1x2|2x1|2x2|pixel|tracker|beacon|tracking|analytics|gtm|ga\b|facebook|fb\.com|tiktok|instagram|pinterest|twitter|x\.com|linkedin|youtube)/i,
+  };
+
   const isNoiseImage = (url) => {
     if (!url) return true;
     const lower = url.toLowerCase();
+
+    // Images inline / tracking
     if (lower.startsWith('data:')) return true;
-    if (/1x1|pixel|tracker|beacon/i.test(lower)) return true;
-    if (lower.endsWith('.svg')) return true;
-    // Domaines paiement / pub
-    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|alipay|clearpay|laybuy|zip\.co|sezzle/i.test(lower)) return true;
-    // Mots-clés paiement/logo/badge dans le chemin ou nom de fichier (même sur CDN aliexpress)
+    if (/1x1|pixel|tracker|beacon|google-analytics|googletagmanager|facebook\.com\/tr|analytics/i.test(lower)) return true;
+    if (lower.endsWith('.svg') || lower.endsWith('.gif')) return true;
+
+    // Domaines connus de bruit
+    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|clearpay|zip\.co|sezzle|affirm\.com|tabby|tamara|spotii/i.test(lower)) return true;
+
+    // Nom de fichier extrait
     const filename = lower.split('/').pop()?.split('?')[0] || '';
-    if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee)[_\-.]/.test(filename)) return true;
-    if (/(klarna|afterpay|clearpay|paypal|payment[_\-]method|payment[_\-]icon|trust[_\-]badge|secure[_\-]checkout|buyer[_\-]protection|bnpl|installment|pay[_\-]?later)/i.test(lower)) return true;
-    if (/(choice|coupon|new[_\-]?user|welcome[_\-]?deal|promo[_\-]?banner|local[_\-]?(deal|warehouse|shipping))/i.test(lower)) return true;
-    // Chemins UI / icônes
-    if (/\/icon[s]?\//i.test(lower) || /\/ui\//i.test(lower) || /\/assets\/payment/i.test(lower)) return true;
-    // Logos de marque dans les descriptions (souvent petits)
-    if (/(brand[_\-]?logo|shop[_\-]?logo|store[_\-]?logo|seller[_\-]?logo|watermark)/i.test(lower)) return true;
-    // GIF animés = souvent promos
-    if (lower.endsWith('.gif')) return true;
+    if (filename) {
+      // Préfixes très courants de bruit
+      if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee|coupon|promo|sale|discount|qrcode|qr_|wechat|whatsapp|avatar|profile|review|feedback|choice|new_user|welcome|local_deal|local_warehouse)[_\-.]/.test(filename)) return true;
+    }
+
+    // Patterns généraux
+    for (const pattern of Object.values(IMAGE_NOISE_PATTERNS)) {
+      if (pattern.test(lower)) return true;
+    }
+
     return false;
   };
 
-  /** Filtrer une image par ses attributs DOM (alt, class, taille) */
+  /** Filtrer une image par ses attributs DOM (alt, class, taille, parent) */
   const isNoiseImageElement = (img) => {
     if (!img) return true;
-    const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+    const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy-src') || '';
     if (isNoiseImage(src)) return true;
-    // Alt text contenant des mots de paiement/logo
+
+    // Alt text
     const alt = (img.getAttribute('alt') || '').toLowerCase();
-    if (/(klarna|afterpay|paypal|visa|mastercard|payment|logo|badge|icon|trust|secure|guarantee|buyer.?protection)/i.test(alt)) return true;
-    if (/(choice|promo|coupon|local delivery|new user|welcome deal)/i.test(alt)) return true;
-    // Class contenant des indicateurs
+    if (/(klarna|afterpay|paypal|visa|mastercard|payment|logo|badge|icon|trust|secure|guarantee|buyer.?protection|qrcode|qr.?code|wechat|whatsapp|promo|coupon|sale|discount|banner|advertisement)/i.test(alt)) return true;
+
+    // Class / ID
     const cls = (img.className || '').toLowerCase();
-    if (/(payment|logo|badge|icon|trust|secure)/i.test(cls)) return true;
-    // Trop petite (< 80px) = probablement icône
+    const id = (img.id || '').toLowerCase();
+    const combined = `${cls} ${id}`;
+    if (/(payment|logo|badge|icon|trust|secure|promo|coupon|banner|qrcode|review|avatar|profile|advertisement|sponsored|widget|popup|toast|placeholder)/i.test(combined)) return true;
+
+    // Parent suspect
+    let parent = img.parentElement;
+    for (let i = 0; i < 4 && parent; i++) {
+      const pCls = (parent.className || '').toLowerCase();
+      const pId = (parent.id || '').toLowerCase();
+      if (/(payment|logo|badge|banner|promo|coupon|review|recommend|seller|store|advertisement|sponsored|widget|popup|toast|trust|secure)/i.test(`${pCls} ${pId}`)) {
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+
+    // Taille trop petite = icône
     const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
     const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
-    if ((w > 0 && w < 80) || (h > 0 && h < 80)) return true;
+    if ((w > 0 && w < 100) || (h > 0 && h < 100)) return true;
+
+    // Position suspecte: images absolument positionnées très petites
+    const rect = img.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && (rect.width < 80 || rect.height < 80)) {
+      // Vérifier si c'est dans une zone de contenu principal ou un coin
+      const style = window.getComputedStyle(img);
+      if (style.position === 'absolute' || style.position === 'fixed') return true;
+    }
+
     return false;
   };
 
@@ -139,6 +183,13 @@
     });
     return posters;
   };
+
+  /** Vérifie qu'une URL est hébergée sur un CDN produit 1688/AliExpress */
+  const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn\.com|imgextra|gw\.alicdn\.com|\.1688\.com/i.test(src);
+
+  const isAliProductImage = (src) => /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn\.com|assets\.alicdn\.com\/imgextra|img\.alicdn\.com|imgextra|gw\.alicdn\.com/i.test(src);
+
+  const isProductImageUrl = (src) => /^https?:\/\//i.test(src) && !isNoiseImage(src) && (is1688ProductImage(src) || isAliProductImage(src));
 
   /** Déduplication d'images par URL normalisée */
   const deduplicateImages = (urls) => {
@@ -486,8 +537,6 @@
     // ── IMAGES — classées par catégorie ──
     const imageCategories = { main: [], gallery: [], variant: [], description: [], packaging: [] };
     try {
-      const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn|imgextra/i.test(src);
-
       // Images galerie principale — sélecteurs larges pour couvrir 1688 classique + React
       const gallerySelectors = [
         '.detail-gallery img', '.offer-img img', '.main-image img',
@@ -949,12 +998,7 @@
     // ===== IMAGES (approche ciblée — uniquement galerie produit) =====
     const imageSet = new Set();
 
-    // Utilise les fonctions globales isNoiseImage, isNoiseImageElement, cleanImageUrl
-    // Vérifier qu'une URL est une image produit AliExpress (CDN alicdn ou aliexpress)
-    const isAliProductImage = (src) => {
-      return /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn|assets\.alicdn\.com\/imgextra|img\.alicdn\.com|imgextra/i.test(src);
-    };
-    
+    // Utilise les fonctions globales isNoiseImage, isNoiseImageElement, cleanImageUrl, isAliProductImage
     // Source 1: JSON-LD images (le plus fiable)
     if (jsonLdProduct?.image) {
       const imgs = Array.isArray(jsonLdProduct.image) ? jsonLdProduct.image : [jsonLdProduct.image];

@@ -12,7 +12,7 @@ import React from 'react'
  * 5. Sélectionner L -> galerie doit être [img1, img2, img3] (aucune image variante)
  */
 
-describe('ProductDetailExperience - Variant Image Gallery Logic', () => {
+describe('ProductDetailNew - Variant Image Gallery Logic', () => {
   
   it('should add variant image at the beginning of gallery when variant is selected', () => {
     const baseGallery = ['/img1.jpg', '/img2.jpg', '/img3.jpg']

@@ -107,8 +107,18 @@ export default function ProductDetailNew({ product, similar }: Props) {
   }, [selectedVariants, product.variantGroups, baseGallery])
 
   const baseUnitPrice = product.pricing.totalWithFees ?? product.pricing.salePrice ?? 0
-  const originalPrice = product.pricing.baseCost ? Math.round(baseUnitPrice * 1.35) : null
-  const discountPercent = originalPrice ? Math.round((1 - baseUnitPrice / originalPrice) * 100) : 0
+  const importPrice = product.pricing.baseCost ?? product.pricing.salePrice ?? 0
+
+  // Prix barré uniquement si une marge est réellement appliquée (salePrice > totalWithFees)
+  // Sinon le prix affiché est le prix avec frais, sans faux rabais.
+  const hasMargin = typeof product.pricing.salePrice === 'number'
+    && typeof product.pricing.totalWithFees === 'number'
+    && product.pricing.salePrice > product.pricing.totalWithFees
+
+  const originalPrice = hasMargin ? product.pricing.salePrice : null
+  const discountPercent = hasMargin && originalPrice && originalPrice > 0
+    ? Math.round((1 - baseUnitPrice / originalPrice) * 100)
+    : 0
 
   const comboPrice = useMemo(() => {
     let maxPrice = 0, hasPrice = false
@@ -228,11 +238,21 @@ export default function ProductDetailNew({ product, similar }: Props) {
           name: selectedList.length > 0 ? `${product.name} — ${combinedLabel}` : product.name,
           qty: quantity,
           price: comboPrice,
+          serviceFee: product.pricing?.fees?.serviceFeeAmount ?? 0,
+          insurance: product.pricing?.fees?.insuranceAmount ?? 0,
           currency,
+          image: product.image || gallery[0] || '/placeholder.svg',
+          category: product.category,
           requiresQuote: !!product.requiresQuote,
           variantIds: variantIds.length > 0 ? variantIds : undefined,
           variantLabels: variantLabels.length > 0 ? variantLabels : undefined,
-          shipping: shippingMeta
+          shipping: shippingMeta,
+          // Métadonnées logistiques pour recalcul transport au panier
+          weightKg: product.logistics?.weightKg ?? product.logistics?.packagingWeightKg ?? undefined,
+          volumeM3: product.logistics?.volumeM3 ?? undefined,
+          lengthCm: product.logistics?.dimensions?.lengthCm ?? undefined,
+          widthCm: product.logistics?.dimensions?.widthCm ?? undefined,
+          heightCm: product.logistics?.dimensions?.heightCm ?? undefined,
         })
       }
       window.localStorage.setItem('cart:items', JSON.stringify(items))
@@ -454,6 +474,13 @@ export default function ProductDetailNew({ product, similar }: Props) {
                   <span className="text-sm text-gray-500 dark:text-slate-400">/unité</span>
                   {originalPrice && originalPrice > comboPrice && (<><span className="text-lg text-gray-400 dark:text-slate-500 line-through">{formatCurrency(originalPrice)}</span><span className="text-sm bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full font-bold">-{discountPercent}%</span></>)}
                 </div>
+                {!hasMargin && importPrice > 0 && importPrice < baseUnitPrice && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                    Prix d'import: <span className="font-medium text-gray-700 dark:text-slate-300">{formatCurrency(importPrice)}</span>
+                    <span className="mx-1">·</span>
+                    +{formatCurrency(baseUnitPrice - importPrice)} frais & assurance
+                  </p>
+                )}
 
                 {/* Price comparison cards */}
                 <div className="mt-3 grid grid-cols-3 gap-2">

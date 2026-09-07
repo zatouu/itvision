@@ -30,6 +30,7 @@ chrome.runtime.onInstalled.addListener(() => {
       apiUrl: 'https://itvisionplus.sn',
       apiToken: '',
       autoExtract: true, // activé par défaut
+      autoExport: true,  // envoi auto après extraction
     }
   });
 });
@@ -92,8 +93,7 @@ async function injectAndExtract(tabId, url) {
     }
 
     if (response?.success) {
-      // Stocker silencieusement (pas de notification pour auto-extract, trop intrusif)
-      chrome.storage.local.get('products', (result) => {
+      chrome.storage.local.get(['products', 'settings'], (result) => {
         const products = result.products || [];
         const exists = products.some(p => p.url === response.data.url);
         if (!exists) {
@@ -103,6 +103,23 @@ async function injectAndExtract(tabId, url) {
           // Notification discrète seulement en badge
           chrome.action.setBadgeText({ text: String(products.length) });
           chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
+
+          // Auto-export si activé
+          const settings = result.settings || {};
+          if (settings.autoExport !== false) {
+            setTimeout(() => {
+              handleBulkExport(settings.apiUrl, settings.apiToken, true)
+                .then((exportResult) => {
+                  if (exportResult.success) {
+                    console.log('[IT Vision] Auto-export OK:', exportResult.imported, 'créé(s)');
+                    chrome.action.setBadgeText({ text: String(exportResult.remaining || 0) });
+                  } else {
+                    console.warn('[IT Vision] Auto-export échoué:', exportResult.error);
+                  }
+                })
+                .catch(err => console.warn('[IT Vision] Auto-export error:', err));
+            }, 500);
+          }
         }
       });
     }
@@ -166,19 +183,25 @@ async function handleBulkExport(apiUrl, apiToken, useSmart = true) {
     return { success: false, error: 'Aucun produit' };
   }
 
-  // Auth via cookie
-  let authCookie = null;
-  try { authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' }); } catch {}
-  if (!authCookie?.value) {
-    return { success: false, error: 'Connectez-vous d\'abord' };
+  // Auth: token manuel prioritaire, sinon cookie auth-token
+  let token = apiToken;
+  if (!token) {
+    try {
+      const authCookie = await chrome.cookies.get({ url: cookieUrl, name: 'auth-token' });
+      if (authCookie?.value) token = authCookie.value;
+    } catch {}
   }
 
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authCookie.value}` };
+  if (!token) {
+    return { success: false, error: 'Connectez-vous d\'abord ou renseignez un token API' };
+  }
+
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
   // Transform identique à popup.js
   const payload = {
     products: products.map(p => transformForSmartApi(p)),
-    options: { exchangeRate: 85, b2bDiscountPercent: 15, reformatDescriptions: false }
+    options: { exchangeRate: 85, b2bDiscountPercent: 15, reformatDescriptions: true, filterImages: true }
   };
 
   const response = await fetch(`${cookieUrl}/api/admin/products/smart-import`, {
