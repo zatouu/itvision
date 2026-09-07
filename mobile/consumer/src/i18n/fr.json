@@ -103,6 +103,7 @@
     "providerInProgress": "Intervention en cours",
     "quickActions": "Services rapides",
     "emergencyRepair": "Réparation urgente",
+    "urgentShort": "URGENT",
     "emergencySub": "Électricité, plomberie, serrurerie",
     "urgentSheetTitle": "Quelle est l'urgence ?",
     "urgentElectricity": "Électricité (coupure, court-circuit…)",

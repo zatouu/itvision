@@ -52,13 +52,13 @@ export default function EmptyHero({
             accessibilityLabel={t('home.emergencyRepair')}
           >
             <Zap
-              size={16}
+              size={18}
               color={eligible ? '#fff' : colors.textMuted}
               fill={eligible ? '#fff' : 'transparent'}
               strokeWidth={2.4}
             />
             <Text style={[s.ctaUrgentText, !eligible && s.ctaUrgentTextDisabled]}>
-              {t('home.emergencyRepair')}
+              {t('home.urgentShort')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -102,22 +102,22 @@ const s = StyleSheet.create({
   },
   sub: { color: '#fff', fontSize: 13, opacity: 0.85, marginTop: 6 },
   ctaRow: {
-    marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+    marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   ctaPrimary: {
-    flex: 1, minWidth: 140,
+    flex: 1,
     backgroundColor: '#fff',
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 13, borderRadius: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   ctaPrimaryText: { color: colors.navy, fontSize: 14, fontWeight: typography.weight.bold as any },
   ctaUrgent: {
-    flex: 1, minWidth: 140,
+    width: 76,
     backgroundColor: colors.danger,
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingHorizontal: 8, paddingVertical: 11, borderRadius: 14,
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
   },
   ctaUrgentDisabled: { backgroundColor: colors.slate100 },
-  ctaUrgentText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.bold as any },
+  ctaUrgentText: { color: '#fff', fontSize: 10.5, fontWeight: typography.weight.extrabold as any, letterSpacing: 0.6 },
   ctaUrgentTextDisabled: { color: colors.textMuted },
 })
