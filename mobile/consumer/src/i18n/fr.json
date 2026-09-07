@@ -465,6 +465,9 @@
   },
   "profile": {
     "title": "Profil",
+    "nameLabel": "Nom",
+    "namePlaceholder": "Votre nom",
+    "nameEdit": "Modifier",
     "language": "Langue",
     "wallet": "Mon portefeuille",
     "kyc": "Vérification d'identité",

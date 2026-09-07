@@ -464,6 +464,9 @@
   },
   "profile": {
     "title": "Profil",
+    "nameLabel": "Turu",
+    "namePlaceholder": "Sama tur",
+    "nameEdit": "Soppal",
     "language": "Làkk",
     "wallet": "Sama portmonney",
     "kyc": "Saytu bopp",
