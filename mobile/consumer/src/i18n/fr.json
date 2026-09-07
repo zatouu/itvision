@@ -75,6 +75,7 @@
     "providersOnline": "{{count}} prestataire(s) en ligne",
     "myRequests": "Mes demandes",
     "recentActivity": "Activité récente",
+    "latestRequests": "Vos dernières demandes",
     "noActivity": "Aucune activité récente",
     "publishRequest": "Publier une demande",
     "addName": "Ajouter mon nom",

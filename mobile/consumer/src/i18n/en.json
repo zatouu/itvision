@@ -75,6 +75,7 @@
     "providersOnline": "{{count}} provider(s) online",
     "myRequests": "My requests",
     "recentActivity": "Recent activity",
+    "latestRequests": "Latest requests",
     "noActivity": "No recent activity",
     "publishRequest": "Post a request",
     "addName": "Add my name",

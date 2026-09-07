@@ -21,7 +21,7 @@ import OffersHero from '../src/components/home/OffersHero'
 import NearbyStrip from '../src/components/home/NearbyStrip'
 import Skeleton from '../src/components/Skeleton'
 import { colors, radius, spacing, typography } from '../src/design'
-import { BellRing, ChevronRight, Menu, Star, LucideIcon } from 'lucide-react-native'
+import { BellRing, Check, ChevronRight, Menu, Star, LucideIcon } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
 
@@ -410,44 +410,54 @@ function Home() {
           <EmptyHero urgentEligibility={urgentEligibility} onUrgent={openUrgent} />
         )}
 
-        {/* Secondary strip — autres demandes */}
+        {/* Secondary strip — dernières demandes */}
         {secondaryItems.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={s.stripScroll}
-            contentContainerStyle={s.stripContent}
-          >
-            {secondaryItems.map(it => {
-              const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
-              const CatIcon: LucideIcon = getCategoryIcon(it.category)
-              const color = catFor(it)?.color || '#475569'
-              const offerCount = it.unseenOfferCount ?? it.pendingOfferCount ?? 0
-              const statusText = it.status === 'pending_offers' && offerCount > 0
-                ? t('home.offersReceived', { count: offerCount })
-                : st.label
-              return (
-                <TouchableOpacity
-                  key={String(it._id)}
-                  style={s.stripCard}
-                  activeOpacity={0.8}
-                  onPress={() => openItem(it)}
-                >
-                  <View style={[s.stripIcon, { backgroundColor: color }]}>
-                    <CatIcon size={18} color={colors.surface} />
-                  </View>
-                  <View style={s.stripInfo}>
-                    <Text style={s.stripLabel} numberOfLines={1}>{catFor(it)?.label || it.category}</Text>
-                    <View style={s.stripStatusRow}>
-                      <View style={[s.stripDot, { backgroundColor: st.dot }]} />
-                      <Text style={[s.stripStatus, { color: st.color }]} numberOfLines={1}>{statusText}</Text>
+          <View>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>{t('home.latestRequests')}</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={s.stripScroll}
+              contentContainerStyle={s.stripContent}
+            >
+              {secondaryItems.map(it => {
+                const st = STATUS_LABEL[it.status] || { label: it.status, color: colors.textSecondary, dot: colors.textMuted }
+                const CatIcon: LucideIcon = getCategoryIcon(it.category)
+                const color = catFor(it)?.color || '#475569'
+                const offerCount = it.unseenOfferCount ?? it.pendingOfferCount ?? 0
+                const isCompleted = it.status === 'completed'
+                const statusText = it.status === 'pending_offers' && offerCount > 0
+                  ? t('home.offersReceived', { count: offerCount })
+                  : st.label
+                return (
+                  <TouchableOpacity
+                    key={String(it._id)}
+                    style={s.stripChip}
+                    activeOpacity={0.8}
+                    onPress={() => openItem(it)}
+                  >
+                    <View style={[s.stripIcon, { backgroundColor: color }]}>
+                      <CatIcon size={14} color={colors.surface} />
                     </View>
-                  </View>
-                  <ChevronRight size={14} color={colors.textMuted} />
-                </TouchableOpacity>
-              )
-            })}
-          </ScrollView>
+                    <Text style={s.stripLabel} numberOfLines={1}>{catFor(it)?.label || it.category}</Text>
+                    {isCompleted ? (
+                      <View style={[s.stripCheckWrap, { backgroundColor: st.dot }]}>
+                        <Check size={10} color="#fff" strokeWidth={3} />
+                      </View>
+                    ) : it.status === 'pending_offers' && offerCount > 0 ? (
+                      <View style={s.stripOfferBadge}>
+                        <Text style={s.stripOfferBadgeText}>{offerCount}</Text>
+                      </View>
+                    ) : (
+                      <View style={[s.stripDot, { backgroundColor: st.dot }]} />
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
         )}
 
         {/* Catégories — compact */}
@@ -596,20 +606,20 @@ const s = StyleSheet.create({
   greetName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.4, marginTop: 2 },
   greetNameHint: { fontSize: 12, color: colors.primary, fontWeight: typography.weight.semibold as any, marginTop: 2 },
 
-  // Secondary strip
-  stripScroll: { marginTop: 10 },
+  // Secondary strip — compact chips
+  stripScroll: { marginTop: 8 },
   stripContent: { paddingHorizontal: spacing.lg, gap: 8, paddingBottom: 4 },
-  stripCard: {
-    minWidth: 190, backgroundColor: colors.surface, borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border,
-    flexDirection: 'row', gap: 10, alignItems: 'center',
+  stripChip: {
+    backgroundColor: colors.surface, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', gap: 8, alignItems: 'center',
   },
-  stripIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  stripInfo: { minWidth: 0, flex: 1 },
-  stripLabel: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.text },
-  stripStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  stripIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  stripLabel: { fontSize: 12.5, fontWeight: typography.weight.bold as any, color: colors.text },
   stripDot: { width: 6, height: 6, borderRadius: 3 },
-  stripStatus: { fontSize: 11, fontWeight: typography.weight.semibold as any },
+  stripCheckWrap: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  stripOfferBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  stripOfferBadgeText: { color: '#fff', fontSize: 10, fontWeight: typography.weight.extrabold as any },
 
   // Categories
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: spacing.lg, marginBottom: 12, marginTop: 22 },
