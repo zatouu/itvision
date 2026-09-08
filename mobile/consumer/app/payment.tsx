@@ -8,10 +8,10 @@ import { apiGetRetry, apiPost, getBaseUrl } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { getAuthUser } from '../src/auth'
 import { humanErrorMessage } from '../src/errorMessages'
-import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert, QrCode, Clock } from 'lucide-react-native'
+import { ArrowLeft, Check, Waves, Circle, Banknote, ShieldAlert, QrCode, Clock, Lock, Handshake, Star, Wrench } from 'lucide-react-native'
 import { hapticSuccess, hapticSelect } from '../src/haptics'
 import { toast } from '../src/toast'
-import { colors, radius, shadows, spacing, typography } from '../src/design'
+import { colors, radius, shadows, spacing, typography, getCategoryMeta } from '../src/design'
 
 type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash' | 'wave_qr'
 
@@ -57,6 +57,7 @@ function PaymentScreen() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const [manualCfg, setManualCfg] = useState<{ waveQrEnabled: boolean; waveMerchantPhone: string; waveQrUrl: string; wavePayUrl: string } | null>(null)
   const [manualPending, setManualPending] = useState<{ reference: string; amount: number } | null>(null)
+  const [recap, setRecap] = useState<{ title: string; category: string; status: string; providerName?: string; providerAvatar?: string; providerRating?: { avg?: number; count?: number } } | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollDoneRef = useRef(false)
@@ -72,6 +73,24 @@ function PaymentScreen() {
       .then(setWallet)
       .catch(() => setWallet(null))
       .finally(() => setWalletLoading(false))
+    // Récap mission + prestataire (offre choisie) — best-effort
+    if (requestId) {
+      apiGetRetry(`/api/services/requests/${requestId}/offers`)
+        .then((d: any) => {
+          const req = d?.request
+          const off = (d?.offers || []).find((o: any) => String(o._id) === String(offerId))
+            || (d?.offers || []).find((o: any) => o.status === 'accepted')
+          setRecap({
+            title: req?.title || '',
+            category: req?.category || '',
+            status: req?.status || '',
+            providerName: off?.providerName,
+            providerAvatar: off?.providerAvatar,
+            providerRating: off?.providerRating,
+          })
+        })
+        .catch(() => {})
+    }
     apiGetRetry('/api/payments/manual-config')
       .then(r => {
         if (r?.success) {
@@ -292,7 +311,10 @@ function PaymentScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
           <ArrowLeft size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('payment.escrow')}</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={s.headerTitle}>{t('payment.escrow')}</Text>
+          {requestId ? <Text style={s.headerSub}>Mission #{requestId.slice(-6).toUpperCase()}</Text> : null}
+        </View>
         <View style={{ width: 44 }} />
       </View>
 
@@ -300,10 +322,55 @@ function PaymentScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg }}
       >
+        {/* Récap mission + prestataire */}
+        {recap && (
+          <View style={s.recapCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[s.recapIcon, { backgroundColor: getCategoryMeta(recap.category).color }]}>
+                <Wrench size={19} color="#fff" />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.recapTitle} numberOfLines={1}>{recap.title || getCategoryMeta(recap.category).label}</Text>
+                <Text style={s.recapSub} numberOfLines={1}>
+                  {requestId ? `#${requestId.slice(-6).toUpperCase()}` : ''}{recap.status ? ` · ${recap.status}` : ''}
+                </Text>
+              </View>
+            </View>
+            {recap.providerName ? (
+              <View style={s.recapProviderRow}>
+                <View style={s.recapAvatar}>
+                  {recap.providerAvatar ? (
+                    <Image source={{ uri: recap.providerAvatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                  ) : (
+                    <Text style={s.recapAvatarText}>{recap.providerName.slice(0, 2).toUpperCase()}</Text>
+                  )}
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.recapProviderName} numberOfLines={1}>{recap.providerName}</Text>
+                  {recap.providerRating?.avg ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Star size={10} color={colors.warning} fill={colors.warning} />
+                      <Text style={s.recapRating}>{recap.providerRating.avg.toFixed(1)}</Text>
+                      {recap.providerRating.count ? <Text style={s.recapRatingCount}>({recap.providerRating.count})</Text> : null}
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+          </View>
+        )}
+
         {/* Amount card */}
         <View style={s.amountCard}>
           <Text style={s.amountLabel}>{t('payment.amount')}</Text>
-          <Text style={s.amountValue}>{payNowAmount.toLocaleString('fr-FR')} FCFA</Text>
+          <View style={s.amountRow}>
+            <Text style={s.amountValue}>{payNowAmount.toLocaleString('fr-FR')}</Text>
+            <Text style={s.amountUnit}>FCFA</Text>
+          </View>
+          <View style={s.negotiatedRow}>
+            <Lock size={11} color={colors.primary} />
+            <Text style={s.negotiatedText}>{t('payment.negotiatedPrice', { defaultValue: "Prix négocié dans l'offre acceptée" })}</Text>
+          </View>
 
           {selected !== 'cash' && !isBalance && paymentMode === 'deposit' && (
             <View style={s.depositBox}>
@@ -324,10 +391,6 @@ function PaymentScreen() {
           {selected === 'cash' && (
             <View style={s.cashBox}>
               <Text style={s.escrowHint}>{t('payment.cashOnPlace')}</Text>
-              <View style={s.cashWarning}>
-                <ShieldAlert size={16} color="#B45309" />
-                <Text style={s.cashWarningText}>{t('payment.cashNotGuaranteed')}</Text>
-              </View>
             </View>
           )}
 
@@ -403,20 +466,52 @@ function PaymentScreen() {
         )}
 
         {/* Payment methods */}
-        <Text style={s.sectionTitle}>{t('payment.chooseMethod')}</Text>
+        <Text style={s.sectionLabel}>{t('payment.chooseMethod')}</Text>
 
-        {PROVIDERS.filter(p => p.id !== 'wave_qr' || manualCfg?.waveQrEnabled).map(p => (
-          <TouchableOpacity
-            key={p.id}
-            style={[s.providerCard, selected === p.id && { borderColor: p.color, backgroundColor: p.bg }]}
-            onPress={() => { hapticSelect(); setSelected(p.id) }}
-            activeOpacity={0.7}
-          >
-            <View style={[s.providerIcon, { backgroundColor: p.bg }]}>{p.icon}</View>
-            <Text style={s.providerLabel}>{getProviderLabel(t, p.id)}</Text>
-            {selected === p.id && <Check size={22} color={p.color} />}
-          </TouchableOpacity>
-        ))}
+        {PROVIDERS.filter(p => p.id !== 'wave_qr' || manualCfg?.waveQrEnabled).map(p => {
+          const isSel = selected === p.id
+          return (
+            <TouchableOpacity
+              key={p.id}
+              style={[s.providerCard, isSel && s.providerCardActive]}
+              onPress={() => { hapticSelect(); setSelected(p.id) }}
+              activeOpacity={0.7}
+            >
+              <View style={[s.providerIcon, { backgroundColor: p.bg }]}>{p.icon}</View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.providerLabel}>{getProviderLabel(t, p.id)}</Text>
+                {p.id === 'cash' && (
+                  <Text style={s.providerSub}>{t('payment.cashHandover', { defaultValue: 'Remise en main propre au prestataire' })}</Text>
+                )}
+              </View>
+              <View style={[s.radioCircle, isSel && s.radioCircleActive]}>
+                {isSel && <Check size={14} color="#fff" strokeWidth={3} />}
+              </View>
+            </TouchableOpacity>
+          )
+        })}
+
+        {/* Instructions cash */}
+        {selected === 'cash' && (
+          <View style={s.cashHowCard}>
+            <View style={s.cashHowIcon}>
+              <Handshake size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.cashHowTitle}>{t('payment.cashHowTitle', { defaultValue: 'Comment ça se passe' })}</Text>
+              <Text style={s.cashHowBody}>
+                {t('payment.cashHowBody', {
+                  amount: totalAmount.toLocaleString('fr-FR'),
+                  defaultValue: 'Remettez le montant au prestataire quand le travail est validé. Il confirme la réception dans l\'app, la mission est clôturée.',
+                })}
+              </Text>
+              <View style={s.cashWarningRow}>
+                <ShieldAlert size={13} color={colors.warnInk} />
+                <Text style={s.cashWarningText}>{t('payment.cashNotGuaranteed')}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* QR code Wave : scanner depuis l'appli Wave (autre téléphone ou après retour) */}
         {polling && checkoutUrl && selected === 'wave' && (
@@ -535,7 +630,19 @@ function PaymentScreen() {
           </View>
         )}
 
-        {/* Pay button */}
+        {/* Signaler un problème */}
+        {requestId && (
+          <TouchableOpacity onPress={() => router.push(`/dispute?requestId=${requestId}`)} activeOpacity={0.7} style={{ alignSelf: 'center' }}>
+            <Text style={s.reportLink}>
+              {t('payment.reportProblem', { defaultValue: 'Un problème avec la mission ?' })}{' '}
+              <Text style={s.reportLinkBold}>{t('payment.reportLink', { defaultValue: 'Signaler un problème' })}</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Sticky action */}
+      <View style={s.footer}>
         <TouchableOpacity
           style={[s.payBtn, (!selected || loading || walletLoading || polling) && s.payBtnDisabled]}
           disabled={!selected || loading || walletLoading || polling}
@@ -550,12 +657,12 @@ function PaymentScreen() {
           ) : (
             <Text style={s.payBtnText}>
               {selected === 'cash'
-                ? `${t('payment.cashOnPlace')} ${totalAmount.toLocaleString('fr-FR')} FCFA`
+                ? `${t('payment.cashConfirm', { defaultValue: 'Confirmer · Espèces sur place' })} — ${totalAmount.toLocaleString('fr-FR')} FCFA`
                 : `${t('payment.payNow')} ${payNowAmount.toLocaleString('fr-FR')} FCFA`}
             </Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   )
 }
@@ -568,15 +675,47 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  amountCard: {
-    backgroundColor: colors.infoLight, borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', gap: 6, ...shadows.sm,
+  headerSub: { fontSize: 11, color: colors.textMuted, fontWeight: typography.weight.semibold as any, marginTop: 1 },
+  recapCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: 14,
+    borderWidth: 1, borderColor: colors.borderSoft, ...shadows.sm,
   },
-  amountLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
-  amountValue: { fontSize: 30, fontWeight: typography.weight.extrabold as any, color: colors.info },
+  recapIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  recapTitle: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.ink },
+  recapSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  recapProviderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderSoft,
+  },
+  recapAvatar: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandSoft,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  recapAvatarText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  recapProviderName: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.ink },
+  recapRating: { fontSize: 11, fontWeight: typography.weight.bold as any, color: colors.ink },
+  recapRatingCount: { fontSize: 10.5, color: colors.textMuted },
+  amountCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: spacing.xl,
+    alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.borderSoft, ...shadows.sm,
+  },
+  amountLabel: { fontSize: 10.5, color: colors.textMuted, fontWeight: typography.weight.bold as any, letterSpacing: 0.5, textTransform: 'uppercase' },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  amountValue: { fontSize: 40, fontWeight: typography.weight.extrabold as any, color: colors.ink, letterSpacing: -1.2 },
+  amountUnit: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.textMuted },
+  negotiatedRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  negotiatedText: { fontSize: 11.5, color: colors.textMuted, fontWeight: typography.weight.semibold as any },
   escrowHint: { fontSize: 12, color: colors.info, textAlign: 'center', marginTop: 4, fontWeight: typography.weight.semibold as any },
   cashBox: { width: '100%', alignItems: 'center', marginTop: 4 },
-  cashWarning: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warningLight, borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8, marginTop: 8 },
-  cashWarningText: { fontSize: 11, color: '#B45309', fontWeight: typography.weight.semibold as any, flex: 1 },
+  cashHowCard: {
+    flexDirection: 'row', gap: 12, backgroundColor: colors.brandSoft,
+    borderRadius: 16, padding: 14,
+  },
+  cashHowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  cashHowTitle: { fontSize: 12.5, fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  cashHowBody: { fontSize: 11.5, color: colors.brandInk, opacity: 0.9, marginTop: 4, lineHeight: 17 },
+  cashWarningRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  cashWarningText: { fontSize: 10.5, color: colors.warnInk, fontWeight: typography.weight.semibold as any, flex: 1 },
   depositBox: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.sm, width: '100%' },
   depositLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
   depositValue: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.primary, marginTop: 2 },
@@ -598,6 +737,7 @@ const s = StyleSheet.create({
   modeTextActive: { color: colors.primary },
   modeSub: { fontSize: 11, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
   sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  sectionLabel: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginLeft: 4, marginBottom: -4 },
   qrCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   qrTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
   qrBox: { backgroundColor: '#fff', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
@@ -605,15 +745,29 @@ const s = StyleSheet.create({
   qrOpenBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, marginTop: 4, ...shadows.md },
   qrOpenBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   providerCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderRadius: 18, backgroundColor: colors.surface,
     borderWidth: 2, borderColor: colors.border, ...shadows.sm,
   },
-  providerIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  providerLabel: { fontSize: 16, fontWeight: typography.weight.semibold as any, color: colors.text, flex: 1 },
+  providerCardActive: { borderColor: colors.primary, backgroundColor: colors.brandTint },
+  providerIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  providerLabel: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.ink },
+  providerSub: { fontSize: 11.5, color: colors.textMuted, marginTop: 2 },
+  radioCircle: {
+    width: 24, height: 24, borderRadius: 12,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioCircleActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  reportLink: { fontSize: 11, color: colors.textDim, textAlign: 'center' },
+  reportLinkBold: { fontWeight: typography.weight.bold as any, color: colors.ink },
+  footer: {
+    paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 14,
+    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft,
+  },
   payBtn: {
     backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.lg,
-    alignItems: 'center', marginTop: spacing.sm, ...shadows.md,
+    alignItems: 'center', ...shadows.md,
   },
   payBtnDisabled: { opacity: 0.5 },
   payBtnText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },

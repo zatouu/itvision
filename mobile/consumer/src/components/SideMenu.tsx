@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Pressable, ScrollView, BackHandler, Animated, Easing } from 'react-native'
 import { router } from 'expo-router'
 import {
-  X, Home, ClipboardList, Wallet, BellRing, UserCircle, Settings,
-  HelpCircle, Info, LogOut, ChevronRight, Shield, Star,
+  X, Home, ClipboardList, Wallet, BellRing, UserCircle,
+  HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield,
 } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
 import { logoutApi } from '../api'
 import { clearAllUserData } from '../clear-user-data'
 import { hapticSelect, hapticLight } from '../haptics'
+import { subscribeNotifications, unreadCount } from '../notifications'
 import { useTranslation } from 'react-i18next'
 
 const SCREEN_W = Dimensions.get('window').width
@@ -19,9 +20,9 @@ interface MenuItem {
   icon: any
   label: string
   route?: string
-  action?: () => void
-  color?: string
-  showChevron?: boolean
+  color: string
+  badge?: number
+  active?: boolean
 }
 
 interface SideMenuProps {
@@ -30,44 +31,34 @@ interface SideMenuProps {
 }
 
 export default function SideMenu({ visible, onClose }: SideMenuProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const authUser = getAuthUser()
   const userName = authUser?.name?.trim() || ''
-  const initials = userName ? userName.slice(0, 2).toUpperCase() : '?'
+  const hasName = !!userName && !/^\d{7,}$/.test(userName)
+  const initials = hasName ? userName.slice(0, 2).toUpperCase() : '?'
+  const [notifBadge, setNotifBadge] = useState(0)
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_W)).current
   const fadeAnim = useRef(new Animated.Value(0)).current
   const [rendered, setRendered] = useState(visible)
 
+  // Badge notifications non lues
+  useEffect(() => {
+    setNotifBadge(unreadCount())
+    return subscribeNotifications(() => setNotifBadge(unreadCount()))
+  }, [])
+
   useEffect(() => {
     if (visible) {
       setRendered(true)
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start()
     } else if (rendered) {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -DRAWER_W,
-          duration: 220,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim, { toValue: -DRAWER_W, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start(() => setRendered(false))
     }
   }, [visible])
@@ -98,292 +89,204 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
     router.replace('/login')
   }
 
+  const langLabel = i18n.language === 'wo' ? 'Wolof' : i18n.language === 'en' ? 'English' : 'Français'
+
   const mainItems: MenuItem[] = [
-    { icon: Home, label: t('menu.home'), route: '/', showChevron: false },
-    { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', showChevron: true },
-    { icon: Wallet, label: t('menu.wallet'), route: '/wallet', showChevron: true },
-    { icon: BellRing, label: t('menu.notifications'), route: '/notifications', showChevron: true },
+    { icon: Home, label: t('menu.home'), route: '/', color: colors.primary, active: true },
+    { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', color: colors.info },
+    { icon: Wallet, label: t('menu.wallet'), route: '/wallet', color: colors.ink },
+    { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
+    { icon: UserCircle, label: t('menu.profile'), route: '/profile', color: colors.textMuted },
   ]
 
-  const secondaryItems: MenuItem[] = [
-    { icon: UserCircle, label: t('menu.profile'), route: '/profile', showChevron: true },
-    { icon: Star, label: t('menu.rateApp'), action: () => {}, showChevron: true, color: colors.warning },
-    { icon: HelpCircle, label: t('menu.help'), route: '/profile', showChevron: true },
-    { icon: Info, label: t('menu.about'), route: '/profile', showChevron: true },
+  const settingItems: MenuItem[] = [
+    { icon: Globe, label: `${t('menu.language', { defaultValue: 'Langue' })} · ${langLabel}`, route: '/profile', color: colors.textMuted },
+    { icon: HelpCircle, label: t('menu.help'), route: '/profile', color: colors.textMuted },
+    { icon: Info, label: t('menu.about'), route: '/profile', color: colors.textMuted },
   ]
 
-  const renderRow = (item: MenuItem, key: string) => {
+  const renderRow = (item: MenuItem, key: string, compact = false) => {
     const Icon = item.icon
-    const iconColor = item.color || colors.textSecondary
-    const bg = item.color ? `${item.color}15` : colors.bg
     return (
       <TouchableOpacity
         key={key}
-        style={s.row}
+        style={[s.row, compact && s.rowCompact, item.active && s.rowActive]}
         activeOpacity={0.65}
-        onPress={() => {
-          if (item.action) item.action()
-          else if (item.route) navigateTo(item.route)
-        }}
+        onPress={() => item.route && navigateTo(item.route)}
       >
-        <View style={[s.rowIcon, { backgroundColor: bg }]}>
-          <Icon size={18} color={iconColor} />
+        <View style={[s.rowIcon, compact && s.rowIconSm, { backgroundColor: `${item.color}15` }]}>
+          <Icon size={compact ? 15 : 17} color={item.color} />
         </View>
-        <Text style={s.rowLabel}>{item.label}</Text>
-        {item.showChevron && <ChevronRight size={18} color={colors.textMuted} />}
+        <Text style={[s.rowLabel, compact && s.rowLabelSm, item.active && s.rowLabelActive]}>{item.label}</Text>
+        {item.badge ? (
+          <View style={s.badge}>
+            <Text style={s.badgeText}>{item.badge > 9 ? '9+' : item.badge}</Text>
+          </View>
+        ) : (
+          <ChevronRight size={compact ? 15 : 16} color={colors.textDim} />
+        )}
       </TouchableOpacity>
     )
   }
 
   return (
     <View style={s.overlay} pointerEvents={rendered ? 'auto' : 'none'}>
-      {/* Backdrop */}
       <Animated.View style={[s.backdrop, { opacity: fadeAnim }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Drawer */}
-      <Animated.View
-        style={[s.drawer, { transform: [{ translateX: slideAnim }] }]}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: spacing.xxxl }}
-        >
-          {/* Close button */}
-          <TouchableOpacity
-            style={s.closeBtn}
-            onPress={onClose}
-            activeOpacity={0.6}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <X size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          {/* User header */}
-          <View style={s.userHeader}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{initials}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.userName} numberOfLines={1}>
-                {userName || t('menu.guest')}
-              </Text>
-              <Text style={s.userPhone} numberOfLines={1}>
-                {authUser?.phone || ''}
-              </Text>
-            </View>
+      <Animated.View style={[s.drawer, { transform: [{ translateX: slideAnim }] }]}>
+        {/* Hero identité */}
+        <View style={s.hero}>
+          <View style={s.heroCircle} />
+          <View style={s.heroTop}>
+            <Text style={s.heroLogo}>Xeuy Bi</Text>
+            <TouchableOpacity style={s.heroClose} onPress={onClose} activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={16} color="#fff" />
+            </TouchableOpacity>
           </View>
-
-          {/* Quick stats card */}
-          <View style={s.statsCard}>
-            <View style={s.statItem}>
-              <Shield size={16} color={colors.primary} />
-              <Text style={s.statLabel}>{t('menu.verified')}</Text>
+          <TouchableOpacity
+            style={s.heroIdentity}
+            activeOpacity={0.75}
+            onPress={() => navigateTo(hasName ? '/profile' : '/setup-profile')}
+          >
+            {hasName ? (
+              <View style={s.heroAvatar}>
+                <Text style={s.heroAvatarText}>{initials}</Text>
+              </View>
+            ) : (
+              <View style={s.heroAvatarEmpty}>
+                <UserCircle size={24} color="#fff" />
+              </View>
+            )}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              {hasName ? (
+                <>
+                  <Text style={s.heroName} numberOfLines={1}>{userName}</Text>
+                  <Text style={s.heroPhone} numberOfLines={1}>{authUser?.phone || ''}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={s.heroName}>{t('menu.addName', { defaultValue: 'Ajouter mon nom' })}</Text>
+                  <Text style={s.heroPhone}>{t('menu.addNameHint', { defaultValue: 'Pour rassurer les prestataires' })}</Text>
+                </>
+              )}
             </View>
-            <View style={s.statDivider} />
-            <TouchableOpacity
-              style={s.statItem}
-              onPress={() => navigateTo('/profile')}
-              activeOpacity={0.6}
-            >
-              <Settings size={16} color={colors.info} />
-              <Text style={s.statLabel}>{t('menu.settings')}</Text>
+            <View style={s.heroEdit}>
+              {hasName ? <ChevronRight size={15} color="#fff" /> : <Pencil size={14} color="#fff" />}
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, paddingHorizontal: 12, flexGrow: 1 }}>
+          {mainItems.map((item, i) => renderRow(item, `main-${i}`))}
+
+          <View style={s.divider} />
+
+          {/* Carte parrainage */}
+          <View style={s.referralCard}>
+            <View style={s.referralIcon}>
+              <Heart size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.referralTitle}>{t('menu.referralTitle', { defaultValue: 'Parrainez un ami' })}</Text>
+              <Text style={s.referralSub}>{t('menu.referralSub', { defaultValue: 'Gagnez 1 000 FCFA par ami inscrit' })}</Text>
+            </View>
+            <TouchableOpacity style={s.referralBtn} onPress={() => navigateTo('/profile')} activeOpacity={0.85}>
+              <Text style={s.referralBtnText}>{t('menu.referralCta', { defaultValue: 'Inviter' })}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Main navigation */}
-          <Text style={s.sectionLabel}>{t('menu.navigation')}</Text>
-          <View style={s.section}>
-            {mainItems.map((item, i) => renderRow(item, `main-${i}`))}
-          </View>
+          <View style={s.divider} />
 
-          {/* Secondary */}
-          <Text style={s.sectionLabel}>{t('menu.account')}</Text>
-          <View style={s.section}>
-            {secondaryItems.map((item, i) => renderRow(item, `sec-${i}`))}
-          </View>
+          {settingItems.map((item, i) => renderRow(item, `sec-${i}`, true))}
+        </ScrollView>
 
-          {/* Logout */}
-          <TouchableOpacity
-            style={s.logoutBtn}
-            activeOpacity={0.65}
-            onPress={handleLogout}
-          >
-            <View style={[s.rowIcon, { backgroundColor: colors.dangerLight }]}>
-              <LogOut size={18} color={colors.danger} />
-            </View>
+        {/* Footer déconnexion */}
+        <View style={s.footer}>
+          <TouchableOpacity style={s.logoutBtn} activeOpacity={0.75} onPress={handleLogout}>
+            <LogOut size={16} color={colors.dangerInk} />
             <Text style={s.logoutText}>{t('menu.logout')}</Text>
           </TouchableOpacity>
-
-          {/* Version */}
           <Text style={s.versionText}>Xeuy Bi v1.0.0</Text>
-        </ScrollView>
+        </View>
       </Animated.View>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,22,40,0.45)',
-  },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,22,40,0.55)' },
   drawer: {
     position: 'absolute',
     top: 0,
     left: 0,
     bottom: 0,
     width: DRAWER_W,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     ...shadows.xl,
   },
-  closeBtn: {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxxl,
-    paddingBottom: spacing.xl,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.navy,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.md,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: typography.weight.extrabold as any,
-    color: colors.surface,
-  },
-  userName: {
-    fontSize: 17,
-    fontWeight: typography.weight.extrabold as any,
-    color: colors.text,
-  },
-  userPhone: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  statsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  statItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.md,
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: typography.weight.semibold as any,
-    color: colors.text,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: typography.weight.extrabold as any,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  section: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+  hero: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 22,
     overflow: 'hidden',
-    ...shadows.sm,
   },
+  heroCircle: { position: 'absolute', top: -40, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  heroLogo: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  heroClose: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  heroIdentity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  heroAvatarText: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
+  heroAvatarEmpty: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
+  heroName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#fff', letterSpacing: -0.2 },
+  heroPhone: { fontSize: 11.5, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
+  heroEdit: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minHeight: 44,
   },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
+  rowCompact: { minHeight: 40 },
+  rowActive: { backgroundColor: colors.brandSoft },
+  rowIcon: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  rowIconSm: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.bg },
+  rowLabel: { flex: 1, fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.text },
+  rowLabelSm: { fontSize: 13 },
+  rowLabelActive: { fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  badge: { backgroundColor: colors.warning, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  badgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
+  divider: { height: 1, backgroundColor: colors.borderSoft, marginVertical: 12, marginHorizontal: 12 },
+  referralCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    gap: 12,
+    backgroundColor: colors.brandSoft,
+    borderRadius: 14,
+    padding: 14,
   },
-  rowLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: typography.weight.semibold as any,
-    color: colors.text,
-  },
+  referralIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  referralTitle: { fontSize: 12.5, fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  referralSub: { fontSize: 10.5, color: colors.brandInk, opacity: 0.85, marginTop: 1 },
+  referralBtn: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
+  referralBtnText: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  footer: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.borderSoft },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.dangerLight,
-    ...shadows.sm,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: 12,
+    paddingVertical: 12,
   },
-  logoutText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: typography.weight.bold as any,
-    color: colors.danger,
-  },
-  versionText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xxl,
-  },
+  logoutText: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.dangerInk },
+  versionText: { fontSize: 11, color: colors.textDim, textAlign: 'center', marginTop: 10 },
 })
