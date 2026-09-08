@@ -20,6 +20,7 @@ export type WalletTransactionKind =
   | 'mission_reserve'
   | 'mission_release'
   | 'promo'          // crédits promotionnels offerts
+  | 'ai_spend'       // XC consommés pour un appel à l'assistant IA
 
 export interface IWalletTransaction extends Document {
   userId: mongoose.Types.ObjectId
@@ -38,7 +39,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   kind: {
     type: String,
-    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'mission_reserve', 'mission_release', 'promo'],
+    enum: ['welcome', 'topup', 'mission_spend', 'referral_bonus', 'refund', 'admin_adjust', 'escrow_charge', 'escrow_refund', 'unlock_spend', 'unlock_refund', 'mission_reserve', 'mission_release', 'promo', 'ai_spend'],
     required: true,
   },
   points: { type: Number, required: true },

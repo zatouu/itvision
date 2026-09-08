@@ -37,11 +37,13 @@ export async function POST(request: NextRequest) {
     const {
       monetization,
       escrow,
+      ai,
     } = body
 
     const update: Record<string, any> = {}
     if (monetization) update['monetization'] = monetization
     if (escrow) update['escrow'] = escrow
+    if (ai) update['ai'] = ai
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Aucune donnée à mettre à jour' }, { status: 400 })

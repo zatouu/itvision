@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuthServer } from '@/lib/auth-server'
 import { aiAssist, type AssistType } from '@/lib/ai/assist'
 import { checkAiAvailability, AiConfigMissingError, AiServiceUnavailableError } from '@/lib/ai/qwen'
+import { checkAiEntitlement, refundAiCall, getAiFeaturesStatus, getAiConfig, type AiEntitlementDecision } from '@/lib/ai/entitlement'
+import { prepareImagesForVision } from '@/lib/ai/images'
 import { applyRateLimit, aiRateLimiter } from '@/lib/rate-limiter'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
@@ -9,7 +11,7 @@ import Offer from '@/lib/models/Offer'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 60
 
 const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips', 'suggest_offer']
 
@@ -106,6 +108,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
     }
 
+    // Photos du client (URLs publiques issues de /api/upload ou data URIs) — vision uniquement pour clarify/enhance
+    const aiCfg = await getAiConfig()
+    const rawImageUrls = Array.isArray(raw.imageUrls) && (type === 'clarify_request' || type === 'enhance_request')
+      ? raw.imageUrls.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+      : []
+    const imageUrls = rawImageUrls.length > 0 ? await prepareImagesForVision(rawImageUrls, aiCfg.maxImagesPerCall) : undefined
+    const hasImages = !!imageUrls && imageUrls.length > 0
+
+    // Droit d'usage (gratuit MVP / quota / éligibilité / XC) — piloté depuis l'admin
+    const entitlement: AiEntitlementDecision = await checkAiEntitlement(userId, auth.user.role, type, { vision: hasImages })
+    if (!entitlement.allowed) {
+      const status = entitlement.reason === 'ai_disabled' ? 403 : 402
+      const messages: Record<string, string> = {
+        ai_disabled: 'Assistant IA désactivé',
+        quota_exceeded: 'Quota IA du jour atteint',
+        insufficient_points: 'Solde XC insuffisant pour utiliser l\'assistant IA',
+      }
+      return NextResponse.json({
+        error: messages[entitlement.reason || 'ai_disabled'],
+        code: entitlement.reason,
+        cost: entitlement.cost,
+        balance: entitlement.balance,
+      }, { status })
+    }
+
     // For suggest_offer, compute market prices and provider stats
     let marketPrices: Awaited<ReturnType<typeof computeMarketPrices>>
     let providerCompletedMissions: number | undefined
@@ -120,32 +147,44 @@ export async function POST(request: NextRequest) {
       providerRating = stats.rating
     }
 
-    const result = await aiAssist({
-      type: type as AssistType,
-      category,
-      description,
-      attributes,
-      answers: Array.isArray(answers) ? answers : undefined,
-      question,
-      missionStatus,
-      profile,
-      nearbyCount,
-      earnings,
-      rating: rating ?? providerRating,
-      requestBudget,
-      marketPrices,
-      providerCompletedMissions,
-    })
+    let result: Awaited<ReturnType<typeof aiAssist>>
+    try {
+      result = await aiAssist({
+        type: type as AssistType,
+        category,
+        description,
+        attributes,
+        answers: Array.isArray(answers) ? answers : undefined,
+        question,
+        imageUrls,
+        missionStatus,
+        profile,
+        nearbyCount,
+        earnings,
+        rating: rating ?? providerRating,
+        requestBudget,
+        marketPrices,
+        providerCompletedMissions,
+      })
+    } catch (aiErr) {
+      // Le modèle a échoué : on ne facture pas l'appel
+      await refundAiCall(userId, entitlement, type)
+      throw aiErr
+    }
 
     return NextResponse.json({
       text: result.text,
       questions: result.questions,
+      observations: result.observations,
+      photoGuidance: result.photoGuidance,
+      vision: result.vision,
       suggestedPrice: result.suggestedPrice,
       suggestedMessage: result.suggestedMessage,
       reasoning: result.reasoning,
       marketPrices: marketPrices ? { count: marketPrices.count, medianPrice: marketPrices.medianPrice, avgPrice: marketPrices.avgPrice } : undefined,
       source: result.source,
       model: result.model,
+      usage: { cost: entitlement.cost, quotaRemaining: entitlement.quotaRemaining, balance: entitlement.balance },
     })
   } catch (e: unknown) {
     console.error('[POST /api/ai/assist]', e)
@@ -162,5 +201,16 @@ export async function GET(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse
 
   const status = await checkAiAvailability()
+
+  // Si authentifié : état des fonctionnalités IA pour cet utilisateur (quota, XC, éligibilité) → le mobile masque/affiche les boutons
+  const auth = await verifyAuthServer(request).catch(() => null)
+  if (auth?.isAuthenticated && auth.user) {
+    try {
+      const features = await getAiFeaturesStatus(auth.user.id, auth.user.role)
+      return NextResponse.json({ ...status, available: status.available && features.enabled, ...features })
+    } catch (err) {
+      console.warn('[GET /api/ai/assist] features status failed:', err instanceof Error ? err.message : err)
+    }
+  }
   return NextResponse.json(status)
 }

@@ -87,9 +87,56 @@ export interface IAutoImportConfig {
   }
 }
 
+/** Fonctionnalités IA exposées aux apps mobiles (clé = AssistType côté /api/ai/assist). */
+export type AiFeatureKey =
+  | 'clarify_request'
+  | 'enhance_request'
+  | 'photo_analysis'
+  | 'analyze_request'
+  | 'mission_help'
+  | 'suggest_offer'
+  | 'daily_tips'
+
+/**
+ * free              → toujours gratuit
+ * quota             → gratuit dans la limite du quota journalier, puis XC
+ * eligible          → gratuit si le prestataire remplit les critères d'éligibilité, sinon XC
+ * points            → toujours en XC (après quota journalier gratuit si > 0)
+ */
+export type AiFeatureMode = 'free' | 'quota' | 'eligible' | 'points'
+
+export interface IAiFeatureConfig {
+  enabled: boolean
+  mode: AiFeatureMode
+}
+
+export interface IAiConfig {
+  enabled: boolean // kill-switch global
+  freeUntil?: Date // tout reste gratuit tant que cette date n'est pas dépassée
+  features: Record<AiFeatureKey, IAiFeatureConfig>
+  eligibility: {
+    minCompletedMissions: number
+    minScoreXeuy: number
+    minReliability: number
+    requireKyc: boolean
+  }
+  pricing: {
+    textCostPoints: number
+    visionCostPoints: number
+  }
+  dailyFreeQuota: {
+    client: number
+    provider: number
+  }
+  maxImagesPerCall: number
+}
+
+export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_help', 'suggest_offer', 'daily_tips']
+
 export interface IAppConfig extends Document {
   key: string
   autoImport: IAutoImportConfig
+  ai: IAiConfig
   monetization: {
     mode: MonetizationMode
     freeUntil?: Date
@@ -230,6 +277,30 @@ const AppConfigSchema = new Schema<IAppConfig>({
       useLastKnownPosition: { type: Boolean, default: true },
       useProfileCity: { type: Boolean, default: true },
     },
+  },
+  ai: {
+    enabled: { type: Boolean, default: true },
+    freeUntil: { type: Date },
+    features: {
+      type: Schema.Types.Mixed,
+      // daily_tips est déclenché automatiquement (1×/jour, mis en cache côté app) → gratuit pour ne pas manger le quota
+      default: () => Object.fromEntries(AI_FEATURE_KEYS.map(k => [k, { enabled: true, mode: k === 'daily_tips' ? 'free' : 'quota' }])),
+    },
+    eligibility: {
+      minCompletedMissions: { type: Number, default: 10, min: 0 },
+      minScoreXeuy: { type: Number, default: 70, min: 0, max: 100 },
+      minReliability: { type: Number, default: 80, min: 0, max: 100 },
+      requireKyc: { type: Boolean, default: true },
+    },
+    pricing: {
+      textCostPoints: { type: Number, default: 1, min: 0 },
+      visionCostPoints: { type: Number, default: 3, min: 0 },
+    },
+    dailyFreeQuota: {
+      client: { type: Number, default: 2, min: 0 },
+      provider: { type: Number, default: 2, min: 0 },
+    },
+    maxImagesPerCall: { type: Number, default: 3, min: 1, max: 5 },
   },
   autoImport: {
     enabled: { type: Boolean, default: false },

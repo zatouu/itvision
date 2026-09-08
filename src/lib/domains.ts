@@ -290,6 +290,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   TopupPayment: 'xeuy',
   Wallet: 'xeuy',
   WalletTransaction: 'xeuy',
+  AiUsage: 'xeuy',
   WithdrawalRequest: 'xeuy',
   KycRequest: 'xeuy',
   ChatMessage: 'xeuy',

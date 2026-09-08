@@ -11,6 +11,9 @@ const CODE_MESSAGES: Record<string, string> = {
   OFFER_ALREADY_ACCEPTED: 'Cette offre a déjà été traitée.',
   REQUEST_NOT_AVAILABLE: "Cette demande n'est plus disponible.",
   TRANSITION_FORBIDDEN: "Cette action n'est plus possible car la demande a évolué.",
+  ai_disabled: "L'assistant IA est indisponible pour le moment.",
+  quota_exceeded: "Vous avez utilisé vos aides IA gratuites du jour. Réessayez demain ou rechargez des XC.",
+  insufficient_points: "Solde XC insuffisant pour utiliser l'assistant IA. Rechargez votre portefeuille.",
 }
 
 const GENERIC_ERROR = 'Une erreur est survenue. Veuillez réessayer.'

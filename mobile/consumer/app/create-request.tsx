@@ -65,6 +65,10 @@ function CreateRequest() {
   const [err, setErr] = useState<string | null>(null)
   const [media, setMedia] = useState<PickedMedia[]>([])
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  // URLs serveur des photos déjà uploadées (clé = uri locale) — upload dès la sélection pour l'analyse IA
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({})
+  const [aiObservations, setAiObservations] = useState<string[]>([])
+  const [aiPhotoGuidance, setAiPhotoGuidance] = useState<string[]>([])
   const [landmark, setLandmark] = useState('')
   const [autoAddress, setAutoAddress] = useState('')
   const [when, setWhen] = useState<'asap' | 'today' | 'later'>('asap')
@@ -172,16 +176,41 @@ function CreateRequest() {
     applyGeocode(r.longitude, r.latitude)
   }
 
+  const uploadOne = async (m: PickedMedia): Promise<string | null> => {
+    if (!m?.uri || typeof m.uri !== 'string') return null
+    const ct = m.type === 'video' ? 'video/mp4' : 'image/jpeg'
+    const res = await apiUpload(m.uri, m.name, ct)
+    return typeof res?.staticUrl === 'string' && res.staticUrl
+      ? res.staticUrl
+      : (typeof res?.url === 'string' ? res.url : null)
+  }
+
   const addMedia = async () => {
     try {
       const picked = await pickMedia({ maxFiles: MAX_MEDIA })
-      if (picked.length) setMedia(prev => [...prev, ...picked].slice(0, MAX_MEDIA))
+      if (!picked.length) return
+      setMedia(prev => [...prev, ...picked].slice(0, MAX_MEDIA))
+      setAiPhotoGuidance([])
+      // Upload en arrière-plan des photos pour que l'IA puisse les analyser avant l'envoi
+      picked.filter(isImagePreview).forEach(m => {
+        uploadOne(m)
+          .then(url => { if (url) setMediaUrls(prev => ({ ...prev, [m.uri]: url })) })
+          .catch(() => {})
+      })
     } catch { setErr(t('request.mediaError')) }
   }
 
   const removeMedia = (idx: number) => {
-    setMedia(prev => prev.filter((_, i) => i !== idx))
+    setMedia(prev => {
+      const removed = prev[idx]
+      if (removed) setMediaUrls(urls => { const { [removed.uri]: _omit, ...rest } = urls; return rest })
+      return prev.filter((_, i) => i !== idx)
+    })
   }
+
+  const uploadedImageUrls = media.filter(isImagePreview).map(m => mediaUrls[m.uri]).filter(Boolean)
+  const pendingImageUploads = media.filter(isImagePreview).some(m => !mediaUrls[m.uri])
+  const canUseAi = !!category && (description.trim().length >= 10 || uploadedImageUrls.length > 0)
 
   const submit = async () => {
     if (!coords) return
@@ -190,14 +219,10 @@ function CreateRequest() {
     try {
       let uploadedMedia: { url: string; type: string }[] = []
       setUploadingMedia(true)
-      // Upload photos/videos
+      // Upload photos/videos (réutilise les URLs déjà uploadées pour l'IA)
       for (const m of media) {
         if (!m?.uri || typeof m.uri !== 'string') continue
-        const ct = m.type === 'video' ? 'video/mp4' : 'image/jpeg'
-        const res = await apiUpload(m.uri, m.name, ct)
-        const uploadedUrl = typeof res?.staticUrl === 'string' && res.staticUrl
-          ? res.staticUrl
-          : (typeof res?.url === 'string' ? res.url : null)
+        const uploadedUrl = mediaUrls[m.uri] || await uploadOne(m)
         if (!uploadedUrl) throw new Error(t('request.uploadError'))
         uploadedMedia.push({ url: uploadedUrl, type: m.type })
       }
@@ -484,7 +509,7 @@ function CreateRequest() {
               style={[s.aiBtn, aiLoading && { opacity: 0.6 }]}
               onPress={async () => {
                 if (aiLoading) return
-                if (description.trim().length < 10) {
+                if (!canUseAi) {
                   setErr(t('request.aiNeedDescription'))
                   return
                 }
@@ -496,9 +521,12 @@ function CreateRequest() {
                     category,
                     description,
                     attributes,
+                    imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
                   })
                   if (Array.isArray(res.questions) && res.questions.length > 0) {
                     setAiQuestions(res.questions)
+                    setAiObservations(Array.isArray(res.observations) ? res.observations : [])
+                    setAiPhotoGuidance(Array.isArray(res.photoGuidance) ? res.photoGuidance : [])
                     setAiModalVisible(true)
                     hapticSuccess()
                   }
@@ -510,14 +538,22 @@ function CreateRequest() {
               disabled={aiLoading || !category}
               activeOpacity={0.8}
             >
-              <Sparkles size={16} color={colors.primary} />
+              {uploadedImageUrls.length > 0 ? <Camera size={16} color={colors.primary} /> : <Sparkles size={16} color={colors.primary} />}
               <Text style={s.aiBtnText}>
-                {aiLoading ? t('request.aiLoading') : t('request.aiClarify')}
+                {aiLoading
+                  ? t('request.aiLoading')
+                  : uploadedImageUrls.length > 0
+                    ? t('request.aiClarifyWithPhotos', { count: uploadedImageUrls.length })
+                    : t('request.aiClarify')}
               </Text>
             </TouchableOpacity>
+            {pendingImageUploads && !aiLoading && (
+              <Text style={s.fieldHint}>{t('request.aiPhotosUploading')}</Text>
+            )}
             <AiClarifyModal
               visible={aiModalVisible}
               questions={aiQuestions}
+              observations={aiObservations}
               applying={aiApplying}
               onClose={() => setAiModalVisible(false)}
               onApply={async (answers: ClarifyAnswer[]) => {
@@ -533,6 +569,7 @@ function CreateRequest() {
                     description,
                     attributes,
                     answers,
+                    imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
                   })
                   setDescription(res.text?.trim() ? res.text.trim() : composeFallback())
                 } catch {
@@ -580,6 +617,24 @@ function CreateRequest() {
                 </TouchableOpacity>
               )}
             </View>
+            {/* Photos suggérées par l'IA pour aider l'artisan */}
+            {aiPhotoGuidance.length > 0 && !aiModalVisible && (
+              <View style={s.aiGuideCard}>
+                <View style={s.aiGuideHeader}>
+                  <Sparkles size={14} color={colors.primary} />
+                  <Text style={s.aiGuideTitle}>{t('request.aiPhotoGuidanceTitle')}</Text>
+                </View>
+                {aiPhotoGuidance.map((g, i) => (
+                  <Text key={i} style={s.aiGuideItem}>• {g}</Text>
+                ))}
+                {media.length < MAX_MEDIA && (
+                  <TouchableOpacity style={s.aiGuideBtn} onPress={addMedia} activeOpacity={0.8}>
+                    <Camera size={14} color={colors.primary} />
+                    <Text style={s.aiGuideBtnText}>{t('request.aiPhotoGuidanceAdd')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Message vocal */}
@@ -1022,6 +1077,18 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  aiGuideCard: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 6,
+  },
+  aiGuideHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  aiGuideTitle: { fontSize: 12.5, fontWeight: '700', color: colors.brandInk },
+  aiGuideItem: { fontSize: 12.5, color: colors.text, lineHeight: 18 },
+  aiGuideBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 4 },
+  aiGuideBtnText: { fontSize: 12.5, fontWeight: '600', color: colors.primary },
 })
 
 export default withScreenBoundary(CreateRequest, 'CreateRequest')

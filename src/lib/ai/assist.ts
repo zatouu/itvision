@@ -1,4 +1,4 @@
-import { qwenChat, type ChatMessage } from './qwen'
+import { qwenChat, qwenVision, type ChatMessage } from './qwen'
 
 export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips' | 'suggest_offer'
 
@@ -18,6 +18,8 @@ interface AssistContext {
   attributes?: Record<string, any>
   answers?: Array<{ question: string; answer: string }>
   question?: string
+  /** URLs publiques (ou data URIs) des photos du client — déclenche le modèle vision */
+  imageUrls?: string[]
   missionStatus?: string
   profile?: any
   nearbyCount?: number
@@ -49,14 +51,57 @@ const CATEGORY_LABELS: Record<string, string> = {
   autre: 'Autre',
 }
 
+function answersBlockOf(ctx: AssistContext): string {
+  return ctx.answers && ctx.answers.length > 0
+    ? `\nPrécisions données par le client:\n${ctx.answers.map(a => `- ${a.question} → ${a.answer}`).join('\n')}`
+    : ''
+}
+
+/**
+ * Prompts vision (une seule chaîne : le modèle VL ne reçoit qu'un message user avec texte + images).
+ * Utilisés uniquement quand ctx.imageUrls est non vide.
+ */
+function buildVisionPrompt(ctx: AssistContext): string {
+  const cat = ctx.category ? CATEGORY_LABELS[ctx.category] || ctx.category : ''
+  const n = ctx.imageUrls?.length || 0
+
+  if (ctx.type === 'clarify_request') {
+    return `Tu aides des clients sénégalais à préciser leur demande de dépannage/service (catégorie: ${cat}). Le client a joint ${n} photo(s) de ce qu'il veut faire réparer.
+Description écrite du client: "${ctx.description || '(vide)'}"
+Attributs déjà renseignés: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
+
+TÂCHE:
+1. "observations": décris en 1 à 3 phrases courtes ce que tu VOIS réellement sur les photos (équipement, emplacement, état apparent). Uniquement du visible et certain, jamais de diagnostic ni de cause supposée. Si une photo est floue, trop sombre ou hors sujet, dis-le.
+2. "questions": 3 à 4 questions MAXIMUM, ancrées sur les photos ET la description (ex: "Le disjoncteur abaissé sur la photo, c'est bien celui qui saute ?"). Chaque question porte sur un FAIT OBSERVABLE par le client (quand, où, fréquence, ce qui a changé), jamais une question technique qu'il ne peut pas vérifier. 2 à 4 options courtes quand c'est possible.
+3. "photoGuidance": 0 à 2 photos supplémentaires qui aideraient VRAIMENT l'artisan à préparer son intervention (angle, distance, élément à montrer), formulées comme une consigne simple ("Prends le tableau électrique en entier, porte ouverte"). Tableau vide si les photos suffisent.
+
+RÈGLES: français très simple, aucune invention, pas de conseil ni de réparation.
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"observations":["..."],"questions":[{"id":"q1","question":"...","options":["...","..."],"allowFreeText":true}],"photoGuidance":["..."]}`
+  }
+
+  // enhance_request
+  return `Tu reformules la description d'un client pour une demande de service au Sénégal (catégorie: ${cat}). Le client a joint ${n} photo(s).
+Description du client: "${ctx.description || '(vide)'}"${answersBlockOf(ctx)}
+
+RÈGLES ABSOLUES:
+1. N'invente AUCUN fait. Utilise UNIQUEMENT ce que le client a écrit/répondu et ce qui est CLAIREMENT visible sur les photos (type d'équipement, emplacement, dégât visible). Jamais de cause supposée ni de diagnostic.
+2. Si une information n'est pas fournie, ne la mentionne JAMAIS.
+3. Texte brut uniquement: pas de markdown, pas d'astérisques, pas de titres, pas de listes.
+4. Pas de conseils, pas de suggestions, pas de mention des photos elles-mêmes ("sur la photo on voit...").
+5. Écris à la première personne, comme si le client parlait. Ton naturel et simple.
+6. Maximum 4 phrases. Chaque phrase correspond à un fait fourni ou visible.
+7. Si la description est déjà claire et complète, retourne-la quasi identique.
+
+Reformule en un texte fluide qui intègre les précisions.`
+}
+
 function buildMessages(ctx: AssistContext): ChatMessage[] {
   const cat = ctx.category ? CATEGORY_LABELS[ctx.category] || ctx.category : ''
 
   switch (ctx.type) {
     case 'enhance_request': {
-      const answersBlock = ctx.answers && ctx.answers.length > 0
-        ? `\nPrécisions données par le client:\n${ctx.answers.map(a => `- ${a.question} → ${a.answer}`).join('\n')}`
-        : ''
+      const answersBlock = answersBlockOf(ctx)
       return [
         {
           role: 'system',
@@ -219,9 +264,43 @@ function extractJson(raw: string): any {
   return JSON.parse(cleaned.slice(start, end + 1))
 }
 
-export async function aiAssist(ctx: AssistContext): Promise<{ text: string; source: string; model: string; questions?: ClarifyQuestion[]; suggestedPrice?: number; suggestedMessage?: string; reasoning?: string }> {
-  const messages = buildMessages(ctx)
-  const result = await qwenChat(messages)
+function cleanStrings(arr: unknown, max: number, maxLen = 200): string[] {
+  return Array.isArray(arr)
+    ? arr.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map(s => s.trim().slice(0, maxLen)).slice(0, max)
+    : []
+}
+
+const VISION_TYPES: AssistType[] = ['clarify_request', 'enhance_request']
+
+export interface AiAssistResult {
+  text: string
+  source: string
+  model: string
+  /** true si le modèle vision a été utilisé (photos prises en compte) */
+  vision?: boolean
+  questions?: ClarifyQuestion[]
+  observations?: string[]
+  photoGuidance?: string[]
+  suggestedPrice?: number
+  suggestedMessage?: string
+  reasoning?: string
+}
+
+export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
+  let useVision = VISION_TYPES.includes(ctx.type) && Array.isArray(ctx.imageUrls) && ctx.imageUrls.length > 0
+  let result: Awaited<ReturnType<typeof qwenChat>>
+  if (useVision) {
+    try {
+      result = await qwenVision(buildVisionPrompt(ctx), ctx.imageUrls!)
+    } catch (visionErr) {
+      // Vision indisponible (ou URLs non exploitables) → on dégrade en texte seul plutôt que d'échouer
+      console.warn('[AI assist] vision failed, falling back to text:', visionErr instanceof Error ? visionErr.message : visionErr)
+      useVision = false
+      result = await qwenChat(buildMessages(ctx))
+    }
+  } else {
+    result = await qwenChat(buildMessages(ctx))
+  }
 
   if (ctx.type === 'clarify_request') {
     const parsed = extractJson(result.text)
@@ -237,7 +316,15 @@ export async function aiAssist(ctx: AssistContext): Promise<{ text: string; sour
           }))
       : []
     if (questions.length === 0) throw new Error('AI returned no valid questions')
-    return { text: '', questions, source: result.source, model: result.model }
+    return {
+      text: '',
+      questions,
+      observations: useVision ? cleanStrings(parsed?.observations, 3) : undefined,
+      photoGuidance: useVision ? cleanStrings(parsed?.photoGuidance, 2) : undefined,
+      vision: useVision,
+      source: result.source,
+      model: result.model,
+    }
   }
 
   if (ctx.type === 'suggest_offer') {
@@ -249,5 +336,5 @@ export async function aiAssist(ctx: AssistContext): Promise<{ text: string; sour
     return { text: '', suggestedPrice, suggestedMessage, reasoning, source: result.source, model: result.model }
   }
 
-  return { text: result.text, source: result.source, model: result.model }
+  return { text: result.text, vision: useVision, source: result.source, model: result.model }
 }

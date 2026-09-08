@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
-import { X, Sparkles, Check } from 'lucide-react-native'
+import { X, Sparkles, Check, Camera } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { colors, radius, spacing, shadows } from '../design'
 import { hapticLight, hapticSuccess } from '../haptics'
@@ -20,12 +20,14 @@ export interface ClarifyAnswer {
 interface Props {
   visible: boolean
   questions: ClarifyQuestion[]
+  /** Ce que l'IA a observé sur les photos du client (facultatif) */
+  observations?: string[]
   applying: boolean
   onApply: (answers: ClarifyAnswer[]) => void
   onClose: () => void
 }
 
-export default function AiClarifyModal({ visible, questions, applying, onApply, onClose }: Props) {
+export default function AiClarifyModal({ visible, questions, observations, applying, onApply, onClose }: Props) {
   const { t } = useTranslation()
   const [selected, setSelected] = useState<Record<string, string>>({})
   const [freeText, setFreeText] = useState<Record<string, string>>({})
@@ -68,6 +70,17 @@ export default function AiClarifyModal({ visible, questions, applying, onApply, 
             </Text>
 
             <ScrollView style={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {observations && observations.length > 0 && (
+                <View style={s.obsCard}>
+                  <View style={s.obsHeader}>
+                    <Camera size={14} color={colors.brandInk} />
+                    <Text style={s.obsTitle}>{t('request.aiObservationsTitle', { defaultValue: 'Sur vos photos' })}</Text>
+                  </View>
+                  {observations.map((o, i) => (
+                    <Text key={i} style={s.obsItem}>• {o}</Text>
+                  ))}
+                </View>
+              )}
               {questions.map((q, idx) => (
                 <View key={q.id} style={s.questionBlock}>
                   <Text style={s.questionText}>{idx + 1}. {q.question}</Text>
@@ -142,6 +155,10 @@ const s = StyleSheet.create({
   closeBtn: { padding: 4 },
   subtitle: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md, lineHeight: 18 },
   body: { flexGrow: 0 },
+  obsCard: { backgroundColor: colors.brandSoft, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg, gap: 4 },
+  obsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  obsTitle: { fontSize: 12.5, fontWeight: '700', color: colors.brandInk },
+  obsItem: { fontSize: 12.5, color: colors.text, lineHeight: 18 },
   questionBlock: { marginBottom: spacing.lg },
   questionText: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.sm, lineHeight: 20 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
