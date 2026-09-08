@@ -5,6 +5,10 @@ export const colors = {
   backgroundSecondary: '#FFFFFF',
   surface: '#FFFFFF',
   bgDeep: '#E9EDF2',
+  // Profil premium (provider)
+  bgGlobal: '#F5F6FA',
+  heroDark: '#091A2F',
+  platinum: '#E5E4E2',
   // Primary / emerald
   primary: '#0F7B4F',
   brand: '#0F7B4F',
@@ -46,6 +50,7 @@ export const colors = {
   dangerSoft: '#FEE7E7',
   dangerInk: '#B01C1C',
   info: '#3B82F6',
+  infoInk: '#1E40AF',
   infoLight: '#EFF6FF',
   infoSoft: '#E6EEFE',
   // Category colors

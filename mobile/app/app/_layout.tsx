@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
+import * as Location from 'expo-location'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
+import { loadProfile } from '../src/user-profile'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
 import { loadAuth, subscribeAuth, getAuthUser, clearAuth } from '../src/auth'
 import { initOfflineReplay, setOnUnauthorized, resetUnauthorizedFlag } from '../src/api'
 import { clearAllUserData } from '../src/clear-user-data'
+import { emitGps } from '../src/socket'
+import { loadInitial, subscribe as subscribeOnline } from '../src/online'
+import { loadMode, subscribeMode, isProviderCapable, homeRouteForMode, AppMode } from '../src/mode'
 import { initSentry, setUser, clearUser } from '../src/sentry'
 import { ToastHost } from '../src/toast'
 import { OptionSheetHost } from '../src/option-sheet'
@@ -52,12 +57,13 @@ export default function Layout(){
     }).catch(() => { /* silently fail */ })
   }, [])
 
-  // Charger l'auth au démarrage
+  // Charger l'auth + le mode applicatif au démarrage
   useEffect(() => {
     loadSavedLanguage()
-    loadAuth().then(ok => {
+    loadAuth().then(async ok => {
       setLoggedIn(ok)
       if (ok) {
+        await loadMode()
         const u = getAuthUser()
         if (u?._id) setUser(u._id, u.phone)
       }
@@ -78,7 +84,7 @@ export default function Layout(){
     if (!loggedIn && !onLoginScreen) {
       router.replace('/login')
     } else if (loggedIn && onLoginScreen) {
-      router.replace('/')
+      router.replace(homeRouteForMode() as any)
     } else if (loggedIn && !onSetupScreen) {
       // Rediriger vers setup-profile si l'utilisateur n'a pas encore de nom
       const u = getAuthUser()
@@ -110,6 +116,7 @@ export default function Layout(){
     if (!loggedIn) return
     loadNotifications()
     bindNotificationSocket()
+    if (isProviderCapable()) loadProfile()
     if (Platform.OS !== 'android') setupNotificationChannel()
     registerPushToken()
     const stopQueueReplay = initOfflineReplay()
@@ -129,6 +136,67 @@ export default function Layout(){
       appStateSub.remove()
     }
   }, [loggedIn])
+
+  // ===== Présence prestataire : émission GPS uniquement en mode provider =====
+  const [mode, setModeState] = useState<AppMode>('client')
+  useEffect(() => subscribeMode(setModeState), [])
+  const providerActive = loggedIn && isProviderCapable() && mode === 'provider'
+
+  const gpsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const gpsInFlight = useRef(false)
+  const isOnlineRef = useRef(false)
+
+  // Toggle en ligne/hors ligne (prestataire)
+  useEffect(() => {
+    if (!providerActive) return
+    (async () => { isOnlineRef.current = await loadInitial() })()
+    const unsub = subscribeOnline((val) => { isOnlineRef.current = val })
+    return unsub
+  }, [providerActive])
+
+  const sendGps = async (reason: string) => {
+    if (gpsInFlight.current || AppState.currentState !== 'active') return
+    gpsInFlight.current = true
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync()
+      if (status !== 'granted') {
+        console.log('[GPS] permission not granted, skip', reason)
+        return
+      }
+      const pos = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ])
+      const statusFlag = isOnlineRef.current ? 'available' : 'offline'
+      console.log('[GPS] emit', reason, pos.coords.latitude, pos.coords.longitude, statusFlag)
+      emitGps(pos.coords.latitude, pos.coords.longitude, statusFlag)
+    } catch (e: any) {
+      console.log('[GPS] failed', reason, e?.message)
+    } finally {
+      gpsInFlight.current = false
+    }
+  }
+
+  // GPS émis toutes les 10 s tant que le mode provider est actif au premier plan
+  useEffect(() => {
+    if (!providerActive) {
+      if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
+      return
+    }
+    sendGps('initial')
+    gpsInterval.current = setInterval(() => sendGps('interval'), 10_000)
+    return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
+  }, [providerActive])
+
+  // Émettre dès le retour au premier plan + quand le provider passe en ligne
+  useEffect(() => {
+    if (!providerActive) return
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active') sendGps('app-active')
+    })
+    const unsubOnline = subscribeOnline(val => { if (val) sendGps('online-toggle') })
+    return () => { sub.remove(); unsubOnline() }
+  }, [providerActive])
 
   if (!ready) {
     return (

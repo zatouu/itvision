@@ -1,26 +1,40 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { Home, ClipboardList, FileText, Bell, UserCircle } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { colors, radius, spacing, typography } from '../design'
 import { hapticSelect } from '../haptics'
-import { Home, ClipboardList, Bell, UserCircle } from 'lucide-react-native'
+import type { AppMode } from '../mode'
 
-export type TabKey = 'home' | 'requests' | 'notifications' | 'profile'
+export type TabKey = 'home' | 'requests' | 'offers' | 'notifications' | 'profile'
 
 interface TabBarProps {
   active: TabKey
+  /** 'client' (défaut) = onglets client, 'provider' = onglets prestataire */
+  mode?: AppMode
 }
 
-const TABS: { key: TabKey; label: string; icon: any; route: string }[] = [
+type IconProps = { size?: number; color?: string; strokeWidth?: number }
+
+const CLIENT_TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
   { key: 'home',          label: 'Accueil',       icon: Home,          route: '/' },
   { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/my-requests' },
   { key: 'notifications', label: 'Notifications', icon: Bell,          route: '/notifications' },
   { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/profile' },
 ]
 
-export default function TabBar({ active }: TabBarProps) {
+const PROVIDER_TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+  { key: 'home',          label: 'Accueil',       icon: Home,          route: '/pro-home' },
+  { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/nearby-requests' },
+  { key: 'offers',        label: 'Offres',        icon: FileText,      route: '/my-offers' },
+  { key: 'notifications', label: 'Notifications', icon: Bell,          route: '/notifications' },
+  { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/pro-profile' },
+]
+
+export default function TabBar({ active, mode = 'client' }: TabBarProps) {
   const [unread, setUnread] = useState(0)
+  const tabs = mode === 'provider' ? PROVIDER_TABS : CLIENT_TABS
 
   useEffect(() => {
     let mounted = true
@@ -31,11 +45,11 @@ export default function TabBar({ active }: TabBarProps) {
     return () => { mounted = false; unsubscribe() }
   }, [])
 
-  const onPress = (tab: typeof TABS[number]) => {
+  const onPress = (tab: typeof tabs[number]) => {
     if (tab.key === active) return
     hapticSelect()
     if (tab.key === 'home') {
-      router.replace('/')
+      router.replace(tab.route as any)
     } else {
       router.push(tab.route as any)
     }
@@ -43,9 +57,10 @@ export default function TabBar({ active }: TabBarProps) {
 
   return (
     <View style={s.bar}>
-      {TABS.map(tab => {
+      {tabs.map(tab => {
         const isActive = tab.key === active
         const showBadge = tab.key === 'notifications' && unread > 0
+        const Icon = tab.icon
         return (
           <TouchableOpacity
             key={tab.key}
@@ -57,7 +72,7 @@ export default function TabBar({ active }: TabBarProps) {
             accessibilityState={{ selected: isActive }}
           >
             <View style={[s.iconWrap, isActive && s.iconWrapActive]}>
-              <tab.icon size={20} color={isActive ? colors.primary : colors.textMuted} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={20} color={isActive ? colors.primary : colors.textMuted} strokeWidth={isActive ? 2.5 : 2} />
               {showBadge && (
                 <View style={s.badge}>
                   <Text style={s.badgeText}>{unread > 9 ? '9+' : String(unread)}</Text>

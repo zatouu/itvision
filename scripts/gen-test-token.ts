@@ -32,6 +32,6 @@ const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-local-jwt
   console.log(token)
   console.log('─────────────────────────────────────────')
   console.log(`\nUsage curl:\n  -H "Authorization: Bearer ${token.slice(0, 30)}..."\n`)
-  console.log('Pour le mobile, mets dans mobile/consumer/.env:')
+  console.log('Pour le mobile, mets dans mobile/app/.env:')
   console.log(`  EXPO_PUBLIC_AUTH_TOKEN=${token}\n`)
 })()

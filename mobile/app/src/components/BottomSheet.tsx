@@ -16,9 +16,10 @@ type Props = {
   onClose: () => void
   children: React.ReactNode
   maxHeight?: number
+  borderRadius?: number
 }
 
-export default function BottomSheet({ visible, onClose, children, maxHeight }: Props) {
+export default function BottomSheet({ visible, onClose, children, maxHeight, borderRadius = 20 }: Props) {
   const { height: screenH } = useWindowDimensions()
   const sheetH = maxHeight ?? screenH * 0.85
   const translateY = useRef(new Animated.Value(sheetH)).current
@@ -107,7 +108,7 @@ export default function BottomSheet({ visible, onClose, children, maxHeight }: P
         keyboardVerticalOffset={0}
       >
         <Animated.View
-          style={[s.sheet, { maxHeight: sheetH, transform: [{ translateY }] }]}
+          style={[s.sheet, { maxHeight: sheetH, borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius, transform: [{ translateY }] }]}
           {...panResponder.panHandlers}
         >
           <View style={s.handle} />

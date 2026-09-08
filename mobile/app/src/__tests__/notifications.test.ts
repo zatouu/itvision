@@ -34,7 +34,7 @@ describe('loadNotifications', () => {
 
   it('persists notifications to AsyncStorage', async () => {
     await pushNotification({ kind: 'offer-received', title: 'Persisted', body: 'Test' })
-    const raw = store['notifications:consumer']
+    const raw = store['notifications']
     expect(raw).toBeDefined()
     const parsed = JSON.parse(raw)
     expect(parsed).toHaveLength(1)

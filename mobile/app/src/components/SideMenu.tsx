@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Pressable, ScrollView, BackHandler, Animated, Easing } from 'react-native'
 import { router } from 'expo-router'
 import {
-  X, Home, ClipboardList, Wallet, BellRing, UserCircle,
-  HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield,
+  X, Home, ClipboardList, MapPin, FileText, Wallet, BellRing, UserCircle,
+  HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield, RefreshCw,
 } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
@@ -11,6 +11,7 @@ import { logoutApi } from '../api'
 import { clearAllUserData } from '../clear-user-data'
 import { hapticSelect, hapticLight } from '../haptics'
 import { subscribeNotifications, unreadCount } from '../notifications'
+import { getMode, setMode, isProviderCapable, homeRouteForMode, subscribeMode, AppMode } from '../mode'
 import { useTranslation } from 'react-i18next'
 
 const SCREEN_W = Dimensions.get('window').width
@@ -37,6 +38,11 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
   const hasName = !!userName && !/^\d{7,}$/.test(userName)
   const initials = hasName ? userName.slice(0, 2).toUpperCase() : '?'
   const [notifBadge, setNotifBadge] = useState(0)
+  const [mode, setModeState] = useState<AppMode>(getMode())
+  const canProvide = isProviderCapable()
+
+  // Suivre le mode applicatif (client ⇄ prestataire)
+  useEffect(() => subscribeMode(setModeState), [])
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_W)).current
   const fadeAnim = useRef(new Animated.Value(0)).current
@@ -91,13 +97,33 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
 
   const langLabel = i18n.language === 'wo' ? 'Wolof' : i18n.language === 'en' ? 'English' : 'Français'
 
-  const mainItems: MenuItem[] = [
-    { icon: Home, label: t('menu.home'), route: '/', color: colors.primary, active: true },
-    { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', color: colors.info },
-    { icon: Wallet, label: t('menu.wallet'), route: '/wallet', color: colors.ink },
-    { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
-    { icon: UserCircle, label: t('menu.profile'), route: '/profile', color: colors.textMuted },
-  ]
+  const isProvider = mode === 'provider'
+
+  const mainItems: MenuItem[] = isProvider
+    ? [
+        { icon: Home, label: t('menu.home'), route: '/pro-home', color: colors.primary, active: true },
+        { icon: MapPin, label: t('menu.nearbyRequests', { defaultValue: 'Demandes proches' }), route: '/nearby-requests', color: colors.info },
+        { icon: FileText, label: t('menu.myOffers', { defaultValue: 'Mes offres' }), route: '/my-offers', color: colors.info },
+        { icon: Wallet, label: t('menu.wallet'), route: '/pro-wallet', color: colors.ink },
+        { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
+        { icon: UserCircle, label: t('menu.profile'), route: '/pro-profile', color: colors.textMuted },
+      ]
+    : [
+        { icon: Home, label: t('menu.home'), route: '/', color: colors.primary, active: true },
+        { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', color: colors.info },
+        { icon: Wallet, label: t('menu.wallet'), route: '/wallet', color: colors.ink },
+        { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
+        { icon: UserCircle, label: t('menu.profile'), route: '/profile', color: colors.textMuted },
+      ]
+
+  /** Bascule client ⇄ prestataire — visible uniquement si le user a un profil prestataire */
+  const switchMode = async () => {
+    const next: AppMode = isProvider ? 'client' : 'provider'
+    await setMode(next)
+    hapticSelect()
+    onClose()
+    setTimeout(() => router.replace(homeRouteForMode(next) as any), 250)
+  }
 
   const settingItems: MenuItem[] = [
     { icon: Globe, label: `${t('menu.language', { defaultValue: 'Langue' })} · ${langLabel}`, route: '/profile', color: colors.textMuted },
@@ -148,7 +174,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
           <TouchableOpacity
             style={s.heroIdentity}
             activeOpacity={0.75}
-            onPress={() => navigateTo(hasName ? '/profile' : '/setup-profile')}
+            onPress={() => navigateTo(hasName ? (isProvider ? '/pro-profile' : '/profile') : '/setup-profile')}
           >
             {hasName ? (
               <View style={s.heroAvatar}>
@@ -180,6 +206,24 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, paddingHorizontal: 12, flexGrow: 1 }}>
           {mainItems.map((item, i) => renderRow(item, `main-${i}`))}
+
+          {/* Bascule client ⇄ prestataire (si profil prestataire) */}
+          {canProvide && (
+            <TouchableOpacity
+              style={[s.row, s.switchRow]}
+              activeOpacity={0.65}
+              onPress={switchMode}
+            >
+              <View style={[s.rowIcon, { backgroundColor: `${colors.primary}15` }]}>
+                <RefreshCw size={17} color={colors.primary} />
+              </View>
+              <Text style={[s.rowLabel, { color: colors.primary, fontWeight: typography.weight.extrabold as any }]}>
+                {isProvider
+                  ? t('menu.switchToClient', { defaultValue: 'Passer en mode client' })
+                  : t('menu.switchToProvider', { defaultValue: 'Passer en mode prestataire' })}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={s.divider} />
 
@@ -261,6 +305,7 @@ const s = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 14, fontWeight: typography.weight.semibold as any, color: colors.text },
   rowLabelSm: { fontSize: 13 },
   rowLabelActive: { fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  switchRow: { backgroundColor: colors.brandTint, borderWidth: 1, borderColor: colors.brandSoft, marginTop: 4 },
   badge: { backgroundColor: colors.warning, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   badgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
   divider: { height: 1, backgroundColor: colors.borderSoft, marginVertical: 12, marginHorizontal: 12 },

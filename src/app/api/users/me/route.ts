@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         email: user.email || '',
         avatarUrl: user.avatarUrl || '',
         role: user.role || '',
+        providerProfileId: user.providerProfileId ? String(user.providerProfileId) : undefined,
         referralCode: user.referralCode || '',
         referralBalance: user.referralBalance || 0,
         referralCount: user.referralCount || 0,

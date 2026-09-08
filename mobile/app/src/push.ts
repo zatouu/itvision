@@ -13,23 +13,41 @@ function mapPushToStore(title: string, body: string, data: any) {
   if (data?.localEcho) return
   const type = String(data?.type || '')
   const requestId = data?.requestId ? String(data.requestId) : ''
+  const isProviderAudience = data?.audience === 'provider'
   let kind: NotificationKind = 'mission-update'
   let link: { pathname: string; params?: Record<string, string> } | undefined
 
-  if (type === 'offer:new') {
+  if (type === 'request:new') {
+    kind = 'request-new'
+    // Broadcast geofencé vers les prestataires ; côté client = confirmation de publication
+    link = { pathname: isProviderAudience ? '/nearby-requests' : '/my-requests' }
+  } else if (type === 'offer:new') {
     kind = 'offer-received'
     if (requestId) link = { pathname: `/offers/${requestId}` }
-  } else if (type === 'offer:accepted' || type === 'payment:held') {
+  } else if (type === 'offer:accepted') {
+    kind = isProviderAudience ? 'offer-accepted' : 'request-assigned'
+    link = isProviderAudience
+      ? (requestId ? { pathname: `/active-mission/${requestId}` } : { pathname: '/my-offers' })
+      : (requestId ? { pathname: `/mission/${requestId}` } : undefined)
+  } else if (type === 'payment:held') {
     kind = 'request-assigned'
     if (requestId) link = { pathname: `/mission/${requestId}` }
+  } else if (type === 'offer:rejected') {
+    kind = 'offer-rejected'
+    link = { pathname: '/my-offers' }
+  } else if (type === 'offer:counter') {
+    kind = 'offer-counter'
+    link = { pathname: '/my-offers' }
+  } else if (type === 'payment:released') {
+    if (requestId) link = { pathname: `/active-mission/${requestId}` }
   } else if (type === 'request:status-changed' || type === 'offer:counter-accepted' || type === 'offer:counter-rejected') {
     kind = 'request-status-changed'
-    if (requestId) link = { pathname: `/mission/${requestId}` }
+    if (requestId) link = { pathname: isProviderAudience ? `/active-mission/${requestId}` : `/mission/${requestId}` }
   } else if (type === 'chat:message') {
     kind = 'mission-update'
     if (requestId) link = { pathname: '/mission-chat', params: { id: requestId } }
   } else {
-    if (requestId) link = { pathname: `/mission/${requestId}` }
+    if (requestId) link = { pathname: isProviderAudience ? `/active-mission/${requestId}` : `/mission/${requestId}` }
   }
 
   void pushNotification({ kind, title: title || 'Notification', body: body || '', link })
@@ -64,7 +82,7 @@ export function setupNotificationHandler(): void {
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
+      priority: Notifications.AndroidNotificationPriority.MAX,
     }),
   })
 }
@@ -122,6 +140,8 @@ let _registering: Promise<string | null> | null = null
 /**
  * Enregistre le token push auprès du serveur.
  * Doit être appelé au démarrage de l'app.
+ * appType 'unified' = app fusionnée client+provider : le serveur la diffuse
+ * pour les deux audiences.
  */
 export async function registerPushToken(): Promise<string | null> {
   if (!isNative) return null
@@ -147,7 +167,7 @@ async function _doRegister(): Promise<string | null> {
     await apiPost('/api/notifications/push-token', {
       token: status.token,
       platform: status.platform,
-      appType: 'consumer',
+      appType: 'unified',
     })
     console.log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
     return status.token
@@ -182,8 +202,17 @@ export async function scheduleLocalNotification(title = 'Test local', body = 'Si
 
   try {
     const id = await Notifications.scheduleNotificationAsync({
-      content: { title, body, data: { ...data, localEcho: true }, sound: 'default' },
-      trigger: { seconds: 1 },
+      content: {
+        title,
+        body,
+        data: { ...data, localEcho: true },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        seconds: 1,
+        channelId: 'services',
+      },
     })
     console.log('[Push] Notification locale programmée:', id)
     return id
@@ -203,8 +232,17 @@ export async function scheduleReminderAt(title: string, body: string, date: Date
   if (fireInSec < 60) return null
   try {
     const id = await Notifications.scheduleNotificationAsync({
-      content: { title, body, data: { ...data, localEcho: true }, sound: 'default' },
-      trigger: { date } as any,
+      content: {
+        title,
+        body,
+        data: { ...data, localEcho: true },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        date,
+        channelId: 'services',
+      } as any,
     })
     console.log('[Push] Rappel programmé:', id, date.toISOString())
     return id
@@ -215,7 +253,7 @@ export async function scheduleReminderAt(title: string, body: string, date: Date
 }
 
 /**
- * Configure le channel Android (requis Android 8+).
+ * Configure les channels Android (requis Android 8+).
  */
 export async function setupNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return
@@ -227,7 +265,7 @@ export async function setupNotificationChannel(): Promise<void> {
     lightColor: '#2563EB',
   })
   await Notifications.setNotificationChannelAsync('services', {
-    name: 'Services & Missions',
+    name: 'Demandes & Missions',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 250, 500],
     lightColor: '#0F7B4F',
@@ -273,7 +311,7 @@ export function navigateFromPushData(data: any): void {
 }
 
 /**
- * Gère le tap sur une notification (quand l'app est en background ou fermée).
+ * Gère le tap sur une notification (background / app fermée).
  */
 export function setupNotificationResponseListener(): () => void {
   if (!isNative) return () => {}
@@ -288,22 +326,40 @@ export function setupNotificationResponseListener(): () => void {
 }
 
 export function resolveNavTarget(data: any): string | null {
+  const isProviderAudience = data?.audience === 'provider'
+  // Litiges : écran dédié par côté
+  if (String(data?.type || '').startsWith('dispute:')) {
+    return data.requestId
+      ? (isProviderAudience ? `/pro-dispute/${data.requestId}` : `/dispute?requestId=${data.requestId}`)
+      : null
+  }
   switch (data.type) {
+    case 'request:new':
+      return isProviderAudience ? '/nearby-requests' : '/my-requests'
     case 'offer:new':
       return data.requestId ? `/offers/${data.requestId}` : null
     case 'offer:accepted':
+      return isProviderAudience
+        ? (data.requestId ? `/active-mission/${data.requestId}` : '/my-offers')
+        : (data.requestId ? `/mission/${data.requestId}` : null)
+    case 'offer:rejected':
+      return '/my-offers'
+    case 'offer:counter':
+      return '/my-offers'
     case 'payment:held':
       return data.requestId ? `/mission/${data.requestId}` : null
+    case 'payment:released':
+      return data.requestId ? `/active-mission/${data.requestId}` : null
     case 'request:status-changed':
     case 'offer:counter-accepted':
     case 'offer:counter-rejected':
-      return data.requestId ? `/mission/${data.requestId}` : null
+      return data.requestId
+        ? (isProviderAudience ? `/active-mission/${data.requestId}` : `/mission/${data.requestId}`)
+        : null
     case 'chat:message':
       return data.requestId ? `/mission-chat?id=${data.requestId}` : null
-    case 'request:new':
-      return '/my-requests'
     default:
-      if (data.requestId) return `/mission/${data.requestId}`
+      if (data.requestId) return isProviderAudience ? `/active-mission/${data.requestId}` : `/mission/${data.requestId}`
       return '/notifications'
   }
 }

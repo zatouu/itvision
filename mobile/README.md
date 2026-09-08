@@ -1,21 +1,21 @@
-# Itvision Mobile (Consumer & Provider)
+# Xeuy Bi — App mobile unifiée
 
-Mobile-first apps to power the inDriver-like services platform (Sénégal), built with Expo (React Native).
+App mobile Expo (React Native) de la plateforme de services à domicile (Sénégal), type inDriver.
 
 ## Structure
-- mobile/consumer: client app to create service requests, follow offers and jobs
-- mobile/provider: provider app to receive nearby requests, submit offers, and execute jobs
+- `mobile/app` : **application unique** — client (créer des demandes, suivre les offres et missions) **et** prestataire (demandes proches, offres, exécution des missions) dans la même app.
+- La distinction client/prestataire est purement applicative : un utilisateur ayant un `ProviderProfile` peut basculer entre les deux modes via le menu latéral.
 
 ## Quick start
-1. Install Node 18+ and Expo CLI (optional):
-   - npm i -g expo-cli  # optional, you can also use npx
-2. In each app folder:
-   - npm install
-   - npm run start  # or: npx expo start
-3. Configure API endpoint via environment:
-   - EXPO_PUBLIC_API_BASE_URL=https://your-backend.example.com
+1. Installer Node 18+ et EAS CLI (optionnel) :
+   - `npm i -g eas-cli`
+2. Dans `mobile/app` :
+   - `npm install`
+   - `npm run start`  # ou: npx expo start
+3. Configurer l'endpoint API via l'environnement :
+   - `EXPO_PUBLIC_API_BASE_URL=https://your-backend.example.com`
 
 Notes
-- By default, the apps will try http://localhost:3000 which works on emulators running on the same machine as the API. On physical devices, set EXPO_PUBLIC_API_BASE_URL to your LAN IP or a tunneled URL.
-- Payment integrations (Wave/Orange Money) are stubbed at this stage.
-- Real-time (Socket.IO) and geolocation background tasks will be added in later sprints.
+- Par défaut, l'app tente `http://localhost:3000` — OK pour émulateur sur la même machine que l'API. Sur appareil physique, mettre l'IP LAN dans `EXPO_PUBLIC_API_BASE_URL`.
+- Paiements (Wave/Orange Money) gérés via le backend.
+- Temps réel via Socket.IO ; le GPS prestataire n'est émis qu'en mode prestataire.

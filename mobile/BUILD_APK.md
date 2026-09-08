@@ -14,36 +14,29 @@
 
 ## 1. Configurer le projectId (première fois uniquement)
 
-Les `app.json` contiennent des projectId placeholders. Remplace-les par ton vrai projectId Expo, ou configure le projet automatiquement :
+Le `app.json` contient le projectId du projet Expo. Pour un nouveau projet :
 
 ```bash
-cd mobile/consumer
+cd mobile/app
 eas configure  # ou eas init pour créer un nouveau projet Expo
 ```
 
 ## 2. Build APK pour EC2
 
-Avant de builder, remplace `YOUR_EC2_PUBLIC_IP` dans `mobile/consumer/eas.json` et `mobile/provider/eas.json` par l'IP publique réelle de ton serveur EC2.
+Avant de builder, vérifie `EXPO_PUBLIC_API_BASE_URL` dans `mobile/app/eas.json` (profil `ec2`).
 
-**Consumer** :
 ```bash
-cd mobile/consumer
+cd mobile/app
 npm run build:apk
 # ou directement :
 # eas build --platform android --profile ec2
 ```
 
-**Provider** :
-```bash
-cd mobile/provider
-npm run build:apk
-```
-
-> Le profil `ec2` génère un APK installable directement (`android.buildType: "apk"`) et pointe vers ton serveur EC2.
+> Le profil `ec2` génère un APK installable directement (`android.buildType: "apk"`) et pointe vers le serveur de production.
 
 ## 3. Récupérer et installer l'APK
 
-1. **Téléchargement** — EAS te donne un lien de téléchargement à la fin du build (~5-10 min)
+1. **Téléchargement** — EAS donne un lien de téléchargement à la fin du build (~5-10 min)
 2. **Partage** — Envoie le lien par WhatsApp / email aux testeurs
 3. **Installation** — Sur Android :
    - Autorise **"Sources inconnues"** dans les paramètres du navigateur
@@ -53,6 +46,7 @@ npm run build:apk
 ## 4. Build pour production (Google Play — AAB)
 
 ```bash
+cd mobile/app
 eas build --platform android --profile production
 ```
 
@@ -63,19 +57,15 @@ Génère un `.aab` (Android App Bundle) à uploader sur la Google Play Console.
 | Commande | Description |
 |----------|-------------|
 | `npm run build:apk` | APK interne, pointe vers EC2 |
-| `npx expo start` | Dev local avec Expo Go (pas d'APK) |
+| `npx expo start` | Dev local (pas d'APK) |
 | `expo run:android` | Build local Android (nécessite Android SDK) |
 
-## Profils EAS configurés
+## Profils EAS configurés (`mobile/app/eas.json`)
 
-### Consumer (`mobile/consumer/eas.json`)
 - `development` — Dev client (hot reload)
 - `preview` — Build interne iOS/Android (staging)
-- `ec2` — APK Android interne (API EC2) ← **profil par défaut pour tests terrain**
+- `ec2` — APK Android interne (API production) ← **profil par défaut pour tests terrain**
 - `production` — AAB + auto-increment version
-
-### Provider (`mobile/provider/eas.json`)
-- Mêmes profils que consumer
 
 ## Notes
 

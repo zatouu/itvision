@@ -81,6 +81,7 @@ export interface WalletData {
   points: number
   reservedPoints: number
   cashBalance: number
+  escrow: number
   lifetimePointsEarned: number
   lifetimePointsSpent: number
   config: WalletConfig

@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { getAuthUser, updateAuthUser } from '../src/auth'
+import { loadMode, homeRouteForMode } from '../src/mode'
 import { apiPatch } from '../src/api'
 import { humanErrorMessage } from '../src/errorMessages'
 import { hapticSuccess, hapticError } from '../src/haptics'
@@ -34,7 +35,7 @@ function SetupProfile() {
       await apiPatch('/api/users/me', body)
       await updateAuthUser({ name: trimmedName, phone: phone.trim(), isNew: false })
       hapticSuccess()
-      router.replace('/')
+      router.replace(homeRouteForMode(await loadMode()) as any)
     } catch (e: any) {
       hapticError()
       setErr(humanErrorMessage(e))

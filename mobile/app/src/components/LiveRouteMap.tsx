@@ -23,6 +23,7 @@ export interface LiveRouteMapProps {
   fitPadding?: { top: number; right: number; bottom: number; left: number }
   fitTrigger?: number
   onRouteInfo?: (info: { distance: string; duration: string; distanceValue: number; durationValue: number }) => void
+  interactive?: boolean
 }
 
 const ROUTE_REFRESH_MIN_MS = 20000
@@ -96,6 +97,7 @@ function LiveRouteMapComponent({
   fitPadding = DEFAULT_FIT_PADDING,
   fitTrigger,
   onRouteInfo,
+  interactive = true,
 }: LiveRouteMapProps) {
   const { t } = useTranslation()
   const mapRef = useRef<MapView>(null)
@@ -106,7 +108,6 @@ function LiveRouteMapComponent({
   const lastFetchOrigin = useRef<{ lat: number; lng: number } | null>(null)
   const pendingFetch = useRef<ReturnType<typeof setTimeout> | null>(null)
   const headingAnim = useRef(new Animated.Value(0)).current
-  // Stable AnimatedRegion so the marker can be animated without re-creating the native marker
   const animatedRegion = useRef(
     new AnimatedRegion({ latitude: destination.lat, longitude: destination.lng, latitudeDelta: 0, longitudeDelta: 0 })
   ).current
@@ -125,7 +126,7 @@ function LiveRouteMapComponent({
   routeRef.current = route
 
   const hasRoute = !!route?.polyline?.length
-  const isTracking = status === 'provider_arriving' || status === 'in_progress' || status === 'assigned'
+  const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute'].includes(status || '')
   const showVehicle = isTracking && activeOrigin
 
   const computeRouteFallback = useCallback(() => {
@@ -145,7 +146,6 @@ function LiveRouteMapComponent({
     async (animated = true) => {
       if (!mapRef.current || fitToRouteLock.current) return
       fitToRouteLock.current = true
-      // small delay to avoid concurrent fitToCoordinates calls on Android
       await new Promise(resolve => setTimeout(resolve, 50))
       const originPt = activeOriginRef.current
       const routePt = routeRef.current
@@ -174,7 +174,6 @@ function LiveRouteMapComponent({
       pendingFetch.current = setTimeout(() => fetchRoute(), ROUTE_REFRESH_MIN_MS - (now - lastFetchAt.current))
       return
     }
-    // Save API quota: skip refetch if provider barely moved since last successful route
     if (lastFetchOrigin.current) {
       const movedM = haversineKm(lastFetchOrigin.current, activeOrigin) * 1000
       if (movedM < ROUTE_REFETCH_MIN_MOVE_M) return
@@ -185,7 +184,6 @@ function LiveRouteMapComponent({
     try {
       const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
       if (!apiKey) {
-        // Silent fallback: keep a straight-line distance/ETA, no polyline
         throw new Error('Google Maps API key missing')
       }
       const url =
@@ -216,7 +214,6 @@ function LiveRouteMapComponent({
         })
       }
     } catch (e: any) {
-      // Do not surface API-key / quota errors as a permanent error badge
       const isApiKeyMissing = e?.message?.toLowerCase().includes('api key missing')
       const fallback = computeRouteFallback()
       if (!isApiKeyMissing) {
@@ -231,7 +228,6 @@ function LiveRouteMapComponent({
     }
   }, [activeOrigin, destination, mode, onRouteInfo, t, computeRouteFallback])
 
-  // Schedule route refresh every ROUTE_REFRESH_MIN_MS while tracking
   // (ne redémarre PAS à chaque tick GPS : fetchRoute lue via ref)
   const fetchRouteRef = useRef(fetchRoute)
   fetchRouteRef.current = fetchRoute
@@ -251,7 +247,6 @@ function LiveRouteMapComponent({
     }
   }, [hasOrigin])
 
-  // Animate provider marker position with short, smooth transitions
   useEffect(() => {
     if (!activeOrigin) return
     animatedRegion.timing({
@@ -265,7 +260,6 @@ function LiveRouteMapComponent({
     } as any).start()
   }, [activeOrigin, animatedRegion])
 
-  // Animate heading using the shortest rotation path
   useEffect(() => {
     if (providerLocation?.heading == null) return
     const heading = Number(providerLocation.heading)
@@ -321,6 +315,12 @@ function LiveRouteMapComponent({
           mapType="standard"
           maxZoomLevel={15}
           minDelta={0.01}
+          scrollEnabled={interactive}
+          zoomEnabled={interactive}
+          pitchEnabled={interactive}
+          rotateEnabled={interactive}
+          moveOnMarkerPress={interactive}
+          pointerEvents={interactive ? 'auto' : 'none'}
         >
           <Marker coordinate={{ latitude: destination.lat, longitude: destination.lng }}>
             <View style={s.destinationMarker}>
@@ -387,6 +387,8 @@ function LiveRouteMapComponent({
   )
 }
 
+export const LiveRouteMap = React.memo(LiveRouteMapComponent)
+
 const s = StyleSheet.create({
   outerContainer: {
     width: '100%',
@@ -403,7 +405,8 @@ const s = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -519,5 +522,3 @@ const s = StyleSheet.create({
     elevation: 4,
   },
 })
-
-export const LiveRouteMap = React.memo(LiveRouteMapComponent)

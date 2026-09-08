@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { setAuth } from '../src/auth'
 import { resetSocket } from '../src/socket'
+import { loadMode, homeRouteForMode } from '../src/mode'
 import { apiPost } from '../src/api'
 import { humanErrorMessage } from '../src/errorMessages'
 import * as Constants from 'expo-constants'
@@ -19,7 +20,7 @@ const CODE_LENGTH = 6
 
 function VerifyOtp() {
   const { t } = useTranslation()
-  const { phone, _devCode } = useLocalSearchParams<{ phone: string; _devCode?: string }>()
+  const { phone, _devCode, role } = useLocalSearchParams<{ phone: string; _devCode?: string; role?: string }>()
   const [code, setCode] = useState('')
   const [referralCode, setReferralCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,11 +37,12 @@ function VerifyOtp() {
     setLoading(true)
     try {
       const deviceId = Device.osBuildId || Device.modelName || Constants.default?.expoConfig?.slug || 'unknown-device'
-      const data = await apiPost('/api/auth/mobile/verify-otp', { phone, code, role: 'CLIENT', referralCode: referralCode || undefined, deviceId })
+      const data = await apiPost('/api/auth/mobile/verify-otp', { phone, code, role: role === 'PROVIDER' ? 'PROVIDER' : 'CLIENT', referralCode: referralCode || undefined, deviceId })
       await setAuth(data.accessToken || data.token, data.user, data.refreshToken, deviceId)
       resetSocket()
       hapticSuccess()
-      router.replace(data.user?.isNew ? '/setup-profile' : '/')
+      const mode = await loadMode()
+      router.replace((data.user?.isNew ? '/setup-profile' : homeRouteForMode(mode)) as any)
     } catch (e: any) {
       hapticError()
       console.error('[verify-otp] Erreur:', e)

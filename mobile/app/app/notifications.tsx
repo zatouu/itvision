@@ -26,7 +26,11 @@ type FilterKey = 'all' | 'offer' | 'mission' | 'info'
 
 const KIND_GROUP: Record<Notification['kind'], FilterKey> = {
   'offer-received': 'offer',
+  'offer-accepted': 'offer',
+  'offer-rejected': 'offer',
+  'offer-counter': 'offer',
   'request-assigned': 'mission',
+  'request-new': 'mission',
   'request-status-changed': 'mission',
   'mission-update': 'mission',
   'info': 'info',

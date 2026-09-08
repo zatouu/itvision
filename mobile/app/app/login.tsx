@@ -7,13 +7,14 @@ import { apiPost } from '../src/api'
 import { humanErrorMessage } from '../src/errorMessages'
 import { hapticSelect, hapticError } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
-import { ArrowRight, ShieldCheck, Handshake, Star } from 'lucide-react-native'
+import { ArrowRight, ShieldCheck, Handshake, Star, Wrench } from 'lucide-react-native'
 import Button from '../src/components/Button'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
 function Login() {
   const { t, i18n } = useTranslation()
   const [phone, setPhone] = useState('')
+  const [asProvider, setAsProvider] = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -27,9 +28,10 @@ function Login() {
     }
     setLoading(true)
     try {
-      const data = await apiPost('/api/auth/mobile/send-otp', { phone: cleaned, role: 'CLIENT' })
+      const role = asProvider ? 'PROVIDER' : 'CLIENT'
+      const data = await apiPost('/api/auth/mobile/send-otp', { phone: cleaned, role })
       hapticSelect()
-      router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '' } })
+      router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '', role } })
     } catch (e: any) {
       setErr(humanErrorMessage(e))
       hapticError()
@@ -83,6 +85,18 @@ function Login() {
           <Text style={s.hint}>{t('auth.hint')}</Text>
 
           {err && <Text style={s.errText}>{err}</Text>}
+
+          {/* Choix inscription prestataire (ignoré pour les comptes existants) */}
+          <TouchableOpacity
+            style={[s.providerToggle, asProvider && s.providerToggleActive]}
+            onPress={() => { hapticSelect(); setAsProvider(v => !v) }}
+            activeOpacity={0.7}
+          >
+            <Wrench size={15} color={asProvider ? '#fff' : colors.primary} />
+            <Text style={[s.providerToggleText, asProvider && s.providerToggleTextActive]}>
+              {t('auth.iAmProvider', { defaultValue: 'Je suis un prestataire' })}
+            </Text>
+          </TouchableOpacity>
 
           <View style={{ marginTop: 4 }}>
             <Button
@@ -157,6 +171,10 @@ const s = StyleSheet.create({
   phoneInput: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14, fontSize: 18, fontWeight: '600', color: colors.text, backgroundColor: colors.surface, letterSpacing: 1 },
   hint: { fontSize: 11.5, color: colors.textMuted, marginTop: 8 },
   errText: { fontSize: 13, color: colors.danger, textAlign: 'center', fontWeight: '600', marginTop: 8 },
+  providerToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 14, marginBottom: 10, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
+  providerToggleActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  providerToggleText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  providerToggleTextActive: { color: '#fff' },
   trustCard: { marginTop: 24, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.borderSoft, padding: 14, gap: 12 },
   trustRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   trustIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

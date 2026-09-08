@@ -7,6 +7,7 @@ import { apiGet, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { connectSocket, joinMissionChat, leaveMissionChat } from '../src/socket'
 import { getAuthUser } from '../src/auth'
+import { getMode } from '../src/mode'
 import { toast } from '../src/toast'
 import { ArrowLeft, Send, Phone, MessageCircle } from 'lucide-react-native'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
@@ -62,7 +63,10 @@ function formatDay(dateStr: string, t: (k: string) => string) {
 
 function MissionChat() {
   const { t } = useTranslation()
-  const { id, providerName, providerPhone } = useLocalSearchParams<{ id: string; providerName?: string; providerPhone?: string }>()
+  // L'écran est partagé client/prestataire : le provider passe clientName/clientPhone
+  const { id, providerName, providerPhone, clientName, clientPhone } = useLocalSearchParams<{
+    id: string; providerName?: string; providerPhone?: string; clientName?: string; clientPhone?: string
+  }>()
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -70,6 +74,8 @@ function MissionChat() {
   const flatListRef = useRef<FlatList>(null)
   const currentUser = getAuthUser()
   const myId = currentUser?._id || ''
+  // Côté prestataire si params client ou si l'app est en mode provider
+  const viewerRole: 'client' | 'provider' = (clientName || clientPhone || getMode() === 'provider') ? 'provider' : 'client'
 
   const loadMessages = useCallback(async () => {
     if (!id) return
@@ -120,7 +126,7 @@ function MissionChat() {
     const optimistic: Message = {
       _id: `local-${Date.now()}`,
       senderId: myId,
-      senderRole: 'client',
+      senderRole: viewerRole,
       text: trimmed,
       createdAt: new Date().toISOString(),
       pending: true,
@@ -146,7 +152,7 @@ function MissionChat() {
   }
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isMe = item.senderId === myId || item.senderRole === 'client'
+    const isMe = item.senderId === myId || (!myId && item.senderRole === viewerRole)
     const showDate = index === 0 || !isSameDay(item.createdAt, messages[index - 1].createdAt)
     return (
       <View>
@@ -163,8 +169,12 @@ function MissionChat() {
     )
   }
 
-  const otherName = providerName || t('mission.defaultProvider') || 'Prestataire'
-  const hasPhone = !!providerPhone
+  const isProviderView = viewerRole === 'provider'
+  const otherName = isProviderView
+    ? (clientName || t('chat.defaultClient') || 'Client')
+    : (providerName || t('mission.defaultProvider') || 'Prestataire')
+  const otherPhone = isProviderView ? clientPhone : providerPhone
+  const hasPhone = !!otherPhone
 
   return (
     <SafeAreaView style={st.safe}>
@@ -177,14 +187,14 @@ function MissionChat() {
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={st.headerTitle} numberOfLines={1}>{otherName}</Text>
-          <Text style={st.headerSub} numberOfLines={1}>{hasPhone ? providerPhone : t('chat.title')}</Text>
+          <Text style={st.headerSub} numberOfLines={1}>{hasPhone ? otherPhone : t('chat.title')}</Text>
         </View>
         {hasPhone && (
           <View style={st.headerActions}>
-            <TouchableOpacity style={st.headerAction} onPress={() => callPhone(providerPhone)} activeOpacity={0.7}>
+            <TouchableOpacity style={st.headerAction} onPress={() => callPhone(otherPhone)} activeOpacity={0.7}>
               <Phone size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={st.headerAction} onPress={() => openWhatsApp(providerPhone)} activeOpacity={0.7}>
+            <TouchableOpacity style={st.headerAction} onPress={() => openWhatsApp(otherPhone)} activeOpacity={0.7}>
               <MessageCircle size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>

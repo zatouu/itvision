@@ -59,7 +59,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
     }
 
-    if (user.role !== 'TECHNICIAN') {
+    // Capacité prestataire = rôle provider OU présence d'un ProviderProfile (jamais le rôle seul)
+    const isProvider = user.role === 'TECHNICIAN' || user.role === 'PROVIDER' || !!user.providerProfileId
+    if (!isProvider) {
       return NextResponse.json({ error: 'Réservé aux prestataires' }, { status: 403 })
     }
 
@@ -121,7 +123,8 @@ export async function PATCH(request: NextRequest) {
 
     const user = await User.findById(userId)
     if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
-    if ((user as any).role !== 'TECHNICIAN') {
+    const isProvider = (user as any).role === 'TECHNICIAN' || (user as any).role === 'PROVIDER' || !!(user as any).providerProfileId
+    if (!isProvider) {
       return NextResponse.json({ error: 'Réservé aux prestataires' }, { status: 403 })
     }
 

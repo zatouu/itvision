@@ -2,11 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { connectSocket } from './socket'
 import { scheduleLocalNotification, scheduleReminderAt } from './push'
 import { apiGet } from './api'
+import { getAuthUser, getUserIdFromToken } from './auth'
+import { isProviderCapable } from './mode'
 
 export type NotificationKind =
   | 'offer-received'
   | 'request-assigned'
   | 'request-status-changed'
+  | 'request-new'
+  | 'offer-accepted'
+  | 'offer-rejected'
+  | 'offer-counter'
   | 'mission-update'
   | 'info'
 
@@ -21,7 +27,7 @@ export interface Notification {
   link?: { pathname: string; params?: Record<string, string> }
 }
 
-const STORAGE_KEY = 'notifications:consumer'
+const STORAGE_KEY = 'notifications'
 const MAX_KEEP = 60
 
 let cache: Notification[] = []
@@ -214,11 +220,22 @@ export function resetNotificationBinding() {
   boundHandlers = {}
 }
 
+/** L'utilisateur courant est-il le client (plutôt que le prestataire) de cette mission ? */
+function isClientSide(payload: any): boolean {
+  const uid = getUserIdFromToken() || getAuthUser()?._id
+  if (uid && payload?.clientId && String(payload.clientId) === String(uid)) return true
+  if (uid && payload?.providerId && String(payload.providerId) === String(uid)) return false
+  // Fallback : si le user n'est pas prestataire, il est forcément côté client
+  return !isProviderCapable()
+}
+
 /** À appeler une fois (depuis _layout) pour brancher les events WS au store. */
 export function bindNotificationSocket() {
   if (wsBound) return
   wsBound = true
   const socket = connectSocket()
+
+  // ── Côté client ──────────────────────────────────────────────────────────
 
   const onOfferReceived = (payload: any) => {
     const requestId = String(payload?.requestId || '')
@@ -256,34 +273,105 @@ export function bindNotificationSocket() {
     }
   }
 
+  // ── Côté prestataire ─────────────────────────────────────────────────────
+
+  const onRequestNew = (payload: any) => {
+    const category = typeof payload?.category === 'string' ? payload.category : null
+    const desc = typeof payload?.description === 'string' ? payload.description.slice(0, 80) : null
+    pushNotification({
+      kind: 'request-new',
+      title: category ? `Nouvelle demande — ${category}` : 'Nouvelle demande proche',
+      body: desc || 'Un client vient de publier une demande dans votre zone.',
+      link: { pathname: '/pro/nearby-requests' },
+    })
+  }
+
+  const onOfferAccepted = (payload: any) => {
+    const requestId = String(payload?.requestId || '')
+    const scheduledAt = payload?.scheduledFor ? new Date(payload.scheduledFor) : null
+    const isScheduled = scheduledAt && scheduledAt.getTime() > Date.now()
+    pushNotification({
+      kind: 'offer-accepted',
+      title: 'Offre acceptée',
+      body: isScheduled
+        ? `Mission confirmée pour le ${scheduledAt!.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${scheduledAt!.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`
+        : 'Un client a choisi votre offre. La mission démarre.',
+      link: requestId ? { pathname: `/pro/active-mission/${requestId}` } : { pathname: '/pro/my-offers' },
+    })
+    // Rappel local 1h avant le créneau convenu
+    if (isScheduled && scheduledAt) {
+      const reminderAt = new Date(scheduledAt.getTime() - 60 * 60 * 1000)
+      const slot = `${scheduledAt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })} ${scheduledAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+      void scheduleReminderAt(
+        '⏰ Mission dans 1 heure',
+        `Vous avez une mission prévue à ${slot}. Préparez votre départ.`,
+        reminderAt,
+        { type: 'mission-reminder', requestId }
+      )
+    }
+  }
+
+  const onOfferRejected = () => {
+    pushNotification({
+      kind: 'offer-rejected',
+      title: 'Offre refusée',
+      body: 'Le client a sélectionné un autre prestataire.',
+      link: { pathname: '/pro/my-offers' },
+    })
+  }
+
+  const onOfferCounter = (payload: any) => {
+    const price = Number(payload?.clientCounterPrice || 0)
+    pushNotification({
+      kind: 'offer-counter',
+      title: '💬 Contre-offre client',
+      body: price > 0 ? `Le client propose ${price.toLocaleString('fr-FR')} FCFA` : 'Le client a fait une contre-offre',
+      link: { pathname: '/pro/my-offers' },
+    })
+  }
+
+  // ── Partagé : changements de statut + chat ───────────────────────────────
+
   const onStatusChanged = (payload: any) => {
     const requestId = String(payload?.requestId || '')
     const status = String(payload?.status || '').toLowerCase()
     if (!status) return
-    const map: Record<string, { title: string; body: string }> = {
-      provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
-      in_progress: { title: 'Intervention démarrée', body: 'Le prestataire a démarré la mission.' },
-      completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
-      cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
-    }
+    const clientSide = isClientSide(payload)
+    const map: Record<string, { title: string; body: string }> = clientSide
+      ? {
+          provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
+          in_progress: { title: 'Intervention démarrée', body: 'Le prestataire a démarré la mission.' },
+          completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
+          cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
+        }
+      : {
+          provider_arriving: { title: '🚗 En route', body: 'Vous avez indiqué être en route vers le client.' },
+          cancelled: { title: 'Mission annulée par le client', body: 'La mission a été annulée.' },
+        }
     const meta = map[status]
     if (!meta) return
     pushNotification({
       kind: 'request-status-changed',
       title: meta.title,
       body: meta.body,
-      link: requestId ? { pathname: `/mission/${requestId}` } : undefined,
+      link: requestId
+        ? { pathname: clientSide ? `/mission/${requestId}` : `/pro/active-mission/${requestId}` }
+        : undefined,
     })
   }
 
   const onChatMessage = (payload: any) => {
     const requestId = String(payload?.requestId || '')
     const senderRole = String(payload?.senderRole || '')
-    if (senderRole === 'client') return
+    // Ignorer ses propres messages (le socket de l'expéditeur est aussi dans la room)
+    const uid = getUserIdFromToken() || getAuthUser()?._id
+    if (uid && payload?.senderId && String(payload.senderId) === String(uid)) return
     pushNotification({
       kind: 'mission-update',
       title: '💬 Nouveau message',
-      body: 'Le prestataire vous a envoyé un message.',
+      body: senderRole === 'client'
+        ? 'Le client vous a envoyé un message.'
+        : 'Le prestataire vous a envoyé un message.',
       link: requestId ? { pathname: `/mission-chat`, params: { id: requestId } } : undefined,
     })
   }
@@ -291,7 +379,12 @@ export function bindNotificationSocket() {
   boundHandlers = {
     'user:offer-received': onOfferReceived,
     'user:request-assigned': onRequestAssigned,
+    'request:nearby': onRequestNew,
+    'offer:accepted': onOfferAccepted,
+    'offer:rejected': onOfferRejected,
+    'offer:counter': onOfferCounter,
     'request:status-changed': onStatusChanged,
+    'mission:status-changed': onStatusChanged,
     'chat:message': onChatMessage,
   }
 

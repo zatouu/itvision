@@ -13,7 +13,7 @@ const CODE_MESSAGES: Record<string, string> = {
   TRANSITION_FORBIDDEN: "Cette action n'est plus possible car la demande a évolué.",
   ai_disabled: "L'assistant IA est indisponible pour le moment.",
   quota_exceeded: "Vous avez utilisé vos aides IA gratuites du jour. Réessayez demain ou rechargez des XC.",
-  insufficient_points: "Solde XC insuffisant pour utiliser l'assistant IA. Rechargez votre portefeuille.",
+  insufficient_points: "Solde XC insuffisant pour utiliser l'assistant IA. Rechargez vos XC.",
 }
 
 const GENERIC_ERROR = 'Une erreur est survenue. Veuillez réessayer.'

@@ -152,15 +152,19 @@ export async function apiGetRetry(path: string, maxRetries = 2) {
   return apiGet(path, maxRetries)
 }
 
-export async function apiPost(path: string, body: Record<string, unknown>) {
+export async function apiPost(path: string, body: Record<string, unknown>, maxRetries = 1) {
   const doFetch = () => fetchWithRetry(base + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
-  }, 1)
+  }, maxRetries)
   const r = await doFetch()
   const finalRes = await handleStatus(r, doFetch)
   return finalRes.json()
+}
+
+export async function getCreditPacks() {
+  return apiGet('/api/wallet/packs')
 }
 
 export async function apiPatch(path: string, body: Record<string, unknown>) {

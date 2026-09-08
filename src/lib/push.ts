@@ -236,7 +236,8 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
     }
 
     const query: any = { userId }
-    if (message.appType) query.appType = message.appType
+    // 'unified' = app fusionnée : ses tokens reçoivent les push des deux audiences
+    if (message.appType) query.appType = { $in: [message.appType, 'unified'] }
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
       console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
@@ -248,7 +249,8 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       to: t.token,
       title: message.title,
       body: message.body,
-      data: message.data || {},
+      // audience permet à l'app fusionnée de résoudre le lien vers le bon côté (client/provider)
+      data: { ...(message.data || {}), audience: message.appType },
       sound: message.sound ?? 'default',
       badge: message.badge,
       channelId: message.channelId || 'default',
@@ -280,7 +282,7 @@ export async function sendPushToUsers(userIds: string[], message: PushMessage): 
 export async function sendPushToAllProviders(message: PushMessage, excludeUserId?: string): Promise<PushResult> {
   try {
     await connectMongoose()
-    const query: any = { appType: 'provider' }
+    const query: any = { appType: { $in: ['provider', 'unified'] } }
     if (excludeUserId) query.userId = { $ne: excludeUserId }
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
@@ -293,7 +295,8 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
       to: t.token,
       title: message.title,
       body: message.body,
-      data: message.data || {},
+      // audience 'provider' explicite pour l'app fusionnée
+      data: { ...(message.data || {}), audience: 'provider' },
       sound: message.sound ?? 'default',
       channelId: message.channelId || 'services',
       priority: 'high',

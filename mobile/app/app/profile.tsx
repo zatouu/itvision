@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, Tex
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { apiGet, apiGetRetry, apiUpload, apiPatch, logoutApi } from '../src/api'
+import { apiGet, apiGetRetry, apiUpload, apiPatch, apiPost, logoutApi } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import SideMenu from '../src/components/SideMenu'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
@@ -16,6 +16,8 @@ import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { ChevronRight, Camera, Menu, Pencil, Phone } from 'lucide-react-native'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
+import { isProviderCapable, setMode } from '../src/mode'
+import { confirm } from '../src/confirm'
 
 function Profile() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -237,6 +239,25 @@ function Profile() {
         <View style={s.menuGroup}>
           {menuItem(t('profile.wallet'), () => router.push('/wallet'))}
           {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
+          {!isProviderCapable() && menuItem(
+            t('profile.becomeProvider', { defaultValue: 'Devenir prestataire' }),
+            async () => {
+              const ok = await confirm(
+                t('profile.becomeProviderTitle', { defaultValue: 'Devenir prestataire' }),
+                t('profile.becomeProviderMsg', { defaultValue: 'Activez votre espace prestataire pour recevoir des demandes de services près de chez vous.' })
+              )
+              if (!ok) return
+              try {
+                const r: any = await apiPost('/api/users/me/provider', {})
+                if (r?.providerProfileId) await updateAuthUser({ providerProfileId: r.providerProfileId })
+                await setMode('provider')
+                toast.success(t('profile.providerActivated', { defaultValue: 'Espace prestataire activé' }), '')
+                router.replace('/pro-home' as any)
+              } catch (e: any) {
+                toast.error('Erreur', humanErrorMessage(e))
+              }
+            }
+          )}
         </View>
 
         {/* Language */}

@@ -73,3 +73,5 @@ tests/.auth/
 .commit-msg
 *.code-workspace
 mobile/*/proposals/
+
+*.apk
