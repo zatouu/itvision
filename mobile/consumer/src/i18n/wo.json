@@ -663,7 +663,19 @@
     "compare": "Méddel offre yi",
     "proposesSlot": "Dafay jël {{slot}}",
     "askedSlot": "laajoon : {{slot}}",
-    "confirmsSlot": "Dëggal na : {{slot}}"
+    "confirmsSlot": "Dëggal na : {{slot}}",
+    "requestRef": "Laaj {{ref}}",
+    "searchOngoing": "ñu ngi wàcci seet",
+    "providersViewing": "Amul prestataire",
+    "providersViewing_one": "Prestataire {{count}} moy seet",
+    "providersViewing_other": "Prestataire {{count}} ñooy seet",
+    "remainingTime": "Des na ~{{minutes}} min",
+    "seeMap": "Seet kàrt",
+    "providersPreparing_one": "Prestataire {{count}} dafay waajal offre",
+    "providersPreparing_other": "Prestataire {{count}} ñooy waajal offre",
+    "moreOffersComing": "Prestataire yi ñooy seet sa laaj",
+    "offersArriveSoon": "Offre yi ñëw nañu léegi",
+    "bestPrice": "Njëg gi gën a baax"
   },
   "clientProvider": {
     "title": "Benn liggéeykat",

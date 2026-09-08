@@ -1,5 +1,4 @@
 export { default as VoiceMessagePill } from './VoiceMessagePill'
-export { default as LiveStatusBar } from './LiveStatusBar'
 export { default as RequestSummaryCard } from './RequestSummaryCard'
 export { default as SortingPillsRow } from './SortingPillsRow'
 export type { SortKey } from './SortingPillsRow'

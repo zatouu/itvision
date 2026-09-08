@@ -663,7 +663,19 @@
     "compare": "Compare selected offers",
     "proposesSlot": "Proposes {{slot}}",
     "askedSlot": "requested: {{slot}}",
-    "confirmsSlot": "Commits: {{slot}}"
+    "confirmsSlot": "Commits: {{slot}}",
+    "requestRef": "Request {{ref}}",
+    "searchOngoing": "still searching",
+    "providersViewing": "No provider online",
+    "providersViewing_one": "{{count}} provider viewing",
+    "providersViewing_other": "{{count}} providers viewing",
+    "remainingTime": "~{{minutes}} min left",
+    "seeMap": "See map",
+    "providersPreparing_one": "{{count}} provider is preparing an offer",
+    "providersPreparing_other": "{{count}} providers are preparing an offer",
+    "moreOffersComing": "Providers are viewing your request",
+    "offersArriveSoon": "Estimated arrival in the next minutes",
+    "bestPrice": "Best price"
   },
   "clientProvider": {
     "title": "Provider detail",

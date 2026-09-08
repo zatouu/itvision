@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native'
 import { Image } from 'expo-image'
 import { useTranslation } from 'react-i18next'
-import { Star, Check, Clock, MessageCircle, CalendarClock } from 'lucide-react-native'
+import { Star, Check, Clock, MessageCircle, CalendarClock, Sparkles } from 'lucide-react-native'
 import { colors, spacing, radius, typography, shadows } from '../../design'
 import { hapticSuccess } from '../../haptics'
 import { formatSlot } from '../SchedulePicker'
@@ -30,6 +30,8 @@ export type Offer = {
 type Props = {
   offer: Offer
   isBest: boolean
+  /** Offre la moins chère de la liste → chip « Meilleur prix » */
+  isCheapest?: boolean
   budget?: number
   /** Créneau demandé par le client (request.scheduledFor, ISO) */
   scheduledFor?: string
@@ -56,7 +58,7 @@ function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) 
   )
 }
 
-export default function OfferCard({ offer, isBest, budget, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
+export default function OfferCard({ offer, isBest, isCheapest, budget, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
   const { t, i18n } = useTranslation()
   const slideAnim = useRef(new Animated.Value(offer.isNew ? 50 : 0)).current
   const fadeAnim = useRef(new Animated.Value(offer.isNew ? 0 : 1)).current
@@ -87,6 +89,7 @@ export default function OfferCard({ offer, isBest, budget, scheduledFor, onChoos
     >
       {isBest && (
         <View style={s.bestRibbon}>
+          <Sparkles size={11} color="#fff" />
           <Text style={s.bestRibbonText}>{t('clientOffers.bestChoice')}</Text>
         </View>
       )}
@@ -161,16 +164,30 @@ export default function OfferCard({ offer, isBest, budget, scheduledFor, onChoos
 
       {/* Message quote */}
       {offer.message ? (
-        <Text style={s.message} numberOfLines={2}>"{offer.message}"</Text>
+        <View style={s.messageBox}>
+          <Text style={s.message} numberOfLines={3}>« {offer.message} »</Text>
+        </View>
       ) : null}
 
-      {/* ETA */}
-      {offer.etaMinutes != null && (
-        <View style={s.etaRow}>
-          <Clock size={13} color={colors.textSecondary} />
-          <Text style={s.etaText}>{t('clientOffers.arrivesIn', { minutes: offer.etaMinutes })}</Text>
-        </View>
-      )}
+      {/* Méta chips : ETA + meilleur prix */}
+      <View style={s.pillsRow}>
+        {offer.etaMinutes != null && (
+          <View style={s.metaChip}>
+            <Clock size={11} color={colors.text} />
+            <Text style={s.metaChipText}>{t('clientOffers.minEta', { minutes: offer.etaMinutes })}</Text>
+          </View>
+        )}
+        {isCheapest && (
+          <View style={s.metaChipGreen}>
+            <Text style={s.metaChipGreenText}>{t('clientOffers.bestPrice', { defaultValue: 'Meilleur prix' })}</Text>
+          </View>
+        )}
+        {offer.distanceKm != null && offer.distanceKm < 99 && (
+          <View style={s.metaChip}>
+            <Text style={s.metaChipText}>{offer.distanceKm < 1 ? `${Math.round(offer.distanceKm * 1000)} m` : `${offer.distanceKm.toFixed(1)} km`}</Text>
+          </View>
+        )}
+      </View>
 
       {/* Créneau : engagement / contre-proposition horaire */}
       {(() => {
@@ -239,7 +256,7 @@ export default function OfferCard({ offer, isBest, budget, scheduledFor, onChoos
               <MessageCircle size={16} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.chooseBtn, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
+              style={[s.chooseBtn, { backgroundColor: isBest ? colors.primary : colors.ink }, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
               onPress={() => onChoose(offer)}
               activeOpacity={0.85}
               disabled={disabled || hasAcceptedOffer}
@@ -264,24 +281,32 @@ const s = StyleSheet.create({
     ...shadows.sm,
   },
   cardBest: {
-    borderColor: colors.success,
-    borderWidth: 2,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
   },
   bestRibbon: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.success,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
+    position: 'absolute',
+    top: -10,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    marginBottom: spacing.sm,
-    marginTop: -spacing.xs,
-    marginRight: -spacing.xs,
+    zIndex: 2,
   },
   bestRibbonText: {
     fontSize: 10,
     color: colors.surface,
     fontWeight: typography.weight.extrabold as any,
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   newBadge: {
     alignSelf: 'flex-start',
@@ -399,12 +424,43 @@ const s = StyleSheet.create({
     color: colors.primary,
     fontWeight: typography.weight.semibold as any,
   },
+  messageBox: {
+    marginTop: spacing.md,
+    backgroundColor: colors.bg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
   message: {
     fontSize: typography.sm.fontSize,
-    color: colors.textSecondary,
+    color: colors.text,
     fontStyle: 'italic',
-    marginTop: spacing.sm,
     lineHeight: 18,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.bgDeep,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaChipText: {
+    fontSize: 10.5,
+    color: colors.text,
+    fontWeight: typography.weight.bold as any,
+  },
+  metaChipGreen: {
+    backgroundColor: colors.brandSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaChipGreenText: {
+    fontSize: 10.5,
+    color: colors.brandInk,
+    fontWeight: typography.weight.bold as any,
   },
   etaRow: {
     flexDirection: 'row',
@@ -465,7 +521,6 @@ const s = StyleSheet.create({
   },
   chooseBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
     borderRadius: radius.lg,
     paddingVertical: 12,
     alignItems: 'center',

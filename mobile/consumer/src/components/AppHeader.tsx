@@ -5,6 +5,7 @@ import { colors, spacing, typography } from '../design'
 
 type Props = {
   title?: string
+  subtitle?: string
   onBack?: () => void
   right?: React.ReactNode
   showBell?: boolean
@@ -14,7 +15,7 @@ type Props = {
   left?: React.ReactNode
 }
 
-export default function AppHeader({ title, onBack, right, showBell, onBell, badge, transparent, left }: Props) {
+export default function AppHeader({ title, subtitle, onBack, right, showBell, onBell, badge, transparent, left }: Props) {
   const insets = useSafeAreaInsets()
   return (
     <View style={[s.header, { paddingTop: insets.top + spacing.sm }, transparent && s.transparent]}>
@@ -27,7 +28,12 @@ export default function AppHeader({ title, onBack, right, showBell, onBell, badg
           left || <View style={s.placeholder} />
         )}
       </View>
-      {title ? <Text style={s.title}>{title}</Text> : null}
+      {title ? (
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={s.title}>{title}</Text>
+          {subtitle ? <Text style={s.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
+        </View>
+      ) : null}
       <View style={[s.side, s.right]}>
         {right}
         {showBell ? (
@@ -63,6 +69,13 @@ const s = StyleSheet.create({
     fontWeight: typography.weight.extrabold as any,
     color: colors.text,
     textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: typography.xs.fontSize,
+    color: colors.textMuted,
+    fontWeight: typography.weight.semibold as any,
+    textAlign: 'center',
+    marginTop: 1,
   },
   iconBtn: {
     width: 40,

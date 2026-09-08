@@ -1,9 +1,9 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, AppState } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, AppState, Modal, Animated, Easing } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { SlidersHorizontal, Pencil, XCircle, CheckCircle, Clock } from 'lucide-react-native'
+import { SlidersHorizontal, Pencil, XCircle, CheckCircle, Clock, Search, MapPin, X } from 'lucide-react-native'
 import AppHeader from '../../src/components/AppHeader'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../../src/design'
 import { apiGet, apiPost, apiPatch } from '../../src/api'
@@ -15,7 +15,6 @@ import { hapticLight } from '../../src/haptics'
 import { humanErrorMessage } from '../../src/errorMessages'
 
 import RequestSummaryCard from '../../src/components/offers/RequestSummaryCard'
-import LiveStatusBar from '../../src/components/offers/LiveStatusBar'
 import SortingPillsRow, { SortKey } from '../../src/components/offers/SortingPillsRow'
 import OfferCard, { Offer } from '../../src/components/offers/OfferCard'
 import RadarPulseIllustration, { RadarViewer } from '../../src/components/offers/RadarPulseIllustration'
@@ -23,7 +22,30 @@ import VerticalTimeline from '../../src/components/offers/VerticalTimeline'
 import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
 import TipCard from '../../src/components/offers/TipCard'
 import NegotiateSheet from '../../src/components/offers/NegotiateSheet'
+import RequestOffersMap from '../../src/components/RequestOffersMap'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
+
+/** Anneaux radar animés (strip navy « recherche en cours »). */
+function RadarPulse() {
+  const anim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, { toValue: 1, duration: 1600, easing: Easing.out(Easing.ease), useNativeDriver: true })
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [anim])
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1.7] })
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] })
+  return (
+    <View style={s.radarWrap}>
+      <Animated.View style={[s.radarRing, { transform: [{ scale }], opacity }]} />
+      <View style={s.radarCore}>
+        <Search size={12} color="#fff" />
+      </View>
+    </View>
+  )
+}
 
 function OffersReceived() {
   const { t } = useTranslation()
@@ -37,6 +59,7 @@ function OffersReceived() {
   const [liveViewers, setLiveViewers] = useState<RadarViewer[]>([])
   const [showFilters, setShowFilters] = useState(true)
   const [negotiateTarget, setNegotiateTarget] = useState<Offer | null>(null)
+  const [showMap, setShowMap] = useState(false)
   const transitionAnim = useRef(false)
   const loadInFlight = useRef(false)
   const lastReloadAt = useRef(0)
@@ -280,11 +303,18 @@ function OffersReceived() {
 
   const isEmpty = !loading && offers.length === 0 && !isTerminal
   const hasOffers = !loading && offers.length > 0
+  const requestRef = `#${(requestId || '').slice(-6).toUpperCase()}`
+  const catLabel = request ? getCategoryMeta(request.category).label : ''
+  const cheapestPrice = offers.length ? Math.min(...offers.map(o => o.price)) : Infinity
+  const expiresInMin = expiresAt ? Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 60000)) : null
+  const reqLat = request?.location?.lat ?? request?.location?.coordinates?.[1]
+  const reqLng = request?.location?.lng ?? request?.location?.coordinates?.[0]
 
   return (
     <SafeAreaView style={s.safe}>
       <AppHeader
         title={t('clientOffers.title')}
+        subtitle={`${t('clientOffers.requestRef', { ref: requestRef })}${catLabel ? ` · ${catLabel}` : ''}`}
         onBack={() => router.back()}
         right={
           <TouchableOpacity style={s.filterBtn} activeOpacity={0.8} onPress={() => setShowFilters(v => !v)}>
@@ -312,14 +342,25 @@ function OffersReceived() {
             />
           )}
 
-          {/* Live Status Bar — hidden for terminal states */}
-          {!isTerminal && (
-            <View style={s.liveBarWrap}>
-              <LiveStatusBar
-                viewersCount={viewersCount || (offers.length > 0 ? 3 : 1)}
-                expiresAt={expiresAt}
-                compact={isEmpty}
-              />
+          {/* Radar strip navy — recherche en cours (masqué une fois la demande close) */}
+          {!isTerminal && !isEmpty && (
+            <View style={s.radarStrip}>
+              <RadarPulse />
+              <View style={s.radarTexts}>
+                <Text style={s.radarTitle}>
+                  <Text style={{ color: colors.primaryLight }}>
+                    {t('clientOffers.offersReceived', { count: offers.length })}
+                  </Text>
+                  {` · ${t('clientOffers.searchOngoing')}`}
+                </Text>
+                <Text style={s.radarSub}>
+                  {t('clientOffers.providersViewing', { count: Math.max(viewersCount, 0) })}
+                  {expiresInMin != null && expiresInMin > 0 ? ` · ${t('clientOffers.remainingTime', { minutes: expiresInMin })}` : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={s.radarMapBtn} onPress={() => setShowMap(true)} activeOpacity={0.8}>
+                <Text style={s.radarMapBtnText}>{t('clientOffers.seeMap')}</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -328,11 +369,6 @@ function OffersReceived() {
               {/* Sorting Pills */}
               {showFilters && <SortingPillsRow active={sort} onChange={setSort} />}
 
-              {/* Offers count */}
-              <Text style={s.offersCount}>
-                {t('clientOffers.offersReceived', { count: offers.length })}
-              </Text>
-
               {/* Offer Cards */}
               <View style={s.offersList}>
                 {sortedOffers.map((offer, idx) => (
@@ -340,6 +376,7 @@ function OffersReceived() {
                     key={offer._id}
                     offer={offer}
                     isBest={idx === 0 && sort === 'recommended'}
+                    isCheapest={offer.price === cheapestPrice}
                     budget={request?.budget}
                     scheduledFor={request?.scheduledFor}
                     onChoose={acceptOffer}
@@ -348,6 +385,25 @@ function OffersReceived() {
                     hasAcceptedOffer={hasAcceptedOffer}
                   />
                 ))}
+
+                {/* Slot en pointillés — offres en préparation */}
+                {!isTerminal && (
+                  <View style={s.pendingSlot}>
+                    <View style={s.pendingDotsWrap}>
+                      <View style={s.pendingDot} />
+                      <View style={s.pendingDot} />
+                      <View style={s.pendingDot} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.pendingSlotTitle}>
+                        {viewersCount > 0
+                          ? t('clientOffers.providersPreparing', { count: viewersCount })
+                          : t('clientOffers.moreOffersComing')}
+                      </Text>
+                      <Text style={s.pendingSlotSub}>{t('clientOffers.offersArriveSoon')}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -441,6 +497,26 @@ function OffersReceived() {
         </ScrollView>
       )}
 
+      {/* Carte temps réel des prestataires qui consultent la demande */}
+      <Modal visible={showMap} animationType="slide" onRequestClose={() => setShowMap(false)}>
+        <SafeAreaView style={s.mapModal}>
+          <View style={s.mapHeader}>
+            <MapPin size={16} color={colors.text} />
+            <Text style={s.mapHeaderText}>{t('clientOffers.seeMap')}</Text>
+            <TouchableOpacity style={s.mapCloseBtn} onPress={() => setShowMap(false)} activeOpacity={0.8}>
+              <X size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <RequestOffersMap
+            requestId={requestId || ''}
+            requestLat={reqLat != null ? Number(reqLat) : undefined}
+            requestLng={reqLng != null ? Number(reqLng) : undefined}
+            wsConnected
+            requestDone={isTerminal}
+          />
+        </SafeAreaView>
+      </Modal>
+
       {/* Negotiate bottom sheet */}
       <NegotiateSheet
         visible={!!negotiateTarget}
@@ -468,7 +544,94 @@ const s = StyleSheet.create({
   },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 60 },
-  liveBarWrap: { marginTop: spacing.md, alignItems: 'center' },
+  // Strip radar navy — « N offres reçues · recherche en cours »
+  radarStrip: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: 2,
+    backgroundColor: colors.ink,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...shadows.md,
+  },
+  radarWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  radarRing: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  radarCore: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarTexts: { flex: 1, minWidth: 0 },
+  radarTitle: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  radarSub: { fontSize: 11.5, color: '#B6C4D8', marginTop: 1 },
+  radarMapBtn: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  radarMapBtnText: { fontSize: 11, fontWeight: typography.weight.bold as any, color: '#fff' },
+  pendingSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pendingDotsWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.bgDeep,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  pendingDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.textDim },
+  pendingSlotTitle: { fontSize: 12.5, fontWeight: typography.weight.bold as any, color: colors.ink },
+  pendingSlotSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  mapModal: { flex: 1, backgroundColor: colors.bg },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  mapHeaderText: { flex: 1, fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  mapCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   offersCount: {
     fontSize: typography.sm.fontSize,
     color: colors.textSecondary,
