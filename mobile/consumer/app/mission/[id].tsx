@@ -594,7 +594,7 @@ function MissionDetail() {
                 {item?.disputeStatus === 'resolved' ? t('mission.disputeResolved', { defaultValue: 'Litige résolu' }) : t('mission.disputeOngoing', { defaultValue: 'Litige en cours' })}
               </Text>
               {item?.disputeReason && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('mission.disputeReasonLabel', { defaultValue: 'Motif' })} : {item.disputeReason}</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('mission.disputeReasonLabel', { defaultValue: 'Motif' })} : {DISPUTE_REASONS.find(r => r.key === item.disputeReason)?.label || item.disputeReason}</Text>
               )}
               {item?.disputeDecision && (
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
@@ -644,7 +644,7 @@ function MissionDetail() {
               {item.metrics.currentPauseReason && (
                 <View style={s.detailRow}>
                   <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
-                  <Text style={s.detailValue}>{item.metrics.currentPauseReason}</Text>
+                  <Text style={s.detailValue}>{PAUSE_REASONS.find(r => r.key === item.metrics.currentPauseReason)?.label || item.metrics.currentPauseReason}</Text>
                 </View>
               )}
             </View>
