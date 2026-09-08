@@ -364,16 +364,18 @@ export async function pause(requestId: string, options: PauseOptions) {
   if (from === 'paused') throw new Error('Mission déjà en pause')
   if (!PAUSABLE_STATUSES.includes(from)) throw new Error('Impossible de mettre en pause cette mission avant le démarrage')
 
-  const isOwner = String(sr.clientId) === String(options.actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(options.actor.userId)
-  if (options.actor.role === 'client' && !isOwner) throw new Error('Action interdite')
+  const isAdmin = options.actor.role === 'admin'
+  // La pause est une action prestataire : le client dispose déjà d'annuler / litige / reprogrammer.
+  if (options.actor.role === 'client') throw new Error('Seul le prestataire peut mettre la mission en pause')
   if (options.actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
+  if (!isProvider && !isAdmin) throw new Error('Action interdite')
   if (!options.reason) throw new Error('La raison de la pause est obligatoire')
 
   const now = new Date()
   const pauseEntry = {
     startedAt: now,
-    pausedBy: options.actor.role === 'provider' ? 'provider' : 'client',
+    pausedBy: options.actor.role === 'provider' ? 'provider' : options.actor.role === 'admin' ? 'admin' : 'client',
     pausedById: options.actor.userId,
     reason: options.reason,
     comment: options.comment ? String(options.comment).slice(0, 500) : undefined,
@@ -414,10 +416,12 @@ export async function resume(requestId: string, actor: { userId: string; role: M
   const from = normalizeStatus(sr.status)
   if (from !== 'paused') throw new Error('Mission non en pause')
 
-  const isOwner = String(sr.clientId) === String(actor.userId)
   const isProvider = String(sr.assignedProviderId) === String(actor.userId)
-  if (actor.role === 'client' && !isOwner) throw new Error('Action interdite')
+  const isAdmin = actor.role === 'admin'
+  // Reprise : prestataire assigné ou admin uniquement (symétrie avec pause()).
+  if (actor.role === 'client') throw new Error('Seul le prestataire peut reprendre la mission')
   if (actor.role === 'provider' && !isProvider) throw new Error('Action interdite')
+  if (!isProvider && !isAdmin) throw new Error('Action interdite')
 
   const now = new Date()
   const previous = normalizeStatus((sr as any).pausedFromStatus || 'in_progress')

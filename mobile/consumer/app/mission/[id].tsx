@@ -97,10 +97,6 @@ const PAUSE_REASONS = [
   { key: 'autre', label: 'Autre' },
 ]
 
-function promptPauseReason(): Promise<string | null> {
-  return pickOption('Pause', PAUSE_REASONS.map(r => ({ key: r.key, label: r.label })), 'Raison de la pause')
-}
-
 const DISPUTE_REASONS = [
   { key: 'paiement', label: 'Paiement' },
   { key: 'qualite', label: 'Qualité' },
@@ -297,16 +293,6 @@ function MissionDetail() {
     doAction({ action: 'validate' })
   }
 
-  const handlePause = async () => {
-    const reason = await promptPauseReason()
-    if (!reason) return
-    doAction({ action: 'pause', reason })
-  }
-
-  const handleResume = async () => {
-    doAction({ action: 'resume' })
-  }
-
   const handleDispute = async () => {
     const reason = await promptDisputeReason()
     if (!reason) return
@@ -380,8 +366,6 @@ function MissionDetail() {
   const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived'].includes(status)
   const canCancel = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status)
   const canValidate = status === 'awaiting_validation'
-  const canPause = status === 'in_progress'
-  const canResume = status === 'paused'
   const canDispute = ['in_progress', 'paused', 'awaiting_validation'].includes(status)
   const canRate = status === 'completed' && !hasReview
 
@@ -657,18 +641,6 @@ function MissionDetail() {
               <Text style={s.validateBtnText}>{t('mission.validateBtn')}</Text>
             </TouchableOpacity>
           )}
-          {canPause && (
-            <TouchableOpacity style={s.pauseBtn} onPress={handlePause} disabled={updating} activeOpacity={0.8}>
-              <Clock size={18} color={colors.warning} />
-              <Text style={s.pauseBtnText}>{t('mission.pauseBtn')}</Text>
-            </TouchableOpacity>
-          )}
-          {canResume && (
-            <TouchableOpacity style={s.validateBtn} onPress={handleResume} disabled={updating} activeOpacity={0.8}>
-              <CheckCircle2 size={18} color={colors.surface} />
-              <Text style={s.validateBtnText}>{t('mission.resumeBtn')}</Text>
-            </TouchableOpacity>
-          )}
           {canDispute && (
             <TouchableOpacity style={s.cancelBtn} onPress={handleDispute} disabled={updating} activeOpacity={0.6}>
               <AlertTriangle size={16} color={colors.danger} />
@@ -752,8 +724,7 @@ const s = StyleSheet.create({
   rateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
   validateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm, ...shadows.md },
   validateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  pauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
-  pauseBtnText: { color: colors.warning, fontSize: 14, fontWeight: typography.weight.extrabold as any },
+
   cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
   cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.extrabold as any },
 })
