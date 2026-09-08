@@ -215,7 +215,7 @@ function OffersReceived() {
 
   // Redirect to mission if already assigned
   useEffect(() => {
-    if (request && ['assigned', 'provider_arriving', 'in_progress'].includes(request.status)) {
+    if (request && ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute', 'completed'].includes(request.status)) {
       router.replace(`/mission/${requestId}`)
     }
   }, [request, requestId])

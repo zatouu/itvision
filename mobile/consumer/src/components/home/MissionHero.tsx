@@ -40,7 +40,10 @@ const STEP_INDEX: Record<string, number> = {
   assigned: 0,
   on_the_way: 1,
   provider_arriving: 2,
+  arrived: 2,
   in_progress: 3,
+  paused: 3,
+  dispute: 3,
   awaiting_validation: 3,
 }
 
@@ -88,7 +91,10 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
     assigned: 'mission.step_assigned',
     on_the_way: 'mission.step_arriving',
     provider_arriving: 'mission.step_arriving',
+    arrived: 'mission.step_arrived',
     in_progress: 'mission.step_in_progress',
+    paused: 'mission.bannerPaused',
+    dispute: 'mission.bannerDispute',
     awaiting_validation: 'mission.step_awaiting_validation',
   }
   const statusText = t(statusTextKey[status] || 'mission.step_assigned')

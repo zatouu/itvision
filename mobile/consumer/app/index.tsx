@@ -32,17 +32,20 @@ const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }
   assigned:          { label: 'Prestataire assigné',  color: '#065F46', dot: '#059669' },
   on_the_way:        { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
   provider_arriving: { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
+  arrived:           { label: 'Sur place',            color: '#065F46', dot: '#059669' },
   in_progress:       { label: 'En cours',             color: '#5B21B6', dot: '#7C3AED' },
+  paused:            { label: 'En pause',             color: '#92400E', dot: '#D97706' },
+  dispute:           { label: 'Litige',               color: '#991B1B', dot: '#DC2626' },
   awaiting_validation: { label: 'À valider',          color: '#B45309', dot: '#F59E0B' },
   completed:         { label: 'Terminée',             color: '#475569', dot: colors.textMuted },
   cancelled:         { label: 'Annulée',              color: '#991B1B', dot: '#DC2626' },
 }
 
-const ACTIVE_STATUSES = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'in_progress', 'awaiting_validation']
+const ACTIVE_STATUSES = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
 const MISSION_ROUTE_STATUSES = [...ACTIVE_STATUSES, 'completed']
 // Most actionable status first when picking the hero mission
 const STATUS_RANK: Record<string, number> = {
-  awaiting_validation: 5, in_progress: 4, provider_arriving: 3, on_the_way: 3, accepted: 2, assigned: 2,
+  awaiting_validation: 5, dispute: 5, in_progress: 4, paused: 4, arrived: 3, provider_arriving: 3, on_the_way: 3, accepted: 2, assigned: 2,
 }
 
 type CatItem = { id: string; label: string; abbr: string; color: string }
