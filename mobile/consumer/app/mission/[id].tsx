@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions, AppState } from 'react-native'
-import { Image } from 'expo-image'
+
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
@@ -9,11 +9,10 @@ import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitMissionStatus } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
 import { humanErrorMessage } from '../../src/errorMessages'
-import { pickOption } from '../../src/option-sheet'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../src/i18n'
-import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, Truck, Clock, CheckCircle2, XCircle, AlertTriangle, Pause } from 'lucide-react-native'
-import { colors, radius, spacing, typography, shadows } from '../../src/design'
+import { ArrowLeft, Share2, Check, Star, Phone, MessageCircle, CheckCircle2, AlertTriangle, MapPin, Handshake, Wrench, Send, ChevronRight } from 'lucide-react-native'
+import { colors, radius, spacing, typography, shadows, getCategoryMeta } from '../../src/design'
 
 const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
   pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: colors.warningLight },
@@ -25,34 +24,6 @@ const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> 
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 const MAP_FIT_PADDING = { top: 120, right: 40, bottom: Math.round(SCREEN_HEIGHT * 0.45), left: 40 }
-
-const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
-  created:            { key: 'mission.created',            color: '#374151', bg: colors.slate100 },
-  broadcasted:        { key: 'mission.broadcasted',        color: '#92400E', bg: colors.warningLight },
-  accepted:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
-  assigned:           { key: 'mission.assigned',           color: '#065F46', bg: '#ECFDF5' },
-  on_the_way:         { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
-  provider_arriving:  { key: 'mission.arriving',           color: '#0369A1', bg: '#E0F2FE' },
-  arrived:            { key: 'mission.arrived',            color: '#5B21B6', bg: '#F5F3FF' },
-  in_progress:        { key: 'mission.inProgress',         color: '#5B21B6', bg: '#F5F3FF' },
-  paused:             { key: 'mission.paused',             color: '#92400E', bg: colors.warningLight },
-  awaiting_validation:{ key: 'mission.awaitingValidation', color: '#92400E', bg: colors.warningLight },
-  completed:          { key: 'mission.completed',          color: '#374151', bg: colors.slate100 },
-  cancelled:          { key: 'mission.cancelled',          color: '#991B1B', bg: '#FEF2F2' },
-  expired:            { key: 'mission.expired',            color: '#374151', bg: colors.slate100 },
-  dispute:            { key: 'mission.dispute',            color: '#991B1B', bg: '#FEF2F2' },
-  archived:           { key: 'mission.archived',           color: '#374151', bg: colors.slate100 },
-}
-
-function healthColor(health: 'active' | 'idle' | 'stale' | 'paused') {
-  switch (health) {
-    case 'paused': return { bg: colors.warningLight, dot: '#92400E', color: '#92400E' }
-    case 'active': return { bg: '#ECFDF5', dot: '#065F46', color: '#065F46' }
-    case 'idle': return { bg: colors.warningLight, dot: '#92400E', color: '#92400E' }
-    case 'stale': return { bg: '#FEF2F2', dot: '#991B1B', color: '#991B1B' }
-    default: return { bg: colors.slate100, dot: '#6B7280', color: '#6B7280' }
-  }
-}
 
 function normalizeId(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] || null
@@ -104,10 +75,6 @@ const DISPUTE_REASONS = [
   { key: 'comportement', label: 'Comportement' },
   { key: 'autre', label: 'Autre' },
 ]
-
-function promptDisputeReason(): Promise<string | null> {
-  return pickOption('Litige', DISPUTE_REASONS.map(r => ({ key: r.key, label: r.label })), 'Motif du litige')
-}
 
 function MissionDetail() {
   const { t } = useTranslation()
@@ -293,12 +260,6 @@ function MissionDetail() {
     doAction({ action: 'validate' })
   }
 
-  const handleDispute = async () => {
-    const reason = await promptDisputeReason()
-    if (!reason) return
-    doAction({ action: 'dispute', reason })
-  }
-
   const payBalance = () => {
     const offer = item?.acceptedOffer
     if (!offer || !item?.payment) return
@@ -330,22 +291,12 @@ function MissionDetail() {
   const etaDisplay = routeInfo?.duration || etaLabel
   const distanceDisplay = routeInfo?.distance || t('mission.notProvided')
 
-  const stepLabels: Record<string, string> = {
-    accepted: t('mission.stepAssigned'),
-    assigned: t('mission.stepAssigned'),
-    on_the_way: t('mission.stepArriving'),
-    provider_arriving: t('mission.stepArriving'),
-    arrived: t('mission.stepArrived'),
-    in_progress: t('mission.stepInProgress'),
-    awaiting_validation: t('mission.stepAwaitingValidation'),
-    completed: t('mission.stepCompleted'),
-  }
-  const stepOrder = ['accepted', 'on_the_way', 'arrived', 'in_progress', 'awaiting_validation', 'completed']
   const status = item?.status || 'assigned'
-  const currentStepIdx = stepOrder.indexOf(status)
   const categoryLabel = item?.category ? String(item.category).charAt(0).toUpperCase() + String(item.category).slice(1) : null
+  const catMeta = getCategoryMeta(item?.category)
   const ratingAvg = Number(offer?.providerRating?.avg)
   const hasRating = Number.isFinite(ratingAvg) && ratingAvg > 0
+  const missionsCount = Number(offer?.providerRating?.count ?? offer?.providerMissions) || null
 
   const STATUS_BANNER: Record<string, { label: string; color: string; dot: string }> = {
     accepted:          { label: t('mission.bannerAssigned'),    color: colors.success, dot: '#86EFAC' },
@@ -364,10 +315,65 @@ function MissionDetail() {
   }
   const banner = STATUS_BANNER[status] || STATUS_BANNER.assigned
   const isTracking = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived'].includes(status)
+  const showMap = hasCoords && isTracking
   const canCancel = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status)
   const canValidate = status === 'awaiting_validation'
-  const canDispute = ['in_progress', 'paused', 'awaiting_validation'].includes(status)
   const canRate = status === 'completed' && !hasReview
+  const hasDispute = item?.status === 'dispute' || !!item?.disputeStatus || !!item?.disputeDecision
+
+  // Colonne droite de la carte prestataire selon la phase
+  const providerPhase: { label: string; value: string } =
+    status === 'arrived'
+      ? { label: t('mission.atYourDoor', { defaultValue: 'À votre porte' }), value: t('mission.now', { defaultValue: 'Maintenant' }) }
+      : ['in_progress', 'paused'].includes(status)
+        ? { label: t('mission.since', { defaultValue: 'Depuis' }), value: formatElapsed(item?.startedAt) || '—' }
+        : ['awaiting_validation', 'completed'].includes(status)
+          ? { label: t('mission.finishedAt', { defaultValue: 'Terminé' }), value: item?.completedAt ? new Date(item.completedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—' }
+          : { label: t('mission.arrivesIn', { defaultValue: 'Arrive dans' }), value: etaDisplay }
+
+  // Header coloré pour les phases sans carte (mock : map uniquement en trajet)
+  const phaseHeader: { bg: string; eyebrow: string; title: string } | null = showMap ? null
+    : status === 'awaiting_validation'
+      ? { bg: colors.primary, eyebrow: t('mission.heroEnded', { defaultValue: 'Mission terminée' }), title: t('mission.heroValidate', { defaultValue: 'Vérifiez et validez le travail' }) }
+      : ['in_progress', 'paused'].includes(status)
+        ? { bg: colors.navy, eyebrow: t('mission.heroOngoing', { defaultValue: 'Mission en cours' }), title: t('mission.heroWorking', { defaultValue: 'Le prestataire travaille chez vous' }) }
+        : status === 'dispute'
+          ? { bg: '#991B1B', eyebrow: t('mission.dispute', { defaultValue: 'Litige' }), title: t('mission.bannerDispute', { defaultValue: 'Litige en cours' }) }
+          : ['cancelled', 'expired', 'archived'].includes(status)
+            ? { bg: '#334155', eyebrow: banner.label, title: banner.label }
+            : status === 'completed'
+              ? { bg: '#334155', eyebrow: t('mission.heroEnded', { defaultValue: 'Mission terminée' }), title: t('mission.bannerCompleted', { defaultValue: 'Mission terminée' }) }
+              : { bg: colors.navy, eyebrow: banner.label, title: banner.label }
+
+  // Timeline verticale — vrais horodatages du statusLog
+  const logTs = (targets: string[]) => {
+    const entry = (item?.statusLog || []).find((e: any) => e.action === 'status_changed' && targets.includes(e.toStatus))
+    return entry ? new Date(entry.timestamp) : null
+  }
+  const fmtTs = (d: Date | null) => d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null
+  const tlStepIdx = ['accepted', 'assigned'].includes(status) ? 0
+    : ['on_the_way', 'provider_arriving'].includes(status) ? 1
+    : ['arrived', 'in_progress', 'paused'].includes(status) ? 2
+    : ['awaiting_validation', 'completed', 'dispute'].includes(status) ? 3 : 0
+  const timelineSteps = [
+    { label: t('mission.tlAccepted', { defaultValue: 'Offre acceptée' }), ts: logTs(['accepted', 'assigned']) || (item?.assignedAt ? new Date(item.assignedAt) : null) },
+    { label: t('mission.tlEnRoute', { defaultValue: 'En route' }), ts: logTs(['on_the_way', 'provider_arriving']) },
+    { label: t('mission.tlOnSite', { defaultValue: 'Sur place' }), ts: logTs(['arrived', 'in_progress']) },
+    { label: t('mission.tlDone', { defaultValue: 'Travail effectué' }), ts: logTs(['awaiting_validation', 'completed']) },
+  ]
+
+  const callProvider = () => {
+    if (offer?.providerPhone) Linking.openURL(`tel:${offer.providerPhone}`).catch(() => {})
+  }
+  const openChat = () => {
+    router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}${offer?.providerPhone ? `&providerPhone=${encodeURIComponent(offer.providerPhone)}` : ''}` as any)
+  }
+  const openPosition = () => {
+    const p = providerLocation || (hasCoords ? { lat, lng } : null)
+    if (p) Linking.openURL(`https://maps.google.com/?q=${p.lat},${p.lng}`).catch(() => {})
+  }
+  const openDispute = () => router.push(`/dispute?requestId=${requestId}` as any)
+  const providerFirstName = (offer?.providerName || '').split(' ')[0] || t('mission.defaultProvider')
 
   const shareMission = async () => {
     try {
@@ -378,8 +384,8 @@ function MissionDetail() {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
-      {hasCoords ? (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      {showMap ? (
         <View style={s.mapContainer}>
           <LiveRouteMap
             destination={destination}
@@ -395,7 +401,10 @@ function MissionDetail() {
             <TouchableOpacity onPress={() => router.back()} style={s.floatingBtn} activeOpacity={0.6}>
               <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
-            <Text style={s.floatingTitle}>{t('mission.trackingTitle')}</Text>
+            <View style={s.livePill}>
+              <View style={s.livePillDot} />
+              <Text style={s.livePillText}>{t('mission.liveTracking', { defaultValue: 'Suivi live' })}</Text>
+            </View>
             <TouchableOpacity style={s.floatingBtn} onPress={shareMission} activeOpacity={0.6}>
               <Share2 size={18} color={colors.text} />
             </TouchableOpacity>
@@ -405,263 +414,254 @@ function MissionDetail() {
           {isTracking && (
             <View style={s.etaPill}>
               <View style={s.etaPillDot} />
-              <Text style={s.etaPillText}>{t('mission.stepArriving')} - {distanceDisplay} - {etaDisplay}</Text>
+              <Text style={s.etaPillText}>{banner.label} · {distanceDisplay} · {etaDisplay}</Text>
             </View>
           )}
         </View>
       ) : (
-        <View style={s.noMap}>
-          <View style={s.header}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
-              <ArrowLeft size={20} color={colors.text} />
+        /* Header coloré pour les phases sans carte */
+        <View style={[s.phaseHeader, { backgroundColor: phaseHeader?.bg || colors.navy }]}>
+          <View style={s.phaseHeaderRow}>
+            <TouchableOpacity onPress={() => router.back()} style={s.phaseBackBtn} activeOpacity={0.7}>
+              <ArrowLeft size={18} color="#fff" />
             </TouchableOpacity>
-            <Text style={s.headerTitle}>{t('mission.trackingTitle')}</Text>
-            <View style={{ width: 36 }} />
+            <View style={s.phasePill}>
+              <View style={[s.statusBadgeDot, { backgroundColor: banner.dot }]} />
+              <Text style={s.phasePillText}>{banner.label}</Text>
+            </View>
+            <TouchableOpacity style={s.phaseBackBtn} onPress={shareMission} activeOpacity={0.7}>
+              <Share2 size={16} color="#fff" />
+            </TouchableOpacity>
           </View>
-          <Text style={s.noMapText}>{t('mission.noLocation')}</Text>
+          <Text style={s.phaseEyebrow}>{phaseHeader?.eyebrow}</Text>
+          <Text style={s.phaseTitle}>{phaseHeader?.title}</Text>
+          {!hasCoords && <Text style={s.phaseNoLoc}>{t('mission.noLocation')}</Text>}
         </View>
       )}
 
-      {/* Bottom sheet */}
-      <View style={s.sheet}>
-        <View style={s.handle} />
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
-        >
-          {/* Status badge */}
-          <View style={[s.statusBadge, { backgroundColor: banner.color }]}>
-            <View style={[s.statusBadgeDot, { backgroundColor: banner.dot }]} />
-            <Text style={s.statusBadgeText}>{banner.label}</Text>
-          </View>
-
-          {/* Timeline */}
-          <View style={s.timeline}>
-            {stepOrder.map((step, idx) => {
-              const state = idx < currentStepIdx ? 'done' : idx === currentStepIdx ? 'active' : 'todo'
-              return (
-                <View key={step} style={s.timelineStep}>
-                  <View style={[s.timelineDot, state === 'done' && s.timelineDotDone, state === 'active' && s.timelineDotActive]}>
-                    {state === 'done' && <Check size={14} color={colors.surface} />}
-                  </View>
-                  <Text style={[s.timelineLabel, state === 'active' && s.timelineLabelActive]}>{stepLabels[step]}</Text>
-                  {idx < stepOrder.length - 1 && <View style={[s.timelineLine, idx < currentStepIdx && s.timelineLineDone]} />}
+      {/* Contenu */}
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl }}
+      >
+        {/* Carte prestataire + actions rapides */}
+        {offer && (
+          <View style={s.card}>
+            <View style={s.providerMainRow}>
+              <View style={s.avatarWrap}>
+                <View style={[s.providerAvatar, { backgroundColor: catMeta.color }]}>
+                  <Text style={s.providerAvatarText}>{providerInitials}</Text>
                 </View>
-              )
-            })}
-          </View>
-
-          {/* Provider card */}
-          {offer && (
-            <View style={s.providerCard}>
-              <View style={s.providerAvatar}>
-                <Text style={s.providerAvatarText}>{providerInitials}</Text>
-                <View style={s.verifiedBadge}><Check size={10} color={colors.surface} /></View>
+                {!!offer.providerVerified && (
+                  <View style={s.verifiedBadge}><Check size={9} color={colors.surface} strokeWidth={3.5} /></View>
+                )}
               </View>
-              <View style={s.providerInfo}>
-                <Text style={s.providerName}>{offer.providerName || t('mission.defaultProvider')}</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.providerName} numberOfLines={1}>{offer.providerName || t('mission.defaultProvider')}</Text>
                 <View style={s.providerRow}>
                   {hasRating && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Star size={12} color={colors.warning} fill={colors.warning} />
+                    <>
+                      <Star size={11} color={colors.warning} fill={colors.warning} />
                       <Text style={s.providerRating}>{ratingAvg.toFixed(1)}</Text>
-                    </View>
+                      <Text style={s.providerMeta}> · </Text>
+                    </>
                   )}
-                  {categoryLabel && <Text style={s.providerMeta}>{hasRating ? ' - ' : ''}{categoryLabel}</Text>}
-                </View>
-              </View>
-              <View style={s.providerActions}>
-                <TouchableOpacity style={s.actionIconBtn} activeOpacity={0.6} onPress={() => offer.providerPhone && Linking.openURL(`tel:${offer.providerPhone}`)}>
-                  <Phone size={18} color={colors.success} />
-                </TouchableOpacity>
-                <TouchableOpacity style={s.actionIconBtn} activeOpacity={0.6} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}${offer.providerPhone ? `&providerPhone=${encodeURIComponent(offer.providerPhone)}` : ''}`)}>
-                  <MessageCircle size={18} color={colors.success} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* ETA / progression card */}
-          {isTracking && (
-            <View style={s.etaCard}>
-              <View style={[s.etaIcon, { backgroundColor: colors.primaryLight }]}>
-                <Truck size={22} color={colors.primary} />
-              </View>
-              <View style={s.etaInfo}>
-                <Text style={s.etaTitle}>{t('mission.arrivingIn', { eta: etaDisplay })}</Text>
-                <Text style={s.etaSub}>{distanceDisplay} - {loc?.address || t('mission.notProvided')}</Text>
-              </View>
-            </View>
-          )}
-          {status === 'in_progress' && item?.startedAt && (
-            <View style={s.etaCard}>
-              <View style={[s.etaIcon, { backgroundColor: '#F5F3FF' }]}>
-                <Clock size={22} color="#5B21B6" />
-              </View>
-              <View style={s.etaInfo}>
-                <Text style={s.etaTitle}>{t('mission.sinceLabel', { duration: formatElapsed(item.startedAt) })}</Text>
-                <Text style={s.etaSub}>{loc?.address || t('mission.notProvided')}</Text>
-              </View>
-            </View>
-          )}
-          {status === 'completed' && (
-            <View style={s.etaCard}>
-              <View style={[s.etaIcon, { backgroundColor: colors.successLight }]}>
-                <CheckCircle2 size={22} color={colors.success} />
-              </View>
-              <View style={s.etaInfo}>
-                <Text style={s.etaTitle}>{t('mission.bannerCompleted')}</Text>
-                <Text style={s.etaSub}>{item?.startedAt && item?.completedAt ? t('mission.durationLabel', { duration: formatElapsed(item.startedAt, item.completedAt) }) : (loc?.address || '')}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Details */}
-          <View style={s.detailsCard}>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.reference')}</Text>
-              <Text style={s.detailValue}>#{missionRef}</Text>
-            </View>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.agreedPrice')}</Text>
-              <Text style={s.detailValue}>{formatMoney(offer?.price)}</Text>
-            </View>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.service')}</Text>
-              <Text style={s.detailValue}>{categoryLabel || t('mission.notProvided')}</Text>
-            </View>
-            {item?.payment && (
-              <View style={s.paymentSummary}>
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>{t('mission.payment')}</Text>
-                  <Text style={[s.detailValue, { textTransform: 'capitalize' }]}>
-                    {item.payment.provider === 'cash' ? t('mission.cashOnPlace') : item.payment.provider.replace('_', ' ')} - {item.payment.phase === 'deposit' ? t('mission.depositPhase') : item.payment.phase === 'balance' ? t('mission.balancePhase') : t('mission.totalPhase')}
+                  <Text style={s.providerMeta} numberOfLines={1}>
+                    {missionsCount ? `${missionsCount} ${t('clientProvider.missions', { defaultValue: 'missions' }).toLowerCase()} · ` : ''}{categoryLabel || ''}
                   </Text>
                 </View>
-                {item.payment.depositAmount > 0 && (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>{t('mission.depositPaid')}</Text>
-                    <Text style={s.detailValue}>{formatMoney(item.payment.depositAmount)}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={s.phaseMiniLabel}>{providerPhase.label}</Text>
+                <Text style={s.phaseMiniValue}>{providerPhase.value}</Text>
+              </View>
+            </View>
+
+            <View style={s.quickActions}>
+              {[
+                { icon: Phone, label: t('home.call', { defaultValue: 'Appeler' }), color: colors.primary, onPress: callProvider, disabled: !offer.providerPhone },
+                { icon: MessageCircle, label: t('home.message', { defaultValue: 'Message' }), color: colors.info, onPress: openChat },
+                { icon: MapPin, label: t('mission.position', { defaultValue: 'Position' }), color: colors.warning, onPress: openPosition, disabled: !providerLocation && !hasCoords },
+                { icon: AlertTriangle, label: t('mission.dispute', { defaultValue: 'Litige' }), color: colors.danger, onPress: openDispute },
+              ].map((a, i) => (
+                <TouchableOpacity key={i} style={s.quickAction} onPress={a.onPress} disabled={a.disabled} activeOpacity={0.7}>
+                  <View style={[s.quickActionIcon, { backgroundColor: `${a.color}15`, opacity: a.disabled ? 0.4 : 1 }]}>
+                    <a.icon size={17} color={a.color} />
                   </View>
-                )}
-                {item.payment.balanceAmount > 0 && item.payment.depositStatus === 'held' && item.payment.balanceStatus !== 'held' && item.payment.balanceStatus !== 'pending' && (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>{t('mission.balanceDue')}</Text>
-                    <Text style={s.detailValue}>{formatMoney(item.payment.balanceAmount)}</Text>
+                  <Text style={s.quickActionLabel}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Progression */}
+        <View style={s.card}>
+          <View style={s.progressHead}>
+            <Text style={s.cardLabel}>{t('mission.progression', { defaultValue: 'Progression' })}</Text>
+            <Text style={s.progressStep}>{t('mission.stepOf', { n: tlStepIdx + 1, defaultValue: `Étape ${tlStepIdx + 1}/4` })}</Text>
+          </View>
+          {timelineSteps.map((step, i) => {
+            const done = i < tlStepIdx
+            const active = i === tlStepIdx
+            const ts = fmtTs(step.ts)
+            return (
+              <View key={i} style={s.tlRow}>
+                <View style={s.tlRail}>
+                  <View style={[s.tlDot, done && s.tlDotDone, active && s.tlDotActive]}>
+                    {done && <Check size={10} color="#fff" strokeWidth={3} />}
                   </View>
-                )}
-                {item.payment.balanceStatus === 'pending' && (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>{t('mission.balanceDue')}</Text>
-                    <Text style={[s.detailValue, { color: colors.warning }]}>{formatMoney(item.payment.balanceAmount)} — en cours</Text>
-                  </View>
-                )}
-                <View style={[s.paymentBadge, { backgroundColor: PAYMENT_BADGE[item.payment.status]?.bg || colors.slate100 }]}>
-                  <Text style={[s.paymentBadgeText, { color: PAYMENT_BADGE[item.payment.status]?.color || colors.textSecondary }]}>
-                    {t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
+                  {i < timelineSteps.length - 1 && <View style={[s.tlLine, done && s.tlLineDone]} />}
+                </View>
+                <View style={{ flex: 1, paddingBottom: 14 }}>
+                  <Text style={[s.tlLabel, (done || active) && s.tlLabelOn]}>{step.label}</Text>
+                  <Text style={s.tlTime}>
+                    {ts ? `${t('common.today', { defaultValue: 'Aujourd\'hui' })} ${ts}` : active ? t('mission.tlNow', { defaultValue: 'En cours…' }) : t('mission.tlPending', { defaultValue: 'En attente' })}
                   </Text>
                 </View>
-                {item.payment.depositStatus === 'held' && item.payment.balanceStatus !== 'held' && item.payment.balanceStatus !== 'pending' && item.payment.balanceAmount > 0 && item.status !== 'cancelled' && item.status !== 'completed' && (
-                  <TouchableOpacity style={s.payBalanceBtn} onPress={payBalance} activeOpacity={0.8}>
-                    <Text style={s.payBalanceBtnText}>{t('payment.payBalance')}</Text>
-                  </TouchableOpacity>
-                )}
+              </View>
+            )
+          })}
+        </View>
+
+        {/* Récap demande */}
+        <View style={[s.card, s.summaryCard]}>
+          <View style={[s.summaryIcon, { backgroundColor: catMeta.color }]}>
+            <Wrench size={19} color="#fff" />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.summaryTitle} numberOfLines={1}>
+              {item?.title || categoryLabel || t('mission.notProvided')} · #{missionRef}
+            </Text>
+            <Text style={s.summarySub} numberOfLines={1}>
+              {loc?.address || t('mission.notProvided')} · {formatMoney(offer?.price)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Paiement */}
+        {item?.payment && (
+          <View style={s.paymentCard}>
+            <View style={s.paymentIcon}><Handshake size={16} color="#fff" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.paymentTitle}>
+                {formatMoney(offer?.price || item.payment.amount)} · {item.payment.provider === 'cash'
+                  ? t('mission.cashOnPlace')
+                  : `${item.payment.provider.replace('_', ' ')} — ${item.payment.phase === 'deposit' ? t('mission.depositPhase') : item.payment.phase === 'balance' ? t('mission.balancePhase') : t('mission.totalPhase')}`}
+              </Text>
+              <Text style={s.paymentSub}>
+                {item.payment.provider === 'cash'
+                  ? t('mission.cashPaySub', { defaultValue: 'Vous payez le prestataire après validation' })
+                  : t(PAYMENT_BADGE[item.payment.status]?.key || 'mission.paymentPending')}
+              </Text>
+              {(item.payment.depositAmount > 0 || item.payment.balanceAmount > 0) && (
+                <Text style={s.paymentDetail}>
+                  {item.payment.depositAmount > 0 ? `${t('mission.depositPaid')} ${formatMoney(item.payment.depositAmount)}` : ''}
+                  {item.payment.depositAmount > 0 && item.payment.balanceAmount > 0 ? ' · ' : ''}
+                  {item.payment.balanceAmount > 0 ? `${t('mission.balanceDue')} ${formatMoney(item.payment.balanceAmount)}` : ''}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+        {item?.payment?.depositStatus === 'held' && item.payment.balanceStatus !== 'held' && item.payment.balanceStatus !== 'pending' && item.payment.balanceAmount > 0 && !['cancelled', 'completed'].includes(status) && (
+          <TouchableOpacity style={s.payBalanceBtn} onPress={payBalance} activeOpacity={0.8}>
+            <Text style={s.payBalanceBtnText}>{t('payment.payBalance')}</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Litige */}
+        {hasDispute && (
+          <TouchableOpacity style={s.disputeCard} onPress={openDispute} activeOpacity={0.75}>
+            <View style={[s.summaryIcon, { backgroundColor: item?.disputeStatus === 'resolved' ? colors.success : colors.danger }]}>
+              <AlertTriangle size={17} color="#fff" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.disputeTitle}>
+                {item?.disputeStatus === 'resolved' ? t('mission.disputeResolved', { defaultValue: 'Litige résolu' }) : t('mission.disputeOngoing', { defaultValue: 'Litige en cours' })}
+              </Text>
+              {!!item?.disputeReason && (
+                <Text style={s.disputeSub} numberOfLines={1}>
+                  {DISPUTE_REASONS.find(r => r.key === item.disputeReason)?.label || item.disputeReason}
+                </Text>
+              )}
+            </View>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* Métriques */}
+        {item?.metrics && (
+          <View style={s.card}>
+            <Text style={s.cardLabel}>{t('mission.metrics', { defaultValue: 'Suivi' })}</Text>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
+              <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>{t('mission.totalDuration')}</Text>
+              <Text style={s.detailValue}>{item.metrics.elapsedFormatted}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>{t('mission.activeDuration')}</Text>
+              <Text style={s.detailValue}>{item.metrics.activeFormatted}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <Text style={s.detailLabel}>{t('mission.pausedDuration')}</Text>
+              <Text style={s.detailValue}>{item.metrics.pausedFormatted} · {item.metrics.pauseCount} {t('mission.pauses')}</Text>
+            </View>
+            {item.metrics.estimatedResumeAt && (
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
+                <Text style={s.detailValue}>{new Date(item.metrics.estimatedResumeAt).toLocaleString()}</Text>
+              </View>
+            )}
+            {item.metrics.currentPauseReason && (
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
+                <Text style={s.detailValue}>{PAUSE_REASONS.find(r => r.key === item.metrics.currentPauseReason)?.label || item.metrics.currentPauseReason}</Text>
               </View>
             )}
           </View>
+        )}
 
-          {/* Info litige */}
-          {(item?.status === 'dispute' || item?.disputeStatus || item?.disputeDecision) && (
-            <View style={[s.detailsCard, { borderLeftWidth: 4, borderLeftColor: item?.disputeStatus === 'resolved' ? colors.success : colors.danger }]}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-                {item?.disputeStatus === 'resolved' ? t('mission.disputeResolved', { defaultValue: 'Litige résolu' }) : t('mission.disputeOngoing', { defaultValue: 'Litige en cours' })}
-              </Text>
-              {item?.disputeReason && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{t('mission.disputeReasonLabel', { defaultValue: 'Motif' })} : {DISPUTE_REASONS.find(r => r.key === item.disputeReason)?.label || item.disputeReason}</Text>
-              )}
-              {item?.disputeDecision && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-                  {t('mission.disputeDecisionLabel', { defaultValue: 'Décision' })} : {t(`mission.disputeDecision_${item.disputeDecision}`, { defaultValue: ({ release_escrow: 'Paiement libéré au prestataire', refund: 'Remboursement intégral', partial_refund: 'Remboursement partiel', reject: 'Litige rejeté', cancel: 'Litige annulé', other: 'Autre' } as any)[item.disputeDecision] })}
-                  {item?.disputeRefundAmount ? ` (${item.disputeRefundAmount.toLocaleString('fr-FR')} FCFA)` : ''}
-                </Text>
-              )}
-              {item?.disputeAdminNote && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>{t('mission.disputeNoteLabel', { defaultValue: 'Note' })} : {item.disputeAdminNote}</Text>
-              )}
-              <TouchableOpacity
-                style={[s.cancelBtn, { marginTop: 12 }]}
-                onPress={() => router.push(`/dispute?requestId=${requestId}`)}
-                activeOpacity={0.7}
-              >
-                <AlertTriangle size={16} color={colors.danger} />
-                <Text style={s.cancelBtnText}>{t('mission.viewDispute', { defaultValue: 'Voir le litige' })}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        {canCancel && !canValidate && (
+          <TouchableOpacity style={{ alignSelf: 'center', marginTop: 6, padding: 8 }} onPress={handleCancel} disabled={updating} activeOpacity={0.6}>
+            <Text style={s.cancelLink}>{t('mission.cancelBtn')}</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
 
-          {/* Métriques cycle de vie */}
-          {item?.metrics && (
-            <View style={s.detailsCard}>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
-                <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.totalDuration')}</Text>
-                <Text style={s.detailValue}>{item.metrics.elapsedFormatted}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.activeDuration')}</Text>
-                <Text style={s.detailValue}>{item.metrics.activeFormatted}</Text>
-              </View>
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.pausedDuration')}</Text>
-                <Text style={s.detailValue}>{item.metrics.pausedFormatted} · {item.metrics.pauseCount} {t('mission.pauses')}</Text>
-              </View>
-              {item.metrics.estimatedResumeAt && (
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
-                  <Text style={s.detailValue}>{new Date(item.metrics.estimatedResumeAt).toLocaleString()}</Text>
-                </View>
-              )}
-              {item.metrics.currentPauseReason && (
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
-                  <Text style={s.detailValue}>{PAUSE_REASONS.find(r => r.key === item.metrics.currentPauseReason)?.label || item.metrics.currentPauseReason}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Actions */}
-          {canValidate && (
-            <TouchableOpacity style={s.validateBtn} onPress={handleValidate} disabled={updating} activeOpacity={0.8}>
-              <CheckCircle2 size={18} color={colors.surface} />
-              <Text style={s.validateBtnText}>{t('mission.validateBtn')}</Text>
+      {/* Action sticky contextuelle */}
+      <View style={s.footer}>
+        {canValidate ? (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={[s.footerBtn, s.footerGhost]} onPress={openDispute} activeOpacity={0.8}>
+              <Text style={s.footerGhostText}>{t('mission.reportProblem', { defaultValue: 'Signaler un problème' })}</Text>
             </TouchableOpacity>
-          )}
-          {canDispute && (
-            <TouchableOpacity style={s.cancelBtn} onPress={handleDispute} disabled={updating} activeOpacity={0.6}>
-              <AlertTriangle size={16} color={colors.danger} />
-              <Text style={s.cancelBtnText}>{t('mission.disputeBtn')}</Text>
+            <TouchableOpacity style={[s.footerBtn, s.footerSuccess, { flex: 1.4 }]} onPress={handleValidate} disabled={updating} activeOpacity={0.85}>
+              {updating ? <ActivityIndicator color="#fff" /> : <CheckCircle2 size={17} color="#fff" />}
+              <Text style={s.footerText}>{t('mission.validateBtn')}</Text>
             </TouchableOpacity>
-          )}
-
-          {canRate && (
-            <TouchableOpacity style={s.rateBtn} onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)} activeOpacity={0.8}>
-              <Star size={18} color={colors.surface} fill={colors.surface} />
-              <Text style={s.rateBtnText}>{t('mission.rate')}</Text>
-            </TouchableOpacity>
-          )}
-
-          {canCancel && (
-            <TouchableOpacity style={s.cancelBtn} onPress={handleCancel} disabled={updating} activeOpacity={0.6}>
-              <XCircle size={16} color={colors.danger} />
-              <Text style={s.cancelBtnText}>{t('mission.cancelBtn')}</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+          </View>
+        ) : ['in_progress', 'paused'].includes(status) ? (
+          <TouchableOpacity style={[s.footerBtn, s.footerDark]} onPress={openChat} activeOpacity={0.85}>
+            <Send size={16} color="#fff" />
+            <Text style={s.footerText}>{t('mission.sendMessage', { defaultValue: 'Envoyer message' })}</Text>
+          </TouchableOpacity>
+        ) : canRate ? (
+          <TouchableOpacity style={[s.footerBtn, s.footerPrimary]} onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)} activeOpacity={0.85}>
+            <Star size={17} color="#fff" fill="#fff" />
+            <Text style={s.footerText}>{t('mission.rate')}</Text>
+          </TouchableOpacity>
+        ) : offer ? (
+          <TouchableOpacity style={[s.footerBtn, s.footerDark, !offer.providerPhone && { opacity: 0.5 }]} onPress={callProvider} disabled={!offer.providerPhone} activeOpacity={0.85}>
+            <Phone size={16} color="#fff" />
+            <Text style={s.footerText}>{t('mission.contactProvider', { name: providerFirstName, defaultValue: `Contacter ${providerFirstName}` })}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   )
@@ -669,64 +669,86 @@ function MissionDetail() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  mapContainer: { flex: 1, position: 'relative' },
-  floatingHeader: { position: 'absolute', top: spacing.lg, left: spacing.lg, right: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
-  floatingBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  floatingTitle: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  etaPill: { position: 'absolute', top: 72, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.lg, zIndex: 10 },
+  // ── Carte (phases trajet) ──
+  mapContainer: { height: 260, position: 'relative' },
+  floatingHeader: { position: 'absolute', top: spacing.md, left: spacing.lg, right: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
+  floatingBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  livePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6, ...shadows.md },
+  livePillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  livePillText: { fontSize: 11.5, fontWeight: typography.weight.extrabold as any, color: colors.ink },
+  etaPill: { position: 'absolute', bottom: 12, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...shadows.lg, zIndex: 10 },
   etaPillDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success },
   etaPillText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  noMap: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
-  noMapText: { textAlign: 'center', color: colors.textSecondary, marginTop: 40 },
-  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.md, maxHeight: '70%', minHeight: '45%', ...shadows.xl },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md },
-  statusBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  // ── Header coloré (phases sans carte) ──
+  phaseHeader: { paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 24 },
+  phaseHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  phaseBackBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  phasePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 },
+  phasePillText: { fontSize: 11.5, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  phaseEyebrow: { fontSize: 11, fontWeight: typography.weight.extrabold as any, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)' },
+  phaseTitle: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: '#fff', letterSpacing: -0.4, marginTop: 6 },
+  phaseNoLoc: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 },
   statusBadgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#86EFAC' },
-  statusBadgeText: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.surface },
-  timeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg },
-  timelineStep: { flex: 1, alignItems: 'center', position: 'relative' },
-  timelineDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  timelineDotDone: { backgroundColor: colors.success, borderColor: colors.success },
-  timelineDotActive: { backgroundColor: colors.success, borderColor: colors.success },
-  timelineLine: { position: 'absolute', top: 13, left: '50%', right: '-50%', height: 2, backgroundColor: colors.border, zIndex: -1 },
-  timelineLineDone: { backgroundColor: colors.success },
-  timelineLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4, fontWeight: typography.weight.medium as any },
-  timelineLabelActive: { color: colors.text, fontWeight: typography.weight.extrabold as any },
-  providerCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
-  providerAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  providerAvatarText: { color: colors.surface, fontSize: 16, fontWeight: typography.weight.extrabold as any },
-  verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg },
-  providerInfo: { flex: 1 },
-  providerName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  // ── Cartes ──
+  card: { backgroundColor: colors.surface, borderRadius: 20, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.borderSoft, ...shadows.sm },
+  cardLabel: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  providerMainRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  avatarWrap: { position: 'relative' },
+  providerAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  providerAvatarText: { color: '#fff', fontSize: 16, fontWeight: typography.weight.extrabold as any },
+  verifiedBadge: { position: 'absolute', bottom: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
+  providerName: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.ink },
   providerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 2 },
-  providerRating: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.semibold as any },
-  providerMeta: { fontSize: 13, color: colors.textSecondary },
-  providerActions: { flexDirection: 'row', gap: spacing.sm },
-  actionIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
-  etaCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
-  etaIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  etaInfo: { flex: 1 },
-  etaTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  etaSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  detailsCard: { backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
-  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm },
-  detailLabel: { fontSize: 14, color: colors.textSecondary },
-  detailValue: { fontSize: 14, color: colors.text, fontWeight: typography.weight.extrabold as any },
-  paymentSummary: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
-  paymentBadge: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginTop: spacing.sm },
-  paymentBadgeText: { fontSize: 12, fontWeight: typography.weight.extrabold as any },
-  payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, ...shadows.md },
+  providerRating: { fontSize: 12, color: colors.ink, fontWeight: typography.weight.bold as any },
+  providerMeta: { fontSize: 12, color: colors.textMuted },
+  phaseMiniLabel: { fontSize: 10, color: colors.textMuted, fontWeight: typography.weight.bold as any, letterSpacing: 0.3, textTransform: 'uppercase' },
+  phaseMiniValue: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.ink, letterSpacing: -0.4 },
+  quickActions: { flexDirection: 'row', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  quickAction: { flex: 1, alignItems: 'center', gap: 4 },
+  quickActionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  quickActionLabel: { fontSize: 10.5, fontWeight: typography.weight.bold as any, color: colors.text },
+  // ── Timeline verticale ──
+  progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  progressStep: { fontSize: 11, color: colors.textMuted, fontWeight: typography.weight.bold as any },
+  tlRow: { flexDirection: 'row', gap: 10 },
+  tlRail: { alignItems: 'center', width: 20 },
+  tlDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tlDotDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tlDotActive: { borderColor: colors.primary, backgroundColor: colors.brandSoft },
+  tlLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
+  tlLineDone: { backgroundColor: colors.primary },
+  tlLabel: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.textDim },
+  tlLabelOn: { color: colors.ink },
+  tlTime: { fontSize: 10.5, color: colors.textDim, marginTop: 1 },
+  // ── Récap + paiement + litige ──
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  summaryTitle: { fontSize: 13.5, fontWeight: typography.weight.extrabold as any, color: colors.ink },
+  summarySub: { fontSize: 11.5, color: colors.textMuted, marginTop: 1 },
+  paymentCard: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: colors.brandSoft, borderRadius: 16, padding: 14, marginBottom: 12 },
+  paymentIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  paymentTitle: { fontSize: 12.5, fontWeight: typography.weight.extrabold as any, color: colors.brandInk },
+  paymentSub: { fontSize: 11, color: colors.brandInk, opacity: 0.85, marginTop: 2 },
+  paymentDetail: { fontSize: 10.5, color: colors.brandInk, opacity: 0.7, marginTop: 4 },
+  payBalanceBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 12, ...shadows.md },
   payBalanceBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  rateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.warning, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm, ...shadows.md },
-  rateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-  validateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm, ...shadows.md },
-  validateBtnText: { color: colors.surface, fontSize: 14, fontWeight: typography.weight.extrabold as any },
-
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.dangerLight, borderWidth: 1, borderColor: colors.danger, borderRadius: radius.lg, paddingVertical: spacing.md, minHeight: 52, marginBottom: spacing.sm },
-  cancelBtnText: { fontSize: 14, color: colors.danger, fontWeight: typography.weight.extrabold as any },
+  disputeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.dangerSoft, borderRadius: 16, padding: 14, marginBottom: 12 },
+  disputeTitle: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.dangerInk },
+  disputeSub: { fontSize: 11.5, color: colors.dangerInk, opacity: 0.85, marginTop: 1 },
+  // ── Détails ──
+  detailRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  detailLabel: { fontSize: 13, color: colors.textSecondary },
+  detailValue: { fontSize: 13, color: colors.text, fontWeight: typography.weight.extrabold as any },
+  cancelLink: { fontSize: 13, color: colors.danger, fontWeight: typography.weight.bold as any },
+  // ── Footer sticky ──
+  footer: { paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 14, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  footerBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: radius.lg, paddingVertical: 14, minHeight: 50 },
+  footerDark: { backgroundColor: colors.ink },
+  footerPrimary: { backgroundColor: colors.warning },
+  footerSuccess: { backgroundColor: colors.success, ...shadows.md },
+  footerGhost: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+  footerText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  footerGhostText: { color: colors.text, fontSize: 14, fontWeight: typography.weight.bold as any },
 })
 
 export default withScreenBoundary(MissionDetail, 'MissionDetail')
