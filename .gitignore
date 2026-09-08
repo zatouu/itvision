@@ -69,3 +69,7 @@ public/swe-worker-*.js
 public/worker-*.js
 
 tests/.auth/
+
+.commit-msg
+*.code-workspace
+mobile/consumer/proposals/
