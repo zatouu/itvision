@@ -607,7 +607,7 @@ function MissionDetail() {
               )}
               <TouchableOpacity
                 style={[s.cancelBtn, { marginTop: 12 }]}
-                onPress={() => router.push(`/dispute/${requestId}`)}
+                onPress={() => router.push(`/dispute?requestId=${requestId}`)}
                 activeOpacity={0.7}
               >
                 <AlertTriangle size={16} color={colors.danger} />

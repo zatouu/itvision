@@ -4,12 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import * as ImagePicker from 'expo-image-picker'
-import { Check, Camera, Send, X, Info, Wrench } from 'lucide-react-native'
+import { Check, Camera, Send, X, Info, Wrench, Paperclip } from 'lucide-react-native'
 import AppHeader from '../src/components/AppHeader'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography, getCategoryMeta } from '../src/design'
 import { apiGetRetry, apiPatch, apiUpload } from '../src/api'
-import { resolveMediaUrl } from '../src/media'
+import { resolveMediaUrl, pickMedia } from '../src/media'
 import { toast } from '../src/toast'
 import { humanErrorMessage } from '../src/errorMessages'
 import { hapticSelect, hapticSuccess } from '../src/haptics'
@@ -96,6 +96,22 @@ function DisputeScreen() {
       toast.error(t('common.error'), humanErrorMessage(e))
     } finally {
       setSending(false)
+    }
+  }
+
+  const addEvidence = async () => {
+    if (!requestId) return
+    try {
+      const picked = await pickMedia({ maxFiles: 1 })
+      if (!picked.length) return
+      const media = picked[0]
+      const up: any = await apiUpload(media.uri, media.name, media.type === 'video' ? 'video/mp4' : 'image/jpeg', 'disputes')
+      const url = up?.url || up?.staticUrl
+      if (!url) throw new Error('URL manquante')
+      await apiPatch(`/api/services/requests/${requestId}`, { action: 'dispute-evidence', type: media.type || 'image', url })
+      await load(true)
+    } catch (e: any) {
+      toast.error(t('common.error'), humanErrorMessage(e))
     }
   }
 
@@ -278,6 +294,10 @@ function DisputeScreen() {
                     ))}
                   </View>
                 )}
+                <TouchableOpacity style={s.addEvidenceBtn} onPress={addEvidence} activeOpacity={0.8}>
+                  <Paperclip size={14} color={colors.primary} />
+                  <Text style={s.addEvidenceText}>{t('dispute.addEvidence', { defaultValue: 'Ajouter une preuve' })}</Text>
+                </TouchableOpacity>
               </>
             )}
           </ScrollView>
@@ -386,6 +406,8 @@ const s = StyleSheet.create({
   msgAuthor: { fontSize: 10, fontWeight: '800', color: colors.warnInk, letterSpacing: 0.3, marginBottom: 3 },
   msgText: { fontSize: 12.5, color: colors.warnInk, lineHeight: 18 },
   msgTime: { fontSize: 9.5, color: colors.warnInk, opacity: 0.7, marginTop: 4, textAlign: 'right', fontWeight: '600' },
+  addEvidenceBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: colors.primary },
+  addEvidenceText: { fontSize: 11.5, fontWeight: '700', color: colors.primary },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.lg, marginBottom: 8, padding: 8, backgroundColor: colors.surface, borderRadius: 999, borderWidth: 1, borderColor: colors.border },
   composerInput: { flex: 1, fontSize: 13, color: colors.text, paddingHorizontal: 8, paddingVertical: 4 },
   composerSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
