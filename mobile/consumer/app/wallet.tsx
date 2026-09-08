@@ -10,7 +10,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import EmptyState from '../src/components/EmptyState'
 import { getAuthUser } from '../src/auth'
 import { humanErrorMessage } from '../src/errorMessages'
-import { ArrowLeft, Plus, Coins, TrendingUp, TrendingDown, Wallet as WalletIcon } from 'lucide-react-native'
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet as WalletIcon, Handshake } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { hapticSelect, hapticSuccess } from '../src/haptics'
 
@@ -154,14 +154,18 @@ function Wallet() {
 
   const isFree = !data?.config.pointsActive
 
+  const points = data?.points ?? 0
+  const fcfaEq = points * (data?.config.fcfaPerPoint || 100)
+
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
-          <ArrowLeft size={18} color={colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} activeOpacity={0.7}>
+          <ArrowLeft size={17} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{t('wallet.title')}</Text>
-        <View style={{ width: 36 }} />
+        <Text style={s.title}>{t('wallet.title')}</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -169,37 +173,42 @@ function Wallet() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
-        <View style={s.balanceCard}>
-          <Text style={s.balanceLabel}>{t('wallet.balance')}</Text>
-          <Text style={s.balanceValue}>{data?.points ?? 0}</Text>
-          <Text style={s.balanceUnit}>{t('wallet.points')}</Text>
-          {isFree ? (
-            <View style={s.freeBadge}>
-              <Text style={s.freeBadgeText}>{t('wallet.freeBadgeText')}</Text>
+        {/* Hero solde */}
+        <View style={s.heroCard}>
+          <View style={s.heroCircle1} />
+          <View style={s.heroCircle2} />
+          <View style={s.heroTop}>
+            <Text style={s.heroLabel}>{t('wallet.balance').toUpperCase()}</Text>
+            <View style={s.heroPill}>
+              <Handshake size={11} color="#fff" />
+              <Text style={s.heroPillText}>{isFree ? t('wallet.freeBadgeText') : `1 XC = ${data?.config.fcfaPerPoint} FCFA`}</Text>
             </View>
-          ) : (
-            <View style={s.modeBadge}>
-              <Text style={s.modeBadgeText}>1 XC = {data?.config.fcfaPerPoint} FCFA</Text>
+          </View>
+          <View style={s.heroAmountRow}>
+            <Text style={s.heroAmount}>{points.toLocaleString('fr-FR')}</Text>
+            <Text style={s.heroUnit}>XC</Text>
+          </View>
+          <Text style={s.heroSub}>
+            {isFree ? t('wallet.points') : `≈ ${fcfaEq.toLocaleString('fr-FR')} FCFA`}
+            {(data?.reservedPoints ?? 0) > 0 ? ` · ${data?.reservedPoints} ${t('wallet.reserved', { defaultValue: 'réservés' })}` : ''}
+          </Text>
+          <View style={s.heroStats}>
+            <View style={s.heroStat}>
+              <Text style={s.heroStatLabel}>{t('wallet.earned').toUpperCase()}</Text>
+              <Text style={s.heroStatValue}>{data?.lifetimePointsEarned ?? 0} <Text style={s.heroStatUnit}>XC</Text></Text>
             </View>
-          )}
-          {(data?.reservedPoints ?? 0) > 0 && (
-            <Text style={s.reservedText}>{data?.reservedPoints} crédits réservés</Text>
-          )}
+            <View style={s.heroStat}>
+              <Text style={s.heroStatLabel}>{t('wallet.used').toUpperCase()}</Text>
+              <Text style={s.heroStatValue}>{data?.lifetimePointsSpent ?? 0} <Text style={s.heroStatUnit}>XC</Text></Text>
+            </View>
+          </View>
         </View>
 
-        <View style={s.lifetimeRow}>
-          <View style={s.lifetimeCard}>
-            <Text style={s.lifetimeNum}>{data?.lifetimePointsEarned ?? 0}</Text>
-            <Text style={s.lifetimeLabel}>{t('wallet.earned')}</Text>
+        {/* Recharge */}
+        <View style={{ marginTop: 20 }}>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionLabel}>{t('wallet.buyXC')}</Text>
           </View>
-          <View style={s.lifetimeCard}>
-            <Text style={s.lifetimeNum}>{data?.lifetimePointsSpent ?? 0}</Text>
-            <Text style={s.lifetimeLabel}>{t('wallet.used')}</Text>
-          </View>
-        </View>
-
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>{t('wallet.buyXC')}</Text>
           <View style={s.packRow}>
             {PACKS.map(p => (
               <TouchableOpacity
@@ -229,7 +238,7 @@ function Wallet() {
             ))}
           </View>
 
-          <TouchableOpacity style={s.payBtn} onPress={onTopup} disabled={topupLoading} activeOpacity={0.8}>
+          <TouchableOpacity style={s.payBtn} onPress={onTopup} disabled={topupLoading} activeOpacity={0.85}>
             {topupLoading
               ? <ActivityIndicator color={colors.surface} />
               : <Text style={s.payText}>{t('wallet.payBtn', { amount: (selectedPack * (data?.config.fcfaPerPoint || 100)).toLocaleString('fr-FR') })}</Text>}
@@ -265,30 +274,39 @@ function Wallet() {
           )}
         </View>
 
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>{t('wallet.history')}</Text>
+        {/* Historique */}
+        <View style={{ marginTop: 22 }}>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionLabel}>{t('wallet.history')}</Text>
+          </View>
           {(!data?.history || data.history.length === 0) ? (
-            <EmptyState icon={<WalletIcon size={32} color="#94A3B8" />} title={t('wallet.noHistory')} />
+            <EmptyState icon={<WalletIcon size={32} color={colors.textMuted} />} title={t('wallet.noHistory')} />
           ) : (
-            data.history.map(txn => (
-              <View key={txn.id} style={s.txn}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.txnKind}>{t(KIND_KEYS[txn.kind] || txn.kind)}</Text>
-                  {!!txn.description && <Text style={s.txnDesc}>{txn.description}</Text>}
-                  <Text style={s.txnDate}>{new Date(txn.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
-                </View>
-                <View style={s.txnPoints}>
-                  {txn.points >= 0 ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Plus size={14} color={colors.success} />
-                      <Text style={[s.txnPointsText, s.txnPos]}>{txn.points}</Text>
+            <View style={s.historyCard}>
+              {data.history.map((txn, i) => {
+                const isCredit = txn.points >= 0
+                const KindIcon = isCredit ? TrendingUp : TrendingDown
+                return (
+                  <View key={txn.id} style={[s.txn, i < data!.history.length - 1 && s.txnBorder]}>
+                    <View style={[s.txnIcon, { backgroundColor: isCredit ? colors.brandSoft : colors.slate100 }]}>
+                      <KindIcon size={16} color={isCredit ? colors.primary : colors.textMuted} />
                     </View>
-                  ) : (
-                    <Text style={[s.txnPointsText, s.txnNeg]}>{txn.points}</Text>
-                  )}
-                </View>
-              </View>
-            ))
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.txnKind} numberOfLines={1}>{t(KIND_KEYS[txn.kind] || txn.kind)}</Text>
+                      {!!txn.description && <Text style={s.txnDesc} numberOfLines={1}>{txn.description}</Text>}
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[s.txnPointsText, isCredit ? s.txnPos : s.txnNeg]}>
+                        {isCredit ? '+' : ''}{txn.points}
+                      </Text>
+                      <Text style={s.txnDate}>
+                        {new Date(txn.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                      </Text>
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -298,60 +316,67 @@ function Wallet() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 14 },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
-  backIcon: { color: colors.text },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
-  body: { padding: spacing.xl, gap: 18 },
-  balanceCard: { backgroundColor: colors.primaryDark, borderRadius: radius.xl, padding: spacing.xxl, alignItems: 'center', gap: 2, ...shadows.md },
-  balanceLabel: { color: '#A7F3D0', fontSize: 13, fontWeight: typography.weight.semibold as any },
-  balanceValue: { color: colors.surface, fontSize: 48, fontWeight: typography.weight.extrabold as any, letterSpacing: -1 },
-  balanceUnit: { color: '#6EE7B7', fontSize: 14, fontWeight: typography.weight.semibold as any },
-  freeBadge: { marginTop: spacing.md, backgroundColor: '#064E3B', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: spacing.sm },
-  freeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.semibold as any, textAlign: 'center' },
-  modeBadge: { marginTop: spacing.md, backgroundColor: '#064E3B', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: spacing.sm },
-  modeBadgeText: { color: '#6EE7B7', fontSize: 12, fontWeight: typography.weight.bold as any },
-  reservedText: { color: '#FCD34D', fontSize: 13, fontWeight: typography.weight.bold as any, marginTop: spacing.sm },
-  lifetimeRow: { flexDirection: 'row', gap: spacing.md },
-  lifetimeCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.lg, alignItems: 'center', borderWidth: 1, borderColor: colors.border, ...shadows.sm },
-  lifetimeNum: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  lifetimeLabel: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs },
-  section: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, gap: spacing.md, ...shadows.sm },
-  sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  title: { flex: 1, fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5, textAlign: 'center' },
+  body: { padding: 16, paddingBottom: 32 },
+  // Hero
+  heroCard: { backgroundColor: colors.primary, borderRadius: 22, padding: 20, paddingBottom: 22, overflow: 'hidden', ...shadows.hero },
+  heroCircle1: { position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.08)' },
+  heroCircle2: { position: 'absolute', bottom: -50, right: 60, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.06)' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, color: 'rgba(255,255,255,0.85)' },
+  heroPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  heroPillText: { fontSize: 10.5, fontWeight: '800', color: '#fff' },
+  heroAmountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 6 },
+  heroAmount: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1 },
+  heroUnit: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  heroSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
+  heroStats: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  heroStat: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
+  heroStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: '700', letterSpacing: 0.3 },
+  heroStatValue: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 1 },
+  heroStatUnit: { fontSize: 10, color: 'rgba(255,255,255,0.75)' },
+  // Sections
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 4, marginBottom: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
   packRow: { flexDirection: 'row', gap: 10 },
-  pack: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border },
-  packActive: { backgroundColor: colors.successLight, borderColor: colors.success },
-  packNum: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  packNumActive: { color: colors.success },
-  packFcfa: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-  packFcfaActive: { color: colors.success },
-  opRow: { flexDirection: 'row', gap: spacing.sm },
-  op: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingVertical: 10, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border },
-  opActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
-  opText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
-  opTextActive: { color: colors.surface },
-  payBtn: { backgroundColor: colors.success, borderRadius: radius.lg, paddingVertical: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', ...shadows.md },
-  payText: { color: colors.surface, fontWeight: typography.weight.extrabold as any, fontSize: 15 },
-  empty: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: spacing.md },
-  txn: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
-  txnKind: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text },
-  txnDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  txnDate: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  txnPoints: { },
-  txnPointsText: { fontSize: 16, fontWeight: typography.weight.extrabold as any },
-  txnPos: { color: colors.success },
+  pack: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: colors.borderSoft },
+  packActive: { backgroundColor: colors.brandSoft, borderColor: colors.primary },
+  packNum: { fontSize: 20, fontWeight: '800', color: colors.ink },
+  packNumActive: { color: colors.primary },
+  packFcfa: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  packFcfaActive: { color: colors.primary },
+  opRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  op: { flex: 1, backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1.5, borderColor: colors.borderSoft },
+  opActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  opText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  opTextActive: { color: '#fff' },
+  payBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 15, minHeight: 52, alignItems: 'center', justifyContent: 'center', marginTop: 12, ...shadows.md },
+  payText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  // Historique
+  historyCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.borderSoft, overflow: 'hidden' },
+  txn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  txnBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+  txnIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  txnKind: { fontSize: 12.5, fontWeight: '700', color: colors.ink },
+  txnDesc: { fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
+  txnDate: { fontSize: 10, color: colors.textDim, fontWeight: '600', marginTop: 2 },
+  txnPointsText: { fontSize: 13, fontWeight: '800' },
+  txnPos: { color: colors.primary },
   txnNeg: { color: colors.danger },
-  manualCard: { marginTop: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  manualTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  // Paiement manuel
+  manualCard: { marginTop: spacing.lg, backgroundColor: colors.surface, borderRadius: 16, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.borderSoft, alignItems: 'center' },
+  manualTitle: { fontSize: 16, fontWeight: '800', color: colors.ink },
   manualHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 17 },
-  manualPhone: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: 1 },
+  manualPhone: { fontSize: 20, fontWeight: '800', color: colors.ink, letterSpacing: 1 },
   refBox: { backgroundColor: colors.warningLight, borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.warning },
-  refLabel: { fontSize: 11, color: '#92400E', fontWeight: typography.weight.semibold as any },
-  refValue: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: '#92400E', letterSpacing: 2, marginTop: 2 },
-  manualAmount: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
-  manualWaitingText: { fontSize: 12, color: colors.warning, fontWeight: typography.weight.semibold as any, textAlign: 'center' },
+  refLabel: { fontSize: 11, color: '#92400E', fontWeight: '600' },
+  refValue: { fontSize: 22, fontWeight: '800', color: '#92400E', letterSpacing: 2, marginTop: 2 },
+  manualAmount: { fontSize: 18, fontWeight: '800', color: colors.primary },
+  manualWaitingText: { fontSize: 12, color: colors.warning, fontWeight: '600', textAlign: 'center' },
   waveOpenBtn: { backgroundColor: '#1DC3F0', borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12, ...shadows.md },
-  waveOpenBtnText: { color: '#fff', fontSize: 14, fontWeight: typography.weight.extrabold as any },
+  waveOpenBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 })
 
 export default withScreenBoundary(Wallet, 'Wallet')

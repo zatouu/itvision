@@ -13,7 +13,9 @@
     "yes": "Waaw",
     "no": "Déet",
     "ok": "Baax",
-    "ago": "il y a"
+    "ago": "il y a",
+    "today": "Tey",
+    "yesterday": "Démb"
   },
   "auth": {
     "loginTitle": "Dalal jàmm ci Xeuy Bi",
@@ -343,7 +345,10 @@
     "awaitingValidationAlert_other": "Misiyoŋ {{count}} dañu xaaj sa dëggal",
     "awaitingValidationBannerTitle": "Dafa xaaj dëggal",
     "awaitingValidationBannerSub": "Liggéeykat bi pare na liggéey bi",
-    "validateNow": "Dëggal léegi"
+    "validateNow": "Dëggal léegi",
+    "subActive": "dox",
+    "subDone": "jeex",
+    "toReview": "Seet"
   },
   "mission": {
     "title": "Misiyoŋ bi",
@@ -377,7 +382,7 @@
     "createdAt": "Sossu",
     "provider": "Ligeykaat",
     "defaultProvider": "Ligeykaat",
-    "sendMessage": "💬 Yónnee baat",
+    "sendMessage": "Yónnee baat",
     "description": "Ndeyu baat",
     "noDescription": "—",
     "media": "Médias",
@@ -435,9 +440,32 @@
     "expired": "Expirée",
     "dispute": "Litige",
     "archived": "Archivée",
-    "step_arrived": "Arrivé",
-    "bannerArrived": "Prestataire arrivé",
-    "bannerPaused": "Mission en pause",
+    "step_arrived": "Mùn a jot",
+    "bannerArrived": "Prestataire mùn a jot",
+    "bannerPaused": "Misiyoŋ bi dàndaan",
+    "liveTracking": "Toppatoo bu yénee",
+    "position": "Bérab",
+    "progression": "Yokkute",
+    "metrics": "Toppatoo",
+    "stepOf": "Jéem {{n}}/4",
+    "tlAccepted": "Ofri bi nangu",
+    "tlEnRoute": "Ci yoon",
+    "tlOnSite": "Fii ne",
+    "tlDone": "Ligeey bi jeex",
+    "tlNow": "Dafay dox…",
+    "tlPending": "Dafay xaar",
+    "atYourDoor": "Ci sa bunt",
+    "now": "Léegi",
+    "since": "Lu dul",
+    "finishedAt": "Jeex na",
+    "arrivesIn": "Dinaa jot ci",
+    "heroEnded": "Misiyoŋ bi jeex",
+    "heroValidate": "Wóor ligeey bi",
+    "heroOngoing": "Misiyoŋ bi dafay dox",
+    "heroWorking": "Prestataire bi dafay ligeey fii",
+    "cashPaySub": "Fay nga prestataire bi bu mu jeexee",
+    "reportProblem": "Jël probleme",
+    "contactProvider": "Woote {{name}}",
     "bannerAwaitingValidation": "Validation en attente",
     "bannerExpired": "Mission expirée",
     "bannerDispute": "Litige en cours",
@@ -493,7 +521,11 @@
     "tag_pro": "Pro",
     "tag_goodPrice": "Njëg bu baax",
     "tag_fast": "Gaaw",
-    "tag_communicative": "Wax-wax"
+    "tag_communicative": "Wax-wax",
+    "headerTitle": "Wax sa xel ci misiyoŋ bi",
+    "missionDone": "Misiyoŋ #{{ref}} jeex na",
+    "commentLabel": "Xoolal (bu doxul)",
+    "commentHint": "Sa xoolal dafay dimbali yeneen jëfandikukat yi."
   },
   "categories": {
     "electricite": "Kuuraŋ",
@@ -517,7 +549,9 @@
     "kind_info": "Xibaar",
     "ago_seconds": "Bi {{count}}s",
     "ago_minutes": "Bi {{count}} min",
-    "ago_hours": "Bi {{count}} j"
+    "ago_hours": "Bi {{count}} j",
+    "subUnread": "Xibaar {{count}} bu gànwul",
+    "subAllRead": "Lépp jàng nanu"
   },
   "profile": {
     "title": "Profil",
@@ -551,7 +585,11 @@
     "placeholder": "Sa baat...",
     "whatsapp": "WhatsApp",
     "empty": "Amul baat ba léegi",
-    "send": "Yónnee"
+    "send": "Yónnee",
+    "qr_ok": "Dëggal naa 👍",
+    "qr_thanks": "Jërëjëf !",
+    "qr_seeYou": "Ba suba",
+    "qr_callMe": "Woote ma"
   },
   "payment": {
     "title": "Fay",
@@ -679,7 +717,8 @@
     "kind_refund": "Delloo",
     "kind_escrow_charge": "Escrow njëg",
     "kind_escrow_refund": "Escrow delloo",
-    "kind_admin_adjust": "Waxal"
+    "kind_admin_adjust": "Waxal",
+    "reserved": "xaaji"
   },
   "offline": {
     "badge": "{{count}} jëf(i) ngay xaar",

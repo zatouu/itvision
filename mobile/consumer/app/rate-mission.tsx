@@ -8,7 +8,7 @@ import { apiPostQueued } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { humanErrorMessage } from '../src/errorMessages'
 import { useTranslation } from 'react-i18next'
-import { Star, PartyPopper } from 'lucide-react-native'
+import { Star, PartyPopper, ArrowLeft, Check, Send } from 'lucide-react-native'
 import { hapticSelect, hapticSuccess } from '../src/haptics'
 
 const TAG_KEYS = ['tag_punctual', 'tag_clean', 'tag_pro', 'tag_goodPrice', 'tag_fast', 'tag_communicative'] as const
@@ -64,29 +64,45 @@ function RateMission() {
     )
   }
 
-  return (
-    <SafeAreaView style={s.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.content}>
-          {/* Header */}
-          <View style={s.header}>
-            <TouchableOpacity onPress={() => router.back()} style={s.skipBtn}>
-              <Text style={s.skipText}>{t('rating.later')}</Text>
-            </TouchableOpacity>
-          </View>
+  const missionRef = id ? String(id).slice(-6).toUpperCase() : ''
+  const initials = (providerName || 'P').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
-          <Text style={s.title}>{t('rating.howWasIt')}</Text>
-          {providerName && <Text style={s.subtitle}>{t('rating.rateProvider', { name: providerName })}</Text>}
+  return (
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} activeOpacity={0.7}>
+            <ArrowLeft size={18} color={colors.ink} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>{t('rating.headerTitle', { defaultValue: 'Noter la mission' })}</Text>
+          <TouchableOpacity onPress={() => router.back()} style={s.skipBtn}>
+            <Text style={s.skipText}>{t('rating.later')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+          {/* Hero prestataire */}
+          <View style={s.hero}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{initials}</Text>
+              <View style={s.verifiedBadge}><Check size={11} color="#fff" strokeWidth={3.5} /></View>
+            </View>
+            <Text style={s.providerName}>{providerName || t('mission.defaultProvider')}</Text>
+            <Text style={s.heroSub}>
+              {t('rating.missionDone', { ref: missionRef, defaultValue: `Mission #${missionRef} terminée` })}
+            </Text>
+          </View>
 
           {/* Étoiles */}
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map(n => (
-              <TouchableOpacity key={n} onPress={() => { hapticSelect(); setRating(n) }} style={s.starBtn}>
-                <Star size={44} color={n <= rating ? colors.primary : colors.border} fill={n <= rating ? colors.primary : 'transparent'} />
+              <TouchableOpacity key={n} onPress={() => { hapticSelect(); setRating(n) }} style={s.starBtn} activeOpacity={0.7}>
+                <Star size={38} color={n <= rating ? colors.warning : colors.border} fill={n <= rating ? colors.warning : 'transparent'} />
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={s.ratingLabel}>
+          <Text style={[s.ratingLabel, rating > 0 && { color: colors.primary }]}>
             {rating === 0 ? t('rating.tapStar') :
              rating === 1 ? t('rating.veryDissatisfied') :
              rating === 2 ? t('rating.dissatisfied') :
@@ -102,14 +118,17 @@ function RateMission() {
               <View style={s.tagsRow}>
                 {TAG_KEYS.map(key => {
                   const tag = t(`rating.${key}`)
+                  const active = selectedTags.includes(tag)
                   return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[s.tag, selectedTags.includes(tag) && s.tagActive]}
-                    onPress={() => toggleTag(tag)}
-                  >
-                    <Text style={[s.tagText, selectedTags.includes(tag) && s.tagTextActive]}>{tag}</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      key={key}
+                      style={[s.tag, active && s.tagActive]}
+                      onPress={() => toggleTag(tag)}
+                      activeOpacity={0.7}
+                    >
+                      {active && <Check size={12} color={colors.brandInk} strokeWidth={3} />}
+                      <Text style={[s.tagText, active && s.tagTextActive]}>{tag}</Text>
+                    </TouchableOpacity>
                   )
                 })}
               </View>
@@ -117,6 +136,7 @@ function RateMission() {
           )}
 
           {/* Commentaire */}
+          <Text style={s.fieldLabel}>{t('rating.commentLabel', { defaultValue: 'Commentaire (optionnel)' })}</Text>
           <TextInput
             style={s.input}
             placeholder={t('rating.commentPlaceholder')}
@@ -127,53 +147,67 @@ function RateMission() {
             maxLength={500}
             textAlignVertical="top"
           />
+          <Text style={s.hint}>{t('rating.commentHint', { defaultValue: 'Votre avis aidera les autres clients.' })}</Text>
 
           {error && <Text style={s.error}>{error}</Text>}
+        </ScrollView>
 
+        {/* Footer */}
+        <View style={s.footer}>
           <TouchableOpacity
             style={[s.btn, rating === 0 && s.btnDisabled]}
             onPress={submit}
             disabled={loading || rating === 0}
+            activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color={colors.surface} />
-              : <Text style={s.btnText}>{t('rating.submit')}</Text>
+              ? <ActivityIndicator color="#fff" />
+              : (<>
+                  <Text style={s.btnText}>{t('rating.submit')}</Text>
+                  <Send size={16} color="#fff" />
+                </>)
             }
           </TouchableOpacity>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  content: { padding: 24, paddingBottom: 48 },
-  header: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 },
-  skipBtn: { paddingVertical: 8, paddingHorizontal: 12 },
-  skipText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
-  title: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, gap: 10 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  skipBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+  skipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  content: { paddingHorizontal: 22, paddingBottom: 24 },
+  hero: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 28, fontWeight: '800', color: '#fff' },
+  verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.primary, borderWidth: 2.5, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  providerName: { fontSize: 20, fontWeight: '800', color: colors.ink, marginTop: 12, letterSpacing: -0.3 },
+  heroSub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2 },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 20 },
   starBtn: { padding: 4 },
-  star: { color: colors.border },
-  starActive: { color: colors.primary },
-  ratingLabel: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 24, fontWeight: '500' },
-  tagsSection: { marginBottom: 20 },
-  tagsTitle: { fontSize: 13, color: '#475569', fontWeight: '600', marginBottom: 10 },
+  ratingLabel: { fontSize: 16, fontWeight: '800', color: colors.textMuted, textAlign: 'center', marginTop: 8 },
+  tagsSection: { marginTop: 26 },
+  tagsTitle: { fontSize: 12.5, fontWeight: '700', color: colors.text, marginBottom: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.slate50 },
-  tagActive: { borderColor: '#2563EB', backgroundColor: colors.infoLight },
-  tagText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
-  tagTextActive: { color: '#2563EB' },
-  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, padding: 14, fontSize: 14, color: colors.text, minHeight: 80, marginBottom: 16, backgroundColor: colors.slate50 },
-  error: { color: '#DC2626', fontSize: 13, textAlign: 'center', marginBottom: 12 },
-  btn: { backgroundColor: colors.navy, borderRadius: radius.lg, padding: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', ...shadows.md },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  tagActive: { borderColor: colors.primary, backgroundColor: colors.brandSoft, borderWidth: 1.5 },
+  tagText: { fontSize: 12, color: colors.text, fontWeight: '700' },
+  tagTextActive: { color: colors.brandInk },
+  fieldLabel: { fontSize: 12.5, fontWeight: '700', color: colors.text, marginTop: 20, marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, fontSize: 13.5, color: colors.text, minHeight: 90, backgroundColor: colors.surface },
+  hint: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  error: { color: colors.danger, fontSize: 13, textAlign: 'center', marginTop: 12 },
+  footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 15, minHeight: 52, ...shadows.md },
   btnDisabled: { opacity: 0.4 },
-  btnText: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  successEmoji: { color: colors.primary },
-  successTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
+  successTitle: { fontSize: 22, fontWeight: '800', color: colors.ink },
   successText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
 })
 

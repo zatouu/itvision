@@ -13,7 +13,9 @@
     "yes": "Oui",
     "no": "Non",
     "ok": "OK",
-    "ago": "il y a"
+    "ago": "il y a",
+    "today": "Aujourd'hui",
+    "yesterday": "Hier"
   },
   "auth": {
     "loginTitle": "Bienvenue sur Xeuy Bi",
@@ -340,6 +342,9 @@
     "cancelRequestMsg": "Aucun prestataire n'a encore été choisi. Vous pouvez la republier plus tard.",
     "cancelRequestSuccess": "Demande annulée",
     "awaitingValidationAlert_one": "{{count}} mission attend votre validation",
+    "subActive": "en cours",
+    "subDone": "terminées",
+    "toReview": "À examiner",
     "awaitingValidationAlert_other": "{{count}} missions attendent votre validation",
     "awaitingValidationBannerTitle": "Validation en attente",
     "awaitingValidationBannerSub": "Le prestataire a terminé la mission",
@@ -362,7 +367,7 @@
     "step_assigned": "Prestataire assigné",
     "step_arriving": "En route vers vous",
     "step_in_progress": "Intervention en cours",
-    "step_awaiting_validation": "À valider",
+    "step_awaiting_validation": "Validation",
     "step_completed": "Mission terminée",
     "paymentPending": "⏳ Paiement en attente",
     "paymentHeld": "🔒 Paiement sécurisé",
@@ -377,7 +382,7 @@
     "createdAt": "Créée le",
     "provider": "Prestataire",
     "defaultProvider": "Prestataire",
-    "sendMessage": "💬 Envoyer un message",
+    "sendMessage": "Envoyer message",
     "description": "Description",
     "noDescription": "—",
     "media": "Médias",
@@ -436,9 +441,31 @@
     "dispute": "Litige",
     "archived": "Archivée",
     "step_arrived": "Arrivé",
-    "step_awaiting_validation": "Validation",
     "bannerArrived": "Prestataire arrivé",
     "bannerPaused": "Mission en pause",
+    "liveTracking": "Suivi live",
+    "position": "Position",
+    "progression": "Progression",
+    "metrics": "Suivi",
+    "stepOf": "Étape {{n}}/4",
+    "tlAccepted": "Offre acceptée",
+    "tlEnRoute": "En route",
+    "tlOnSite": "Sur place",
+    "tlDone": "Travail effectué",
+    "tlNow": "En cours…",
+    "tlPending": "En attente",
+    "atYourDoor": "À votre porte",
+    "now": "Maintenant",
+    "since": "Depuis",
+    "finishedAt": "Terminé",
+    "arrivesIn": "Arrive dans",
+    "heroEnded": "Mission terminée",
+    "heroValidate": "Vérifiez et validez le travail",
+    "heroOngoing": "Mission en cours",
+    "heroWorking": "Le prestataire travaille chez vous",
+    "cashPaySub": "Vous payez le prestataire après validation",
+    "reportProblem": "Signaler un problème",
+    "contactProvider": "Contacter {{name}}",
     "bannerAwaitingValidation": "Validation en attente",
     "bannerExpired": "Mission expirée",
     "bannerDispute": "Litige en cours",
@@ -494,7 +521,11 @@
     "tag_pro": "Professionnel",
     "tag_goodPrice": "Bon prix",
     "tag_fast": "Rapide",
-    "tag_communicative": "Communicatif"
+    "tag_communicative": "Communicatif",
+    "headerTitle": "Noter la mission",
+    "missionDone": "Mission #{{ref}} terminée",
+    "commentLabel": "Commentaire (optionnel)",
+    "commentHint": "Votre avis aidera les autres clients."
   },
   "categories": {
     "electricite": "Électricité",
@@ -518,7 +549,9 @@
     "kind_info": "Info",
     "ago_seconds": "Il y a {{count}}s",
     "ago_minutes": "Il y a {{count}} min",
-    "ago_hours": "Il y a {{count}} h"
+    "ago_hours": "Il y a {{count}} h",
+    "subUnread": "{{count}} non lue(s)",
+    "subAllRead": "Tout est lu"
   },
   "profile": {
     "title": "Profil",
@@ -552,7 +585,11 @@
     "placeholder": "Votre message...",
     "whatsapp": "WhatsApp",
     "empty": "Aucun message pour le moment",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "qr_ok": "D'accord 👍",
+    "qr_thanks": "Merci !",
+    "qr_seeYou": "À tout de suite",
+    "qr_callMe": "Appelez-moi svp"
   },
   "payment": {
     "title": "Paiement",
@@ -680,7 +717,8 @@
     "kind_refund": "Remboursement",
     "kind_escrow_charge": "Frais escrow",
     "kind_escrow_refund": "Remboursement escrow",
-    "kind_admin_adjust": "Ajustement"
+    "kind_admin_adjust": "Ajustement",
+    "reserved": "réservés"
   },
   "offline": {
     "badge": "{{count}} action(s) en attente",

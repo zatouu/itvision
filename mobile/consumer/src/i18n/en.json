@@ -13,7 +13,9 @@
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
-    "ago": "il y a"
+    "ago": "il y a",
+    "today": "Today",
+    "yesterday": "Yesterday"
   },
   "auth": {
     "loginTitle": "Welcome to Xeuy Bi",
@@ -343,7 +345,10 @@
     "awaitingValidationAlert_other": "{{count}} missions are waiting for your validation",
     "awaitingValidationBannerTitle": "Validation pending",
     "awaitingValidationBannerSub": "The provider has finished the mission",
-    "validateNow": "Validate now"
+    "validateNow": "Validate now",
+    "subActive": "active",
+    "subDone": "completed",
+    "toReview": "To review"
   },
   "mission": {
     "title": "Active mission",
@@ -377,7 +382,7 @@
     "createdAt": "Created on",
     "provider": "Provider",
     "defaultProvider": "Provider",
-    "sendMessage": "💬 Send a message",
+    "sendMessage": "Send message",
     "description": "Description",
     "noDescription": "—",
     "media": "Media",
@@ -435,9 +440,32 @@
     "expired": "Expirée",
     "dispute": "Litige",
     "archived": "Archivée",
-    "step_arrived": "Arrivé",
-    "bannerArrived": "Prestataire arrivé",
-    "bannerPaused": "Mission en pause",
+    "step_arrived": "Arrived",
+    "bannerArrived": "Provider arrived",
+    "bannerPaused": "Mission paused",
+    "liveTracking": "Live tracking",
+    "position": "Location",
+    "progression": "Progress",
+    "metrics": "Tracking",
+    "stepOf": "Step {{n}}/4",
+    "tlAccepted": "Offer accepted",
+    "tlEnRoute": "On the way",
+    "tlOnSite": "On site",
+    "tlDone": "Work completed",
+    "tlNow": "In progress…",
+    "tlPending": "Pending",
+    "atYourDoor": "At your door",
+    "now": "Now",
+    "since": "Since",
+    "finishedAt": "Finished",
+    "arrivesIn": "Arrives in",
+    "heroEnded": "Mission completed",
+    "heroValidate": "Check and validate the work",
+    "heroOngoing": "Mission in progress",
+    "heroWorking": "The provider is working at your place",
+    "cashPaySub": "You pay the provider after validation",
+    "reportProblem": "Report a problem",
+    "contactProvider": "Contact {{name}}",
     "bannerAwaitingValidation": "Validation en attente",
     "bannerExpired": "Mission expirée",
     "bannerDispute": "Litige en cours",
@@ -493,7 +521,11 @@
     "tag_pro": "Professional",
     "tag_goodPrice": "Good price",
     "tag_fast": "Fast",
-    "tag_communicative": "Communicative"
+    "tag_communicative": "Communicative",
+    "headerTitle": "Rate the mission",
+    "missionDone": "Mission #{{ref}} completed",
+    "commentLabel": "Comment (optional)",
+    "commentHint": "Your review will help other clients."
   },
   "categories": {
     "electricite": "Electrical",
@@ -517,7 +549,9 @@
     "kind_info": "Info",
     "ago_seconds": "{{count}}s ago",
     "ago_minutes": "{{count}} min ago",
-    "ago_hours": "{{count}}h ago"
+    "ago_hours": "{{count}}h ago",
+    "subUnread": "{{count}} unread",
+    "subAllRead": "All read"
   },
   "profile": {
     "title": "Profile",
@@ -551,7 +585,11 @@
     "placeholder": "Your message...",
     "whatsapp": "WhatsApp",
     "empty": "No messages yet",
-    "send": "Send"
+    "send": "Send",
+    "qr_ok": "Got it 👍",
+    "qr_thanks": "Thank you!",
+    "qr_seeYou": "See you soon",
+    "qr_callMe": "Please call me"
   },
   "payment": {
     "title": "Payment",
@@ -679,7 +717,8 @@
     "kind_refund": "Refund",
     "kind_escrow_charge": "Escrow fee",
     "kind_escrow_refund": "Escrow refund",
-    "kind_admin_adjust": "Adjustment"
+    "kind_admin_adjust": "Adjustment",
+    "reserved": "reserved"
   },
   "offline": {
     "badge": "{{count}} pending action(s)",

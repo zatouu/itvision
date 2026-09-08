@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, ScrollView } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -120,8 +120,8 @@ function MissionChat() {
     }
   }, [id])
 
-  const sendMessage = async () => {
-    const trimmed = text.trim()
+  const sendText = async (raw: string) => {
+    const trimmed = raw.trim()
     if (!trimmed || sending || !id) return
     setSending(true)
     setText('')
@@ -145,6 +145,8 @@ function MissionChat() {
       setSending(false)
     }
   }
+
+  const sendMessage = () => sendText(text)
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr)
@@ -175,23 +177,23 @@ function MissionChat() {
   return (
     <SafeAreaView style={st.safe}>
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-          <ArrowLeft size={18} color={colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={st.backBtn} activeOpacity={0.7}>
+          <ArrowLeft size={18} color={colors.ink} />
         </TouchableOpacity>
         <View style={st.avatar}>
           <Text style={st.avatarText}>{getInitials(otherName)}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>{otherName}</Text>
-          <Text style={st.headerSub}>{hasPhone ? providerPhone : t('chat.title')}</Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={st.headerTitle} numberOfLines={1}>{otherName}</Text>
+          <Text style={st.headerSub} numberOfLines={1}>{hasPhone ? providerPhone : t('chat.title')}</Text>
         </View>
         {hasPhone && (
           <View style={st.headerActions}>
-            <TouchableOpacity style={st.headerAction} onPress={() => callPhone(providerPhone)}>
-              <Phone size={20} color={colors.success} />
+            <TouchableOpacity style={st.headerAction} onPress={() => callPhone(providerPhone)} activeOpacity={0.7}>
+              <Phone size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={st.headerAction} onPress={() => openWhatsApp(providerPhone)}>
-              <MessageCircle size={20} color={colors.success} />
+            <TouchableOpacity style={st.headerAction} onPress={() => openWhatsApp(providerPhone)} activeOpacity={0.7}>
+              <MessageCircle size={18} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
@@ -217,17 +219,31 @@ function MissionChat() {
           />
         )}
 
+        {/* Réponses rapides */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.quickReplies}>
+          {['chat.qr_ok', 'chat.qr_thanks', 'chat.qr_seeYou', 'chat.qr_callMe'].map(k => {
+            const label = t(k)
+            return (
+              <TouchableOpacity key={k} style={st.quickReply} onPress={() => sendText(label)} activeOpacity={0.7}>
+                <Text style={st.quickReplyText}>{label}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+
         <View style={st.inputRow}>
-          <TextInput
-            style={st.input}
-            placeholder={t('chat.placeholder')}
-            placeholderTextColor={colors.textMuted}
-            value={text}
-            onChangeText={setText}
-            maxLength={1000}
-            multiline
-            onSubmitEditing={sendMessage}
-          />
+          <View style={st.inputWrap}>
+            <TextInput
+              style={st.input}
+              placeholder={t('chat.placeholder')}
+              placeholderTextColor={colors.textMuted}
+              value={text}
+              onChangeText={setText}
+              maxLength={1000}
+              multiline
+              onSubmitEditing={sendMessage}
+            />
+          </View>
           <TouchableOpacity
             style={[st.sendBtn, (!text.trim() || sending) && st.sendBtnDisabled]}
             onPress={sendMessage}
@@ -243,33 +259,37 @@ function MissionChat() {
 
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: typography.base.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.surface },
-  headerTitle: { fontSize: typography.md.fontSize, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  headerSub: { fontSize: typography.sm.fontSize, color: colors.textSecondary },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+  backBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  headerTitle: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.ink },
+  headerSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerAction: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
+  headerAction: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
+  list: { padding: 14, paddingBottom: 8, gap: 8 },
   empty: { alignItems: 'center', paddingTop: spacing.xxxl },
   emptyText: { fontSize: typography.base.fontSize, color: colors.textMuted, marginTop: spacing.md },
   dateRow: { alignItems: 'center', marginVertical: spacing.sm },
-  dateChip: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.semibold as any, color: colors.textMuted, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
-  bubble: { maxWidth: '78%', borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.xs, ...shadows.sm },
-  bubbleMe: { alignSelf: 'flex-end', backgroundColor: colors.navy, borderBottomRightRadius: radius.sm },
-  bubbleThem: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
+  dateChip: { fontSize: 10.5, fontWeight: typography.weight.bold as any, color: colors.textMuted, backgroundColor: colors.bgDeep, paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.pill },
+  bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 2, ...shadows.xs },
+  bubbleMe: { alignSelf: 'flex-end', backgroundColor: colors.primary, borderBottomRightRadius: 4, shadowColor: '#0F7B4F', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  bubbleThem: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
   bubblePending: { opacity: 0.6 },
-  bubbleText: { fontSize: typography.base.fontSize, lineHeight: typography.base.lineHeight },
-  bubbleTextMe: { color: colors.surface },
+  bubbleText: { fontSize: 13.5, lineHeight: 19 },
+  bubbleTextMe: { color: '#fff' },
   bubbleTextThem: { color: colors.text },
-  time: { fontSize: typography.xs.fontSize, marginTop: spacing.xs },
-  timeMe: { color: 'rgba(255,255,255,0.5)', textAlign: 'right' },
-  timeThem: { color: colors.textMuted },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, padding: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
-  input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, fontSize: typography.base.fontSize, color: colors.text, maxHeight: 100, backgroundColor: colors.bg },
-  sendBtn: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
+  time: { fontSize: 9.5, marginTop: 4, fontWeight: '600' },
+  timeMe: { color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
+  timeThem: { color: colors.textDim },
+  quickReplies: { gap: 6, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
+  quickReply: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  quickReplyText: { fontSize: 12, fontWeight: '600', color: colors.text },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  inputWrap: { flex: 1, minHeight: 42, backgroundColor: colors.bg, borderRadius: 999, justifyContent: 'center', paddingHorizontal: 14 },
+  input: { fontSize: 13.5, color: colors.text, maxHeight: 100, paddingVertical: 8 },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.3 },
 })
 

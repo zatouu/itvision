@@ -6,7 +6,7 @@ import { loadCategories, getCategoryLabel, getSubCategoryLabel, ServiceCategory,
 import { getCategoryIcon } from '../src/categoryIcons'
 import { useTranslation } from 'react-i18next'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import { ArrowLeft, Search, ChevronRight, HelpCircle } from 'lucide-react-native'
+import { ArrowLeft, Search, HelpCircle } from 'lucide-react-native'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 
 function AllCategories() {
@@ -39,17 +39,17 @@ function AllCategories() {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.6}>
-          <ArrowLeft size={20} color={colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+          <ArrowLeft size={18} color={colors.ink} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('allCategoriesScreen.title')}</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={s.searchBox}>
-        <Search size={18} color={colors.textMuted} />
+        <Search size={17} color={colors.textMuted} />
         <TextInput
           style={s.searchInput}
           value={query}
@@ -63,42 +63,56 @@ function AllCategories() {
         <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-          {filtered.map(cat => {
-            const Icon = getCategoryIcon(cat.slug)
-            const label = getCategoryLabel(cat, i18n.language)
-            const isOther = cat.slug === 'autre'
-            return (
-              <View key={cat.slug} style={s.catSection}>
+          <Text style={s.groupLabel}>{t('allCategoriesScreen.services', { defaultValue: 'Services' })}</Text>
+          <View style={s.grid}>
+            {filtered.map(cat => {
+              const Icon = getCategoryIcon(cat.slug)
+              const label = getCategoryLabel(cat, i18n.language)
+              return (
                 <TouchableOpacity
-                  style={[s.catRow, isOther && s.catRowOther]}
-                  activeOpacity={0.7}
+                  key={cat.slug}
+                  style={s.catCard}
+                  activeOpacity={0.75}
                   onPress={() => handleSelect(cat.slug)}
                 >
                   <View style={[s.catIcon, { backgroundColor: cat.color }]}>
-                    <Icon size={22} color={colors.surface} />
+                    <Icon size={19} color="#fff" />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.catName}>{label}</Text>
-                    {cat.subCategories.length > 0 && (
-                      <Text style={s.catSubCount}>{cat.subCategories.length} {t('allCategoriesScreen.subServices')}</Text>
-                    )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.catName} numberOfLines={1}>{label}</Text>
+                    <Text style={s.catSubCount} numberOfLines={1}>
+                      {cat.subCategories.length > 0
+                        ? `${cat.subCategories.length} ${t('allCategoriesScreen.subServices')}`
+                        : t('allCategoriesScreen.service', { defaultValue: 'service' })}
+                    </Text>
                   </View>
-                  <ChevronRight size={18} color={colors.textMuted} />
                 </TouchableOpacity>
-                {cat.subCategories.length > 0 && (
-                  <View style={s.subList}>
-                    {cat.subCategories.map(sub => (
-                      <TouchableOpacity
-                        key={sub.slug}
-                        style={s.subChip}
-                        activeOpacity={0.6}
-                        onPress={() => router.push({ pathname: '/create-request', params: { category: cat.slug, subcategory: sub.slug } })}
-                      >
-                        <Text style={s.subChipText}>{getSubCategoryLabel(sub, i18n.language)}</Text>
-                      </TouchableOpacity>
-                    ))}
+              )
+            })}
+          </View>
+          {/* Sous-services — accès direct */}
+          {filtered.filter(c => c.subCategories.length > 0).map(cat => {
+            const Icon = getCategoryIcon(cat.slug)
+            return (
+              <View key={`sub-${cat.slug}`} style={{ marginTop: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 4, marginBottom: 8 }}>
+                  <View style={[s.miniIcon, { backgroundColor: cat.color }]}>
+                    <Icon size={12} color="#fff" />
                   </View>
-                )}
+                  <Text style={s.groupLabelSm}>{getCategoryLabel(cat, i18n.language)}</Text>
+                </View>
+                <View style={s.subList}>
+                  {cat.subCategories.map(sub => (
+                    <TouchableOpacity
+                      key={sub.slug}
+                      style={s.subChip}
+                      activeOpacity={0.65}
+                      onPress={() => router.push({ pathname: '/create-request', params: { category: cat.slug, subcategory: sub.slug } })}
+                    >
+                      <Text style={s.subChipText}>{getSubCategoryLabel(sub, i18n.language)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             )
           })}
@@ -116,22 +130,24 @@ function AllCategories() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md, ...shadows.sm },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text, textAlign: 'center' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text },
-  body: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  headerTitle: { flex: 1, fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 10, marginBottom: 4, backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: colors.border },
+  searchInput: { flex: 1, fontSize: 13.5, color: colors.text, padding: 0 },
+  body: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  catSection: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, ...shadows.sm, overflow: 'hidden' },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
-  catRowOther: { borderLeftWidth: 3, borderLeftColor: colors.textMuted },
-  catIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  catName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  catSubCount: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  subList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  subChip: { backgroundColor: colors.bg, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.border },
-  subChipText: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  groupLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginHorizontal: 4, marginBottom: 10 },
+  groupLabelSm: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.4, textTransform: 'uppercase' },
+  miniIcon: { width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  catCard: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.borderSoft },
+  catIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  catName: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  catSubCount: { fontSize: 10.5, color: colors.textMuted, fontWeight: '600', marginTop: 2 },
+  subList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 4 },
+  subChip: { backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: colors.borderSoft },
+  subChipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   emptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxxl, gap: spacing.md },
   emptyText: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
 })

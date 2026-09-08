@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { colors } from '../src/design'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator, RefreshControl } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
@@ -6,13 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import SideMenu from '../src/components/SideMenu'
-import { Menu } from 'lucide-react-native'
 import EmptyState from '../src/components/EmptyState'
 import {
   Notification,
   clearNotifications,
-  loadNotifications,
-  reloadNotifications,
   loadBackendNotifications,
   markAllRead,
   markRead,
@@ -22,15 +19,24 @@ import { confirm } from '../src/confirm'
 import { apiPost } from '../src/api'
 import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
-import { Bell } from 'lucide-react-native'
+import { Menu, Bell, Coins, Truck, Info, Trash2 } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
 
-const KIND_META: Record<Notification['kind'], { tagKey: string; color: string; bg: string }> = {
-  'offer-received':         { tagKey: 'notifications.kind_offer',       color: '#B45309', bg: colors.warningLight },
-  'request-assigned':       { tagKey: 'notifications.kind_mission',     color: '#065F46', bg: '#ECFDF5' },
-  'request-status-changed': { tagKey: 'notifications.kind_mission',     color: '#5B21B6', bg: '#F5F3FF' },
-  'mission-update':         { tagKey: 'notifications.kind_mission',     color: colors.navyLight, bg: colors.slate100 },
-  'info':                   { tagKey: 'notifications.kind_info',       color: '#475569', bg: colors.slate100 },
+type FilterKey = 'all' | 'offer' | 'mission' | 'info'
+
+const KIND_GROUP: Record<Notification['kind'], FilterKey> = {
+  'offer-received': 'offer',
+  'request-assigned': 'mission',
+  'request-status-changed': 'mission',
+  'mission-update': 'mission',
+  'info': 'info',
+}
+
+const GROUP_META: Record<FilterKey, { icon: any; color: string; bg: string; tagKey: string }> = {
+  all: { icon: Bell, color: colors.textMuted, bg: colors.bgDeep, tagKey: 'notifications.kind_info' },
+  offer: { icon: Coins, color: '#D97706', bg: colors.warningLight, tagKey: 'notifications.kind_offer' },
+  mission: { icon: Truck, color: colors.primary, bg: colors.brandSoft, tagKey: 'notifications.kind_mission' },
+  info: { icon: Info, color: colors.textMuted, bg: colors.bgDeep, tagKey: 'notifications.kind_info' },
 }
 
 function formatRelative(ts: number, t: any): string {
@@ -44,6 +50,17 @@ function formatRelative(ts: number, t: any): string {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
 }
 
+function dayLabel(ts: number, t: any): string {
+  const d = new Date(ts)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  const same = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (same(d, today)) return t('common.today', { defaultValue: 'Aujourd\'hui' })
+  if (same(d, yesterday)) return t('common.yesterday', { defaultValue: 'Hier' })
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+}
+
 function NotificationsScreen() {
   const { t } = useTranslation()
   const [items, setItems] = useState<Notification[]>([])
@@ -51,6 +68,7 @@ function NotificationsScreen() {
   const [diagRunning, setDiagRunning] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [filter, setFilter] = useState<FilterKey>('all')
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -112,7 +130,7 @@ function NotificationsScreen() {
     return () => { mounted = false; unsubscribe(); unsubSocket(); clearInterval(interval) }
   }, [])
 
-  // Recharger depuis AsyncStorage + backend quand l'écran regagne le focus
+  // Recharger depuis le backend quand l'écran regagne le focus
   useFocusEffect(
     useCallback(() => {
       loadBackendNotifications().then(fresh => setItems([...fresh])).catch(() => {})
@@ -143,34 +161,83 @@ function NotificationsScreen() {
   }
 
   const hasUnread = items.some(it => !it.read)
+  const unreadCount = items.filter(it => !it.read).length
+
+  const counts = useMemo(() => {
+    const c: Record<FilterKey, number> = { all: items.length, offer: 0, mission: 0, info: 0 }
+    items.forEach(n => { c[KIND_GROUP[n.kind] || 'info']++ })
+    return c
+  }, [items])
+
+  const grouped = useMemo(() => {
+    const list = filter === 'all' ? items : items.filter(n => (KIND_GROUP[n.kind] || 'info') === filter)
+    const groups: { label: string; items: Notification[] }[] = []
+    for (const n of list) {
+      const label = dayLabel(n.createdAt, t)
+      const g = groups.find(g => g.label === label)
+      if (g) g.items.push(n)
+      else groups.push({ label, items: [n] })
+    }
+    return groups
+  }, [items, filter, t])
+
+  const FILTERS: { key: FilterKey; label: string }[] = [
+    { key: 'all', label: t('requests.filterAll') },
+    { key: 'offer', label: t('notifications.kind_offer') },
+    { key: 'mission', label: t('notifications.kind_mission') },
+    { key: 'info', label: t('notifications.kind_info') },
+  ]
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.menuBtn} accessibilityLabel="Menu">
-            <Menu size={20} color={colors.text} />
-          </TouchableOpacity>
+        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.iconBtn} accessibilityLabel="Menu">
+          <Menu size={18} color={colors.ink} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
           <Text style={s.title}>{t('notifications.title')}</Text>
-        </View>
-        <View style={s.headerActions}>
-          {__DEV__ && (
-            <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={[s.headerBtn, s.headerBtnDebug]}>
-              {diagRunning ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={s.headerBtnText}>Tester</Text>}
-            </TouchableOpacity>
-          )}
-          {hasUnread && (
-            <TouchableOpacity onPress={handleMarkAll} style={s.headerBtn}>
-              <Text style={s.headerBtnText}>{t('notifications.markAllRead')}</Text>
-            </TouchableOpacity>
-          )}
           {items.length > 0 && (
-            <TouchableOpacity onPress={handleClear} style={[s.headerBtn, s.headerBtnDanger]}>
-              <Text style={[s.headerBtnText, s.headerBtnTextDanger]}>{t('notifications.clear')}</Text>
-            </TouchableOpacity>
+            <Text style={s.subtitle}>
+              {unreadCount > 0 ? t('notifications.subUnread', { count: unreadCount, defaultValue: `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` }) : t('notifications.subAllRead', { defaultValue: 'Tout est lu' })}
+            </Text>
           )}
         </View>
+        {__DEV__ && (
+          <TouchableOpacity onPress={runDiagnostics} disabled={diagRunning} style={s.iconBtn} accessibilityLabel="Diagnostics">
+            {diagRunning ? <ActivityIndicator size="small" color={colors.ink} /> : <Bell size={16} color={colors.ink} />}
+          </TouchableOpacity>
+        )}
+        {items.length > 0 && (
+          <TouchableOpacity onPress={handleClear} style={s.iconBtn} accessibilityLabel={t('notifications.clear')}>
+            <Trash2 size={16} color={colors.danger} />
+          </TouchableOpacity>
+        )}
+        {hasUnread && (
+          <TouchableOpacity onPress={handleMarkAll} style={s.markAllBtn}>
+            <Text style={s.markAllText}>{t('notifications.markAllRead')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Filtres */}
+      {items.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
+          {FILTERS.map(f => {
+            const active = filter === f.key
+            return (
+              <TouchableOpacity key={f.key} style={[s.chip, active && s.chipActive]} onPress={() => setFilter(f.key)}>
+                <Text style={[s.chipText, active && s.chipTextActive]}>{f.label}</Text>
+                {counts[f.key] > 0 && (
+                  <View style={[s.chipCount, active && s.chipCountActive]}>
+                    <Text style={[s.chipCountText, active && { color: colors.primary }]}>{counts[f.key]}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      )}
 
       <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
         {items.length === 0 ? (
@@ -178,28 +245,42 @@ function NotificationsScreen() {
             icon={<Bell size={32} color={colors.textMuted} />}
             title={t('notifications.empty')}
           />
+        ) : grouped.length === 0 ? (
+          <EmptyState
+            icon={<Bell size={32} color={colors.textMuted} />}
+            title={t('requests.noResult', { defaultValue: 'Aucun résultat' })}
+          />
         ) : (
-          items.map(n => {
-            const meta = KIND_META[n.kind] ?? { tagKey: 'notifications.kind_info', color: '#475569', bg: colors.slate100 }
-            return (
-              <TouchableOpacity
-                key={n.id}
-                onPress={() => handleOpen(n)}
-                style={[s.card, !n.read && s.cardUnread]}
-                activeOpacity={0.85}
-              >
-                <View style={s.cardTop}>
-                  <View style={[s.tag, { backgroundColor: meta.bg }]}>
-                    <Text style={[s.tagText, { color: meta.color }]}>{t(meta.tagKey)}</Text>
-                  </View>
-                  <Text style={s.time}>{formatRelative(n.createdAt, t)}</Text>
-                </View>
-                <Text style={s.cardTitle}>{n.title}</Text>
-                <Text style={s.cardBody}>{n.body}</Text>
-                {!n.read && <View style={s.unreadDot} />}
-              </TouchableOpacity>
-            )
-          })
+          grouped.map((g, gi) => (
+            <View key={gi} style={{ marginBottom: 18 }}>
+              <Text style={s.groupLabel}>{g.label}</Text>
+              <View style={{ gap: 8 }}>
+                {g.items.map(n => {
+                  const group = KIND_GROUP[n.kind] || 'info'
+                  const meta = GROUP_META[group]
+                  const IconC = meta.icon
+                  return (
+                    <TouchableOpacity
+                      key={n.id}
+                      onPress={() => handleOpen(n)}
+                      style={[s.card, !n.read && s.cardUnread]}
+                      activeOpacity={0.85}
+                    >
+                      <View style={[s.cardIcon, { backgroundColor: meta.bg }]}>
+                        <IconC size={18} color={meta.color} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={[s.cardTitle, n.read && { fontWeight: '700' }]}>{n.title}</Text>
+                        {!!n.body && <Text style={s.cardBody}>{n.body}</Text>}
+                        <Text style={s.time}>{formatRelative(n.createdAt, t)}</Text>
+                      </View>
+                      {!n.read && <View style={s.unreadDot} />}
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
+          ))
         )}
       </ScrollView>
 
@@ -209,30 +290,30 @@ function NotificationsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.slate50 },
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, gap: 12 },
-  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.slate100 },
-  headerBtnDanger: { backgroundColor: '#FEF2F2' },
-  headerBtnDebug: { backgroundColor: '#E0F2FE' },
-  headerBtnText: { fontSize: 12, fontWeight: '700', color: colors.text },
-  headerBtnTextDanger: { color: '#B91C1C' },
-  body: { padding: 16, gap: 10, paddingBottom: 32 },
-  empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
-  card: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, position: 'relative' },
-  cardUnread: { borderColor: '#BFDBFE', backgroundColor: '#F0F9FF' },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  tag: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  tagText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  time: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  cardBody: { fontSize: 13, color: '#475569', lineHeight: 18 },
-  unreadDot: { position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB' },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
+  subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  markAllText: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
+  filters: { gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
+  chipTextActive: { color: '#fff' },
+  chipCount: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  chipCountActive: { backgroundColor: '#fff' },
+  chipCountText: { fontSize: 10, fontWeight: '800', color: colors.textMuted },
+  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
+  groupLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginHorizontal: 4, marginBottom: 8 },
+  card: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.borderSoft },
+  cardUnread: { backgroundColor: colors.surface, borderColor: colors.border },
+  cardIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  cardTitle: { fontSize: 13, fontWeight: '800', color: colors.ink, lineHeight: 18 },
+  cardBody: { fontSize: 11.5, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
+  time: { fontSize: 10.5, color: colors.textDim, marginTop: 5, fontWeight: '600' },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginTop: 6, flexShrink: 0 },
 })
 
 export default withScreenBoundary(NotificationsScreen, 'Notifications')
