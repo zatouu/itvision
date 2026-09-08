@@ -65,6 +65,10 @@ const ServiceRequestSchema = new Schema({
   cancelledAt: { type: Date },
   cancelledBy: { type: String, enum: ['client', 'provider', 'admin', 'system'] },
   cancelReason: { type: String, maxlength: 500 },
+  // Réservation planifiée : le client demande un créneau futur (ex. demain 15h).
+  // Mutuellement exclusif avec `urgent`. En cas de contre-proposition horaire
+  // acceptée, contient l'horaire convenu (pas forcément le demandé).
+  scheduledFor: { type: Date },
   // Durée de validité d'une demande (par défaut 24h après création)
   expiresAt: { type: Date },
   expiredAt: { type: Date },

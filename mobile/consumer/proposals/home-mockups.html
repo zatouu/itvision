@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accueil client – Xeuy Bi</title>
+  <style>
+    :root {
+      --bg: #F5F6FA;
+      --navy: #0A1628;
+      --green: #0F7B4F;
+      --green-light: #E6F4EC;
+      --red: #EF4444;
+      --red-light: #FFF1F2;
+      --text: #0F172A;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --radius: 20px;
+      --shadow: 0 4px 24px rgba(10, 22, 40, 0.06);
+      --shadow-sm: 0 2px 12px rgba(10, 22, 40, 0.04);
+      --shadow-card: 0 8px 32px rgba(10, 22, 40, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: #E8EAED;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      padding: 40px 24px 64px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--navy);
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+
+    @media (max-width: 1200px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .phone {
+      width: 100%;
+      max-width: 390px;
+      height: 844px;
+      background: var(--bg);
+      border-radius: 52px;
+      overflow: hidden;
+      margin: 0 auto;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.22);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notch {
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 126px; height: 34px;
+      background: var(--navy);
+      border-bottom-left-radius: 20px;
+      border-bottom-right-radius: 20px;
+      z-index: 10;
+    }
+
+    .screen {
+      flex: 1;
+      overflow-y: auto;
+      padding: 56px 20px 90px;
+      scrollbar-width: none;
+    }
+    .screen::-webkit-scrollbar { display: none; }
+
+    .statusbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 32px 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(180deg, rgba(10,22,40,0.45) 0%, transparent 100%);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .tabbar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 84px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 12px;
+      z-index: 10;
+    }
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .tab.active { color: var(--green); }
+    .tab svg { width: 24px; height: 24px; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .greeting p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .greeting h1 {
+      margin: 2px 0 0;
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy);
+    }
+    .greeting h2 {
+      margin: 2px 0 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.15;
+    }
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0A1628 0%, #1E293B 100%);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 16px;
+    }
+    .card.flat { box-shadow: var(--shadow-sm); }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 56px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-navy {
+      background: var(--navy);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(10,22,40,0.22);
+    }
+    .btn-green {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-red {
+      background: var(--red-light);
+      color: var(--red);
+      border: 1.5px solid rgba(239,68,68,0.2);
+    }
+    .btn-ghost {
+      background: #fff;
+      color: var(--navy);
+      border: 1.5px solid var(--border);
+    }
+
+    .row { display: flex; gap: 12px; }
+    .row .btn { flex: 1; }
+
+    .hero-status {
+      background: linear-gradient(135deg, #0A1628 0%, #162033 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-status::after {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      background: rgba(15,123,79,0.12);
+      border-radius: 50%;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15,123,79,0.18);
+      color: #6EE7B7;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #22C55E; }
+    .hero-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .hero-sub { font-size: 14px; opacity: 0.8; margin-bottom: 16px; }
+    .provider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .provider-avatar {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      color: var(--navy);
+      font-weight: 700;
+    }
+    .provider-meta h3 { margin: 0; font-size: 15px; font-weight: 800; }
+    .provider-meta p { margin: 2px 0 0; font-size: 13px; opacity: 0.75; }
+    .hero-eta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 8px 0 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .see-all {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .categories {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .categories::-webkit-scrollbar { display: none; }
+    .cat-card {
+      min-width: 74px;
+      height: 90px;
+      background: #fff;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(226,232,240,0.6);
+    }
+    .cat-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .cat-label { font-size: 11px; font-weight: 700; color: var(--navy); text-align: center; }
+
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .cat-tile {
+      background: #fff;
+      border-radius: 18px;
+      padding: 16px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(226,232,240,0.6);
+    }
+
+    .provider-small {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: #fff;
+      border-radius: 16px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+    .provider-small .avatar-circle {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: #F1F5F9;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--navy);
+    }
+    .provider-small .info { flex: 1; }
+    .provider-small .info h4 { margin: 0; font-size: 15px; font-weight: 800; }
+    .provider-small .info p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--green-light);
+      color: var(--green);
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: #F1F5F9;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .activity-info h4 { margin: 0; font-size: 14px; font-weight: 800; color: var(--navy); }
+    .activity-info p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .activity-status {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .search-pill {
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .chip {
+      background: #F1F5F9;
+      color: var(--navy);
+      padding: 7px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .state-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .dot-state {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .dot-state.active { background: var(--green); box-shadow: 0 0 0 4px rgba(15,123,79,0.12); }
+
+    .editorial-hero {
+      background: linear-gradient(135deg, #0A1628 0%, #162033 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 28px 22px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-card);
+    }
+    .editorial-hero h2 { margin: 0 0 8px; font-size: 26px; font-weight: 800; line-height: 1.15; }
+    .editorial-hero p { margin: 0 0 24px; font-size: 15px; opacity: 0.8; }
+
+    .compact-request {
+      background: #fff;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      border-left: 4px solid var(--green);
+    }
+    .compact-request .icon-box {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--green-light);
+      color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .compact-request .info { flex: 1; }
+    .compact-request .info h4 { margin: 0; font-size: 15px; font-weight: 800; }
+    .compact-request .info p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+
+    .mini-cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--green-light);
+      color: var(--green);
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+
+    .notes {
+      max-width: 800px;
+      margin: 40px auto 0;
+      padding: 24px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: var(--shadow-card);
+    }
+    .notes h3 { margin: 0 0 12px; color: var(--navy); font-size: 18px; }
+    .notes ul { margin: 0; padding-left: 20px; color: var(--text); line-height: 1.6; font-size: 14px; }
+    .notes li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="title">Accueil client Xeuy Bi</h1>
+    <p class="subtitle">3 propositions d'architecture et hiérarchie. Choisissez celle à implémenter.</p>
+
+    <div class="grid">
+      <!-- ===== VARIANT 1: Action-first home ===== -->
+      <div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span>5G · 100%</span>
+          </div>
+
+          <div class="screen">
+            <div class="header">
+              <div class="greeting">
+                <p>Bonjour</p>
+                <h1>Mariama</h1>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <span style="width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);color:var(--navy);font-size:20px;">&#x1F514;</span>
+                <div class="avatar">MD</div>
+              </div>
+            </div>
+
+            <div class="hero-status">
+              <div class="status-pill"><span class="dot"></span> En route</div>
+              <h2 class="hero-title">Plomberie en cours</h2>
+              <p class="hero-sub">Fuite d'eau sous l'évier</p>
+
+              <div class="provider-row">
+                <div class="provider-avatar">MD</div>
+                <div class="provider-meta">
+                  <h3>Moussa Diop</h3>
+                  <p>Plombier · 4.9 &#x2605;</p>
+                </div>
+              </div>
+
+              <div class="hero-eta">
+                <span style="font-size:18px;">&#x23F0;</span> Arrivée prévue 14 min · 4,2 km
+              </div>
+
+              <button class="btn btn-green">Suivre le prestataire</button>
+            </div>
+
+            <div class="row" style="margin-bottom:20px;">
+              <button class="btn btn-navy">+ Publier une demande</button>
+              <button class="btn btn-red">&#x26A1; Urgence</button>
+            </div>
+
+            <div class="section-title">
+              Catégories
+              <span class="see-all">Tout voir</span>
+            </div>
+            <div class="categories">
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#EFF6FF;color:#2563EB;">&#x26A1;</div>
+                <span class="cat-label">Électricité</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#E0F2FE;color:#0891B2;">&#x1F6BF;</div>
+                <span class="cat-label">Plomberie</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#FFF7ED;color:#EA580C;">&#x1FA9F;</div>
+                <span class="cat-label">Menuiserie</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#F5F3FF;color:#7C3AED;">&#x1F3A8;</div>
+                <span class="cat-label">Peinture</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#ECFEFF;color:#06B6D4;">&#x2744;</div>
+                <span class="cat-label">Clim</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#F0FDF4;color:#166534;">&#x1F512;</div>
+                <span class="cat-label">Sécurité</span>
+              </div>
+            </div>
+
+            <div class="section-title">Recommandés près de vous</div>
+            <div class="provider-small">
+              <div class="avatar-circle">AB</div>
+              <div class="info">
+                <h4>Abdoulaye Ba</h4>
+                <p>Électricien · 4.8 &#x2605; · 0.8 km</p>
+              </div>
+              <span class="badge">&#x2713; Vérifié</span>
+            </div>
+            <div class="provider-small">
+              <div class="avatar-circle">FD</div>
+              <div class="info">
+                <h4>Fatou Diallo</h4>
+                <p>Peintre · 4.9 &#x2605; · 1.2 km</p>
+              </div>
+              <span class="badge">&#x2713; Vérifié</span>
+            </div>
+
+            <div class="section-title">Activité récente</div>
+            <div class="card flat" style="padding:0 16px;">
+              <div class="activity-item">
+                <div class="activity-icon" style="background:#E0F2FE;color:#0891B2;">&#x1F6BF;</div>
+                <div class="activity-info">
+                  <h4>Fuite d'eau salle de bain</h4>
+                  <p>Plomberie · aujourd'hui</p>
+                </div>
+                <span class="activity-status">En route</span>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon" style="background:#EFF6FF;color:#2563EB;">&#x26A1;</div>
+                <div class="activity-info">
+                  <h4>Installation climatiseur</h4>
+                  <p>Climatisation · hier</p>
+                </div>
+                <span class="activity-status" style="color:var(--muted);">Terminée</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Accueil</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg><span>Demandes</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Offres</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notifications</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profil</span></div>
+          </div>
+        </div>
+        <p style="text-align:center; margin-top:18px; color:var(--muted); font-size:14px; font-weight:600;">Variante 1 · Action-first</p>
+      </div>
+
+      <!-- ===== VARIANT 2: Request-creation-first home ===== -->
+      <div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="statusbar" style="color:var(--navy); background:transparent;">
+            <span>9:41</span>
+            <span>5G · 100%</span>
+          </div>
+
+          <div class="screen">
+            <div class="header">
+              <div class="greeting">
+                <p>Bonjour Mariama</p>
+                <h2>De l'aide pour votre quotidien</h2>
+              </div>
+              <div class="avatar">MD</div>
+            </div>
+
+            <div class="editorial-hero">
+              <h2>Un bricoleur vérifié en quelques minutes</h2>
+              <p>Décrivez votre besoin, recevez des offres, choisissez le meilleur.</p>
+              <button class="btn btn-green" style="margin-bottom:12px;">+ Publier une demande</button>
+              <button class="btn" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2);">&#x26A1; Réparation urgente</button>
+            </div>
+
+            <div class="search-pill">
+              <span style="font-size:18px;">&#x1F50D;</span>
+              <span>J'ai besoin d'un...</span>
+            </div>
+            <div class="examples">
+              <span class="chip">électricien</span>
+              <span class="chip">plombier</span>
+              <span class="chip">peintre</span>
+              <span class="chip">climatiseur</span>
+              <span class="chip">urgence fuite</span>
+            </div>
+
+            <div class="compact-request">
+              <div class="icon-box">&#x1F6BF;</div>
+              <div class="info">
+                <h4>Plomberie — Prestataire assigné</h4>
+                <p>Moussa Diop • Arrivée 14 min</p>
+              </div>
+              <span style="color:var(--green);font-weight:800;font-size:18px;">&#x203A;</span>
+            </div>
+
+            <div class="section-title">Catégories</div>
+            <div class="categories-grid">
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#EFF6FF;color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x26A1;</div>
+                <span class="cat-label">Électricité</span>
+              </div>
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#E0F2FE;color:#0891B2;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x1F6BF;</div>
+                <span class="cat-label">Plomberie</span>
+              </div>
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#FFF7ED;color:#EA580C;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x1FA9F;</div>
+                <span class="cat-label">Menuiserie</span>
+              </div>
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#F5F3FF;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x1F3A8;</div>
+                <span class="cat-label">Peinture</span>
+              </div>
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#ECFEFF;color:#06B6D4;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x2744;</div>
+                <span class="cat-label">Clim</span>
+              </div>
+              <div class="cat-tile">
+                <div style="width:42px;height:42px;border-radius:12px;background:#F0FDF4;color:#166534;display:flex;align-items:center;justify-content:center;font-size:20px;">&#x1F512;</div>
+                <span class="cat-label">Sécurité</span>
+              </div>
+            </div>
+
+            <div class="section-title">Recommandés</div>
+            <div class="provider-small">
+              <div class="avatar-circle">AB</div>
+              <div class="info">
+                <h4>Abdoulaye Ba</h4>
+                <p>Électricien · 4.8 &#x2605; · 0.8 km</p>
+              </div>
+              <span class="badge">&#x2713; Vérifié</span>
+            </div>
+
+            <div class="section-title">Récent</div>
+            <div class="card flat" style="padding:0 16px;">
+              <div class="activity-item">
+                <div class="activity-icon" style="background:#E0F2FE;color:#0891B2;">&#x1F6BF;</div>
+                <div class="activity-info">
+                  <h4>Fuite d'eau sous l'évier</h4>
+                  <p>Plomberie · aujourd'hui</p>
+                </div>
+                <span class="activity-status">En route</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Accueil</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg><span>Demandes</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Offres</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notifications</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profil</span></div>
+          </div>
+        </div>
+        <p style="text-align:center; margin-top:18px; color:var(--muted); font-size:14px; font-weight:600;">Variante 2 · Request-creation-first</p>
+      </div>
+
+      <!-- ===== VARIANT 3: Smart contextual home ===== -->
+      <div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="statusbar">
+            <span>9:41</span>
+            <span>5G · 100%</span>
+          </div>
+
+          <div class="screen">
+            <div class="header">
+              <div class="greeting">
+                <p>Bonjour</p>
+                <h1>Mariama</h1>
+              </div>
+              <div class="avatar">MD</div>
+            </div>
+
+            <div class="state-dots" title="États: aucune / offres / assigné / en cours">
+              <div class="dot-state"></div>
+              <div class="dot-state"></div>
+              <div class="dot-state active"></div>
+              <div class="dot-state"></div>
+            </div>
+
+            <div class="hero-status">
+              <div class="status-pill"><span class="dot"></span> Prestataire assigné</div>
+              <h2 class="hero-title">Moussa arrive bientôt</h2>
+              <p class="hero-sub">Plomberie · Fuite d'eau</p>
+
+              <div class="provider-row">
+                <div class="provider-avatar">MD</div>
+                <div class="provider-meta">
+                  <h3>Moussa Diop</h3>
+                  <p>4.9 &#x2605; · 127 missions</p>
+                </div>
+              </div>
+
+              <div class="hero-eta">
+                <span style="font-size:18px;">&#x23F0;</span> Arrivée prévue 14 min · 4,2 km
+              </div>
+
+              <button class="btn btn-green">Voir la mission</button>
+            </div>
+
+            <div class="mini-cta">
+              <span>&#x1F4E3; Vous avez 3 nouvelles offres</span>
+              <span style="font-size:18px;">&#x203A;</span>
+            </div>
+
+            <div class="row" style="margin-bottom:20px;">
+              <button class="btn btn-navy">+ Nouvelle demande</button>
+              <button class="btn btn-red">Urgence</button>
+            </div>
+
+            <div class="section-title">
+              Catégories
+              <span class="see-all">Tout voir</span>
+            </div>
+            <div class="categories">
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#EFF6FF;color:#2563EB;">&#x26A1;</div>
+                <span class="cat-label">Électricité</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#E0F2FE;color:#0891B2;">&#x1F6BF;</div>
+                <span class="cat-label">Plomberie</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#FFF7ED;color:#EA580C;">&#x1FA9F;</div>
+                <span class="cat-label">Menuiserie</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#F5F3FF;color:#7C3AED;">&#x1F3A8;</div>
+                <span class="cat-label">Peinture</span>
+              </div>
+              <div class="cat-card">
+                <div class="cat-icon" style="background:#ECFEFF;color:#06B6D4;">&#x2744;</div>
+                <span class="cat-label">Clim</span>
+              </div>
+            </div>
+
+            <div class="section-title">Recommandés près de vous</div>
+            <div class="provider-small">
+              <div class="avatar-circle">AB</div>
+              <div class="info">
+                <h4>Abdoulaye Ba</h4>
+                <p>Électricien · 4.8 &#x2605; · 0.8 km</p>
+              </div>
+              <span class="badge">&#x2713; Vérifié</span>
+            </div>
+
+            <div class="section-title">Activité récente</div>
+            <div class="card flat" style="padding:0 16px;">
+              <div class="activity-item">
+                <div class="activity-icon" style="background:#E0F2FE;color:#0891B2;">&#x1F6BF;</div>
+                <div class="activity-info">
+                  <h4>Fuite d'eau salle de bain</h4>
+                  <p>Plomberie · aujourd'hui</p>
+                </div>
+                <span class="activity-status">En route</span>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon" style="background:#F5F3FF;color:#7C3AED;">&#x1F3A8;</div>
+                <div class="activity-info">
+                  <h4>Chambre à peindre</h4>
+                  <p>Peinture · il y a 2 jours</p>
+                </div>
+                <span class="activity-status" style="color:var(--muted);">Terminée</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Accueil</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg><span>Demandes</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Offres</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notifications</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profil</span></div>
+          </div>
+        </div>
+        <p style="text-align:center; margin-top:18px; color:var(--muted); font-size:14px; font-weight:600;">Variante 3 · Smart contextual</p>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h3>Notes pour le choix final</h3>
+      <ul>
+        <li><strong>Variante 1</strong> : idéale si le cas d'usage principal est le suivi de mission en cours. L'utilisateur actif voit immédiatement son prestataire.</li>
+        <li><strong>Variante 2</strong> : choisir si l'objectif est de publier le plus de demandes possible. L'accès aux catégories est très rapide.</li>
+        <li><strong>Variante 3</strong> : la plus évolutive. Elle s'adapte à l'état sans refonte complète. Recommandée pour lancer puis itérer.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

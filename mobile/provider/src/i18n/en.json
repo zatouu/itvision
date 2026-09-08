@@ -443,6 +443,18 @@
     "availableNow": "Available now",
     "sendOffer": "Send offer"
   },
+  "schedule": {
+    "today": "Today",
+    "todayShort": "Today",
+    "tomorrow": "Tomorrow",
+    "noHoursToday": "No more slots today — pick another day.",
+    "slotTitle": "Requested slot",
+    "clientAsks": "The client asks: {{slot}}",
+    "iCommit": "I commit to this slot",
+    "proposeOther": "Propose another time",
+    "proposeTimeTitle": "Propose your availability",
+    "scheduledAt": "Scheduled"
+  },
   "providerWallet": {
     "title": "Wallet",
     "available": "Available balance",

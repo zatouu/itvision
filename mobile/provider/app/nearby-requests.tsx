@@ -23,7 +23,8 @@ import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
-import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles } from 'lucide-react-native'
+import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles, CalendarClock } from 'lucide-react-native'
+import SchedulePicker, { formatSlot } from '../src/components/SchedulePicker'
 
 const RADIUS_KM = 10
 
@@ -54,6 +55,8 @@ function NearbyRequests() {
   const [travelIncluded, setTravelIncluded] = useState(true)
   const [materialIncluded, setMaterialIncluded] = useState(false)
   const [availableNow, setAvailableNow] = useState(true)
+  const [proposeOther, setProposeOther] = useState(false)
+  const [proposedTime, setProposedTime] = useState<Date | null>(null)
   const [sending, setSending] = useState(false)
   const [sentId, setSentId] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -80,6 +83,8 @@ function NearbyRequests() {
       setMaterialIncluded(false)
       setAvailableNow(true)
     }
+    setProposeOther(false)
+    setProposedTime(null)
   }, [])
 
   // Notifier le client quand le prestataire est en train de rédiger une offre
@@ -267,6 +272,8 @@ function NearbyRequests() {
         travelIncluded,
         materialIncluded,
         availableNow,
+        // Contre-proposition horaire : absent = engagement sur le créneau demandé
+        proposedTime: proposeOther && proposedTime ? proposedTime.toISOString() : undefined,
       }, t('nearby.offerQueuedOffline'))
       setSentId(selected._id)
       hapticSuccess()
@@ -498,6 +505,14 @@ function NearbyRequests() {
                 </View>
               )}
               {it.description ? <Text style={s.desc} numberOfLines={2}>{it.description}</Text> : null}
+              {it.scheduledFor && new Date(it.scheduledFor).getTime() > Date.now() && (
+                <View style={s.schedChip}>
+                  <CalendarClock size={12} color={colors.info} />
+                  <Text style={s.schedChipText}>
+                    {t('schedule.scheduledAt')} · {formatSlot(it.scheduledFor, i18n.language)}
+                  </Text>
+                </View>
+              )}
               {/* AI Analyze button */}
               <TouchableOpacity
                 style={s.aiAnalyzeBtn}
@@ -658,6 +673,31 @@ function NearbyRequests() {
             })}
           </View>
 
+          {/* Créneau demandé + contre-proposition horaire */}
+          {selected?.scheduledFor && (
+            <View style={s.slotSection}>
+              <View style={s.slotAskedRow}>
+                <CalendarClock size={15} color={colors.info} />
+                <Text style={s.slotAskedText}>
+                  {t('schedule.clientAsks', { slot: formatSlot(selected.scheduledFor, i18n.language) })}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={s.slotToggleRow}
+                onPress={() => { setProposeOther(v => !v); if (proposeOther) setProposedTime(null) }}
+                activeOpacity={0.8}
+              >
+                <Text style={s.slotToggleText}>{t('schedule.proposeOther')}</Text>
+                <View style={[s.optionSwitch, proposeOther && s.optionSwitchActive]}>
+                  <View style={[s.optionSwitchThumb, proposeOther && s.optionSwitchThumbActive]} />
+                </View>
+              </TouchableOpacity>
+              {proposeOther && (
+                <SchedulePicker value={proposedTime} onChange={setProposedTime} />
+              )}
+            </View>
+          )}
+
           <Text style={s.modalSectionLabel}>{t('nearby.optionalMessage')}</Text>
           <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor={colors.textMuted} />
 
@@ -733,6 +773,13 @@ const s = StyleSheet.create({
   recenterBtn: { position: 'absolute', bottom: 24, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadows.md },
   recenterIcon: { color: colors.success },
   loadingText: { fontSize: 13, color: colors.textSecondary, marginTop: 8 },
+  schedChip: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: '#BFDBFE' },
+  schedChipText: { fontSize: 11.5, fontWeight: '700', color: colors.infoInk },
+  slotSection: { marginBottom: 12 },
+  slotAskedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.infoLight, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 10, marginBottom: 8 },
+  slotAskedText: { fontSize: 13, fontWeight: '700', color: colors.infoInk, flex: 1 },
+  slotToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4, marginBottom: 8 },
+  slotToggleText: { fontSize: 13.5, fontWeight: '600', color: colors.text },
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: 32 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, gap: 10, borderWidth: 1, borderColor: colors.border, ...shadows.sm },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native'
 import { Image } from 'expo-image'
 import { useTranslation } from 'react-i18next'
-import { Star, Check, Clock, MessageCircle } from 'lucide-react-native'
+import { Star, Check, Clock, MessageCircle, CalendarClock } from 'lucide-react-native'
 import { colors, spacing, radius, typography, shadows } from '../../design'
 import { hapticSuccess } from '../../haptics'
+import { formatSlot } from '../SchedulePicker'
 
 export type Offer = {
   _id: string
@@ -15,6 +16,7 @@ export type Offer = {
   providerRating?: { avg?: number; count?: number }
   price: number
   etaMinutes?: number
+  proposedTime?: string
   message?: string
   experienceYears?: number
   materialIncluded?: boolean
@@ -29,6 +31,8 @@ type Props = {
   offer: Offer
   isBest: boolean
   budget?: number
+  /** Créneau demandé par le client (request.scheduledFor, ISO) */
+  scheduledFor?: string
   onChoose: (offer: Offer) => void
   onNegotiate: (offer: Offer) => void
   disabled?: boolean
@@ -52,8 +56,8 @@ function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) 
   )
 }
 
-export default function OfferCard({ offer, isBest, budget, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
-  const { t } = useTranslation()
+export default function OfferCard({ offer, isBest, budget, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
+  const { t, i18n } = useTranslation()
   const slideAnim = useRef(new Animated.Value(offer.isNew ? 50 : 0)).current
   const fadeAnim = useRef(new Animated.Value(offer.isNew ? 0 : 1)).current
   const [showNewBadge, setShowNewBadge] = useState(!!offer.isNew)
@@ -167,6 +171,42 @@ export default function OfferCard({ offer, isBest, budget, onChoose, onNegotiate
           <Text style={s.etaText}>{t('clientOffers.arrivesIn', { minutes: offer.etaMinutes })}</Text>
         </View>
       )}
+
+      {/* Créneau : engagement / contre-proposition horaire */}
+      {(() => {
+        const reqMs = scheduledFor ? new Date(scheduledFor).getTime() : null
+        const offMs = offer.proposedTime ? new Date(offer.proposedTime).getTime() : null
+        const counter = reqMs != null && offMs != null && Math.abs(offMs - reqMs) > 60 * 1000
+        if (counter) {
+          return (
+            <View style={s.slotWarn}>
+              <CalendarClock size={13} color={colors.warnInk} />
+              <Text style={s.slotWarnText}>
+                {t('clientOffers.proposesSlot', { slot: formatSlot(offer.proposedTime!, i18n.language) })}
+                {'  ·  '}
+                <Text style={{ color: colors.textMuted }}>{t('clientOffers.askedSlot', { slot: formatSlot(scheduledFor!, i18n.language) })}</Text>
+              </Text>
+            </View>
+          )
+        }
+        if (reqMs != null) {
+          return (
+            <View style={s.slotOk}>
+              <CalendarClock size={13} color={colors.primary} />
+              <Text style={s.slotOkText}>{t('clientOffers.confirmsSlot', { slot: formatSlot(scheduledFor!, i18n.language) })}</Text>
+            </View>
+          )
+        }
+        if (offMs != null) {
+          return (
+            <View style={s.slotInfo}>
+              <CalendarClock size={13} color={colors.info} />
+              <Text style={s.slotInfoText}>{t('clientOffers.proposesSlot', { slot: formatSlot(offer.proposedTime!, i18n.language) })}</Text>
+            </View>
+          )
+        }
+        return null
+      })()}
 
       {/* Contre-offre status badge */}
       {offer.clientCounterStatus === 'pending' && (
@@ -376,6 +416,31 @@ const s = StyleSheet.create({
     fontSize: typography.sm.fontSize,
     color: colors.textSecondary,
   },
+  slotWarn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+    backgroundColor: colors.warnSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  slotWarnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.warnInk, flex: 1 },
+  slotOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  slotOkText: { fontSize: 12.5, fontWeight: typography.weight.semibold as any, color: colors.brandInk },
+  slotInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  slotInfoText: { fontSize: 12.5, fontWeight: typography.weight.semibold as any, color: colors.info },
   actions: {
     flexDirection: 'row',
     gap: spacing.md,

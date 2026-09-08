@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { requestId, price, etaMinutes, comment, providerName, validityMinutes } = body as any
+    const { requestId, price, etaMinutes, comment, providerName, validityMinutes, proposedTime } = body as any
 
     // Validation requestId
     if (!requestId || typeof requestId !== 'string' || requestId.length > 50) {
@@ -89,6 +89,17 @@ export async function POST(request: NextRequest) {
     // Validation comment
     if (comment && (typeof comment !== 'string' || comment.length > MAX_COMMENT_LENGTH)) {
       return NextResponse.json({ error: `Commentaire trop long (max ${MAX_COMMENT_LENGTH} car.)` }, { status: 400 })
+    }
+    // Validation proposedTime (créneau proposé / contre-proposition horaire)
+    let safeProposedTime: Date | undefined
+    if (proposedTime !== undefined && proposedTime !== null && proposedTime !== '') {
+      const pt = new Date(proposedTime)
+      const maxFuture = Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 jours
+      // Tolérance 10 min dans le passé (décalage horloge client)
+      if (isNaN(pt.getTime()) || pt.getTime() < Date.now() - 10 * 60 * 1000 || pt.getTime() > maxFuture) {
+        return NextResponse.json({ error: 'Créneau proposé invalide (futur, max 30 jours)' }, { status: 400 })
+      }
+      safeProposedTime = pt
     }
 
     const sr = await ServiceRequest.findById(requestId)
@@ -136,6 +147,7 @@ export async function POST(request: NextRequest) {
       etaMinutes: etaMinutes ? Math.round(etaMinutes) : undefined,
       comment: comment ? comment.slice(0, MAX_COMMENT_LENGTH) : undefined,
       validityMinutes: vm, validUntil,
+      proposedTime: safeProposedTime,
     }
     if (providerName && typeof providerName === 'string') offerData.providerName = providerName.slice(0, 60)
 
@@ -157,6 +169,7 @@ export async function POST(request: NextRequest) {
       existing.comment = offerData.comment
       existing.validityMinutes = offerData.validityMinutes
       existing.validUntil = offerData.validUntil
+      existing.proposedTime = offerData.proposedTime
       if (offerData.providerName) existing.providerName = offerData.providerName
       // Remettre le statut à submitted si l'offre avait expiré
       if (existing.status === 'expired') existing.status = 'submitted'
@@ -202,6 +215,7 @@ export async function POST(request: NextRequest) {
         comment,
         validityMinutes: vm,
         validUntil,
+        proposedTime: safeProposedTime,
         createdAt: created.createdAt,
         updatedAt: created.updatedAt,
       })

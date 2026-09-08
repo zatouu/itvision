@@ -12,6 +12,10 @@ const OfferSchema = new Schema({
   validityMinutes: { type: Number, min: 1, max: 1440, default: 30 }, // durée validité offre (1min..24h)
   validUntil: { type: Date, required: true }, // calculé à la création
   status: { type: String, enum: ['submitted','withdrawn','accepted','rejected','expired'], default: 'submitted' },
+  // Créneau proposé par le prestataire. Si la demande est programmée
+  // (request.scheduledFor), une valeur différente = contre-proposition d'horaire.
+  // Absent = le prestataire s'engage sur le créneau demandé (ou "dès que possible").
+  proposedTime: { type: Date },
   // Contre-offre client (négociation InDriver-like)
   clientCounterPrice: { type: Number, min: 0 },
   clientCounterAt: { type: Date },

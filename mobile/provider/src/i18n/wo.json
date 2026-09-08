@@ -435,6 +435,18 @@
     "availableNow": "Am na léegi",
     "sendOffer": "Yónnee offre bi"
   },
+  "schedule": {
+    "today": "Tey",
+    "todayShort": "Tey",
+    "tomorrow": "Démb",
+    "noHoursToday": "Amul beneen waxtu tey — tann beneen bés.",
+    "slotTitle": "Waxtu bi ñu laaj",
+    "clientAsks": "Kiliyaŋ bi dafay laaj : {{slot}}",
+    "iCommit": "Dama ngi dëggal waxtu bi",
+    "proposeOther": "Jël beneen waxtu",
+    "proposeTimeTitle": "Waxal sa waxtu",
+    "scheduledAt": "Tegal na"
+  },
   "providerWallet": {
     "title": "Portmonney",
     "available": "Solde bu am",

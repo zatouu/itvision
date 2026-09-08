@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "C:/Users/ASUS/OneDrive/Documents/Teltonika"
+		}
+	],
+	"settings": {
+		"github-actions.workflows.pinned.workflows": [
+			".github/workflows/deploy-ghcr-ec2.yml"
+		]
+	}
+}

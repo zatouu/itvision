@@ -241,6 +241,16 @@
     "viewOffers": "Gis ofr yi ñu yónnee",
     "backHome": "Dellu ci kanam"
   },
+  "schedule": {
+    "whenLabel": "Kan ?",
+    "asap": "Léegi léegi",
+    "today": "Tey",
+    "todayShort": "Tey",
+    "tomorrow": "Démb",
+    "later": "Tegal",
+    "hint": "Liggéeykat bi dina dëggal waxtu bi ci béttu ofr.",
+    "noHoursToday": "Amul beneen waxtu tey — tann beneen bés."
+  },
   "offers": {
     "title": "Ofr yi ñu yónnee",
     "accept": "Nangu ofr bii",
@@ -298,6 +308,7 @@
   },
   "requests": {
     "title": "Samay laaj",
+    "scheduledAt": "Tegal na",
     "searchPlaceholder": "Seet mbir, ndeyu baat, alal...",
     "filterAll": "Lépp",
     "filterActive": "Diy liggéey",
@@ -649,7 +660,10 @@
     "verified": "KYC bu wóor",
     "viewProfile": "Xool profile",
     "choose": "Tànn",
-    "compare": "Méddel offre yi"
+    "compare": "Méddel offre yi",
+    "proposesSlot": "Dafay jël {{slot}}",
+    "askedSlot": "laajoon : {{slot}}",
+    "confirmsSlot": "Dëggal na : {{slot}}"
   },
   "clientProvider": {
     "title": "Benn liggéeykat",

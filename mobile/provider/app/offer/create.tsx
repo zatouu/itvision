@@ -7,8 +7,9 @@ import AppHeader from '../../src/components/AppHeader'
 import StickyBottomBar from '../../src/components/StickyBottomBar'
 import Button from '../../src/components/Button'
 import { getCategoryMeta, colors, spacing, radius, shadows, typography } from '../../src/design'
-import { Minus, Plus, Sparkles } from 'lucide-react-native'
+import { Minus, Plus, Sparkles, CalendarClock, Check } from 'lucide-react-native'
 import { apiGet, apiPost, apiPostQueued } from '../../src/api'
+import SchedulePicker, { formatSlot } from '../../src/components/SchedulePicker'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { hapticSuccess, hapticError } from '../../src/haptics'
@@ -18,7 +19,7 @@ import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 const ETA_OPTIONS = [15, 30, 45, 60]
 
 function CreateOffer() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { requestId } = useLocalSearchParams<{ requestId: string }>()
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -29,6 +30,8 @@ function CreateOffer() {
   const [includesTravel, setIncludesTravel] = useState(true)
   const [includesMaterial, setIncludesMaterial] = useState(false)
   const [availableNow, setAvailableNow] = useState(true)
+  const [timeMode, setTimeMode] = useState<'commit' | 'propose'>('commit')
+  const [proposedTime, setProposedTime] = useState<Date | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<{ suggestedPrice: number; suggestedMessage: string; reasoning?: string } | null>(null)
   const [marketPrices, setMarketPrices] = useState<{ count: number; medianPrice: number; avgPrice: number } | null>(null)
@@ -108,6 +111,11 @@ function CreateOffer() {
           travelIncluded: includesTravel,
           materialIncluded: includesMaterial,
           availableNow,
+          // Contre-proposition horaire : soit le prestataire s'engage sur le
+          // créneau demandé (pas de proposedTime), soit il en propose un autre.
+          proposedTime: request?.scheduledFor
+            ? (timeMode === 'propose' && proposedTime ? proposedTime.toISOString() : undefined)
+            : (!availableNow && proposedTime ? proposedTime.toISOString() : undefined),
         },
         t('nearby.offerQueuedOffline')
       )
@@ -222,6 +230,43 @@ function CreateOffer() {
           </View>
         </View>
 
+        {/* Créneau : engagement sur l'horaire demandé ou contre-proposition */}
+        {request?.scheduledFor ? (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>{t('schedule.slotTitle')}</Text>
+            <View style={s.slotAskedRow}>
+              <CalendarClock size={15} color={colors.info} />
+              <Text style={s.slotAskedText}>
+                {t('schedule.clientAsks', { slot: formatSlot(request.scheduledFor, i18n.language) })}
+              </Text>
+            </View>
+            <View style={s.slotChoiceRow}>
+              <TouchableOpacity
+                style={[s.slotChoice, timeMode === 'commit' && s.slotChoiceActive]}
+                onPress={() => setTimeMode('commit')}
+                activeOpacity={0.8}
+              >
+                {timeMode === 'commit' && <Check size={14} color={colors.primary} />}
+                <Text style={[s.slotChoiceText, timeMode === 'commit' && s.slotChoiceTextActive]}>
+                  {t('schedule.iCommit')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.slotChoice, timeMode === 'propose' && s.slotChoiceActive]}
+                onPress={() => setTimeMode('propose')}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.slotChoiceText, timeMode === 'propose' && s.slotChoiceTextActive]}>
+                  {t('schedule.proposeOther')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {timeMode === 'propose' && (
+              <SchedulePicker value={proposedTime} onChange={setProposedTime} />
+            )}
+          </View>
+        ) : null}
+
         <View style={s.section}>
           <Text style={s.sectionTitle}>{t('providerOffer.message')}</Text>
           <TextInput
@@ -240,6 +285,14 @@ function CreateOffer() {
           <ToggleRow label={t('providerOffer.includesMaterial')} value={includesMaterial} onValueChange={setIncludesMaterial} />
           <ToggleRow label={t('providerOffer.availableNow')} value={availableNow} onValueChange={setAvailableNow} />
         </View>
+
+        {/* Pas dispo maintenant → proposer un horaire précis */}
+        {!request?.scheduledFor && !availableNow && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>{t('schedule.proposeTimeTitle')}</Text>
+            <SchedulePicker value={proposedTime} onChange={setProposedTime} />
+          </View>
+        )}
       </ScrollView>
 
       <StickyBottomBar>
@@ -377,6 +430,33 @@ const s = StyleSheet.create({
     color: colors.text,
     minHeight: 90,
   },
+  slotAskedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.infoLight,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    marginBottom: spacing.md,
+  },
+  slotAskedText: { fontSize: typography.sm.fontSize, fontWeight: typography.weight.bold as any, color: colors.infoInk, flex: 1 },
+  slotChoiceRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  slotChoice: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: 11,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  slotChoiceActive: { borderColor: colors.primary, backgroundColor: colors.brandSoft },
+  slotChoiceText: { fontSize: 12.5, fontWeight: typography.weight.bold as any, color: colors.textSecondary },
+  slotChoiceTextActive: { color: colors.brandInk },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -66,6 +66,16 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   sr.selectedOfferId = acceptedRequest.selectedOfferId
   sr.assignedAt = acceptedRequest.assignedAt
 
+  // Horaire convenu : la contre-proposition du prestataire prime sur le
+  // créneau demandé par le client (le client valide en acceptant l'offre).
+  const agreedTime = offer.proposedTime
+    ? new Date(offer.proposedTime)
+    : (sr.scheduledFor ? new Date(sr.scheduledFor) : null)
+  if (agreedTime && (!sr.scheduledFor || agreedTime.getTime() !== new Date(sr.scheduledFor).getTime())) {
+    await ServiceRequest.updateOne({ _id: sr._id }, { $set: { scheduledFor: agreedTime } })
+    sr.scheduledFor = agreedTime
+  }
+
   await Offer.updateOne({ _id: offer._id }, { status: 'accepted' })
   await Offer.updateMany(
     { requestId: sr._id, _id: { $ne: offer._id }, status: 'submitted' },
@@ -121,6 +131,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
       requestId,
       category: sr.category,
       location: sr.location,
+      scheduledFor: agreedTime || undefined,
     })
     for (const lo of losingOffers) {
       io.to(`provider-${lo.providerId}`).emit('offer:rejected', {
@@ -131,10 +142,12 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
     io.to(`request-${requestId}`).emit('request:assigned', {
       requestId,
       acceptedOfferId: offerId,
+      scheduledFor: agreedTime || undefined,
     })
     io.to(`user-${clientId}`).emit('user:request-assigned', {
       requestId,
       acceptedOfferId: offerId,
+      scheduledFor: agreedTime || undefined,
     })
   }
 

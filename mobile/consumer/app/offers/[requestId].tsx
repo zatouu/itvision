@@ -341,6 +341,7 @@ function OffersReceived() {
                     offer={offer}
                     isBest={idx === 0 && sort === 'recommended'}
                     budget={request?.budget}
+                    scheduledFor={request?.scheduledFor}
                     onChoose={acceptOffer}
                     onNegotiate={negotiateOffer}
                     disabled={accepting === offer._id || isTerminal}

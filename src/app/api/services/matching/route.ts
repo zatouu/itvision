@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     console.log(`[MATCHING] total requests in DB (status created/pending): ${totalCount}`)
 
     const items = await ServiceRequest.find({ ...geoFilter, ...statusFilter, ...expiryFilter, ...catFilter, ...mineFilter })
-      .select({ clientId: 1, category: 1, subCategory: 1, title: 1, description: 1, location: 1, address: 1, budget: 1, media: 1, status: 1, createdAt: 1 })
+      .select({ clientId: 1, category: 1, subCategory: 1, title: 1, description: 1, location: 1, address: 1, budget: 1, media: 1, status: 1, createdAt: 1, urgent: 1, scheduledFor: 1 })
       .limit(50)
       .lean()
 

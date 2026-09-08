@@ -194,6 +194,27 @@ export async function scheduleLocalNotification(title = 'Test local', body = 'Si
 }
 
 /**
+ * Programme un rappel local à une date précise (ex. T-1h avant une mission planifiée).
+ * Retourne l'id de la notification planifiée, ou null si hors délai / non supporté.
+ */
+export async function scheduleReminderAt(title: string, body: string, date: Date, data: any = {}): Promise<string | null> {
+  if (!isNative) return null
+  const fireInSec = Math.floor((date.getTime() - Date.now()) / 1000)
+  if (fireInSec < 60) return null
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title, body, data: { ...data, localEcho: true }, sound: 'default' },
+      trigger: { date } as any,
+    })
+    console.log('[Push] Rappel programmé:', id, date.toISOString())
+    return id
+  } catch (err: any) {
+    console.error('[Push] Erreur rappel planifié:', err?.message || err)
+    return null
+  }
+}
+
+/**
  * Configure le channel Android (requis Android 8+).
  */
 export async function setupNotificationChannel(): Promise<void> {

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { connectSocket } from './socket'
-import { scheduleLocalNotification } from './push'
+import { scheduleLocalNotification, scheduleReminderAt } from './push'
 import { apiGet } from './api'
 
 export type NotificationKind =
@@ -221,12 +221,27 @@ export function bindNotificationSocket() {
 
   const onOfferAccepted = (payload: any) => {
     const requestId = String(payload?.requestId || '')
+    const scheduledAt = payload?.scheduledFor ? new Date(payload.scheduledFor) : null
+    const isScheduled = scheduledAt && scheduledAt.getTime() > Date.now()
     pushNotification({
       kind: 'offer-accepted',
       title: 'Offre acceptée',
-      body: 'Un client a choisi votre offre. La mission démarre.',
+      body: isScheduled
+        ? `Mission confirmée pour le ${scheduledAt!.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${scheduledAt!.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`
+        : 'Un client a choisi votre offre. La mission démarre.',
       link: requestId ? { pathname: `/active-mission/${requestId}` } : { pathname: '/my-offers' },
     })
+    // Rappel local 1h avant le créneau convenu
+    if (isScheduled && scheduledAt) {
+      const reminderAt = new Date(scheduledAt.getTime() - 60 * 60 * 1000)
+      const slot = `${scheduledAt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })} ${scheduledAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+      void scheduleReminderAt(
+        '⏰ Mission dans 1 heure',
+        `Vous avez une mission prévue à ${slot}. Préparez votre départ.`,
+        reminderAt,
+        { type: 'mission-reminder', requestId }
+      )
+    }
   }
 
   const onOfferRejected = () => {

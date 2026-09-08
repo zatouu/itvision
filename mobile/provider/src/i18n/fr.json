@@ -443,6 +443,18 @@
     "availableNow": "Disponible immédiatement",
     "sendOffer": "Envoyer l'offre"
   },
+  "schedule": {
+    "today": "Aujourd'hui",
+    "todayShort": "Auj.",
+    "tomorrow": "Demain",
+    "noHoursToday": "Plus de créneau aujourd'hui — choisissez un autre jour.",
+    "slotTitle": "Créneau demandé",
+    "clientAsks": "Le client demande : {{slot}}",
+    "iCommit": "Je m'engage sur ce créneau",
+    "proposeOther": "Proposer un autre horaire",
+    "proposeTimeTitle": "Proposez votre disponibilité",
+    "scheduledAt": "Programmée"
+  },
   "providerWallet": {
     "title": "Portefeuille",
     "available": "Solde disponible",

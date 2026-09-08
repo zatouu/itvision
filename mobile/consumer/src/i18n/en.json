@@ -241,6 +241,16 @@
     "viewOffers": "View received offers",
     "backHome": "Back to home"
   },
+  "schedule": {
+    "whenLabel": "When?",
+    "asap": "As soon as possible",
+    "today": "Today",
+    "todayShort": "Today",
+    "tomorrow": "Tomorrow",
+    "later": "Schedule",
+    "hint": "The provider will commit to this slot in their offer.",
+    "noHoursToday": "No more slots today — pick another day."
+  },
   "offers": {
     "title": "Offers received",
     "accept": "Accept this offer",
@@ -298,6 +308,7 @@
   },
   "requests": {
     "title": "My requests",
+    "scheduledAt": "Scheduled",
     "searchPlaceholder": "Search category, description, budget...",
     "filterAll": "All",
     "filterActive": "Active",
@@ -649,7 +660,10 @@
     "verified": "KYC verified",
     "viewProfile": "View profile",
     "choose": "Choose",
-    "compare": "Compare selected offers"
+    "compare": "Compare selected offers",
+    "proposesSlot": "Proposes {{slot}}",
+    "askedSlot": "requested: {{slot}}",
+    "confirmsSlot": "Commits: {{slot}}"
   },
   "clientProvider": {
     "title": "Provider detail",

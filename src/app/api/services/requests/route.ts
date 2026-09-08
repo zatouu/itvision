@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
     }
-    const { category, subcategory, description, media, location, budget, channel, attributes, urgent } = body as any
+    const { category, subcategory, description, media, location, budget, channel, attributes, urgent, scheduledFor } = body as any
 
     // Validation catégorie
     const validCategories = await getActiveCategorySlugs()
@@ -169,12 +169,28 @@ export async function POST(request: NextRequest) {
       : {}
 
     const isUrgent = urgent === true || urgent === 'true' || urgent === 1
-    const expiresAt = isUrgent
+    // Réservation planifiée : créneau futur demandé par le client.
+    // Mutuellement exclusif avec urgent (urgent = immédiat).
+    let safeScheduledFor: Date | undefined
+    if (!isUrgent && scheduledFor) {
+      const sf = new Date(scheduledFor)
+      const maxFuture = Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 jours
+      if (isNaN(sf.getTime()) || sf.getTime() <= Date.now() || sf.getTime() > maxFuture) {
+        return NextResponse.json({ error: 'Créneau invalide (doit être dans le futur, max 30 jours)' }, { status: 400 })
+      }
+      safeScheduledFor = sf
+    }
+    // Une demande programmée reste ouverte aux offres jusqu'au créneau.
+    const defaultExpiry = isUrgent
       ? new Date(Date.now() + REQUEST_TTL_URGENT_MIN * 60 * 1000)
       : new Date(Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000)
+    const expiresAt = safeScheduledFor && safeScheduledFor.getTime() > defaultExpiry.getTime()
+      ? safeScheduledFor
+      : defaultExpiry
     const created = await ServiceRequest.create({
       clientId: userId, category,
       urgent: isUrgent,
+      scheduledFor: safeScheduledFor,
       subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
       description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
       media: safeMedia, location, budget: safeBudget, channel: safeChannel,

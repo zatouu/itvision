@@ -18,6 +18,7 @@ import { ArrowLeft, X, Check, MapPin, ChevronDown, Sparkles, Zap, Search, Camera
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import AiClarifyModal, { ClarifyQuestion, ClarifyAnswer } from '../src/components/AiClarifyModal'
 import { getCategoryIcon } from '../src/categoryIcons'
+import SchedulePicker, { formatSlot } from '../src/components/SchedulePicker'
 import { hapticSelect, hapticSuccess, hapticLight } from '../src/haptics'
 import { colors, radius, spacing, typography, shadows, cat } from '../src/design'
 
@@ -66,6 +67,8 @@ function CreateRequest() {
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [landmark, setLandmark] = useState('')
   const [autoAddress, setAutoAddress] = useState('')
+  const [when, setWhen] = useState<'asap' | 'today' | 'later'>('asap')
+  const [scheduledFor, setScheduledFor] = useState<Date | null>(null)
   const [voiceNote, setVoiceNote] = useState<VoiceRecording | null>(null)
   const [cats, setCats] = useState<CatEntry[]>(FALLBACK_CATS)
   const [subcategory, setSubcategory] = useState(params.subcategory || '')
@@ -225,6 +228,7 @@ function CreateRequest() {
         channel: 'mobile',
         attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
         urgent: isUrgent,
+        scheduledFor: !isUrgent && scheduledFor ? scheduledFor.toISOString() : undefined,
       }, t('request.queuedOffline'))
       const newId = (res as any)?.item?._id || (res as any)?.item?.id || ''
       setCreatedId(newId)
@@ -687,6 +691,38 @@ function CreateRequest() {
             <Text style={s.fieldHint}>{t('request.landmarkHint')}</Text>
           </View>
 
+          {/* Quand ? — réservation de créneau (masqué en mode urgent) */}
+          {!isUrgent && (
+            <View>
+              <Text style={s.label}>{t('schedule.whenLabel')}</Text>
+              <View style={s.chipRow}>
+                {(['asap', 'today', 'later'] as const).map(mode => {
+                  const labels = { asap: t('schedule.asap'), today: t('schedule.today'), later: t('schedule.later') }
+                  const sel = when === mode
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      style={[s.budgetChip, sel && s.budgetChipActive]}
+                      onPress={() => { hapticLight(); setWhen(mode); setScheduledFor(null) }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[s.budgetChipText, sel && s.budgetChipTextActive]}>{labels[mode]}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+              {when === 'today' && (
+                <SchedulePicker todayOnly value={scheduledFor} onChange={setScheduledFor} />
+              )}
+              {when === 'later' && (
+                <SchedulePicker value={scheduledFor} onChange={setScheduledFor} />
+              )}
+              {when !== 'asap' && (
+                <Text style={s.fieldHint}>{t('schedule.hint')}</Text>
+              )}
+            </View>
+          )}
+
           {/* Récap */}
           <View style={s.recap}>
             <Text style={s.nextTitle}>{t('request.recapTitle')}</Text>
@@ -699,6 +735,10 @@ function CreateRequest() {
             {budget ? <RecapRow label={t('request.recapBudget')} value={`${budget} FCFA`} /> : null}
             {media.length ? <RecapRow label={t('request.recapMedia')} value={t('request.recapMediaValue', { count: media.length })} /> : null}
             {voiceNote ? <RecapRow label={t('request.recapVoice')} value={t('request.recapVoiceValue', { sec: Math.round(voiceNote.durationMs / 1000) })} /> : null}
+            <RecapRow
+              label={t('schedule.whenLabel')}
+              value={isUrgent ? t('schedule.asap') : scheduledFor ? formatSlot(scheduledFor, i18n.language) : t('schedule.asap')}
+            />
           </View>
 
           {err && <Text style={s.errText}>{err}</Text>}
@@ -711,7 +751,7 @@ function CreateRequest() {
         {step === 3 && (
           <View style={s.footerMeta}>
             <Text style={s.footerMetaText}>
-              {selectedCat?.label || ''}{budget ? ` · ${budget} FCFA` : ''}
+              {selectedCat?.label || ''}{budget ? ` · ${budget} FCFA` : ''}{scheduledFor && !isUrgent ? ` · ${formatSlot(scheduledFor, i18n.language)}` : ''}
             </Text>
             {isUrgent && (
               <View style={s.urgentPill}>
@@ -723,8 +763,8 @@ function CreateRequest() {
         )}
         <TouchableOpacity
           style={[s.btn, { backgroundColor: accent },
-            ((step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || loading || uploadingMedia))) && s.btnDisabled]}
-          disabled={(step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || loading || uploadingMedia))}
+            ((step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))) && s.btnDisabled]}
+          disabled={(step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))}
           onPress={() => step === 1 ? setStep(2) : step === 2 ? setStep(3) : submit()}
           activeOpacity={0.88}
         >

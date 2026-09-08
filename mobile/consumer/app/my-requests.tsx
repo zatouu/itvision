@@ -15,8 +15,9 @@ import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { hapticWarning } from '../src/haptics'
-import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2 } from 'lucide-react-native'
+import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2, CalendarClock } from 'lucide-react-native'
 import SideMenu from '../src/components/SideMenu'
+import { formatSlot } from '../src/components/SchedulePicker'
 
 const ACTIVE_MISSION_STATUSES = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
 
@@ -284,6 +285,14 @@ function MyRequests() {
                       {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
                       {it.budget ? ` • ${Number(it.budget).toLocaleString()} FCFA` : ''}
                     </Text>
+                    {it.scheduledFor && new Date(it.scheduledFor).getTime() > Date.now() && (
+                      <View style={s.scheduledChip}>
+                        <CalendarClock size={12} color={colors.info} />
+                        <Text style={s.scheduledChipText}>
+                          {t('requests.scheduledAt', { defaultValue: 'Programmée' })} · {formatSlot(it.scheduledFor, i18n.language)}
+                        </Text>
+                      </View>
+                    )}
                     {it.status === 'awaiting_validation' && (
                       <View style={s.validationBanner}>
                         <View style={{ flex: 1 }}>
@@ -367,6 +376,8 @@ const s = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '600' },
   desc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   meta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  scheduledChip: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 6, backgroundColor: colors.infoLight, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  scheduledChipText: { fontSize: 11.5, fontWeight: '700', color: colors.info },
   offerCountBadge: { backgroundColor: '#F97316', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, minWidth: 20, alignItems: 'center' },
   offerCountText: { fontSize: 11, fontWeight: '800', color: colors.surface },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },

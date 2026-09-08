@@ -241,6 +241,16 @@
     "viewOffers": "Voir les offres reçues",
     "backHome": "Retour à l'accueil"
   },
+  "schedule": {
+    "whenLabel": "Quand ?",
+    "asap": "Dès que possible",
+    "today": "Aujourd'hui",
+    "todayShort": "Auj.",
+    "tomorrow": "Demain",
+    "later": "Programmer",
+    "hint": "Le prestataire s'engagera sur ce créneau dans son offre.",
+    "noHoursToday": "Plus de créneau aujourd'hui — choisissez un autre jour."
+  },
   "offers": {
     "title": "Offres reçues",
     "accept": "Accepter cette offre",
@@ -298,6 +308,7 @@
   },
   "requests": {
     "title": "Mes demandes",
+    "scheduledAt": "Programmée",
     "searchPlaceholder": "Rechercher catégorie, description, budget...",
     "filterAll": "Toutes",
     "filterActive": "Actives",
@@ -678,6 +689,9 @@
     "noRating": "Pas encore d'avis",
     "reviews": "{{count}} avis",
     "arrivesIn": "Arrive dans {{minutes}} min",
+    "proposesSlot": "Propose {{slot}}",
+    "askedSlot": "demandé : {{slot}}",
+    "confirmsSlot": "S'engage : {{slot}}",
     "materialIncluded": "Matériel inclus",
     "experienceYears": "{{years}} ans d'expérience",
     "confirmTitle": "Confirmer ce prestataire ?",
