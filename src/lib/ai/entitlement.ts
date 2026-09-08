@@ -1,6 +1,6 @@
 import { connectMongoose } from '../mongoose'
 import { getAppConfig, debitPoints, creditPoints } from '../wallet'
-import { AI_FEATURE_KEYS, type AiFeatureKey, type IAiConfig, type IAiFeatureConfig } from '../models/AppConfig'
+import { AI_FEATURE_KEYS, AI_AUTO_FEATURES, type AiFeatureKey, type IAiConfig, type IAiFeatureConfig } from '../models/AppConfig'
 import AiUsage from '../models/AiUsage'
 import ProviderProfile from '../models/ProviderProfile'
 import Wallet from '../models/Wallet'
@@ -59,7 +59,7 @@ export async function getAiConfig(): Promise<IAiConfig> {
   const cfg = await getAppConfig()
   const ai = (cfg.ai || {}) as Partial<IAiConfig>
   const features = Object.fromEntries(
-    AI_FEATURE_KEYS.map(k => [k, { ...DEFAULT_FEATURE, ...(k === 'daily_tips' ? { mode: 'free' } : {}), ...(ai.features?.[k] || {}) }])
+    AI_FEATURE_KEYS.map(k => [k, { ...DEFAULT_FEATURE, ...(AI_AUTO_FEATURES.includes(k) ? { mode: 'free' } : {}), ...(ai.features?.[k] || {}) }])
   ) as Record<AiFeatureKey, IAiFeatureConfig>
   return {
     enabled: ai.enabled !== false,

@@ -1,6 +1,35 @@
 import { qwenChat, qwenVision, type ChatMessage } from './qwen'
 
-export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips' | 'suggest_offer'
+export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_coach' | 'mission_help' | 'daily_tips' | 'suggest_offer'
+
+/** Contexte mission chargé côté serveur (ServiceRequest) pour les types prestataire. */
+export interface MissionContext {
+  subcategory?: string
+  /** Nombre de photos jointes par le client à la demande (contexte textuel — pas de vision pour le coach) */
+  clientImageCount?: number
+  pauseReason?: string
+  pauseCount?: number
+  elapsedMinutes?: number
+  price?: number
+  urgent?: boolean
+}
+
+export interface StructuredSection {
+  icon: 'tools' | 'check' | 'warning' | 'steps' | 'parts' | 'client' | 'info' | 'eye' | 'clock'
+  title: string
+  items: string[]
+}
+
+/** Réponse structurée commune au coach, aux questions mission et à l'analyse de demande. */
+export interface StructuredAdvice {
+  title: string
+  summary?: string
+  sections: StructuredSection[]
+  askClient?: string[]
+  sayToClient?: string
+  difficulty?: 'Simple' | 'Moyen' | 'Complexe'
+  durationMinutes?: { min: number; max: number }
+}
 
 interface MarketPriceData {
   category: string
@@ -21,6 +50,7 @@ interface AssistContext {
   /** URLs publiques (ou data URIs) des photos du client — déclenche le modèle vision */
   imageUrls?: string[]
   missionStatus?: string
+  mission?: MissionContext
   profile?: any
   nearbyCount?: number
   earnings?: any
@@ -55,6 +85,31 @@ function answersBlockOf(ctx: AssistContext): string {
   return ctx.answers && ctx.answers.length > 0
     ? `\nPrécisions données par le client:\n${ctx.answers.map(a => `- ${a.question} → ${a.answer}`).join('\n')}`
     : ''
+}
+
+/** Étapes de mission pour lesquelles un coaching est généré (clé = statut ServiceRequest). */
+const COACH_STEP_GUIDANCE: Record<string, string> = {
+  accepted: 'Le prestataire vient d\'être accepté. Conseille-le sur la préparation : matériel à vérifier selon la catégorie, contacter le client pour confirmer l\'adresse et l\'accès, partir avec les consommables probables.',
+  on_the_way: 'Le prestataire est en route vers le client. Conseille-le sur : confirmer l\'heure d\'arrivée au client, préparer mentalement le diagnostic, sécurité routière, avoir le téléphone du client à portée de main.',
+  provider_arriving: 'Le prestataire approche du lieu. Conseille-le sur : prévenir le client de l\'arrivée imminente, repérer l\'accès et le stationnement, préparer ses outils de diagnostic.',
+  arrived: 'Le prestataire est arrivé chez le client. Conseille-le sur : saluer et rassurer le client, inspecter avant de toucher, confirmer la portée des travaux et le prix, sécuriser la zone (disjoncteur, eau, enfants/animaux).',
+  in_progress: 'L\'intervention est en cours. Donne les étapes de travail recommandées pour cette catégorie, les points de contrôle qualité et les précautions sécurité.',
+  paused: 'La mission est en pause. Conseille le prestataire sur : informer le client de la raison et de la reprise, sécuriser le chantier, noter ce qui reste à faire pour une reprise rapide.',
+  awaiting_validation: 'Le prestataire a terminé et attend la validation du client. Conseille-le sur : nettoyer la zone, faire tester le résultat par le client, expliquer ce qui a été fait, préparer le règlement.',
+}
+
+function missionBlockOf(ctx: AssistContext): string {
+  const m = ctx.mission
+  if (!m) return ''
+  const lines: string[] = []
+  if (m.subcategory) lines.push(`- Sous-catégorie: ${m.subcategory}`)
+  if (m.clientImageCount) lines.push(`- ${m.clientImageCount} photo(s) fournie(s) par le client`)
+  if (typeof m.elapsedMinutes === 'number') lines.push(`- Temps écoulé depuis le début: ${m.elapsedMinutes} min`)
+  if (typeof m.price === 'number' && m.price > 0) lines.push(`- Prix convenu: ${m.price.toLocaleString('fr-FR')} FCFA`)
+  if (m.urgent) lines.push('- Mission urgente')
+  if (m.pauseCount) lines.push(`- ${m.pauseCount} pause(s) déjà effectuée(s)`)
+  if (m.pauseReason) lines.push(`- Dernière raison de pause: ${m.pauseReason}`)
+  return lines.length > 0 ? `\nContexte mission:\n${lines.join('\n')}` : ''
 }
 
 /**
@@ -170,6 +225,37 @@ Analyse cette demande et donne:
       ]
     }
 
+    case 'mission_coach': {
+      const stepGuidance = COACH_STEP_GUIDANCE[ctx.missionStatus || ''] || COACH_STEP_GUIDANCE.in_progress
+      return [
+        {
+          role: 'system',
+          content: `Tu es un coach de terrain pour artisans sénégalais. À chaque étape d'une mission, tu génères une fiche de conseils structurée, adaptée à l'étape courante, à la catégorie et au contexte réel de la mission.
+RÈGLES:
+1. Français très simple et direct — les artisans sont souvent peu scolarisés.
+2. Ne donne que des conseils utiles à l'ÉTAPE COURANTE, jamais de généralités.
+3. Chaque section a une "icon" parmi: tools, check, warning, steps, parts, client, info, eye, clock.
+4. Maximum 3 sections, 3 à 4 items courts par section (une phrase impérative par item).
+5. "summary": une seule phrase d'action (sera affichée en aperçu sur mobile).
+6. "askClient": 0 à 2 questions à poser au client si pertinent pour cette étape.
+7. "sayToClient": une phrase polie que le prestataire peut dire au client à cette étape.
+8. Sécurité d'abord : toute section "warning" passe avant les autres.
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"title":"...","summary":"...","sections":[{"icon":"steps","title":"...","items":["..."]}],"askClient":["..."],"sayToClient":"...","difficulty":"Simple","durationMinutes":{"min":15,"max":45}}`,
+        },
+        {
+          role: 'user',
+          content: `Catégorie: ${cat}
+Description de la mission: "${ctx.description || '(non décrite)'}"
+Étape actuelle: ${ctx.missionStatus || 'in_progress'}${missionBlockOf(ctx)}
+
+GUIDANCE ÉTAPE: ${stepGuidance}
+
+Génère la fiche coach pour cette étape précise.`,
+        },
+      ]
+    }
+
     case 'mission_help': {
       return [
         {
@@ -270,6 +356,41 @@ function cleanStrings(arr: unknown, max: number, maxLen = 200): string[] {
     : []
 }
 
+const SECTION_ICONS: StructuredSection['icon'][] = ['tools', 'check', 'warning', 'steps', 'parts', 'client', 'info', 'eye', 'clock']
+const ADVICE_DIFFICULTIES: NonNullable<StructuredAdvice['difficulty']>[] = ['Simple', 'Moyen', 'Complexe']
+
+/** Valide et borne la réponse JSON structurée du coach / d'un type à sortie fiche. */
+function sanitizeAdvice(raw: unknown): StructuredAdvice {
+  const obj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const title = typeof obj.title === 'string' ? obj.title.trim().slice(0, 120) : ''
+  const sections: StructuredSection[] = Array.isArray(obj.sections)
+    ? obj.sections
+        .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+        .map((s) => ({
+          icon: (SECTION_ICONS.includes(s.icon as any) ? s.icon : 'info') as StructuredSection['icon'],
+          title: typeof s.title === 'string' ? s.title.trim().slice(0, 60) : '',
+          items: cleanStrings(s.items, 4, 160),
+        }))
+        .filter(s => s.title && s.items.length > 0)
+        .slice(0, 4)
+    : []
+  if (!title || sections.length === 0) throw new Error('AI returned no valid structured advice')
+
+  const dm = obj.durationMinutes && typeof obj.durationMinutes === 'object' ? obj.durationMinutes as Record<string, unknown> : null
+  const dmMin = dm && typeof dm.min === 'number' && dm.min >= 0 ? Math.round(dm.min) : undefined
+  const dmMax = dm && typeof dm.max === 'number' && dm.max >= (dmMin ?? 0) ? Math.round(dm.max) : undefined
+
+  return {
+    title,
+    summary: typeof obj.summary === 'string' ? obj.summary.trim().slice(0, 300) : undefined,
+    sections,
+    askClient: cleanStrings(obj.askClient, 2, 200),
+    sayToClient: typeof obj.sayToClient === 'string' ? obj.sayToClient.trim().slice(0, 240) : undefined,
+    difficulty: ADVICE_DIFFICULTIES.includes(obj.difficulty as any) ? obj.difficulty as StructuredAdvice['difficulty'] : undefined,
+    durationMinutes: dmMin !== undefined ? { min: dmMin, max: dmMax ?? dmMin } : undefined,
+  }
+}
+
 const VISION_TYPES: AssistType[] = ['clarify_request', 'enhance_request']
 
 export interface AiAssistResult {
@@ -284,6 +405,8 @@ export interface AiAssistResult {
   suggestedPrice?: number
   suggestedMessage?: string
   reasoning?: string
+  /** Fiche structurée (mission_coach) */
+  advice?: StructuredAdvice
 }
 
 export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
@@ -325,6 +448,11 @@ export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
       source: result.source,
       model: result.model,
     }
+  }
+
+  if (ctx.type === 'mission_coach') {
+    const advice = sanitizeAdvice(extractJson(result.text))
+    return { text: advice.summary || advice.title, advice, source: result.source, model: result.model }
   }
 
   if (ctx.type === 'suggest_offer') {

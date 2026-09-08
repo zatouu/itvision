@@ -11,7 +11,8 @@ const AI_FEATURES: { key: string; label: string; audience: 'client' | 'provider'
   { key: 'enhance_request', label: 'Reformulation de la demande', audience: 'client' },
   { key: 'photo_analysis', label: 'Analyse des photos (vision)', audience: 'client', vision: true },
   { key: 'analyze_request', label: 'Analyse d\'une demande', audience: 'provider' },
-  { key: 'mission_help', label: 'Aide pendant la mission', audience: 'provider' },
+  { key: 'mission_coach', label: 'Coach mission par étape (automatique)', audience: 'provider' },
+  { key: 'mission_help', label: 'Questions pendant la mission', audience: 'provider' },
   { key: 'suggest_offer', label: 'Suggestion de prix / offre', audience: 'provider' },
   { key: 'daily_tips', label: 'Conseils du jour', audience: 'provider' },
 ]
@@ -35,7 +36,7 @@ type AiConfigData = {
 
 const DEFAULT_AI: AiConfigData = {
   enabled: true,
-  features: Object.fromEntries(AI_FEATURES.map(f => [f.key, { enabled: true, mode: (f.key === 'daily_tips' ? 'free' : 'quota') as AiFeatureMode }])),
+  features: Object.fromEntries(AI_FEATURES.map(f => [f.key, { enabled: true, mode: (['daily_tips', 'mission_coach'].includes(f.key) ? 'free' : 'quota') as AiFeatureMode }])),
   eligibility: { minCompletedMissions: 10, minScoreXeuy: 70, minReliability: 80, requireKyc: true },
   pricing: { textCostPoints: 1, visionCostPoints: 3 },
   dailyFreeQuota: { client: 2, provider: 2 },

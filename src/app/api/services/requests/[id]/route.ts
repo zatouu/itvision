@@ -85,6 +85,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const metrics = lifecycle.computeMetrics(sr)
     const display = lifecycle.DISPLAY_LABELS[lifecycle.normalizeStatus(sr.status)]
 
+    // Coach IA de l'étape courante (généré à chaque transition, caché dans aiCoach) — réservé au prestataire assigné / admin
+    const coachCache = (isProvider || isAdmin) && sr.aiCoach && typeof sr.aiCoach === 'object' ? sr.aiCoach as Record<string, any> : null
+    const coachEntry = coachCache ? (coachCache[sr.status] || coachCache[lifecycle.normalizeStatus(sr.status)] || null) : null
+    const coachAdvice = coachEntry?.advice && typeof coachEntry.advice === 'object' ? coachEntry.advice : null
+
     // Journal d'état de la mission (transitions + pauses/reprises)
     const statusLogRaw = await MissionAuditLog.find({
       requestId: id,
@@ -136,6 +141,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       providerAvatar: (providerUser as any)?.avatarUrl || null,
       statusLabel: display,
       statusLog,
+      aiAdvice: coachAdvice?.summary || coachAdvice?.title || null,
+      aiCoach: coachAdvice,
       clientReview,
       earnings,
       weeklyCompletedMissions,

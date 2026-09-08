@@ -13,6 +13,9 @@ import ProviderProfile from '@/lib/models/ProviderProfile'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+// 'mission_coach' est volontairement absent : la fiche est générée côté serveur
+// à chaque transition de mission (mission-lifecycle → ai/mission-coach) et poussée
+// via socket — elle n'est pas appelable par le client pour éviter la génération à la demande.
 const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips', 'suggest_offer']
 
 async function computeMarketPrices(category: string): Promise<{ category: string; count: number; medianPrice: number; minPrice: number; maxPrice: number; avgPrice: number } | undefined> {

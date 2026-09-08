@@ -33,11 +33,7 @@ function callPhone(phone?: string) {
   if (!phone) return
   const p = normalizePhone(phone)
   if (!p) return
-  const url = `tel:${p}`
-  Linking.canOpenURL(url).then(supported => {
-    if (supported) return Linking.openURL(url)
-    return Linking.openURL(url)
-  }).catch(() => {
+  Linking.openURL(`tel:${p}`).catch(() => {
     toast.error('Appel impossible', `Impossible d'appeler ${p}`)
   })
 }
@@ -46,11 +42,7 @@ function openWhatsApp(phone?: string) {
   if (!phone) return
   const digits = phone.replace(/[^0-9]/g, '')
   if (!digits) return
-  const url = `https://wa.me/${digits}`
-  Linking.canOpenURL(url).then(supported => {
-    if (supported) return Linking.openURL(url)
-    return Linking.openURL(url)
-  }).catch(() => {})
+  Linking.openURL(`https://wa.me/${digits}`).catch(() => {})
 }
 
 function isSameDay(a: string, b: string) {
@@ -61,10 +53,10 @@ function isSameDay(a: string, b: string) {
 
 function formatDay(dateStr: string, t: (k: string) => string) {
   const now = new Date()
-  if (isSameDay(dateStr, now.toISOString())) return t('chat.today') || "Aujourd'hui"
+  if (isSameDay(dateStr, now.toISOString())) return t('common.today') || "Aujourd'hui"
   const y = new Date(now)
   y.setDate(y.getDate() - 1)
-  if (isSameDay(dateStr, y.toISOString())) return t('chat.yesterday') || 'Hier'
+  if (isSameDay(dateStr, y.toISOString())) return t('common.yesterday') || 'Hier'
   return new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
@@ -171,7 +163,7 @@ function MissionChat() {
     )
   }
 
-  const otherName = providerName || t('chat.defaultProvider') || 'Prestataire'
+  const otherName = providerName || t('mission.defaultProvider') || 'Prestataire'
   const hasPhone = !!providerPhone
 
   return (

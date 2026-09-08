@@ -116,6 +116,7 @@ export function useMissionActive(requestId: string | null) {
       const item: ActiveMissionData = res.item || res.data || res.request
       if (item) {
         setMission(item)
+        if (item.aiAdvice) setAiAdvice(item.aiAdvice)
         if (item.status === 'in_progress' && !startedAtRef.current) {
           startedAtRef.current = item.startedAt ? new Date(item.startedAt).getTime() : Date.now()
         }
@@ -239,6 +240,7 @@ export function useMissionActive(requestId: string | null) {
     }
 
     const handleAiAdvice = (data: any) => {
+      if (data?.requestId && String(data.requestId) !== String(requestId)) return
       if (data?.advice) {
         setAiAdvice(data.advice)
       }

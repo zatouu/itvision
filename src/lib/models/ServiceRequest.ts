@@ -90,6 +90,8 @@ const ServiceRequestSchema = new Schema({
   anomalyFlags: { type: [String], default: [] },
   anomalyScore: { type: Number, default: 0 },
   pauseLog: { type: [PauseLogSchema], default: [] },
+  // Coach IA prestataire : contenu généré une fois par étape (clé = statut), pour ne pas re-facturer ni re-générer
+  aiCoach: { type: Schema.Types.Mixed, default: {} },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
   lastActivityAt: { type: Date, default: Date.now },

@@ -333,6 +333,8 @@ export async function transition(
   }
 
   await notifyStatusChange(updated, prevStatus, actor, metadata)
+  // Coach IA : fiche conseils pour la nouvelle étape (fire-and-forget, mise en cache dans aiCoach)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: actor.userId,
@@ -395,6 +397,8 @@ export async function pause(requestId: string, options: PauseOptions) {
   if (!updated) throw new Error('Conflit : la mission a déjà changé de statut')
 
   await notifyStatusChange(updated, from, options.actor, { type: 'pause' })
+  // Coach IA : fiche conseils pour l'étape "pause" (fire-and-forget)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: options.actor.userId,
@@ -442,6 +446,8 @@ export async function resume(requestId: string, actor: { userId: string; role: M
   if (!updated) throw new Error('Conflit : la mission a déjà changé de statut ou la pause est terminée')
 
   await notifyStatusChange(updated, 'paused', actor, { type: 'resume' })
+  // Coach IA : ré-émet la fiche de l'étape reprise depuis le cache (fire-and-forget)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: actor.userId,

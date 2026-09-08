@@ -93,6 +93,7 @@ export type AiFeatureKey =
   | 'enhance_request'
   | 'photo_analysis'
   | 'analyze_request'
+  | 'mission_coach'
   | 'mission_help'
   | 'suggest_offer'
   | 'daily_tips'
@@ -131,7 +132,10 @@ export interface IAiConfig {
   maxImagesPerCall: number
 }
 
-export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_help', 'suggest_offer', 'daily_tips']
+export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_coach', 'mission_help', 'suggest_offer', 'daily_tips']
+
+/** Fonctionnalités gratuites par défaut : déclenchées automatiquement par l'app (pas à la demande de l'utilisateur). */
+export const AI_AUTO_FEATURES: AiFeatureKey[] = ['mission_coach', 'daily_tips']
 
 export interface IAppConfig extends Document {
   key: string
@@ -283,8 +287,9 @@ const AppConfigSchema = new Schema<IAppConfig>({
     freeUntil: { type: Date },
     features: {
       type: Schema.Types.Mixed,
-      // daily_tips est déclenché automatiquement (1×/jour, mis en cache côté app) → gratuit pour ne pas manger le quota
-      default: () => Object.fromEntries(AI_FEATURE_KEYS.map(k => [k, { enabled: true, mode: k === 'daily_tips' ? 'free' : 'quota' }])),
+      // Les features automatiques (coach mission par étape, conseils du jour) sont gratuites par défaut :
+      // déclenchées par l'app et mises en cache, elles ne doivent pas manger le quota de l'utilisateur.
+      default: () => Object.fromEntries(AI_FEATURE_KEYS.map(k => [k, { enabled: true, mode: AI_AUTO_FEATURES.includes(k) ? 'free' : 'quota' }])),
     },
     eligibility: {
       minCompletedMissions: { type: Number, default: 10, min: 0 },
