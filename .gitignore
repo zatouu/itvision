@@ -72,4 +72,4 @@ tests/.auth/
 
 .commit-msg
 *.code-workspace
-mobile/consumer/proposals/
+mobile/*/proposals/
