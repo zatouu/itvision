@@ -15,3 +15,6 @@ ios/
 android/
 .DS_Store
 google-services.json
+secrets/
+android/app/google-services.json
+ios/*/GoogleService-Info.plist
