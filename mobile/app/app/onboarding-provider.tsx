@@ -8,6 +8,7 @@ import Svg, { Circle, Line } from 'react-native-svg'
 import { colors, radius, spacing, typography, shadows, cat } from '../src/design'
 import { getCategoryIcon } from '../src/categoryIcons'
 import { loadCategories, ServiceCategory, getCategoryLabel } from '../src/categories'
+import { reverseGeocode } from '../src/geocode'
 import { apiPost, apiPatch } from '../src/api'
 import { updateAuthUser } from '../src/auth'
 import { setMode } from '../src/mode'
@@ -101,7 +102,7 @@ function CategoryTile({
   )
 }
 
-function StaticRadiusMap({ radiusKm }: { radiusKm: number }) {
+function StaticRadiusMap({ radiusKm, address }: { radiusKm: number; address?: string }) {
   const size = 220
   const maxR = size / 2 - 10
   const r = Math.max(20, Math.min(maxR, ((radiusKm - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS)) * (maxR - 40) + 40))
@@ -118,7 +119,7 @@ function StaticRadiusMap({ radiusKm }: { radiusKm: number }) {
       <View style={s.mapCenter}>
         <View style={s.mapCenterDot} />
         <View style={s.mapCenterLabel}>
-          <Text style={s.mapCenterLabelText}>Sacré-Cœur 3, Dakar</Text>
+          <Text style={s.mapCenterLabelText} numberOfLines={1}>{address || '…'}</Text>
         </View>
       </View>
       <View style={s.mapRadiusBadge}>
@@ -134,6 +135,7 @@ function OnboardingProvider() {
   const [selected, setSelected] = useState<string[]>([])
   const [radiusKm, setRadiusKm] = useState(10)
   const [address, setAddress] = useState('')
+  const [locating, setLocating] = useState(true)
   const [loading, setLoading] = useState(false)
   const [cats, setCats] = useState<ServiceCategory[]>([])
   const [success, setSuccess] = useState(false)
@@ -143,19 +145,44 @@ function OnboardingProvider() {
   }, [i18n.language])
 
   useEffect(() => {
-    Location.getLastKnownPositionAsync({ maxAge: 300_000, requiredAccuracy: 5000 })
-      .then(async pos => {
-        if (!pos) return
+    const detect = async () => {
+      setLocating(true)
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync()
+        if (status !== 'granted') {
+          setAddress('')
+          return
+        }
+        let pos = null
+        try {
+          pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        } catch {
+          pos = await Location.getLastKnownPositionAsync({ maxAge: 300_000, requiredAccuracy: 5000 })
+        }
+        if (!pos) {
+          setAddress('')
+          return
+        }
+        const { latitude, longitude } = pos.coords
+        let text = ''
         try {
           const geo = await Location.reverseGeocodeAsync(pos.coords)
           const first = geo?.[0]
           if (first) {
             const parts = [first.city, first.region, first.country]
-            setAddress(parts.filter(Boolean).join(', '))
+            text = parts.filter(Boolean).join(', ')
           }
         } catch {}
-      })
-      .catch(() => {})
+        if (!text) {
+          const fallback = await reverseGeocode(latitude, longitude)
+          text = fallback?.display || ''
+        }
+        setAddress(text)
+      } finally {
+        setLocating(false)
+      }
+    }
+    detect().catch(() => { setLocating(false) })
   }, [])
 
   const toggleCategory = (slug: string) => {
@@ -295,7 +322,7 @@ function OnboardingProvider() {
             <Text style={s.sectionTitle}>{t('onboardingProvider.zoneTitle')}</Text>
             <Text style={s.sectionSub}>{t('onboardingProvider.zoneSub', { defaultValue: 'Vous recevrez les demandes dans ce périmètre.' })}</Text>
 
-            <StaticRadiusMap radiusKm={radiusKm} />
+            <StaticRadiusMap radiusKm={radiusKm} address={locating ? t('onboardingProvider.addressDetecting') : (address || t('onboardingProvider.addressUnknown', { defaultValue: 'Position inconnue' }))} />
 
             <View style={s.addressCard}>
               <View style={s.addressIcon}>
@@ -303,7 +330,7 @@ function OnboardingProvider() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.addressLabel}>{t('onboardingProvider.addressDetected', { defaultValue: 'Adresse détectée' })}</Text>
-                <Text style={s.addressValue}>{address || t('onboardingProvider.addressDetecting')}</Text>
+                <Text style={s.addressValue}>{locating ? t('onboardingProvider.addressDetecting') : (address || t('onboardingProvider.addressUnknown', { defaultValue: 'Position inconnue' }))}</Text>
               </View>
             </View>
 

@@ -1,4 +1,4 @@
-import { Platform } from 'react-native'
+import { Platform, AppState } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
 import * as Notifications from 'expo-notifications'
@@ -78,12 +78,15 @@ export interface PushTokenStatus {
 export function setupNotificationHandler(): void {
   if (!isNative) return
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-    }),
+    handleNotification: async () => {
+      const active = AppState?.currentState === 'active'
+      return {
+        shouldShowAlert: !active,
+        shouldPlaySound: !active,
+        shouldSetBadge: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      }
+    },
   })
 }
 
@@ -249,6 +252,31 @@ export async function scheduleReminderAt(title: string, body: string, date: Date
   } catch (err: any) {
     console.error('[Push] Erreur rappel planifié:', err?.message || err)
     return null
+  }
+}
+
+/**
+ * Efface toutes les notifications affichées dans le centre système et remet le badge à 0.
+ */
+export async function clearSystemNotifications(): Promise<void> {
+  if (!isNative) return
+  try {
+    await Notifications.dismissAllNotificationsAsync()
+    await Notifications.setBadgeCountAsync(0)
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Met à jour le badge d'icône avec le nombre de non-lues.
+ */
+export async function setBadgeCount(count: number): Promise<void> {
+  if (!isNative) return
+  try {
+    await Notifications.setBadgeCountAsync(Math.max(0, count))
+  } catch {
+    // best-effort
   }
 }
 

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { AppState } from 'react-native'
 import { connectSocket } from './socket'
-import { scheduleLocalNotification, scheduleReminderAt } from './push'
+import { scheduleLocalNotification, scheduleReminderAt, setBadgeCount, clearSystemNotifications } from './push'
 import { apiGet } from './api'
 import { getAuthUser, getUserIdFromToken } from './auth'
 import { isProviderCapable } from './mode'
@@ -161,11 +162,19 @@ export async function pushNotification(input: Omit<Notification, 'id' | 'created
   await persist()
   emit()
 
-  // Also surface a local system notification so the user sees it even when the app is foreground
+  // Also surface a local system notification so the user sees it even when the app is background
+  // Skip system banner when the app is in foreground to avoid spamming while already active
+  if (AppState?.currentState !== 'active') {
+    try {
+      await scheduleLocalNotification(input.title, input.body, { type: input.kind, link: input.link })
+    } catch {
+      // best-effort: local notification is not critical
+    }
+  }
   try {
-    await scheduleLocalNotification(input.title, input.body, { type: input.kind, link: input.link })
+    await setBadgeCount(unreadCount())
   } catch {
-    // best-effort: local notification is not critical
+    // best-effort
   }
 }
 
@@ -175,6 +184,8 @@ export async function markAllRead(): Promise<void> {
   cache = cache.map(n => ({ ...n, read: true }))
   await persist()
   emit()
+  await setBadgeCount(0)
+  await clearSystemNotifications()
 }
 
 export async function markRead(id: string): Promise<void> {
@@ -184,6 +195,11 @@ export async function markRead(id: string): Promise<void> {
     cache = next
     await persist()
     emit()
+    const remaining = unreadCount()
+    await setBadgeCount(remaining)
+    if (remaining === 0) {
+      await clearSystemNotifications()
+    }
   }
 }
 
@@ -193,6 +209,8 @@ export async function clearNotifications(): Promise<void> {
   cache = []
   await persist()
   emit()
+  await setBadgeCount(0)
+  await clearSystemNotifications()
 }
 
 /** Wipe everything — called on logout so the next user doesn't see stale notifications. */
@@ -203,6 +221,8 @@ export async function resetAllNotifications(): Promise<void> {
   recentKeys.clear()
   try { await AsyncStorage.removeItem(STORAGE_KEY) } catch {}
   emit()
+  await setBadgeCount(0)
+  await clearSystemNotifications()
 }
 
 let wsBound = false
@@ -340,12 +360,11 @@ export function bindNotificationSocket() {
     const map: Record<string, { title: string; body: string }> = clientSide
       ? {
           provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
-          in_progress: { title: 'Intervention démarrée', body: 'Le prestataire a démarré la mission.' },
           completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
           cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
         }
       : {
-          provider_arriving: { title: '🚗 En route', body: 'Vous avez indiqué être en route vers le client.' },
+          completed: { title: '✅ Mission terminée', body: 'Le client a validé la fin de la mission.' },
           cancelled: { title: 'Mission annulée par le client', body: 'La mission a été annulée.' },
         }
     const meta = map[status]

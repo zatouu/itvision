@@ -20,7 +20,7 @@ import { apiPost } from '../src/api'
 import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
 import { Menu, Bell, Coins, Truck, Info, Trash2 } from 'lucide-react-native'
-import { getPushTokenStatus, scheduleLocalNotification, registerPushToken } from '../src/push'
+import { getPushTokenStatus, scheduleLocalNotification, registerPushToken, clearSystemNotifications } from '../src/push'
 
 type FilterKey = 'all' | 'offer' | 'mission' | 'info'
 
@@ -73,6 +73,7 @@ function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [showRead, setShowRead] = useState(false)
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -135,9 +136,11 @@ function NotificationsScreen() {
   }, [])
 
   // Recharger depuis le backend quand l'écran regagne le focus
+  // + effacer les notifications affichées dans la barre système
   useFocusEffect(
     useCallback(() => {
       loadBackendNotifications().then(fresh => setItems([...fresh])).catch(() => {})
+      clearSystemNotifications().catch(() => {})
     }, [])
   )
 
@@ -155,6 +158,7 @@ function NotificationsScreen() {
   const handleMarkAll = async () => {
     if (!items.some(it => !it.read)) return
     await markAllRead()
+    setShowRead(false)
   }
 
   const handleClear = async () => {
@@ -162,19 +166,23 @@ function NotificationsScreen() {
     const ok = await confirm(t('notifications.clear'), t('notifications.clear'))
     if (!ok) return
     await clearNotifications()
+    setShowRead(false)
   }
 
   const hasUnread = items.some(it => !it.read)
   const unreadCount = items.filter(it => !it.read).length
 
+  const unreadItems = useMemo(() => items.filter(it => !it.read), [items])
+
   const counts = useMemo(() => {
-    const c: Record<FilterKey, number> = { all: items.length, offer: 0, mission: 0, info: 0 }
-    items.forEach(n => { c[KIND_GROUP[n.kind] || 'info']++ })
+    const c: Record<FilterKey, number> = { all: unreadItems.length, offer: 0, mission: 0, info: 0 }
+    unreadItems.forEach(n => { c[KIND_GROUP[n.kind] || 'info']++ })
     return c
-  }, [items])
+  }, [unreadItems])
 
   const grouped = useMemo(() => {
-    const list = filter === 'all' ? items : items.filter(n => (KIND_GROUP[n.kind] || 'info') === filter)
+    const list = (filter === 'all' ? items : items.filter(n => (KIND_GROUP[n.kind] || 'info') === filter))
+      .filter(n => showRead || !n.read)
     const groups: { label: string; items: Notification[] }[] = []
     for (const n of list) {
       const label = dayLabel(n.createdAt, t)
@@ -183,7 +191,7 @@ function NotificationsScreen() {
       else groups.push({ label, items: [n] })
     }
     return groups
-  }, [items, filter, t])
+  }, [items, filter, showRead, t])
 
   const FILTERS: { key: FilterKey; label: string }[] = [
     { key: 'all', label: t('requests.filterAll') },
@@ -244,6 +252,13 @@ function NotificationsScreen() {
       )}
 
       <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
+        {items.some(n => n.read) && (
+          <TouchableOpacity onPress={() => setShowRead(v => !v)} style={s.showReadBtn} activeOpacity={0.8}>
+            <Text style={s.showReadText}>
+              {showRead ? t('notifications.hideRead', { defaultValue: 'Masquer les notifications lues' }) : t('notifications.showRead', { defaultValue: 'Afficher les notifications lues' })}
+            </Text>
+          </TouchableOpacity>
+        )}
         {items.length === 0 ? (
           <EmptyState
             icon={<Bell size={32} color={colors.textMuted} />}
@@ -310,6 +325,8 @@ const s = StyleSheet.create({
   chipCountActive: { backgroundColor: '#fff' },
   chipCountText: { fontSize: 10, fontWeight: '800', color: colors.textMuted },
   body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
+  showReadBtn: { alignSelf: 'center', marginVertical: 10, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  showReadText: { fontSize: 12, fontWeight: '700' as any, color: colors.textSecondary },
   groupLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase', marginHorizontal: 4, marginBottom: 8 },
   card: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.borderSoft },
   cardUnread: { backgroundColor: colors.surface, borderColor: colors.border },

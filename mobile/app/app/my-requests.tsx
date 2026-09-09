@@ -139,7 +139,7 @@ function MyRequests() {
       const matchesStatus =
         (statusFilter === 'all' && !['completed', 'cancelled', 'expired'].includes(it.status))
         || (statusFilter === 'active' && ACTIVE_MISSION_STATUSES.includes(it.status))
-        || (statusFilter === 'offers' && (it.status === 'pending_offers' || it.pendingOfferCount > 0))
+        || (statusFilter === 'offers' && it.status === 'pending_offers')
         || (statusFilter === 'done' && ['completed', 'cancelled', 'expired'].includes(it.status))
       const catLabel = catMap[it.category]?.label || it.category || ''
       const haystack = `${catLabel} ${it.category || ''} ${it.description || ''} ${it.budget || ''} ${it.status}`.toLowerCase()
@@ -148,7 +148,7 @@ function MyRequests() {
   }, [items, query, statusFilter])
 
   const activeCount = items.filter(it => ACTIVE_MISSION_STATUSES.includes(it.status)).length
-  const offersCount = items.filter(it => it.status === 'pending_offers' || it.pendingOfferCount > 0).length
+  const offersCount = items.filter(it => it.status === 'pending_offers').length
   const doneCount = items.filter(it => ['completed', 'cancelled', 'expired'].includes(it.status)).length
   const openCount = items.length - doneCount
   const FILTER_DEFS = [

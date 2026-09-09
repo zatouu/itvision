@@ -21,7 +21,7 @@ import OffersHero from '../src/components/home/OffersHero'
 import NearbyStrip from '../src/components/home/NearbyStrip'
 import Skeleton from '../src/components/Skeleton'
 import { colors, radius, spacing, typography } from '../src/design'
-import { BellRing, Check, ChevronRight, Menu, Star, LucideIcon } from 'lucide-react-native'
+import { BellRing, Check, Menu, LucideIcon } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
 import { ModePill } from '../src/components/ModeSwitch'
@@ -105,7 +105,6 @@ function Home() {
     lng: number
     etaMinutes?: number | null
   } | null>(null)
-  const [recommended, setRecommended] = useState<any[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const { t, i18n } = useTranslation()
 
@@ -175,9 +174,6 @@ function Home() {
       .then(pos => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
       })
-      .catch(() => {})
-    apiGet('/api/services/providers/top?limit=10')
-      .then((res: any) => { if (res?.providers) setRecommended(res.providers) })
       .catch(() => {})
   }, [loadRecent])
 
@@ -492,55 +488,6 @@ function Home() {
           })}
         </View>
 
-        {/* Vos favoris */}
-        {recommended.length > 0 && (
-          <View>
-            <View style={s.sectionRow}>
-              <Text style={s.sectionTitle}>{t('home.favorites')}</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 10, paddingBottom: spacing.sm }}
-            >
-              {recommended.map((p, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={s.favCard}
-                  activeOpacity={0.75}
-                  onPress={() => router.push({
-                    pathname: '/offers/provider/[id]',
-                    params: {
-                      id: String(p.id),
-                      name: p.name || '',
-                      rating: String(p.rating?.avg ?? 0),
-                      missions: String(p.completedMissions ?? 0),
-                    },
-                  } as any)}
-                  accessibilityLabel={p.name}
-                >
-                  <View style={s.favTop}>
-                    <View style={s.favAvatarWrap}>
-                      <View style={[s.favAvatar, { backgroundColor: colors.primaryLight }]}>
-                        <Text style={s.favAvatarText}>{getInitials(p.name)}</Text>
-                      </View>
-                    </View>
-                    <View style={s.favInfo}>
-                      <Text style={s.favName} numberOfLines={1}>{formatProviderName(p.name) || t('home.newProvider')}</Text>
-                      <Text style={s.favJobs}>{p.completedMissions ?? 0} {t('home.missions')}</Text>
-                    </View>
-                  </View>
-                  <View style={s.favRating}>
-                    <Star size={12} color={colors.warning} fill={colors.warning} />
-                    <Text style={s.favRatingText}>{(p.rating?.avg ?? 0).toFixed(1)}</Text>
-                    <ChevronRight size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Autour de vous — version compacte */}
         <NearbyStrip providers={liveProviders} onlineCount={onlineProviders} />
 
@@ -583,14 +530,6 @@ function Home() {
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
-}
-
-function formatProviderName(raw: string): string {
-  if (!raw) return ''
-  const trimmed = raw.trim()
-  // Si c'est un numéro, afficher la partie locale (sans indicatif) pour gagner de la place
-  if (isPhoneLike(trimmed)) return formatPhone(trimmed, false)
-  return trimmed.split(/\s+/)[0]
 }
 
 const s = StyleSheet.create({
@@ -637,21 +576,6 @@ const s = StyleSheet.create({
   catTile: { flex: 1, alignItems: 'center', gap: 8 },
   catIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   catLabel: { fontSize: 11.5, fontWeight: typography.weight.semibold as any, color: colors.text, textAlign: 'center' },
-
-  // Favorites
-  favCard: {
-    minWidth: 170, backgroundColor: colors.surface, borderRadius: 16, padding: 12,
-    borderWidth: 1, borderColor: colors.border, gap: 8,
-  },
-  favTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  favAvatarWrap: { position: 'relative' },
-  favAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  favAvatarText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.primary },
-  favInfo: { minWidth: 0, flex: 1 },
-  favName: { fontSize: 12.5, fontWeight: typography.weight.bold as any, color: colors.text },
-  favJobs: { fontSize: 10.5, color: colors.textMuted, marginTop: 1 },
-  favRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  favRatingText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.text },
 
   // How it works
   howItWorksSection: { marginHorizontal: spacing.lg, marginTop: spacing.xl, gap: spacing.sm },
