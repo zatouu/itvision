@@ -277,7 +277,13 @@
     "nextChoose": "Vous choisissez, la mission démarre",
     "nextChooseSub": "À votre rythme",
     "viewOffers": "Voir les offres reçues",
-    "backHome": "Retour à l'accueil"
+    "backHome": "Retour à l'accueil",
+    "editTitle": "Modifier la demande",
+    "updatedTitle": "Votre demande a été mise à jour",
+    "updatedSub": "Les prestataires proches ont reçu les nouvelles informations.",
+    "loadingEdit": "Chargement de la demande…",
+    "budgetRequired": "Veuillez indiquer un budget (supérieur à 0).",
+    "landmarkHint": "Optionnel — aide le prestataire à vous trouver"
   },
   "schedule": {
     "whenLabel": "Quand ?",

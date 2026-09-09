@@ -5,10 +5,10 @@ import * as Location from 'expo-location'
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiPostQueued, apiPost, apiUpload, apiGetRetry } from '../src/api'
+import { apiPostQueued, apiPatchQueued, apiPost, apiUpload, apiGet, apiGetRetry } from '../src/api'
 import { cacheClear } from '../src/storage'
 import { humanErrorMessage } from '../src/errorMessages'
-import { pickMedia, PickedMedia } from '../src/media'
+import { pickMedia, PickedMedia, resolveMediaUrl } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
 import VoiceRecorder, { VoiceRecording } from '../src/components/VoiceRecorder'
 import VoicePlayer from '../src/components/VoicePlayer'
@@ -50,9 +50,10 @@ function mediaLabel(media: PickedMedia): string {
 type CatEntry = { id: string; label: string; abbr: string; color: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[]; subCategories?: SubCategory[] }
 
 function CreateRequest() {
-  const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string }>()
-  const isUrgent = params.urgent === 'true' || params.urgent === '1'
-  const [step, setStep] = useState(isUrgent && params.category ? 2 : 1)
+  const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string; editId?: string }>()
+  const isEdit = !!params.editId
+  const [isUrgent, setIsUrgent] = useState(params.urgent === 'true' || params.urgent === '1')
+  const [step, setStep] = useState(isEdit ? 2 : (isUrgent && params.category ? 2 : 1))
   const [category, setCategory] = useState(params.category || '')
   const [catSearch, setCatSearch] = useState('')
   const [description, setDescription] = useState('')
@@ -83,6 +84,7 @@ function CreateRequest() {
   const [aiApplying, setAiApplying] = useState(false)
   const [aiQuestions, setAiQuestions] = useState<ClarifyQuestion[]>([])
   const [aiModalVisible, setAiModalVisible] = useState(false)
+  const [requestLoading, setRequestLoading] = useState(false)
   const { t, i18n } = useTranslation()
   const mapRef = useRef<MapView | null>(null)
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -115,6 +117,59 @@ function CreateRequest() {
       .then((res: any) => { if (res.estimate) setPriceEstimate(res.estimate) })
       .catch(() => {})
   }, [category, coords])
+
+  // Load existing request when editing
+  useEffect(() => {
+    if (!isEdit || !params.editId) return
+    setRequestLoading(true)
+    apiGet(`/api/services/requests/${params.editId}`)
+      .then((res: any) => {
+        const item = res?.item
+        if (!item) return
+        setCategory(item.category || '')
+        setSubcategory(item.subcategory || '')
+        setDescription(item.description || '')
+        setBudget(item.budget ? Number(item.budget).toLocaleString('fr-FR') : '')
+        setAttributes(item.attributes || {})
+        setIsUrgent(!!item.urgent)
+        if (item.urgent || !item.scheduledFor) {
+          setWhen('asap')
+          setScheduledFor(null)
+        } else {
+          const d = new Date(item.scheduledFor)
+          setWhen(d.toDateString() === new Date().toDateString() ? 'today' : 'later')
+          setScheduledFor(d)
+        }
+        if (item.location?.coordinates?.length === 2) {
+          setCoords([item.location.coordinates[0], item.location.coordinates[1]])
+          const address = item.location.address || ''
+          if (address.includes(' — ')) {
+            const [l, ...rest] = address.split(' — ')
+            setLandmark(l)
+            setAutoAddress(rest.join(' — '))
+          } else {
+            setLandmark('')
+            setAutoAddress(address)
+          }
+        }
+        if (Array.isArray(item.media)) {
+          const existingMedia: PickedMedia[] = []
+          item.media.forEach((m: any) => {
+            if (!m?.url) return
+            const url = resolveMediaUrl(m.url)
+            if (m.type === 'audio') {
+              setVoiceNote({ uri: url, durationMs: m.durationMs || 0 } as VoiceRecording)
+              return
+            }
+            existingMedia.push({ uri: url, name: url, type: m.type === 'video' ? 'video' : 'image' })
+            setMediaUrls(prev => ({ ...prev, [url]: url }))
+          })
+          setMedia(existingMedia)
+        }
+      })
+      .catch((e: any) => { setErr(humanErrorMessage(e)) })
+      .finally(() => setRequestLoading(false))
+  }, [isEdit, params.editId])
 
   // Reset dynamic attributes and subcategory when category changes
   useEffect(() => {
@@ -212,8 +267,15 @@ function CreateRequest() {
   const pendingImageUploads = media.filter(isImagePreview).some(m => !mediaUrls[m.uri])
   const canUseAi = !!category && (description.trim().length >= 10 || uploadedImageUrls.length > 0)
 
+  const isRemoteUri = (uri?: string) => !!uri && /^(https?:|file:|blob:|data:)/i.test(uri)
+
   const submit = async () => {
     if (!coords) return
+    const numericBudget = Number(budget.replace(/\s/g, ''))
+    if (!budget.trim() || numericBudget <= 0) {
+      setErr(t('request.budgetRequired', { defaultValue: 'Veuillez indiquer un budget' }))
+      return
+    }
     setLoading(true)
     setErr(null)
     try {
@@ -226,41 +288,70 @@ function CreateRequest() {
         if (!uploadedUrl) throw new Error(t('request.uploadError'))
         uploadedMedia.push({ url: uploadedUrl, type: m.type })
       }
-      // Upload voice note
+      // Voice note (skip re-upload if it is already a remote URL)
       if (voiceNote) {
-        const vRes = await apiUpload(voiceNote.uri, 'vocal.m4a', 'audio/mp4')
-        const vUrl = typeof vRes?.staticUrl === 'string' && vRes.staticUrl
-          ? vRes.staticUrl
-          : (typeof vRes?.url === 'string' ? vRes.url : null)
-        if (vUrl) uploadedMedia.push({ url: vUrl, type: 'audio' })
+        if (isRemoteUri(voiceNote.uri)) {
+          uploadedMedia.push({ url: voiceNote.uri, type: 'audio' })
+        } else {
+          const vRes = await apiUpload(voiceNote.uri, 'vocal.m4a', 'audio/mp4')
+          const vUrl = typeof vRes?.staticUrl === 'string' && vRes.staticUrl
+            ? vRes.staticUrl
+            : (typeof vRes?.url === 'string' ? vRes.url : null)
+          if (vUrl) uploadedMedia.push({ url: vUrl, type: 'audio' })
+        }
       }
       setUploadingMedia(false)
-      const res = await apiPostQueued('/api/services/requests', {
-        category,
-        subcategory: subcategory || undefined,
-        description,
-        media: uploadedMedia,
-        location: coords ? {
-          type: 'Point',
-          coordinates: coords,
-          address: [landmark, autoAddress].filter(Boolean).join(' — ') || undefined,
-        } : {
-          type: 'Point',
-          coordinates: [0, 0],
-          address: landmark,
-        },
-        budget: Number(budget.replace(/\s/g, '')) || undefined,
-        channel: 'mobile',
-        attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
-        urgent: isUrgent,
-        scheduledFor: !isUrgent && scheduledFor ? scheduledFor.toISOString() : undefined,
-      }, t('request.queuedOffline'))
-      const newId = (res as any)?.item?._id || (res as any)?.item?.id || ''
-      setCreatedId(newId)
-      await cacheClear('home-requests')
-      await cacheClear('my-requests')
-      hapticSuccess()
-      setDone(true)
+
+      const location = coords ? {
+        type: 'Point',
+        coordinates: coords,
+        address: [landmark, autoAddress].filter(Boolean).join(' — ') || undefined,
+      } : undefined
+
+      if (isEdit && params.editId) {
+        const patchBody: Record<string, any> = {
+          description,
+          budget: numericBudget,
+          media: uploadedMedia,
+          location,
+        }
+        if (subcategory) patchBody.subcategory = subcategory
+        if (Object.keys(attributes).length > 0) patchBody.attributes = attributes
+        if (!isUrgent && scheduledFor) patchBody.scheduledFor = scheduledFor.toISOString()
+        if (isUrgent) patchBody.scheduledFor = null
+        const res = await apiPatchQueued(`/api/services/requests/${params.editId}`, patchBody, t('request.queuedOffline'))
+        if (res) {
+          setCreatedId(params.editId)
+          await cacheClear('home-requests')
+          await cacheClear('my-requests')
+          await cacheClear(`offers-${params.editId}`)
+          hapticSuccess()
+          setDone(true)
+        }
+      } else {
+        const res = await apiPostQueued('/api/services/requests', {
+          category,
+          subcategory: subcategory || undefined,
+          description,
+          media: uploadedMedia,
+          location: location || {
+            type: 'Point',
+            coordinates: [0, 0],
+            address: landmark,
+          },
+          budget: numericBudget,
+          channel: 'mobile',
+          attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+          urgent: isUrgent,
+          scheduledFor: !isUrgent && scheduledFor ? scheduledFor.toISOString() : undefined,
+        }, t('request.queuedOffline'))
+        const newId = (res as any)?.item?._id || (res as any)?.item?.id || ''
+        setCreatedId(newId)
+        await cacheClear('home-requests')
+        await cacheClear('my-requests')
+        hapticSuccess()
+        setDone(true)
+      }
     } catch (e: any) { setErr(humanErrorMessage(e)); setUploadingMedia(false) }
     setLoading(false)
   }
@@ -279,8 +370,8 @@ function CreateRequest() {
           <View style={s.haloInner} />
           <View style={s.checkHero}><Check size={44} color={colors.surface} strokeWidth={3} /></View>
         </View>
-        <Text style={s.successTitle}>{t('request.publishedTitle')}</Text>
-        <Text style={s.successSub}>{t('request.publishedSubNew')}</Text>
+        <Text style={s.successTitle}>{isEdit ? t('request.updatedTitle') : t('request.publishedTitle')}</Text>
+        <Text style={s.successSub}>{isEdit ? t('request.updatedSub') : t('request.publishedSubNew')}</Text>
         {createdId ? (
           <View style={s.refChip}>
             <Receipt size={14} color={colors.textMuted} />
@@ -326,7 +417,17 @@ function CreateRequest() {
     </SafeAreaView>
   )
 
-  const step2Valid = !!description && areRequiredAttributesFilled() && !(category === 'autre' && description.trim().length < 10)
+  const numericBudget = Number(budget.replace(/\s/g, ''))
+  const step2Valid = !!description && areRequiredAttributesFilled() && !!budget.trim() && numericBudget > 0 && !(category === 'autre' && description.trim().length < 10)
+
+  if (requestLoading) {
+    return (
+      <SafeAreaView style={[s.safe, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: spacing.md, color: colors.textMuted }}>{t('request.loadingEdit')}</Text>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -342,11 +443,11 @@ function CreateRequest() {
 
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => step > 1 ? setStep(s2 => s2 - 1) : router.back()} style={s.backBtn} activeOpacity={0.6}>
+        <TouchableOpacity onPress={() => step > 1 ? (isEdit ? router.back() : setStep(s2 => s2 - 1)) : router.back()} style={s.backBtn} activeOpacity={0.6}>
           <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{t('request.createTitle')}</Text>
+          <Text style={s.headerTitle}>{isEdit ? t('request.editTitle') : t('request.createTitle')}</Text>
           <Text style={s.headerSub}>{t('request.stepOf', { n: step, total: 3 })}</Text>
         </View>
         {isUrgent ? (
@@ -436,9 +537,11 @@ function CreateRequest() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.catChipLabel}>{selectedCat.label}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setStep(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={s.catChipChange}>{t('request.change')}</Text>
-                </TouchableOpacity>
+                {!isEdit && (
+                  <TouchableOpacity onPress={() => setStep(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={s.catChipChange}>{t('request.change')}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )
           })()}
@@ -649,7 +752,7 @@ function CreateRequest() {
 
           {/* Budget */}
           <View>
-            <Text style={s.label}>{t('request.budgetLabel')}</Text>
+            <Text style={s.label}>{t('request.budgetLabel')} *</Text>
             <View style={s.chipRow}>
               {BUDGETS.map(b => (
                 <TouchableOpacity key={b} style={[s.budgetChip, budget === b && s.budgetChipActive]} onPress={() => { hapticLight(); setBudget(b) }} activeOpacity={0.75}>
@@ -735,7 +838,7 @@ function CreateRequest() {
           </View>
 
           <View>
-            <Text style={s.label}>{t('request.landmark')} *</Text>
+            <Text style={s.label}>{t('request.landmark')}</Text>
             <TextInput
               style={s.input}
               value={landmark}
@@ -818,8 +921,8 @@ function CreateRequest() {
         )}
         <TouchableOpacity
           style={[s.btn, { backgroundColor: accent },
-            ((step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))) && s.btnDisabled]}
-          disabled={(step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || !landmark.trim() || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))}
+            ((step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))) && s.btnDisabled]}
+          disabled={(step === 1 && !category) || (step === 2 && !step2Valid) || (step === 3 && (!coords || (when !== 'asap' && !scheduledFor) || loading || uploadingMedia))}
           onPress={() => step === 1 ? setStep(2) : step === 2 ? setStep(3) : submit()}
           activeOpacity={0.88}
         >

@@ -277,7 +277,13 @@
     "nextChoose": "You choose, the mission starts",
     "nextChooseSub": "At your own pace",
     "viewOffers": "View received offers",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "editTitle": "Edit request",
+    "updatedTitle": "Your request has been updated",
+    "updatedSub": "Nearby providers have received the updated information.",
+    "loadingEdit": "Loading request…",
+    "budgetRequired": "Please enter a budget (greater than 0).",
+    "landmarkHint": "Optional — helps the provider find you"
   },
   "schedule": {
     "whenLabel": "When?",

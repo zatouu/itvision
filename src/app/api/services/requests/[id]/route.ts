@@ -323,8 +323,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // ─── Mises à jour de champs autorisés (client) ───
-    const allowedClient = ['description', 'budget']
-    if (isClient) {
+    const editableStatuses = ['created', 'broadcasted', 'pending_offers']
+    if (isClient && editableStatuses.includes(sr.status)) {
+      const allowedClient = ['description', 'budget', 'subcategory', 'location', 'scheduledFor', 'attributes']
       for (const key of allowedClient) {
         if (body[key] !== undefined) (sr as any)[key] = body[key]
       }

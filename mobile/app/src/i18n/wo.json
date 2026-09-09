@@ -277,7 +277,13 @@
     "nextChoose": "Danga tann, liggéey bi tàmbali",
     "nextChooseSub": "Ci sa melocan",
     "viewOffers": "Gis ofr yi ñu yónnee",
-    "backHome": "Dellu ci kanam"
+    "backHome": "Dellu ci kanam",
+    "editTitle": "Soppali laaj bi",
+    "updatedTitle": "Sa laaj soppali na",
+    "updatedSub": "Yéen ya ci wetu ñu am xibaar bu bees.",
+    "loadingEdit": "Mbindi laaj bi…",
+    "budgetRequired": "Duggal mbay (amulu 0).",
+    "landmarkHint": "Ci biir sa bopp — dindi pro bi"
   },
   "schedule": {
     "whenLabel": "Kan ?",
