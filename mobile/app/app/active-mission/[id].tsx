@@ -302,9 +302,11 @@ function ActiveMissionScreen() {
               {/* Coach Card */}
               <CoachCard
                 advice={structuredAdvice}
+                status={status}
                 onPress={() => setCoachVisible(true)}
                 loading={loading && !mission}
                 offline={error !== null}
+                onRetry={() => loadMission(true)}
               />
 
               {/* Client Card */}
@@ -462,9 +464,11 @@ function ActiveMissionScreen() {
             {/* 5. Coach Card */}
             <CoachCard
               advice={structuredAdvice}
+              status={status}
               onPress={() => setCoachVisible(true)}
               loading={loading && !mission}
               offline={error !== null}
+              onRetry={() => loadMission(true)}
             />
           </ScrollView>
 
@@ -614,6 +618,7 @@ function ActiveMissionScreen() {
         category={missionCategory}
         description={mission?.description}
         advice={structuredAdvice}
+        offline={error !== null}
         onSendToChat={async (text) => {
           if (!requestId) return
           try {

@@ -207,7 +207,17 @@ Génère les questions de clarification les plus utiles pour ce problème préci
       return [
         {
           role: 'system',
-          content: `Tu es un expert technique qui aide des artisans sénégalais à analyser des demandes de service. Réponds en français simple. Sois concis (max 200 mots). Les artisans sont souvent analphabètes — utilise un langage très simple et direct.`,
+          content: `Tu es un expert technique qui aide des artisans sénégalais à analyser des demandes de service avant de faire une offre. Réponds en français simple et direct. Utilise un langage simple car les artisans sont souvent peu scolarisés.
+RÈGLES:
+1. Les sections utilisent obligatoirement des "icon" parmi: tools, check, warning, steps, parts, client, info, eye, clock.
+2. Maximum 4 sections, 2 à 3 items courts par section.
+3. "summary": une seule phrase du diagnostic probable (sera affichée en aperçu).
+4. "difficulty": Simple / Moyen / Complexe.
+5. "durationMinutes": {"min": nombre, "max": nombre} — estimation raisonnable de la durée en minutes.
+6. "askClient": 0 à 2 questions à poser au client si pertinent.
+7. Sécurité d'abord : toute section "warning" passe avant les autres.
+8. Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"title":"Analyse de la demande","summary":"...","sections":[{"icon":"eye","title":"Ce que je vois","items":["..."]},{"icon":"tools","title":"Matériel probable","items":["..."]},{"icon":"warning","title":"Risques","items":["..."]},{"icon":"client","title":"À clarifier","items":["..."]}],"difficulty":"Simple","durationMinutes":{"min":15,"max":45},"askClient":["..."]}`,
         },
         {
           role: 'user',
@@ -215,12 +225,7 @@ Génère les questions de clarification les plus utiles pour ce problème préci
 Description client: "${ctx.description || '(vide)'}"
 Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
 
-Analyse cette demande et donne:
-1. **Diagnostic probable** (2-3 hypothèses max, en termes simples)
-2. **Matériel probablement nécessaire** (liste courte)
-3. **Difficulté** (Simple / Moyen / Complexe)
-4. **Précautions sécurité** (si applicable, 1-2 points importants)
-5. **Questions à poser au client** (2 max)`,
+Génère une analyse structurée pour aider l'artisan à décider avant de faire une offre.`,
         },
       ]
     }
@@ -450,7 +455,7 @@ export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
     }
   }
 
-  if (ctx.type === 'mission_coach') {
+  if (ctx.type === 'mission_coach' || ctx.type === 'analyze_request') {
     const advice = sanitizeAdvice(extractJson(result.text))
     return { text: advice.summary || advice.title, advice, source: result.source, model: result.model }
   }

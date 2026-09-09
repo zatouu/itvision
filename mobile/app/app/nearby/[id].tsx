@@ -4,6 +4,8 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { SkeletonCard } from '../../src/components/Skeleton'
+import AiAnalysisCard from '../../src/components/nearby/AiAnalysisCard'
+import type { StructuredAdvice } from '../../src/types'
 import * as Location from 'expo-location'
 import { MapPin, Mic, Check, Volume2, Play, X, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +41,7 @@ function NearbyRequestDetail() {
   const [fullMedia, setFullMedia] = useState<{ uri: string; type: string } | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
+  const [aiAdvice, setAiAdvice] = useState<StructuredAdvice | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -59,6 +62,7 @@ function NearbyRequestDetail() {
     if (aiLoading || !request) return
     setAiLoading(true)
     setAiAnalysis(null)
+    setAiAdvice(null)
     try {
       const res = await apiPost('/api/ai/assist', {
         type: 'analyze_request',
@@ -66,8 +70,13 @@ function NearbyRequestDetail() {
         description: request.description,
         attributes: request.attributes,
       })
-      if (res.text) setAiAnalysis(res.text)
-      else toast.error('IA', 'Aucune analyse disponible')
+      if (res.advice) {
+        setAiAdvice(res.advice)
+      } else if (res.text) {
+        setAiAnalysis(res.text)
+      } else {
+        toast.error('IA', 'Aucune analyse disponible')
+      }
     } catch (e: any) {
       toast.error('IA indisponible', humanErrorMessage(e))
     } finally {
@@ -203,30 +212,40 @@ function NearbyRequestDetail() {
 
         {/* AI Analysis */}
         <View style={s.section}>
-          <TouchableOpacity
-            style={s.aiAnalyzeBtn}
-            onPress={handleAiAnalyze}
-            disabled={aiLoading}
-            activeOpacity={0.85}
-          >
-            {aiLoading ? (
-              <ActivityIndicator size={18} color={colors.info} />
-            ) : (
-              <Sparkles size={18} color={colors.info} />
-            )}
-            <Text style={s.aiAnalyzeBtnText}>
-              {aiLoading ? 'Analyse en cours…' : 'Analyser cette demande (IA)'}
-            </Text>
-          </TouchableOpacity>
-          {aiAnalysis && (
+          {!aiAdvice && !aiAnalysis && (
+            <TouchableOpacity
+              style={s.aiAnalyzeBtn}
+              onPress={handleAiAnalyze}
+              disabled={aiLoading}
+              activeOpacity={0.85}
+            >
+              {aiLoading ? (
+                <ActivityIndicator size={18} color={colors.info} />
+              ) : (
+                <Sparkles size={18} color={colors.info} />
+              )}
+              <Text style={s.aiAnalyzeBtnText}>
+                {aiLoading ? t('providerNearby.analyzing') : t('providerNearby.analyzeWithAI')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {aiAdvice ? (
+            <AiAnalysisCard
+              advice={aiAdvice}
+              onMakeOffer={() => request && router.push(`/offer/create?requestId=${request._id}`)}
+              onAskQuestion={() => request && router.push(`/mission-chat?id=${request._id}`)}
+              onRefresh={handleAiAnalyze}
+              loading={aiLoading}
+            />
+          ) : aiAnalysis ? (
             <View style={s.aiResultCard}>
               <View style={s.aiResultHeader}>
                 <Sparkles size={14} color={colors.info} />
-                <Text style={s.aiResultTitle}>Analyse IA</Text>
+                <Text style={s.aiResultTitle}>{t('providerNearby.aiAnalysis')}</Text>
               </View>
               <Text style={s.aiResultText}>{aiAnalysis}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {request.media?.some((m: any) => m.type === 'audio') && (() => {
