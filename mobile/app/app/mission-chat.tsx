@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, ScrollView } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
@@ -71,6 +71,7 @@ function MissionChat() {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const insets = useSafeAreaInsets()
   const flatListRef = useRef<FlatList>(null)
   const currentUser = getAuthUser()
   const myId = currentUser?._id || ''
@@ -222,18 +223,20 @@ function MissionChat() {
         )}
 
         {/* Réponses rapides */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.quickReplies}>
-          {['chat.qr_ok', 'chat.qr_thanks', 'chat.qr_seeYou', 'chat.qr_callMe'].map(k => {
-            const label = t(k)
-            return (
-              <TouchableOpacity key={k} style={st.quickReply} onPress={() => sendText(label)} activeOpacity={0.7}>
-                <Text style={st.quickReplyText}>{label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        <View style={st.quickRepliesWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.quickReplies}>
+            {['chat.qr_ok', 'chat.qr_thanks', 'chat.qr_seeYou', 'chat.qr_callMe'].map(k => {
+              const label = t(k)
+              return (
+                <TouchableOpacity key={k} style={st.quickReply} onPress={() => sendText(label)} activeOpacity={0.7}>
+                  <Text style={st.quickReplyText} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        </View>
 
-        <View style={st.inputRow}>
+        <View style={[st.inputRow, { paddingBottom: Math.max(12, insets.bottom) }]}>
           <View style={st.inputWrap}>
             <TextInput
               style={st.input}
@@ -270,7 +273,7 @@ const st = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerAction: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 14, paddingBottom: 8, gap: 8 },
+  list: { padding: 14, paddingBottom: 14, gap: 8 },
   empty: { alignItems: 'center', paddingTop: spacing.xxxl },
   emptyText: { fontSize: typography.base.fontSize, color: colors.textMuted, marginTop: spacing.md },
   dateRow: { alignItems: 'center', marginVertical: spacing.sm },
@@ -285,10 +288,11 @@ const st = StyleSheet.create({
   time: { fontSize: 9.5, marginTop: 4, fontWeight: '600' },
   timeMe: { color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
   timeThem: { color: colors.textDim },
-  quickReplies: { gap: 6, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
-  quickReply: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  quickReplyText: { fontSize: 12, fontWeight: '600', color: colors.text },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  quickRepliesWrap: { paddingTop: 6, paddingBottom: 6, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  quickReplies: { gap: 8, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' },
+  quickReply: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, minHeight: 34, justifyContent: 'center' },
+  quickReplyText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
   inputWrap: { flex: 1, minHeight: 42, backgroundColor: colors.bg, borderRadius: 999, justifyContent: 'center', paddingHorizontal: 14 },
   input: { fontSize: 13.5, color: colors.text, maxHeight: 100, paddingVertical: 8 },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
