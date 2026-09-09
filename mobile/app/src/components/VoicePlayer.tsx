@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Audio } from 'expo-av'
 import { resolveMediaUrl } from '../media'
 
@@ -65,7 +65,6 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
     } catch (err: any) {
       console.error('[VoicePlayer] play error:', err)
       setError(true)
-      Alert.alert('Erreur lecture', err?.message || 'Impossible de lire le message vocal.')
     }
   }
 

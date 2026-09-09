@@ -267,7 +267,7 @@ function CreateRequest() {
   const pendingImageUploads = media.filter(isImagePreview).some(m => !mediaUrls[m.uri])
   const canUseAi = !!category && (description.trim().length >= 10 || uploadedImageUrls.length > 0)
 
-  const isRemoteUri = (uri?: string) => !!uri && /^(https?:|file:|blob:|data:)/i.test(uri)
+  const isRemoteUri = (uri?: string) => !!uri && /^https?:\/\//i.test(uri)
 
   const submit = async () => {
     if (!coords) return
