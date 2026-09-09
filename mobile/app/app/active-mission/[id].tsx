@@ -34,7 +34,8 @@ import { MissionStatusHeroCard } from '../../src/components/mission/MissionStatu
 import { ClientCard } from '../../src/components/mission/ClientCard'
 import { MissionSummaryCard } from '../../src/components/mission/MissionSummaryCard'
 import { HorizontalProgressionTimeline } from '../../src/components/mission/HorizontalProgressionTimeline'
-import { AiAdviceCard } from '../../src/components/mission/AiAdviceCard'
+import { CoachCard } from '../../src/components/mission/CoachCard'
+import { CoachSheet } from '../../src/components/mission/CoachSheet'
 import { MapHero } from '../../src/components/mission/MapHero'
 import { AdminMetricsModal } from '../../src/components/mission/AdminMetricsModal'
 import { MissionDetailsSheet } from '../../src/components/mission/MissionDetailsSheet'
@@ -65,6 +66,7 @@ function ActiveMissionScreen() {
     error,
     isClientTyping,
     aiAdvice,
+    aiCoach,
     providerLocation,
     routeInfo,
     elapsedSeconds,
@@ -83,6 +85,7 @@ function ActiveMissionScreen() {
 
   const [adminModalVisible, setAdminModalVisible] = useState(false)
   const [detailsVisible, setDetailsVisible] = useState(false)
+  const [coachVisible, setCoachVisible] = useState(false)
   const [aiHelpVisible, setAiHelpVisible] = useState(false)
   const [aiHelpLoading, setAiHelpLoading] = useState(false)
   const [aiHelpResult, setAiHelpResult] = useState<string | null>(null)
@@ -91,6 +94,8 @@ function ActiveMissionScreen() {
   const rawStatus = mission?.status || 'assigned'
   const status = rawStatus === 'accepted' ? 'assigned' : rawStatus
   const isMapLayout = status === 'assigned' || status === 'on_the_way' || status === 'provider_arriving'
+
+  const structuredAdvice = aiCoach?.[status] || null
 
   // Navigation : mission validée par le client → écran de clôture (le provider voit son récapitulatif)
   useEffect(() => {
@@ -294,6 +299,14 @@ function ActiveMissionScreen() {
               {/* Horizontal Progression Timeline */}
               <HorizontalProgressionTimeline status={status} style={{ marginHorizontal: 0, marginBottom: 0 }} />
 
+              {/* Coach Card */}
+              <CoachCard
+                advice={structuredAdvice}
+                onPress={() => setCoachVisible(true)}
+                loading={loading && !mission}
+                offline={error !== null}
+              />
+
               {/* Client Card */}
               <ClientCard
                 clientName={clientData.name}
@@ -446,11 +459,12 @@ function ActiveMissionScreen() {
             {/* 4. Horizontal Progression Timeline */}
             <HorizontalProgressionTimeline status={status} />
 
-            {/* 5. AI Advice Card */}
-            <AiAdviceCard
-              advice={aiAdvice || undefined}
-              category={missionCategory}
-              onPress={openAiHelp}
+            {/* 5. Coach Card */}
+            <CoachCard
+              advice={structuredAdvice}
+              onPress={() => setCoachVisible(true)}
+              loading={loading && !mission}
+              offline={error !== null}
             />
           </ScrollView>
 
@@ -591,6 +605,25 @@ function ActiveMissionScreen() {
           </View>
         </SafeAreaView>
       )}
+
+      {/* Coach Sheet */}
+      <CoachSheet
+        visible={coachVisible}
+        onClose={() => setCoachVisible(false)}
+        status={status}
+        category={missionCategory}
+        description={mission?.description}
+        advice={structuredAdvice}
+        onSendToChat={async (text) => {
+          if (!requestId) return
+          try {
+            await apiPost('/api/services/chat', { requestId, text })
+            toast.success(t('coach.sent'), '')
+          } catch (e: any) {
+            toast.error(t('common.error'), humanErrorMessage(e))
+          }
+        }}
+      />
 
       {/* Détails du suivi (bouton ⋯) */}
       <MissionDetailsSheet

@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import {
   X, Home, ClipboardList, MapPin, FileText, Wallet, BellRing, UserCircle,
   HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield, RefreshCw,
+  ArrowLeftRight,
 } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
@@ -189,7 +190,26 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
               {hasName ? (
                 <>
                   <Text style={s.heroName} numberOfLines={1}>{userName}</Text>
-                  <Text style={s.heroPhone} numberOfLines={1}>{authUser?.phone || ''}</Text>
+                  <View style={s.heroModeRow}>
+                    {canProvide ? (
+                      <>
+                        <View style={[s.modeChip, isProvider ? s.modeChipPro : s.modeChipClient]}>
+                          <Text style={[s.modeChipText, isProvider ? s.modeChipTextPro : s.modeChipTextClient]}>
+                            {isProvider
+                              ? t('menu.modePro', { defaultValue: 'Mode Pro' })
+                              : t('menu.modeClient', { defaultValue: 'Mode Client' })}
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={switchMode} style={s.swapBtn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <ArrowLeftRight size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <TouchableOpacity onPress={() => navigateTo('/onboarding-provider')} activeOpacity={0.7} style={s.becomeProLink}>
+                        <Text style={s.becomeProLinkText}>{t('menu.becomeProvider', { defaultValue: 'Devenir prestataire →' })}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </>
               ) : (
                 <>
@@ -288,6 +308,16 @@ const s = StyleSheet.create({
   heroAvatarEmpty: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
   heroName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#fff', letterSpacing: -0.2 },
   heroPhone: { fontSize: 11.5, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
+  heroModeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  modeChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
+  modeChipClient: { backgroundColor: colors.infoLight },
+  modeChipPro: { backgroundColor: colors.brandSoft },
+  modeChipText: { fontSize: 10, fontWeight: typography.weight.extrabold as any },
+  modeChipTextClient: { color: colors.info },
+  modeChipTextPro: { color: colors.brandInk },
+  swapBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  becomeProLink: { marginTop: 2 },
+  becomeProLinkText: { fontSize: 11.5, color: '#fff', fontWeight: typography.weight.bold as any, textDecorationLine: 'underline' },
   heroEdit: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   row: {
     flexDirection: 'row',

@@ -56,7 +56,10 @@
     "verified": "Verified",
     "guest": "Guest",
     "nearbyRequests": "Nearby requests",
-    "myOffers": "My offers"
+    "myOffers": "My offers",
+    "modePro": "Pro mode",
+    "modeClient": "Client mode",
+    "becomeProvider": "Become a provider →"
   },
   "setup": {
     "title": "Welcome!",
@@ -1200,5 +1203,68 @@
     "logTitle": "Mission log",
     "logEmpty": "No events recorded yet",
     "logCurrent": "Current state"
+  },
+  "mode": {
+    "client": "Client",
+    "provider": "Pro",
+    "switchLabel": "Switch mode",
+    "switchToClientTitle": "Switch to Client mode?",
+    "switchToProviderTitle": "Switch to Pro mode?",
+    "switchToClientCta": "Switch to Client",
+    "switchToProviderCta": "Switch to Pro",
+    "proBenefit1": "Home with nearby requests",
+    "proBenefit2": "Your location shared during missions",
+    "clientBenefit1": "View your requests and payments",
+    "clientBenefit2": "Client mission tracking"
+  },
+  "onboardingProvider": {
+    "title": "Become a provider",
+    "whyTitle": "Why become a provider?",
+    "why1": "Get requests near you",
+    "why2": "Set your own prices",
+    "why3": "Secure payment",
+    "categoriesTitle": "Your trades",
+    "categoriesSub": "Select those you master.",
+    "other": "Other",
+    "zoneTitle": "Your zone",
+    "addressDetecting": "Detecting location…",
+    "activate": "Activate my space",
+    "noCategory": "Select at least one trade",
+    "successTitle": "Your provider space is ready",
+    "successSub": "You can switch Client / Pro anytime from the menu.",
+    "goProHome": "Discover my Pro home",
+    "goKyc": "Verify my identity (KYC)"
+  },
+  "roleChoice": {
+    "title": "How will you use Xeuy Bi?",
+    "sub": "You can do both later.",
+    "client": "I need a service",
+    "clientSub": "Post a request and choose a provider.",
+    "provider": "I offer my services",
+    "providerSub": "Receive requests and work near you."
+  },
+  "coach": {
+    "title": "Mission coach",
+    "loading": "The coach is preparing your advice…",
+    "unavailable": "Advice unavailable offline",
+    "retry": "Retry",
+    "viewAll": "See all",
+    "toClient": "To say to the client",
+    "sendToChat": "Send to chat",
+    "sent": "Message sent",
+    "askClient": "To ask the client",
+    "questionTitle": "A difficulty? Choose one:",
+    "ask": "Ask",
+    "photo": "Photo",
+    "thinking": "The coach is thinking…",
+    "newQuestion": "New question",
+    "quotaExhausted": "Your daily help is used, come back tomorrow",
+    "freeToday": "2 free helps today",
+    "analyzeRequest": "Analyze this request",
+    "seenOnPhotos": "What I see in the photos",
+    "materialLikely": "Likely material",
+    "toClarify": "To clarify before the offer",
+    "risks": "Risks",
+    "makeOffer": "Make an offer"
   }
 }

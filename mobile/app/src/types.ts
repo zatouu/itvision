@@ -17,6 +17,22 @@ export type OfferStatus =
 
 export type UserRole = 'client' | 'provider'
 
+export type CoachIcon = 'tools' | 'check' | 'warning' | 'steps' | 'parts' | 'client' | 'info' | 'eye' | 'clock'
+
+export interface StructuredAdvice {
+  title: string
+  summary?: string
+  sections: Array<{
+    icon: CoachIcon
+    title: string
+    items: string[]
+  }>
+  askClient?: string[]
+  sayToClient?: string
+  difficulty?: 'Simple' | 'Moyen' | 'Complexe'
+  durationMinutes?: { min: number; max: number }
+}
+
 export type Provider = 'wave' | 'orange_money' | 'free_money' | 'cash'
 
 export interface ServiceRequest {
@@ -31,6 +47,7 @@ export interface ServiceRequest {
   address?: string
   location?: { type: 'Point'; coordinates: [number, number] }
   media?: Array<{ url: string; type: 'image' | 'audio' }>
+  aiCoach?: Record<string, StructuredAdvice>
   offerCount?: number
   pendingOfferCount?: number
   assignedAt?: string

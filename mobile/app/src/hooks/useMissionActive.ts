@@ -18,6 +18,7 @@ import {
 import { humanErrorMessage } from '../errorMessages'
 import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
 import { toast } from '../toast'
+import type { StructuredAdvice } from '../types'
 
 export interface ActiveMissionData {
   _id: string
@@ -68,6 +69,7 @@ export interface ActiveMissionData {
     coordinates?: [number, number] // [lng, lat]
   }
   aiAdvice?: string
+  aiCoach?: Record<string, StructuredAdvice>
   startedAt?: string | number
   completedAt?: string | number
   routeRefreshMinMs?: number
@@ -84,6 +86,7 @@ export function useMissionActive(requestId: string | null) {
   // Real-time state
   const [isClientTyping, setIsClientTyping] = useState(false)
   const [aiAdvice, setAiAdvice] = useState<string | null>(null)
+  const [aiCoach, setAiCoach] = useState<Record<string, StructuredAdvice> | null>(null)
   const [providerLocation, setProviderLocation] = useState<{ lat: number; lng: number; heading?: number | null; speed?: number | null } | null>(null)
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string; coords: Array<{ latitude: number; longitude: number }> }>({
     distance: '1.2 km',
@@ -117,6 +120,7 @@ export function useMissionActive(requestId: string | null) {
       if (item) {
         setMission(item)
         if (item.aiAdvice) setAiAdvice(item.aiAdvice)
+        if (item.aiCoach) setAiCoach(item.aiCoach)
         if (item.status === 'in_progress' && !startedAtRef.current) {
           startedAtRef.current = item.startedAt ? new Date(item.startedAt).getTime() : Date.now()
         }
@@ -243,6 +247,9 @@ export function useMissionActive(requestId: string | null) {
       if (data?.requestId && String(data.requestId) !== String(requestId)) return
       if (data?.advice) {
         setAiAdvice(data.advice)
+      }
+      if (data?.aiCoach) {
+        setAiCoach(data.aiCoach)
       }
     }
 
@@ -571,6 +578,7 @@ export function useMissionActive(requestId: string | null) {
     error,
     isClientTyping,
     aiAdvice,
+    aiCoach,
     providerLocation,
     routeInfo,
     elapsedSeconds,

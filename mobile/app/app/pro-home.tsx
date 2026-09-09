@@ -23,6 +23,7 @@ import KpiCard from '../src/components/KpiCard'
 import Logo from '../src/components/Logo'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../src/design'
 import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
+import { ModePill } from '../src/components/ModeSwitch'
 import { apiGet, apiPost } from '../src/api'
 
 const REQUEST_TTL_HOURS = 2
@@ -375,6 +376,7 @@ function Home() {
             <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
           <View style={s.headerRight}>
+            <ModePill />
             <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
               <View style={s.notifDot} />

@@ -16,8 +16,7 @@ import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { ChevronRight, Camera, Menu, Pencil, Phone } from 'lucide-react-native'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
-import { isProviderCapable, setMode } from '../src/mode'
-import { confirm } from '../src/confirm'
+import { isProviderCapable } from '../src/mode'
 
 function Profile() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -241,22 +240,7 @@ function Profile() {
           {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
           {!isProviderCapable() && menuItem(
             t('profile.becomeProvider', { defaultValue: 'Devenir prestataire' }),
-            async () => {
-              const ok = await confirm(
-                t('profile.becomeProviderTitle', { defaultValue: 'Devenir prestataire' }),
-                t('profile.becomeProviderMsg', { defaultValue: 'Activez votre espace prestataire pour recevoir des demandes de services près de chez vous.' })
-              )
-              if (!ok) return
-              try {
-                const r: any = await apiPost('/api/users/me/provider', {})
-                if (r?.providerProfileId) await updateAuthUser({ providerProfileId: r.providerProfileId })
-                await setMode('provider')
-                toast.success(t('profile.providerActivated', { defaultValue: 'Espace prestataire activé' }), '')
-                router.replace('/pro-home' as any)
-              } catch (e: any) {
-                toast.error('Erreur', humanErrorMessage(e))
-              }
-            }
+            () => router.push('/onboarding-provider' as any)
           )}
         </View>
 

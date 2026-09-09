@@ -56,7 +56,10 @@
     "verified": "Wóor",
     "guest": "Tudd",
     "nearbyRequests": "Laaj yu nga am ci wetu",
-    "myOffers": "Sama ay mbir"
+    "myOffers": "Sama ay mbir",
+    "modePro": "Anamu Pro",
+    "modeClient": "Anamu Client",
+    "becomeProvider": "Bulal sama bopp ci pro →"
   },
   "setup": {
     "title": "Dalal jàmm!",
@@ -1192,5 +1195,68 @@
     "logTitle": "Taarixu misiyoŋ bi",
     "logEmpty": "Amul beneen xew-xew buñu bind",
     "logCurrent": "Tàggat bi tey"
+  },
+  "mode": {
+    "client": "Client",
+    "provider": "Pro",
+    "switchLabel": "Soppali anam",
+    "switchToClientTitle": "Soppali anamu Client ?",
+    "switchToProviderTitle": "Soppali anamu Pro ?",
+    "switchToClientCta": "Soppali anamu Client",
+    "switchToProviderCta": "Soppali anamu Pro",
+    "proBenefit1": "Kër ak laaj yu nga am ci wetu",
+    "proBenefit2": "Sa birnatu dëkk dindi ci misiyoŋ yi",
+    "clientBenefit1": "Xool sa laaj yi ak mbay yi",
+    "clientBenefit2": "Dindi sa mbugal client"
+  },
+  "onboardingProvider": {
+    "title": "Bulal sama bopp ci pro",
+    "whyTitle": "Lu mu ngi waral a nekk pro ?",
+    "why1": "Am laaj yu nga am ci wetu",
+    "why2": "Téggal say mbay",
+    "why3": "Mbuuru amul dara",
+    "categoriesTitle": "Say mbir",
+    "categoriesSub": "Tànnal ñi nga xam.",
+    "other": "Yeneen",
+    "zoneTitle": "Sa wàllu dëkk",
+    "addressDetecting": "Dindi dëkk bi…",
+    "activate": "Tambali sama barku pro",
+    "noCategory": "Tànnal ab kategoru",
+    "successTitle": "Sa barku pro am na",
+    "successSub": "Mën nga soppali Client / Pro ci menu bi.",
+    "goProHome": "Xool sama kër pro",
+    "goKyc": "Wóorlu sama identité (KYC)"
+  },
+  "roleChoice": {
+    "title": "Naka la nga bëggoon Xeuy Bi ?",
+    "sub": "Mën nga def ñaar yi ci jëm",
+    "client": "Dama laaj ab mbir",
+    "clientSub": "Duggal ab laaj te tànnal ab pro.",
+    "provider": "Dama joxe say mbir",
+    "providerSub": "Am laaj yi te liggéy ci wetu sa kër."
+  },
+  "coach": {
+    "title": "Kawcasu misiyoŋ",
+    "loading": "Kawcas bi nangu na…",
+    "unavailable": "Topp buñu amul bu offline",
+    "retry": "Toxal",
+    "viewAll": "Xool yépp",
+    "toClient": "Li war nga ko wax",
+    "sendToChat": "Yónnee ci chat",
+    "sent": "Bataaxal yónnee na",
+    "askClient": "Li war nga laaj",
+    "questionTitle": "Am nga jafe-jafe ? Tànnal :",
+    "ask": "Laaj",
+    "photo": "Foto",
+    "thinking": "Kawcas bi danga nangu…",
+    "newQuestion": "Laaj bu bees",
+    "quotaExhausted": "Topp yi tey dañu jeex, dellu ci suba",
+    "freeToday": "2 topp yu amul solo tey",
+    "analyzeRequest": "Wéet lu mu am ci laaj bi",
+    "seenOnPhotos": "Li xool ci fotoo yi",
+    "materialLikely": "Materyèl bu mu am",
+    "toClarify": "Li war nga wóorlu laaj bu mbir",
+    "risks": "Ay nguy",
+    "makeOffer": "Toxal ab mbir"
   }
 }

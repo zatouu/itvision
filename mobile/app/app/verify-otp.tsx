@@ -42,7 +42,11 @@ function VerifyOtp() {
       resetSocket()
       hapticSuccess()
       const mode = await loadMode()
-      router.replace((data.user?.isNew ? '/setup-profile' : homeRouteForMode(mode)) as any)
+      if (data.user?.isNew) {
+        router.replace('/role-choice' as any)
+      } else {
+        router.replace(homeRouteForMode(mode) as any)
+      }
     } catch (e: any) {
       hapticError()
       console.error('[verify-otp] Erreur:', e)

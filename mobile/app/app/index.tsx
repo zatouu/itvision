@@ -24,6 +24,7 @@ import { colors, radius, spacing, typography } from '../src/design'
 import { BellRing, Check, ChevronRight, Menu, Star, LucideIcon } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
+import { ModePill } from '../src/components/ModeSwitch'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:           { label: 'Publiée',              color: '#2563EB', dot: '#2563EB' },
@@ -363,6 +364,7 @@ function Home() {
             <Text style={s.appName}>Xeuy Bi</Text>
           </View>
           <View style={s.headerRight}>
+            <ModePill />
             <TouchableOpacity style={s.headerBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
               {unread > 0 && <View style={s.notifDot} />}
