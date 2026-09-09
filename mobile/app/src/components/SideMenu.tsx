@@ -6,7 +6,7 @@ import {
   HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield, RefreshCw,
   ArrowLeftRight,
 } from 'lucide-react-native'
-import { colors, radius, shadows, spacing, typography } from '../design'
+import { colors, radius, shadows, spacing, typography, cat } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
 import { logoutApi } from '../api'
 import { clearAllUserData } from '../clear-user-data'
@@ -36,6 +36,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
   const { t, i18n } = useTranslation()
   const authUser = getAuthUser()
   const userName = authUser?.name?.trim() || ''
+  const userPhone = authUser?.phone || ''
   const hasName = !!userName && !/^\d{7,}$/.test(userName)
   const initials = hasName ? userName.slice(0, 2).toUpperCase() : '?'
   const [notifBadge, setNotifBadge] = useState(0)
@@ -169,7 +170,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
           <View style={s.heroTop}>
             <Text style={s.heroLogo}>Xeuy Bi</Text>
             <TouchableOpacity style={s.heroClose} onPress={onClose} activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={16} color="#fff" />
+              <X size={16} color={colors.ink} />
             </TouchableOpacity>
           </View>
           <TouchableOpacity
@@ -183,17 +184,19 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
               </View>
             ) : (
               <View style={s.heroAvatarEmpty}>
-                <UserCircle size={24} color="#fff" />
+                <UserCircle size={24} color={colors.ink} />
               </View>
             )}
             <View style={{ flex: 1, minWidth: 0 }}>
               {hasName ? (
                 <>
                   <Text style={s.heroName} numberOfLines={1}>{userName}</Text>
+                  {userPhone ? <Text style={s.heroPhone}>{userPhone}</Text> : null}
                   <View style={s.heroModeRow}>
                     {canProvide ? (
                       <>
                         <View style={[s.modeChip, isProvider ? s.modeChipPro : s.modeChipClient]}>
+                          <View style={[s.modeDot, isProvider ? s.modeDotPro : null]} />
                           <Text style={[s.modeChipText, isProvider ? s.modeChipTextPro : s.modeChipTextClient]}>
                             {isProvider
                               ? t('menu.modePro', { defaultValue: 'Mode Pro' })
@@ -201,7 +204,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
                           </Text>
                         </View>
                         <TouchableOpacity onPress={switchMode} style={s.swapBtn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <ArrowLeftRight size={16} color="#fff" />
+                          <ArrowLeftRight size={18} color={colors.ink} />
                         </TouchableOpacity>
                       </>
                     ) : (
@@ -219,12 +222,13 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
               )}
             </View>
             <View style={s.heroEdit}>
-              {hasName ? <ChevronRight size={15} color="#fff" /> : <Pencil size={14} color="#fff" />}
+              {hasName ? <ChevronRight size={15} color={colors.ink} /> : <Pencil size={14} color={colors.ink} />}
             </View>
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, paddingHorizontal: 12, flexGrow: 1 }}>
+          <Text style={s.sectionTitle}>{isProvider ? t('menu.proSpace', { defaultValue: 'Espace prestataire' }) : t('menu.mySpace', { defaultValue: 'Mon espace' })}</Text>
           {mainItems.map((item, i) => renderRow(item, `main-${i}`))}
 
           {/* Bascule client ⇄ prestataire (si profil prestataire) */}
@@ -292,33 +296,38 @@ const s = StyleSheet.create({
     ...shadows.xl,
   },
   hero: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 22,
     overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
   },
-  heroCircle: { position: 'absolute', top: -40, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.08)' },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  heroLogo: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  heroClose: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  heroCircle: { position: 'absolute', top: -40, right: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(10,22,40,0.03)' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  heroLogo: { fontSize: 20, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
+  heroClose: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.bgDeep, alignItems: 'center', justifyContent: 'center' },
   heroIdentity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heroAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
-  heroAvatarText: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.primary },
-  heroAvatarEmpty: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
-  heroName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#fff', letterSpacing: -0.2 },
-  heroPhone: { fontSize: 11.5, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
-  heroModeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  modeChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  modeChipClient: { backgroundColor: colors.infoLight },
+  heroAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  heroAvatarText: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: '#fff' },
+  heroAvatarEmpty: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.bgDeep, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  heroName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.ink, letterSpacing: -0.2 },
+  heroPhone: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  heroModeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  modeChipClient: { backgroundColor: cat.electricite.soft },
   modeChipPro: { backgroundColor: colors.brandSoft },
-  modeChipText: { fontSize: 10, fontWeight: typography.weight.extrabold as any },
-  modeChipTextClient: { color: colors.info },
+  modeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.info },
+  modeDotPro: { backgroundColor: colors.primary },
+  modeChipText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, letterSpacing: 0.2 },
+  modeChipTextClient: { color: cat.electricite.ink },
   modeChipTextPro: { color: colors.brandInk },
-  swapBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  swapBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   becomeProLink: { marginTop: 2 },
-  becomeProLinkText: { fontSize: 11.5, color: '#fff', fontWeight: typography.weight.bold as any, textDecorationLine: 'underline' },
-  heroEdit: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  becomeProLinkText: { fontSize: 12, color: colors.brandInk, fontWeight: typography.weight.bold as any, textDecorationLine: 'underline' },
+  heroEdit: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.bgDeep, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: 10.5, fontWeight: typography.weight.extrabold as any, color: colors.textMuted, letterSpacing: 0.6, textTransform: 'uppercase', paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
