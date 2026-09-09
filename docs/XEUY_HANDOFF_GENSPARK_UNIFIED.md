@@ -44,7 +44,28 @@ Utilise strictement `brand.jsx` pour la forme. Pour l'implémentation future, ma
 | `XB.radius.lg` | `radius.lg` |
 | `XB.shadow.md` | `shadows.md` |
 
-Réutilise `Icon`, `CatTile`, `Avatar`, `TabBar`, `MiniMap` existants de `brand.jsx`. Pour l'app, icônes = `lucide-react-native`.
+Réutilise `Icon`, `CatTile`, `Avatar`, `TabBar` existants de `brand.jsx`. Le `MiniMap` doit être **une carte statique simplifiée** (pas de plugin tiers). Pour l'app, icônes = `lucide-react-native`.
+
+### Mapping icônes brand.jsx → lucide-react-native
+
+| nom dans le brief | `lucide-react-native` |
+|---|---|
+| `sparkle` | `Sparkles` |
+| `wrench` | `Wrench` |
+| `check` | `Check` |
+| `alert` / warning | `AlertTriangle` |
+| `arrow` / steps | `ArrowRight` |
+| `grid` / parts | `LayoutGrid` |
+| `user` / client | `User` |
+| `dots` / info | `MoreHorizontal` |
+| `search` / eye | `Search` |
+| `clock` | `Clock` |
+| `camera` | `Camera` |
+| `send` | `Send` |
+| `swap` | `ArrowLeftRight` |
+| `chat` | `MessageCircle` |
+
+Ne crée **aucun SVG personnalisé** ; utilise `Icon` du design system ou `lucide-react-native`.
 
 ---
 
@@ -180,7 +201,8 @@ Remplace l'alerte actuelle « Devenir prestataire ». 3 étapes + succès.
 - Bouton « Continuer ».
 
 **Étape 3 — Votre zone** :
-- `MiniMap` avec rayon (slider 5–30 km, valeur en chip « 10 km »).
+- Carte statique ronde simplifiée (cercle de rayon, adresse en texte) — pas de `react-native-maps` ici.
+- Slider 5–30 km, valeur en chip « 10 km ».
 - Adresse détectée en texte.
 - Bouton « Activer mon espace ».
 
@@ -198,7 +220,9 @@ Dans le header de `/` (client) et `/pro-home` (pro) : segment 2 positions **« C
 #### `ModeSwitchSheet`
 Bottom-sheet 40 %, fond `XB.surface` :
 - Titre « Passer en mode Prestataire ? » (ou « Client ? »).
-- 3 lignes de ce qui change (icône + texte 13/500).
+- 2 lignes maximum (icône + texte 13/500) :
+  - Client → Pro : « Accueil avec les demandes proches » + « Votre position partagée ».
+  - Pro → Client : « Voir vos demandes en cours » + « Paiement et suivi client ».
 - CTA principal « Passer en mode Pro » (`XB.ink`) + « Annuler » secondaire.
 - Version miroir pour repasser Client.
 
@@ -208,7 +232,7 @@ Bottom-sheet 40 %, fond `XB.surface` :
 
 ### 3.3 `role-choice.jsx`
 
-Après OTP, avant d'entrer dans l'app. 2 grandes cartes tactiles (hauteur 140) :
+Après OTP, **uniquement pour un nouvel utilisateur** (`user.isNew === true`) ; les comptes existants vont directement à l'accueil. 2 grandes cartes tactiles (hauteur 140) :
 
 - **« Je cherche un service »** : bleu `XB.cat.elec.bg`, icône `search`. Sous-texte 1 ligne.
 - **« Je propose mes services »** : vert `XB.green`, icône `wrench`. Sous-texte 1 ligne.
@@ -225,6 +249,7 @@ Mise à jour du `SideMenu` / drawer.
 - Bouton icône `swap` 40×40 à droite → ouvre `ModeSwitchSheet`.
 - Si l'utilisateur n'a **pas** de profil prestataire : à la place du chip, lien « Devenir prestataire → ».
 - Items du menu mode-aware : client (`/`, `/my-requests`, `/wallet`, `/profile`) ; pro (`/pro-home`, `/nearby-requests`, `/my-offers`, `/pro-wallet`, `/pro-profile`).
+- Le drawer reste **un seul design unifié** (pas un drawer spécifique pro). Seul le contenu change selon le mode.
 
 ---
 
@@ -275,7 +300,8 @@ Chaque fichier :
 - **Tokens réels** : `mobile/app/src/design.ts` (`colors`, `radius`, `spacing`, `shadows`, `typography`).
 - **Mode** : `mobile/app/src/mode.ts` (`getMode`, `setMode`, `isProviderCapable`, `homeRouteForMode`).
 - **Coach** : les données viennent de `/api/services/requests/[id]` (`aiCoach`) et du socket `ai:advice_updated`.
-- **Routes** : flat (`/`, `/pro-home`, `/pro-profile`, `/pro-wallet`, `/nearby-requests`, `/my-offers`, `/active-mission/[id]`, `/nearby/[id]`, `/onboarding-provider` à créer).
+- **Routes** : flat (`/`, `/pro-home`, `/pro-profile`, `/pro-wallet`, `/nearby-requests`, `/my-offers`, `/active-mission/[id]`, `/nearby/[id]`, `/onboarding-provider` et `/role-choice` à créer).
+- **role-choice** : n'apparaît qu'après OTP si `user.isNew === true`.
 - **Pas de saisie obligatoire** : l'action « question au coach » = tap sur une puce, ou photo. Pas de champ texte au MVP.
 - **Photo** : aucune dépendance à ajouter — `expo-image-picker` (`captureMedia`) et `apiUpload` existent déjà dans `mobile/app` ; le backend accepte déjà les images (`imageUrls`).
 - **Quota** : le backend répond `402 quota_exceeded` après 2 questions/jour → l'état « quota épuisé » de la sheet est obligatoire. Le paiement en XC existe côté serveur mais n'est **pas** exposé dans l'UI au MVP.
