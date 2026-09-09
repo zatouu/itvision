@@ -199,7 +199,7 @@ function ActiveMissionScreen() {
     if (requestId) {
       router.push({
         pathname: '/mission-chat',
-        params: { id: requestId, name: clientData.name },
+        params: { id: requestId, clientName: clientData.name, clientPhone: clientData.phone },
       })
     }
   }

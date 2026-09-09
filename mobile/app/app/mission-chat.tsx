@@ -79,7 +79,10 @@ function MissionChat() {
   const viewerRole: 'client' | 'provider' = (clientName || clientPhone || getMode() === 'provider') ? 'provider' : 'client'
 
   const loadMessages = useCallback(async () => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      return
+    }
     try {
       const res = await apiGet(`/api/services/chat?requestId=${id}`)
       setMessages(res.messages || [])
@@ -96,7 +99,7 @@ function MissionChat() {
   useEffect(() => {
     if (!id) return
     const socket = connectSocket()
-    joinMissionChat(id)
+    try { joinMissionChat(id) } catch {}
 
     const handleMessage = (msg: Message) => {
       setMessages(prev => {
@@ -208,6 +211,7 @@ function MissionChat() {
         ) : (
           <FlatList
             ref={flatListRef}
+            style={{ flex: 1 }}
             data={messages}
             keyExtractor={item => item._id}
             renderItem={renderMessage}
