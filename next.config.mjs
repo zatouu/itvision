@@ -13,8 +13,8 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    // Désactiver ESLint pendant le build pour l'instant
-    ignoreDuringBuilds: true,
+    // Ne plus ignorer ESLint pendant le build afin de bloquer les erreurs en CI
+    ignoreDuringBuilds: false,
   },
   typescript: {
     // Désactiver les erreurs TypeScript pendant le build si nécessaire
