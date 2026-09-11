@@ -13,6 +13,7 @@ import { TrustStrip } from '../TrustStrip';
 import { ProgressBar } from '../ProgressBar';
 import { LiveDot } from '../LiveDot';
 import { Section } from '../Section';
+import ProductImageGallery from '../ProductImageGallery';
 import { addToCart, mapProductDetail } from '../data-mappers';
 import type { Product, PriceTier, ProductVariant, ShippingMode } from '../types';
 
@@ -149,47 +150,28 @@ export default function ScreenProduct() {
 
         <div className="flex-1 overflow-y-auto pb-32">
           {/* Gallery */}
-          <div className="bg-white dark:bg-slate-900">
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-              <Image
-                src={p.images[activeImg] || p.images[0] || '/placeholder.svg'}
-                alt={p.name}
-                fill
-                sizes="100vw"
-                className="object-cover"
-                priority
-              />
-              <div className="absolute left-3 top-3 flex flex-col gap-1.5">
-                <Badge tone="emerald"><Icon name="checkCircle" size={11} /> Fournisseur vérifié</Badge>
-                <Badge tone="amber"><Icon name="package" size={11} /> Lot min. {p.minOrderQty}</Badge>
-              </div>
-              <div className="absolute right-3 top-3">
-                <Badge tone="red"><Icon name="flame" size={11} /> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge>
-              </div>
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
-                {activeImg + 1} / {p.images.length}
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto p-3">
-              {p.images.map((src, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImg(i)}
-                  className={cn(
-                    "relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-slate-100 dark:bg-slate-800",
-                    activeImg === i ? "border-emerald-600" : "border-transparent"
-                  )}
-                >
-                  <Image src={src} alt="" fill sizes="64px" className="object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
+          <ProductImageGallery
+            images={p.images}
+            name={p.name}
+            activeIndex={activeImg}
+            onActiveChange={setActiveImg}
+            badges={
+              <>
+                <div className="absolute left-3 top-3 flex flex-col gap-1.5">
+                  <Badge tone="emerald"><Icon name="checkCircle" size={11} /> Fournisseur vérifié</Badge>
+                  <Badge tone="amber"><Icon name="package" size={11} /> Lot min. {p.minOrderQty}</Badge>
+                </div>
+                <div className="absolute right-3 top-3">
+                  <Badge tone="red"><Icon name="flame" size={11} /> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge>
+                </div>
+              </>
+            }
+          />
 
           {/* Title + rating */}
           <div className="bg-white px-4 py-4 dark:bg-slate-900">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.brand}</p>
-            <h1 className="mt-1 text-[19px] font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">
+            <h1 className="mt-1 text-[19px] font-extrabold leading-snug tracking-tight text-slate-900 dark:text-white break-words">
               {p.name}
             </h1>
             <div className="mt-2 flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
@@ -509,27 +491,21 @@ export default function ScreenProduct() {
           {/* Left : gallery + tabs */}
           <div>
             <Card className="overflow-hidden">
-              <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800">
-                <Image
-                  src={p.images[activeImg] || p.images[0] || '/placeholder.svg'}
-                  alt={p.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                />
-                <div className="absolute left-4 top-4 flex flex-col gap-2">
-                  <Badge tone="emerald"><Icon name="checkCircle" size={11}/> Fournisseur vérifié</Badge>
-                  <Badge tone="amber"><Icon name="package" size={11}/> Lot min. {p.minOrderQty}</Badge>
-                </div>
-                <div className="absolute right-4 top-4"><Badge tone="red"><Icon name="flame" size={11}/> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge></div>
-              </div>
-              <div className="flex gap-2 p-3">
-                {p.images.map((src, i) => (
-                  <button key={i} onClick={() => setActiveImg(i)} className={cn("relative h-20 w-20 overflow-hidden rounded-lg border-2", activeImg === i ? "border-emerald-600" : "border-transparent")}>
-                    <Image src={src} alt="" fill sizes="80px" className="object-cover"/>
-                  </button>
-                ))}
-              </div>
+              <ProductImageGallery
+                images={p.images}
+                name={p.name}
+                activeIndex={activeImg}
+                onActiveChange={setActiveImg}
+                badges={
+                  <>
+                    <div className="absolute left-4 top-4 flex flex-col gap-2">
+                      <Badge tone="emerald"><Icon name="checkCircle" size={11}/> Fournisseur vérifié</Badge>
+                      <Badge tone="amber"><Icon name="package" size={11}/> Lot min. {p.minOrderQty}</Badge>
+                    </div>
+                    <div className="absolute right-4 top-4"><Badge tone="red"><Icon name="flame" size={11}/> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge></div>
+                  </>
+                }
+              />
             </Card>
 
             <Card className="mt-4 overflow-hidden">
@@ -629,7 +605,7 @@ export default function ScreenProduct() {
             <div className="sticky top-20 space-y-4">
               <Card className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.brand}</p>
-                <h1 className="mt-1 text-xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">{p.name}</h1>
+                <h1 className="mt-1 text-xl font-extrabold leading-snug tracking-tight text-slate-900 dark:text-white break-words">{p.name}</h1>
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <span className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={12} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}</span>
                   <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span> · <span>{reviewCount} avis</span>
