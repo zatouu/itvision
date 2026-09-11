@@ -32,19 +32,6 @@ export const metadata: Metadata = {
   }
 }
 
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
-import MarketBottomNav from '@/components/MarketBottomNav'
-
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <MarketHeader />
-      <div className="md:pb-0 pb-20">
-        {children}
-      </div>
-      <MarketFooter />
-      <MarketBottomNav />
-    </>
-  )
+  return <>{children}</>
 }

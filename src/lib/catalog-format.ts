@@ -30,11 +30,11 @@ const normalizeVariantGroups = (product: any) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
     return []
   }
-  
-  return product.variantGroups.map((group: any) => ({
+
+  return product.variantGroups.map((group: any, gIdx: number) => ({
     name: group.name || 'Option',
-    variants: Array.isArray(group.variants) ? group.variants.map((v: any) => ({
-      id: v.id || `var_${Math.random().toString(36).slice(2)}`,
+    variants: Array.isArray(group.variants) ? group.variants.map((v: any, vIdx: number) => ({
+      id: v.id || `var_${gIdx}_${vIdx}`,
       name: v.name || 'Variante',
       sku: v.sku || undefined,
       image: v.image || undefined,
@@ -108,17 +108,9 @@ export const formatProductDetail = (
       grossWeightKg: product.grossWeightKg ?? product.weightKg ?? null,
       packagingWeightKg: product.packagingWeightKg ?? null
     },
-    // Note: Les informations de sourcing et prix source ne sont pas exposées au client
-    // Seul indicateur: si le produit est importé
+    // Note: Les détails de sourcing restent internes ; on expose uniquement un indicateur d'import
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
-    // Exposer les infos simplifiées pour le simulateur 1688 si disponibles
-    pricing1688: product.price1688 ? {
-      price1688: product.price1688,
-      price1688Currency: 'CNY', // ou product.currencySource
-      exchangeRate: product.exchangeRate || 100, // Fallback safe
-      serviceFeeRate: product.serviceFeeRate || 10,
-      insuranceRate: product.insuranceRate || 0
-    } : null,
+    // Données de sourcing source réservées aux outils admin ; on ne les expose pas au client
     // Achat groupé (front)
     groupBuyEnabled: product.groupBuyEnabled ?? false,
     groupBuyBestPrice,
@@ -126,6 +118,8 @@ export const formatProductDetail = (
     priceTiers: product.priceTiers ?? [],
     groupBuyMinQty: product.groupBuyMinQty ?? null,
     groupBuyTargetQty: product.groupBuyTargetQty ?? null,
+    // Quantité minimum par commande standard (MOQ)
+    minOrderQty: typeof product.minOrderQty === 'number' && product.minOrderQty > 0 ? product.minOrderQty : 1,
     // Prix wholesale B2B (activé à 5+ pcs ou compte Pro)
     b2bPrice: typeof product.b2bPrice === 'number' && product.b2bPrice > 0 ? product.b2bPrice : null,
     // Espace vendeur / storefront public

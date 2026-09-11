@@ -2,9 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
-import MarketBottomNav from '@/components/MarketBottomNav'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle, Star, Clock, Package, ShoppingCart, Trash2, TrendingDown } from 'lucide-react'
@@ -136,12 +133,11 @@ function CompareContent() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 md:pb-0">
-        <MarketHeader />
+  
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
-        <MarketFooter />
-        <MarketBottomNav />
+
       </main>
     )
   }
@@ -149,7 +145,7 @@ function CompareContent() {
   if (error || products.length < 2) {
     return (
       <main className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 md:pb-0">
-        <MarketHeader />
+  
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || 'Produits introuvables'}</p>
@@ -162,8 +158,7 @@ function CompareContent() {
             </Link>
           </div>
         </div>
-        <MarketFooter />
-        <MarketBottomNav />
+
       </main>
     )
   }
@@ -180,7 +175,7 @@ function CompareContent() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-20 md:pb-0">
-      <MarketHeader />
+
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* En-tête */}
@@ -407,8 +402,7 @@ function CompareContent() {
         </div>
       </div>
 
-      <MarketFooter />
-      <MarketBottomNav />
+
     </main>
   )
 }
@@ -417,12 +411,11 @@ export default function ComparePage() {
   return (
     <Suspense fallback={
       <main>
-        <MarketHeader />
+  
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
-        <MarketFooter />
-        <MarketBottomNav />
+
       </main>
     }>
       <CompareContent />

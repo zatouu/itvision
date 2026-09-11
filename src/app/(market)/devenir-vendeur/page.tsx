@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Store, Loader2, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
-import MarketBottomNav from '@/components/MarketBottomNav'
 
 export default function BecomeVendorPage() {
   const router = useRouter()
@@ -81,9 +78,7 @@ export default function BecomeVendorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 md:pb-0">
-      <MarketHeader />
-
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <main className="max-w-3xl mx-auto px-4 py-12">
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg p-6 md:p-10">
           <div className="flex items-center gap-3 mb-2">
@@ -184,9 +179,6 @@ export default function BecomeVendorPage() {
           )}
         </div>
       </main>
-
-      <MarketFooter />
-      <MarketBottomNav />
     </div>
   )
 }

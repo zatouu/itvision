@@ -101,6 +101,34 @@ body {
   animation: gradient-shift 3s ease infinite;
 }
 
+/* Animations handoff DDM+ */
+@keyframes ping-slow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.7; }
+}
+
+@keyframes ticker-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes fade-rotate {
+  0% { opacity: 0; transform: rotate(-10deg) translateY(10px); }
+  100% { opacity: 1; transform: rotate(0deg) translateY(0); }
+}
+
+.animate-ping-slow {
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-ticker-left {
+  animation: ticker-left 25s linear infinite;
+}
+
+.animate-fade-rotate {
+  animation: fade-rotate 0.6s ease-out forwards;
+}
+
 /* Scrollbar hide pour style AliExpress */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -385,220 +413,6 @@ body {
   --text-slate-950: oklch(98.4% 0.003 247.858);
   --border-slate-950: oklch(98.4% 0.003 247.858);
 }
-
-/* Classes that use the theme-aware CSS variables - wrapped in @layer to prevent Tailwind from stripping them */
-@layer components {
-  .bg-white { background-color: var(--bg-white, #ffffff) !important; }
-  .bg-gray-50 { background-color: var(--bg-gray-50, #f9fafb) !important; }
-  .bg-gray-100 { background-color: var(--bg-gray-100, #f3f4f6) !important; }
-  .text-gray-900 { color: var(--text-gray-900, #111827) !important; }
-  .text-gray-700 { color: var(--text-gray-700, #374151) !important; }
-  .text-black { color: var(--text-black, #000000) !important; }
-  .border-gray-300 { border-color: var(--border-gray-300, #d1d5db) !important; }
-
-  .bg-slate-50 { background-color: var(--bg-slate-50, #f8fafc) !important; }
-  .bg-slate-100 { background-color: var(--bg-slate-100, #f1f5f9) !important; }
-  .bg-slate-200 { background-color: var(--bg-slate-200, #e2e8f0) !important; }
-  .text-slate-500 { color: var(--text-slate-500, #64748b) !important; }
-  .text-slate-600 { color: var(--text-slate-600, #475569) !important; }
-  .text-slate-700 { color: var(--text-slate-700, #334155) !important; }
-  .text-slate-800 { color: var(--text-slate-800, #1e293b) !important; }
-  .text-slate-900 { color: var(--text-slate-900, #0f172a) !important; }
-  .border-slate-100 { border-color: var(--border-slate-100, #f1f5f9) !important; }
-  .border-slate-200 { border-color: var(--border-slate-200, #e2e8f0) !important; }
-  .border-slate-300 { border-color: var(--border-slate-300, #cbd5e1) !important; }
-  .border-slate-700 { border-color: var(--border-slate-700, #334155) !important; }
-  .border-slate-800 { border-color: var(--border-slate-800, #1e293b) !important; }
-  .bg-zinc-50 { background-color: var(--bg-zinc-50, oklch(98.5% 0 0)) !important; }
-  .bg-zinc-100 { background-color: var(--bg-zinc-100, oklch(96.7% 0.001 286.375)) !important; }
-  .text-zinc-600 { color: var(--text-zinc-600, oklch(44.2% 0.017 285.786)) !important; }
-  .text-zinc-700 { color: var(--text-zinc-700, oklch(37% 0.013 285.805)) !important; }
-  .text-zinc-800 { color: var(--text-zinc-800, oklch(27.4% 0.006 286.033)) !important; }
-  .border-zinc-200 { border-color: var(--border-zinc-200, oklch(92% 0.004 286.32)) !important; }
-  .border-zinc-300 { border-color: var(--border-zinc-300, oklch(87.1% 0.006 286.286)) !important; }
-  .bg-neutral-50 { background-color: var(--bg-neutral-50, oklch(98.5% 0 0)) !important; }
-  .bg-neutral-100 { background-color: var(--bg-neutral-100, oklch(97% 0 0)) !important; }
-  .text-neutral-600 { color: var(--text-neutral-600, oklch(43.9% 0 0)) !important; }
-  .text-neutral-700 { color: var(--text-neutral-700, oklch(37.1% 0 0)) !important; }
-  .text-neutral-800 { color: var(--text-neutral-800, oklch(26.9% 0 0)) !important; }
-  .border-neutral-200 { border-color: var(--border-neutral-200, oklch(92.2% 0 0)) !important; }
-  .border-neutral-300 { border-color: var(--border-neutral-300, oklch(87% 0 0)) !important; }
-  .bg-stone-50 { background-color: var(--bg-stone-50, oklch(98.5% 0.001 106.423)) !important; }
-  .bg-stone-100 { background-color: var(--bg-stone-100, oklch(97% 0.001 106.424)) !important; }
-  .text-stone-600 { color: var(--text-stone-600, oklch(44.4% 0.011 73.639)) !important; }
-  .text-stone-700 { color: var(--text-stone-700, oklch(37.4% 0.01 67.558)) !important; }
-  .text-stone-800 { color: var(--text-stone-800, oklch(26.8% 0.007 34.298)) !important; }
-  .border-stone-200 { border-color: var(--border-stone-200, oklch(92.3% 0.003 48.717)) !important; }
-  .border-stone-300 { border-color: var(--border-stone-300, oklch(86.9% 0.005 56.366)) !important; }
-  .bg-red-50 { background-color: var(--bg-red-50, oklch(97.1% 0.013 17.38)) !important; }
-  .bg-red-100 { background-color: var(--bg-red-100, oklch(93.6% 0.032 17.717)) !important; }
-  .text-red-600 { color: var(--text-red-600, oklch(57.7% 0.245 27.325)) !important; }
-  .text-red-700 { color: var(--text-red-700, oklch(50.5% 0.213 27.518)) !important; }
-  .text-red-800 { color: var(--text-red-800, oklch(44.4% 0.177 26.899)) !important; }
-  .border-red-200 { border-color: var(--border-red-200, oklch(88.5% 0.062 18.334)) !important; }
-  .border-red-300 { border-color: var(--border-red-300, oklch(80.8% 0.114 19.571)) !important; }
-  .bg-orange-50 { background-color: var(--bg-orange-50, oklch(98% 0.016 73.684)) !important; }
-  .bg-orange-100 { background-color: var(--bg-orange-100, oklch(95.4% 0.038 75.164)) !important; }
-  .text-orange-600 { color: var(--text-orange-600, oklch(64.6% 0.222 41.116)) !important; }
-  .text-orange-700 { color: var(--text-orange-700, oklch(55.3% 0.195 38.402)) !important; }
-  .text-orange-800 { color: var(--text-orange-800, oklch(47% 0.157 37.304)) !important; }
-  .border-orange-200 { border-color: var(--border-orange-200, oklch(90.1% 0.076 70.697)) !important; }
-  .border-orange-300 { border-color: var(--border-orange-300, oklch(83.7% 0.128 66.29)) !important; }
-  .bg-amber-50 { background-color: var(--bg-amber-50, oklch(98.7% 0.022 95.277)) !important; }
-  .bg-amber-100 { background-color: var(--bg-amber-100, oklch(96.2% 0.059 95.617)) !important; }
-  .text-amber-600 { color: var(--text-amber-600, oklch(66.6% 0.179 58.318)) !important; }
-  .text-amber-700 { color: var(--text-amber-700, oklch(55.5% 0.163 48.998)) !important; }
-  .text-amber-800 { color: var(--text-amber-800, oklch(47.3% 0.137 46.201)) !important; }
-  .border-amber-200 { border-color: var(--border-amber-200, oklch(92.4% 0.12 95.746)) !important; }
-  .border-amber-300 { border-color: var(--border-amber-300, oklch(87.9% 0.169 91.605)) !important; }
-  .bg-yellow-50 { background-color: var(--bg-yellow-50, oklch(98.7% 0.026 102.212)) !important; }
-  .bg-yellow-100 { background-color: var(--bg-yellow-100, oklch(97.3% 0.071 103.193)) !important; }
-  .text-yellow-600 { color: var(--text-yellow-600, oklch(68.1% 0.162 75.834)) !important; }
-  .text-yellow-700 { color: var(--text-yellow-700, oklch(55.4% 0.135 66.442)) !important; }
-  .text-yellow-800 { color: var(--text-yellow-800, oklch(47.6% 0.114 61.907)) !important; }
-  .border-yellow-200 { border-color: var(--border-yellow-200, oklch(94.5% 0.129 101.54)) !important; }
-  .border-yellow-300 { border-color: var(--border-yellow-300, oklch(90.5% 0.182 98.111)) !important; }
-  .bg-lime-50 { background-color: var(--bg-lime-50, oklch(98.6% 0.031 120.757)) !important; }
-  .bg-lime-100 { background-color: var(--bg-lime-100, oklch(96.7% 0.067 122.328)) !important; }
-  .text-lime-600 { color: var(--text-lime-600, oklch(64.8% 0.2 131.684)) !important; }
-  .text-lime-700 { color: var(--text-lime-700, oklch(53.2% 0.157 131.589)) !important; }
-  .text-lime-800 { color: var(--text-lime-800, oklch(45.3% 0.124 130.933)) !important; }
-  .border-lime-200 { border-color: var(--border-lime-200, oklch(93.8% 0.127 124.321)) !important; }
-  .border-lime-300 { border-color: var(--border-lime-300, oklch(89.7% 0.196 126.665)) !important; }
-  .bg-green-50 { background-color: var(--bg-green-50, oklch(98.2% 0.018 155.826)) !important; }
-  .bg-green-100 { background-color: var(--bg-green-100, oklch(96.2% 0.044 156.743)) !important; }
-  .text-green-600 { color: var(--text-green-600, oklch(62.7% 0.194 149.214)) !important; }
-  .text-green-700 { color: var(--text-green-700, oklch(52.7% 0.154 150.069)) !important; }
-  .text-green-800 { color: var(--text-green-800, oklch(44.8% 0.119 151.328)) !important; }
-  .border-green-200 { border-color: var(--border-green-200, oklch(92.5% 0.084 155.995)) !important; }
-  .border-green-300 { border-color: var(--border-green-300, oklch(87.1% 0.15 154.449)) !important; }
-  .bg-emerald-50 { background-color: var(--bg-emerald-50, oklch(97.9% 0.021 166.113)) !important; }
-  .bg-emerald-100 { background-color: var(--bg-emerald-100, oklch(95% 0.052 163.051)) !important; }
-  .text-emerald-600 { color: var(--text-emerald-600, oklch(59.6% 0.145 163.225)) !important; }
-  .text-emerald-700 { color: var(--text-emerald-700, oklch(50.8% 0.118 165.612)) !important; }
-  .text-emerald-800 { color: var(--text-emerald-800, oklch(43.2% 0.095 166.913)) !important; }
-  .border-emerald-200 { border-color: var(--border-emerald-200, oklch(90.5% 0.093 164.15)) !important; }
-  .border-emerald-300 { border-color: var(--border-emerald-300, oklch(84.5% 0.143 164.978)) !important; }
-  .bg-teal-50 { background-color: var(--bg-teal-50, oklch(98.4% 0.014 180.72)) !important; }
-  .bg-teal-100 { background-color: var(--bg-teal-100, oklch(95.3% 0.051 180.801)) !important; }
-  .text-teal-600 { color: var(--text-teal-600, oklch(60% 0.118 184.704)) !important; }
-  .text-teal-700 { color: var(--text-teal-700, oklch(51.1% 0.096 186.391)) !important; }
-  .text-teal-800 { color: var(--text-teal-800, oklch(43.7% 0.078 188.216)) !important; }
-  .border-teal-200 { border-color: var(--border-teal-200, oklch(91% 0.096 180.426)) !important; }
-  .border-teal-300 { border-color: var(--border-teal-300, oklch(85.5% 0.138 181.071)) !important; }
-  .bg-cyan-50 { background-color: var(--bg-cyan-50, oklch(98.4% 0.019 200.873)) !important; }
-  .bg-cyan-100 { background-color: var(--bg-cyan-100, oklch(95.6% 0.045 203.388)) !important; }
-  .text-cyan-600 { color: var(--text-cyan-600, oklch(60.9% 0.126 221.723)) !important; }
-  .text-cyan-700 { color: var(--text-cyan-700, oklch(52% 0.105 223.128)) !important; }
-  .text-cyan-800 { color: var(--text-cyan-800, oklch(45% 0.085 224.283)) !important; }
-  .border-cyan-200 { border-color: var(--border-cyan-200, oklch(91.7% 0.08 205.041)) !important; }
-  .border-cyan-300 { border-color: var(--border-cyan-300, oklch(86.5% 0.127 207.078)) !important; }
-  .bg-sky-50 { background-color: var(--bg-sky-50, oklch(97.7% 0.013 236.62)) !important; }
-  .bg-sky-100 { background-color: var(--bg-sky-100, oklch(95.1% 0.026 236.824)) !important; }
-  .text-sky-600 { color: var(--text-sky-600, oklch(58.8% 0.158 241.966)) !important; }
-  .text-sky-700 { color: var(--text-sky-700, oklch(50% 0.134 242.749)) !important; }
-  .text-sky-800 { color: var(--text-sky-800, oklch(44.3% 0.11 240.79)) !important; }
-  .border-sky-200 { border-color: var(--border-sky-200, oklch(90.1% 0.058 230.902)) !important; }
-  .border-sky-300 { border-color: var(--border-sky-300, oklch(82.8% 0.111 230.318)) !important; }
-  .bg-blue-50 { background-color: var(--bg-blue-50, oklch(97% 0.014 254.604)) !important; }
-  .bg-blue-100 { background-color: var(--bg-blue-100, oklch(93.2% 0.032 255.585)) !important; }
-  .text-blue-600 { color: var(--text-blue-600, oklch(54.6% 0.245 262.881)) !important; }
-  .text-blue-700 { color: var(--text-blue-700, oklch(48.8% 0.243 264.376)) !important; }
-  .text-blue-800 { color: var(--text-blue-800, oklch(42.4% 0.199 265.638)) !important; }
-  .border-blue-200 { border-color: var(--border-blue-200, oklch(88.2% 0.059 254.128)) !important; }
-  .border-blue-300 { border-color: var(--border-blue-300, oklch(80.9% 0.105 251.813)) !important; }
-  .bg-indigo-50 { background-color: var(--bg-indigo-50, oklch(96.2% 0.018 272.314)) !important; }
-  .bg-indigo-100 { background-color: var(--bg-indigo-100, oklch(93% 0.034 272.788)) !important; }
-  .text-indigo-600 { color: var(--text-indigo-600, oklch(51.1% 0.262 276.966)) !important; }
-  .text-indigo-700 { color: var(--text-indigo-700, oklch(45.7% 0.24 277.023)) !important; }
-  .text-indigo-800 { color: var(--text-indigo-800, oklch(39.8% 0.195 277.366)) !important; }
-  .border-indigo-200 { border-color: var(--border-indigo-200, oklch(87% 0.065 274.039)) !important; }
-  .border-indigo-300 { border-color: var(--border-indigo-300, oklch(78.5% 0.115 274.713)) !important; }
-  .bg-violet-50 { background-color: var(--bg-violet-50, oklch(96.9% 0.016 293.756)) !important; }
-  .bg-violet-100 { background-color: var(--bg-violet-100, oklch(94.3% 0.029 294.588)) !important; }
-  .text-violet-600 { color: var(--text-violet-600, oklch(54.1% 0.281 293.009)) !important; }
-  .text-violet-700 { color: var(--text-violet-700, oklch(49.1% 0.27 292.581)) !important; }
-  .text-violet-800 { color: var(--text-violet-800, oklch(43.2% 0.232 292.759)) !important; }
-  .border-violet-200 { border-color: var(--border-violet-200, oklch(89.4% 0.057 293.283)) !important; }
-  .border-violet-300 { border-color: var(--border-violet-300, oklch(81.1% 0.111 293.571)) !important; }
-  .bg-purple-50 { background-color: var(--bg-purple-50, oklch(97.7% 0.014 308.299)) !important; }
-  .bg-purple-100 { background-color: var(--bg-purple-100, oklch(94.6% 0.033 307.174)) !important; }
-  .text-purple-600 { color: var(--text-purple-600, oklch(55.8% 0.288 302.321)) !important; }
-  .text-purple-700 { color: var(--text-purple-700, oklch(49.6% 0.265 301.924)) !important; }
-  .text-purple-800 { color: var(--text-purple-800, oklch(43.8% 0.218 303.724)) !important; }
-  .border-purple-200 { border-color: var(--border-purple-200, oklch(90.2% 0.063 306.703)) !important; }
-  .border-purple-300 { border-color: var(--border-purple-300, oklch(82.7% 0.119 306.383)) !important; }
-  .bg-fuchsia-50 { background-color: var(--bg-fuchsia-50, oklch(97.7% 0.017 320.058)) !important; }
-  .bg-fuchsia-100 { background-color: var(--bg-fuchsia-100, oklch(95.2% 0.037 318.852)) !important; }
-  .text-fuchsia-600 { color: var(--text-fuchsia-600, oklch(59.1% 0.293 322.896)) !important; }
-  .text-fuchsia-700 { color: var(--text-fuchsia-700, oklch(51.8% 0.253 323.949)) !important; }
-  .text-fuchsia-800 { color: var(--text-fuchsia-800, oklch(45.2% 0.211 324.591)) !important; }
-  .border-fuchsia-200 { border-color: var(--border-fuchsia-200, oklch(90.3% 0.076 319.62)) !important; }
-  .border-fuchsia-300 { border-color: var(--border-fuchsia-300, oklch(83.3% 0.145 321.434)) !important; }
-  .bg-pink-50 { background-color: var(--bg-pink-50, oklch(97.1% 0.014 343.198)) !important; }
-  .bg-pink-100 { background-color: var(--bg-pink-100, oklch(94.8% 0.028 342.258)) !important; }
-  .text-pink-600 { color: var(--text-pink-600, oklch(59.2% 0.249 0.584)) !important; }
-  .text-pink-700 { color: var(--text-pink-700, oklch(52.5% 0.223 3.958)) !important; }
-  .text-pink-800 { color: var(--text-pink-800, oklch(45.9% 0.187 3.815)) !important; }
-  .border-pink-200 { border-color: var(--border-pink-200, oklch(89.9% 0.061 343.231)) !important; }
-  .border-pink-300 { border-color: var(--border-pink-300, oklch(82.3% 0.12 346.018)) !important; }
-  .bg-rose-50 { background-color: var(--bg-rose-50, oklch(96.9% 0.015 12.422)) !important; }
-  .bg-rose-100 { background-color: var(--bg-rose-100, oklch(94.1% 0.03 12.58)) !important; }
-  .text-rose-600 { color: var(--text-rose-600, oklch(58.6% 0.253 17.585)) !important; }
-  .text-rose-700 { color: var(--text-rose-700, oklch(51.4% 0.222 16.935)) !important; }
-  .text-rose-800 { color: var(--text-rose-800, oklch(45.5% 0.188 13.697)) !important; }
-  .border-rose-200 { border-color: var(--border-rose-200, oklch(89.2% 0.058 10.001)) !important; }
-  .border-rose-300 { border-color: var(--border-rose-300, oklch(81% 0.117 11.638)) !important; }
-  .text-gray-50 { color: var(--text-gray-50, oklch(98.5% 0.002 247.839)) !important; }
-  .border-gray-50 { border-color: var(--border-gray-50, oklch(98.5% 0.002 247.839)) !important; }
-  .text-gray-100 { color: var(--text-gray-100, oklch(96.7% 0.003 264.542)) !important; }
-  .border-gray-100 { border-color: var(--border-gray-100, oklch(96.7% 0.003 264.542)) !important; }
-  .bg-gray-200 { background-color: var(--bg-gray-200, oklch(92.8% 0.006 264.531)) !important; }
-  .text-gray-200 { color: var(--text-gray-200, oklch(92.8% 0.006 264.531)) !important; }
-  .border-gray-200 { border-color: var(--border-gray-200, oklch(92.8% 0.006 264.531)) !important; }
-  .bg-gray-300 { background-color: var(--bg-gray-300, oklch(87.2% 0.01 258.338)) !important; }
-  .text-gray-300 { color: var(--text-gray-300, oklch(87.2% 0.01 258.338)) !important; }
-  .bg-gray-400 { background-color: var(--bg-gray-400, oklch(70.7% 0.022 261.325)) !important; }
-  .text-gray-400 { color: var(--text-gray-400, oklch(70.7% 0.022 261.325)) !important; }
-  .border-gray-400 { border-color: var(--border-gray-400, oklch(70.7% 0.022 261.325)) !important; }
-  .bg-gray-500 { background-color: var(--bg-gray-500, oklch(55.1% 0.027 264.364)) !important; }
-  .text-gray-500 { color: var(--text-gray-500, oklch(55.1% 0.027 264.364)) !important; }
-  .border-gray-500 { border-color: var(--border-gray-500, oklch(55.1% 0.027 264.364)) !important; }
-  .bg-gray-600 { background-color: var(--bg-gray-600, oklch(44.6% 0.03 256.802)) !important; }
-  .text-gray-600 { color: var(--text-gray-600, oklch(44.6% 0.03 256.802)) !important; }
-  .border-gray-600 { border-color: var(--border-gray-600, oklch(44.6% 0.03 256.802)) !important; }
-  .bg-gray-700 { background-color: var(--bg-gray-700, oklch(37.3% 0.034 259.733)) !important; }
-  .border-gray-700 { border-color: var(--border-gray-700, oklch(37.3% 0.034 259.733)) !important; }
-  .bg-gray-800 { background-color: var(--bg-gray-800, oklch(27.8% 0.033 256.848)) !important; }
-  .text-gray-800 { color: var(--text-gray-800, oklch(27.8% 0.033 256.848)) !important; }
-  .border-gray-800 { border-color: var(--border-gray-800, oklch(27.8% 0.033 256.848)) !important; }
-  .bg-gray-900 { background-color: var(--bg-gray-900, oklch(21% 0.034 264.665)) !important; }
-  .border-gray-900 { border-color: var(--border-gray-900, oklch(21% 0.034 264.665)) !important; }
-  .bg-gray-950 { background-color: var(--bg-gray-950, oklch(13% 0.028 261.692)) !important; }
-  .text-gray-950 { color: var(--text-gray-950, oklch(13% 0.028 261.692)) !important; }
-  .border-gray-950 { border-color: var(--border-gray-950, oklch(13% 0.028 261.692)) !important; }
-  .text-slate-50 { color: var(--text-slate-50, oklch(98.4% 0.003 247.858)) !important; }
-  .border-slate-50 { border-color: var(--border-slate-50, oklch(98.4% 0.003 247.858)) !important; }
-  .text-slate-100 { color: var(--text-slate-100, oklch(96.8% 0.007 247.896)) !important; }
-  .text-slate-200 { color: var(--text-slate-200, oklch(92.9% 0.013 255.508)) !important; }
-  .bg-slate-300 { background-color: var(--bg-slate-300, oklch(86.9% 0.022 252.894)) !important; }
-  .text-slate-300 { color: var(--text-slate-300, oklch(86.9% 0.022 252.894)) !important; }
-  .bg-slate-400 { background-color: var(--bg-slate-400, oklch(70.4% 0.04 256.788)) !important; }
-  .text-slate-400 { color: var(--text-slate-400, oklch(70.4% 0.04 256.788)) !important; }
-  .border-slate-400 { border-color: var(--border-slate-400, oklch(70.4% 0.04 256.788)) !important; }
-  .bg-slate-500 { background-color: var(--bg-slate-500, oklch(55.4% 0.046 257.417)) !important; }
-  .border-slate-500 { border-color: var(--border-slate-500, oklch(55.4% 0.046 257.417)) !important; }
-  .bg-slate-600 { background-color: var(--bg-slate-600, oklch(44.6% 0.043 257.281)) !important; }
-  .border-slate-600 { border-color: var(--border-slate-600, oklch(44.6% 0.043 257.281)) !important; }
-  .bg-slate-700 { background-color: var(--bg-slate-700, oklch(37.2% 0.044 257.287)) !important; }
-  .bg-slate-800 { background-color: var(--bg-slate-800, oklch(27.9% 0.041 260.031)) !important; }
-  .bg-slate-900 { background-color: var(--bg-slate-900, oklch(20.8% 0.042 265.755)) !important; }
-  .border-slate-900 { border-color: var(--border-slate-900, oklch(20.8% 0.042 265.755)) !important; }
-  .bg-slate-950 { background-color: var(--bg-slate-950, oklch(12.9% 0.042 264.695)) !important; }
-  .text-slate-950 { color: var(--text-slate-950, oklch(12.9% 0.042 264.695)) !important; }
-  .border-slate-950 { border-color: var(--border-slate-950, oklch(12.9% 0.042 264.695)) !important; }
-}
-
 
 /* Adjustment pour le contenu principal */
 .page-content {

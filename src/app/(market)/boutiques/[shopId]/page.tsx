@@ -3,9 +3,6 @@ import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
-import MarketBottomNav from '@/components/MarketBottomNav'
 import ShopPageClient from '@/components/ShopPageClient'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
@@ -41,13 +38,8 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
   if (!shop) notFound()
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
-      <MarketHeader />
-      <main>
-        <ShopPageClient shopId={String(shop._id)} shopName={shop.name} shopSlug={shop.slug} shopLogo={shop.logo} shopDescription={shop.description} />
-      </main>
-      <MarketFooter />
-      <MarketBottomNav />
-    </div>
+    <main>
+      <ShopPageClient shopId={String(shop._id)} shopName={shop.name} shopSlug={shop.slug} shopLogo={shop.logo} shopDescription={shop.description} />
+    </main>
   )
 }

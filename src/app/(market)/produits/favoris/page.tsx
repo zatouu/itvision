@@ -1,9 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import MarketHeader from '@/components/MarketHeader'
-import MarketFooter from '@/components/MarketFooter'
-import MarketBottomNav from '@/components/MarketBottomNav'
 import ProductCard from '@/components/ProductCard'
 import Link from 'next/link'
 import { Heart, Package, ArrowLeft, Trash2, X, ShoppingCart, BarChart3, CheckSquare, Square } from 'lucide-react'
@@ -266,8 +263,6 @@ export default function WishlistPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 md:pb-0">
-      <MarketHeader />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* En-tête */}
         <div className="mb-8">
@@ -455,9 +450,6 @@ export default function WishlistPage() {
           </div>
         )}
       </div>
-
-      <MarketFooter />
-      <MarketBottomNav />
     </main>
   )
 }
