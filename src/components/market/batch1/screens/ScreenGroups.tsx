@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
@@ -14,6 +15,7 @@ import type { Product, Group } from '../types';
 
 
 export default function ScreenGroups() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
@@ -89,7 +91,7 @@ export default function ScreenGroups() {
                   <p className="text-[16px] font-extrabold">-{Math.round(GROUPS.reduce((s,g)=>s+g.save,0)/GROUPS.length)}%</p>
                 </div>
               </div>
-              <Button variant="secondary" size="sm" className="mt-4 !bg-white !text-slate-900 hover:!bg-slate-100 whitespace-nowrap"><Icon name="plus" size={14}/> Créer un groupe</Button>
+              <Button variant="secondary" size="sm" onClick={() => router.push('/achats-groupes/nouveau')} className="mt-4 !bg-white !text-slate-900 hover:!bg-slate-100 whitespace-nowrap"><Icon name="plus" size={14}/> Créer un groupe</Button>
             </div>
           </div>
 
@@ -108,7 +110,7 @@ export default function ScreenGroups() {
 
           {/* Grid */}
           <div className="grid grid-cols-2 gap-3 p-4">
-            {filtered.map((g) => <GroupCard key={g.id} group={g}/>)}
+            {filtered.map((g) => <GroupCard key={g.id} group={g} onClick={() => router.push(`/achats-groupes/${g.id}`)}/>)}
           </div>
 
           {/* Simulator */}
@@ -133,7 +135,7 @@ export default function ScreenGroups() {
                   <p className="text-[15px] font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums">{formatFcfa(simSavings)}</p>
                 </div>
               </div>
-              <Button variant="primary" size="sm" className="mt-3 w-full">Créer un groupe à ce prix</Button>
+              <Button variant="primary" size="sm" onClick={() => router.push('/achats-groupes/nouveau')} className="mt-3 w-full">Créer un groupe à ce prix</Button>
             </Card>
           </Section>
 
@@ -155,7 +157,7 @@ export default function ScreenGroups() {
               <h1 className="mt-3 text-4xl font-extrabold leading-[1.05] tracking-tight">Achats groupés<br/><span className="text-emerald-300">Jusqu&apos;à -45%</span></h1>
               <p className="mt-2 max-w-md text-sm text-white/85">Rejoignez un groupe existant ou créez le vôtre. Plus on est nombreux, plus le prix baisse — jusqu&apos;à la deadline.</p>
               <div className="mt-4 flex gap-3">
-                <Button variant="secondary" size="lg" className="!bg-white !text-slate-900 hover:!bg-slate-100 whitespace-nowrap"><Icon name="plus" size={16}/>Créer un groupe</Button>
+                <Button variant="secondary" size="lg" onClick={() => router.push('/achats-groupes/nouveau')} className="!bg-white !text-slate-900 hover:!bg-slate-100 whitespace-nowrap"><Icon name="plus" size={16}/>Créer un groupe</Button>
                 <Button variant="ghost" size="lg" className="!text-white hover:!bg-white/10 whitespace-nowrap">Comment ça marche ?</Button>
               </div>
             </div>
@@ -193,7 +195,7 @@ export default function ScreenGroups() {
 
         {/* Grid */}
         <div className="mt-4 grid grid-cols-3 gap-4">
-          {filtered.map((g) => <GroupCard key={g.id} group={g}/>)}
+          {filtered.map((g) => <GroupCard key={g.id} group={g} onClick={() => router.push(`/achats-groupes/${g.id}`)}/>)}
         </div>
 
         {/* Simulator */}
@@ -229,7 +231,7 @@ export default function ScreenGroups() {
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="secondary" size="md">Voir les paliers détaillés</Button>
-            <Button variant="primary" size="md"><Icon name="plus" size={16}/>Créer un groupe à ce prix</Button>
+            <Button variant="primary" size="md" onClick={() => router.push('/achats-groupes/nouveau')}><Icon name="plus" size={16}/>Créer un groupe à ce prix</Button>
           </div>
         </Card>
       </div>

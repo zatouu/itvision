@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Card } from './Card';
 import { Button } from './Button';
@@ -10,9 +10,11 @@ import type { Group } from './types';
 export interface GroupCardProps {
   group: Group;
   className?: string;
+  onClick?: () => void;
 }
 
-export function GroupCard({ group, className }: GroupCardProps) {
+export function GroupCard({ group, className, onClick }: GroupCardProps) {
+  const [imageError, setImageError] = useState(false);
   const pct =
     group.targetQty > 0
       ? Math.round((group.currentQty / group.targetQty) * 100)
@@ -21,20 +23,26 @@ export function GroupCard({ group, className }: GroupCardProps) {
 
   return (
     <Card
+      onClick={onClick}
       className={cn(
-        'group cursor-pointer overflow-hidden transition-shadow hover:shadow-md',
+        'group overflow-hidden transition-shadow hover:shadow-md',
+        onClick ? 'cursor-pointer' : 'cursor-default',
         className
       )}
     >
       <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800">
-        {group.image && (
-          <Image
+        {group.image && !imageError ? (
+          <img
             src={group.image}
             alt={group.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
+            onError={() => setImageError(true)}
+            className="h-full w-full object-cover"
           />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+            <Icon name="package" size={28} />
+            <span className="text-[10px] mt-1">Image indisponible</span>
+          </div>
         )}
 
         <div className="absolute left-2 top-2">

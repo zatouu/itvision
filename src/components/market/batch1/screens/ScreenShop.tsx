@@ -161,7 +161,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       className="group rounded-2xl overflow-hidden border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 overflow-hidden">
-        <img src={p.img || p.image || '/placeholder.svg'} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        <img src={p.img || p.image || '/placeholder.svg'} alt={p.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500 text-white px-1.5 py-0.5 text-[10px] font-bold">
             <Package size={10} /> Min. {p.moq ?? p.minOrderQty ?? 1}

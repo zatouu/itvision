@@ -91,23 +91,9 @@ const nextConfig = {
     // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
-  // Autoriser les images externes (CDN AliExpress / 1688 / Alibaba)
+  // Autoriser toutes les images (sources multiples : AliExpress, 1688, Alibaba, fournisseurs...)
   images: {
-    formats: ['image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30,
-    remotePatterns: [
-      { protocol: 'https', hostname: '**.alicdn.com' },
-      { protocol: 'https', hostname: '**.aliexpress.com' },
-      { protocol: 'https', hostname: '**.1688.com' },
-      { protocol: 'https', hostname: '**.alibaba.com' },
-      { protocol: 'https', hostname: 'ae*.alicdn.com' },
-      { protocol: 'https', hostname: 'cbu*.alicdn.com' },
-      { protocol: 'https', hostname: 'img.alicdn.com' },
-      { protocol: 'https', hostname: 'gw.alicdn.com' },
-      { protocol: 'http', hostname: '**.alicdn.com' },
-    ],
+    unoptimized: true,
   },
 
   // Augmenter la limite de taille du body pour les uploads vidéo (défaut ~4MB)

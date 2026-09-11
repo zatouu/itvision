@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { useSourcingModal } from '../SourcingModalContext';
@@ -13,6 +14,7 @@ import type { Product, Category } from '../types';
 
 
 export default function ScreenCatalog() {
+  const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
   const [loading, setLoading] = useState(true);
   const [CATEGORIES, setCATEGORIES] = useState<Category[]>([]);
@@ -219,7 +221,7 @@ export default function ScreenCatalog() {
             <div className="p-4">
               <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{filtered.length}</b> produit{filtered.length > 1 ? "s" : ""}</p>
               <div className="grid grid-cols-2 gap-3">
-                {filtered.map((p) => <ProductCard key={p.id} product={p}/>)}
+                {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
               </div>
               <Button variant="secondary" size="md" className="w-full mt-6">Charger plus</Button>
             </div>
@@ -319,7 +321,7 @@ export default function ScreenCatalog() {
             ) : (
               <Fragment>
                 <div className="grid grid-cols-4 gap-4">
-                  {filtered.map((p) => <ProductCard key={p.id} product={p}/>)}
+                  {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
                 </div>
                 <div className="mt-8 flex items-center justify-center gap-3">
                   <Button variant="secondary" size="md">Charger plus</Button>

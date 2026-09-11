@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from './formatFcfa';
 import { Card } from './Card';
@@ -12,6 +12,7 @@ export interface ProductCardProps {
   product: Product;
   size?: ProductCardSize;
   className?: string;
+  onClick?: () => void;
 }
 
 function getProductImage(product: Product): string {
@@ -22,7 +23,9 @@ export function ProductCard({
   product,
   size = 'sm',
   className,
+  onClick,
 }: ProductCardProps) {
+  const [imageError, setImageError] = useState(false);
   const image = getProductImage(product);
   const category = product.cat || product.category || '';
   const moq = product.moq ?? product.minOrderQty ?? 1;
@@ -31,20 +34,26 @@ export function ProductCard({
 
   return (
     <Card
+      onClick={onClick}
       className={cn(
-        'group cursor-pointer overflow-hidden transition-shadow hover:shadow-md',
+        'group overflow-hidden transition-shadow hover:shadow-md',
+        onClick ? 'cursor-pointer' : 'cursor-default',
         className
       )}
     >
       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
-        {image && (
-          <Image
+        {image && !imageError ? (
+          <img
             src={image}
             alt={product.name}
-            fill
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={() => setImageError(true)}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+            <Icon name="package" size={28} />
+            <span className="text-[10px] mt-1">Image indisponible</span>
+          </div>
         )}
 
         <div className="absolute left-2 top-2 flex flex-col gap-1">

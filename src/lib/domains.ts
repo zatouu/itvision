@@ -109,7 +109,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/panier', domain: 'market', access: 'public' },
   { prefix: '/checkout', domain: 'market', access: 'auth' },
   { prefix: '/commandes', domain: 'market', access: 'auth' },
-  { prefix: '/achats-groupes', domain: 'market', access: 'auth' },
+  { prefix: '/achats-groupes', domain: 'market', access: 'public' },
   { prefix: '/grains', domain: 'market', access: 'auth' },
   { prefix: '/compte', domain: 'market', access: 'auth', note: 'Compte client marketplace. Règle : CLIENT+companyClientId → redirect /portail-entreprise' },
   { prefix: '/espace-vendeur', domain: 'market', access: { profile: 'vendor' } },

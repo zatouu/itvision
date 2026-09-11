@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -42,7 +41,7 @@ export default function ScreenHome() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const popular = CATALOG.slice(0, 6);
+  const popular = CATALOG.filter((p) => p.img && !p.img.includes('placeholder')).slice(0, 6);
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
@@ -52,7 +51,7 @@ export default function ScreenHome() {
   return (
     <>
       <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
+        <div className="flex h-full flex-col overflow-x-hidden bg-slate-50 dark:bg-slate-950">
 
         <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900">
           <button
@@ -70,7 +69,7 @@ export default function ScreenHome() {
         <div className="flex-1 overflow-y-auto pb-6">
           {/* HERO Variante D — mobile stacked */}
           <div className="relative overflow-hidden">
-            <div className="relative m-4 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-violet-700 to-emerald-600 p-5 text-white shadow-sm">
+            <div className="relative mx-0 mt-0 overflow-hidden rounded-none bg-gradient-to-br from-violet-600 via-violet-700 to-emerald-600 p-5 text-white shadow-sm">
               <div className="absolute inset-0 opacity-15">
                 <svg viewBox="0 0 400 240" className="h-full w-full">
                   <defs><pattern id="dotshm" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1" fill="white"/></pattern></defs>
@@ -110,7 +109,7 @@ export default function ScreenHome() {
             <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
               {popular.map((p) => (
                 <div key={p.id} className="flex-shrink-0 snap-start w-[150px]">
-                  <ProductCard product={p}/>
+                  <ProductCard product={p} onClick={() => router.push(`/produits/${p.id}`)}/>
                 </div>
               ))}
             </div>
@@ -135,7 +134,7 @@ export default function ScreenHome() {
                   <Card key={g.id} className="flex-shrink-0 snap-start w-[220px] p-3 cursor-pointer hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-2.5">
                       <span className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
-                        <Image src={g.image} alt={g.name} fill sizes="48px" className="object-cover" />
+                        <img src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
@@ -148,7 +147,7 @@ export default function ScreenHome() {
                     <ProgressBar value={g.currentQty} max={g.targetQty} tone="mixed" className="!h-1 mt-2"/>
                     <div className="mt-1.5 flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">{pct}% · <span className="text-red-600 dark:text-red-400 font-bold">⏱ {g.deadline.split(" ").slice(0,2).join(" ")}</span></span>
-                      <button className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold text-white", almost ? "bg-red-500" : "bg-violet-600")}>
+                      <button onClick={() => router.push(`/achats-groupes/${g.id}`)} className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold text-white", almost ? "bg-red-500" : "bg-violet-600")}>
                         {almost ? "Presque plein" : "Rejoindre"}
                       </button>
                     </div>
@@ -176,8 +175,9 @@ export default function ScreenHome() {
                 emerald: "text-emerald-700 dark:text-emerald-400",
                 amber: "text-amber-700 dark:text-amber-300",
               };
+              const routes: Record<string, string> = { camera: '/produits', users: '/achats-groupes', package: '/produits' };
               return (
-                <Card key={i} className="cursor-pointer overflow-hidden hover:shadow-md transition-shadow">
+                <Card key={i} onClick={() => router.push(routes[b.icon] || '/produits')} className="cursor-pointer overflow-hidden hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3 p-3">
                     <span className={cn("grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl", toneMap[b.tone])}>
                       <Icon name={b.icon} size={22}/>
@@ -198,7 +198,7 @@ export default function ScreenHome() {
           <Section title="Catégories" className="mt-6">
             <div className="grid grid-cols-4 gap-2">
               {CATEGORIES.map((c) => (
-                <button key={c.key} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2.5 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+                <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2.5 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
                   <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     <Icon name={c.icon} size={16}/>
                   </span>
@@ -232,7 +232,7 @@ export default function ScreenHome() {
                   </div>
                 ))}
               </div>
-              <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-[13px] font-bold text-white hover:bg-violet-700">
+              <button onClick={openSourcing} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-[13px] font-bold text-white hover:bg-violet-700">
                 <Icon name="camera" size={14}/>Photographier un produit
               </button>
             </div>
@@ -304,12 +304,12 @@ export default function ScreenHome() {
       </div>
       </div>
       <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="min-h-full overflow-x-hidden bg-slate-50 dark:bg-slate-950">
 
 
       <div className="mx-auto max-w-6xl px-6 py-6">
         {/* HERO Variante D */}
-        <div className="rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="w-[100vw] ml-[calc((100%-100vw)/2)] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
           {/* Hero principal */}
           <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-violet-700 to-emerald-600 text-white min-h-[500px]">
             <div className="absolute inset-0 opacity-15">
@@ -353,12 +353,11 @@ export default function ScreenHome() {
                 <div className="grid grid-cols-3 grid-rows-2 gap-2.5 h-[360px]">
                   {popular.map((p, i) => (
                     <Link key={p.id} href={`/produits/${p.id}`} className="relative rounded-xl overflow-hidden bg-white/10 backdrop-blur border border-white/20 fade-rotate hover:scale-[1.02] transition-transform" style={{animationDelay: `${i * 1.5}s`}}>
-                      <Image
+                      <img
                         src={p.img || '/placeholder.svg'}
                         alt={p.name}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 33vw"
-                        className="object-cover opacity-90"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
+                        className="h-full w-full object-cover opacity-90"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent"/>
                       <div className="absolute top-1.5 left-1.5">
@@ -399,7 +398,7 @@ export default function ScreenHome() {
                     return (
                       <Link key={i} href={`/achats-groupes/${g.id}`} className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 p-2 w-[260px] transition-colors">
                         <span className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-full">
-                          <Image src={g.image} alt={g.name} fill sizes="44px" className="object-cover" />
+                          <img src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -507,7 +506,7 @@ export default function ScreenHome() {
                 </div>
               ))}
             </div>
-            <button className="mt-5 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-[13px] font-bold text-white hover:bg-violet-700">
+            <button onClick={openSourcing} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-[13px] font-bold text-white hover:bg-violet-700">
               <Icon name="camera" size={14}/>Photographier un produit
             </button>
           </div>
@@ -552,7 +551,7 @@ export default function ScreenHome() {
             <Link href="/produits" className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap cursor-pointer">Voir tous →</Link>
           </div>
           <div className="grid grid-cols-6 gap-3">
-            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg"/>)}
+            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg" onClick={() => router.push(`/produits/${p.id}`)}/>)}
           </div>
         </div>
 
