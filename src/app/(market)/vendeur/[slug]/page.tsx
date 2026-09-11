@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import { Loader2, Store, BadgeCheck, Star, AlertCircle, CheckCircle, MapPin } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import ScreenShop from '@/components/market/batch1/screens/ScreenShop'
 
 interface VendorProduct {
   id: string
@@ -11,8 +11,11 @@ interface VendorProduct {
   image: string
   price: number | null
   currency: string
-  rating?: number
-  stockLeft?: number
+  category?: string
+  moq?: number
+  basePrice?: number
+  hasGroup?: boolean
+  save?: number
 }
 
 interface VendorInfo {
@@ -21,6 +24,20 @@ interface VendorInfo {
   verified: boolean
   rating: number | null
   productCount: number
+  description?: string
+  location?: string
+  responseTime?: string
+  onTimeRate?: number
+  categories?: string[]
+  type?: 'factory' | 'partner'
+}
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0]?.toUpperCase())
+    .slice(0, 2)
+    .join('') || name.slice(0, 2).toUpperCase()
 }
 
 export default function VendorStorefrontPage() {
@@ -44,25 +61,43 @@ export default function VendorStorefrontPage() {
           id: p.id,
           name: p.name,
           image: p.image || '/placeholder.svg',
-          price: typeof p.price === 'number' ? p.price : null,
-          currency: 'FCFA',
-          rating: p.sellerRating ?? null,
-          stockLeft: p.availability?.stockQuantity,
+          price: typeof p.price === 'number' ? p.price : 0,
+          currency: p.currency || 'FCFA',
+          category: p.category || p.cat,
+          moq: p.minOrderQty ?? p.moq ?? 1,
+          basePrice: p.basePrice ?? p.originalPrice,
+          hasGroup: !!p.hasActiveGroup,
+          save: p.discountPct,
         }))
 
         setProducts(items)
 
-        if (items.length > 0) {
+        const categories = Array.from(new Set(items.map((p) => p.category).filter(Boolean))) as string[]
+        if (data.products?.length > 0) {
           const first = data.products[0]
           setVendor({
             name: first.sellerName || slug,
             slug,
             verified: !!first.sellerVerified,
-            rating: first.sellerRating ?? null,
+            rating: typeof first.sellerRating === 'number' ? first.sellerRating : 0,
             productCount: data.total || items.length,
+            description: first.sellerDescription,
+            location: first.sellerLocation || 'Sénégal',
+            responseTime: first.sellerResponseTime || '< 2h',
+            onTimeRate: typeof first.sellerOnTimeRate === 'number' ? first.sellerOnTimeRate : 98,
+            categories,
+            type: first.sellerType === 'factory' ? 'factory' : 'partner',
           })
         } else {
-          setVendor({ name: slug, slug, verified: false, rating: null, productCount: 0 })
+          setVendor({
+            name: slug,
+            slug,
+            verified: false,
+            rating: 0,
+            productCount: 0,
+            categories,
+            type: 'partner',
+          })
         }
       } catch (e: any) {
         setError(e.message)
@@ -73,106 +108,45 @@ export default function VendorStorefrontPage() {
     fetchVendor()
   }, [slug])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    )
-  }
+  const shop = useMemo(() => {
+    if (!vendor) return null
+    return {
+      name: vendor.name,
+      initials: getInitials(vendor.name),
+      type: vendor.type || 'partner',
+      verified: vendor.verified,
+      rating: vendor.rating ?? 0,
+      reviewCount: 0,
+      yearsActive: 3,
+      location: vendor.location || 'Sénégal',
+      categories: vendor.categories?.length ? vendor.categories : ['Général'],
+      description: vendor.description,
+      responseTime: vendor.responseTime || '< 2h',
+      onTimeRate: vendor.onTimeRate ?? 98,
+      productCount: vendor.productCount,
+    }
+  }, [vendor])
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Erreur</h1>
-          <p className="text-gray-600">{error}</p>
-        </div>
-      </div>
-    )
-  }
+  const screenProducts = useMemo(() =>
+    products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      img: p.image,
+      cat: p.category,
+      price: p.price ?? 0,
+      base: p.basePrice,
+      moq: p.moq,
+      hasGroup: p.hasGroup,
+      save: p.save,
+    })),
+  [products])
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white py-12">
-        <div className="max-w-6xl mx-auto px-4 md:px-8">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-              <Store className="w-8 h-8" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl md:text-4xl font-bold">{vendor?.name}</h1>
-                {vendor?.verified && <BadgeCheck className="w-6 h-6 text-emerald-200" />}
-              </div>
-              <p className="text-emerald-100 mt-1">
-                {vendor?.productCount} produit{vendor?.productCount === 1 ? '' : 's'} en ligne
-                {vendor?.rating ? (
-                  <span className="inline-flex items-center gap-1 ml-3">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {vendor.rating.toFixed(1)}
-                  </span>
-                ) : null}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
-        {products.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-xl border border-slate-200">
-            <p className="text-gray-600">Ce vendeur n&apos;a pas encore de produits en ligne.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
-              <Link
-                key={product.id}
-                href={`/produits/${product.id}`}
-                className="group bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition"
-              >
-                <div className="relative aspect-square bg-slate-100 overflow-hidden">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                  {typeof product.stockLeft === 'number' && product.stockLeft > 0 && (
-                    <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full shadow-sm">
-                      <CheckCircle className="w-3 h-3" />
-                      En stock
-                    </span>
-                  )}
-                </div>
-                <div className="p-3 md:p-4">
-                  <h3 className="font-medium text-gray-900 text-sm md:text-base line-clamp-2 mb-2 group-hover:text-emerald-600 transition">
-                    {product.name}
-                  </h3>
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-bold text-emerald-700">
-                      {product.price !== null
-                        ? `${product.price.toLocaleString('fr-FR')} ${product.currency}`
-                        : 'Sur devis'}
-                    </span>
-                    {typeof product.stockLeft === 'number' && product.stockLeft <= 5 && product.stockLeft > 0 ? (
-                      <span className="text-xs text-orange-600">{product.stockLeft} restant(s)</span>
-                    ) : null}
-                  </div>
-                  {typeof product.stockLeft === 'number' && product.stockLeft > 0 && (
-                    <p className="mt-1.5 text-[10px] text-slate-500 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      Disponible localement · prix revendeur
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <ScreenShop
+      shop={shop ?? { name: slug, initials: getInitials(slug), type: 'partner', verified: false, rating: 0, reviewCount: 0, yearsActive: 0, location: '', categories: [], productCount: 0 }}
+      products={screenProducts}
+      isLoading={loading}
+      error={error ?? undefined}
+    />
   )
 }

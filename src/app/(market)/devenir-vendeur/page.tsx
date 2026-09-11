@@ -3,7 +3,34 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Store, Loader2, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
+import {
+  Store,
+  Loader2,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+  Clock,
+  Percent,
+  Package,
+  Globe,
+  Shield,
+} from 'lucide-react'
+
+const BENEFITS = [
+  'Prix usine sans intermédiaire',
+  'Logistique incluse',
+  'Assurance 2%',
+  'Visibilité 10 000+ clients',
+  'Escrow',
+  'Support 7j/7',
+]
+
+const STEPS = [
+  { icon: Package, title: 'Importez en groupe', desc: 'Réduisez les coûts en partageant les achats avec d\'autres vendeurs.' },
+  { icon: Globe, title: 'Recevez le stock', desc: 'Nous livrons à Dakar, vous récupérez vos produits prêts à vendre.' },
+  { icon: TrendingUp, title: 'Revendez', desc: 'Vendez en ligne ou en magasin avec une marge attractive.' },
+]
 
 export default function BecomeVendorPage() {
   const router = useRouter()
@@ -79,106 +106,204 @@ export default function BecomeVendorPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <main className="max-w-3xl mx-auto px-4 py-12">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg p-6 md:p-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl">
-              <Store className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+        <div className="mx-auto max-w-6xl px-4 md:px-6 py-10 md:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-[11px] font-bold">
+                <Store size={12} /> Devenez vendeur
+              </span>
+              <h1 className="mt-4 text-[32px] md:text-[44px] font-extrabold tracking-tight leading-tight">
+                Vendez avec <span className="text-emerald-400">DDM+</span>
+              </h1>
+              <p className="mt-3 text-[15px] text-white/80 max-w-md leading-relaxed">
+                Importez en groupe, recevez le stock à Dakar, revendez avec marge. Nous gérons la Chine, vous gérez vos clients.
+              </p>
+              <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
+                  <p className="text-[22px] font-extrabold text-emerald-400">+45%</p>
+                  <p className="text-[11px] text-white/70">Marge moyenne</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
+                  <p className="text-[22px] font-extrabold text-emerald-400">10min</p>
+                  <p className="text-[11px] text-white/70">Setup</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
+                  <p className="text-[22px] font-extrabold text-emerald-400">0%</p>
+                  <p className="text-[11px] text-white/70">Commission</p>
+                </div>
+              </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">Créer votre boutique DDM+</h1>
+
+            <div className="rounded-3xl bg-white/10 backdrop-blur border border-white/20 p-5 md:p-6">
+              <h2 className="text-[18px] font-bold text-white mb-4">Créer ma boutique</h2>
+              {success ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+                  <p className="font-bold text-white">Boutique créée !</p>
+                  <p className="text-white/70 text-sm">Redirection…</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {!auth && (
+                    <div className="rounded-xl bg-amber-100/20 border border-amber-200/30 p-3 text-sm text-amber-100">
+                      <Link href="/login?return=/devenir-vendeur" className="font-semibold underline">Connectez-vous</Link> pour créer votre boutique.
+                    </div>
+                  )}
+                  {error && (
+                    <div className="flex items-start gap-2 rounded-xl bg-red-100/20 border border-red-200/30 p-3 text-sm text-red-100">
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      {error}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-[12px] font-bold text-white/80 mb-1">Nom de la boutique *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Ex: Tech Dakar Store"
+                      className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-white/80 mb-1">Description</label>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Décrivez votre boutique…"
+                      rows={3}
+                      className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12px] font-bold text-white/80 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={form.contactEmail}
+                        onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+                        placeholder="vous@email.com"
+                        className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-white/80 mb-1">Téléphone</label>
+                      <input
+                        type="tel"
+                        value={form.contactPhone}
+                        onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+                        placeholder="77 123 45 67"
+                        className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/60">
+                    En créant votre boutique, vous acceptez nos CGV vendeurs.
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={loading || !auth}
+                    className="w-full py-3 bg-white text-slate-900 hover:bg-slate-100 disabled:opacity-50 rounded-xl font-bold flex items-center justify-center gap-2 transition"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Créer ma boutique <ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
-          <p className="text-slate-600 dark:text-slate-400 mb-8">
-            Achetez en groupe depuis la Chine et revendez plus cher localement. Vos clients paient un peu plus pour la disponibilité immédiate et le stock au Sénégal.
-          </p>
-
-          {success ? (
-            <div className="text-center py-10">
-              <CheckCircle className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Boutique créée !</h2>
-              <p className="text-slate-600 dark:text-slate-400">Redirection vers votre espace vendeur…</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {!auth && (
-                <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 p-4 text-sm text-amber-800 dark:text-amber-300">
-                  <Link href="/login?return=/devenir-vendeur" className="font-semibold underline">Connectez-vous</Link> pour créer votre boutique.
-                </div>
-              )}
-
-              {error && (
-                <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 p-4 text-sm text-red-700 dark:text-red-300">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  {error}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Nom de la boutique *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Ex: Tech Dakar Store"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Décrivez votre boutique et les produits que vous revendez…"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email de contact</label>
-                  <input
-                    type="email"
-                    value={form.contactEmail}
-                    onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-                    placeholder="vous@email.com"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Téléphone</label>
-                  <input
-                    type="tel"
-                    value={form.contactPhone}
-                    onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-                    placeholder="77 123 45 67"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400 space-y-2">
-                <p className="font-semibold text-slate-900 dark:text-slate-200">Comment ça marche ?</p>
-                <ul className="space-y-1.5 list-disc list-inside">
-                  <li>Vous rejoignez ou créez un achat groupé sur DDM+.</li>
-                  <li>Une fois le stock livré au Sénégal, vous le revendez dans votre boutique.</li>
-                  <li>Le prix affiché inclut le coût de l&apos;import + une marge pour la disponibilité locale.</li>
-                  <li>Vos clients paient plus cher mais reçoivent leur produit immédiatement, <strong>tagué &quot;En stock&quot;.</strong></li>
-                </ul>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !auth}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center justify-center gap-2 transition"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Créer ma boutique <ArrowRight className="w-4 h-4" /></>}
-              </button>
-            </form>
-          )}
         </div>
-      </main>
+      </div>
+
+      {/* Steps */}
+      <div className="mx-auto max-w-6xl px-4 md:px-6 py-10 md:py-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {STEPS.map((s, i) => {
+            const Icon = s.icon
+            return (
+              <div key={s.title} className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-5">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 mb-3">
+                  <Icon size={22} />
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Étape {i + 1}</p>
+                <p className="mt-1 text-[16px] font-extrabold text-slate-900 dark:text-white">{s.title}</p>
+                <p className="mt-1 text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed">{s.desc}</p>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Benefits */}
+        <div className="mt-8 md:mt-12 rounded-3xl bg-emerald-600 dark:bg-emerald-700 p-6 md:p-10 text-white">
+          <h2 className="text-[22px] md:text-[28px] font-extrabold tracking-tight mb-4">Pourquoi vendre avec DDM+ ?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {BENEFITS.map((b) => (
+              <div key={b} className="flex items-center gap-2">
+                <div className="grid h-5 w-5 place-items-center rounded-full bg-white/20">
+                  <CheckCircle size={12} />
+                </div>
+                <span className="text-[14px] font-semibold">{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile form duplicate */}
+        <div className="mt-8 md:mt-12 lg:hidden rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-5">
+          <h2 className="text-[18px] font-bold text-slate-900 dark:text-white mb-4">Créer ma boutique</h2>
+          {!auth && (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300 mb-3">
+              <Link href="/login?return=/devenir-vendeur" className="font-semibold underline">Connectez-vous</Link> pour créer votre boutique.
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                {error}
+              </div>
+            )}
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Nom de la boutique"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Description"
+              rows={3}
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <input
+              type="email"
+              value={form.contactEmail}
+              onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+              placeholder="Email"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <input
+              type="tel"
+              value={form.contactPhone}
+              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+              placeholder="Téléphone"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              type="submit"
+              disabled={loading || !auth}
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Créer ma boutique <ArrowRight className="w-4 h-4" /></>}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
