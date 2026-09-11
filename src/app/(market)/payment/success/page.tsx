@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Check, Package, MessageCircle, Loader2, ArrowRight } from 'lucide-react'
+import { Check, Package, MessageCircle, Loader2, Users } from 'lucide-react'
 import { formatFcfa } from '@/components/market/batch1/formatFcfa'
 
 const ORDER_STEPS = [
@@ -313,12 +313,21 @@ function PaymentSuccessContent() {
           >
             Retour à l&apos;accueil
           </Link>
-          <Link
-            href="/compte/commandes"
-            className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
-          >
-            <Package size={16} /> Voir mes commandes
-          </Link>
+          {payment?.type === 'group' && payment.groupId ? (
+            <Link
+              href={`/achats-groupes/${payment.groupId}`}
+              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition"
+            >
+              <Users size={16} /> Retour à l&apos;achat groupé
+            </Link>
+          ) : (
+            <Link
+              href="/compte/commandes"
+              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+            >
+              <Package size={16} /> Voir mes commandes
+            </Link>
+          )}
         </div>
 
         <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-6">
