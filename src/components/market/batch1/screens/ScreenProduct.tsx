@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
-import Image from 'next/image';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
@@ -9,6 +9,7 @@ import { Icon } from '../Icon';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
+import { ProductCard } from '../ProductCard';
 import { TrustStrip } from '../TrustStrip';
 import { ProgressBar } from '../ProgressBar';
 import { LiveDot } from '../LiveDot';
@@ -386,7 +387,7 @@ export default function ScreenProduct() {
             <div className="px-4 py-4">
               {tab === "desc" && (
                 <div className="space-y-3 text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed">
-                  <p>Caméra IP dôme extérieure haute résolution 4MP avec vision nocturne couleur jusqu’à 30 mètres. Compatible avec la plupart des NVR du marché, protocole ONVIF. Certifiée IP67 pour installation extérieure.</p>
+                  <p>{p.description || 'Produit importé directement depuis la Chine. Inspection qualité incluse avant expédition.'}</p>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
                     {p.specs.map(([k, v]: [string, string]) => (
                       <Fragment key={k}>
@@ -422,13 +423,21 @@ export default function ScreenProduct() {
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                    <div className="mb-1 flex items-center justify-between">
-                      <p className="text-[12px] font-bold text-slate-900 dark:text-white">Amadou D.</p>
-                      <div className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={11} strokeWidth={0} className="fill-amber-500"/>)}</div>
-                    </div>
-                    <p className="text-[12px] text-slate-600 dark:text-slate-300">Livraison en 5j, produit conforme. J’ai commandé 20 unités et le prix palier est intéressant.</p>
-                  </div>
+                  {REVIEWS.length === 0 ? (
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400">Aucun avis pour le moment.</p>
+                  ) : (
+                    REVIEWS.map((r) => (
+                      <div key={r.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <div className="mb-1 flex items-center justify-between">
+                          <p className="text-[12px] font-bold text-slate-900 dark:text-white">{r.userName}</p>
+                          <div className="flex text-amber-500">
+                            {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={11} strokeWidth={0} className={i < Math.round(r.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"} />)}
+                          </div>
+                        </div>
+                        <p className="text-[12px] text-slate-600 dark:text-slate-300">{r.comment}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -440,26 +449,15 @@ export default function ScreenProduct() {
           </div>
 
           {/* Related */}
-          <Section title="Souvent achetés ensemble" className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { name: "Câble Ethernet 20m Cat6", price: 3200, base: 4800, moq: 10, img: "/assets/img/product-led.jpg" },
-                { name: "NVR 8 canaux 4K PoE", price: 45000, base: 62000, moq: 2, img: "/assets/img/product-carmount.jpg" },
-              ].map((r) => (
-                <Card key={r.name} className="overflow-hidden">
-                  <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
-                    <Image src={r.img} alt={r.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
-                    <span className="absolute left-1.5 top-1.5"><Badge tone="amber">Min. {r.moq}</Badge></span>
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-[11px] font-semibold text-slate-900 dark:text-white line-clamp-2 leading-tight">{r.name}</p>
-                    <p className="mt-1.5 text-[14px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(r.price)}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(r.base)}</p>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </Section>
+          {SIMILAR.length > 0 && (
+            <Section title="Souvent achetés ensemble" className="mt-2 py-4 bg-white dark:bg-slate-900">
+              <div className="grid grid-cols-2 gap-3">
+                {SIMILAR.slice(0, 4).map((r) => (
+                  <ProductCard key={r.id} product={r} onClick={() => router.push(`/produits/${r.id}`)} />
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
 
         {/* Sticky bottom bar */}
@@ -469,7 +467,7 @@ export default function ScreenProduct() {
             {savingsVsBase > 0 && <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">Éco. {formatFcfa(savingsVsBase)}</span>}
           </div>
           <div className="flex gap-1.5">
-            <button className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
+            <button onClick={() => window.open(`https://wa.me/221761234567?text=Bonjour, j'ai une question sur ${encodeURIComponent(p.name)} (ref: ${p.id})`, '_blank')} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
               <Icon name="whatsapp" size={16} />
             </button>
             <Button variant="outline" size="sm" className="flex-1 !text-[12px] whitespace-nowrap" onClick={handleAddToCart}><Icon name="cart" size={14}/>Ajouter</Button>
@@ -484,7 +482,10 @@ export default function ScreenProduct() {
 
       <div className="mx-auto max-w-6xl px-6 py-6">
         <div className="mb-4 flex items-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
-          <a>Accueil</a><Icon name="chevronRight" size={12}/><a>Catalogue</a><Icon name="chevronRight" size={12}/><a>Sécurité</a><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Caméras IP</span>
+          <Link href="/" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
+          <Link href="/produits" className="hover:text-slate-700 dark:hover:text-slate-300">Catalogue</Link><Icon name="chevronRight" size={12}/>
+          <Link href={`/produits?category=${encodeURIComponent(p.category || '')}`} className="hover:text-slate-700 dark:hover:text-slate-300">{p.category || p.cat || 'Catégorie'}</Link><Icon name="chevronRight" size={12}/>
+          <span className="text-slate-700 dark:text-slate-300 line-clamp-1 max-w-[220px]">{p.name}</span>
         </div>
 
         <div className="grid grid-cols-[1fr_400px] gap-8">
@@ -518,8 +519,7 @@ export default function ScreenProduct() {
                 {tab==="desc" && (
                   <div className="grid grid-cols-2 gap-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                     <div className="space-y-3">
-                      <p>Caméra IP dôme extérieure haute résolution 4MP avec vision nocturne couleur jusqu’à 30 mètres. Compatible avec la plupart des NVR du marché, protocole ONVIF.</p>
-                      <p>Certifiée IP67 pour installation extérieure toute année. Idéale pour surveillance résidentielle, commerces, entrepôts.</p>
+                      <p>{p.description || 'Produit importé directement depuis la Chine. Inspection qualité incluse avant expédition.'}</p>
                     </div>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
                       {p.specs.map(([k, v]: [string, string])=>(
@@ -552,19 +552,22 @@ export default function ScreenProduct() {
                   <div className="grid grid-cols-[240px_1fr] gap-6">
                     <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
                       <div className="text-4xl font-extrabold tabular-nums text-slate-900 dark:text-white">{p.rating}<span className="text-lg text-slate-400">/5</span></div>
-                      <div className="mt-1 flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={14} strokeWidth={0} className="fill-amber-500"/>)}</div>
+                      <div className="mt-1 flex text-amber-500">
+                        {Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={14} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
+                      </div>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
                     </div>
                     <div className="space-y-3">
-                      {[
-                        {n:"Amadou D.",t:"Livraison en 5j, produit conforme. J’ai commandé 20 unités et le prix palier est intéressant."},
-                        {n:"Fatima N.",t:"Bonne qualité d’image de nuit. Installation simple avec le NVR compatible."},
-                      ].map((r)=>(
-                        <div key={r.n} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                          <div className="mb-1 flex justify-between"><p className="text-sm font-bold text-slate-900 dark:text-white">{r.n}</p><div className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={11} strokeWidth={0} className="fill-amber-500"/>)}</div></div>
-                          <p className="text-sm text-slate-600 dark:text-slate-300">{r.t}</p>
-                        </div>
-                      ))}
+                      {REVIEWS.length === 0 ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun avis pour le moment.</p>
+                      ) : (
+                        REVIEWS.map((r)=> (
+                          <div key={r.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                            <div className="mb-1 flex justify-between"><p className="text-sm font-bold text-slate-900 dark:text-white">{r.userName}</p><div className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={11} strokeWidth={0} className={i < Math.round(r.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}</div></div>
+                            <p className="text-sm text-slate-600 dark:text-slate-300">{r.comment}</p>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -575,29 +578,16 @@ export default function ScreenProduct() {
               <TrustStrip/>
             </div>
 
-            <div className="mt-6">
-              <h3 className="mb-3 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Souvent achetés ensemble</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { name: "Câble Ethernet 20m Cat6", price: 3200, base: 4800, moq: 10, img: "/assets/img/product-led.jpg" },
-                  { name: "NVR 8 canaux 4K PoE", price: 45000, base: 62000, moq: 2, img: "/assets/img/product-carmount.jpg" },
-                  { name: "Disque HDD 4To surveillance", price: 32000, base: 42000, moq: 3, img: "/assets/img/product-watch.jpg" },
-                  { name: "Support mural universel", price: 1900, base: 3200, moq: 20, img: "/assets/img/product-bag.jpg" },
-                ].map((r)=>(
-                  <Card key={r.name} className="overflow-hidden">
-                    <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
-                      <Image src={r.img} alt={r.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
-                      <span className="absolute left-2 top-2"><Badge tone="amber">Min. {r.moq}</Badge></span>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-2 min-h-[32px]">{r.name}</p>
-                      <p className="mt-2 text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(r.price)}</p>
-                      <p className="text-xs font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(r.base)}</p>
-                    </div>
-                  </Card>
-                ))}
+            {SIMILAR.length > 0 && (
+              <div className="mt-6">
+                <h3 className="mb-3 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Souvent achetés ensemble</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {SIMILAR.slice(0, 4).map((r)=> (
+                    <ProductCard key={r.id} product={r} size="lg" onClick={() => router.push(`/produits/${r.id}`)} />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right : sticky pricing */}
@@ -675,7 +665,7 @@ export default function ScreenProduct() {
                 <div className="mt-4 space-y-2">
                   <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart}><Icon name="cart" size={16}/>Ajouter au panier</Button>
                   <Button variant="outline" size="lg" className="w-full" onClick={handleBuyNow}>Acheter maintenant</Button>
-                  <Button variant="ghost" size="md" className="w-full"><Icon name="whatsapp" size={16}/>Poser une question par WhatsApp</Button>
+                  <Button variant="ghost" size="md" className="w-full" onClick={() => window.open(`https://wa.me/221761234567?text=Bonjour, j'ai une question sur ${encodeURIComponent(p.name)} (ref: ${p.id})`, '_blank')}><Icon name="whatsapp" size={16}/>Poser une question par WhatsApp</Button>
                 </div>
               </Card>
 

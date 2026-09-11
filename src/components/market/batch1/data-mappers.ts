@@ -213,6 +213,7 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
       p?.sellerName ||
       p?.category ||
       (p?.isImported ? 'Import direct' : 'DDM+'),
+    description: p?.description || p?.tagline || '',
     rating: p?.rating ?? 4.5,
     reviews: p?.reviewCount ?? p?.reviews ?? 0,
     reviewCount: p?.reviewCount ?? p?.reviews ?? 0,
