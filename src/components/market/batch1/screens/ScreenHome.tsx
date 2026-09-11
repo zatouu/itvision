@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { useSourcingModal } from '../SourcingModalContext';
 import { Icon } from '../Icon';
 import { Card } from '../Card';
 import { Section } from '../Section';
@@ -18,6 +19,7 @@ import type { Product, Group, Category, Testimonial } from '../types';
 
 export default function ScreenHome() {
   const router = useRouter();
+  const { open: openSourcing } = useSourcingModal();
   const [loading, setLoading] = useState(true);
   const [CATALOG, setCATALOG] = useState<Product[]>([]);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
@@ -53,13 +55,16 @@ export default function ScreenHome() {
         <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
 
         <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800">
+          <button
+            onClick={openSourcing}
+            className="flex w-full items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800 text-left"
+          >
             <Icon name="search" size={16} className="text-slate-500 dark:text-slate-400"/>
             <span className="flex-1 text-[12px] text-slate-500 dark:text-slate-400">Rechercher un produit, une catégorie…</span>
-            <button className="grid h-7 w-7 place-items-center rounded-lg bg-violet-600 text-white">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-600 text-white">
               <Icon name="camera" size={13}/>
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto pb-6">
@@ -90,7 +95,7 @@ export default function ScreenHome() {
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => router.push('/produits')} className="whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-slate-900 hover:bg-slate-100 inline-flex items-center gap-1">Explorer <Icon name="arrowRight" size={13}/></button>
-                  <button onClick={() => router.push('/produits')} className="whitespace-nowrap rounded-xl bg-white/10 border border-white/25 px-3 py-2 text-[12px] font-bold text-white hover:bg-white/20 inline-flex items-center gap-1"><Icon name="camera" size={13}/>Trouvez-moi</button>
+                  <button onClick={openSourcing} className="whitespace-nowrap rounded-xl bg-white/10 border border-white/25 px-3 py-2 text-[12px] font-bold text-white hover:bg-white/20 inline-flex items-center gap-1"><Icon name="camera" size={13}/>Trouvez-moi</button>
                 </div>
               </div>
             </div>
@@ -333,7 +338,7 @@ export default function ScreenHome() {
                 </div>
                 <div className="mt-5 flex gap-3">
                   <button onClick={() => router.push('/produits')} className="whitespace-nowrap inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-[14px] font-bold text-slate-900 hover:bg-slate-100">Explorer le catalogue <Icon name="arrowRight" size={16}/></button>
-                  <button onClick={() => router.push('/produits')} className="whitespace-nowrap inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/25 px-5 py-3 text-[14px] font-bold text-white hover:bg-white/20"><Icon name="camera" size={16}/>Trouvez-moi</button>
+                  <button onClick={openSourcing} className="whitespace-nowrap inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/25 px-5 py-3 text-[14px] font-bold text-white hover:bg-white/20"><Icon name="camera" size={16}/>Trouvez-moi</button>
                 </div>
               </div>
 

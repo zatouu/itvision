@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSourcingModal } from '../SourcingModalContext';
 import {
   CheckCircle,
   Plane,
@@ -32,6 +33,7 @@ const TRANSPORT = [
 ]
 
 export default function ScreenPricing() {
+  const { open: openSourcing } = useSourcingModal();
   const [simPrice, setSimPrice] = useState(15000)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
@@ -286,7 +288,10 @@ export default function ScreenPricing() {
             <Link href="/produits" className="whitespace-nowrap rounded-xl bg-white text-slate-900 px-5 py-3 text-[14px] font-bold hover:bg-slate-100 inline-flex items-center justify-center gap-2 transition">
               <Grid3X3 size={16} /> Voir le catalogue
             </Link>
-            <button className="whitespace-nowrap rounded-xl bg-white/10 border border-white/25 text-white px-5 py-3 text-[14px] font-bold hover:bg-white/20 inline-flex items-center justify-center gap-2 transition">
+            <button
+              onClick={openSourcing}
+              className="whitespace-nowrap rounded-xl bg-white/10 border border-white/25 text-white px-5 py-3 text-[14px] font-bold hover:bg-white/20 inline-flex items-center justify-center gap-2 transition"
+            >
               <Camera size={16} /> Demander un sourcing
             </button>
           </div>
