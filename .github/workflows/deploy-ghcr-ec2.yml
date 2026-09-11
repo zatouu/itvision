@@ -2,7 +2,7 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ main, cursor/*, deploy/*, rel/ui-refresh ]
+    branches: [ main, cursor/*, deploy/*, rel/ui-refresh, feat/mobile-fusion ]
   workflow_dispatch:
 
 concurrency:
@@ -108,6 +108,16 @@ jobs:
             export APP_DIR=~/itvision
             mkdir -p $APP_DIR
 
+            # Image à déployer : latest pour main, tag branch-safe pour les autres branches
+            REF_SAFE=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+            IMAGE_BASE=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              DEPLOY_IMAGE="${IMAGE_BASE}:latest"
+            else
+              DEPLOY_IMAGE="${IMAGE_BASE}:${REF_SAFE}"
+            fi
+            echo "🐳 Déploiement image : $DEPLOY_IMAGE"
+
             # Installer Docker et Compose si absents
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com | sh
@@ -173,7 +183,7 @@ jobs:
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.ec2
             echo "NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
             echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}" >> .env.ec2
-            echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> .env.ec2
+            echo "IMAGE=${DEPLOY_IMAGE}" >> .env.ec2
             echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" >> .env.ec2
             echo "MONGODB_URI=mongodb://itvision_app:${{ secrets.MONGO_APP_PASSWORD }}@mongodb:27017/itvision_db" >> .env.ec2
             echo "REDIS_URL=${{ secrets.REDIS_URL }}" >> .env.ec2
@@ -215,7 +225,7 @@ jobs:
             RETRY_DELAY=10
             for i in $(seq 1 $MAX_RETRIES); do
               echo "Tentative $i/$MAX_RETRIES de pull de l'image..."
-              if sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest; then
+              if sudo docker pull ${DEPLOY_IMAGE}; then
                 echo "Pull réussi!"
                 break
               else
