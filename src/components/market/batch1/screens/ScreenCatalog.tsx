@@ -19,7 +19,7 @@ export default function ScreenCatalog() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/api/catalog/products?limit=24').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/products?limit=100&includeGroupStats=1').then(r => r.json()).catch(() => null),
       fetch('/api/catalog/categories').then(r => r.json()).catch(() => null),
     ]).then(([prodRes, catRes]) => {
       if (prodRes?.products?.length || prodRes?.items?.length) {
@@ -40,20 +40,35 @@ export default function ScreenCatalog() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const filtered = useMemo(() => {
-    return CATALOG.filter((p) => {
+  const sortedAndFiltered = useMemo(() => {
+    const arr = CATALOG.filter((p) => {
       if (cat !== "Tous" && p.cat !== cat) return false;
       if (p.price < priceRange[0] || p.price > priceRange[1]) return false;
-      if (moqFilter === "1-4" && (p.moq ?? 0) > 4) return false;
-      if (moqFilter === "5-9" && ((p.moq ?? 0) < 5 || (p.moq ?? 0) > 9)) return false;
-      if (moqFilter === "10+" && (p.moq ?? 0) < 10) return false;
+      if (moqFilter === "1-4" && (p.moq ?? p.minOrderQty ?? 0) > 4) return false;
+      if (moqFilter === "5-9" && ((p.moq ?? p.minOrderQty ?? 0) < 5 || (p.moq ?? p.minOrderQty ?? 0) > 9)) return false;
+      if (moqFilter === "10-24" && ((p.moq ?? p.minOrderQty ?? 0) < 10 || (p.moq ?? p.minOrderQty ?? 0) > 24)) return false;
+      if (moqFilter === "25+" && (p.moq ?? p.minOrderQty ?? 0) < 25) return false;
       if (groupOnly && !p.hasGroup) return false;
       if (verifiedOnly && !p.verified) return false;
       if ((p.save ?? 0) < minSave) return false;
       if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [CATALOG, cat, priceRange, moqFilter, groupOnly, verifiedOnly, minSave, query]);
+
+    switch (sort) {
+      case 'price_asc':
+        return arr.sort((a, b) => a.price - b.price);
+      case 'price_desc':
+        return arr.sort((a, b) => b.price - a.price);
+      case 'save':
+        return arr.sort((a, b) => (b.save ?? 0) - (a.save ?? 0));
+      case 'new':
+        return arr; // no createdAt exposed by mapper; keep API order
+      case 'popular':
+      default:
+        return arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    }
+  }, [CATALOG, cat, priceRange, moqFilter, groupOnly, verifiedOnly, minSave, query, sort]);
 
   const activeFilters = [
     cat !== "Tous" && cat,
@@ -63,6 +78,8 @@ export default function ScreenCatalog() {
     minSave > 0 && `-${minSave}% min`,
     (priceRange[0] > 0 || priceRange[1] < 30000) && `${formatFcfa(priceRange[0])}—${formatFcfa(priceRange[1])}`,
   ].filter(Boolean);
+
+  const filtered = sortedAndFiltered;
 
   const reset = () => {
     setCat("Tous"); setPriceRange([0, 30000]); setMoqFilter("all");
@@ -98,7 +115,7 @@ export default function ScreenCatalog() {
       <div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Lot minimum</p>
         <div className="grid grid-cols-2 gap-1.5">
-          {[["all","Tous"],["1-4","1-4"],["5-9","5-9"],["10+","10+"]].map(([k,l]) => (
+          {[["all","Tous"],["1-4","1-4"],["5-9","5-9"],["10-24","10-24"],["25+","25+"]].map(([k,l]) => (
             <button key={k} onClick={() => setMoqFilter(k)} className={cn("rounded-lg py-1.5 text-[11px] font-semibold", moqFilter === k ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
               {l}
             </button>

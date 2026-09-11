@@ -21,6 +21,7 @@ export default function ScreenCart() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CartItem[]>([]);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
+  const [shippingRate, setShippingRate] = useState<{ rate: number; minimumCharge: number; costPerUnit: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -46,6 +47,15 @@ export default function ScreenCart() {
         if (Array.isArray(data?.groups)) setGROUPS(data.groups);
       })
       .catch(() => {});
+    fetch('/api/shipping/rates-public')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.rates) {
+          const rate = data.rates.find((r: any) => r.id === 'air_15') || data.rates[0];
+          if (rate) setShippingRate(rate);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const updateQty = (id: string, delta: number) => {
@@ -68,16 +78,18 @@ export default function ScreenCart() {
     });
   };
 
+  const totalQty = items.reduce((s, it) => s + it.qty, 0);
+
   const totals = useMemo(() => {
     const sub = items.reduce((s, it) => s + it.tierUnit * it.qty, 0);
     const savings = items.reduce((s, it) => s + (it.unit - it.tierUnit) * it.qty, 0);
     const service = Math.round(sub * 0.04);
     const insurance = Math.round(sub * 0.015);
-    const shipping = 12500;
+    const shipping = shippingRate ? Math.max(shippingRate.minimumCharge, Math.round(shippingRate.costPerUnit * totalQty)) : 12500;
     const total = sub + service + insurance + shipping;
     const groupSavingsPotential = items.reduce((s, it) => it.hasActiveGroup && it.groupUnit ? s + (it.tierUnit - it.groupUnit) * it.qty : s, 0);
     return { sub, savings, service, insurance, shipping, total, groupSavingsPotential };
-  }, [items]);
+  }, [items, shippingRate, totalQty]);
 
   const belowMOQ = items.filter((it) => it.qty < it.minOrderQty);
   const canCheckout = belowMOQ.length === 0;

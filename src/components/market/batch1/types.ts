@@ -58,9 +58,11 @@ export interface ProductSpec {
 }
 
 export interface ProductGroupBuy {
+  id?: string;
   active: boolean;
   targetQty: number;
   currentQty: number;
+  participants?: number;
   deadline: string;
   unitPrice: number;
   savePct: number;
@@ -77,6 +79,7 @@ export interface Product {
   brand?: string;
   rating: number;
   reviews?: number;
+  reviewCount?: number;
   images: string[];
   price: number;
   basePrice: number;
@@ -102,10 +105,12 @@ export interface Group {
   id: string;
   name: string;
   image: string;
+  productId?: string;
   currentQty: number;
   targetQty: number;
   participants: number;
   deadline: string;
+  deadlineAt?: number;
   unit: number;
   base: number;
   save: number;
@@ -124,6 +129,7 @@ export interface CartItem {
   unit: number;
   qty: number;
   minOrderQty: number;
+  priceTiers?: PriceTier[];
   tierUnit: number;
   nextTier: { at: number; save: number } | null;
   hasActiveGroup: boolean;
@@ -159,12 +165,35 @@ export interface UserStats {
   savings: number;
 }
 
+export interface UserActivity {
+  id: string;
+  type: string;
+  description: string;
+  amount?: number;
+  unit?: string;
+  createdAt: string;
+}
+
+export interface UserRecommendation {
+  id: string;
+  name: string;
+  image?: string;
+  price: number;
+  currency: string;
+  groupBuyEnabled?: boolean;
+}
+
 export interface User {
   handle: string;
+  initials?: string;
   memberSince: string;
   grains: number;
   grainsTier: string;
+  nextTier?: string;
   nextTierAt: number;
   stats: UserStats;
   activeOrder: number;
+  activities?: UserActivity[];
+  recommendations?: UserRecommendation[];
+  favorites?: UserRecommendation[];
 }

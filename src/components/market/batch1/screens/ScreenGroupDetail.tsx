@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
@@ -20,6 +20,7 @@ import type { Group } from '../types';
 
 
 export default function ScreenGroupDetail() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
 
@@ -44,6 +45,8 @@ export default function ScreenGroupDetail() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [copied, setCopied] = useState(false);
+  const [joinStatus, setJoinStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
+  const [joinError, setJoinError] = useState('');
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
@@ -55,6 +58,8 @@ export default function ScreenGroupDetail() {
 
   const pct = Math.round((g.currentQty / g.targetQty) * 100);
   const remaining = g.targetQty - g.currentQty;
+
+  // Demo participants/chat are placeholders until a public participants API exists.
   const participants = [
     { i: "AD", n: "Amadou D.", q: 12, t: "il y a 5min" },
     { i: "FN", n: "Fatima N.", q: 8, t: "il y a 12min" },
@@ -70,12 +75,54 @@ export default function ScreenGroupDetail() {
     { i: "OS", n: "Omar S.", m: "J'ai déjà commandé 20 unités, matériel top.", t: "11:02" },
   ];
 
-  const copy = () => {
-    setCopied(true);
-    setTimeout(()=>setCopied(false), 1500);
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/achats-groupes/${g.id}`
+    : `https://market.itvisionplus.sn/achats-groupes/${g.id}`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
   };
 
-  const shareUrl = "market.itvisionplus.sn/g/" + g.id;
+  const handleJoin = async () => {
+    setJoinStatus('submitting');
+    setJoinError('');
+    const cleanPhone = phone.replace(/\s/g, '');
+    if (!name.trim() || !cleanPhone) {
+      setJoinStatus('error');
+      setJoinError('Veuillez renseigner votre nom et téléphone.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: `+221 ${cleanPhone.replace(/^(221|00221)/, '')}`,
+          qty,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setJoinStatus('error');
+        setJoinError(data.error || 'Erreur lors de la participation.');
+        return;
+      }
+      setJoinStatus('success');
+      // refresh group data
+      const refreshed = await fetch(`/api/group-orders/${groupId}`).then(r => r.json());
+      if (refreshed?.group) setGROUPS([mapGroupOrder(refreshed.group)]);
+    } catch {
+      setJoinStatus('error');
+      setJoinError('Impossible de communiquer avec le serveur.');
+    }
+  };
 
   const HowItWorks = () => (
     <div className="grid gap-3 md:grid-cols-3">
@@ -184,7 +231,25 @@ export default function ScreenGroupDetail() {
         </div>
       </div>
 
-      <Button variant="violet" size="lg" className="mt-3 w-full">Rejoindre pour {qty} pcs</Button>
+      {joinStatus === 'error' && joinError && (
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {joinError}
+        </div>
+      )}
+      {joinStatus === 'success' && (
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+          Vous avez rejoint le groupe. Vous serez notifié à la clôture.
+        </div>
+      )}
+      <Button
+        variant="violet"
+        size="lg"
+        className="mt-3 w-full"
+        disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+        onClick={handleJoin}
+      >
+        {joinStatus === 'submitting' ? 'Inscription…' : `Rejoindre pour ${qty} pcs`}
+      </Button>
       <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
         <Icon name="lock" size={11}/>Aucun débit tant que le groupe n&apos;est pas complet
       </p>
@@ -332,7 +397,15 @@ export default function ScreenGroupDetail() {
                 <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">-{g.save}%</p>
               </div>
             </div>
-            <Button variant="violet" size="md" className="whitespace-nowrap flex-shrink-0">Rejoindre</Button>
+            <Button
+              variant="violet"
+              size="md"
+              className="whitespace-nowrap flex-shrink-0"
+              disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+              onClick={handleJoin}
+            >
+              {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
+            </Button>
           </div>
         </div>
       </div>

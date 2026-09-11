@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
@@ -14,10 +15,12 @@ import type { Order, User, OrderStep } from '../types';
 
 
 export default function ScreenAccount() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [ORDERS, setORDERS] = useState<Order[]>([]);
   const [USER, setUSER] = useState<User | null>(null);
   const [ORDER_STEPS, setORDER_STEPS] = useState<OrderStep[]>([]);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -41,12 +44,25 @@ export default function ScreenAccount() {
   const activeOrder = ORDERS[0];
   const currentStep = activeOrder?.currentStep ?? 1;
 
+  const supportWhatsApp = "https://wa.me/221774133440?text=" + encodeURIComponent("Bonjour DDM+, j'ai une question sur mon compte.");
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    router.push('/login');
+  };
+
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
   }
 
   if (!USER) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Veuillez vous connecter</div>;
+    if (typeof window !== 'undefined') {
+      router.push('/login?redirect=/compte');
+    }
+    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Redirection…</div>;
   }
 
   const Stats = () => (
@@ -165,24 +181,31 @@ export default function ScreenAccount() {
           <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Support WhatsApp</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-400">7j/7 · Réponse sous 15 min</p>
         </div>
-        <Button variant="primary" size="sm" className="!bg-emerald-600 flex-shrink-0">Discuter</Button>
+        <Button
+          variant="primary"
+          size="sm"
+          className="!bg-emerald-600 flex-shrink-0"
+          onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+        >
+          Discuter
+        </Button>
       </div>
     </Card>
   );
 
   const shortcuts = [
-    { key: "orders", label: "Mes commandes", icon: "package", sub: USER.stats.orders + " au total" },
-    { key: "groups", label: "Mes groupes", icon: "users", sub: USER.stats.groups + " actifs" },
-    { key: "favorites", label: "Favoris", icon: "heart", sub: "14 produits" },
-    { key: "addresses", label: "Mes adresses", icon: "mapPin", sub: "2 enregistrées" },
-    { key: "sourcing", label: "Mes demandes sourcing", icon: "camera", sub: "3 en cours" },
-    { key: "payment", label: "Modes de paiement", icon: "wallet", sub: "Mobile Money" },
+    { key: "orders", label: "Mes commandes", icon: "package", sub: USER.stats.orders + " au total", href: "/compte/commandes" },
+    { key: "groups", label: "Mes groupes", icon: "users", sub: USER.stats.groups + " actifs", href: "/compte/achats-groupes" },
+    { key: "favorites", label: "Favoris", icon: "heart", sub: `${USER.favorites?.length ?? 0} produit${(USER.favorites?.length ?? 0) > 1 ? 's' : ''}`, href: "/produits/favoris" },
+    { key: "addresses", label: "Mes adresses", icon: "mapPin", sub: "Mes adresses", href: "/compte/profil" },
+    { key: "sourcing", label: "Mes demandes sourcing", icon: "camera", sub: "Mes demandes", href: "/market" },
+    { key: "payment", label: "Modes de paiement", icon: "wallet", sub: "Mobile Money", href: "/compte/profil" },
   ];
 
   const Shortcuts = () => (
     <div className={cn("grid gap-2", "grid-cols-2 md:grid-cols-3")}>
       {shortcuts.map((s) => (
-        <button key={s.key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-slate-300 hover:shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+        <Link key={s.key} href={s.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-slate-300 hover:shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
           <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <Icon name={s.icon} size={16}/>
           </span>
@@ -191,7 +214,7 @@ export default function ScreenAccount() {
             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{s.sub}</p>
           </div>
           <Icon name="chevronRight" size={14} className="flex-shrink-0 text-slate-400"/>
-        </button>
+        </Link>
       ))}
     </div>
   );
@@ -246,7 +269,13 @@ export default function ScreenAccount() {
               </div>
             </div>
 
-            <button className="w-full py-3 text-[13px] font-bold text-red-600 dark:text-red-400">Se déconnecter</button>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full py-3 text-[13px] font-bold text-red-600 dark:text-red-400 disabled:opacity-50"
+            >
+              {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
+            </button>
           </div>
         </div>
 
@@ -283,28 +312,40 @@ export default function ScreenAccount() {
             <div>
               <h3 className="mb-3 text-[16px] font-extrabold tracking-tight text-slate-900 dark:text-white">Activité récente</h3>
               <Card className="divide-y divide-slate-200 dark:divide-slate-800">
-                {[
-                  { icon: "package", tone: "emerald", ttl: "Commande #CMD-0003 livrée", sub: "il y a 2 jours", right: formatFcfa(165900) },
-                  { icon: "users", tone: "violet", ttl: "Rejoint le groupe Écouteurs TWS Pro", sub: "il y a 3 jours", right: "12 pcs" },
-                  { icon: "sparkles", tone: "amber", ttl: "500 grains gagnés", sub: "Achat groupé complété", right: "+500" },
-                  { icon: "camera", tone: "violet", ttl: "Demande sourcing envoyée", sub: "il y a 5 jours", right: "En cours" },
-                ].map((a, i) => {
-                  const toneMap: Record<string, string> = {
-                    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-                    violet: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-                    amber: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-                  };
-                  return (
-                    <div key={i} className="flex items-center gap-3 p-4">
-                      <span className={cn("grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg", toneMap[a.tone])}><Icon name={a.icon} size={16}/></span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">{a.ttl}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{a.sub}</p>
+                {(USER.activities ?? []).length === 0 ? (
+                  <div className="p-4 text-[13px] text-slate-500 dark:text-slate-400">Aucune activité récente.</div>
+                ) : (
+                  USER.activities!.map((a, i) => {
+                    const typeConfig: Record<string, { icon: string; tone: string }> = {
+                      order: { icon: 'package', tone: 'emerald' },
+                      group: { icon: 'users', tone: 'violet' },
+                      group_order: { icon: 'users', tone: 'violet' },
+                      grains: { icon: 'sparkles', tone: 'amber' },
+                      reward: { icon: 'sparkles', tone: 'amber' },
+                      sourcing: { icon: 'camera', tone: 'violet' },
+                      default: { icon: 'info', tone: 'slate' },
+                    };
+                    const cfg = typeConfig[a.type] || typeConfig.default;
+                    const toneMap: Record<string, string> = {
+                      emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                      violet: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+                      amber: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+                      slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+                    };
+                    const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+                    const right = a.amount ? `${a.amount}${a.unit ? ` ${a.unit}` : ''}` : '';
+                    return (
+                      <div key={a.id || i} className="flex items-center gap-3 p-4">
+                        <span className={cn("grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg", toneMap[cfg.tone])}><Icon name={cfg.icon} size={16}/></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">{a.description}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{date}</p>
+                        </div>
+                        {right && <p className="text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white flex-shrink-0 whitespace-nowrap">{right}</p>}
                       </div>
-                      <p className="text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white flex-shrink-0 whitespace-nowrap">{a.right}</p>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </Card>
             </div>
           </div>
@@ -330,7 +371,13 @@ export default function ScreenAccount() {
                   </button>
                 ))}
               </div>
-              <button className="mt-3 w-full py-2 text-[12px] font-bold text-red-600 dark:text-red-400 border-t border-slate-200 dark:border-slate-800 pt-3">Se déconnecter</button>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="mt-3 w-full py-2 text-[12px] font-bold text-red-600 dark:text-red-400 border-t border-slate-200 dark:border-slate-800 pt-3 disabled:opacity-50"
+              >
+                {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
+              </button>
             </Card>
           </div>
         </div>

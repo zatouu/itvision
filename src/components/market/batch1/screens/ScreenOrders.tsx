@@ -23,12 +23,26 @@ export default function ScreenOrders() {
     fetch('/api/account/dashboard', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.dashboard?.latestOrder) setORDERS([mapOrder(d.dashboard.latestOrder) as Order]);
-        if (d?.dashboard?.orderSteps) setORDER_STEPS(d.dashboard.orderSteps as OrderStep[]);
+        if (Array.isArray(d?.dashboard?.orders)) {
+          setORDERS(d.dashboard.orders.map((o: any) => mapOrder(o) as Order));
+        } else if (d?.dashboard?.latestOrder) {
+          setORDERS([mapOrder(d.dashboard.latestOrder) as Order]);
+        }
+        if (d?.dashboard?.orderSteps) {
+          setORDER_STEPS(d.dashboard.orderSteps as OrderStep[]);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const steps: OrderStep[] = ORDER_STEPS.length ? ORDER_STEPS : [
+    { key: 'ordered', label: 'Commande confirmée', desc: 'Paiement validé' },
+    { key: 'sourcing', label: 'Sourcing en Chine', desc: 'Recherche du fournisseur' },
+    { key: 'china', label: 'Inspection qualité', desc: 'Contrôle qualité en Chine' },
+    { key: 'in_transit', label: 'En transit', desc: 'Transport international' },
+    { key: 'delivered', label: 'Livrée', desc: 'Livraison à l\'adresse' },
+  ];
 
 
   const [tab, setTab] = useState("all");
@@ -90,10 +104,10 @@ export default function ScreenOrders() {
           </div>
 
           {/* Mini timeline */}
-          {o.status !== "delivered" && o.status !== "cancelled" && ORDER_STEPS.length > 0 && (
+          {o.status !== "delivered" && o.status !== "cancelled" && steps.length > 0 && (
             <div className="mb-3 rounded-lg bg-slate-50 dark:bg-slate-800 p-2.5">
               <div className="flex items-center gap-1 mb-1.5">
-                {ORDER_STEPS.map((step, i) => (
+                {steps.map((step, i) => (
                   <Fragment key={step.key}>
                     <span className={cn(
                       "grid h-4 w-4 flex-shrink-0 place-items-center rounded-full text-[8px] font-bold",
@@ -101,14 +115,14 @@ export default function ScreenOrders() {
                     )}>
                       {i + 1 < o.currentStep ? <Icon name="check" size={8}/> : i + 1}
                     </span>
-                    {i < ORDER_STEPS.length - 1 && (
+                    {i < steps.length - 1 && (
                       <span className={cn("h-0.5 flex-1", i + 1 < o.currentStep ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-700")}/>
                     )}
                   </Fragment>
                 ))}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-slate-900 dark:text-white">{ORDER_STEPS[o.currentStep - 1]?.label}</p>
+                <p className="text-[11px] font-bold text-slate-900 dark:text-white">{steps[o.currentStep - 1]?.label}</p>
                 <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">ETA · <b className="text-slate-900 dark:text-white">{o.eta}</b></p>
               </div>
             </div>

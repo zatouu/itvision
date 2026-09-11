@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,22 @@ export default function ScreenCheckout() {
   const [street, setStreet] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [shippingRates, setShippingRates] = useState<Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }>>({});
+
+  useEffect(() => {
+    fetch('/api/shipping/rates-public')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.rates) {
+          const map: Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }> = {};
+          for (const r of d.rates) {
+            map[r.id] = r;
+          }
+          setShippingRates(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -57,11 +73,26 @@ export default function ScreenCheckout() {
       .finally(() => setLoading(false));
   }, []);
 
-  const shippingOptions = [
-    { key: "express", label: "Express aérien", days: "4-7 jours", price: 24500, sub: "Prioritaire · le plus rapide", icon: "plane" },
-    { key: "aerien", label: "Standard aérien", days: "8-12 jours", price: 12500, sub: "Le meilleur rapport prix/délai", icon: "plane" },
-    { key: "maritime", label: "Maritime", days: "35-45 jours", price: 4200, sub: "Le moins cher pour gros volumes", icon: "ship", groupTag: true },
-  ];
+  const totalQty = CART.reduce((s, it) => s + it.qty, 0);
+
+  const shippingOptions = useMemo(() => {
+    const base = [
+      { key: "express", id: "air_express", label: "Express aérien", days: "4-7 jours", sub: "Prioritaire · le plus rapide", icon: "plane", groupTag: false },
+      { key: "aerien", id: "air_15", label: "Standard aérien", days: "8-12 jours", sub: "Le meilleur rapport prix/délai", icon: "plane", groupTag: false },
+      { key: "maritime", id: "sea_freight", label: "Maritime", days: "35-45 jours", sub: "Le moins cher pour gros volumes", icon: "ship", groupTag: true },
+    ];
+    return base.map((o) => {
+      const rate = shippingRates[o.id];
+      const fallbackPrice = o.key === 'express' ? 24500 : o.key === 'aerien' ? 12500 : 4200;
+      const price = rate ? Math.round(rate.costPerUnit * totalQty) : fallbackPrice;
+      return {
+        ...o,
+        price: price > 0 ? price : fallbackPrice,
+        days: rate ? (typeof rate.durationDays === 'number' ? `${rate.durationDays} jours` : String(rate.durationDays)) : o.days,
+        sub: rate ? rate.description : o.sub,
+      };
+    });
+  }, [shippingRates, totalQty]);
 
   const items = CART;
   const sub = items.reduce((s,it)=>s+it.tierUnit*it.qty,0);
@@ -101,7 +132,7 @@ export default function ScreenCheckout() {
         body: JSON.stringify({
           cart,
           name: fullName.trim(),
-          phone: `+221 ${phone.trim()}`,
+          phone: `+221 ${phone.replace(/\D/g, '').replace(/^(221|00221)/, '').trim()}`,
           address: {
             region,
             department: dept,

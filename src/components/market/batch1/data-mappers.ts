@@ -35,18 +35,47 @@ export function mapCatalogItem(p: any): Product {
     p?.groupBuyDiscount ??
     (base > 0 && price > 0 ? Math.round(((base - price) / base) * 100) : 0);
 
+  const activeGroup = p?.groupStats?.bestActiveGroup;
+  const groupBuy = activeGroup
+    ? {
+        id: activeGroup.groupId || activeGroup.id,
+        active: true,
+        targetQty: activeGroup.targetQty ?? 0,
+        currentQty: activeGroup.currentQty ?? 0,
+        participants:
+          typeof activeGroup.participantCount === 'number'
+            ? activeGroup.participantCount
+            : Array.isArray(activeGroup.participants)
+              ? activeGroup.participants.length
+              : 0,
+        deadline: fmtDeadline(activeGroup.deadline),
+        unitPrice: activeGroup.currentPrice ?? price,
+        savePct:
+          base > 0 && activeGroup.currentPrice
+            ? Math.round(((base - activeGroup.currentPrice) / base) * 100)
+            : 0,
+      }
+    : undefined;
+
   return {
     id: p?._id || p?.id || '',
     name: p?.name || 'Produit',
     brand: p?.sellerName || p?.category || 'DDM+',
     rating: p?.rating ?? 4.5,
     reviews: p?.reviewCount ?? 0,
+    reviewCount: p?.reviewCount ?? 0,
     images: [p?.image || '/placeholder.svg'],
     price,
     basePrice: base,
     minOrderQty: moq,
-    priceTiers: [],
-    groupBuy: undefined,
+    moq,
+    priceTiers: (p?.priceTiers ?? []).map((t: any) => ({
+      from: t.minQty ?? 1,
+      to: null,
+      unit: t.price ?? price,
+      save: base > 0 && t.price ? Math.round(((base - t.price) / base) * 100) : 0,
+    })),
+    groupBuy,
     variants: [],
     specs: [],
     shipping: { origin: p?.sourcing?.origin || 'Guangzhou, Chine', modes: [] },
@@ -54,7 +83,7 @@ export function mapCatalogItem(p: any): Product {
     category: p?.category,
     img: p?.image || '/placeholder.svg',
     image: p?.image,
-    hasGroup: !!p?.groupBuyEnabled,
+    hasGroup: !!p?.groupBuyEnabled || !!activeGroup,
     verified: !!p?.sellerVerified,
     save,
   };
@@ -93,9 +122,16 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
 
   const groupBuy = p?.groupBuyEnabled
     ? {
+        id: groupBest?.groupId || groupBest?.id,
         active: true,
         targetQty: groupBuyTarget,
         currentQty: groupBest?.currentQty ?? 0,
+        participants:
+          typeof groupBest?.participantCount === 'number'
+            ? groupBest.participantCount
+            : Array.isArray(groupBest?.participants)
+              ? groupBest.participants.length
+              : 0,
         deadline: fmtDeadline(groupBest?.deadline),
         unitPrice:
           p?.groupBuyBestPrice ?? groupBest?.currentPrice ?? price,
@@ -165,6 +201,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     }
   }
 
+  const minOrderQty =
+    typeof p?.minOrderQty === 'number' && p.minOrderQty > 0
+      ? p.minOrderQty
+      : 1;
+
   return {
     id: p?._id || p?.id || '',
     name: p?.name || 'Produit',
@@ -173,17 +214,16 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
       p?.category ||
       (p?.isImported ? 'Import direct' : 'DDM+'),
     rating: p?.rating ?? 4.5,
-    reviews: p?.reviewCount ?? 0,
+    reviews: p?.reviewCount ?? p?.reviews ?? 0,
+    reviewCount: p?.reviewCount ?? p?.reviews ?? 0,
     images:
       Array.isArray(p?.gallery) && p.gallery.length > 0
         ? p.gallery
         : [p?.image || '/placeholder.svg'],
     price,
     basePrice: base,
-    minOrderQty:
-      typeof p?.minOrderQty === 'number' && p.minOrderQty > 0
-        ? p.minOrderQty
-        : 1,
+    minOrderQty,
+    moq: minOrderQty,
     priceTiers,
     groupBuy,
     variants: variants.length > 0 ? variants : [],
@@ -220,16 +260,20 @@ export function mapGroupOrder(g: any): Group {
       ? 'almost'
       : 'live';
 
+  const deadlineDate = g?.deadline ? new Date(g.deadline).getTime() : 0;
+
   return {
     id: g?.groupId || g?.id || '',
     name: g?.product?.name || 'Groupe',
     image: g?.product?.image || '/placeholder.svg',
+    productId: g?.product?.productId || g?.product?._id || g?.product?.id,
     currentQty,
     targetQty,
     participants: Array.isArray(g?.participants)
       ? g.participants.length
       : g?.participantCount ?? 0,
     deadline: fmtDeadline(g?.deadline),
+    deadlineAt: Number.isFinite(deadlineDate) ? deadlineDate : 0,
     unit,
     base,
     save:
@@ -242,9 +286,10 @@ export function mapGroupOrder(g: any): Group {
 
 export function mapOrder(o: any): Order {
   const statusMap: Record<string, OrderStatus> = {
-    pending: 'sourcing',
-    confirmed: 'sourcing',
-    processing: 'china',
+    pending: 'ordered',
+    confirmed: 'ordered',
+    ordered: 'ordered',
+    processing: 'sourcing',
     shipped: 'in_transit',
     in_transit: 'in_transit',
     transit: 'in_transit',
@@ -254,10 +299,11 @@ export function mapOrder(o: any): Order {
     china: 'china',
   };
 
-  const status = statusMap[o?.status as string] ?? 'sourcing';
+  const status = statusMap[o?.status as string] ?? 'ordered';
   const stepMap: Record<string, number> = {
-    sourcing: 1,
-    china: 2,
+    ordered: 1,
+    sourcing: 2,
+    china: 3,
     in_transit: 4,
     transit: 4,
     delivered: 5,
@@ -268,10 +314,27 @@ export function mapOrder(o: any): Order {
     ? o.items.map((it: any) => ({
         name: it.name || it.productName || 'Article',
         qty: it.qty ?? it.quantity ?? 1,
-        unit: it.unit ?? it.unitPrice ?? 0,
+        unit: it.price ?? it.unitPrice ?? it.unit ?? 0,
         image: it.image || it.productImage || '/placeholder.svg',
       }))
     : [];
+
+  const shippingStr =
+    typeof o?.shipping === 'string'
+      ? o.shipping
+      : o?.shipping?.method ??
+        o?.shipping?.label ??
+        o?.shippingMethod ??
+        o?.delivery?.carrier ??
+        'Standard aérien';
+
+  const eta =
+    o?.delivery?.estimatedDeliveryDate || o?.delivery?.eta || o?.eta
+      ? new Date(o?.delivery?.estimatedDeliveryDate || o?.delivery?.eta || o?.eta).toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'short',
+        })
+      : '—';
 
   return {
     id: o?.orderId || o?.id || 'CMD-0000',
@@ -281,16 +344,9 @@ export function mapOrder(o: any): Order {
     status,
     items,
     total: o?.total ?? 0,
-    shipping:
-      o?.shipping?.label ??
-      o?.shippingMethod ??
-      (o?.delivery?.method as string) ??
-      'Standard aérien',
-    tracking:
-      o?.trackingNumber ??
-      o?.tracking ??
-      '',
-    eta: o?.eta ?? o?.delivery?.eta ?? '—',
+    shipping: shippingStr,
+    tracking: o?.trackingNumber ?? o?.delivery?.trackingNumber ?? o?.tracking ?? '',
+    eta,
     currentStep: stepMap[status] ?? 1,
   };
 }
@@ -329,7 +385,14 @@ export function mapCategory(c: any): Category {
 }
 
 export function mapUser(user: any, dashboard?: any): User {
-  const firstName = user?.name?.split(' ')[0] || user?.name || 'Client';
+  const fullName = user?.name || user?.username || 'Client';
+  const firstName = fullName?.split(' ')[0] || fullName;
+  const initials = fullName
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
   const tier = dashboard?.user?.tier || user?.tier || 'Bronze';
   const thresholds: Record<string, number> = {
     Bronze: 500,
@@ -337,15 +400,33 @@ export function mapUser(user: any, dashboard?: any): User {
     Or: 2000,
     Platine: 10000,
   };
-  const nextTierAt = thresholds[tier] ?? 5000;
+  const nextTierName: Record<string, string> = {
+    Bronze: 'Argent',
+    Argent: 'Or',
+    Or: 'Platine',
+    Platine: 'Platine',
+  };
+  const nextTier = nextTierName[tier] ?? 'Argent';
+  const nextTierAt = thresholds[nextTier] ?? 10000;
+
+  const mapProduct = (p: any) => ({
+    id: String(p?._id ?? p?.id ?? ''),
+    name: p?.name || 'Produit',
+    image: p?.image || '/placeholder.svg',
+    price: p?.price || 0,
+    currency: p?.currency || 'FCFA',
+    groupBuyEnabled: p?.groupBuyEnabled,
+  });
 
   return {
     handle: firstName,
+    initials,
     memberSince: user?.createdAt
       ? new Date(user.createdAt).getFullYear().toString()
       : '2026',
     grains: dashboard?.grains?.balance ?? user?.grainsBalance ?? 0,
     grainsTier: tier,
+    nextTier,
     nextTierAt,
     stats: {
       orders: dashboard?.stats?.ordersCount ?? 0,
@@ -353,6 +434,34 @@ export function mapUser(user: any, dashboard?: any): User {
       savings: dashboard?.stats?.totalSavings ?? 0,
     },
     activeOrder: 0,
+    activities: Array.isArray(dashboard?.activities)
+      ? dashboard.activities.map((a: any) => ({
+          id: String(a?._id ?? a?.id ?? ''),
+          type: a?.type || 'order',
+          description: a?.description || '',
+          amount: a?.amount,
+          unit: a?.unit,
+          createdAt: a?.createdAt,
+        }))
+      : [],
+    recommendations: Array.isArray(dashboard?.recommendations)
+      ? dashboard.recommendations.map(mapProduct)
+      : [],
+    favorites: Array.isArray(dashboard?.favoriteProducts)
+      ? dashboard.favoriteProducts.map(mapProduct)
+      : [],
+  };
+}
+
+export function getTierForQty(qty: number, tiers: PriceTier[]) {
+  const sorted = [...tiers].sort((a, b) => a.from - b.from);
+  const tier = sorted.slice().reverse().find((t) => qty >= t.from) || sorted[0];
+  const nextTier = sorted.find((t) => qty < t.from) || null;
+  return {
+    tierUnit: tier?.unit ?? 0,
+    nextTier: nextTier
+      ? { at: nextTier.from, save: nextTier.save }
+      : null,
   };
 }
 
@@ -360,7 +469,14 @@ export function mapCartItem(item: any): CartItem {
   const qty = item?.qty ?? item?.quantity ?? 1;
   const minOrderQty = Math.max(1, item?.minOrderQty ?? 1);
   const unit = item?.unit ?? item?.price ?? item?.unitPrice ?? 0;
-  const tierUnit = item?.tierUnit ?? item?.salePrice ?? unit;
+  const priceTiers: PriceTier[] = Array.isArray(item?.priceTiers) ? item.priceTiers : [];
+  const { tierUnit, nextTier } =
+    priceTiers.length > 0
+      ? getTierForQty(qty, priceTiers)
+      : {
+          tierUnit: item?.tierUnit ?? item?.salePrice ?? unit,
+          nextTier: item?.nextTier || null,
+        };
   const belowMOQ = qty < minOrderQty;
 
   return {
@@ -374,8 +490,9 @@ export function mapCartItem(item: any): CartItem {
     unit,
     qty,
     minOrderQty,
+    priceTiers,
     tierUnit,
-    nextTier: item?.nextTier || null,
+    nextTier,
     hasActiveGroup: !!item?.hasActiveGroup,
     groupUnit: item?.groupUnit,
     belowMOQ,
@@ -404,6 +521,13 @@ export function addToCart(item: CartItem) {
   const idx = cart.findIndex((i) => i.id === item.id && i.variantId === item.variantId);
   if (idx >= 0) {
     cart[idx].qty += item.qty;
+    if (cart[idx].priceTiers?.length) {
+      const { tierUnit, nextTier } = getTierForQty(cart[idx].qty, cart[idx].priceTiers!);
+      cart[idx].tierUnit = tierUnit;
+      cart[idx].nextTier = nextTier;
+    }
+    cart[idx].belowMOQ = cart[idx].qty < cart[idx].minOrderQty;
+    cart[idx].moqDelta = cart[idx].belowMOQ ? cart[idx].minOrderQty - cart[idx].qty : 0;
   } else {
     cart.push(item);
   }

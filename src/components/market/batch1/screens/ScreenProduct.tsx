@@ -21,6 +21,9 @@ export default function ScreenProduct() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
+  const [SIMILAR, setSIMILAR] = useState<Product[]>([]);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [REVIEWS, setREVIEWS] = useState<Array<{ id: string; userName: string; rating: number; comment: string; createdAt: string }>>([]);
 
   const params = useParams();
   const id = params?.id as string;
@@ -31,11 +34,39 @@ export default function ScreenProduct() {
     Promise.all([
       fetch(`/api/catalog/products/${id}`).then(r => r.json()).catch(() => null),
       fetch(`/api/group-orders?productId=${id}&limit=5`).then(r => r.json()).catch(() => null),
+      fetch(`/api/reviews?productId=${id}&limit=5`).then(r => r.json()).catch(() => null),
     ])
-      .then(([res, grpRes]) => {
+      .then(([res, grpRes, revRes]) => {
         if (res?.product) {
           const activeGroup = grpRes?.groups?.[0];
           setPRODUCT(mapProductDetail(res.product, activeGroup) as Product | null);
+          if (Array.isArray(res?.similar)) {
+            setSIMILAR(res.similar.map((s: any) => ({
+              id: String(s.id || s._id),
+              name: s.name || 'Produit',
+              rating: s.sellerRating || s.rating || 4.5,
+              reviews: s.reviewCount || 0,
+              images: [s.image || '/placeholder.svg'],
+              price: s.priceAmount || s.price || 0,
+              basePrice: s.priceAmount || s.price || 0,
+              minOrderQty: s.moq || 1,
+              priceTiers: [],
+              variants: [],
+              specs: [],
+              shipping: { origin: 'Guangzhou, Chine', modes: [] },
+              cat: s.category || 'Catalogue',
+              category: s.category,
+              img: s.image || '/placeholder.svg',
+              image: s.image,
+              save: 0,
+              hasGroup: false,
+              verified: false,
+            })) as Product[]);
+          }
+        }
+        if (revRes?.success) {
+          setReviewCount(revRes.stats?.total ?? 0);
+          setREVIEWS(Array.isArray(revRes.reviews) ? revRes.reviews : []);
         }
       })
       .catch(() => {})
@@ -74,8 +105,8 @@ export default function ScreenProduct() {
   const p = PRODUCT;
   const tier =
     p.priceTiers.slice().reverse().find((t: PriceTier) => qty >= t.from) ||
-    p.priceTiers[0] || { unit: p.basePrice, from: 1, to: null, save: 0 };
-  const currentUnit = tier?.unit ?? p.basePrice;
+    p.priceTiers[0] || { unit: p.price, from: 1, to: null, save: 0 };
+  const currentUnit = tier?.unit ?? p.price;
   const nextTier = p.priceTiers.find((t: PriceTier) => qty < t.from) || null;
   const savingsVsBase = (p.basePrice - currentUnit) * qty;
   const distanceToNext = nextTier ? nextTier.from - qty : 0;
@@ -94,6 +125,7 @@ export default function ScreenProduct() {
     unit: p.basePrice,
     qty,
     minOrderQty: p.minOrderQty,
+    priceTiers: p.priceTiers,
     tierUnit: currentUnit,
     nextTier: nextTier ? { at: nextTier.from, save: nextTier.save } : null,
     hasActiveGroup: !!p.groupBuy?.active,
@@ -166,9 +198,7 @@ export default function ScreenProduct() {
               </span>
               <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span>
               <span>·</span>
-              <span>{p.reviews} avis</span>
-              <span>·</span>
-              <span>1 240 vendus</span>
+              <span>{reviewCount} avis</span>
             </div>
           </div>
 
@@ -259,7 +289,9 @@ export default function ScreenProduct() {
                     </span>
                     <div>
                       <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight">Achat groupé actif</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">27 personnes ont déjà rejoint</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        {p.groupBuy?.participants ?? p.groupBuy?.currentQty} {p.groupBuy?.participants === 1 ? 'personne a' : 'personnes ont'} déjà rejoint
+                      </p>
                     </div>
                   </div>
                   <LiveDot />
@@ -291,8 +323,12 @@ export default function ScreenProduct() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button variant="violet" size="sm">Rejoindre</Button>
-                  <Button variant="secondary" size="sm">Créer un groupe</Button>
+                  <Button variant="violet" size="sm" onClick={() => p.groupBuy?.id ? router.push(`/achats-groupes/${p.groupBuy.id}`) : router.push('/achats-groupes')}>
+                    Rejoindre
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => router.push(`/achats-groupes/nouveau?productId=${p.id}`)}>
+                    Créer un groupe
+                  </Button>
                 </div>
               </div>
             </div>
@@ -349,7 +385,7 @@ export default function ScreenProduct() {
               {[
                 ["desc", "Description"],
                 ["ship", "Expédition"],
-                ["rev", "Avis (218)"],
+                ["rev", `Avis (${reviewCount})`],
               ].map(([k, l]) => (
                 <button
                   key={k}
@@ -401,7 +437,7 @@ export default function ScreenProduct() {
                       <div className="flex text-amber-500">
                         {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={14} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"} />)}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{p.reviews} avis vérifiés</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
                     </div>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
@@ -498,7 +534,7 @@ export default function ScreenProduct() {
 
             <Card className="mt-4 overflow-hidden">
               <div className="flex gap-1 border-b border-slate-200 px-4 dark:border-slate-800">
-                {[["desc","Description"],["ship","Expédition & délais"],["rev","Avis (218)"]].map(([k,l])=>(
+                {[["desc","Description"],["ship","Expédition & délais"],["rev",`Avis (${reviewCount})`]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTab(k)} className={cn("border-b-2 px-3 py-3 text-sm font-semibold", tab===k?"border-emerald-600 text-emerald-700 dark:text-emerald-400":"border-transparent text-slate-500 dark:text-slate-400")}>{l}</button>
                 ))}
               </div>
@@ -541,7 +577,7 @@ export default function ScreenProduct() {
                     <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
                       <div className="text-4xl font-extrabold tabular-nums text-slate-900 dark:text-white">{p.rating}<span className="text-lg text-slate-400">/5</span></div>
                       <div className="mt-1 flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={14} strokeWidth={0} className="fill-amber-500"/>)}</div>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{p.reviews} avis vérifiés</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
                     </div>
                     <div className="space-y-3">
                       {[
@@ -596,7 +632,7 @@ export default function ScreenProduct() {
                 <h1 className="mt-1 text-xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">{p.name}</h1>
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <span className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={12} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span> · <span>{p.reviews} avis</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span> · <span>{reviewCount} avis</span>
                 </div>
 
                 <div className="mt-4 flex items-baseline gap-2">
@@ -675,7 +711,9 @@ export default function ScreenProduct() {
                         <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="users" size={14}/></span>
                         <div>
                           <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">Achat groupé actif</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">27 personnes ont rejoint</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {p.groupBuy?.participants ?? p.groupBuy?.currentQty} {p.groupBuy?.participants === 1 ? 'personne a' : 'personnes ont'} rejoint
+                          </p>
                         </div>
                       </div>
                       <LiveDot/>
@@ -691,8 +729,12 @@ export default function ScreenProduct() {
                       <div><p className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Fin</p><p className="text-xs font-extrabold text-red-600 dark:text-red-400 tabular-nums">{p.groupBuy?.deadline}</p></div>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Button variant="violet" size="sm">Rejoindre</Button>
-                      <Button variant="secondary" size="sm">Créer</Button>
+                      <Button variant="violet" size="sm" onClick={() => p.groupBuy?.id ? router.push(`/achats-groupes/${p.groupBuy.id}`) : router.push('/achats-groupes')}>
+                        Rejoindre
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => router.push(`/achats-groupes/nouveau?productId=${p.id}`)}>
+                        Créer
+                      </Button>
                     </div>
                   </div>
                 </Card>

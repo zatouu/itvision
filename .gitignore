@@ -75,3 +75,6 @@ tests/.auth/
 mobile/*/proposals/
 
 *.apk
+
+# temporary build artifacts
+tmp/

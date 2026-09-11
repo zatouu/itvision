@@ -11,7 +11,7 @@ import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { mapOrder } from '../data-mappers';
-import type { Order, OrderStep } from '../types';
+import type { Order, OrderStep, OrderStatus } from '../types';
 
 
 export default function ScreenTracking() {
@@ -43,6 +43,14 @@ export default function ScreenTracking() {
   const currentStep = order?.currentStep ?? 1;
   const totalPcs = order?.items.reduce((s, it) => s + it.qty, 0) ?? 0;
 
+  const steps: OrderStep[] = ORDER_STEPS.length ? ORDER_STEPS : [
+    { key: 'ordered', label: 'Commande confirmée', desc: 'Paiement validé' },
+    { key: 'sourcing', label: 'Sourcing en Chine', desc: 'Recherche du fournisseur' },
+    { key: 'china', label: 'Inspection qualité', desc: 'Contrôle qualité en Chine' },
+    { key: 'in_transit', label: 'En transit', desc: 'Transport international' },
+    { key: 'delivered', label: 'Livrée', desc: 'Livraison à l\'adresse' },
+  ];
+
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
   }
@@ -51,21 +59,52 @@ export default function ScreenTracking() {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Commande introuvable</div>;
   }
 
-  const stepDates = [
-    { date: "05 sept. 09:12", desc: "Paiement Escrow validé" },
-    { date: "05 sept. 14:30", desc: "Fournisseur confirmé à Guangzhou" },
-    { date: "07 sept. 11:20", desc: "Contrôle qualité DDM+ · 20/20 conformes" },
-    { date: "08 sept. 08:45", desc: "Départ Guangzhou → Dakar · Standard aérien" },
-    { date: "12-15 sept.",   desc: "Livraison prévue à l'adresse indiquée" },
-  ];
+  const statusConfig: Record<OrderStatus, { label: string; tone: 'emerald' | 'blue' | 'violet' | 'amber' | 'red' | 'slate'; icon: string }> = {
+    ordered: { label: 'Commandée', tone: 'blue', icon: 'check' },
+    sourcing: { label: 'Sourcing', tone: 'violet', icon: 'camera' },
+    china: { label: 'Inspection Chine', tone: 'amber', icon: 'shield' },
+    in_transit: { label: 'En transit', tone: 'emerald', icon: 'truck' },
+    transit: { label: 'En transit', tone: 'emerald', icon: 'truck' },
+    delivered: { label: 'Livrée', tone: 'emerald', icon: 'checkCircle' },
+    cancelled: { label: 'Annulée', tone: 'red', icon: 'x' },
+  };
+
+  const cfg = statusConfig[order.status] || statusConfig.ordered;
+
+  const stepDates = steps.length
+    ? steps.map((_, i) => {
+        const orderDate = order.date ? new Date(order.date) : new Date();
+        const eta = order.eta && order.eta !== '—' ? new Date(order.eta) : null;
+        if (i === 0) {
+          return { date: orderDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), desc: 'Paiement confirmé' };
+        }
+        if (i === steps.length - 1) {
+          return { date: eta ? eta.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—', desc: 'Livraison prévue' };
+        }
+        const offsetDays = [0, 1, 2, 4, 7][i] ?? i;
+        const d = new Date(orderDate);
+        d.setDate(d.getDate() + offsetDays);
+        return { date: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), desc: steps[i]?.desc || 'Mise à jour' };
+      })
+    : [];
+
+  const supportWhatsApp = "https://wa.me/221774133440?text=" + encodeURIComponent(`Bonjour DDM+, j'ai une question sur ma commande ${order.id} (n° de suivi ${order.tracking || order.id}).`);
+
+  const copyTracking = async () => {
+    try {
+      await navigator.clipboard.writeText(order.tracking || order.id);
+    } catch {
+      /* ignore */
+    }
+  };
 
   
   const Timeline = () => (
     <div className="relative">
-      {ORDER_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const isDone = i + 1 < currentStep;
         const isCurrent = i + 1 === currentStep;
-        const isLast = i === ORDER_STEPS.length - 1;
+        const isLast = i === steps.length - 1;
         return (
           <div key={step.key} className="relative pl-11 pb-5">
             {!isLast && (
@@ -177,8 +216,15 @@ export default function ScreenTracking() {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" className="flex-1"><Icon name="copy" size={12}/>Copier N°</Button>
-        <Button variant="primary" size="sm" className="!bg-emerald-600 flex-1"><Icon name="whatsapp" size={12}/>WhatsApp</Button>
+        <Button variant="secondary" size="sm" className="flex-1" onClick={copyTracking}><Icon name="copy" size={12}/>Copier N°</Button>
+        <Button
+          variant="primary"
+          size="sm"
+          className="!bg-emerald-600 flex-1"
+          onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+        >
+          <Icon name="whatsapp" size={12}/>WhatsApp
+        </Button>
       </div>
     </Card>
   );
@@ -190,15 +236,15 @@ export default function ScreenTracking() {
 
         <div className="flex-1 overflow-y-auto pb-6">
           {/* Status banner */}
-          <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-950 px-4 py-4 text-white">
+          <div className={cn("px-4 py-4 text-white", cfg.tone === 'red' ? "bg-gradient-to-br from-red-600 to-red-700 dark:from-red-800 dark:to-red-950" : "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-950")}>
             <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 backdrop-blur"><Icon name="truck" size={16}/></span>
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 backdrop-blur"><Icon name={cfg.icon} size={16}/></span>
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/5</p>
-                <p className="text-[15px] font-extrabold">{ORDER_STEPS[currentStep - 1]?.label ?? ""}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/{steps.length || 5}</p>
+                <p className="text-[15px] font-extrabold">{steps[currentStep - 1]?.label ?? ""}</p>
               </div>
               <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-ping-slow"/>En transit
+                <span className={cn("h-1.5 w-1.5 rounded-full animate-ping-slow", cfg.tone === 'red' ? "bg-red-300" : "bg-emerald-300")}/>{cfg.label}
               </span>
             </div>
           </div>
@@ -222,7 +268,14 @@ export default function ScreenTracking() {
                   <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Une question ?</p>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe suit votre commande 7j/7</p>
                 </div>
-                <Button variant="primary" size="sm" className="!bg-emerald-600 flex-shrink-0">Contacter</Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="!bg-emerald-600 flex-shrink-0"
+                  onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+                >
+                  Contacter
+                </Button>
               </div>
             </Card>
           </div>
@@ -243,7 +296,7 @@ export default function ScreenTracking() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Commande <b className="text-slate-900 dark:text-white">{order.id}</b> · Passée le {new Date(order.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone="emerald"><Icon name="truck" size={12}/>En transit · Étape {currentStep}/5</Badge>
+            <Badge tone={cfg.tone}><Icon name={cfg.icon} size={12}/>{cfg.label} · Étape {currentStep}/{steps.length || 5}</Badge>
           </div>
         </div>
 
@@ -270,22 +323,29 @@ export default function ScreenTracking() {
                   <p className="text-[11px] text-slate-600 dark:text-slate-400">Réponse sous 15 min</p>
                 </div>
               </div>
-              <Button variant="primary" size="md" className="!bg-emerald-600 w-full mt-3"><Icon name="whatsapp" size={14}/>Contacter le support</Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="!bg-emerald-600 w-full mt-3"
+                onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+              >
+                <Icon name="whatsapp" size={14}/>Contacter le support
+              </Button>
             </Card>
 
             <Card className="p-4">
               <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-2">Actions</h4>
               <div className="space-y-1.5">
-                <button className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+                <button onClick={copyTracking} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
                   <Icon name="copy" size={14}/>Copier le n° de suivi
                 </button>
-                <button className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <Icon name="mapPin" size={14}/>Modifier l&apos;adresse
+                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <Icon name="mapPin" size={14}/>Modifier l&apos;adresse (contact)
                 </button>
-                <button className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <Icon name="info" size={14}/>Facture
+                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <Icon name="info" size={14}/>Facture (contact)
                 </button>
-                <button className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">
+                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">
                   <Icon name="x" size={14}/>Signaler un problème
                 </button>
               </div>
