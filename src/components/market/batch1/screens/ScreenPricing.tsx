@@ -17,9 +17,10 @@ import {
   Camera,
 } from 'lucide-react';
 import { formatFcfa } from '../formatFcfa';
+import { calculateServiceFeeRate } from '@/lib/pricing/tiered-service-fees';
 
 const FAQS = [
-  { q: 'Comment est calculé le prix final ?', a: 'Prix usine + 10% de frais de service + 2% d\'assurance + transport variable selon le mode et le volume. Aucun frais caché : tout est décomposé sur la fiche produit et dans le panier.' },
+  { q: 'Comment est calculé le prix final ?', a: 'Prix sourcing + frais de service dégressifs (10% jusqu\'à 500 000 F, puis 8%, 6% et 5% au-delà de 5M F) + assurance 2,5% + transport selon le mode et le poids facturé. Aucun frais caché : tout est décomposé dans le panier et au checkout.' },
   { q: 'Puis-je payer en plusieurs fois ?', a: 'Pour les commandes supérieures à 100 000 F, un paiement en 2 fois est possible via Wave. Contactez le support pour l\'activer.' },
   { q: 'Comment fonctionne l\'assurance ?', a: 'L\'assurance couvre la perte, le vol ou la casse pendant le transport. En cas de problème, remboursement intégral sous 7 jours.' },
   { q: 'L\'achat groupé est-il toujours moins cher ?', a: 'Oui : plus le groupe atteint son objectif, plus le prix unitaire baisse. Vous êtes remboursé automatiquement si l\'objectif n\'est pas atteint.' },
@@ -27,9 +28,9 @@ const FAQS = [
 ]
 
 const TRANSPORT = [
-  { key: 'express', icon: Plane, label: 'Express aérien', days: '4-7j', cost: '24 500 F/kg', idealFor: 'Petites qtés urgentes' },
-  { key: 'aerien', icon: Plane, label: 'Aérien standard', days: '8-12j', cost: '12 500 F/kg', idealFor: 'Meilleur rapport prix/délai' },
-  { key: 'maritime', icon: Ship, label: 'Maritime', days: '35-45j', cost: '4 200 F/kg', idealFor: 'Gros volumes économiques', badge: 'Idéal en groupe' },
+  { key: 'express', icon: Plane, label: 'Express aérien', days: '4-7j', cost: '12 000 F/kg', idealFor: 'Petites qtés urgentes' },
+  { key: 'aerien', icon: Plane, label: 'Aérien standard', days: '8-12j', cost: '8 500 F/kg', idealFor: 'Meilleur rapport prix/délai' },
+  { key: 'maritime', icon: Ship, label: 'Maritime', days: '35-45j', cost: '180 000 F/m³', idealFor: 'Gros volumes économiques', badge: 'Idéal en groupe' },
 ]
 
 export default function ScreenPricing() {
@@ -38,15 +39,16 @@ export default function ScreenPricing() {
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   const factory = simPrice
-  const service = Math.round(factory * 0.10)
-  const insurance = Math.round(factory * 0.02)
+  const serviceRate = calculateServiceFeeRate(factory)
+  const service = Math.round(factory * (serviceRate / 100))
+  const insurance = Math.round(factory * 0.025)
   const shipping = 2500
   const total = factory + service + insurance + shipping
 
   const bars = useMemo(() => [
     { label: 'Prix usine', value: factory, color: 'bg-blue-500', tone: 'blue' },
-    { label: 'Frais de service (10%)', value: service, color: 'bg-emerald-500', tone: 'emerald' },
-    { label: 'Assurance (2%)', value: insurance, color: 'bg-amber-500', tone: 'amber' },
+    { label: `Frais de service (${serviceRate}%)`, value: service, color: 'bg-emerald-500', tone: 'emerald' },
+    { label: 'Assurance (2,5%)', value: insurance, color: 'bg-amber-500', tone: 'amber' },
     { label: 'Transport', value: shipping, color: 'bg-violet-500', tone: 'violet' },
   ], [factory, service, insurance, shipping])
 

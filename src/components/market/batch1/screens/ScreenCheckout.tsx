@@ -14,6 +14,35 @@ import { TrustStrip } from '../TrustStrip';
 import { mapCartItem } from '../data-mappers';
 import type { CartItem } from '../types';
 
+const GRAIN_VALUE_FCFA = 2;
+
+const methodMap: Record<string, string> = {
+  express: 'express_3j',
+  aerien: 'air_15j',
+  maritime: 'maritime_60j',
+};
+
+const methodInternalId: Record<string, string> = {
+  express: 'air_express',
+  aerien: 'air_15',
+  maritime: 'sea_freight',
+};
+
+interface CheckoutQuote {
+  items: { id: string; unitPrice: number }[];
+  pricing: {
+    sourcingCost: number;
+    usingRetailPricing: boolean;
+    serviceFee: { rate: number; amount: number };
+    insurance: { rate: number; amount: number };
+    quantityDiscount: { percent: number; amount: number; label: string } | null;
+    subtotal: number;
+  };
+  shipping: { label: string; cost: number } | null;
+  shippingOptions?: { methodId: string; label: string; cost: number }[];
+  discounts: { promo: { code: string; discount: number } | null; promoError?: string };
+  total: number;
+}
 
 export default function ScreenCheckout() {
   const router = useRouter();
@@ -30,6 +59,12 @@ export default function ScreenCheckout() {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [shippingRates, setShippingRates] = useState<Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }>>({});
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [grainsBalance, setGrainsBalance] = useState(0);
+  const [grainsInput, setGrainsInput] = useState("");
 
   useEffect(() => {
     fetch('/api/shipping/rates-public')
@@ -44,6 +79,10 @@ export default function ScreenCheckout() {
         }
       })
       .catch(() => {});
+    if (typeof window !== 'undefined') {
+      const savedPromo = localStorage.getItem('cart:promo');
+      if (savedPromo) { setAppliedPromo(savedPromo); setPromoInput(savedPromo); }
+    }
   }, []);
 
   useEffect(() => {
@@ -71,9 +110,38 @@ export default function ScreenCheckout() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetch('/api/grains', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (typeof d?.balance === 'number') setGrainsBalance(d.balance); })
+      .catch(() => {});
   }, []);
 
-  const totalQty = CART.reduce((s, it) => s + it.qty, 0);
+  // Devis serveur — même calcul que la facturation (sourcing + service +
+  // assurance + transport). Recalculé à chaque changement de panier/méthode/promo.
+  useEffect(() => {
+    if (CART.length === 0) { setQuote(null); return; }
+    const ctrl = new AbortController();
+    setQuoteLoading(true);
+    fetch('/api/pricing/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        cart: CART.map(it => ({ id: it.id, qty: it.qty, variantIds: it.variantIds })),
+        shippingMethod: methodMap[ship] || 'air_15j',
+        ...(appliedPromo ? { promo: { code: appliedPromo } } : {}),
+        allShipping: true,
+      }),
+      signal: ctrl.signal,
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.quote) setQuote(d.quote); })
+      .catch(() => {})
+      .finally(() => setQuoteLoading(false));
+    return () => ctrl.abort();
+  }, [CART, ship, appliedPromo]);
+
+
 
   const shippingOptions = useMemo(() => {
     const base = [
@@ -83,30 +151,30 @@ export default function ScreenCheckout() {
     ];
     return base.map((o) => {
       const rate = shippingRates[o.id];
-      const fallbackPrice = o.key === 'express' ? 24500 : o.key === 'aerien' ? 12500 : 4200;
-      const price = rate ? Math.round(rate.costPerUnit * totalQty) : fallbackPrice;
+      const quoted = quote?.shippingOptions?.find(s => s.methodId === o.id);
       return {
         ...o,
-        price: price > 0 ? price : fallbackPrice,
+        // Coût réel calculé serveur (poids réel/volumétrique du panier)
+        price: quoted ? quoted.cost : null,
         days: rate ? (typeof rate.durationDays === 'number' ? `${rate.durationDays} jours` : String(rate.durationDays)) : o.days,
         sub: rate ? rate.description : o.sub,
       };
     });
-  }, [shippingRates, totalQty]);
+  }, [shippingRates, quote]);
 
   const items = CART;
-  const sub = items.reduce((s,it)=>s+it.tierUnit*it.qty,0);
-  const service = Math.round(sub*0.04);
-  const insurance = Math.round(sub*0.015);
-  const shipCost = shippingOptions.find(o => o.key === ship)?.price ?? 0;
+  const sub = quote?.pricing.sourcingCost ?? items.reduce((s,it)=>s+it.tierUnit*it.qty,0);
+  const service = quote?.pricing.serviceFee.amount ?? 0;
+  const insurance = quote?.pricing.insurance.amount ?? 0;
+  const shipCost = quote?.shipping?.cost ?? 0;
   const savings = items.reduce((s,it)=>s+(it.unit-it.tierUnit)*it.qty,0);
-  const total = sub + service + insurance + shipCost;
-
-  const methodMap: Record<string, string> = {
-    express: 'express_3j',
-    aerien: 'air_15j',
-    maritime: 'maritime_60j',
-  };
+  const promoDiscount = quote?.discounts.promo?.discount ?? 0;
+  const qtyDiscount = quote?.pricing.quantityDiscount?.amount ?? 0;
+  // Grains : aperçu client — le serveur revalide (solde, plafond 50%)
+  const maxGrains = quote ? Math.floor((quote.pricing.subtotal * 0.5) / GRAIN_VALUE_FCFA) : 0;
+  const grainsCount = Math.max(0, Math.min(parseInt(grainsInput || '0', 10) || 0, grainsBalance, maxGrains));
+  const grainsDiscount = grainsCount * GRAIN_VALUE_FCFA;
+  const total = Math.max(0, (quote?.total ?? (sub + service + insurance + shipCost)) - grainsDiscount);
 
   const handleCheckout = async () => {
     setCheckoutError('');
@@ -118,19 +186,23 @@ export default function ScreenCheckout() {
       setCheckoutError('Votre panier est vide.');
       return;
     }
-    const raw = localStorage.getItem('cart:items');
-    const cart = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(cart) || cart.length === 0) {
-      setCheckoutError('Votre panier est vide.');
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          cart,
+          // Seuls les ids/quantités/variantes sont envoyés — les prix sont
+          // relus et recalculés côté serveur (même moteur que le devis affiché).
+          cart: items.map(it => ({
+            id: it.id,
+            qty: it.qty,
+            name: it.name,
+            variantId: it.variantId,
+            variantIds: it.variantIds,
+            variantLabels: it.variantLabels,
+          })),
           name: fullName.trim(),
           phone: `+221 ${phone.replace(/\D/g, '').replace(/^(221|00221)/, '').trim()}`,
           address: {
@@ -141,6 +213,8 @@ export default function ScreenCheckout() {
             country: 'Sénégal',
           },
           shippingMethod: methodMap[ship] || 'air_15j',
+          ...(appliedPromo ? { promo: { code: appliedPromo, discount: promoDiscount } } : {}),
+          ...(grainsCount > 0 ? { grainsAmount: grainsCount } : {}),
         }),
       });
       const data = await res.json();
@@ -149,6 +223,7 @@ export default function ScreenCheckout() {
         return;
       }
       localStorage.removeItem('cart:items');
+      localStorage.removeItem('cart:promo');
       window.dispatchEvent(new CustomEvent('cart:updated'));
       router.push(data.confirmationUrl || `/commandes/${data.orderId}`);
     } catch {
@@ -201,7 +276,7 @@ export default function ScreenCheckout() {
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{o.sub}</p>
               <div className="mt-2 flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300"><Icon name="clock" size={11}/>{o.days}</span>
-                <span className="text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(o.price)}</span>
+                <span className="text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{o.price != null ? formatFcfa(o.price) : '…'}</span>
               </div>
             </div>
           </button>
@@ -292,23 +367,90 @@ export default function ScreenCheckout() {
       </div>
       <div className="border-t border-slate-200 p-4 dark:border-slate-800">
         <dl className="space-y-1.5 text-[12px]">
-          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Sous-total ({items.reduce((s,i)=>s+i.qty,0)} pcs)</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatFcfa(sub)}</dd></div>
-          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Frais de service (4%)</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatFcfa(service)}</dd></div>
-          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Assurance import</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatFcfa(insurance)}</dd></div>
-          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1"><Icon name="truck" size={11}/>Transport ({shippingOptions.find(o => o.key === ship)?.label ?? ''})</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatFcfa(shipCost)}</dd></div>
+          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Prix produits ({items.reduce((s,i)=>s+i.qty,0)} pcs)</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatFcfa(sub)}</dd></div>
+          {!quote?.pricing.usingRetailPricing && (
+            <>
+              <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Frais de service{quote ? ` (${quote.pricing.serviceFee.rate}%)` : ''}</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(service) : '…'}</dd></div>
+              <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400">Assurance import{quote ? ` (${quote.pricing.insurance.rate}%)` : ''}</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(insurance) : '…'}</dd></div>
+            </>
+          )}
+          {qtyDiscount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-emerald-700 dark:text-emerald-300 font-semibold">{quote?.pricing.quantityDiscount?.label || 'Réduction quantité'}</dt>
+              <dd className="text-emerald-700 dark:text-emerald-300 font-bold tabular-nums">-{formatFcfa(qtyDiscount)}</dd>
+            </div>
+          )}
+          {promoDiscount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-emerald-700 dark:text-emerald-300 font-semibold">Promo {quote?.discounts.promo?.code}</dt>
+              <dd className="text-emerald-700 dark:text-emerald-300 font-bold tabular-nums">-{formatFcfa(promoDiscount)}</dd>
+            </div>
+          )}
+          {grainsDiscount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-emerald-700 dark:text-emerald-300 font-semibold">Grains ({grainsCount})</dt>
+              <dd className="text-emerald-700 dark:text-emerald-300 font-bold tabular-nums">-{formatFcfa(grainsDiscount)}</dd>
+            </div>
+          )}
+          <div className="flex justify-between"><dt className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1"><Icon name="truck" size={11}/>Transport ({quote?.shipping?.label ?? shippingOptions.find(o => o.key === ship)?.label ?? ''})</dt><dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(shipCost) : '…'}</dd></div>
           {savings > 0 && (
             <div className="flex justify-between rounded-md bg-emerald-50 px-1.5 py-1 -mx-1 dark:bg-emerald-950/40">
-              <dt className="text-emerald-700 dark:text-emerald-300 font-bold inline-flex items-center gap-1"><Icon name="sparkles" size={11}/>Économie réalisée</dt>
+              <dt className="text-emerald-700 dark:text-emerald-300 font-bold inline-flex items-center gap-1"><Icon name="sparkles" size={11}/>Économie paliers/wholesale</dt>
               <dd className="text-emerald-700 dark:text-emerald-300 font-bold tabular-nums">-{formatFcfa(savings)}</dd>
             </div>
           )}
         </dl>
+
+        {/* Code promo */}
+        <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+          {appliedPromo && quote?.discounts.promo ? (
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-700 dark:text-emerald-300">
+                <Icon name="check" size={13}/> {appliedPromo} appliqué
+              </span>
+              <button onClick={() => { setAppliedPromo(''); setPromoInput(''); }} className="text-[11px] font-semibold text-slate-500 hover:text-red-600 dark:text-slate-400">Retirer</button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={promoInput}
+                onChange={e => setPromoInput(e.target.value.toUpperCase())}
+                placeholder="Code promo"
+                className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-[12px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              <Button variant="secondary" size="sm" disabled={!promoInput.trim()} onClick={() => setAppliedPromo(promoInput.trim())}>Appliquer</Button>
+            </div>
+          )}
+          {appliedPromo && quote?.discounts.promoError && (
+            <p className="mt-1.5 text-[11px] font-semibold text-red-600 dark:text-red-400">{quote.discounts.promoError}</p>
+          )}
+        </div>
+
+        {/* Grains de fidélité */}
+        {grainsBalance > 0 && (
+          <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-amber-700 dark:text-amber-300">
+                <Icon name="sparkles" size={13}/> {grainsBalance} grains disponibles
+              </span>
+              <input
+                value={grainsInput}
+                onChange={e => setGrainsInput(e.target.value.replace(/\D/g, ''))}
+                placeholder={`Max ${maxGrains}`}
+                inputMode="numeric"
+                className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-right text-[12px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">1 grain = {GRAIN_VALUE_FCFA} FCFA · utilisable jusqu&apos;à 50% de la commande</p>
+          </div>
+        )}
+
         <div className="my-3 h-px bg-slate-200 dark:bg-slate-800"/>
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-bold text-slate-900 dark:text-white">Total à payer</span>
           <span className="text-xl font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(total)}</span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Escrow — débité seulement après réception</p>
+        {quoteLoading && <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Mise à jour du devis…</p>}
       </div>
     </Card>
   );

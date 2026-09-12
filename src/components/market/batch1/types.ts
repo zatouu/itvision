@@ -30,6 +30,8 @@ export interface Order {
   tracking: string;
   eta: string;
   currentStep: number;
+  /** Statut paiement serveur ('pending' | 'completed' | 'paid' | …) */
+  paymentStatus?: string;
 }
 
 export interface PriceTier {
@@ -100,6 +102,7 @@ export interface Product {
   save?: number;
   hasGroup?: boolean;
   verified?: boolean;
+  createdAt?: string;
 }
 
 export interface Group {
@@ -110,6 +113,7 @@ export interface Group {
   currentQty: number;
   targetQty: number;
   participants: number;
+  participantList?: { name: string; qty: number; joinedAt?: string }[];
   deadline: string;
   deadlineAt?: number;
   unit: number;

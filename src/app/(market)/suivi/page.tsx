@@ -126,13 +126,13 @@ export default function SuiviPage() {
     setError(null)
 
     try {
-      // Vérifier si la transaction existe
-      const res = await fetch(`/api/escrow/${reference.trim().toUpperCase()}`)
-      
+      // Vérifier l'existence de la commande (endpoint public masqué)
+      const res = await fetch(`/api/order/track-public?ref=${encodeURIComponent(reference.trim().toUpperCase())}`)
+
       if (res.ok) {
         router.push(`/suivi/${reference.trim().toUpperCase()}`)
       } else {
-        setError('Référence non trouvée. Vérifiez votre numéro.')
+        setError('Référence non trouvée. Vérifiez votre numéro de commande (CMD-…).')
       }
     } catch {
       setError('Erreur de connexion. Réessayez.')
@@ -161,7 +161,7 @@ export default function SuiviPage() {
             Suivez votre commande
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto">
-            Entrez votre référence pour voir l&apos;état de votre commande et la protection de votre paiement
+            Entrez votre numéro de commande (CMD-…) pour voir son état d&apos;avancement
           </p>
         </motion.div>
 
@@ -185,7 +185,7 @@ export default function SuiviPage() {
                       setReference(e.target.value.toUpperCase())
                       setError(null)
                     }}
-                    placeholder="Ex: ESC-ABC123..."
+                    placeholder="Ex: CMD-1700000000-ABC123"
                     className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl text-white text-lg placeholder:text-white/30 focus:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all"
                   />
                   <MagnifyingGlassIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-white/30" />

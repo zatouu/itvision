@@ -1,22 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectDB } from '@/lib/db'
-import { GroupOrder } from '@/lib/models/GroupOrder'
-import { Order } from '@/lib/models/Order'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { getActivePaymentGateway } from '@/lib/payment-gateway'
 import { verifyAuthServer } from '@/lib/auth-server'
-import crypto from 'crypto'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import {
+  resolvePaymentReference,
+  canAccessOrderPayment,
+  isPaymentSettled,
+} from '@/lib/payments/resolve-payment-reference'
 
-function hashTrackingToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex')
-}
-
+/**
+ * POST /api/payment/checkout/init
+ * { reference, token? } → crée une session de paiement sur la gateway active.
+ *
+ * - Référence AG-… (achat groupé) : pay-by-link — la référence reçue par email
+ *   est la capacité, aucune session requise (les données client viennent de la
+ *   DB, jamais du corps de la requête).
+ * - Référence CMD-… (commande) : session propriétaire OU tracking token invité.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { reference, token } = body
+    const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 10, keyPrefix: 'payment:init' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
 
-    if (!reference) {
+    const body = await request.json().catch(() => ({}))
+    const { reference, token } = body as { reference?: string; token?: string }
+
+    if (!reference || typeof reference !== 'string') {
       return NextResponse.json({ error: 'Référence manquante' }, { status: 400 })
     }
 
@@ -25,60 +35,40 @@ export async function POST(request: NextRequest) {
     const settings = readPaymentSettings()
     const gateway = getActivePaymentGateway(settings)
 
-    await connectDB()
+    const resolved = await resolvePaymentReference(reference)
+    if (!resolved) {
+      return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+    }
 
-    let amount = 0
+    if (resolved.type === 'order') {
+      const allowed = canAccessOrderPayment(resolved, {
+        userId: auth?.isAuthenticated ? auth.user?.id : null,
+        token,
+      })
+      if (!allowed) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+      }
+    }
+
+    if (isPaymentSettled(resolved)) {
+      return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
+    }
+
     let description = ''
     let customerName = ''
     let customerPhone = ''
     let customerEmail = ''
 
-    const groupOrder = await GroupOrder.findOne({
-      'participants.paymentReference': reference
-    })
-
-    if (groupOrder) {
-      const participant = groupOrder.participants.find(
-        (p: any) => p.paymentReference === reference
-      )
-
-      if (participant) {
-        const isOwner = auth?.user?.id && participant.userId && String(participant.userId) === String(auth.user.id)
-        if (!isOwner) {
-          return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-        }
-        if (participant.paymentStatus === 'paid') {
-          return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
-        }
-
-        amount = participant.totalAmount || (participant.qty * (participant.unitPrice || groupOrder.currentUnitPrice || groupOrder.product.basePrice))
-        description = `Paiement Achat Groupé #${groupOrder.groupId} - ${groupOrder.product.name} (${participant.qty}x)`
-        customerName = participant.name
-        customerPhone = participant.phone
-        customerEmail = participant.email || ''
-      }
+    if (resolved.type === 'group') {
+      description = `Paiement Achat Groupé #${resolved.group.groupId} - ${resolved.group.productName} (${resolved.participant.qty}x)`
+      customerName = resolved.participant.name
+      customerPhone = resolved.participant.phone
+      customerEmail = resolved.participant.email || ''
     } else {
-      const standardOrder = await Order.findOne({ orderId: reference })
-
-      if (standardOrder) {
-        const isOwner = auth?.user?.id && standardOrder.clientId && String(standardOrder.clientId) === String(auth.user.id)
-        const tokenValid = token && standardOrder.trackingAccessTokenHash === hashTrackingToken(token)
-        if (!isOwner && !tokenValid) {
-          return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-        }
-
-        if (standardOrder.paymentStatus === 'completed') {
-          return NextResponse.json({ error: 'Déjà payé' }, { status: 400 })
-        }
-
-        amount = standardOrder.total || 0
-        description = `Commande #${standardOrder.orderId}`
-        customerName = standardOrder.clientName || 'Client'
-        customerPhone = standardOrder.clientPhone || ''
-        customerEmail = standardOrder.clientEmail || ''
-      } else {
-        return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
-      }
+      description = `Commande #${resolved.order.orderId}`
+      customerName = resolved.order.clientName || 'Client'
+      customerPhone = resolved.order.clientPhone || ''
+      customerEmail = resolved.order.clientEmail || ''
     }
 
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
@@ -86,15 +76,19 @@ export async function POST(request: NextRequest) {
     const configuredBaseUrl = process.env.APP_BASE_URL?.replace(/\/$/, '')
     const baseUrl = configuredBaseUrl || `${protocol}://${host}`
 
+    // Le token invité est propagé vers la page de retour pour que le client
+    // retrouve sa commande sans session.
+    const tokenSuffix = resolved.type === 'order' && token ? `&token=${encodeURIComponent(token)}` : ''
+
     const result = await gateway.createCheckout({
-      amount: Math.ceil(amount),
+      amount: Math.ceil(resolved.amount),
       reference,
       description,
       customerName,
       customerPhone: customerPhone ? customerPhone.replace(/\+/g, '') : '',
       customerEmail,
-      returnUrl: `${baseUrl}/payment/success?ref=${reference}`,
-      cancelUrl: `${baseUrl}/payment/cancel?ref=${reference}`,
+      returnUrl: `${baseUrl}/payment/success?ref=${reference}${tokenSuffix}`,
+      cancelUrl: `${baseUrl}/payment/cancel?ref=${reference}${tokenSuffix}`,
       callbackUrl: `${baseUrl}/api/payment/${gateway.provider}/callback`
     })
 

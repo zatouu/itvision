@@ -86,6 +86,7 @@ export function mapCatalogItem(p: any): Product {
     hasGroup: !!p?.groupBuyEnabled || !!activeGroup,
     verified: !!p?.sellerVerified,
     save,
+    createdAt: p?.createdAt,
   };
 }
 
@@ -273,6 +274,13 @@ export function mapGroupOrder(g: any): Group {
     participants: Array.isArray(g?.participants)
       ? g.participants.length
       : g?.participantCount ?? 0,
+    participantList: Array.isArray(g?.participants)
+      ? g.participants.map((p: any) => ({
+          name: String(p?.name || 'Participant'),
+          qty: Number(p?.qty) || 0,
+          joinedAt: p?.joinedAt ? String(p.joinedAt) : undefined,
+        }))
+      : [],
     deadline: fmtDeadline(g?.deadline),
     deadlineAt: Number.isFinite(deadlineDate) ? deadlineDate : 0,
     unit,
@@ -338,10 +346,10 @@ export function mapOrder(o: any): Order {
       : '—';
 
   return {
-    id: o?.orderId || o?.id || 'CMD-0000',
+    id: o?.orderId || o?.id || '',
     date: o?.createdAt
       ? new Date(o.createdAt).toISOString().split('T')[0]
-      : '2026-09-09',
+      : new Date().toISOString().split('T')[0],
     status,
     items,
     total: o?.total ?? 0,
@@ -349,6 +357,7 @@ export function mapOrder(o: any): Order {
     tracking: o?.trackingNumber ?? o?.delivery?.trackingNumber ?? o?.tracking ?? '',
     eta,
     currentStep: stepMap[status] ?? 1,
+    paymentStatus: o?.paymentStatus,
   };
 }
 

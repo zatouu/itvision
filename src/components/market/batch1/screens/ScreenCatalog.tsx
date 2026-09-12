@@ -34,8 +34,8 @@ export default function ScreenCatalog() {
   }, []);
 
 
-  const [cat, setCat] = useState("Tous");
-  const [priceRange, setPriceRange] = useState([0, 30000]);
+  const [cat, setCat] = useState("Tous"); // clé catégorie (slug)
+  const [priceRange, setPriceRange] = useState([0, 0]);
   const [moqFilter, setMoqFilter] = useState("all");
   const [groupOnly, setGroupOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
@@ -43,10 +43,21 @@ export default function ScreenCatalog() {
   const [sort, setSort] = useState("popular");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(24);
+
+  const slugify = (s?: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // Plage de prix réelle du catalogue (le slider suit le max observé)
+  const catalogMaxPrice = useMemo(
+    () => Math.max(30000, Math.ceil(Math.max(0, ...CATALOG.map(p => p.price || 0)) / 10000) * 10000),
+    [CATALOG]
+  );
+  const effectivePriceRange: [number, number] = [priceRange[0], priceRange[1] === 0 ? catalogMaxPrice : priceRange[1]];
 
   const sortedAndFiltered = useMemo(() => {
     const arr = CATALOG.filter((p) => {
-      if (cat !== "Tous" && p.cat !== cat) return false;
+      if (cat !== "Tous" && slugify(p.cat) !== cat) return false;
+      if (p.price < effectivePriceRange[0] || p.price > effectivePriceRange[1]) return false;
       if (p.price < priceRange[0] || p.price > priceRange[1]) return false;
       if (moqFilter === "1-4" && (p.moq ?? p.minOrderQty ?? 0) > 4) return false;
       if (moqFilter === "5-9" && ((p.moq ?? p.minOrderQty ?? 0) < 5 || (p.moq ?? p.minOrderQty ?? 0) > 9)) return false;
@@ -67,27 +78,32 @@ export default function ScreenCatalog() {
       case 'save':
         return arr.sort((a, b) => (b.save ?? 0) - (a.save ?? 0));
       case 'new':
-        return arr; // no createdAt exposed by mapper; keep API order
+        return arr.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       case 'popular':
       default:
         return arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     }
-  }, [CATALOG, cat, priceRange, moqFilter, groupOnly, verifiedOnly, minSave, query, sort]);
+  }, [CATALOG, cat, effectivePriceRange, moqFilter, groupOnly, verifiedOnly, minSave, query, sort]);
 
   const activeFilters = [
-    cat !== "Tous" && cat,
+    cat !== "Tous" && (CATEGORIES.find(c => c.key === cat)?.label || cat),
     moqFilter !== "all" && `Lot ${moqFilter}`,
     groupOnly && "Groupe actif",
     verifiedOnly && "Vérifiés",
     minSave > 0 && `-${minSave}% min`,
-    (priceRange[0] > 0 || priceRange[1] < 30000) && `${formatFcfa(priceRange[0])}—${formatFcfa(priceRange[1])}`,
+    (effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice) && `${formatFcfa(effectivePriceRange[0])}—${formatFcfa(effectivePriceRange[1])}`,
   ].filter(Boolean);
 
   const filtered = sortedAndFiltered;
+  const visible = filtered.slice(0, visibleCount);
+
+  // Réinitialiser la pagination quand les filtres changent
+  useEffect(() => { setVisibleCount(24); }, [cat, priceRange, moqFilter, groupOnly, verifiedOnly, minSave, query, sort]);
 
   const reset = () => {
-    setCat("Tous"); setPriceRange([0, 30000]); setMoqFilter("all");
+    setCat("Tous"); setPriceRange([0, 0]); setMoqFilter("all");
     setGroupOnly(false); setVerifiedOnly(false); setMinSave(0); setQuery("");
+    setVisibleCount(24);
   };
 
   const FiltersPanel = ({ inSheet = false }: { inSheet?: boolean }) => (
@@ -99,7 +115,7 @@ export default function ScreenCatalog() {
             <span>Toutes</span><span className="text-[10px] tabular-nums text-slate-400">{CATALOG.length}</span>
           </button>
           {CATEGORIES.map((c) => (
-            <button key={c.key} onClick={() => setCat(c.label)} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === c.label ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
+            <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === c.key ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
               <span className="flex items-center gap-1.5"><Icon name={c.icon} size={12}/>{c.label}</span>
               <span className="text-[10px] tabular-nums text-slate-400">{c.count}</span>
             </button>
@@ -110,10 +126,10 @@ export default function ScreenCatalog() {
       <div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix</p>
         <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 tabular-nums">
-          <span>{formatFcfa(priceRange[0])}</span>
-          <span>{formatFcfa(priceRange[1])}</span>
+          <span>{formatFcfa(effectivePriceRange[0])}</span>
+          <span>{formatFcfa(effectivePriceRange[1])}</span>
         </div>
-        <input type="range" min="0" max="30000" step="1000" value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], +e.target.value])} className="w-full accent-emerald-600"/>
+        <input type="range" min="0" max={catalogMaxPrice} step="1000" value={effectivePriceRange[1]} onChange={e => setPriceRange([0, +e.target.value])} className="w-full accent-emerald-600"/>
       </div>
 
       <div>
@@ -221,9 +237,11 @@ export default function ScreenCatalog() {
             <div className="p-4">
               <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{filtered.length}</b> produit{filtered.length > 1 ? "s" : ""}</p>
               <div className="grid grid-cols-2 gap-3">
-                {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                {visible.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
               </div>
-              <Button variant="secondary" size="md" className="w-full mt-6">Charger plus</Button>
+              {filtered.length > visibleCount && (
+                <Button variant="secondary" size="md" className="w-full mt-6" onClick={() => setVisibleCount(c => c + 24)}>Charger plus ({filtered.length - visibleCount} restants)</Button>
+              )}
             </div>
           )}
         </div>
@@ -293,7 +311,7 @@ export default function ScreenCatalog() {
               <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
             </div>
             <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {cat === "Tous" ? "Tous les produits" : cat}
+              {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{filtered.length}</b> produit{filtered.length > 1 ? "s" : ""} trouvé{filtered.length > 1 ? "s" : ""}</p>
           </div>
@@ -321,11 +339,13 @@ export default function ScreenCatalog() {
             ) : (
               <Fragment>
                 <div className="grid grid-cols-4 gap-4">
-                  {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                  {visible.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
                 </div>
                 <div className="mt-8 flex items-center justify-center gap-3">
-                  <Button variant="secondary" size="md">Charger plus</Button>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {filtered.length} / {CATALOG.length}</span>
+                  {filtered.length > visibleCount && (
+                    <Button variant="secondary" size="md" onClick={() => setVisibleCount(c => c + 24)}>Charger plus</Button>
+                  )}
+                  <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {Math.min(visibleCount, filtered.length)} / {filtered.length}</span>
                 </div>
               </Fragment>
             )}

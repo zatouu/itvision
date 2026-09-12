@@ -1,43 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import User from '@/lib/models/User'
-import Product from '@/lib/models/Product'
-import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
-import { connectDB } from '@/lib/db'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
-import { resolveProductPrice } from '@/lib/pricing/resolve-product-price'
 import { readPricingDefaults } from '@/lib/pricing/settings'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { getCNYToXOFRate } from '@/lib/pricing/exchange-rate'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
-import { requireAuth } from '@/lib/jwt'
-import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance, GRAIN_VALUE_FCFA, getGrainsBalance } from '@/lib/grains'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { GRAIN_VALUE_FCFA, getGrainsBalance } from '@/lib/grains'
 import PromoCode from '@/lib/models/PromoCode'
 import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import { syncUserToProfiles } from '@/lib/user-profiles'
-import mongoose from 'mongoose'
-import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
+import { decrementProductStock } from '@/lib/inventory'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { orderCreateSchema, validate } from '@/lib/validation'
+import {
+  extractProductObjectId,
+  loadCartProducts,
+  buildCalculatorItems,
+  resolveItemUnitPrice,
+  resolveShippingMethod,
+  validatePromoCode,
+} from '@/lib/pricing/quote-cart'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
-}
-
-function extractProductObjectId(itemId: string): string | null {
-  if (!itemId) return null
-  // Composite IDs created by the frontend: productId[-variantKey][-shippingId]
-  // Examples: "69b2dafecd40b2d770a0a398-air_express" or "69b2dafecd40b2d770a0a398-v1+v2-air_express"
-  const parts = itemId.split('-')
-  for (const part of parts) {
-    if (mongoose.Types.ObjectId.isValid(part)) {
-      return part
-    }
-  }
-  return null
 }
 
 function buildSeaFreightMetrics(items: Array<{
@@ -95,7 +85,8 @@ export async function POST(req: NextRequest) {
 
     // Checkout invité: l'auth n'est pas obligatoire pour une commande simple.
     // Si l'utilisateur est connecté, on lie la commande à son compte via clientId.
-    const auth = await requireAuth(req).catch(() => null)
+    const authResult = await verifyAuthServer(req).catch(() => null)
+    const userId = authResult?.isAuthenticated ? authResult.user?.id : undefined
 
     // Parser et valider les données
     const rawBody = await req.json()
@@ -116,103 +107,31 @@ export async function POST(req: NextRequest) {
     const trackingTokenTtlDays = (process.env.ORDER_TRACKING_TOKEN_TTL_DAYS ? Number(process.env.ORDER_TRACKING_TOKEN_TTL_DAYS) : NaN) || 90
     const trackingAccessTokenExpiresAt = new Date(Date.now() + trackingTokenTtlDays * 24 * 60 * 60 * 1000)
 
-    // Mapping des méthodes de livraison
-    const methodMap: Record<string, ShippingMethodId> = {
-      express_3j: 'air_express',
-      air_15j: 'air_15',
-      maritime_60j: 'sea_freight'
+    // Résolution de la méthode de livraison (module partagé)
+    const resolvedMethod = resolveShippingMethod(shippingMethod)
+    if ('error' in resolvedMethod) {
+      return NextResponse.json({ success: false, error: resolvedMethod.error }, { status: 400 })
     }
-
-    // Calculer les totaux avec le nouveau calculateur complet
-    const method = shippingMethod || 'air_15j'
-    const internalMethod = methodMap[method as string] || 'air_15'
-    const shippingRates = getConfiguredShippingRates()
+    const { clientMethod: method, internalMethod, rate } = resolvedMethod
     const pricingDefaults = readPricingDefaults()
-    const rate: ShippingRate | undefined = shippingRates[internalMethod]
-
-    if (!rate) {
-      return NextResponse.json(
-        { success: false, error: 'Méthode de livraison invalide' },
-        { status: 400 }
-      )
-    }
 
     // Récupérer le tier marketplace de l'utilisateur authentifié
-    const userMarketplaceTier = auth?.marketplaceTier || 'standard'
+    const userMarketplaceTier = authResult?.user?.marketplaceTier || 'standard'
 
     // ─── Validation sécurité : re-vérifier les prix depuis la DB ──────────────
     // Le panier est stocké côté client (localStorage). Les prix ne doivent JAMAIS
     // être utilisés tels quels — on charge les vrais prix depuis MongoDB.
-    await connectDB()
+    // (module partagé avec /api/pricing/quote : mêmes règles, mêmes montants)
+    const loaded = await loadCartProducts(cart, { checkStock: true })
+    if (!loaded.ok) {
+      return NextResponse.json({ success: false, error: loaded.error }, { status: 400 })
+    }
     mongoConnected = true
-
-    const itemProductIdMap = new Map<string, string>()
-    const cartProductIds = cart
-      .map((item: any) => {
-        const rawId = String(item.id || '')
-        const productId = extractProductObjectId(rawId)
-        if (productId) itemProductIdMap.set(rawId, productId)
-        return productId
-      })
-      .filter(Boolean)
-
-    const dbProductMap = new Map<string, any>()
-    if (cartProductIds.length > 0) {
-      const dbProducts = await Product.find({
-        _id: { $in: cartProductIds },
-        isPublished: { $ne: false }
-      }).select('_id name price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg stockStatus stockQuantity baseCost marginRate requiresQuote').lean()
-      for (const p of dbProducts as any[]) {
-        dbProductMap.set(String(p._id), p)
-      }
-    }
-
-    for (const item of cart) {
-      const rawId = String(item.id || '')
-      const productId = itemProductIdMap.get(rawId)
-      const dbProduct = productId ? dbProductMap.get(productId) : null
-      if (!productId) {
-        return NextResponse.json(
-          { success: false, error: `Identifiant produit invalide: ${item.name || item.id}` },
-          { status: 400 }
-        )
-      }
-      if (!dbProduct) {
-        return NextResponse.json(
-          { success: false, error: `Produit introuvable ou non disponible: ${item.name || item.id}` },
-          { status: 400 }
-        )
-      }
-      const stockCheck = await checkStockAvailability(productId, item.qty || 1, item.variantIds)
-      if (!stockCheck.ok) {
-        return NextResponse.json(
-          { success: false, error: `${stockCheck.productName || dbProduct.name}: ${stockCheck.reason}` },
-          { status: 400 }
-        )
-      }
-    }
-    // ──────────────────────────────────────────────────────────────────────────
+    const { itemProductIdMap, dbProductMap } = loaded.ctx
 
     // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
-    const calculatorItems = cart.map((item: any) => {
-      const rawId = String(item.id || '')
-      const productId = itemProductIdMap.get(rawId)
-      const db = productId ? dbProductMap.get(productId) : null
-      return {
-        id: productId || String(item.id),
-        name: db?.name || item.name,
-        price: db?.price ?? db?.baseCost ?? 0,
-        b2bPrice: db?.b2bPrice,
-        price1688: db?.price1688,
-        qty: item.qty || 1,
-        weightKg: db?.weightKg ?? db?.grossWeightKg ?? db?.netWeightKg,
-        lengthCm: db?.lengthCm,
-        widthCm: db?.widthCm,
-        heightCm: db?.heightCm,
-        volumeM3: db?.volumeM3,
-        marketplaceTier: userMarketplaceTier
-      }
-    })
+    const exchangeRate = await getCNYToXOFRate()
+    const calculatorItems = buildCalculatorItems(cart, loaded.ctx, userMarketplaceTier, exchangeRate)
 
     // Calcul complet
     const calculation = await calculateCartTotal(
@@ -245,7 +164,7 @@ export async function POST(req: NextRequest) {
 
     if (grainsAmount && grainsAmount > 0) {
       const maxGrains = Math.floor(subtotal * 0.5 / GRAIN_VALUE_FCFA)
-      const balance = auth?.userId ? await getGrainsBalance(auth.userId) : 0
+      const balance = userId ? await getGrainsBalance(userId) : 0
       validatedGrainsAmount = Math.max(0, Math.min(grainsAmount, maxGrains, balance))
     }
 
@@ -253,25 +172,8 @@ export async function POST(req: NextRequest) {
     grainsDiscount = Math.min(grainsDiscount, subtotal * 0.5)
 
     if (promo?.code) {
-      const promoDoc = await PromoCode.findOne({ code: promo.code.toUpperCase(), active: true })
-      const now = new Date()
-      if (
-        promoDoc &&
-        (!promoDoc.validFrom || promoDoc.validFrom <= now) &&
-        (!promoDoc.validUntil || promoDoc.validUntil >= now) &&
-        (promoDoc.usedCount || 0) < (promoDoc.maxUses || Infinity) &&
-        (subtotal >= (promoDoc.minOrderAmount || 0))
-      ) {
-        if (promoDoc.discountPercent) {
-          validatedPromoDiscount = Math.round(subtotal * (promoDoc.discountPercent / 100))
-        } else if (promoDoc.discountAmount) {
-          validatedPromoDiscount = promoDoc.discountAmount
-        }
-        if (promoDoc.maxDiscountAmount) {
-          validatedPromoDiscount = Math.min(validatedPromoDiscount, promoDoc.maxDiscountAmount)
-        }
-        validatedPromoDiscount = Math.min(validatedPromoDiscount, subtotal - grainsDiscount)
-      }
+      const validatedPromo = await validatePromoCode(promo.code, subtotal, grainsDiscount)
+      if (validatedPromo.valid) validatedPromoDiscount = validatedPromo.discount
     }
 
     const total = Math.max(0, calculatedTotal - grainsDiscount - validatedPromoDiscount)
@@ -311,7 +213,7 @@ export async function POST(req: NextRequest) {
       clientEmail: email,
       clientPhone: phone,
 
-      clientId: auth?.userId ? (auth.userId as any) : undefined,
+      clientId: userId ? (userId as any) : undefined,
 
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),
@@ -325,13 +227,7 @@ export async function POST(req: NextRequest) {
         const rawId = String(item.id || '')
         const productId = itemProductIdMap.get(rawId)
         const db = productId ? dbProductMap.get(productId) : null
-        const resolved = resolveProductPrice({
-          price: db?.price ?? db?.baseCost ?? 0,
-          b2bPrice: db?.b2bPrice,
-          qty,
-          marketplaceTier: userMarketplaceTier,
-          totalCartQty: totalQuantity
-        })
+        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate)
         return {
           id: productId || String(item.id),
           variantId: item.variantId,
@@ -401,10 +297,10 @@ export async function POST(req: NextRequest) {
     await orderDoc.save()
 
     // Consommer les grains et incrémenter le promo dès la création de commande (restituer en cas d'annulation)
-    if (auth?.userId && validatedGrainsAmount > 0) {
+    if (userId && validatedGrainsAmount > 0) {
       try {
         await GrainsTransaction.create({
-          userId: auth.userId,
+          userId,
           amount: -validatedGrainsAmount,
           type: 'spent',
           source: 'order',
@@ -445,10 +341,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Incrémenter les stats marketplace de l'utilisateur authentifié
-    if (auth?.userId) {
+    if (userId) {
       try {
         const updatedUser = await User.findByIdAndUpdate(
-          auth.userId,
+          userId,
           {
             $inc: {
               totalMarketplacePurchases: total,
@@ -458,17 +354,12 @@ export async function POST(req: NextRequest) {
           { new: true }
         ).lean() as any
 
-        // Créditer les grains de fidélité (best effort)
-        try {
-          await maybeCreditGrainsForOrder(auth.userId, orderDoc._id, total)
-          await recordReferralFirstOrder(auth.userId, orderDoc._id)
-          await updateTierFromBalance(auth.userId)
-        } catch (grainsErr) {
-          console.error('[grains] Erreur crédit grains commande:', grainsErr)
-        }
+        // NB : les grains de fidélité et le parrainage sont crédités à la
+        // confirmation de paiement (payment-fulfillment), pas à la création —
+        // une commande non payée ne doit pas rapporter de grains.
 
         // Synchroniser les stats vers le profil marketplace découplé
-        await syncUserToProfiles(auth.userId)
+        await syncUserToProfiles(userId)
 
         // Vérifier éligibilité Pro si encore standard
         if (updatedUser && updatedUser.marketplaceTier === 'standard') {
@@ -480,7 +371,7 @@ export async function POST(req: NextRequest) {
             try {
               const InAppNotification = (await import('@/lib/models/InAppNotification')).default
               await InAppNotification.create({
-                userId: auth.userId,
+                userId,
                 type: 'info',
                 title: 'Compte Pro disponible',
                 message: 'Vous êtes éligible au compte Pro ! Accédez aux prix wholesale dès 1 pièce.',

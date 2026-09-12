@@ -7,6 +7,8 @@ import {
   notifyStandardOrderPaymentConfirmed
 } from '@/lib/group-order-notifications'
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
+import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
+import { syncUserToProfiles } from '@/lib/user-profiles'
 
 export interface ConfirmPaymentInput {
   reference: string
@@ -44,6 +46,7 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
 
     participant.paymentStatus = 'paid'
     participant.paidAmount = input.amount
+    participant.paymentMethod = input.provider
     participant.transactionId = input.transactionId
     participant.paymentUpdatedAt = new Date()
 
@@ -74,6 +77,19 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
 
     await standardOrder.save()
     await notifyStandardOrderPaymentConfirmed(standardOrder, input.transactionId)
+
+    // Grains de fidélité + parrainage : crédités uniquement sur paiement confirmé
+    if (standardOrder.clientId) {
+      try {
+        const userId = String(standardOrder.clientId)
+        await maybeCreditGrainsForOrder(userId, standardOrder._id, standardOrder.total)
+        await recordReferralFirstOrder(userId, standardOrder._id)
+        await updateTierFromBalance(userId)
+        await syncUserToProfiles(userId)
+      } catch (grainsErr) {
+        console.error('[fulfillment] Erreur crédit grains commande payée:', grainsErr)
+      }
+    }
 
     return { found: true, changed: true, type: 'order', reference: input.reference }
   }

@@ -47,6 +47,67 @@ export default function ScreenGroupDetail() {
   const [copied, setCopied] = useState(false);
   const [joinStatus, setJoinStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
   const [joinError, setJoinError] = useState('');
+  const [chatToken, setChatToken] = useState('');
+  const [chatMessages, setChatMessages] = useState<{ id: string; n: string; m: string; t: string; staff: boolean }[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+
+  const chatStorageKey = `gchat:${groupId}`;
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(chatStorageKey);
+      if (stored) setChatToken(stored);
+    } catch {}
+  }, [chatStorageKey]);
+
+  useEffect(() => {
+    if (!chatToken || !groupId) return;
+    let cancelled = false;
+    const load = () => {
+      fetch(`/api/group-orders/${groupId}/chat/messages?token=${encodeURIComponent(chatToken)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled || !Array.isArray(data?.messages)) return;
+          setChatMessages(data.messages.map((m: any) => ({
+            id: String(m.id),
+            n: m.authorName || 'Participant',
+            m: m.text || '',
+            t: m.createdAt ? new Date(m.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '',
+            staff: m.authorType === 'admin',
+          })));
+        })
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 15000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [chatToken, groupId]);
+
+  const sendChat = async () => {
+    const text = chatDraft.trim();
+    if (!text || !chatToken || chatSending) return;
+    setChatSending(true);
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}/chat/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, token: chatToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.message) {
+        setChatDraft('');
+        setChatMessages(prev => [...prev, {
+          id: String(data.message.id),
+          n: data.message.authorName || 'Vous',
+          m: data.message.text || text,
+          t: new Date(data.message.createdAt || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          staff: data.message.authorType === 'admin',
+        }]);
+      }
+    } catch {}
+    setChatSending(false);
+  };
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
@@ -56,24 +117,37 @@ export default function ScreenGroupDetail() {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Groupe introuvable</div>;
   }
 
-  const pct = Math.round((g.currentQty / g.targetQty) * 100);
-  const remaining = g.targetQty - g.currentQty;
+  const pct = g.targetQty > 0 ? Math.round((g.currentQty / g.targetQty) * 100) : 0;
+  const remaining = Math.max(0, g.targetQty - g.currentQty);
 
-  // Demo participants/chat are placeholders until a public participants API exists.
-  const participants = [
-    { i: "AD", n: "Amadou D.", q: 12, t: "il y a 5min" },
-    { i: "FN", n: "Fatima N.", q: 8, t: "il y a 12min" },
-    { i: "OS", n: "Omar S.", q: 20, t: "il y a 32min" },
-    { i: "MK", n: "Mame K.", q: 5, t: "il y a 1h" },
-    { i: "IB", n: "Ibrahim B.", q: 15, t: "il y a 2h" },
-    { i: "AN", n: "Awa N.", q: 3, t: "il y a 3h" },
-  ];
-  const messages = [
-    { i: "AD", n: "Amadou D.", m: "Livraison à Dakar prévue quand ?", t: "10:24" },
-    { i: "DDM", n: "DDM+ Support", m: "Bonjour ! 4-7 jours après clôture du groupe.", t: "10:26", staff: true },
-    { i: "FN", n: "Fatima N.", m: "Parfait, je prends 8 pour mon commerce.", t: "10:31" },
-    { i: "OS", n: "Omar S.", m: "J'ai déjà commandé 20 unités, matériel top.", t: "11:02" },
-  ];
+  const relTime = (iso?: string) => {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(diff) || diff < 0) return '';
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "à l'instant";
+    if (min < 60) return `il y a ${min}min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `il y a ${h}h`;
+    return `il y a ${Math.floor(h / 24)}j`;
+  };
+  const maskName = (full: string) => {
+    const parts = full.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'Participant';
+    return parts[0] + (parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : '');
+  };
+  const initialsOf = (full: string) => {
+    const parts = full.trim().split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] || 'P') + (parts[1]?.[0] || parts[0]?.[1] || '')).toUpperCase();
+  };
+
+  const participants = (g.participantList || [])
+    .slice()
+    .sort((a, b) => (b.joinedAt ? new Date(b.joinedAt).getTime() : 0) - (a.joinedAt ? new Date(a.joinedAt).getTime() : 0))
+    .map((p) => ({ i: initialsOf(p.name), n: maskName(p.name), q: p.qty, t: relTime(p.joinedAt) }));
+  const joinedLastHour = (g.participantList || []).filter(
+    (p) => p.joinedAt && Date.now() - new Date(p.joinedAt).getTime() < 3600000
+  ).length;
 
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/achats-groupes/${g.id}`
@@ -115,6 +189,10 @@ export default function ScreenGroupDetail() {
         return;
       }
       setJoinStatus('success');
+      if (data?.chat?.token) {
+        try { sessionStorage.setItem(chatStorageKey, data.chat.token); } catch {}
+        setChatToken(data.chat.token);
+      }
       // refresh group data
       const refreshed = await fetch(`/api/group-orders/${groupId}`).then(r => r.json());
       if (refreshed?.group) setGROUPS([mapGroupOrder(refreshed.group)]);
@@ -183,7 +261,11 @@ export default function ScreenGroupDetail() {
         </div>
 
         <p className="mt-3 text-[11px] text-slate-600 dark:text-slate-400">
-          <b className="text-violet-700 dark:text-violet-300">3 personnes</b> ont rejoint dans la dernière heure.
+          {joinedLastHour > 0 ? (
+            <Fragment><b className="text-violet-700 dark:text-violet-300">{joinedLastHour} personne{joinedLastHour > 1 ? 's' : ''}</b> {joinedLastHour > 1 ? 'ont rejoint' : 'a rejoint'} dans la dernière heure.</Fragment>
+          ) : (
+            'Soyez le prochain à rejoindre le groupe.'
+          )}
         </p>
       </div>
     </Card>
@@ -272,9 +354,9 @@ export default function ScreenGroupDetail() {
         </button>
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <Button variant="secondary" size="sm"><Icon name="whatsapp" size={13}/>WhatsApp</Button>
-        <Button variant="secondary" size="sm">Facebook</Button>
-        <Button variant="secondary" size="sm">SMS</Button>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`Achat groupé DDM+ : ${g.name} — ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="whatsapp" size={13}/>WhatsApp</a>
+        <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">Facebook</a>
+        <a href={`sms:?&body=${encodeURIComponent(`Achat groupé DDM+ : ${g.name} — ${shareUrl}`)}`} className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">SMS</a>
       </div>
     </Card>
   );
@@ -286,8 +368,11 @@ export default function ScreenGroupDetail() {
         <Link href="/achats-groupes" className="text-[12px] font-semibold text-slate-600 dark:text-slate-400">Tous</Link>
       </div>
       <div className="mt-3 space-y-2">
-        {participants.map((p)=>(
-          <div key={p.i} className="flex items-center gap-2.5">
+        {participants.length === 0 && (
+          <p className="text-[12px] text-slate-500 dark:text-slate-400">Aucun participant pour l&apos;instant — soyez le premier.</p>
+        )}
+        {participants.map((p, idx)=>(
+          <div key={`${p.n}-${idx}`} className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[11px] font-extrabold text-white">{p.i}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-bold text-slate-900 dark:text-white">{p.n}</p>
@@ -312,25 +397,43 @@ export default function ScreenGroupDetail() {
         </div>
         <LiveDot tone="green"/>
       </div>
-      <div className="max-h-72 space-y-3 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950">
-        {messages.map((m,i)=>(
-          <div key={i} className="flex items-start gap-2">
-            <span className={cn("grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[10px] font-extrabold text-white", m.staff ? "bg-emerald-600" : "bg-gradient-to-br from-violet-500 to-emerald-500")}>{m.i}</span>
-            <div className={cn("min-w-0 flex-1 rounded-2xl px-3 py-2", m.staff ? "bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900" : "bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-800")}>
-              <div className="flex items-baseline gap-2">
-                <p className="text-[11px] font-bold text-slate-900 dark:text-white">{m.n}</p>
-                {m.staff && <Badge tone="emerald" className="!text-[9px] !px-1 !py-0">Support</Badge>}
-                <span className="text-[10px] text-slate-400">{m.t}</span>
+      {chatToken ? (
+        <Fragment>
+          <div className="max-h-72 space-y-3 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-950">
+            {chatMessages.length === 0 && (
+              <p className="py-6 text-center text-[12px] text-slate-500 dark:text-slate-400">Aucun message — lancez la discussion.</p>
+            )}
+            {chatMessages.map((m)=>(
+              <div key={m.id} className="flex items-start gap-2">
+                <span className={cn("grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[10px] font-extrabold text-white", m.staff ? "bg-emerald-600" : "bg-gradient-to-br from-violet-500 to-emerald-500")}>{initialsOf(m.n)}</span>
+                <div className={cn("min-w-0 flex-1 rounded-2xl px-3 py-2", m.staff ? "bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900" : "bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-800")}>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-[11px] font-bold text-slate-900 dark:text-white">{maskName(m.n)}</p>
+                    {m.staff && <Badge tone="emerald" className="!text-[9px] !px-1 !py-0">Support</Badge>}
+                    <span className="text-[10px] text-slate-400">{m.t}</span>
+                  </div>
+                  <p className="mt-0.5 text-[12px] text-slate-700 dark:text-slate-300">{m.m}</p>
+                </div>
               </div>
-              <p className="mt-0.5 text-[12px] text-slate-700 dark:text-slate-300">{m.m}</p>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-2 border-t border-slate-200 p-2 dark:border-slate-800">
-        <input placeholder="Écrire un message…" className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"/>
-        <button className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Icon name="send" size={16}/></button>
-      </div>
+          <div className="flex items-center gap-2 border-t border-slate-200 p-2 dark:border-slate-800">
+            <input
+              value={chatDraft}
+              onChange={e => setChatDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
+              placeholder="Écrire un message…"
+              className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
+            />
+            <button onClick={sendChat} disabled={chatSending || !chatDraft.trim()} className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"><Icon name="send" size={16}/></button>
+          </div>
+        </Fragment>
+      ) : (
+        <div className="p-4 text-center">
+          <p className="text-[12px] text-slate-600 dark:text-slate-400">Le chat est réservé aux participants du groupe.</p>
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">Rejoignez le groupe pour consulter et écrire des messages.</p>
+        </div>
+      )}
     </Card>
   );
 

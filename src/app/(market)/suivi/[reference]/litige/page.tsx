@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import ScreenFormRequest, { FormRequestData } from '@/components/market/batch1/screens/ScreenFormRequest';
 
@@ -24,7 +24,9 @@ interface EscrowTransaction {
 export default function DisputePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reference = params?.reference as string;
+  const token = searchParams?.get('token') || '';
 
   const [transaction, setTransaction] = useState<EscrowTransaction | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,11 @@ export default function DisputePage() {
 
   useEffect(() => {
     if (!reference) return;
+    // Référence commande marketplace : le litige passe par le flux retour
+    if (reference.startsWith('CMD-')) {
+      router.replace(`/commandes/${encodeURIComponent(reference)}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}`);
+      return;
+    }
     const fetchTransaction = async () => {
       try {
         const res = await fetch(`/api/escrow/${encodeURIComponent(reference)}`);

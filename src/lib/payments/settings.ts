@@ -37,6 +37,10 @@ export type PaymentSettings = {
       orangeMerchantPhone: string
       freeMoneyMerchantPhone: string
       instructions: string
+      // Coordonnées bancaires pour le virement (optionnel — masqué si absent)
+      bankName: string
+      bankAccountName: string
+      bankIban: string
     },
     gateway: {
       active: boolean
@@ -150,12 +154,17 @@ const DEFAULT_SETTINGS: PaymentSettings = {
   providers: {
     mockEnabled: false,
     manual: {
-      waveMerchantPhone: '+221770000000',
+      // Vide par défaut : une méthode sans numéro configuré n'est pas affichée
+      // aux clients (pas de coordonnées factices en production).
+      waveMerchantPhone: '',
       waveQrUrl: '',
       wavePayUrl: '',
-      orangeMerchantPhone: '+221760000000',
-      freeMoneyMerchantPhone: '+221780000000',
-      instructions: "Paiement à la livraison ou retrait au bureau."
+      orangeMerchantPhone: '',
+      freeMoneyMerchantPhone: '',
+      instructions: "Paiement à la livraison ou retrait au bureau.",
+      bankName: '',
+      bankAccountName: '',
+      bankIban: ''
     },
     gateway: {
       active: false,
@@ -235,7 +244,10 @@ export function readPaymentSettings(): PaymentSettings {
           wavePayUrl: parsed?.providers?.manual?.wavePayUrl || process.env.WAVE_PAY_URL || DEFAULT_SETTINGS.providers.manual.wavePayUrl,
           orangeMerchantPhone: parsed?.providers?.manual?.orangeMerchantPhone || process.env.ORANGE_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
           freeMoneyMerchantPhone: parsed?.providers?.manual?.freeMoneyMerchantPhone || process.env.FREE_MONEY_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.freeMoneyMerchantPhone,
-          instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
+          instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions,
+          bankName: parsed?.providers?.manual?.bankName || process.env.BANK_NAME || DEFAULT_SETTINGS.providers.manual.bankName,
+          bankAccountName: parsed?.providers?.manual?.bankAccountName || process.env.BANK_ACCOUNT_NAME || DEFAULT_SETTINGS.providers.manual.bankAccountName,
+          bankIban: parsed?.providers?.manual?.bankIban || process.env.BANK_IBAN || DEFAULT_SETTINGS.providers.manual.bankIban
         },
         gateway: resolveGatewayConfig(parsed),
         escrow: {
@@ -277,7 +289,10 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
           wavePayUrl: payload.providers?.manual?.wavePayUrl ?? current.providers.manual.wavePayUrl,
         orangeMerchantPhone: payload.providers?.manual?.orangeMerchantPhone ?? current.providers.manual.orangeMerchantPhone,
         freeMoneyMerchantPhone: payload.providers?.manual?.freeMoneyMerchantPhone ?? current.providers.manual.freeMoneyMerchantPhone,
-        instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions
+        instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions,
+        bankName: payload.providers?.manual?.bankName ?? current.providers.manual.bankName,
+        bankAccountName: payload.providers?.manual?.bankAccountName ?? current.providers.manual.bankAccountName,
+        bankIban: payload.providers?.manual?.bankIban ?? current.providers.manual.bankIban
       },
       gateway: {
         active: typeof payload.providers?.gateway?.active === 'boolean' ? payload.providers.gateway.active : current.providers.gateway.active,

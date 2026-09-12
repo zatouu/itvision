@@ -22,6 +22,8 @@ import {
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import OrderChat from '@/components/OrderChat';
+import { orderStatusMeta, isPaymentSettled } from '@/lib/order-status';
+import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
 
 interface OrderItem {
   id?: string
@@ -89,36 +91,25 @@ const ORDER_STEPS = [
   { key: 'delivered', label: 'Livrée', desc: 'Commande livrée et confirmée.', icon: 'check' },
 ];
 
-const statusIndex = (status: string) => {
-  const idx = ORDER_STEPS.findIndex((s) => s.key === status);
-  return idx >= 0 ? idx + 1 : 1;
-};
-
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    new: 'Nouvelle',
-    pending: 'En attente',
-    paid: 'Payée',
-    processing: 'En traitement',
-    sourcing: 'Sourcing',
-    ordered: 'Commandée',
-    in_transit: 'En transit',
-    shipped: 'Expédiée',
-    out_for_delivery: 'En livraison',
-    delivered: 'Livrée',
-    cancelled: 'Annulée',
-    disputed: 'Litige',
-    refunded: 'Remboursée',
-  };
-  return map[status] || status;
-};
+// Statuts serveur → étape timeline + libellé (mapping canonique partagé)
+const statusIndex = (status: string) => orderStatusMeta(status).step || 1;
+const statusLabel = (status: string) => orderStatusMeta(status).label;
 
 const statusTone = (status: string) => {
-  if (['delivered', 'paid'].includes(status)) return 'emerald';
-  if (['cancelled', 'disputed'].includes(status)) return 'red';
-  if (['in_transit', 'shipped', 'out_for_delivery'].includes(status)) return 'blue';
-  if (['pending', 'new', 'sourcing'].includes(status)) return 'amber';
+  if (status === 'delivered') return 'emerald';
+  if (['cancelled', 'disputed', 'refunded'].includes(status)) return 'red';
+  if (['in_transit', 'shipped', 'out_for_delivery', 'transit'].includes(status)) return 'blue';
+  if (['pending', 'new', 'sourcing', 'confirmed', 'processing'].includes(status)) return 'amber';
   return 'slate';
+};
+
+// Classes explicites (Tailwind ne génère pas les classes construites dynamiquement)
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  red: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+  amber: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  slate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailProps) {
@@ -128,6 +119,8 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
   const [copied, setCopied] = useState(false);
   const [copiedTracking, setCopiedTracking] = useState(false);
 
+  const isCancelled = orderStatusMeta(order.status).ui === 'cancelled';
+  const paid = isPaymentSettled(order.paymentStatus);
   const currentStep = statusIndex(order.status);
   const tracking = order.delivery?.trackingNumber || order.orderId;
   const totalPcs = useMemo(() => order.items.reduce((s, it) => s + (it.qty || 0), 0), [order.items]);
@@ -201,16 +194,35 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
         </div>
         <div className="my-3 h-px bg-slate-200 dark:bg-slate-800" />
         <div className="flex items-baseline justify-between">
-          <span className="text-[14px] font-extrabold text-slate-900 dark:text-white">Total payé</span>
+          <span className="text-[14px] font-extrabold text-slate-900 dark:text-white">{paid ? 'Total payé' : 'Total à payer'}</span>
           <span className="text-[24px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(order.total)}</span>
         </div>
-        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{order.paymentStatus === 'paid' ? 'Payé' : 'Paiement en attente'} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}</p>
+        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{paid ? 'Payé' : 'Paiement en attente'} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}</p>
+        {!paid && !isCancelled && (
+          <Link
+            href={`/paiement/checkout/${order.orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[14px] font-extrabold text-white transition-colors hover:bg-emerald-700"
+          >
+            Payer maintenant
+          </Link>
+        )}
       </div>
     </div>
   );
 
   const TabSuivi = () => (
     <div className="space-y-4">
+      {isCancelled ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40 p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-red-600 text-white"><X size={18} /></span>
+            <div>
+              <p className="text-[14px] font-extrabold text-red-900 dark:text-red-200">{statusLabel(order.status)}</p>
+              <p className="text-[11px] text-red-700 dark:text-red-300">Cette commande n&apos;est plus active. Contactez le support pour toute question.</p>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-950 text-white p-4">
         <div className="flex items-center gap-2 mb-2">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15 backdrop-blur"><Truck size={16} /></span>
@@ -218,11 +230,12 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
             <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/5</p>
             <p className="text-[15px] font-extrabold">{ORDER_STEPS[currentStep - 1]?.label || statusLabel(order.status)}</p>
           </div>
-          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold whitespace-nowrap"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />Live</span>
         </div>
         <p className="text-[11px] text-white/85">ETA <b>{order.delivery?.estimatedDeliveryDate || '—'}</b> · N° suivi <b className="font-mono">{tracking}</b></p>
       </div>
+      )}
 
+      {!isCancelled && (
       <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-5">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Historique détaillé</p>
         <div className="relative">
@@ -252,6 +265,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
           })}
         </div>
       </div>
+      )}
     </div>
   );
 
@@ -312,7 +326,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
 
   const TabActions = () => {
     const actions = [
-      { i: MessageCircle, ttl: 'Contacter le support', sub: 'Réponse sous 15 min sur WhatsApp', primary: true, href: `https://wa.me/221761234567?text=Commande ${order.orderId}` },
+      { i: MessageCircle, ttl: 'Contacter le support', sub: `${MARKET_BRAND.whatsapp} — WhatsApp`, primary: true, href: brandWhatsAppUrl(MARKET_BRAND, `Commande ${order.orderId}`) },
       { i: RefreshCw, ttl: 'Répéter la commande', sub: 'Recommander les mêmes articles', href: '#' },
       { i: Package, ttl: 'Demander un retour', sub: 'Sous 7 jours après livraison', href: `/commandes/${order.orderId}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}` },
       { i: HelpCircle, ttl: 'Ouvrir un litige', sub: 'En cas de problème de livraison', href: `/suivi/${order.orderId}/litige` },
@@ -388,7 +402,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
               <p className="text-[11px] text-slate-500 dark:text-slate-400">Commandée le {new Date(order.createdAt).toLocaleDateString('fr-FR')} · Livraison prévue {order.delivery?.estimatedDeliveryDate || '—'}</p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total payé</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{paid ? 'Total payé' : 'Total à payer'}</p>
               <p className="text-[22px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(order.total)}</p>
             </div>
           </div>
@@ -396,8 +410,26 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-4 space-y-4">
+        {!paid && !isCancelled && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-amber-500 text-white"><Smartphone size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-extrabold text-amber-900 dark:text-amber-200">Paiement en attente</p>
+                <p className="text-[11px] text-amber-800 dark:text-amber-300/80">Finalisez le paiement pour lancer le traitement de votre commande.</p>
+              </div>
+              <Link
+                href={`/paiement/checkout/${order.orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`}
+                className="flex-shrink-0 rounded-xl bg-amber-600 px-4 py-2.5 text-[13px] font-extrabold text-white transition-colors hover:bg-amber-700"
+              >
+                Payer
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold', `bg-${statusTone(order.status)}-100 text-${statusTone(order.status)}-700 dark:bg-${statusTone(order.status)}-950/40 dark:text-${statusTone(order.status)}-300`)}>
+          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold', STATUS_BADGE_CLASSES[statusTone(order.status)] || STATUS_BADGE_CLASSES.slate)}>
             {statusLabel(order.status)}
           </span>
           <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">N° suivi {tracking}</p>

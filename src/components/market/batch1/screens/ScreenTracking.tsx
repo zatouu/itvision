@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
@@ -14,18 +14,49 @@ import { mapOrder } from '../data-mappers';
 import type { Order, OrderStep, OrderStatus } from '../types';
 
 
+interface PublicTracking {
+  orderId: string
+  status: string
+  statusUi: string
+  statusLabel: string
+  step: number
+  paid: boolean
+  createdAt?: string
+  itemCount: number
+  eta?: string | null
+  carrier?: string | null
+  trackingNumber?: string | null
+}
+
 export default function ScreenTracking() {
   const [loading, setLoading] = useState(true);
   const [ORDERS, setORDERS] = useState<Order[]>([]);
   const [ORDER_STEPS, setORDER_STEPS] = useState<OrderStep[]>([]);
+  const [publicInfo, setPublicInfo] = useState<PublicTracking | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   const params = useParams();
+  const searchParams = useSearchParams();
   const reference = params?.reference as string;
+  const token = searchParams?.get('token') || searchParams?.get('t') || '';
+
   useEffect(() => {
     if (!reference) return;
     setLoading(true);
-    fetch(`/api/order/${reference}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
+    const orderUrl = `/api/order/${encodeURIComponent(reference)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    fetch(orderUrl, { credentials: 'include' })
+      .then(async r => {
+        if (r.ok) return r.json();
+        // Pas de session ni de token : vue publique masquée si la commande existe
+        const pub = await fetch(`/api/order/track-public?ref=${encodeURIComponent(reference)}`)
+          .then(pr => (pr.ok ? pr.json() : null))
+          .catch(() => null);
+        if (pub?.order) {
+          setPublicInfo(pub.order as PublicTracking);
+          setUnauthorized(true);
+        }
+        return null;
+      })
       .then(data => {
         if (data?.order) {
           setORDERS([mapOrder(data.order) as Order]);
@@ -36,7 +67,7 @@ export default function ScreenTracking() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [reference]);
+  }, [reference, token]);
 
 
   const order = ORDERS[0];
@@ -53,6 +84,43 @@ export default function ScreenTracking() {
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+  }
+
+  // Vue publique masquée : la commande existe mais le détail exige le lien de suivi
+  if (unauthorized && publicInfo) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-6 text-center">
+          <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <Icon name="truck" size={26}/>
+          </span>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{publicInfo.orderId}</p>
+          <h1 className="mt-1 text-[20px] font-extrabold text-slate-900 dark:text-white">{publicInfo.statusLabel}</h1>
+          {publicInfo.step > 0 && (
+            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Étape {publicInfo.step}/5 · {publicInfo.itemCount} article{publicInfo.itemCount > 1 ? 's' : ''}</p>
+          )}
+          {publicInfo.eta && (
+            <p className="mt-2 text-[12px] text-slate-500 dark:text-slate-400">
+              Livraison prévue : <b className="text-emerald-600 dark:text-emerald-400">{new Date(publicInfo.eta).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</b>
+            </p>
+          )}
+          {publicInfo.trackingNumber && (
+            <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">N° transporteur : {publicInfo.trackingNumber}</p>
+          )}
+          <div className="mt-5 rounded-xl bg-slate-50 dark:bg-slate-800 p-3 text-[11px] text-slate-500 dark:text-slate-400">
+            Pour le détail complet (articles, montant, adresse), utilisez le lien de suivi reçu par email ou connectez-vous.
+          </div>
+          <div className="mt-4 flex flex-col gap-2">
+            <Link href="/retrouver-ma-commande" className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white hover:bg-emerald-700">
+              Retrouver mon lien de suivi
+            </Link>
+            <Link href={`/login?redirect=${encodeURIComponent(`/suivi/${reference}`)}`} className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+              Se connecter
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   if (!order) {
@@ -138,49 +206,39 @@ export default function ScreenTracking() {
     </div>
   );
 
-  const MapPlaceholder = () => (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 h-56 md:h-72 bg-gradient-to-br from-blue-50 via-slate-50 to-emerald-50 dark:from-blue-950/30 dark:via-slate-900 dark:to-emerald-950/30">
-      {/* Trajectoire */}
-      <svg viewBox="0 0 400 220" className="absolute inset-0 h-full w-full">
-        <defs>
-          <linearGradient id="pathGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#059669"/>
-            <stop offset="100%" stopColor="#2563eb"/>
-          </linearGradient>
-        </defs>
-        {/* dots pattern */}
-        {Array.from({length: 30}).map((_, i) => (
-          <circle key={i} cx={20 + (i * 13) % 360} cy={30 + Math.sin(i) * 20 + (i % 5) * 30} r="1" fill="#94a3b8" opacity="0.3"/>
-        ))}
-        {/* path */}
-        <path d="M 60 60 Q 200 30 340 160" stroke="url(#pathGrad)" strokeWidth="3" strokeDasharray="4 4" fill="none"/>
-        {/* origin marker */}
-        <circle cx="60" cy="60" r="10" fill="#2563eb" opacity="0.2"/>
-        <circle cx="60" cy="60" r="5" fill="#2563eb"/>
-        <text x="60" y="45" textAnchor="middle" fontSize="8" fontWeight="700" fill="#2563eb">GUANGZHOU</text>
-        {/* current marker (plane between origin and dest, ~60%) */}
-        <g transform="translate(240, 90)">
-          <circle r="12" fill="#059669" opacity="0.25"/>
-          <circle r="12" fill="#059669" opacity="0.4">
-            <animate attributeName="r" values="12;20;12" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <circle r="6" fill="#059669"/>
-          <text y="-16" textAnchor="middle" fontSize="8" fontWeight="700" fill="#059669">EN VOL</text>
-        </g>
-        {/* destination */}
-        <circle cx="340" cy="160" r="10" fill="#F59E0B" opacity="0.2"/>
-        <circle cx="340" cy="160" r="5" fill="#F59E0B"/>
-        <text x="340" y="182" textAnchor="middle" fontSize="8" fontWeight="700" fill="#B45309">DAKAR</text>
-      </svg>
-      <div className="absolute bottom-3 left-3 rounded-lg bg-white/95 backdrop-blur px-2.5 py-1.5 shadow-sm dark:bg-slate-900/95">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Distance parcourue</p>
-        <p className="text-[13px] font-extrabold text-slate-900 dark:text-white tabular-nums">~8 200 / 12 800 km</p>
+  const DeliveryCard = () => (
+    <Card className="p-4 md:p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+          <Icon name="truck" size={20}/>
+        </span>
+        <div>
+          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Transport</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">{order.shipping}</p>
+        </div>
       </div>
-      <div className="absolute top-3 right-3 rounded-full bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 flex items-center gap-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping-slow"/>Mise à jour temps réel
+      <div className="space-y-2.5 text-[12px]">
+        <div className="flex items-baseline justify-between">
+          <span className="text-slate-500 dark:text-slate-400">Itinéraire</span>
+          <span className="font-semibold text-slate-900 dark:text-white">Guangzhou → Dakar</span>
+        </div>
+        {order.tracking ? (
+          <div className="flex items-baseline justify-between">
+            <span className="text-slate-500 dark:text-slate-400">N° transporteur</span>
+            <span className="font-mono font-bold text-slate-900 dark:text-white">{order.tracking}</span>
+          </div>
+        ) : (
+          <div className="flex items-baseline justify-between">
+            <span className="text-slate-500 dark:text-slate-400">N° transporteur</span>
+            <span className="text-slate-400 dark:text-slate-500">Attribué à l'expédition</span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between">
+          <span className="text-slate-500 dark:text-slate-400">Livraison prévue</span>
+          <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{order.eta}</span>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 
   const OrderInfo = () => (
@@ -250,7 +308,7 @@ export default function ScreenTracking() {
           </div>
 
           <div className="p-4 space-y-4">
-            <MapPlaceholder/>
+            <DeliveryCard/>
             <OrderInfo/>
 
             <Card className="p-4">
@@ -302,7 +360,7 @@ export default function ScreenTracking() {
 
         <div className="grid grid-cols-[1fr_380px] gap-6">
           <div className="space-y-4">
-            <MapPlaceholder/>
+            <DeliveryCard/>
 
             <Card className="p-6">
               <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white mb-5">Historique détaillé</h3>

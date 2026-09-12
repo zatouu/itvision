@@ -123,6 +123,8 @@ export default function ScreenProduct() {
     name: selectedVariant ? `${p.name} — ${selectedVariant.label}` : p.name,
     variant: selectedVariant?.label,
     variantId: variant,
+    variantIds: variant ? [variant] : undefined,
+    variantLabels: selectedVariant ? [selectedVariant.label] : undefined,
     image: p.images[activeImg] || p.images[0] || '/placeholder.svg',
     unit: p.basePrice,
     qty,

@@ -10,14 +10,12 @@ import {
   Check,
   Package,
   Smartphone,
-  Truck,
-  Sparkles,
   MessageCircle,
-  RefreshCw,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
 import type { PaymentSettings } from '@/lib/payments/settings';
 
 type ProviderKey = 'wave' | 'om' | 'free' | 'wire' | 'gateway';
@@ -32,21 +30,17 @@ interface PaymentItem {
 
 interface ScreenPaymentCheckoutProps {
   reference: string
+  orderType: 'order' | 'group'
   amount: number
   items: PaymentItem[]
   settings: PaymentSettings
   phone?: string
+  customerName?: string
+  /** Tracking token invité — propagé aux APIs de paiement */
+  token?: string
+  /** Redirection après paiement confirmé */
+  successUrl: string
 }
-
-const WAVE = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#1D1D1B" /><path d="M18 8c-1.5 0-2.5 1-3.5 2.5C13.5 12 12.5 13 11 13s-2.5-1-3.5-2.5C6.5 9 5.5 8 4 8" stroke="#9AE5D3" strokeWidth="2.5" strokeLinecap="round" /></svg>
-);
-const OM = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#FF6600" /><circle cx="12" cy="12" r="6" fill="#FFF" /><path d="M9 12h6M12 9v6" stroke="#FF6600" strokeWidth="2" strokeLinecap="round" /></svg>
-);
-const FREE = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#00A0DF" /><path d="M7 12h10M12 7v10" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" /></svg>
-);
 
 interface MethodDef {
   key: ProviderKey
@@ -58,9 +52,18 @@ interface MethodDef {
   instructions: string[]
 }
 
-export default function ScreenPaymentCheckout({ reference, amount, items, settings, phone: initialPhone = '' }: ScreenPaymentCheckoutProps) {
+export default function ScreenPaymentCheckout({
+  reference,
+  orderType,
+  amount,
+  items,
+  settings,
+  phone: initialPhone = '',
+  customerName,
+  token,
+  successUrl,
+}: ScreenPaymentCheckoutProps) {
   const router = useRouter();
-  const [selected, setSelected] = useState<ProviderKey>(settings.providers.gateway.active ? 'gateway' : 'wave');
   const [clientPhone, setClientPhone] = useState(initialPhone);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,51 +71,19 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
   const [paymentStatus, setPaymentStatus] = useState('pending');
 
   const totalPcs = items.reduce((s, i) => s + i.qty, 0);
+  const manual = settings.providers.manual;
 
-  const paymentMethods: MethodDef[] = [
-    {
-      key: 'wave',
-      label: 'Wave',
-      sub: 'Instant · Sans frais',
-      merchantPhone: settings.providers.manual.waveMerchantPhone || '+221 78 000 00 00',
-      accentBg: 'bg-[#00B0F0]',
-      initials: 'W',
-      instructions: ['Ouvrez votre application Wave.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Wave pour la confirmation.'],
-    },
-    {
-      key: 'om',
-      label: 'Orange Money',
-      sub: 'Instant · Frais standards',
-      merchantPhone: settings.providers.manual.orangeMerchantPhone || '+221 77 111 11 11',
-      accentBg: 'bg-[#FF6600]',
-      initials: 'OM',
-      instructions: ['Ouvrez votre application Orange Money.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Orange Money pour la confirmation.'],
-    },
-    {
-      key: 'free',
-      label: 'Free Money',
-      sub: 'Instant · Frais standards',
-      merchantPhone: settings.providers.manual.freeMoneyMerchantPhone || '+221 76 222 22 22',
-      accentBg: 'bg-[#CD0067]',
-      initials: 'F',
-      instructions: ['Ouvrez votre application Free Money.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Free Money pour la confirmation.'],
-    },
-    {
-      key: 'wire',
-      label: 'Virement bancaire',
-      sub: '24-48h · Pour gros volumes',
-      merchantPhone: '',
-      accentBg: 'bg-slate-700',
-      initials: 'VB',
-      instructions: ['Effectuez un virement sur le compte indiqué.', `Mentionnez impérativement la référence ${reference}.`, 'Envoyez le reçu par WhatsApp pour validation.'],
-    },
-  ];
+  // Les méthodes manuelles (P2P) ne fonctionnent que pour les commandes
+  // standard : l'endpoint /api/market/payments/initiate prend un orderId.
+  // Pour les achats groupés, la gateway sécurisée et le virement restent
+  // disponibles. Une méthode sans numéro marchand configuré est masquée.
+  const paymentMethods: MethodDef[] = [];
 
   if (settings.providers.gateway.active) {
-    paymentMethods.unshift({
+    paymentMethods.push({
       key: 'gateway',
       label: `Paiement ${settings.providers.gateway.provider || 'en ligne'}`.replace(/^Paiement $/, 'Paiement en ligne'),
-      sub: 'Carte · Instantané',
+      sub: 'Carte · Mobile Money · Instantané',
       merchantPhone: '',
       accentBg: 'bg-emerald-600',
       initials: 'CB',
@@ -120,7 +91,56 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
     });
   }
 
-  const method = paymentMethods.find((m) => m.key === selected);
+  if (orderType === 'order') {
+    if (manual.waveMerchantPhone || manual.wavePayUrl) {
+      paymentMethods.push({
+        key: 'wave',
+        label: 'Wave',
+        sub: 'Instant · Sans frais',
+        merchantPhone: manual.waveMerchantPhone,
+        accentBg: 'bg-[#00B0F0]',
+        initials: 'W',
+        instructions: ['Ouvrez votre application Wave.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Wave pour la confirmation.'],
+      });
+    }
+    if (manual.orangeMerchantPhone) {
+      paymentMethods.push({
+        key: 'om',
+        label: 'Orange Money',
+        sub: 'Instant · Frais standards',
+        merchantPhone: manual.orangeMerchantPhone,
+        accentBg: 'bg-[#FF6600]',
+        initials: 'OM',
+        instructions: ['Ouvrez votre application Orange Money.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Orange Money pour la confirmation.'],
+      });
+    }
+    if (manual.freeMoneyMerchantPhone) {
+      paymentMethods.push({
+        key: 'free',
+        label: 'Free Money',
+        sub: 'Instant · Frais standards',
+        merchantPhone: manual.freeMoneyMerchantPhone,
+        accentBg: 'bg-[#CD0067]',
+        initials: 'F',
+        instructions: ['Ouvrez votre application Free Money.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Free Money pour la confirmation.'],
+      });
+    }
+  }
+
+  if (manual.bankIban) {
+    paymentMethods.push({
+      key: 'wire',
+      label: 'Virement bancaire',
+      sub: '24-48h · Pour gros volumes',
+      merchantPhone: '',
+      accentBg: 'bg-slate-700',
+      initials: 'VB',
+      instructions: ['Effectuez un virement sur le compte indiqué.', `Mentionnez impérativement la référence ${reference}.`, 'Envoyez le reçu par WhatsApp pour validation.'],
+    });
+  }
+
+  const [selected, setSelected] = useState<ProviderKey>((paymentMethods[0]?.key ?? 'gateway') as ProviderKey);
+  const method = paymentMethods.find((m) => m.key === selected) ?? paymentMethods[0];
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -142,22 +162,22 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
         if (data?.status === 'paid' || data?.status === 'completed') {
           setPaymentStatus('paid');
           showToast('Paiement confirmé ! Redirection...');
-          setTimeout(() => router.push(`/suivi/${reference}`), 2000);
+          setTimeout(() => router.push(successUrl), 2000);
         }
       } catch {}
     }, 8000);
     return () => clearInterval(interval);
-  }, [reference, paymentStatus, router, showToast]);
+  }, [reference, paymentStatus, router, showToast, successUrl]);
 
   const handlePay = async () => {
     if (loading || !method) return;
     setLoading(true);
     try {
-      if (selected === 'gateway') {
+      if (method.key === 'gateway') {
         const response = await fetch('/api/payment/checkout/init', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reference }),
+          body: JSON.stringify({ reference, token }),
         });
         const data = await response.json();
         if (data?.url) window.location.href = data.url;
@@ -165,12 +185,12 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
         else showToast('Erreur lors du lancement du paiement');
         return;
       }
-      if (selected === 'wire') {
+      if (method.key === 'wire') {
         showToast('Veuillez effectuer le virement puis envoyer le reçu par WhatsApp.');
         return;
       }
-      const providerMap: Record<string, string> = { wave: 'wave', om: 'orange_money', free: 'free_money' };
-      const apiProvider = providerMap[selected];
+      const providerMap: Partial<Record<ProviderKey, string>> = { wave: 'wave', om: 'orange_money', free: 'free_money' };
+      const apiProvider = providerMap[method.key];
       if (!apiProvider) {
         showToast('Moyen de paiement non pris en charge');
         return;
@@ -178,7 +198,7 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
       const response = await fetch('/api/market/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: reference, provider: apiProvider, clientPhone }),
+        body: JSON.stringify({ orderId: reference, provider: apiProvider, clientPhone, token }),
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
@@ -212,13 +232,27 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
   );
 
   const Instructions = () => {
-    if (selected === 'wire') {
+    if (method?.key === 'wire') {
       return (
         <div className="rounded-2xl bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-900 p-4">
           <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 mb-2">Coordonnées bancaires DDM+</p>
-          <div className="rounded-lg bg-white dark:bg-slate-900 p-3 border border-blue-100 dark:border-blue-950">
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">IBAN</p>
-            <p className="mt-0.5 font-mono text-[12px] font-bold text-slate-900 dark:text-white break-all">{'SN12 0001 2345 6789 0123 4567 890'}</p>
+          <div className="rounded-lg bg-white dark:bg-slate-900 p-3 border border-blue-100 dark:border-blue-950 space-y-2">
+            {manual.bankName && (
+              <div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Banque</p>
+                <p className="mt-0.5 text-[12px] font-bold text-slate-900 dark:text-white">{manual.bankName}</p>
+              </div>
+            )}
+            {manual.bankAccountName && (
+              <div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Titulaire</p>
+                <p className="mt-0.5 text-[12px] font-bold text-slate-900 dark:text-white">{manual.bankAccountName}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">IBAN / RIB</p>
+              <p className="mt-0.5 font-mono text-[12px] font-bold text-slate-900 dark:text-white break-all">{manual.bankIban}</p>
+            </div>
           </div>
           <p className="mt-2 text-[11px] text-blue-900 dark:text-blue-200 leading-relaxed">
             Mentionnez la référence <b className="font-mono">{reference}</b> lors du virement. Validation sous 24-48h après réception.
@@ -233,10 +267,10 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
           {method?.instructions.map((step, i) => (
             <li key={i} className="flex gap-2.5">
               <span className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-[10px] font-extrabold">{i + 1}</span>
-              <span dangerouslySetInnerHTML={{ __html: step }} />
+              <span>{step}</span>
             </li>
           ))}
-          {selected !== 'gateway' && method?.merchantPhone && (
+          {method?.key !== 'gateway' && method?.merchantPhone && (
             <li className="pl-7">
               <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 flex items-center justify-between gap-2">
                 <span className="font-mono text-[13px] font-extrabold text-slate-900 dark:text-white">{method.merchantPhone}</span>
@@ -251,8 +285,8 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
     );
   };
 
-  const OrderRecap = ({ sticky = false }) => (
-    <div className={cn('rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 overflow-hidden', sticky && 'md:sticky md:top-24')}>
+  const OrderRecap = () => (
+    <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
       <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
         <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Récapitulatif</p>
         <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{reference}</p>
@@ -273,13 +307,18 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
         ))}
       </div>
       <div className="border-t border-slate-200 dark:border-slate-800 p-4 space-y-1.5 text-[12px]">
+        {customerName && (
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Payé par</span><span className="font-semibold text-slate-900 dark:text-white">{customerName}</span></div>
+        )}
         <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Sous-total</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white whitespace-nowrap">{formatFcfa(amount)}</span></div>
         <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
         <div className="flex items-baseline justify-between">
           <span className="text-[13px] font-bold text-slate-900 dark:text-white">Total à payer</span>
           <span className="text-[22px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(amount)}</span>
         </div>
-        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><Shield size={10} />Escrow · débité seulement après réception</p>
+        {settings.providers.escrow.enabled && (
+          <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><Shield size={10} />Paiement sécurisé · débité seulement après confirmation</p>
+        )}
       </div>
     </div>
   );
@@ -292,7 +331,7 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
           <p className="text-[12px] font-extrabold text-slate-900 dark:text-white">Un problème avec le paiement ?</p>
           <p className="text-[10px] text-slate-600 dark:text-slate-400">Notre équipe est disponible 7j/7 sur WhatsApp</p>
         </div>
-        <a href={`https://wa.me/221761234567?text=Problème paiement ${reference}`} target="_blank" rel="noopener noreferrer" className="rounded-md bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 flex-shrink-0 inline-flex items-center gap-1">
+        <a href={brandWhatsAppUrl(MARKET_BRAND, `Problème paiement ${reference}`)} target="_blank" rel="noopener noreferrer" className="rounded-md bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 flex-shrink-0 inline-flex items-center gap-1">
           <MessageCircle size={12} />Contact
         </a>
       </div>
@@ -330,11 +369,20 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
         <div className="mb-4 md:mb-6 flex items-center gap-2 text-[12px]">
           <Link href="/produits" className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">Catalogue</Link>
           <span className="text-slate-400">›</span>
-          <Link href="/panier" className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">Panier</Link>
-          <span className="text-slate-400">›</span>
           <span className="text-slate-700 dark:text-slate-300 font-medium">Paiement</span>
         </div>
 
+        {paymentMethods.length === 0 ? (
+          <div className="max-w-md mx-auto rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-6 text-center">
+            <p className="text-[15px] font-extrabold text-slate-900 dark:text-white mb-2">Paiement en ligne indisponible</p>
+            <p className="text-[12px] text-slate-600 dark:text-slate-400 mb-4">
+              Aucun moyen de paiement n&apos;est configuré pour le moment. Contactez-nous sur WhatsApp pour finaliser votre paiement de {formatFcfa(amount)}.
+            </p>
+            <a href={brandWhatsAppUrl(MARKET_BRAND, `Paiement ${reference} — ${formatFcfa(amount)}`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[13px] font-bold text-white hover:bg-emerald-700">
+              <MessageCircle size={15} /> Contacter le support
+            </a>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-4 md:gap-6">
           <div className="space-y-4">
             <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-900 text-white p-4 md:p-6">
@@ -355,16 +403,16 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
               <p className="text-[15px] font-extrabold text-slate-900 dark:text-white mb-4">Choisissez un mode de paiement</p>
               <div className="grid grid-cols-1 gap-2">
                 {paymentMethods.map((m) => (
-                  <MethodTile key={m.key} m={m} active={selected === m.key} onClick={() => setSelected(m.key)} />
+                  <MethodTile key={m.key} m={m} active={method?.key === m.key} onClick={() => setSelected(m.key)} />
                 ))}
               </div>
               <div className="mt-5"><Instructions /></div>
 
-              {selected !== 'wire' && selected !== 'gateway' && (
+              {method && method.key !== 'wire' && method.key !== 'gateway' && (
                 <div className="mt-4">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Votre numéro {method?.label}</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Votre numéro {method.label}</label>
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
-                    <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">🇸🇳 +221</span>
+                    <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">+221</span>
                     <Smartphone size={14} className="text-slate-400" />
                     <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="77 000 00 00" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums" />
                   </div>
@@ -386,10 +434,13 @@ export default function ScreenPaymentCheckout({ reference, amount, items, settin
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
                 Payer {formatFcfa(amount)}
               </button>
-              <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Escrow · débité seulement après réception</p>
+              {settings.providers.escrow.enabled && (
+                <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Paiement sécurisé · débité seulement après confirmation</p>
+              )}
             </div>
           </div>
         </div>
+        )}
       </main>
     </div>
   );

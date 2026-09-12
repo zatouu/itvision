@@ -42,6 +42,10 @@ export default function ScreenHome() {
   }, []);
 
   const popular = CATALOG.filter((p) => p.img && !p.img.includes('placeholder')).slice(0, 6);
+  const liveGroups = GROUPS.filter((g) => g.status === 'live' || g.status === 'almost');
+  const avgSave = liveGroups.length
+    ? Math.round(liveGroups.reduce((s, g) => s + (g.save || 0), 0) / liveGroups.length)
+    : 0;
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
@@ -80,10 +84,12 @@ export default function ScreenHome() {
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/15 border border-white/25 px-2 py-1 text-[10px] font-bold whitespace-nowrap">
                     <span className="h-1 w-1 rounded-full bg-emerald-300 animate-ping-slow"/>
-                    <b className="tabular-nums">2 143</b> groupes
+                    <b className="tabular-nums">{liveGroups.length}</b> groupe{liveGroups.length > 1 ? 's' : ''} en cours
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 border border-white/25 px-2 py-1 text-[10px] font-bold whitespace-nowrap"><b>−35%</b> éco.</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 border border-white/25 px-2 py-1 text-[10px] font-bold whitespace-nowrap"><b className="tabular-nums">18h</b> devis</span>
+                  {avgSave > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 border border-white/25 px-2 py-1 text-[10px] font-bold whitespace-nowrap"><b>−{avgSave}%</b> éco. moy.</span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 border border-white/25 px-2 py-1 text-[10px] font-bold whitespace-nowrap">Devis <b className="tabular-nums">24h</b></span>
                 </div>
                 <h1 className="text-[28px] font-extrabold leading-[1] tracking-tight">Importez de Chine,<br/>à <span className="text-emerald-300">prix usine</span>.</h1>
                 <p className="mt-2 text-[12px] leading-snug text-white/85">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 4-45 jours.</p>
@@ -100,62 +106,82 @@ export default function ScreenHome() {
             </div>
           </div>
 
-          {/* Best sellers mobile : horizontal scroll */}
-          <Section
-            title="⭐ Best sellers"
-            className="mt-2"
-            right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}
-          >
-            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {popular.map((p) => (
-                <div key={p.id} className="flex-shrink-0 snap-start w-[150px]">
-                  <ProductCard product={p} onClick={() => router.push(`/produits/${p.id}`)}/>
+          {/* Bandeau EN DIRECT Groupes en cours mobile — prioritaire : deals limités dans le temps */}
+          {liveGroups.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between px-4 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping-slow"/>En direct
+                  </span>
+                  <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Groupes en cours</p>
                 </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* Bandeau EN DIRECT Groupes en cours mobile — horizontal scroll */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between px-4 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping-slow"/>En direct
-                </span>
-                <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Groupes en cours</p>
+                <Link href="/achats-groupes" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>
               </div>
-              <Link href="/achats-groupes" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>
-            </div>
-            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
-              {GROUPS.slice(0, 3).map((g) => {
-                const pct = Math.round((g.currentQty / g.targetQty) * 100);
-                const almost = g.status === "almost";
-                return (
-                  <Card key={g.id} className="flex-shrink-0 snap-start w-[220px] p-3 cursor-pointer hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-2.5">
-                      <span className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
-                        <img src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
-                        <div className="mt-0.5 flex items-baseline gap-1 whitespace-nowrap">
-                          <span className="text-[12px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
-                          <span className="text-[9px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(g.base)}</span>
+              <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+                {liveGroups.slice(0, 4).map((g) => {
+                  const pct = g.targetQty > 0 ? Math.round((g.currentQty / g.targetQty) * 100) : 0;
+                  const almost = g.status === "almost";
+                  return (
+                    <Card key={g.id} onClick={() => router.push(`/achats-groupes/${g.id}`)} className="flex-shrink-0 snap-start w-[220px] p-3 cursor-pointer hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-2.5">
+                        <span className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
+                          <img src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
+                          <div className="mt-0.5 flex items-baseline gap-1 whitespace-nowrap">
+                            <span className="text-[12px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
+                            <span className="text-[9px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(g.base)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ProgressBar value={g.currentQty} max={g.targetQty} tone="mixed" className="!h-1 mt-2"/>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">{pct}% · <span className="text-red-600 dark:text-red-400 font-bold">⏱ {g.deadline.split(" ").slice(0,2).join(" ")}</span></span>
-                      <button onClick={() => router.push(`/achats-groupes/${g.id}`)} className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold text-white", almost ? "bg-red-500" : "bg-violet-600")}>
-                        {almost ? "Presque plein" : "Rejoindre"}
-                      </button>
-                    </div>
-                  </Card>
-                );
-              })}
+                      <ProgressBar value={g.currentQty} max={g.targetQty} tone="mixed" className="!h-1 mt-2"/>
+                      <div className="mt-1.5 flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">{pct}% · <span className="text-red-600 dark:text-red-400 font-bold">⏱ {g.deadline.split(" ").slice(0,2).join(" ")}</span></span>
+                        <button onClick={(e) => { e.stopPropagation(); router.push(`/achats-groupes/${g.id}`); }} className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold text-white", almost ? "bg-red-500" : "bg-violet-600")}>
+                          {almost ? "Presque plein" : "Rejoindre"}
+                        </button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Best sellers mobile : horizontal scroll */}
+          {popular.length > 0 && (
+            <Section
+              title="⭐ Best sellers"
+              className="mt-4"
+              right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}
+            >
+              <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+                {popular.map((p) => (
+                  <div key={p.id} className="flex-shrink-0 snap-start w-[150px]">
+                    <ProductCard product={p} onClick={() => router.push(`/produits/${p.id}`)}/>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Categories */}
+          {CATEGORIES.length > 0 && (
+            <Section title="Catégories" className="mt-6" right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}>
+              <div className="grid grid-cols-4 gap-2">
+                {CATEGORIES.map((c) => (
+                  <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2.5 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <Icon name={c.icon} size={16}/>
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {/* 3 façons d’importer */}
           <div className="mt-6 px-4 space-y-2.5">
@@ -193,20 +219,6 @@ export default function ScreenHome() {
               );
             })}
           </div>
-
-          {/* Categories */}
-          <Section title="Catégories" className="mt-6">
-            <div className="grid grid-cols-4 gap-2">
-              {CATEGORIES.map((c) => (
-                <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2.5 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    <Icon name={c.icon} size={16}/>
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
-                </button>
-              ))}
-            </div>
-          </Section>
 
           {/* Sourcing */}
           <div className="mt-6 mx-4">
@@ -274,25 +286,27 @@ export default function ScreenHome() {
           </div>
 
           {/* Testimonials */}
-          <Section title="Ils nous font confiance" className="mt-6">
-            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-              {TESTIMONIALS.map((t) => (
-                <Card key={t.initials} className="flex-shrink-0 w-[260px] p-4">
-                  <div className="mb-2 flex text-amber-500">
-                    {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={13} strokeWidth={0} className={i < t.rating ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
-                  </div>
-                  <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">« {t.quote} »</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[10px] font-extrabold text-white">{t.initials}</span>
-                    <div>
-                      <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">{t.handle}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{t.role}</p>
+          {TESTIMONIALS.length > 0 && (
+            <Section title="Ils nous font confiance" className="mt-6">
+              <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+                {TESTIMONIALS.map((t) => (
+                  <Card key={t.initials} className="flex-shrink-0 w-[260px] p-4">
+                    <div className="mb-2 flex text-amber-500">
+                      {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={13} strokeWidth={0} className={i < t.rating ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </Section>
+                    <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">« {t.quote} »</p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[10px] font-extrabold text-white">{t.initials}</span>
+                      <div>
+                        <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">{t.handle}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{t.role}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </Section>
+          )}
 
           <div className="mt-6 px-4 py-6 text-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">DDM+ · Dieund Dal Ma</p>
@@ -324,10 +338,12 @@ export default function ScreenHome() {
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/25 px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-ping-slow"/>
-                    <b className="tabular-nums">2 143</b> groupes actifs
+                    <b className="tabular-nums">{liveGroups.length}</b> groupe{liveGroups.length > 1 ? 's' : ''} en cours
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/25 px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"><b>−35%</b> économie moyenne</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/25 px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"><b className="tabular-nums">18h</b> devis sourcing</span>
+                  {avgSave > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/25 px-3 py-1.5 text-[11px] font-bold whitespace-nowrap"><b>−{avgSave}%</b> économie moyenne</span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/25 px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">Devis sous <b className="tabular-nums">24h</b></span>
                 </div>
                 <h1 className="text-[52px] font-extrabold leading-[0.98] tracking-tight">Importez de Chine,<br/>à <span className="text-emerald-300">prix usine</span>.</h1>
                 <p className="mt-3 max-w-md text-[15px] text-white/85 leading-snug">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 4-45 jours selon votre choix.</p>
@@ -380,6 +396,7 @@ export default function ScreenHome() {
           </div>
 
           {/* Ticker "En direct · Groupes en cours" */}
+          {liveGroups.length > 0 && (
           <div className="bg-slate-900 border-t border-white/10">
             <div className="flex items-center gap-6">
               <div className="flex-shrink-0 pl-6 py-4 border-r border-white/10 pr-6">
@@ -392,8 +409,8 @@ export default function ScreenHome() {
                 <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-16 bg-gradient-to-r from-slate-900 to-transparent"/>
                 <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-16 bg-gradient-to-l from-slate-900 to-transparent"/>
                 <div className="ticker-left flex gap-3 py-3 pr-3 w-max">
-                  {[...GROUPS, ...GROUPS].map((g, i) => {
-                    const pct = Math.round((g.currentQty / g.targetQty) * 100);
+                  {[...liveGroups, ...liveGroups].map((g, i) => {
+                    const pct = g.targetQty > 0 ? Math.round((g.currentQty / g.targetQty) * 100) : 0;
                     const almost = g.status === "almost";
                     return (
                       <Link key={i} href={`/achats-groupes/${g.id}`} className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 p-2 w-[260px] transition-colors">
@@ -422,7 +439,44 @@ export default function ScreenHome() {
               </div>
             </div>
           </div>
+          )}
         </div>
+
+        {/* Catégories */}
+        {CATEGORIES.length > 0 && (
+        <div className="mt-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories</h2>
+            <Link href="/produits" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">Toutes →</Link>
+          </div>
+          <div className="grid grid-cols-8 gap-3">
+            {CATEGORIES.map((c) => (
+              <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <Icon name={c.icon} size={18}/>
+                </span>
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
+                <span className="text-[9px] font-semibold text-slate-400 tabular-nums">{c.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {/* Populaires */}
+        {CATALOG.length > 0 && (
+        <div className="mt-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white inline-flex items-center gap-1.5">
+              <Icon name="flame" size={18} className="text-red-500"/> Populaires cette semaine
+            </h2>
+            <Link href="/produits" className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap cursor-pointer">Voir tous →</Link>
+          </div>
+          <div className="grid grid-cols-6 gap-3">
+            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg" onClick={() => router.push(`/produits/${p.id}`)}/>)}
+          </div>
+        </div>
+        )}
 
         {/* 3 façons d’importer */}
         <div className="mt-10">
@@ -460,25 +514,6 @@ export default function ScreenHome() {
                 </Card>
               );
             })}
-          </div>
-        </div>
-
-        {/* Catégories */}
-        <div className="mt-10">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories</h2>
-            <Link href="/produits" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">Toutes →</Link>
-          </div>
-          <div className="grid grid-cols-8 gap-3">
-            {CATEGORIES.map((c) => (
-              <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <Icon name={c.icon} size={18}/>
-                </span>
-                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
-                <span className="text-[9px] font-semibold text-slate-400 tabular-nums">{c.count}</span>
-              </button>
-            ))}
           </div>
         </div>
 
@@ -542,29 +577,16 @@ export default function ScreenHome() {
           </div>
         </div>
 
-        {/* Populaires */}
-        <div className="mt-10">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white inline-flex items-center gap-1.5">
-              <Icon name="flame" size={18} className="text-red-500"/> Populaires cette semaine
-            </h2>
-            <Link href="/produits" className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap cursor-pointer">Voir tous →</Link>
-          </div>
-          <div className="grid grid-cols-6 gap-3">
-            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg" onClick={() => router.push(`/produits/${p.id}`)}/>)}
-          </div>
-        </div>
-
         {/* Trust */}
         <div className="mt-10">
           <TrustStrip/>
         </div>
 
         {/* Testimonials */}
+        {TESTIMONIALS.length > 0 && (
         <div className="mt-10">
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Ils nous font confiance</h2>
-            <Link href="/compte/commandes" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 cursor-pointer">Tous les avis →</Link>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {TESTIMONIALS.map((t) => (
@@ -584,6 +606,7 @@ export default function ScreenHome() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Footer */}
         <div className="mt-14 border-t border-slate-200 pt-6 pb-4 dark:border-slate-800">

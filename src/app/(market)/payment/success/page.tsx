@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Check, Package, MessageCircle, Loader2, Users } from 'lucide-react'
 import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding'
 
 const ORDER_STEPS = [
   { key: 'ordered', label: 'Commande confirmée', desc: 'Paiement validé' },
@@ -20,6 +21,17 @@ type PaymentLookup = {
   type?: 'group' | 'order'
   groupId?: string
   orderId?: string
+  paymentMethod?: string
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  paydunya: 'PayDunya',
+  stripe: 'Carte bancaire',
+  cinetpay: 'CinetPay',
+  wave: 'Wave',
+  orange_money: 'Orange Money',
+  free_money: 'Free Money',
+  cash: 'Espèces',
 }
 
 type OrderDetail = {
@@ -49,6 +61,7 @@ function fmtDate(d?: string) {
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const reference = searchParams.get('ref') || ''
+  const token = searchParams.get('token') || ''
   const [payment, setPayment] = useState<PaymentLookup | null>(null)
   const [order, setOrder] = useState<OrderDetail>(null)
   const [group, setGroup] = useState<GroupDetail>(null)
@@ -81,7 +94,7 @@ function PaymentSuccessContent() {
 
           if (data.type === 'order' && data.orderId) {
             try {
-              const orderRes = await fetch(`/api/order/${data.orderId}`, { credentials: 'include', cache: 'no-store' })
+              const orderRes = await fetch(`/api/order/${data.orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`, { credentials: 'include', cache: 'no-store' })
               const orderData = await orderRes.json()
               if (orderData?.success && orderData.order) setOrder(orderData.order)
             } catch {
@@ -119,7 +132,7 @@ function PaymentSuccessContent() {
     return () => {
       stopped = true
     }
-  }, [reference])
+  }, [reference, token])
 
   const isConfirmed = payment?.status === 'paid' || payment?.status === 'completed'
 
@@ -194,7 +207,7 @@ function PaymentSuccessContent() {
             La confirmation peut prendre quelques secondes. Vous pouvez aussi revenir sur la page de paiement pour vérifier le statut.
           </p>
           <Link
-            href={`/paiement/checkout/${reference}`}
+            href={`/paiement/checkout/${reference}${token ? `?token=${encodeURIComponent(token)}` : ''}`}
             className="block w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition"
           >
             Vérifier / réessayer le paiement
@@ -279,10 +292,12 @@ function PaymentSuccessContent() {
               <span className="text-slate-500 dark:text-slate-400">Payé le</span>
               <span className="font-semibold text-slate-900 dark:text-white">{paidAt}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400">Méthode</span>
-              <span className="font-semibold text-slate-900 dark:text-white font-mono">Wave · **** 4587</span>
-            </div>
+            {payment?.paymentMethod && (
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Méthode</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -296,7 +311,7 @@ function PaymentSuccessContent() {
               <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe est là 7j/7</p>
             </div>
             <a
-              href="https://wa.me/221761234567"
+              href={brandWhatsAppUrl(MARKET_BRAND)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-emerald-600 text-white text-[13px] font-semibold flex-shrink-0"
@@ -320,6 +335,13 @@ function PaymentSuccessContent() {
             >
               <Users size={16} /> Retour à l&apos;achat groupé
             </Link>
+          ) : orderId ? (
+            <Link
+              href={`/commandes/${orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`}
+              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+            >
+              <Package size={16} /> Suivre ma commande
+            </Link>
           ) : (
             <Link
               href="/compte/commandes"
@@ -332,7 +354,7 @@ function PaymentSuccessContent() {
 
         <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-6">
           Un problème avec ce paiement ?{' '}
-          <Link href={`/paiement/checkout/${reference}`} className="font-bold text-emerald-600 dark:text-emerald-400 underline">
+          <Link href={`/paiement/checkout/${reference}${token ? `?token=${encodeURIComponent(token)}` : ''}`} className="font-bold text-emerald-600 dark:text-emerald-400 underline">
             Vérifier ou réessayer
           </Link>
         </p>

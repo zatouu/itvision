@@ -10,6 +10,8 @@ import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { mapOrder } from '../data-mappers';
+import { isPaymentSettled } from '@/lib/order-status';
+import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
 import type { Order, OrderStep } from '../types';
 
 
@@ -73,8 +75,10 @@ export default function ScreenOrders() {
   const OrderCard = ({ o }: { o: Order }) => {
     const s = statusMap[o.status] || statusMap.ordered;
     const totalPcs = o.items.reduce((sum, it) => sum + it.qty, 0);
+    const unpaid = !isPaymentSettled(o.paymentStatus) && o.status !== 'cancelled';
+    const orderHref = `/commandes/${o.id}`;
     return (
-      <Card className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+      <Card className="overflow-hidden hover:shadow-md transition-shadow">
         <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">{o.id}</p>
@@ -129,10 +133,27 @@ export default function ScreenOrders() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            {o.status !== "delivered" && o.status !== "cancelled" && <Button variant="primary" size="sm"><Icon name="truck" size={12}/>Suivre</Button>}
-            <Button variant="secondary" size="sm">Détails</Button>
-            {o.status === "delivered" && <Button variant="secondary" size="sm">Réévaluer</Button>}
-            <Button variant="ghost" size="sm"><Icon name="whatsapp" size={12}/>Contacter</Button>
+            {unpaid && (
+              <Link href={`/paiement/checkout/${o.id}`}>
+                <Button variant="primary" size="sm"><Icon name="wallet" size={12}/>Payer</Button>
+              </Link>
+            )}
+            {!unpaid && o.status !== "delivered" && o.status !== "cancelled" && (
+              <Link href={orderHref}>
+                <Button variant="primary" size="sm"><Icon name="truck" size={12}/>Suivre</Button>
+              </Link>
+            )}
+            <Link href={orderHref}>
+              <Button variant="secondary" size="sm">Détails</Button>
+            </Link>
+            {o.status === "delivered" && (
+              <Link href={orderHref}>
+                <Button variant="secondary" size="sm">Réévaluer</Button>
+              </Link>
+            )}
+            <a href={brandWhatsAppUrl(MARKET_BRAND, `Commande ${o.id}`)} target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" size="sm"><Icon name="whatsapp" size={12}/>Contacter</Button>
+            </a>
           </div>
         </div>
       </Card>
@@ -171,7 +192,7 @@ export default function ScreenOrders() {
               </div>
               <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Aucune commande</p>
               <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Vos commandes apparaîtront ici.</p>
-              <Button variant="primary" size="md" className="mt-4">Explorer le catalogue</Button>
+              <Link href="/produits"><Button variant="primary" size="md" className="mt-4">Explorer le catalogue</Button></Link>
             </div>
           ) : (
             <div className="p-4 space-y-3">
@@ -214,7 +235,7 @@ export default function ScreenOrders() {
             </div>
             <p className="text-[16px] font-extrabold text-slate-900 dark:text-white">Aucune commande</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Vos commandes apparaîtront ici.</p>
-            <Button variant="primary" size="md" className="mt-6">Explorer le catalogue</Button>
+            <Link href="/produits"><Button variant="primary" size="md" className="mt-6">Explorer le catalogue</Button></Link>
           </div>
         ) : (
           <div className="space-y-3">

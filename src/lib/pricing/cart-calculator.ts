@@ -14,6 +14,8 @@ export interface CartItem {
   name: string
   price: number // Prix avec frais inclus (pour affichage)
   price1688?: number // Prix fournisseur en yuan
+  baseCostFcfa?: number // Coût fournisseur déjà converti en FCFA (prioritaire sur price1688)
+  marginRate?: number // Marge commerciale sur le coût sourcing (%, défaut 0) — reflète le salePrice affiché
   qty: number
   weightKg?: number
   lengthCm?: number
@@ -21,6 +23,7 @@ export interface CartItem {
   heightCm?: number
   volumeM3?: number
   b2bPrice?: number // Prix wholesale en FCFA (5+ pcs ou compte Pro)
+  priceTiers?: { minQty?: number; price?: number }[] // Paliers dégressifs produit
   // Frais spécifiques au produit
   exchangeRate?: number
   serviceFeeRate?: number
@@ -72,7 +75,10 @@ export interface CompleteCartCalculation {
   
   // Total final
   total: number
-  
+
+  // true si aucun coût sourcing disponible → prix retail utilisés comme base
+  usingRetailFallback: boolean
+
   // Informations B2B
   b2bTier: {
     label: string
@@ -110,6 +116,7 @@ export async function calculateCartTotal(
   
   // 2. Calculer le coût fournisseur total
   let supplierCost = 0
+  let retailOnlyItemsTotal = 0 // Produits sans coût sourcing → facturés au prix affiché
   let totalQuantity = 0
   let totalWeight = 0
   let totalVolumetricWeight = 0
@@ -126,7 +133,8 @@ export async function calculateCartTotal(
       price: item.price,
       b2bPrice: item.b2bPrice,
       qty,
-      marketplaceTier: item.marketplaceTier
+      marketplaceTier: item.marketplaceTier,
+      priceTiers: item.priceTiers
     })
     if (resolved.priceType === 'wholesale') {
       wholesaleItemCount += qty
@@ -134,10 +142,17 @@ export async function calculateCartTotal(
       retailItemCount += qty
     }
     
-    // Coût fournisseur
-    if (item.price1688 && item.price1688 > 0) {
-      const itemExchangeRate = item.exchangeRate || exchangeRate
-      supplierCost += item.price1688 * itemExchangeRate * qty
+    // Base facturée = prix unitaire affiché au catalogue (salePrice = coût
+    // sourcing × (1 + marge) pour les imports, `price` sinon), modulé par les
+    // paliers quantité et le prix wholesale. Ainsi le montant facturé est
+    // exactement celui affiché au client.
+    const hasSourcingCost =
+      (typeof item.baseCostFcfa === 'number' && item.baseCostFcfa > 0) ||
+      (typeof item.price1688 === 'number' && item.price1688 > 0)
+    if (hasSourcingCost) {
+      supplierCost += resolved.appliedPrice * qty
+    } else {
+      retailOnlyItemsTotal += resolved.appliedPrice * qty
     }
     
     // Poids
@@ -163,42 +178,36 @@ export async function calculateCartTotal(
   }
   
   supplierCost = Math.round(supplierCost)
+  retailOnlyItemsTotal = Math.round(retailOnlyItemsTotal)
 
-  // Fallback critique: si aucun price1688 disponible, utiliser la somme des prix retail
-  // pour que le total de commande ne soit jamais 0 (uniquement transport)
-  let retailFallbackTotal = 0
+  // Fallback critique: si aucun coût sourcing disponible sur TOUT le panier,
+  // les prix affichés (retail/wholesale) sont utilisés comme base sans frais d'import.
+  // Panier mixte : les articles sans sourcing restent facturés au prix affiché
+  // (retailOnlyItemsTotal) en plus du coût sourcing des articles importés.
   const usingRetailFallback = supplierCost === 0
-  if (usingRetailFallback) {
-    for (const item of items) {
-      const qty = item.qty || 1
-      const resolved = resolveProductPrice({
-        price: item.price,
-        b2bPrice: item.b2bPrice,
-        qty,
-        marketplaceTier: item.marketplaceTier
-      })
-      retailFallbackTotal += resolved.appliedPrice * qty
-    }
-    retailFallbackTotal = Math.round(retailFallbackTotal)
-  }
-  
+  const merchandiseBase = supplierCost + retailOnlyItemsTotal
+
   // 3. Déterminer le palier B2B et calculer les frais
-  const effectiveBase = usingRetailFallback ? retailFallbackTotal : supplierCost
-  const b2bTier = getServiceFeeTier(effectiveBase, options.serviceFeeTiers)
+  //    Les frais de service/assurance (import) ne s'appliquent qu'au coût sourcing ;
+  //    le palier est déterminé sur le total marchandises.
+  const b2bTier = getServiceFeeTier(merchandiseBase, options.serviceFeeTiers)
   const standardServiceFeeRate = options.serviceFeeTiers?.[0]?.feeRate ?? 10
   const insuranceRate = options.insuranceRate ?? 2.5
-  
+
   const feesBreakdown = usingRetailFallback
     ? {
-        finalPrice: retailFallbackTotal,
+        finalPrice: merchandiseBase,
         serviceFee: { rate: 0, amount: 0, savingsVsStandard: 0 },
         insuranceFee: { rate: 0, amount: 0 },
         totalFees: 0
       }
-    : calculateCompleteFees(supplierCost, supplierCost, {
-        insuranceRate,
-        serviceFeeTiers: options.serviceFeeTiers
-      })
+    : (() => {
+        const f = calculateCompleteFees(supplierCost, merchandiseBase, {
+          insuranceRate,
+          serviceFeeTiers: options.serviceFeeTiers
+        })
+        return { ...f, finalPrice: f.finalPrice + retailOnlyItemsTotal }
+      })()
   
   // 4. Calculer le sous-total avant réduction quantité
   const subtotalBeforeDiscounts = feesBreakdown.finalPrice
@@ -257,7 +266,7 @@ export async function calculateCartTotal(
     totalQuantity,
     totalItems: items.length,
     fees: {
-      supplierCost: usingRetailFallback ? retailFallbackTotal : supplierCost,
+      supplierCost: merchandiseBase,
       serviceFeeRate: feesBreakdown.serviceFee.rate,
       serviceFeeStandardRate: standardServiceFeeRate,
       serviceFeeAmount: feesBreakdown.serviceFee.amount,
@@ -275,6 +284,7 @@ export async function calculateCartTotal(
     subtotal,
     shipping,
     total,
+    usingRetailFallback,
     b2bTier: {
       label: b2bTier.label,
       minAmount: b2bTier.minAmount,
@@ -333,6 +343,7 @@ export function calculateCartTotalSync(
     subtotal: 0,
     shipping: null,
     total: 0,
+    usingRetailFallback: false,
     b2bTier: {
       label: 'Standard',
       minAmount: 0,
@@ -351,26 +362,38 @@ export function calculateCartTotalSync(
   
   // Calcul simplifié pour le client
   let supplierCost = 0
+  let retailOnlyItemsTotal = 0
   let totalQuantity = 0
   let totalWeight = 0
-  
+
   for (const item of items) {
     const qty = item.qty || 1
     totalQuantity += qty
-    
-    if (item.price1688 && item.price1688 > 0) {
-      supplierCost += item.price1688 * exchangeRate * qty
+
+    const unitSourcingCost =
+      typeof item.baseCostFcfa === 'number' && item.baseCostFcfa > 0
+        ? item.baseCostFcfa
+        : item.price1688 && item.price1688 > 0
+          ? item.price1688 * exchangeRate
+          : 0
+    const marginRate = typeof item.marginRate === 'number' && item.marginRate > 0 ? item.marginRate : 0
+    supplierCost += unitSourcingCost * (1 + marginRate / 100) * qty
+    if (unitSourcingCost === 0) {
+      retailOnlyItemsTotal += (item.price || 0) * qty
     }
-    
+
     if (item.weightKg) {
       totalWeight += item.weightKg * qty
     }
   }
-  
+
   supplierCost = Math.round(supplierCost)
-  
-  // Frais
-  const serviceFeeTier = getServiceFeeTier(supplierCost, options.serviceFeeTiers)
+  retailOnlyItemsTotal = Math.round(retailOnlyItemsTotal)
+  const merchandiseBase = supplierCost + retailOnlyItemsTotal
+  syncResult.usingRetailFallback = supplierCost === 0
+
+  // Frais (appliqués au coût sourcing uniquement ; palier sur le total marchandises)
+  const serviceFeeTier = getServiceFeeTier(merchandiseBase, options.serviceFeeTiers)
   const serviceFeeRate = serviceFeeTier.feeRate
   const insuranceRate = options.insuranceRate ?? 2.5
   const serviceFeeAmount = Math.round(supplierCost * (serviceFeeRate / 100))
@@ -378,7 +401,7 @@ export function calculateCartTotalSync(
   
   syncResult.totalQuantity = totalQuantity
   syncResult.fees = {
-    supplierCost,
+    supplierCost: merchandiseBase,
     serviceFeeRate,
     serviceFeeStandardRate: standardServiceFeeRate,
     serviceFeeAmount,
@@ -396,14 +419,14 @@ export function calculateCartTotalSync(
   }
   
   // Réduction quantité
-  const quantityTier = applyTierDiscount(supplierCost + serviceFeeAmount + insuranceAmount, totalQuantity)
+  const quantityTier = applyTierDiscount(merchandiseBase + serviceFeeAmount + insuranceAmount, totalQuantity)
   syncResult.quantityDiscount = {
     percent: quantityTier.discountPercent,
     amount: quantityTier.discountAmount,
     tier: quantityTier.tier
   }
   
-  syncResult.subtotalBeforeDiscounts = supplierCost + serviceFeeAmount + insuranceAmount
+  syncResult.subtotalBeforeDiscounts = merchandiseBase + serviceFeeAmount + insuranceAmount
   syncResult.subtotal = quantityTier.finalPrice
   
   // Transport simple

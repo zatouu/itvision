@@ -192,6 +192,7 @@ export async function GET() {
         id: o.orderId,
         orderId: o.orderId,
         status: o.status,
+        paymentStatus: o.paymentStatus,
         total: o.total,
         createdAt: o.createdAt,
         items: o.items?.map((it: any) => ({
@@ -215,6 +216,7 @@ export async function GET() {
         id: latestOrder.orderId,
         orderId: latestOrder.orderId,
         status: latestOrder.status,
+        paymentStatus: latestOrder.paymentStatus,
         total: latestOrder.total,
         createdAt: latestOrder.createdAt,
         items: latestOrder.items?.map((it: any) => ({

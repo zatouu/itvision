@@ -13,6 +13,7 @@ export interface IGroupOrderParticipant {
   paidAmount: number       // Montant déjà payé
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded'
   paymentReference?: string
+  paymentMethod?: string
   transactionId?: string
   adminNote?: string
   paymentUpdatedAt?: Date
@@ -109,6 +110,7 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
     default: 'pending' 
   },
   paymentReference: { type: String },
+  paymentMethod: { type: String },
   transactionId: { type: String },
   adminNote: { type: String },
   paymentUpdatedAt: { type: Date },

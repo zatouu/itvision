@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { verifyAuthServer, setAuthCookie } from '@/lib/auth-server'
+import { signAuthTokenWithExpiry } from '@/lib/jwt'
+import { keycloakEnabled } from '@/lib/keycloak'
+import { resolveUserCategory } from '@/lib/user-segmentation'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import User from '@/lib/models/User'
@@ -94,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
     await session.endSession()
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       vendor: {
         id: String(vendor._id),
@@ -102,6 +105,33 @@ export async function POST(req: NextRequest) {
         slug: vendor.slug,
       },
     })
+
+    // Réémettre le JWT avec le rôle VENDOR pour éviter une reconnexion forcée.
+    // Sous Keycloak, les rôles viennent des claims — pas de réémission locale.
+    if (!keycloakEnabled()) {
+      try {
+        const normalizedRole = 'VENDOR'
+        const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
+        const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId, email: user.email, username: user.username })
+        const token = await signAuthTokenWithExpiry(
+          {
+            userId: String(user._id),
+            email: user.email,
+            role: normalizedRole,
+            username: user.username,
+            marketplaceTier: user.marketplaceTier || 'standard',
+            userCategory,
+            ...(companyClientId ? { companyClientId } : {})
+          },
+          '7d'
+        )
+        setAuthCookie(response, token)
+      } catch (jwtErr) {
+        console.error('[vendor/register] JWT reissue failed:', jwtErr)
+      }
+    }
+
+    return response
   } catch (error: any) {
     console.error('[vendor/register] error:', error)
     if (error.code === 11000) {
