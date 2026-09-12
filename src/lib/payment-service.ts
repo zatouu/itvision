@@ -9,6 +9,7 @@
  */
 
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { buildWavePayLink } from '@/lib/payments/wave'
 import { BrandConfig, MARKET_BRAND } from '@/lib/branding'
 
 export interface PaymentRequest {
@@ -39,28 +40,36 @@ const formatCurrency = (amount: number, currency = 'FCFA') =>
   `${amount.toLocaleString('fr-FR')} ${currency}`
 
 /**
- * Génère un lien de paiement Wave
- * Wave utilise des liens universels: wave.com/send?phone=XXX&amount=XXX
+ * Génère un lien de paiement Wave.
+ * Préfère le lien marchand Wave Business (pay.wave.com/m/<code>?amount=N) quand
+ * configuré — le montant est pré-rempli. Fallback : lien universel par numéro.
  */
 export function generateWavePaymentLink(request: PaymentRequest): PaymentLink {
   const { amount, reference, description, customerName } = request
   const settings = getSettings()
   const merchantPhone = settings.providers.manual.waveMerchantPhone || '+221770000000'
-  
-  // Format Wave: le client envoie de l'argent au numéro marchand
-  const waveUrl = `https://wave.com/send?` + new URLSearchParams({
+
+  const merchantPayLink = buildWavePayLink(settings.providers.manual.wavePayUrl, amount)
+
+  // Fallback legacy: le client envoie de l'argent au numéro marchand
+  const waveUrl = merchantPayLink || `https://wave.com/send?` + new URLSearchParams({
     phone: merchantPhone.replace('+', ''),
     amount: amount.toString(),
     note: `${reference} - ${customerName}`
   }).toString()
-  
-  return {
-    provider: 'wave',
-    url: waveUrl,
-    reference,
-    amount,
-    phoneNumber: merchantPhone,
-    instructions: `
+
+  const instructions = merchantPayLink
+    ? `
+📱 **Paiement Wave**
+
+1. Cliquez sur ce lien depuis votre téléphone :
+${merchantPayLink}
+2. Le montant **${formatCurrency(amount)}** est déjà rempli — confirmez le paiement.
+3. Référence commande : **${reference}**
+
+⚠️ Important: conservez la référence **${reference}** pour le suivi de votre paiement.
+    `.trim()
+    : `
 📱 **Paiement Wave**
 
 1. Ouvrez l'app Wave
@@ -75,6 +84,14 @@ export function generateWavePaymentLink(request: PaymentRequest): PaymentLink {
 Ou cliquez sur ce lien depuis votre téléphone:
 ${waveUrl}
     `.trim()
+
+  return {
+    provider: 'wave',
+    url: waveUrl,
+    reference,
+    amount,
+    phoneNumber: merchantPhone,
+    instructions,
   }
 }
 

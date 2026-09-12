@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
+import { buildWavePayLink } from '@/lib/payments/wave';
 import type { PaymentSettings } from '@/lib/payments/settings';
 
 type ProviderKey = 'wave' | 'om' | 'free' | 'wire' | 'gateway';
@@ -50,6 +51,8 @@ interface MethodDef {
   accentBg: string
   initials: string
   instructions: string[]
+  /** Lien de paiement marchand pré-rempli avec le montant (Wave pay link) */
+  payUrl?: string
 }
 
 export default function ScreenPaymentCheckout({
@@ -93,14 +96,18 @@ export default function ScreenPaymentCheckout({
 
   if (orderType === 'order') {
     if (manual.waveMerchantPhone || manual.wavePayUrl) {
+      const waveLink = buildWavePayLink(manual.wavePayUrl, amount);
       paymentMethods.push({
         key: 'wave',
         label: 'Wave',
-        sub: 'Instant · Sans frais',
+        sub: waveLink ? 'Lien marchand · Instant · Sans frais' : 'Instant · Sans frais',
         merchantPhone: manual.waveMerchantPhone,
         accentBg: 'bg-[#00B0F0]',
         initials: 'W',
-        instructions: ['Ouvrez votre application Wave.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Wave pour la confirmation.'],
+        payUrl: waveLink ?? undefined,
+        instructions: waveLink
+          ? ['Cliquez sur le bouton « Payer avec Wave » — le montant est déjà rempli.', 'Confirmez le paiement dans l\'application Wave.', 'La confirmation est automatique.']
+          : ['Ouvrez votre application Wave.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Wave pour la confirmation.'],
       });
     }
     if (manual.orangeMerchantPhone) {
@@ -195,6 +202,8 @@ export default function ScreenPaymentCheckout({
         showToast('Moyen de paiement non pris en charge');
         return;
       }
+      // Enregistre l'intention de paiement (suivi + réconciliation admin), puis
+      // ouvre le lien marchand Wave pré-rempli avec le montant.
       const response = await fetch('/api/market/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -205,7 +214,12 @@ export default function ScreenPaymentCheckout({
         showToast(data.error || 'Erreur lors du lancement du paiement');
         return;
       }
-      showToast(data.message || 'Paiement initié. Confirmez depuis votre téléphone.');
+      if (method.payUrl) {
+        window.open(method.payUrl, '_blank', 'noopener,noreferrer');
+        showToast('Lien Wave ouvert — confirmez le paiement dans l\'application.');
+      } else {
+        showToast(data.message || 'Paiement initié. Confirmez depuis votre téléphone.');
+      }
     } catch {
       showToast('Erreur réseau');
     } finally {
@@ -270,6 +284,18 @@ export default function ScreenPaymentCheckout({
               <span>{step}</span>
             </li>
           ))}
+          {method?.payUrl && (
+            <li className="pl-7">
+              <a
+                href={method.payUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#00B0F0] px-3 py-2.5 text-[12px] font-extrabold text-white hover:bg-[#0090cc] transition-colors"
+              >
+                Payer {formatFcfa(amount)} avec Wave
+              </a>
+            </li>
+          )}
           {method?.key !== 'gateway' && method?.merchantPhone && (
             <li className="pl-7">
               <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 flex items-center justify-between gap-2">
