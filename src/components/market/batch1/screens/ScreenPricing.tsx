@@ -28,9 +28,9 @@ const FAQS = [
 ]
 
 const TRANSPORT = [
-  { key: 'express', icon: Plane, label: 'Express aérien', days: '4-7j', cost: '12 000 F/kg', idealFor: 'Petites qtés urgentes' },
-  { key: 'aerien', icon: Plane, label: 'Aérien standard', days: '8-12j', cost: '8 500 F/kg', idealFor: 'Meilleur rapport prix/délai' },
-  { key: 'maritime', icon: Ship, label: 'Maritime', days: '35-45j', cost: '180 000 F/m³', idealFor: 'Gros volumes économiques', badge: 'Idéal en groupe' },
+  { key: 'express', icon: Plane, label: 'Express aérien', days: '3-5j', cost: '12 000 F/kg', idealFor: 'Petites qtés urgentes' },
+  { key: 'aerien', icon: Plane, label: 'Aérien standard', days: '10-15j', cost: '8 500 F/kg', idealFor: 'Meilleur rapport prix/délai' },
+  { key: 'maritime', icon: Ship, label: 'Maritime', days: '45-50j', cost: '180 000 F/m³', idealFor: 'Gros volumes économiques', badge: 'Idéal en groupe' },
 ]
 
 export default function ScreenPricing() {

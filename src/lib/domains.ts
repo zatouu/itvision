@@ -174,7 +174,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/order/track-public', domain: 'market', access: 'public', note: 'Suivi masqué par n° de commande — aucune PII ni montant' },
   { prefix: '/api/order', domain: 'market', access: 'public', note: 'POST = checkout invité ; GET [orderId] = session propriétaire ou tracking token — auth interne' },
   { prefix: '/api/order-chat', domain: 'market', access: 'auth' },
-  { prefix: '/api/group-orders', domain: 'market', access: 'auth' },
+  { prefix: '/api/group-orders', domain: 'market', access: 'public', note: 'GET public (catalogue groupes) ; POST/join = invité ou session via resolveGuestOrAuthUser ; PATCH/DELETE = admin' },
   { prefix: '/api/grains', domain: 'market', access: 'auth' },
   { prefix: '/api/favorites', domain: 'market', access: 'auth' },
   { prefix: '/api/returns', domain: 'market', access: 'auth' },

@@ -25,7 +25,8 @@ import { calculateCartTotal, type CartItem, type CompleteCartCalculation } from 
 import { DEFAULT_EXCHANGE_RATE, getCNYToXOFRate } from './exchange-rate'
 import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
 import { readPricingDefaults } from './settings'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
+import { buildSeaFreightMetrics, evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { checkStockAvailability } from '@/lib/inventory'
 import type { ShippingMethodId, ShippingRate } from '@/lib/logistics'
 
@@ -46,7 +47,8 @@ export function resolveShippingMethod(method?: string): {
   const clientMethod = method || 'air_15j'
   const internalMethod =
     SHIPPING_METHOD_MAP[clientMethod] ||
-    (['air_express', 'air_15', 'sea_freight'].includes(clientMethod) ? (clientMethod as ShippingMethodId) : 'air_15')
+    (['air_express', 'air_15', 'sea_freight'].includes(clientMethod) ? (clientMethod as ShippingMethodId) : null)
+  if (!internalMethod) return { error: `Méthode de livraison inconnue: ${clientMethod}` }
   const rate = getConfiguredShippingRates()[internalMethod]
   if (!rate) return { error: 'Méthode de livraison invalide' }
   return { clientMethod, internalMethod, rate }
@@ -275,8 +277,10 @@ export interface CartQuote {
   shippingOptions?: {
     methodId: ShippingMethodId
     label: string
-    cost: number
+    cost: number | null
     billedWeight: number
+    eligible?: boolean
+    reasons?: string[]
   }[]
   discounts: {
     promo: { code: string; discount: number } | null
@@ -287,7 +291,7 @@ export interface CartQuote {
 
 export type QuoteResult =
   | { ok: true; quote: CartQuote; calculation: CompleteCartCalculation; ctx: CartProductsContext }
-  | { ok: false; status: number; error: string; code?: string }
+  | { ok: false; status: number; error: string; code?: string; reasons?: string[] }
 
 /**
  * Devis panier côté serveur — même calcul que la facturation.
@@ -322,6 +326,26 @@ export async function quoteCart(params: {
 
   const { fees, quantityDiscount, subtotal, shipping } = calculation
 
+  // Éligibilité maritime — mêmes règles que POST /api/order pour que le devis
+  // n'annonce jamais une option que la commande refusera.
+  const seaEligibility =
+    method.internalMethod === 'sea_freight' || includeAllShipping
+      ? evaluateSeaFreightEligibility(
+          buildSeaFreightMetrics(calculatorItems, subtotal),
+          readSeaFreightEligibilitySettings()
+        )
+      : null
+
+  if (method.internalMethod === 'sea_freight' && seaEligibility && !seaEligibility.eligible) {
+    return {
+      ok: false,
+      status: 400,
+      code: 'SEA_FREIGHT_NOT_ELIGIBLE',
+      error: 'Le mode maritime est réservé aux commandes volumineuses. Veuillez choisir Express ou Aérien.',
+      reasons: seaEligibility.reasons,
+    }
+  }
+
   if (!shipping) {
     return { ok: false, status: 400, error: 'Impossible de calculer les frais de transport pour cette commande' }
   }
@@ -342,8 +366,14 @@ export async function quoteCart(params: {
     const rates = getConfiguredShippingRates()
     shippingOptions = []
     for (const methodId of ['air_express', 'air_15', 'sea_freight'] as ShippingMethodId[]) {
+      const seaMeta = methodId === 'sea_freight'
+        ? {
+            eligible: Boolean(seaEligibility?.eligible),
+            reasons: seaEligibility && !seaEligibility.eligible ? seaEligibility.reasons : undefined,
+          }
+        : {}
       if (methodId === method.internalMethod) {
-        shippingOptions.push({ methodId, label: method.rate.label, cost: shipping.cost, billedWeight: shipping.billedWeight })
+        shippingOptions.push({ methodId, label: method.rate.label, cost: shipping.cost, billedWeight: shipping.billedWeight, ...seaMeta })
         continue
       }
       const r = rates[methodId]
@@ -355,7 +385,10 @@ export async function quoteCart(params: {
         { serviceFeeTiers: pricingDefaults.serviceFeeTiers }
       )
       if (c.shipping) {
-        shippingOptions.push({ methodId, label: r.label, cost: c.shipping.cost, billedWeight: c.shipping.billedWeight })
+        shippingOptions.push({ methodId, label: r.label, cost: c.shipping.cost, billedWeight: c.shipping.billedWeight, ...seaMeta })
+      } else if (methodId === 'sea_freight') {
+        // Option non chiffrable (pas de volume) — exposée désactivée pour expliciter le rejet
+        shippingOptions.push({ methodId, label: r.label, cost: null, billedWeight: 0, ...seaMeta })
       }
     }
   }

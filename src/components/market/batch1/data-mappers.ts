@@ -233,9 +233,9 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     shipping: {
       origin: p?.sourcing?.origin || 'Guangzhou, Chine',
       modes: modes.length > 0 ? modes : [
-        { key: 'express', label: 'Express aérien', days: '4-7j', from: 3200 },
-        { key: 'aerien', label: 'Standard aérien', days: '8-12j', from: 1800 },
-        { key: 'maritime', label: 'Maritime', days: '35-45j', from: 850 },
+        { key: 'express', label: 'Express aérien', days: '3-5j', from: 0 },
+        { key: 'aerien', label: 'Standard aérien', days: '10-15j', from: 0 },
+        { key: 'maritime', label: 'Maritime', days: '45-50j', from: 0 },
       ],
     },
     cat: p?.category,
@@ -257,10 +257,18 @@ export function mapGroupOrder(g: any): Group {
         ? g.base
         : 0;
   const pct = targetQty > 0 ? currentQty / targetQty : 0;
+  // Conserve les états fermés : un groupe 'filled'/'ordered'/'cancelled' ne doit
+  // plus présenter de CTA « Rejoindre » (l'API rejetterait l'inscription).
   const status: Group['status'] =
-    g?.status === 'filled' || g?.status === 'almost' || pct >= 0.9
-      ? 'almost'
-      : 'live';
+    g?.status === 'filled'
+      ? 'filled'
+      : g?.status === 'ordering' || g?.status === 'ordered'
+        ? 'ordered'
+        : g?.status === 'shipped' || g?.status === 'delivered' || g?.status === 'cancelled' || g?.status === 'draft'
+          ? g.status
+          : g?.status === 'almost' || pct >= 0.9
+            ? 'almost'
+            : 'live';
 
   const deadlineDate = g?.deadline ? new Date(g.deadline).getTime() : 0;
 

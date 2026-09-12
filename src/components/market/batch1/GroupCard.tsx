@@ -20,6 +20,7 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
       ? Math.round((group.currentQty / group.targetQty) * 100)
       : 0;
   const almost = group.status === 'almost';
+  const joinable = group.status === 'live' || group.status === 'almost';
 
   return (
     <Card
@@ -50,6 +51,15 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
               <Icon name="flame" size={9} />
               Presque plein
+            </span>
+          ) : group.status === 'filled' ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-slate-800/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+              <Icon name="check" size={9} />
+              Complet
+            </span>
+          ) : !joinable ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-slate-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+              {group.status === 'cancelled' ? 'Annulé' : group.status === 'delivered' ? 'Livré' : group.status === 'shipped' ? 'Expédié' : 'En cours'}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-bold text-slate-900 dark:bg-slate-900/95 dark:text-white">
@@ -104,8 +114,8 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
         </div>
 
         <div className="mt-2">
-          <Button variant="violet" size="sm" className="w-full !h-8 !text-xs">
-            Rejoindre
+          <Button variant={joinable ? 'violet' : 'secondary'} size="sm" className="w-full !h-8 !text-xs">
+            {joinable ? 'Rejoindre' : 'Voir'}
           </Button>
         </div>
       </div>

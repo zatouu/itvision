@@ -39,7 +39,7 @@ interface CheckoutQuote {
     subtotal: number;
   };
   shipping: { label: string; cost: number } | null;
-  shippingOptions?: { methodId: string; label: string; cost: number }[];
+  shippingOptions?: { methodId: string; label: string; cost: number | null; eligible?: boolean; reasons?: string[] }[];
   discounts: { promo: { code: string; discount: number } | null; promoError?: string };
   total: number;
 }
@@ -61,6 +61,7 @@ export default function ScreenCheckout() {
   const [shippingRates, setShippingRates] = useState<Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }>>({});
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState("");
   const [grainsBalance, setGrainsBalance] = useState(0);
@@ -134,9 +135,12 @@ export default function ScreenCheckout() {
       }),
       signal: ctrl.signal,
     })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.quote) setQuote(d.quote); })
-      .catch(() => {})
+      .then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) }))
+      .then(({ ok, data }) => {
+        if (ok && data?.quote) { setQuote(data.quote); setQuoteError(""); }
+        else { setQuote(null); setQuoteError(data?.error || 'Devis indisponible pour ce panier.'); }
+      })
+      .catch(() => { setQuote(null); setQuoteError('Devis indisponible pour ce panier.'); })
       .finally(() => setQuoteLoading(false));
     return () => ctrl.abort();
   }, [CART, ship, appliedPromo]);
@@ -145,19 +149,22 @@ export default function ScreenCheckout() {
 
   const shippingOptions = useMemo(() => {
     const base = [
-      { key: "express", id: "air_express", label: "Express aérien", days: "4-7 jours", sub: "Prioritaire · le plus rapide", icon: "plane", groupTag: false },
-      { key: "aerien", id: "air_15", label: "Standard aérien", days: "8-12 jours", sub: "Le meilleur rapport prix/délai", icon: "plane", groupTag: false },
-      { key: "maritime", id: "sea_freight", label: "Maritime", days: "35-45 jours", sub: "Le moins cher pour gros volumes", icon: "ship", groupTag: true },
+      { key: "express", id: "air_express", label: "Express aérien", days: "3-5 jours", sub: "Prioritaire · le plus rapide", icon: "plane", groupTag: false },
+      { key: "aerien", id: "air_15", label: "Standard aérien", days: "10-15 jours", sub: "Le meilleur rapport prix/délai", icon: "plane", groupTag: false },
+      { key: "maritime", id: "sea_freight", label: "Maritime", days: "45-50 jours", sub: "Le moins cher pour gros volumes", icon: "ship", groupTag: true },
     ];
     return base.map((o) => {
       const rate = shippingRates[o.id];
       const quoted = quote?.shippingOptions?.find(s => s.methodId === o.id);
+      const eligible = quoted ? quoted.eligible !== false && quoted.cost != null : true;
       return {
         ...o,
         // Coût réel calculé serveur (poids réel/volumétrique du panier)
         price: quoted ? quoted.cost : null,
-        days: rate ? (typeof rate.durationDays === 'number' ? `${rate.durationDays} jours` : String(rate.durationDays)) : o.days,
-        sub: rate ? rate.description : o.sub,
+        // Les jours restent la fourchette canonique (durationDays = valeur médiane serveur)
+        days: o.days,
+        sub: eligible ? (rate ? rate.description : o.sub) : (quoted?.reasons?.[0] ?? 'Réservé aux commandes volumineuses'),
+        disabled: !eligible,
       };
     });
   }, [shippingRates, quote]);
@@ -257,12 +264,14 @@ export default function ScreenCheckout() {
   );
 
   const ShippingCards = () => (
+    <>
     <div className="space-y-2 md:grid md:grid-cols-3 md:gap-3 md:space-y-0">
       {shippingOptions.map((o) => {
         const active = ship === o.key;
         return (
-          <button key={o.key} onClick={()=>setShip(o.key)} className={cn(
+          <button key={o.key} disabled={o.disabled} onClick={()=>!o.disabled && setShip(o.key)} className={cn(
             "flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all md:flex-col md:gap-2",
+            o.disabled && "opacity-50 cursor-not-allowed",
             active ? "border-emerald-600 bg-emerald-50 shadow-sm dark:border-emerald-500 dark:bg-emerald-950/40" : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
           )}>
             <div className="flex items-start justify-between w-full">
@@ -283,6 +292,12 @@ export default function ScreenCheckout() {
         );
       })}
     </div>
+    {quoteError && (
+      <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+        {quoteError}
+      </div>
+    )}
+    </>
   );
 
   const AddressForm = () => (
@@ -502,7 +517,7 @@ export default function ScreenCheckout() {
               <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">Total à payer</p>
               <p className="mt-0.5 text-[17px] font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight whitespace-nowrap">{formatFcfa(total)}</p>
             </div>
-            <Button variant="primary" size="md" className="whitespace-nowrap flex-shrink-0" onClick={handleCheckout} disabled={submitting || items.length === 0}>
+            <Button variant="primary" size="md" className="whitespace-nowrap flex-shrink-0" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
               {submitting ? 'Traitement...' : 'Aller au paiement'}
               <Icon name="arrowRight" size={14}/>
             </Button>
@@ -539,7 +554,7 @@ export default function ScreenCheckout() {
                   {checkoutError}
                 </div>
               )}
-              <Button variant="primary" size="lg" className="w-full" onClick={handleCheckout} disabled={submitting || items.length === 0}>{submitting ? 'Traitement...' : 'Aller au paiement'} <Icon name="arrowRight" size={16}/></Button>
+              <Button variant="primary" size="lg" className="w-full" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>{submitting ? 'Traitement...' : 'Aller au paiement'} <Icon name="arrowRight" size={16}/></Button>
               <p className="text-center text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Icon name="lock" size={12}/>Paiement sécurisé · Escrow Mobile Money</p>
             </div>
           </div>

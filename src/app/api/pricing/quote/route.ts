@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
     })
 
     if (!result.ok) {
-      return NextResponse.json({ success: false, error: result.error }, { status: result.status })
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code, reasons: result.reasons },
+        { status: result.status }
+      )
     }
 
     return NextResponse.json({ success: true, quote: result.quote })

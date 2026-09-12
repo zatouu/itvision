@@ -171,9 +171,15 @@ export async function calculateCartTotal(
       }
     }
     
-    // Volume
-    if (item.volumeM3) {
-      totalVolume += item.volumeM3 * qty
+    // Volume : volumeM3 explicite, sinon dérivé des dimensions (L×l×h en cm → m³)
+    const itemVolumeM3 =
+      (typeof item.volumeM3 === 'number' && item.volumeM3 > 0)
+        ? item.volumeM3
+        : (item.lengthCm && item.widthCm && item.heightCm)
+          ? (item.lengthCm * item.widthCm * item.heightCm) / 1_000_000
+          : 0
+    if (itemVolumeM3 > 0) {
+      totalVolume += itemVolumeM3 * qty
     }
   }
   

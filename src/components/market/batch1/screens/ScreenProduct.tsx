@@ -409,7 +409,7 @@ export default function ScreenProduct() {
                         <p className="text-[12px] font-bold text-slate-900 dark:text-white">{m.label}</p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">{m.days}</p>
                       </div>
-                      <p className="text-[12px] font-bold text-slate-900 dark:text-white tabular-nums">dès {formatFcfa(m.from)}/pc</p>
+                      <p className="text-[12px] font-bold text-slate-900 dark:text-white tabular-nums">{m.from > 0 ? `dès ${formatFcfa(m.from)}/pc` : 'Selon poids/volume'}</p>
                     </div>
                   ))}
                 </div>

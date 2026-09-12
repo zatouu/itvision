@@ -149,6 +149,18 @@ export default function ScreenGroupDetail() {
     (p) => p.joinedAt && Date.now() - new Date(p.joinedAt).getTime() < 3600000
   ).length;
 
+  // Seuls les groupes ouverts acceptent des inscriptions — 'filled', 'ordered',
+  // 'shipped', 'delivered', 'cancelled', 'draft' affichent leur état réel.
+  const canJoin = g.status === 'live' || g.status === 'almost';
+  const closedLabel = ({
+    filled: 'Groupe complet — commande en préparation',
+    ordered: 'Commande groupée passée — traitement en cours',
+    shipped: 'Commande groupée expédiée',
+    delivered: 'Groupe livré',
+    cancelled: 'Groupe annulé',
+    draft: 'Groupe en préparation',
+  } as Record<string, string>)[g.status] || 'Inscriptions fermées';
+
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/achats-groupes/${g.id}`
     : `https://market.itvisionplus.sn/achats-groupes/${g.id}`;
@@ -271,7 +283,14 @@ export default function ScreenGroupDetail() {
     </Card>
   );
 
-  const JoinForm = () => (
+  const JoinForm = () => !canJoin ? (
+    <Card className="p-4">
+      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Rejoindre le groupe</h3>
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[12px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+        {closedLabel}
+      </div>
+    </Card>
+  ) : (
     <Card className="p-4">
       <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Rejoindre le groupe</h3>
       <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Aucun paiement immédiat — vous serez notifié à la clôture.</p>
@@ -500,15 +519,19 @@ export default function ScreenGroupDetail() {
                 <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">-{g.save}%</p>
               </div>
             </div>
-            <Button
-              variant="violet"
-              size="md"
-              className="whitespace-nowrap flex-shrink-0"
-              disabled={joinStatus === 'submitting' || joinStatus === 'success'}
-              onClick={handleJoin}
-            >
-              {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
-            </Button>
+            {canJoin ? (
+              <Button
+                variant="violet"
+                size="md"
+                className="whitespace-nowrap flex-shrink-0"
+                disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+                onClick={handleJoin}
+              >
+                {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
+              </Button>
+            ) : (
+              <span className="whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{closedLabel}</span>
+            )}
           </div>
         </div>
       </div>
