@@ -53,7 +53,7 @@ export default function VendorStorefrontPage() {
     if (!slug) return
     const fetchVendor = async () => {
       try {
-        const res = await fetch(`/api/catalog/products?sellerSlug=${encodeURIComponent(slug)}&limit=100`)
+        const res = await fetch(`/api/catalog/products?sellerSlug=${encodeURIComponent(slug)}&limit=100&compact=1`)
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Erreur de chargement')
 

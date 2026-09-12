@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 
 function generatePaymentReference(groupId: string, participantPhone: string): string {
   const groupShort = groupId.slice(-6).toUpperCase()
@@ -22,6 +23,10 @@ export async function GET(
   { params }: { params: Promise<{ groupId: string }> }
 ) {
   try {
+    // Le lookup par téléphone est énumérable — limiter les tentatives par IP
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { groupId } = await params
     const { searchParams } = new URL(request.url)
     const phone = searchParams.get('phone')

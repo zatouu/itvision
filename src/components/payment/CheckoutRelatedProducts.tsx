@@ -21,7 +21,7 @@ export default function CheckoutRelatedProducts({ productIds }: { productIds?: s
   const [added, setAdded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    fetch('/api/catalog/products?limit=8&sort=popular')
+    fetch('/api/catalog/products?limit=8&sort=popular&compact=1')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.items) {

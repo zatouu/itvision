@@ -24,7 +24,7 @@ export default function ScreenGroups() {
     setLoading(true);
     Promise.all([
       fetch('/api/group-orders?limit=50').then(r => r.json()).catch(() => null),
-      fetch('/api/catalog/products?limit=1').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/products?limit=1&compact=1').then(r => r.json()).catch(() => null),
     ]).then(([res, prodRes]) => {
       if (res?.groups?.length) setGROUPS(res.groups.map(mapGroupOrder));
       if (prodRes?.products?.[0] || prodRes?.items?.[0]) {

@@ -135,7 +135,7 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
               : 0,
         deadline: fmtDeadline(groupBest?.deadline),
         unitPrice:
-          p?.groupBuyBestPrice ?? groupBest?.currentPrice ?? price,
+          p?.groupBuyBestPrice ?? groupBest?.currentPrice ?? groupBest?.currentUnitPrice ?? price,
         savePct:
           p?.groupBuyDiscount ??
           (base > 0 && p?.groupBuyBestPrice

@@ -14,6 +14,11 @@ import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligib
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
+import { sanitizePublicGroup, sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
+import { getRedisClient } from '@/lib/redis'
+import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
+
+const GROUPS_LIST_CACHE_TTL = 45 // secondes — la liste bouge peu, lue à chaque accueil
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
@@ -30,24 +35,6 @@ function asTrimmedString(value: unknown, maxLength: number): string | undefined 
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
-
-function sanitizePublicGroup(group: any) {
-  return {
-    groupId: group.groupId,
-    status: group.status,
-    product: group.product,
-    minQty: group.minQty,
-    targetQty: group.targetQty,
-    currentQty: group.currentQty,
-    maxQty: group.maxQty,
-    priceTiers: group.priceTiers,
-    currentUnitPrice: group.currentUnitPrice,
-    deadline: group.deadline,
-    shippingMethod: group.shippingMethod,
-    shippingCostPerUnit: group.shippingCostPerUnit,
-    participantCount: Array.isArray(group.participants) ? group.participants.length : 0,
-  }
 }
 
 function calcShippingCostPerUnit(
@@ -110,26 +97,31 @@ export async function GET(req: NextRequest) {
     if (!searchParams.get('includeExpired')) {
       query.deadline = { $gte: new Date() }
     }
-    
+
+    const cacheKey = `mkt:group-orders:v1:${status || ''}:${productId || ''}:${limit}:${searchParams.get('includeExpired') ? 1 : 0}`
+    const redis = getRedisClient()
+    if (redis && redis.status === 'ready') {
+      const cached = await redis.get(cacheKey)
+      if (cached) return NextResponse.json(JSON.parse(cached))
+    }
+
     const groups = await GroupOrder.find(query)
-      // Public response: do not leak participant PII / payment details / chat tokens
-      .select(
-        '-participants.phone -participants.email -participants.paidAmount -participants.paymentReference -participants.transactionId -participants.adminNote -participants.paymentUpdatedAt -participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt'
-      )
+      .select('groupId status product minQty targetQty currentQty maxQty priceTiers currentUnitPrice deadline shippingMethod shippingCostPerUnit participants')
       .sort({ deadline: 1, currentQty: -1 })
       .limit(limit)
       .lean()
-    
+
     // Calculer stats
     const stats = {
       totalOpen: await GroupOrder.countDocuments({ status: 'open', deadline: { $gte: new Date() } }),
       totalFilled: await GroupOrder.countDocuments({ status: 'filled' }),
       totalParticipants: groups.reduce((sum: number, g: any) => sum + (g.participants?.length || 0), 0)
     }
-    
-    return NextResponse.json({
+
+    const response = {
       success: true,
-      groups,
+      // La liste n'expose jamais les identités/montants des participants
+      groups: groups.map((g: any) => sanitizePublicGroup(g)),
       stats,
       config: {
         minJoinQty: groupRules.minJoinQty,
@@ -137,7 +129,11 @@ export async function GET(req: NextRequest) {
         defaultDeadlineDays: groupRules.defaultDeadlineDays,
         allowedShippingMethods
       }
-    })
+    }
+    if (redis && redis.status === 'ready') {
+      await redis.set(cacheKey, JSON.stringify(response), 'EX', GROUPS_LIST_CACHE_TTL)
+    }
+    return NextResponse.json(response)
     
   } catch (error) {
     console.error('Erreur récupération achats groupés:', error)
@@ -438,6 +434,7 @@ export async function POST(req: NextRequest) {
     })
     
     await groupOrder.save()
+    void invalidateGroupOrdersCache()
 
     // Créditer les grains de fidélité (best effort)
     try {
@@ -477,7 +474,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       success: true,
       message: 'Achat groupé créé avec succès',
-      group: groupOrder,
+      group: sanitizePublicGroupDetail(groupOrder.toObject()),
       isNewAccount: auth.isNew || false,
     }, { status: 201 })
 

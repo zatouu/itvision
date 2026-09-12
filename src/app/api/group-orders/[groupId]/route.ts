@@ -16,6 +16,8 @@ import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary'
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
+import { sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
+import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -48,10 +50,10 @@ export async function GET(
         { status: 404 }
       )
     }
-    
+
     return NextResponse.json({
       success: true,
-      group
+      group: sanitizePublicGroupDetail(group)
     })
     
   } catch (error) {
@@ -250,6 +252,7 @@ export async function POST(
     }
     
     await group.save()
+    void invalidateGroupOrdersCache()
 
     // Créditer les grains de fidélité (best effort)
     try {
@@ -298,33 +301,8 @@ export async function POST(
       console.error('Erreur notifications:', notifError)
     }
     
-    // Public response: avoid leaking participant contact/payment data
-    const safeGroup: any = {
-      groupId: group.groupId,
-      status: group.status,
-      product: (group as any).product,
-      minQty: (group as any).minQty,
-      targetQty: (group as any).targetQty,
-      currentQty: (group as any).currentQty,
-      currentUnitPrice: (group as any).currentUnitPrice,
-      priceTiers: (group as any).priceTiers || [],
-      deadline: (group as any).deadline,
-      shippingMethod: (group as any).shippingMethod,
-      shippingCostPerUnit: (group as any).shippingCostPerUnit,
-      description: (group as any).description,
-      createdBy: (group as any).createdBy,
-      createdAt: (group as any).createdAt,
-      participants: Array.isArray((group as any).participants)
-        ? (group as any).participants.map((p: any) => ({
-            name: p.name,
-            qty: p.qty,
-            unitPrice: p.unitPrice,
-            totalAmount: p.totalAmount,
-            paymentStatus: p.paymentStatus,
-            joinedAt: p.joinedAt
-          }))
-        : []
-    }
+    // Réponse publique : participants masqués, sans montants ni statut paiement
+    const safeGroup = sanitizePublicGroupDetail(group.toObject ? group.toObject() : group)
 
     const response = NextResponse.json({
       success: true,
@@ -496,6 +474,7 @@ export async function PATCH(
       updateData,
       { new: true }
     ).lean() as any
+    void invalidateGroupOrdersCache()
     
     if (!group) {
       return NextResponse.json(

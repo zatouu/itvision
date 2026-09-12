@@ -8,8 +8,9 @@ export async function GET(req: NextRequest) {
     await connectMongoose()
     const { searchParams } = new URL(req.url)
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 50)))
+    // Champs publics uniquement — ownerEmail/ownerPhone/commissionRate restent privés
     const shops = await Shop.find({ status: 'active' })
-      .select('-__v')
+      .select('name slug description logo coverImage isVerified categories socialLinks address city country createdAt')
       .sort({ isVerified: -1, name: 1 })
       .limit(limit)
       .lean()

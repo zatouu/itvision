@@ -64,7 +64,7 @@ export default function ScreenCart() {
         if (Array.isArray(data?.groups)) setGROUPS(data.groups.map(mapGroupOrder));
       })
       .catch(() => {});
-    fetch('/api/catalog/products?limit=4')
+    fetch('/api/catalog/products?limit=4&compact=1')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const list = data?.products || data?.items || [];

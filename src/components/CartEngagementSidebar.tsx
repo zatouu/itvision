@@ -39,7 +39,7 @@ export default function CartEngagementSidebar({
   const isWholesaleAccount = marketplaceTier !== 'standard'
 
   useEffect(() => {
-    fetch('/api/catalog/products?limit=5&sort=popular')
+    fetch('/api/catalog/products?limit=5&sort=popular&compact=1')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d?.items) {

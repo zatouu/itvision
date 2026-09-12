@@ -212,7 +212,7 @@ export default function AdminQuoteGenerator() {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/catalog/products?limit=200')
+      const res = await fetch('/api/catalog/products?limit=200&compact=1')
       if (res.ok) {
         const data = await res.json()
         const mapped = (data.products || []).map((p: any) => ({
