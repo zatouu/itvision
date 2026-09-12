@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import { TrustStrip } from '../TrustStrip';
 import { ProgressBar } from '../ProgressBar';
 import { ProductCard } from '../ProductCard';
 import { mapCatalogItem, mapGroupOrder, mapCategory } from '../data-mappers';
+import { countProductsByCategory } from '@/lib/catalog/category-match';
 import type { Product, Group, Category, Testimonial } from '../types';
 
 
@@ -28,7 +29,7 @@ export default function ScreenHome() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/api/catalog/products?limit=12').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/products?limit=60').then(r => r.json()).catch(() => null),
       fetch('/api/group-orders?limit=6').then(r => r.json()).catch(() => null),
       fetch('/api/catalog/categories').then(r => r.json()).catch(() => null),
     ]).then(([prodRes, grpRes, catRes]) => {
@@ -37,11 +38,25 @@ export default function ScreenHome() {
         setCATALOG((list as unknown[]).map(mapCatalogItem) as Product[]);
       }
       if (grpRes?.groups?.length) setGROUPS(grpRes.groups.map(mapGroupOrder));
-      if (catRes?.categories?.length) setCATEGORIES(catRes.categories.map(mapCategory));
+      const catList = catRes?.categories || catRes?.items;
+      if (catList?.length) setCATEGORIES(catList.map(mapCategory));
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const popular = CATALOG.filter((p) => p.img && !p.img.includes('placeholder')).slice(0, 6);
+
+  // Catégories populaires : comptage réel + image représentative par catégorie
+  // (les produits portent des catégories texte libres — matching par mots-clés).
+  const catStats = useMemo(
+    () => countProductsByCategory(
+      CATALOG.map((p) => ({ category: p.cat, name: p.name, image: p.img })),
+      CATEGORIES.map((c) => c.key)
+    ),
+    [CATALOG, CATEGORIES]
+  );
+  const popularCategories = CATEGORIES
+    .map((c) => ({ ...c, count: catStats.get(c.key)?.count ?? 0, image: catStats.get(c.key)?.image }))
+    .sort((a, b) => b.count - a.count);
   const liveGroups = GROUPS.filter((g) => g.status === 'live' || g.status === 'almost');
   const avgSave = liveGroups.length
     ? Math.round(liveGroups.reduce((s, g) => s + (g.save || 0), 0) / liveGroups.length)
@@ -167,16 +182,23 @@ export default function ScreenHome() {
             </Section>
           )}
 
-          {/* Categories */}
-          {CATEGORIES.length > 0 && (
-            <Section title="Catégories" className="mt-6" right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}>
-              <div className="grid grid-cols-4 gap-2">
-                {CATEGORIES.map((c) => (
-                  <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2.5 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      <Icon name={c.icon} size={16}/>
+          {/* Catégories populaires — cartes image */}
+          {popularCategories.length > 0 && (
+            <Section title="Catégories populaires" className="mt-6" right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}>
+              <div className="grid grid-cols-2 gap-2.5">
+                {popularCategories.slice(0, 6).map((c) => (
+                  <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-28 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-md dark:border-slate-800">
+                    {c.image ? (
+                      <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+                    ) : (
+                      <span className="absolute inset-0 grid place-items-center bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"><Icon name={c.icon} size={28}/></span>
+                    )}
+                    <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent"/>
+                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-slate-900"><Icon name="arrowRight" size={12}/></span>
+                    <span className="absolute inset-x-0 bottom-0 p-2.5">
+                      <span className="block text-[12px] font-extrabold text-white leading-tight">{c.label}</span>
+                      <span className="mt-0.5 block text-[10px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
                   </button>
                 ))}
               </div>
@@ -442,21 +464,31 @@ export default function ScreenHome() {
           )}
         </div>
 
-        {/* Catégories */}
-        {CATEGORIES.length > 0 && (
+        {/* Catégories populaires — cartes image */}
+        {popularCategories.length > 0 && (
         <div className="mt-10">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories</h2>
+            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories populaires</h2>
             <Link href="/produits" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">Toutes →</Link>
           </div>
-          <div className="grid grid-cols-8 gap-3">
-            {CATEGORIES.map((c) => (
-              <button key={c.key} onClick={() => router.push(`/produits?category=${encodeURIComponent(c.key)}`)} className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <Icon name={c.icon} size={18}/>
+          <div className="grid grid-cols-3 gap-4">
+            {popularCategories.map((c) => (
+              <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-44 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-lg dark:border-slate-800 transition-shadow">
+                {c.image ? (
+                  <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+                ) : (
+                  <span className="absolute inset-0 grid place-items-center bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"><Icon name={c.icon} size={40}/></span>
+                )}
+                <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"/>
+                <span className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
+                  <span>
+                    <span className="block text-[15px] font-extrabold text-white leading-tight">{c.label}</span>
+                    <span className="mt-0.5 block text-[11px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    Explorer <Icon name="arrowRight" size={11}/>
+                  </span>
                 </span>
-                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight">{c.label}</span>
-                <span className="text-[9px] font-semibold text-slate-400 tabular-nums">{c.count}</span>
               </button>
             ))}
           </div>

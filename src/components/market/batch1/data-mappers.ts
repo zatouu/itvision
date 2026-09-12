@@ -381,7 +381,14 @@ export function mapCategory(c: any): Category {
     beaute: 'heart',
     beauté: 'heart',
     bureau: 'package',
+    informatique: 'monitor',
+    domotique: 'home',
+    electronique: 'smartphone',
+    mobilier: 'package',
+    'packs-cadeaux': 'gift',
   };
+  // L'API renvoie des emojis (🛡️) — non résolubles en icône Lucide → mapping par clé.
+  const isEmoji = (v?: string) => !!v && /[^a-zA-Z0-9_-]/.test(v);
   const key =
     c?.slug ||
     c?.key ||
@@ -395,7 +402,7 @@ export function mapCategory(c: any): Category {
     key,
     label: c?.labelFr || c?.label || c?.name || key,
     icon:
-      c?.icon ||
+      (c?.icon && !isEmoji(c.icon) ? c.icon : undefined) ||
       iconMap[key] ||
       'package',
     count: c?.count ?? c?.productCount ?? 0,

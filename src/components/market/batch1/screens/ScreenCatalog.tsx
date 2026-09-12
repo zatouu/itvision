@@ -10,6 +10,7 @@ import { Icon } from '../Icon';
 import { Button } from '../Button';
 import { ProductCard } from '../ProductCard';
 import { mapCatalogItem, mapCategory } from '../data-mappers';
+import { productMatchesCategory } from '@/lib/catalog/category-match';
 import type { Product, Category } from '../types';
 
 
@@ -29,8 +30,18 @@ export default function ScreenCatalog() {
       if (prodRes?.products?.length || prodRes?.items?.length) {
         setCATALOG(((prodRes.products || prodRes.items) as unknown[]).map(mapCatalogItem) as Product[]);
       }
-      if (catRes?.categories?.length) setCATEGORIES(catRes.categories.map(mapCategory));
+      const catList = catRes?.categories || catRes?.items;
+      if (catList?.length) setCATEGORIES(catList.map(mapCategory));
     }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  // Paramètres d'entrée : ?cat=<slug> (catégorie) et ?q=<recherche>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const catParam = params.get('cat') || params.get('category');
+    const qParam = params.get('q');
+    if (catParam) setCat(catParam);
+    if (qParam) setQuery(qParam);
   }, []);
 
 
@@ -45,7 +56,6 @@ export default function ScreenCatalog() {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(24);
 
-  const slugify = (s?: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   // Plage de prix réelle du catalogue (le slider suit le max observé)
   const catalogMaxPrice = useMemo(
@@ -56,9 +66,8 @@ export default function ScreenCatalog() {
 
   const sortedAndFiltered = useMemo(() => {
     const arr = CATALOG.filter((p) => {
-      if (cat !== "Tous" && slugify(p.cat) !== cat) return false;
+      if (cat !== "Tous" && !productMatchesCategory(p, cat)) return false;
       if (p.price < effectivePriceRange[0] || p.price > effectivePriceRange[1]) return false;
-      if (p.price < priceRange[0] || p.price > priceRange[1]) return false;
       if (moqFilter === "1-4" && (p.moq ?? p.minOrderQty ?? 0) > 4) return false;
       if (moqFilter === "5-9" && ((p.moq ?? p.minOrderQty ?? 0) < 5 || (p.moq ?? p.minOrderQty ?? 0) > 9)) return false;
       if (moqFilter === "10-24" && ((p.moq ?? p.minOrderQty ?? 0) < 10 || (p.moq ?? p.minOrderQty ?? 0) > 24)) return false;
