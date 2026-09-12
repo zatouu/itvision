@@ -105,6 +105,8 @@ export async function GET(request: NextRequest) {
     const onlyGroupBuy = asBool(searchParams.get('onlyGroupBuy'))
     const onlyPrice = asBool(searchParams.get('onlyPrice'))
     const onlyQuote = asBool(searchParams.get('onlyQuote'))
+    // Mode compact : listes/cartes — retire les champs lourds (description, galerie, features)
+    const compact = asBool(searchParams.get('compact'))
 
     const minPrice = asNumber(searchParams.get('minPrice'))
     const maxPrice = asNumber(searchParams.get('maxPrice'))
@@ -473,6 +475,19 @@ export async function GET(request: NextRequest) {
         reviewCount: typeof product.__reviewCount === 'number' ? product.__reviewCount : 0
        }
      })
+
+    // Mode compact : les cartes produit n'ont pas besoin de description/features/galerie —
+    // réduit fortement le payload (~10 KB/produit en brut).
+    if (compact) {
+      for (const p of payload as any[]) {
+        delete p.description
+        delete p.features
+        delete p.gallery
+        delete p.logistics
+        delete p.tagline
+        delete p.b2bPrice
+      }
+    }
 
     if (includeGroupStats && payload.length > 0) {
       const now = new Date()

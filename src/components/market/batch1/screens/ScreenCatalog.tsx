@@ -24,7 +24,7 @@ export default function ScreenCatalog() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/api/catalog/products?limit=100&includeGroupStats=1').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/products?limit=100&includeGroupStats=1&compact=1').then(r => r.json()).catch(() => null),
       fetch('/api/catalog/categories').then(r => r.json()).catch(() => null),
     ]).then(([prodRes, catRes]) => {
       if (prodRes?.products?.length || prodRes?.items?.length) {

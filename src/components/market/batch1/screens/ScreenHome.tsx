@@ -13,7 +13,6 @@ import { TrustStrip } from '../TrustStrip';
 import { ProgressBar } from '../ProgressBar';
 import { ProductCard } from '../ProductCard';
 import { mapCatalogItem, mapGroupOrder, mapCategory } from '../data-mappers';
-import { countProductsByCategory } from '@/lib/catalog/category-match';
 import type { Product, Group, Category, Testimonial } from '../types';
 
 
@@ -29,9 +28,9 @@ export default function ScreenHome() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/api/catalog/products?limit=60').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/products?limit=12&compact=1').then(r => r.json()).catch(() => null),
       fetch('/api/group-orders?limit=6').then(r => r.json()).catch(() => null),
-      fetch('/api/catalog/categories').then(r => r.json()).catch(() => null),
+      fetch('/api/catalog/category-highlights').then(r => r.json()).catch(() => null),
     ]).then(([prodRes, grpRes, catRes]) => {
       if (prodRes?.products?.length || prodRes?.items?.length) {
         const list = prodRes.products || prodRes.items;
@@ -39,23 +38,17 @@ export default function ScreenHome() {
       }
       if (grpRes?.groups?.length) setGROUPS(grpRes.groups.map(mapGroupOrder));
       const catList = catRes?.categories || catRes?.items;
-      if (catList?.length) setCATEGORIES(catList.map(mapCategory));
+      if (catList?.length) {
+        setCATEGORIES(catList.map((c: any) => ({ ...mapCategory(c), image: c.image, count: c.count })));
+      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const popular = CATALOG.filter((p) => p.img && !p.img.includes('placeholder')).slice(0, 6);
 
-  // Catégories populaires : comptage réel + image représentative par catégorie
-  // (les produits portent des catégories texte libres — matching par mots-clés).
-  const catStats = useMemo(
-    () => countProductsByCategory(
-      CATALOG.map((p) => ({ category: p.cat, name: p.name, image: p.img })),
-      CATEGORIES.map((c) => c.key)
-    ),
-    [CATALOG, CATEGORIES]
-  );
+  // Catégories populaires : comptage + image calculés serveur (endpoint léger).
   const popularCategories = CATEGORIES
-    .map((c) => ({ ...c, count: catStats.get(c.key)?.count ?? 0, image: catStats.get(c.key)?.image }))
+    .map((c: any) => ({ ...c, count: c.count ?? 0, image: c.image }))
     .sort((a, b) => b.count - a.count);
   const liveGroups = GROUPS.filter((g) => g.status === 'live' || g.status === 'almost');
   const avgSave = liveGroups.length
