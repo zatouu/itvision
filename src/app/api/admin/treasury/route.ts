@@ -5,10 +5,7 @@ import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
 import Expense from '@/lib/models/Expense'
 import Project from '@/lib/models/Project'
-import { Order } from '@/lib/models/Order'
-import { GroupOrder } from '@/lib/models/GroupOrder'
-import Payment from '@/lib/models/Payment'
-import TopupPayment from '@/lib/models/TopupPayment'
+import { computeMarketplaceFinance, computeXeuyFinance, consolidateGlobal } from '@/lib/finance/domain-finance'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     const dateFilter = { $gte: startDate, $lte: endDate }
 
-    const [invoices, expenses, quotes, projects, marketOrders, groupOrders, servicePayments, topups] = await Promise.all([
+    const [invoices, expenses, quotes, projects, marketplace, xeuy] = await Promise.all([
       AdminInvoice.find({ date: dateFilter }).select({
         numero: 1, date: 1, dueDate: 1, status: 1, total: 1, subtotal: 1, taxAmount: 1,
         paymentDate: 1, paidAt: 1, projectId: 1, clientCompanyId: 1, client: 1
@@ -47,21 +44,9 @@ export async function GET(request: NextRequest) {
         numero: 1, date: 1, status: 1, total: 1, projectId: 1, clientCompanyId: 1
       }).lean() as any,
       Project.find().select({ name: 1, status: 1, value: 1, clientId: 1, clientCompanyId: 1 }).lean() as any,
-      // Commandes marketplace — les anciennes sans `domain` sont marketplace par défaut
-      Order.find({ createdAt: dateFilter, $or: [{ domain: 'marketplace' }, { domain: { $exists: false } }, { domain: null }] })
-        .select('orderId total paymentStatus status fees.serviceFeeAmount fees.insuranceAmount shipping.cost promoDiscount grainsDiscount createdAt')
-        .lean() as any,
-      // Achats groupés : somme des participants payés
-      GroupOrder.find({ createdAt: dateFilter })
-        .select('groupId status participants.paymentStatus participants.paidAmount participants.totalAmount')
-        .lean() as any,
-      // Paiements xeuy (missions services + recharges wallet)
-      Payment.find({ createdAt: dateFilter, $or: [{ domain: 'services' }, { domain: { $exists: false } }, { domain: null }] })
-        .select('amount status provider phase manualConfirm createdAt')
-        .lean() as any,
-      TopupPayment.find({ createdAt: dateFilter })
-        .select('amountFcfa points bonusCredits status createdAt')
-        .lean() as any
+      // Finance isolée par domaine — lib partagée (source unique des agrégats)
+      computeMarketplaceFinance(dateFilter),
+      computeXeuyFinance(dateFilter)
     ])
 
     // ========== REVENUS ==========
@@ -279,74 +264,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ========== FINANCE PAR DOMAINE ==========
-    // Chaque « microservice » a son bloc ; `global` consolide ensuite.
-
-    // — Marketplace (commandes standard + achats groupés) —
-    let mktOrdersCount = 0, mktRevenueCollected = 0, mktRevenuePending = 0
-    let mktServiceFees = 0, mktInsurance = 0, mktShipping = 0, mktDiscounts = 0
-    for (const o of marketOrders as any[]) {
-      if (o.status === 'cancelled') continue
-      mktOrdersCount += 1
-      const total = Number(o.total || 0)
-      if (o.paymentStatus === 'completed') {
-        mktRevenueCollected += total
-        mktServiceFees += Number(o.fees?.serviceFeeAmount || 0)
-        mktInsurance += Number(o.fees?.insuranceAmount || 0)
-        mktShipping += Number(o.shipping?.cost || 0)
-        mktDiscounts += Number(o.promoDiscount || 0) + Number(o.grainsDiscount || 0)
-      } else if (o.paymentStatus !== 'failed' && o.paymentStatus !== 'refunded') {
-        mktRevenuePending += total
-      }
-    }
-    let mktGroupCollected = 0, mktGroupPending = 0, mktGroupCount = 0
-    for (const g of groupOrders as any[]) {
-      let paid = false
-      for (const p of (g.participants || [])) {
-        if (p.paymentStatus === 'paid') {
-          mktGroupCollected += Number(p.paidAmount || p.totalAmount || 0)
-          paid = true
-        } else if (p.paymentStatus === 'pending') {
-          mktGroupPending += Number(p.totalAmount || 0)
-        }
-      }
-      if (paid) mktGroupCount += 1
-    }
-    const marketplace = {
-      ordersCount: mktOrdersCount,
-      groupsWithPayments: mktGroupCount,
-      revenueCollected: mktRevenueCollected + mktGroupCollected,
-      revenuePending: mktRevenuePending + mktGroupPending,
-      serviceFees: mktServiceFees,
-      insuranceFees: mktInsurance,
-      shippingCollected: mktShipping,
-      discountsGranted: mktDiscounts,
-    }
-
-    // — Xeuy (services : paiements missions + recharges wallet) —
-    let xeuyHeld = 0, xeuyReleased = 0, xeuyPending = 0, xeuyRefunded = 0, xeuyFailed = 0
-    for (const p of servicePayments as any[]) {
-      const amt = Number(p.amount || 0)
-      if (p.status === 'held') xeuyHeld += amt
-      else if (p.status === 'released') xeuyReleased += amt
-      else if (p.status === 'refunded') xeuyRefunded += amt
-      else if (p.status === 'failed') xeuyFailed += amt
-      else xeuyPending += amt
-    }
-    let xeuyTopups = 0, xeuyTopupsPending = 0
-    for (const t of topups as any[]) {
-      if (t.status === 'successful') xeuyTopups += Number(t.amountFcfa || 0)
-      else if (t.status === 'pending') xeuyTopupsPending += Number(t.amountFcfa || 0)
-    }
-    const xeuy = {
-      paymentsHeld: xeuyHeld,           // en séquestre (missions en cours)
-      paymentsReleased: xeuyReleased,   // reversés aux prestataires
-      paymentsPending: xeuyPending,     // en attente (dont file validation admin)
-      paymentsRefunded: xeuyRefunded,
-      paymentsFailed: xeuyFailed,
-      topupsCollected: xeuyTopups,      // recharges wallet encaissées
-      topupsPending: xeuyTopupsPending,
-      totalCollected: xeuyHeld + xeuyReleased + xeuyTopups,
-    }
+    // Blocs marketplace/xeuy calculés par la lib partagée (même source que le digest cron).
 
     // — Corporate : bloc existant (factures/dépenses/devis) —
     const corporate = {
@@ -364,12 +282,11 @@ export async function GET(request: NextRequest) {
     }
 
     // — Consolidation globale —
-    const global = {
-      revenueCollected: revenueCollected + marketplace.revenueCollected + xeuy.totalCollected,
-      revenuePending: receivablesOpen + marketplace.revenuePending + xeuy.paymentsPending + xeuy.topupsPending,
-      expensesPaid,
-      treasuryBalance: treasuryBalance + marketplace.revenueCollected + xeuy.totalCollected,
-    }
+    const global = consolidateGlobal(
+      { revenueBilled, revenueCollected, receivablesOpen, expensesPaid },
+      marketplace,
+      xeuy
+    )
 
     return NextResponse.json({
       range: {
