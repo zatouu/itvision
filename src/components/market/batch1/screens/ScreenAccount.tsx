@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { brandWhatsAppUrl } from '@/lib/branding';
 import { Icon } from '../Icon';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -44,7 +45,7 @@ export default function ScreenAccount() {
   const activeOrder = ORDERS[0];
   const currentStep = activeOrder?.currentStep ?? 1;
 
-  const supportWhatsApp = "https://wa.me/221774133440?text=" + encodeURIComponent("Bonjour DDM+, j'ai une question sur mon compte.");
+  const supportWhatsApp = brandWhatsAppUrl(undefined, "Bonjour DDM+, j'ai une question sur mon compte.");
 
   const handleLogout = async () => {
     setLoggingOut(true);

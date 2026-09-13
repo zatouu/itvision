@@ -6,8 +6,9 @@ import {
   Package, Send, Minus, Plus, ShoppingBag, CreditCard,
   CheckCircle, AlertCircle, Info
 } from 'lucide-react'
+import { brandWhatsAppUrl, CORPORATE_BRAND } from '@/lib/branding'
 
-const WA_NUMBER = '221781234567'
+
 
 export interface OrderLine {
   productId: string
@@ -138,7 +139,7 @@ export default function WhatsAppOrderDrawer({ isOpen, onClose, line }: WhatsAppO
   const handleSubmit = () => {
     if (!validate()) return
     const msg = generateWhatsAppMessage(line, buyer, notes)
-    const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`
+    const url = brandWhatsAppUrl(CORPORATE_BRAND, msg)
 
     // Sauvegarder les infos client pour la prochaine fois
     try {

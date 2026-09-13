@@ -221,7 +221,7 @@ export default function ScreenFormRequest({
       });
       if (result.success) {
         setSuccess(true);
-        setSuccessRef(result.reference || `DEM-2026-${Math.floor(Math.random() * 9000 + 1000)}`);
+        setSuccessRef(result.reference || '');
         setCustomSuccessMsg(result.message || null);
       } else {
         setError(result.error || 'Une erreur est survenue.');
@@ -269,7 +269,9 @@ export default function ScreenFormRequest({
         <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Envoyé avec succès</p>
         <h2 className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-900 dark:text-white">{successTitleProp || v.successTitle}</h2>
         <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400 max-w-md text-center">{customSuccessMsg || successMsgProp || v.successMsg}</p>
-        <p className="mt-3 font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2.5 py-1">Réf. {successRef}</p>
+        {successRef && (
+          <p className="mt-3 font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2.5 py-1">Réf. {successRef}</p>
+        )}
 
         <div className="mt-6 w-full max-w-sm flex gap-2 flex-col sm:flex-row">
           <button

@@ -33,6 +33,7 @@ interface OrderItem {
   price: number
   image?: string
   variant?: string
+  variantLabels?: string[]
 }
 
 interface OrderDetails {
@@ -158,7 +159,9 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
           <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{totalPcs} pcs</span>
         </div>
         <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {order.items.map((it, i) => (
+          {order.items.map((it, i) => {
+            const variantLabel = it.variant || (it.variantLabels?.length ? it.variantLabels.join(' · ') : '');
+            return (
             <div key={it.id || it._id || i} className="p-4 flex items-center gap-3">
               {it.image ? (
                 <img src={it.image} alt="" className="h-14 w-14 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />
@@ -167,14 +170,15 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-1">{it.name}</p>
-                {it.variant && <p className="text-[11px] text-slate-500 dark:text-slate-400">{it.variant}</p>}
+                {variantLabel && <p className="text-[11px] text-slate-500 dark:text-slate-400">{variantLabel}</p>}
                 <div className="mt-1 flex items-center gap-2 text-[11px]">
                   <span className="text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(it.price)} × {it.qty}</span>
                 </div>
               </div>
               <p className="text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums whitespace-nowrap flex-shrink-0">{formatFcfa(it.price * it.qty)}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

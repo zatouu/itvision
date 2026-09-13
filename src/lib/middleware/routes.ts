@@ -51,6 +51,15 @@ export function isMarketplaceRoute(pathname: string): boolean {
   )
 }
 
+// Pages transversales publiques (/cgv, /politique-confidentialite, /login…) —
+// servies sur TOUS les domaines (footer market, liens légaux).
+export function isSharedPublicRoute(pathname: string): boolean {
+  return PAGE_RULES.some(
+    (r) => r.domain === 'shared' && r.access === 'public' &&
+      (pathname === r.prefix || pathname.startsWith(r.prefix + '/'))
+  )
+}
+
 export function isMobileApiRoute(pathname: string): boolean {
   return MOBILE_API_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')

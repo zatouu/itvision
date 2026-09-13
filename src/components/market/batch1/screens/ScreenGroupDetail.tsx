@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { MARKET_BRAND } from '@/lib/branding';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
 import { Badge } from '../Badge';
@@ -163,7 +164,7 @@ export default function ScreenGroupDetail() {
 
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/achats-groupes/${g.id}`
-    : `https://market.itvisionplus.sn/achats-groupes/${g.id}`;
+    : `${MARKET_BRAND.url}/achats-groupes/${g.id}`;
 
   const copy = async () => {
     try {

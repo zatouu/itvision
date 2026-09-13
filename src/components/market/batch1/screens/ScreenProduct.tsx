@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { brandWhatsAppUrl } from '@/lib/branding';
 import { Icon } from '../Icon';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -26,6 +27,7 @@ export default function ScreenProduct() {
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
   const [SIMILAR, setSIMILAR] = useState<Product[]>([]);
   const [reviewCount, setReviewCount] = useState(0);
+  const [verifiedCount, setVerifiedCount] = useState(0);
   const [REVIEWS, setREVIEWS] = useState<Array<{ id: string; userName: string; rating: number; comment: string; createdAt: string }>>([]);
 
   const params = useParams();
@@ -69,6 +71,7 @@ export default function ScreenProduct() {
         }
         if (revRes?.success) {
           setReviewCount(revRes.stats?.total ?? 0);
+          setVerifiedCount(revRes.stats?.verifiedCount ?? 0);
           setREVIEWS(Array.isArray(revRes.reviews) ? revRes.reviews : []);
         }
       })
@@ -434,7 +437,7 @@ export default function ScreenProduct() {
                       <div className="flex text-amber-500">
                         {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={14} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"} />)}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{reviewCount} avis{verifiedCount > 0 ? ` · ${verifiedCount} achat${verifiedCount > 1 ? 's' : ''} vérifié${verifiedCount > 1 ? 's' : ''}` : ''}</p>
                     </div>
                   </div>
                   {REVIEWS.length === 0 ? (
@@ -481,7 +484,7 @@ export default function ScreenProduct() {
             {savingsVsBase > 0 && <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">Éco. {formatFcfa(savingsVsBase)}</span>}
           </div>
           <div className="flex gap-1.5">
-            <button onClick={() => window.open(`https://wa.me/221761234567?text=Bonjour, j'ai une question sur ${encodeURIComponent(p.name)} (ref: ${p.id})`, '_blank')} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
+            <button onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
               <Icon name="whatsapp" size={16} />
             </button>
             <Button variant="outline" size="sm" className="flex-1 !text-[12px] whitespace-nowrap" onClick={handleAddToCart}><Icon name="cart" size={14}/>Ajouter</Button>
@@ -561,7 +564,7 @@ export default function ScreenProduct() {
                       <div className="mt-1 flex text-amber-500">
                         {Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={14} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
                       </div>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reviewCount} avis vérifiés</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{reviewCount} avis{verifiedCount > 0 ? ` · ${verifiedCount} achat${verifiedCount > 1 ? 's' : ''} vérifié${verifiedCount > 1 ? 's' : ''}` : ''}</p>
                     </div>
                     <div className="space-y-3">
                       {REVIEWS.length === 0 ? (
@@ -673,7 +676,7 @@ export default function ScreenProduct() {
                 <div className="mt-4 space-y-2">
                   <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart}><Icon name="cart" size={16}/>Ajouter au panier</Button>
                   <Button variant="outline" size="lg" className="w-full" onClick={handleBuyNow}>Acheter maintenant</Button>
-                  <Button variant="ghost" size="md" className="w-full" onClick={() => window.open(`https://wa.me/221761234567?text=Bonjour, j'ai une question sur ${encodeURIComponent(p.name)} (ref: ${p.id})`, '_blank')}><Icon name="whatsapp" size={16}/>Poser une question par WhatsApp</Button>
+                  <Button variant="ghost" size="md" className="w-full" onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')}><Icon name="whatsapp" size={16}/>Poser une question par WhatsApp</Button>
                 </div>
               </Card>
 

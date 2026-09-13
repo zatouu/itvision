@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { brandWhatsAppUrl } from '@/lib/branding';
 import { Icon } from '../Icon';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -156,7 +157,7 @@ export default function ScreenTracking() {
       })
     : [];
 
-  const supportWhatsApp = "https://wa.me/221774133440?text=" + encodeURIComponent(`Bonjour DDM+, j'ai une question sur ma commande ${order.id} (n° de suivi ${order.tracking || order.id}).`);
+  const supportWhatsApp = brandWhatsAppUrl(undefined, `Bonjour DDM+, j'ai une question sur ma commande ${order.id} (n° de suivi ${order.tracking || order.id}).`);
 
   const copyTracking = async () => {
     try {

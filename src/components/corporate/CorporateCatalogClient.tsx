@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import WhatsAppOrderDrawer, { OrderLine } from './WhatsAppOrderDrawer'
+import { brandWhatsAppUrl, CORPORATE_BRAND } from '@/lib/branding'
 
 // ── Types ──────────────────────────────────────────────
 type StockStatus = 'in_stock' | 'preorder' | 'out_of_stock'
@@ -199,7 +200,7 @@ export default function CorporateCatalogClient({ products }: Props) {
 
           <div className="flex items-center gap-2">
             <a
-              href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour IT Vision, je souhaite des informations sur vos équipements.')}`}
+              href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour IT Vision, je souhaite des informations sur vos équipements.')}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white hover:bg-[#1ebe5d] transition-colors"
@@ -288,7 +289,7 @@ export default function CorporateCatalogClient({ products }: Props) {
             <p className="text-xs font-bold text-gray-700 dark:text-gray-200 mb-1">Besoin d'aide ?</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">Nos experts vous conseillent gratuitement.</p>
             <a
-              href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour, je souhaite être conseillé pour mon projet.')}`}
+              href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour, je souhaite être conseillé pour mon projet.')}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-400 hover:underline"
@@ -410,7 +411,7 @@ export default function CorporateCatalogClient({ products }: Props) {
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <a
-              href={`https://wa.me/221781234567?text=${encodeURIComponent("Bonjour IT Vision, je souhaite discuter d'un projet de sécurisation.")}`}
+              href={brandWhatsAppUrl(CORPORATE_BRAND, "Bonjour IT Vision, je souhaite discuter d'un projet de sécurisation.")}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1ebe5d] transition-colors"

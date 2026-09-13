@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Review from '@/lib/models/Review'
+import { Order } from '@/lib/models/Order'
 import { verifyAuthToken } from '@/lib/jwt'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 // GET /api/reviews?productId=xxx&page=1&limit=10
 export async function GET(req: NextRequest) {
@@ -43,11 +45,12 @@ export async function GET(req: NextRequest) {
           r4: { $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] } },
           r5: { $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] } },
           withPhotos: { $sum: { $cond: [{ $gt: [{ $size: { $ifNull: ['$photos', []] } }, 0] }, 1, 0] } },
+          verifiedCount: { $sum: { $cond: ['$verified', 1, 0] } },
         },
       },
     ])
 
-    const stats = allRatings[0] || { avgRating: 0, count: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, withPhotos: 0 }
+    const stats = allRatings[0] || { avgRating: 0, count: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, withPhotos: 0, verifiedCount: 0 }
 
     return NextResponse.json({
       success: true,
@@ -67,6 +70,7 @@ export async function GET(req: NextRequest) {
         total: stats.count,
         distribution: { 1: stats.r1, 2: stats.r2, 3: stats.r3, 4: stats.r4, 5: stats.r5 },
         withPhotos: stats.withPhotos,
+        verifiedCount: stats.verifiedCount || 0,
       },
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     })
@@ -79,6 +83,10 @@ export async function GET(req: NextRequest) {
 // POST /api/reviews — Creer un avis (authentifie ou non)
 export async function POST(req: NextRequest) {
   try {
+    // Anti-spam : avis limités par IP (invités acceptés mais bornés)
+    const limit = await rateLimitRequest(req, { windowMs: 3_600_000, max: 10, keyPrefix: 'reviews:post' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     const body = await req.json()
     const { productId, rating, comment, title, photos, userName, orderId } = body
 
@@ -108,7 +116,6 @@ export async function POST(req: NextRequest) {
     // Tenter d'identifier l'utilisateur connecte
     let userId: string | undefined
     let resolvedUserName = userName || 'Client'
-    let verified = false
 
     try {
       const token = req.cookies.get('auth-token')?.value
@@ -116,7 +123,6 @@ export async function POST(req: NextRequest) {
         const decoded = await verifyAuthToken(token)
         userId = decoded.userId
         resolvedUserName = decoded.username || decoded.email || userName || 'Client'
-        verified = true
       }
     } catch {}
 
@@ -133,6 +139,18 @@ export async function POST(req: NextRequest) {
     }
 
     await connectMongoose()
+
+    // « Achat vérifié » uniquement si une commande payée du client contient le produit
+    let verified = false
+    if (userId) {
+      const purchaseQuery: any = {
+        clientId: userId,
+        paymentStatus: { $in: ['paid', 'completed'] },
+        'items.id': productId,
+      }
+      if (orderId && typeof orderId === 'string') purchaseQuery.orderId = orderId
+      verified = !!(await Order.exists(purchaseQuery))
+    }
 
     const review = await Review.create({
       productId,

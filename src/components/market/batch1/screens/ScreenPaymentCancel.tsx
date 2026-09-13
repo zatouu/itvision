@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { X, RefreshCw, Clock, MessageCircle } from 'lucide-react';
 import { formatFcfa } from '../formatFcfa';
+import { brandWhatsAppUrl } from '@/lib/branding';
 
 interface ScreenPaymentCancelProps {
   reference?: string;
@@ -116,7 +117,7 @@ export default function ScreenPaymentCancel({ reference, orderId, amount }: Scre
               <p className="text-[10px] text-slate-600 dark:text-slate-400">Notre équipe résout les blocages sous 15 min</p>
             </div>
             <a
-              href="https://wa.me/221761234567"
+              href={brandWhatsAppUrl(undefined, "Bonjour DDM+, j'ai un blocage avec mon paiement.")}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 inline-flex items-center justify-center h-9 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold hover:bg-emerald-700 transition"

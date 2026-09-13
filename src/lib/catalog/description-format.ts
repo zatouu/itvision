@@ -29,7 +29,16 @@ const NOISE_PATTERNS = [
   /code promo/i,
   /nouvel utilisateur/i,
   /livraison gratuite dès/i,
+  /Les nouveaux acheteurs/i,
+  /de réduction sur/i,
+  /^-?\d+\s*%$/, // remises isolées (« -77% »)
+  /^\d+(\.\d+)?\s*$/ , // note isolée (« 4.8 »)
 ]
+
+// Marqueurs de sections de cross-sell scrappé : tout ce qui suit est du bruit
+// (fiches de produits liés, compteurs, prix). On tronque la description.
+const RELATED_SECTION_RE =
+  /^(éléments connexes|produits? connexes|articles? connexes|produits? similaires|vous aimerez aussi|recommandations?|les clients ont aussi|autres produits|voir plus|shop now|report item)/i
 
 /** Une ligne est-elle du bruit de scraping ? */
 export function isScrapedNoise(line: string): boolean {
@@ -109,6 +118,8 @@ export function formatDescription(raw?: string | null): DescBlock[] {
   for (const rawLine of lines) {
     const line = rawLine.trim()
     if (!line || isScrapedNoise(line)) continue
+    // Section « produits liés » du scraping → tout le reste est du cross-sell
+    if (RELATED_SECTION_RE.test(line)) break
 
     if (isHeading(line)) {
       flush()

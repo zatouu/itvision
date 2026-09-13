@@ -3,7 +3,8 @@ import { jwtVerify } from 'jose'
 import { csrfProtection } from '@/lib/csrf-protection'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 import { isMarketDomain, getHost } from '@/lib/middleware/domain'
-import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole } from '@/lib/middleware/routes'
+import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole, isSharedPublicRoute } from '@/lib/middleware/routes'
+import { getPageRule } from '@/lib/domains'
 import { handleCorsPreflight, getMobileCorsHeaders, injectCorsHeaders } from '@/lib/middleware/cors'
 import { applySecurityHeaders, applyApiSecurityHeaders } from '@/lib/middleware/security'
 
@@ -78,9 +79,18 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/produits') ||
       pathname.startsWith('/compte') ||
       pathname.startsWith('/messages') ||
+      isSharedPublicRoute(pathname) ||
       isMarketplaceRoute(pathname)
 
     if (!isAllowedOnMarket) {
+      // Page publique d'un autre domaine (ex: /contact corporate) → la servir
+      // sur le domaine principal plutôt que renvoyer vers l'accueil market.
+      const rule = getPageRule(pathname)
+      if (rule && rule.access === 'public') {
+        const mainUrl = new URL(pathname + request.nextUrl.search, request.url)
+        mainUrl.host = host.replace(/^market\./, '')
+        return NextResponse.redirect(mainUrl)
+      }
       const marketHomeUrl = new URL('/market', request.url)
       return NextResponse.redirect(marketHomeUrl)
     }

@@ -22,6 +22,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { brandWhatsAppUrl } from '@/lib/branding'
 
 type Proposal = {
   productName: string
@@ -362,7 +363,7 @@ export default function SourcingTrackingPage() {
                   <Clock size={10} /> 24h
                 </span>
                 <a
-                  href="https://wa.me/221761234567"
+                  href={brandWhatsAppUrl(undefined, 'Bonjour DDM+, je souhaite suivre ma demande de sourcing.')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 mx-auto inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-violet-600 text-white text-[13px] font-semibold hover:bg-violet-700 transition"

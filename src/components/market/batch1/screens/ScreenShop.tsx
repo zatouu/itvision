@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { brandWhatsAppUrl } from '@/lib/branding';
 
 interface Product {
   id: string;
@@ -78,7 +79,7 @@ const CONDITIONS = [
   { icon: Shield, ttl: 'Garantie', txt: 'Garantie fabricant 12 mois sur l\'électronique. Support DDM+ pour toute réclamation.' },
 ]
 
-export default function ScreenShop({ shop, products, reviews = [], isLoading, error, contactWhatsApp = 'https://wa.me/221761234567' }: ScreenShopProps) {
+export default function ScreenShop({ shop, products, reviews = [], isLoading, error, contactWhatsApp = brandWhatsAppUrl() }: ScreenShopProps) {
   const [tab, setTab] = useState<'products' | 'reviews' | 'about' | 'conditions'>('products');
   const [catFilter, setCatFilter] = useState('Tous');
 

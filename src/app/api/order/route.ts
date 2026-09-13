@@ -277,7 +277,11 @@ export async function POST(req: NextRequest) {
 
     if (validatedPromoDiscount > 0 && promo?.code) {
       try {
-        await PromoCode.updateOne({ code: promo.code.toUpperCase() }, { $inc: { usedCount: 1 } })
+        // Garde atomique : ne pas dépasser maxUses sous concurrence
+        await PromoCode.updateOne(
+          { code: promo.code.toUpperCase(), $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
+          { $inc: { usedCount: 1 } }
+        )
       } catch (promoErr) {
         console.error('[order] Erreur incrément promo:', promoErr)
       }
