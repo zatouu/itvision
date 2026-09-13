@@ -27,6 +27,7 @@ import {
   resolveShippingMethod,
   validatePromoCode,
 } from '@/lib/pricing/quote-cart'
+import { internalPost } from '@/lib/internal-auth'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -515,28 +516,29 @@ export async function POST(req: NextRequest) {
         const dbItem = productId ? dbProductMap.get(productId) : null
         if (!dbItem) return
         try {
-          const baseUrl = req.nextUrl.origin
-          const accountingResponse = await fetch(
-            `${baseUrl}/api/accounting/record-sale`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                productId: item.id,
-                productName: dbItem.name || item.name,
-                orderId,
-                clientName: name,
-                quantity: item.qty || 1,
-                unitPrice: dbItem.price ?? dbItem.baseCost ?? 0, // Prix vérifié DB
-                shippingMethod: method,
-                shippingCost: transportCost,
-                transactionDate: new Date().toISOString()
-              })
+          const data = await internalPost(req, '/api/internal/accounting/record-sale', {
+            productId: item.id,
+            productName: dbItem.name || item.name,
+            orderId,
+            clientName: name,
+            quantity: item.qty || 1,
+            unitPrice: dbItem.price ?? dbItem.baseCost ?? 0, // Prix vérifié DB
+            shippingMethod: method,
+            shippingCost: transportCost,
+            transactionDate: new Date().toISOString(),
+            // Snapshot produit 1688 — le domaine compta n'importe pas Product
+            pricingSource: {
+              price1688: dbItem.price1688,
+              exchangeRate: dbItem.exchangeRate,
+              weightKg: dbItem.weightKg,
+              volumeM3: dbItem.volumeM3,
+              serviceFeeRate: dbItem.serviceFeeRate,
+              insuranceRate: dbItem.insuranceRate,
+              category: dbItem.category
             }
-          )
+          })
 
-          if (accountingResponse.ok) {
-            const data = await accountingResponse.json()
+          if (data) {
             accountingEntries.push(data)
           }
         } catch (err) {

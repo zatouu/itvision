@@ -156,11 +156,10 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/projects', domain: 'corporate', access: 'auth' },
   { prefix: '/api/workflows', domain: 'corporate', access: 'auth' },
   { prefix: '/api/tickets', domain: 'corporate', access: 'auth' },
-  { prefix: '/api/support', domain: 'corporate', access: 'auth', note: 'SupportTicket — quasi mort, fusionner dans Ticket', review: true },
   { prefix: '/api/reports', domain: 'corporate', access: 'auth' },
   { prefix: '/api/accounting', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/api/realizations', domain: 'corporate', access: 'public' },
-  { prefix: '/api/quotes', domain: 'corporate', access: 'auth', note: 'Modèle Quote legacy MAIS en usage (admin, EnhancedProjectManager) — fusionner dans AdminQuote puis supprimer', review: true },
+  { prefix: '/api/quotes', domain: 'corporate', access: 'auth', note: 'Sur AdminQuote — shim de compatibilité legacy (status approved→accepted, serviceCode→title, totalTTC→total)' },
 
   // ── Marketplace DDM+ ──
   { prefix: '/api/market', domain: 'market', access: 'public' },
@@ -206,6 +205,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/upload', domain: 'shared', access: 'auth' },
   { prefix: '/api/uploads', domain: 'shared', access: 'auth' },
   { prefix: '/api/booking', domain: 'shared', access: 'auth', review: true },
+  { prefix: '/api/internal', domain: 'shared', access: 'public', note: 'Gateway serveur-à-serveur inter-domaines — protégée par x-cron-secret dans les handlers (jamais appelée client)' },
   { prefix: '/api/cron', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/api/csrf', domain: 'shared', access: 'public' },
   { prefix: '/api/diagnostic', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },

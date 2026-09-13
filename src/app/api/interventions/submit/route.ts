@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
-import Quote from '@/lib/models/Quote'
-import Product from '@/lib/models/Product.validated'
-import User from '@/lib/models/User'
-import Project from '@/lib/models/Project'
+import AdminQuote from '@/lib/models/AdminQuote'
+import Client from '@/lib/models/Client'
 import Technician from '@/lib/models/Technician'
+import { internalPost } from '@/lib/internal-auth'
+import { generateQuoteNumero } from '@/lib/quote-number'
 import { addNotification } from '@/lib/notifications-memory'
 import { requireAuth } from '@/lib/jwt'
 
@@ -118,50 +118,69 @@ export async function POST(request: NextRequest) {
 
     if (submitted && hasRecommendations) {
       try {
-        // Récupérer les informations des produits recommandés
-        const productPromises = recommandations.map(async (rec: any) => {
-          const product = await Product.findOne({ name: new RegExp(rec.produit, 'i') }).lean()
-          const productData = product && !Array.isArray(product) ? product : null
+        // Résoudre les produits marketplace via l'API interne (frontière de domaine)
+        const names = recommandations.map((rec: any) => String(rec.produit || '')).filter(Boolean)
+        const lookup = await internalPost<{ results: Array<{ name: string; found: boolean; productId?: string; unitPrice?: number; marginRate?: number }> }>(
+          request,
+          '/api/internal/market/product-lookup',
+          { names }
+        )
+        if (!lookup) throw new Error('Lookup produits interne indisponible — devis non généré')
+        const byName = new Map((lookup.results || []).map(r => [r.name, r]))
+
+        const products = recommandations.map((rec: any) => {
+          const match = byName.get(String(rec.produit || ''))
+          const unitPrice = match?.unitPrice ?? 0
+          const quantity = rec.quantite || 1
+          const marginRate = match?.marginRate ?? 0
+          // Prix unitaire marge incluse (AdminQuote n'a pas de champ marge par ligne)
+          const effectiveUnit = Math.round(unitPrice * (1 + marginRate / 100))
           return {
-            productId: productData?._id || 'UNKNOWN',
-            name: rec.produit,
-            quantity: rec.quantite || 1,
-            unitPrice: productData?.price || productData?.priceAmount || 0,
-            marginRate: productData?.marginRate ?? 0,  // Utiliser la marge définie (défaut 0%)
-            totalPrice: (productData?.price || productData?.priceAmount || 0) * (rec.quantite || 1),
+            productId: match?.productId,
+            name: String(rec.produit || ''),
+            quantity,
+            unitPrice: effectiveUnit,
+            total: effectiveUnit * quantity,
             commentaire: rec.commentaire
           }
         })
 
-        const products = await Promise.all(productPromises)
+        // Calculer les totaux (HT = marge incluse, TTC = HT + TVA 18%)
+        const totalHT = products.reduce((sum: number, p: any) => sum + p.total, 0)
+        const taxAmount = Math.round(totalHT * 0.18)
+        const totalTTC = totalHT + taxAmount
 
-        // Calculer les totaux
-        const subtotal = products.reduce((sum, p) => sum + p.totalPrice, 0)
-        const marginTotal = products.reduce((sum, p) => sum + (p.totalPrice * (p.marginRate / 100)), 0)
-        const totalHT = subtotal + marginTotal
-        const totalTTC = totalHT * 1.18 // TVA 18%
+        // Infos client pour le devis
+        const clientDoc = await Client.findById(clientId).select('name email phone address company').lean() as any
+        const client = {
+          name: clientDoc?.company || clientDoc?.name || 'Client',
+          address: clientDoc?.address || '',
+          phone: clientDoc?.phone || '',
+          email: clientDoc?.email || ''
+        }
 
-        // Créer le devis
-        const quote = await Quote.create({
-          clientId,
+        // Créer le devis (AdminQuote — visible dans /admin/quotes)
+        const quote = await AdminQuote.create({
+          numero: await generateQuoteNumero(),
+          title: `Intervention ${String(typeIntervention).toUpperCase()}`,
+          date: new Date(),
+          client,
+          clientCompanyId: clientId || undefined,
           projectId: projectId || undefined,
-          serviceCode: typeIntervention.toUpperCase(),
-          status: 'draft',
-          products: products.map(p => ({
-            productId: String(p.productId),
-            name: p.name,
+          products: products.map((p: any) => ({
+            productId: p.productId || undefined,
+            description: p.name,
             quantity: p.quantity,
             unitPrice: p.unitPrice,
-            marginRate: p.marginRate,
-            totalPrice: p.totalPrice
+            taxable: true,
+            total: p.total
           })),
-          subtotal,
-          marginTotal,
-          totalHT,
-          totalTTC,
-          currency: 'FCFA',
-          assignedTechnicianId: technicienId,
-          notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`
+          subtotal: totalHT,
+          taxAmount,
+          total: totalTTC,
+          status: 'draft',
+          notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`,
+          createdBy: auth.userId ? String(auth.userId) : undefined
         })
 
         // Lier le devis à l'intervention
@@ -171,7 +190,7 @@ export async function POST(request: NextRequest) {
 
         generatedQuote = {
           id: String(quote._id),
-          totalTTC: quote.totalTTC,
+          totalTTC: quote.total,
           productsCount: products.length
         }
       } catch (quoteError) {

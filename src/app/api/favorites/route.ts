@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import User from '@/lib/models/User'
-import Client from '@/lib/models/Client'
 import { requireAuth } from '@/lib/jwt'
 import { creditGrainsForFavorite, updateTierFromBalance } from '@/lib/grains'
 
@@ -20,11 +19,9 @@ function normalizeIds(input: unknown): string[] {
   return out
 }
 
+// Le JWT market n'est émis que pour des comptes User — pas de fallback Client.
 async function loadAccountModel(userId: string) {
-  const user = await User.findById(userId)
-  if (user) return user
-  const client = await Client.findById(userId)
-  return client
+  return User.findById(userId)
 }
 
 export async function GET(req: NextRequest) {

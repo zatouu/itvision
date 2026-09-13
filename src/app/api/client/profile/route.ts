@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
-import Client from '@/lib/models/Client'
 import { Order } from '@/lib/models/Order' // Import Order
 import bcrypt from 'bcryptjs'
 import { requireAuth } from '@/lib/jwt'
@@ -13,12 +12,8 @@ export async function GET(request: NextRequest) {
     const { userId } = await requireAuth(request)
     await connectMongoose()
 
-    // Chercher dans User puis dans Client
-    let profile: any = await User.findById(userId).select('-passwordHash').lean()
-    
-    if (!profile) {
-      profile = await Client.findById(userId).lean()
-    }
+    // Le JWT market n'est émis que pour des comptes User — pas de fallback Client.
+    const profile: any = await User.findById(userId).select('-passwordHash').lean()
 
     if (!profile) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
@@ -102,14 +97,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { name, phone, company, address, currentPassword, newPassword, preferences } = body
 
-    // Chercher le profil
-    let profile: any = await User.findById(userId)
-    let isClient = false
-    
-    if (!profile) {
-      profile = await Client.findById(userId)
-      isClient = true
-    }
+    // Le JWT market n'est émis que pour des comptes User — pas de fallback Client.
+    const profile: any = await User.findById(userId)
 
     if (!profile) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })

@@ -220,7 +220,7 @@ const InterventionSchema = new Schema<IIntervention>({
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
   
   // Devis lié
-  quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+  quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
   quoteGenerated: { type: Boolean, default: false },
   
   // Feedback client post-intervention

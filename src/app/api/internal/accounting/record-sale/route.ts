@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import AccountingEntry from '@/lib/models/AccountingEntry'
-import Product, { type IProduct } from '@/lib/models/Product.validated'
 import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
+import { isInternalCall } from '@/lib/internal-auth'
 
 /**
- * POST /api/accounting/record-sale
- * Enregistre automatiquement une vente dans la comptabilité
- * Appelé automatiquement lors d'une commande
+ * POST /api/internal/accounting/record-sale
+ * Enregistre une vente dans la comptabilité (appel serveur-à-serveur par /api/order).
+ * Les données produit 1688 sont fournies par l'appelant (snapshot DB market) —
+ * cette route n'importe aucun modèle market (frontière de domaine).
  */
 export async function POST(request: NextRequest) {
+  if (!isInternalCall(request)) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  }
+
   try {
     await connectMongoose()
     const body = await request.json()
@@ -23,7 +28,9 @@ export async function POST(request: NextRequest) {
       unitPrice,
       shippingMethod,
       shippingCost,
-      transactionDate
+      transactionDate,
+      // Snapshot produit fourni par l'appelant (pricing source 1688)
+      pricingSource
     } = body
 
     if (!productId || !productName || !unitPrice) {
@@ -33,35 +40,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Charger le produit pour obtenir les infos 1688
-    const productDoc = await Product.findById(productId).lean()
-    if (!productDoc || Array.isArray(productDoc)) {
-      return NextResponse.json(
-        { error: 'Produit non trouvé' },
-        { status: 404 }
-      )
-    }
-    // Type assertion pour accéder aux propriétés 1688
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const product = productDoc as any
-
     // Calculer le pricing 1688 si applicable
     let pricing1688Data: any = null
-    if (product?.price1688 && shippingMethod) {
+    const src = pricingSource && typeof pricingSource === 'object' ? pricingSource : null
+    if (src?.price1688 && shippingMethod) {
       const simulation = simulatePricing1688({
-        price1688: product.price1688,
-        exchangeRate: product.exchangeRate || 100,
+        price1688: src.price1688,
+        exchangeRate: src.exchangeRate || 100,
         shippingMethod,
-        weightKg: product.weightKg,
-        volumeM3: product.volumeM3,
-        serviceFeeRate: product.serviceFeeRate as any,
-        insuranceRate: product.insuranceRate,
+        weightKg: src.weightKg,
+        volumeM3: src.volumeM3,
+        serviceFeeRate: src.serviceFeeRate as any,
+        insuranceRate: src.insuranceRate,
         orderQuantity: quantity
       })
 
       pricing1688Data = {
-        price1688: product.price1688,
-        exchangeRate: product.exchangeRate || 100,
+        price1688: src.price1688,
+        exchangeRate: src.exchangeRate || 100,
         productCostFCFA: simulation.productCostFCFA * quantity,
         shippingCostReal: simulation.shippingCostReal * quantity,
         shippingCostClient: shippingCost || simulation.shippingCostClient * quantity,
@@ -77,6 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const totalAmount = (unitPrice * quantity) + (shippingCost || 0)
+    const subCategory = src?.category || undefined
 
     // Créer l'entrée de vente
     const saleEntry = await AccountingEntry.create({
@@ -90,7 +87,7 @@ export async function POST(request: NextRequest) {
       currency: 'FCFA',
       pricing1688: pricing1688Data,
       category: 'product_sale',
-      subCategory: product.category,
+      subCategory,
       transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
       status: 'confirmed',
       metadata: {
@@ -114,7 +111,7 @@ export async function POST(request: NextRequest) {
         currency: 'FCFA',
         pricing1688: pricing1688Data,
         category: 'product_margin',
-        subCategory: product.category,
+        subCategory,
         transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
         status: 'confirmed',
         metadata: {
@@ -137,4 +134,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

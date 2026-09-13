@@ -226,7 +226,7 @@ export interface CartProductsContext {
 }
 
 const PRODUCT_SELECT =
-  '_id name price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate ' +
+  '_id name category price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate ' +
   'weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg ' +
   'stockStatus stockQuantity baseCost marginRate requiresQuote ' +
   'variantGroups priceTiers'
