@@ -10,6 +10,7 @@ import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
+import { maskName } from '@/lib/payments/resolve-payment-reference'
 
 function generatePaymentReference(groupId: string, participantPhone: string): string {
   const groupShort = groupId.slice(-6).toUpperCase()
@@ -87,7 +88,7 @@ export async function GET(
         alreadyPaid: true,
         message: 'Votre paiement a déjà été validé',
         participant: {
-          name: participant.name,
+          name: maskName(participant.name),
           qty: (participant as any).qty,
           totalAmount: (participant as any).totalAmount,
           paymentStatus: (participant as any).paymentStatus
@@ -116,7 +117,7 @@ export async function GET(
       success: true,
       alreadyPaid: false,
       participant: {
-        name: participant.name,
+        name: maskName(participant.name),
         phone: formattedPhone,
         qty,
         unitPrice,

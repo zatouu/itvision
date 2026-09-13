@@ -28,6 +28,7 @@ import { readPricingDefaults } from './settings'
 import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import { buildSeaFreightMetrics, evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { checkStockAvailability } from '@/lib/inventory'
+import { productHasVariantGroups } from './variants'
 import type { ShippingMethodId, ShippingRate } from '@/lib/logistics'
 
 // ─── Méthodes de livraison ────────────────────────────────────────────────────
@@ -82,10 +83,7 @@ export interface ResolvedVariant {
   stock: number | null
 }
 
-export function productHasVariantGroups(db: any): boolean {
-  return Array.isArray(db?.variantGroups) &&
-    db.variantGroups.some((g: any) => Array.isArray(g?.variants) && g.variants.length > 0)
-}
+export { productHasVariantGroups, productHasPricedVariants } from './variants'
 
 /**
  * Résout les variantIds demandés contre les variantGroups du produit DB.

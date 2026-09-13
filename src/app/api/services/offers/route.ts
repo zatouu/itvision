@@ -17,14 +17,36 @@ const MAX_COMMENT_LENGTH = 1000
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
+    // Authentification obligatoire — les offres ne sont plus listables publiquement
+    const { userId, role } = await requireAuth(request)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
     const { searchParams } = new URL(request.url)
     const requestId = searchParams.get('requestId')
     const mine = searchParams.get('mine')
     const q: any = {}
     if (requestId) q.requestId = requestId
     if (mine === '1') {
-      const { userId } = await requireAuth(request)
       q.providerId = userId
+    }
+
+    // Sans scope explicite : interdit. Avec requestId : client propriétaire,
+    // provider ayant offert, ou staff uniquement.
+    if (!isStaff) {
+      if (mine === '1') {
+        // déjà scopé providerId = userId
+      } else if (requestId) {
+        const sr = await ServiceRequest.findById(requestId).select('clientId').lean() as any
+        const isOwner = sr && String(sr.clientId) === String(userId)
+        if (!isOwner) {
+          const ownOffer = await Offer.exists({ requestId, providerId: String(userId) })
+          if (!ownOffer) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+          }
+          q.providerId = userId
+        }
+      } else {
+        return NextResponse.json({ error: 'Paramètre mine=1 ou requestId requis' }, { status: 400 })
+      }
     }
 
     // Exclure les offres "submitted" dont la validité est dépassée sans faire d'écriture en GET

@@ -29,8 +29,10 @@ export async function GET(request: NextRequest) {
       .lean()
 
     const userIds = profiles.map((p) => p.userId)
+    // Pas de téléphone dans le listing public — le contact n'est exposé
+    // qu'aux participants d'une mission (via les routes de demande/offre).
     const users = await User.find({ _id: { $in: userIds } })
-      .select('name avatarUrl phone role')
+      .select('name avatarUrl role')
       .lean()
 
     const userMap = Object.fromEntries(users.map((u) => [String(u._id), u]))
@@ -43,7 +45,6 @@ export async function GET(request: NextRequest) {
         userId: String(p.userId),
         name: user?.name || '',
         avatarUrl: user?.avatarUrl,
-        phone: user?.phone,
         kycVerified: p.kycVerified,
         serviceCategories: p.serviceCategories,
         zone: p.zone,

@@ -29,6 +29,11 @@ const WithdrawalRequestSchema = new Schema<IWithdrawalRequest>({
 
 WithdrawalRequestSchema.index({ userId: 1, createdAt: -1 })
 WithdrawalRequestSchema.index({ status: 1, createdAt: -1 })
+// Une seule demande "pending" par utilisateur — contrainte DB anti-double-retrait
+WithdrawalRequestSchema.index(
+  { userId: 1 },
+  { unique: true, partialFilterExpression: { status: 'pending' } }
+)
 
 const WithdrawalRequest = (models.WithdrawalRequest as mongoose.Model<IWithdrawalRequest>) ||
   model<IWithdrawalRequest>('WithdrawalRequest', WithdrawalRequestSchema)

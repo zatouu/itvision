@@ -8,6 +8,7 @@ import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
 import { buildFacetStages, formatFacets } from '@/lib/search/facets'
 import { getRedisClient } from '@/lib/redis'
+import { productHasPricedVariants } from '@/lib/pricing/variants'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -396,11 +397,15 @@ export async function GET(request: NextRequest) {
      const payload = data.map((product: any) => {
        const pricing = computeProductPricing(product, shippingRates)
 
+       // Un produit à variantes chiffrées ne peut pas être acheté en groupe —
+       // le flux groupe ne porte pas de sélection de variante.
+       const groupBuyEligible = (product.groupBuyEnabled ?? false) && !productHasPricedVariants(product)
+
        // Calcul du meilleur prix et discount pour l'achat groupé
        let groupBuyBestPrice: number | undefined
        let groupBuyDiscount: number | undefined
 
-       if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+       if (groupBuyEligible && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
          // Aligner le discount sur le prix affiché au catalogue (baseCost si dispo, sinon prix calculé)
          const basePrice = product.baseCost ?? pricing.salePrice ?? product.price ?? 0
          const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => t.price || Infinity))
@@ -458,7 +463,7 @@ export async function GET(request: NextRequest) {
          // Seul indicateur: si le produit est importé (pour affichage badge "Import")
          isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
          // Configuration achat groupé
-         groupBuyEnabled: product.groupBuyEnabled ?? false,
+         groupBuyEnabled: groupBuyEligible,
          groupBuyBestPrice,
          groupBuyDiscount,
          priceTiers: product.priceTiers ?? [],

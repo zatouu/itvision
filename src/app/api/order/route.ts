@@ -39,6 +39,17 @@ export async function POST(req: NextRequest) {
   // Verrou grains (double-dépense) — hissé hors du try pour le catch global
   let grainsLockKey: string | null = null
   let grainsLocked = false
+  // Promo consommé avant création — à restituer si la commande échoue ensuite
+  let promoConsumedCode: string | null = null
+  const releasePromo = async () => {
+    const code = promoConsumedCode
+    promoConsumedCode = null
+    if (!code) return
+    await PromoCode.updateOne(
+      { code, usedCount: { $gt: 0 } },
+      { $inc: { usedCount: -1 } }
+    ).catch(() => {})
+  }
 
   try {
     const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
@@ -151,7 +162,23 @@ export async function POST(req: NextRequest) {
 
     if (promo?.code) {
       const validatedPromo = await validatePromoCode(promo.code, subtotal, grainsDiscount)
-      if (validatedPromo.valid) validatedPromoDiscount = validatedPromo.discount
+      if (validatedPromo.valid) {
+        // Consommer l'utilisation immédiatement et atomiquement — entre la
+        // validation et la création, un usage concurrent peut épuiser le code.
+        const inc = await PromoCode.updateOne(
+          { code: promo.code.toUpperCase(), $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
+          { $inc: { usedCount: 1 } }
+        )
+        if (inc.matchedCount === 0) {
+          if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+          return NextResponse.json(
+            { success: false, error: 'Ce code promo vient d\'être épuisé' },
+            { status: 409 }
+          )
+        }
+        promoConsumedCode = promo.code.toUpperCase()
+        validatedPromoDiscount = validatedPromo.discount
+      }
     }
 
     const total = Math.max(0, calculatedTotal - grainsDiscount - validatedPromoDiscount)
@@ -163,6 +190,7 @@ export async function POST(req: NextRequest) {
 
       if (!seaEligibility.eligible) {
         if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+        await releasePromo()
         return NextResponse.json(
           {
             success: false,
@@ -179,6 +207,7 @@ export async function POST(req: NextRequest) {
 
     if (!shipping) {
       if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+      await releasePromo()
       return NextResponse.json(
         { success: false, error: 'Impossible de calculer les frais de transport pour cette commande' },
         { status: 400 }
@@ -301,17 +330,7 @@ export async function POST(req: NextRequest) {
       grainsLocked = false
     }
 
-    if (validatedPromoDiscount > 0 && promo?.code) {
-      try {
-        // Garde atomique : ne pas dépasser maxUses sous concurrence
-        await PromoCode.updateOne(
-          { code: promo.code.toUpperCase(), $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
-          { $inc: { usedCount: 1 } }
-        )
-      } catch (promoErr) {
-        console.error('[order] Erreur incrément promo:', promoErr)
-      }
-    }
+    // L'utilisation promo a déjà été consommée atomiquement en amont (fail-closed).
 
     // Décrémenter le stock et enregistrer les réservations d'inventaire (best effort, loggé si erreur)
     const reservations: any[] = []
@@ -569,6 +588,7 @@ export async function POST(req: NextRequest) {
     if (grainsLocked && grainsLockKey) {
       await getRedisClient()?.del(grainsLockKey).catch(() => {})
     }
+    await releasePromo()
     return NextResponse.json(
       {
         success: false,

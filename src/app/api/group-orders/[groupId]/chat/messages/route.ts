@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrderChatMessage } from '@/lib/models/GroupOrderChatMessage'
 import { requireAdminApi } from '@/lib/api-auth'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import {
   getGroupChatParticipantByToken,
@@ -74,9 +75,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { groupId } = await context.params
     const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.trim() : ''
+
+    if (text.length > 2000) {
+      return NextResponse.json({ error: 'Message trop long' }, { status: 400 })
+    }
 
     if (!text) {
       return NextResponse.json({ error: 'Message vide' }, { status: 400 })

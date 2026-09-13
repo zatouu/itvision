@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
-import { isPhoneLike } from '@/lib/sms'
+import { isPhoneLike, normalizePhone } from '@/lib/sms'
+import { verifyXeuyOtp } from '@/modules/xeuy'
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,6 +69,37 @@ export async function PATCH(request: NextRequest) {
         else if (key === 'phone') update[key] = String(body[key]).slice(0, 30)
         else if (key === 'email') update[key] = String(body[key]).toLowerCase().slice(0, 200)
         else update[key] = String(body[key]).slice(0, 200)
+      }
+    }
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: 'Aucun champ à mettre à jour' }, { status: 400 })
+    }
+
+    // Changement de téléphone : c'est l'identifiant de login OTP — exiger
+    // la vérification OTP du nouveau numéro + unicité.
+    if (update.phone !== undefined) {
+      const newPhone = normalizePhone(update.phone)
+      const current = await User.findById(userId).select('phone').lean() as any
+      if (!newPhone || newPhone === current?.phone) {
+        delete update.phone
+      } else {
+        const otpCode = typeof body.phoneOtp === 'string' ? body.phoneOtp : ''
+        if (!otpCode) {
+          return NextResponse.json(
+            { error: 'Vérification OTP du nouveau numéro requise (phoneOtp)' },
+            { status: 400 }
+          )
+        }
+        const taken = await User.findOne({ phone: newPhone, _id: { $ne: userId } }).select('_id').lean()
+        if (taken) {
+          return NextResponse.json({ error: 'Ce numéro est déjà associé à un compte' }, { status: 409 })
+        }
+        const otp = await verifyXeuyOtp(newPhone, otpCode)
+        if (!otp.success) {
+          return NextResponse.json({ error: otp.error || 'Code OTP invalide' }, { status: otp.status || 400 })
+        }
+        update.phone = newPhone
       }
     }
 

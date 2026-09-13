@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
       { $group: { _id: '$providerId', avg: { $avg: '$rating' }, count: { $sum: 1 } } },
     ])
 
-    const users = await User.find({ _id: { $in: providerIds } }).lean()
+    const users = await User.find({ _id: { $in: providerIds } }).select('name').lean()
 
     const result = acceptedCounts.map((c: any) => {
       const user = users.find((u: any) => String(u._id) === String(c._id))
       const r = ratings.find((r: any) => String(r._id) === String(c._id))
       return {
         id: String(c._id),
-        name: user?.name || user?.phone || 'Prestataire',
+        name: user?.name || 'Prestataire',
         rating: r ? { avg: Number(r.avg.toFixed(1)), count: r.count } : { avg: 0, count: 0 },
         completedMissions: c.acceptedCount,
       }

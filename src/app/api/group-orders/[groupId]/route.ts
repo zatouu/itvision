@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { requireAdminApi } from '@/lib/api-auth'
@@ -18,6 +19,7 @@ import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
 import { sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
 import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
+import { productHasPricedVariants } from '@/lib/pricing/variants'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -147,6 +149,19 @@ export async function POST(
         { success: false, error: 'La date limite est dépassée' },
         { status: 400 }
       )
+    }
+
+    // Le flux groupe ne porte pas de sélection de variante : si le produit a
+    // des variantes à prix distincts, rejoindre facturerait le tarif de base.
+    const groupProductId = (group as any).product?.productId
+    if (groupProductId) {
+      const groupProduct = await Product.findById(groupProductId).select('variantGroups').lean() as any
+      if (groupProduct && productHasPricedVariants(groupProduct)) {
+        return NextResponse.json(
+          { success: false, error: 'Cet achat groupé n\'est pas disponible (variantes à prix différents)' },
+          { status: 400 }
+        )
+      }
     }
 
     const normalizedPhone = formatPhone(phone)

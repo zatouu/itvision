@@ -7,6 +7,7 @@ import { requireAuth } from '@/lib/jwt'
 import { confirmPayment } from '@/lib/payment-fulfillment'
 import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { restoreProductStock } from '@/lib/inventory'
+import PromoCode from '@/lib/models/PromoCode'
 import { sendWebPushToOrder } from '@/lib/push-web'
 
 function hashTrackingToken(token: string): string {
@@ -270,6 +271,18 @@ export async function PATCH(
         await restoreOrderStock(order)
       } catch (stockErr) {
         console.error('[inventory] Erreur restauration stock commande:', stockErr)
+      }
+      // Restituer l'utilisation du code promo (une seule fois)
+      if (order.promoCode && (order.promoDiscount || 0) > 0 && !order.promoRestored) {
+        try {
+          await PromoCode.updateOne(
+            { code: order.promoCode.toUpperCase(), usedCount: { $gt: 0 } },
+            { $inc: { usedCount: -1 } }
+          )
+          await Order.updateOne({ _id: order._id }, { $set: { promoRestored: true } })
+        } catch (promoErr) {
+          console.error('[order] Erreur restitution promo:', promoErr)
+        }
       }
       if (order.clientId) {
         try {

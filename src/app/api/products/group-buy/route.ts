@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Product from '@/lib/models/Product'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
+import { productHasPricedVariants } from '@/lib/pricing/variants'
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,11 +26,14 @@ export async function GET(req: NextRequest) {
       query.category = category
     }
 
-    const products = await Product.find(query)
-      .select('name slug category mainImage gallery pricing price baseCost marginRate currency priceTiers groupBuyMinQty groupBuyTargetQty')
+    const products = (await Product.find(query)
+      .select('name slug category mainImage gallery pricing price baseCost marginRate currency priceTiers groupBuyMinQty groupBuyTargetQty variantGroups')
       .sort({ updatedAt: -1 })
       .limit(limit)
-      .lean()
+      .lean())
+      // Le flux groupe ne porte pas de sélection de variante — exclure les
+      // produits dont les variantes ont leur propre prix (sous-facturation).
+      .filter((p: any) => !productHasPricedVariants(p))
 
     // Récupérer les achats groupés actifs pour ces produits
     const productIds = products.map((p: any) => p._id.toString())

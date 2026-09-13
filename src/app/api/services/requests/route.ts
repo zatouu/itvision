@@ -16,9 +16,14 @@ const MAX_BUDGET = 10_000_000
 const REQUEST_TTL_HOURS = 2 // demande standard
 const REQUEST_TTL_URGENT_MIN = 45 // demande urgente
 
+const OPEN_LIST_STATUSES = ['created', 'pending_offers', 'broadcasted']
+
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
+    // Authentification obligatoire — le listing n'est plus public
+    const { userId, role } = await requireAuth(request)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || undefined
     const mine = searchParams.get('mine')
@@ -43,8 +48,15 @@ export async function GET(request: NextRequest) {
       ]
     }
     if (mine === '1') {
-      const { userId } = await requireAuth(request)
       q.clientId = userId
+    } else if (!isStaff) {
+      // Non-staff hors "mes demandes" : uniquement les demandes ouvertes aux offres
+      // (l'app mobile n'utilise que ?mine=1 et /api/services/matching)
+      if (status && !OPEN_LIST_STATUSES.includes(status)) {
+        return NextResponse.json({ items: [] })
+      }
+      q.status = status || { $in: OPEN_LIST_STATUSES }
+      delete q.$and
     }
 
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()
@@ -96,14 +108,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const canSeeContact = isStaff || mine === '1'
       const enriched = items.map((item: any) => {
         const c = countsByRequest.get(String(item._id)) || { total: 0, pending: 0, unseen: 0 }
+        const acceptedOffer = acceptedByRequest.get(String(item._id))
+        // Le téléphone du prestataire n'est exposé qu'au client propriétaire et au staff
+        const safeOffer = !canSeeContact && acceptedOffer
+          ? { ...acceptedOffer, providerPhone: undefined }
+          : acceptedOffer
         return {
           ...item,
           offerCount: c.total,
           pendingOfferCount: c.pending,
           unseenOfferCount: c.unseen,
-          acceptedOffer: acceptedByRequest.get(String(item._id)),
+          acceptedOffer: safeOffer,
         }
       })
       return NextResponse.json({ items: enriched })

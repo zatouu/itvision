@@ -10,6 +10,7 @@ import type { ShippingMethodId } from '@/lib/logistics'
 import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { productHasPricedVariants } from '@/lib/pricing/variants'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
@@ -278,6 +279,15 @@ export async function POST(req: NextRequest) {
     if (!product.groupBuyEnabled) {
       return NextResponse.json(
         { success: false, error: 'L\'achat groupé n\'est pas disponible pour ce produit' },
+        { status: 400 }
+      )
+    }
+
+    // Le flux groupe ne porte pas de sélection de variante : un produit dont
+    // les variantes ont leur propre prix serait facturé au tarif de base.
+    if (productHasPricedVariants(product)) {
+      return NextResponse.json(
+        { success: false, error: 'L\'achat groupé n\'est pas disponible pour un produit dont les variantes ont des prix différents' },
         { status: 400 }
       )
     }

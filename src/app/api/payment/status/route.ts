@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { Order } from '@/lib/models/Order'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 
 /**
  * GET /api/payment/status?reference=XXX
@@ -9,6 +10,10 @@ import { Order } from '@/lib/models/Order'
  */
 export async function GET(request: NextRequest) {
   try {
+    // Les références de paiement sont partiellement prévisibles — limiter l'énumération
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     const reference = request.nextUrl.searchParams.get('reference')
 
     if (!reference) {

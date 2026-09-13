@@ -1,5 +1,6 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
 import { DEFAULT_EXCHANGE_RATE } from './pricing/exchange-rate'
+import { productHasPricedVariants } from './pricing/variants'
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
@@ -67,10 +68,14 @@ export const formatProductDetail = (
 ) => {
   const pricing = computeProductPricing(product, shippingRates)
 
+  // Le flux groupe ne porte pas de sélection de variante : un produit dont
+  // les variantes ont leur propre prix ne peut pas être acheté en groupe.
+  const groupBuyEligible = (product.groupBuyEnabled ?? false) && !productHasPricedVariants(product)
+
   // Achat groupé: calcul du meilleur prix et discount (si activé)
   let groupBuyBestPrice: number | null = null
   let groupBuyDiscount: number | null = null
-  if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+  if (groupBuyEligible && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
     const basePrice = pricing.salePrice ?? pricing.baseCost ?? product.price ?? 0
     const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => (typeof t?.price === 'number' ? t.price : Infinity)))
     if (Number.isFinite(bestTierPrice) && bestTierPrice < Infinity && basePrice > 0) {
@@ -127,7 +132,7 @@ export const formatProductDetail = (
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
     // Données de sourcing source réservées aux outils admin ; on ne les expose pas au client
     // Achat groupé (front)
-    groupBuyEnabled: product.groupBuyEnabled ?? false,
+    groupBuyEnabled: groupBuyEligible,
     groupBuyBestPrice,
     groupBuyDiscount,
     priceTiers: product.priceTiers ?? [],

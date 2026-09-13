@@ -1,5 +1,6 @@
 import Product from '@/lib/models/Product'
 import mongoose from 'mongoose'
+import { productHasVariantGroups } from '@/lib/pricing/variants'
 
 export interface InventoryReservationItem {
   productId: string
@@ -32,11 +33,6 @@ function getVariantStock(product: any, variantId: string): number | null {
   if (!found) return null
   const stock = found.variant.stock
   return typeof stock === 'number' ? stock : null
-}
-
-function productHasVariantGroups(product: any): boolean {
-  return Array.isArray(product?.variantGroups) &&
-    product.variantGroups.some((g: any) => Array.isArray(g?.variants) && g.variants.length > 0)
 }
 
 export async function checkStockAvailability(
