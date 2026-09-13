@@ -146,7 +146,8 @@ export default function ScreenAccount() {
   };
 
   const Grains = () => {
-    const pct = (USER.grains / USER.nextTierAt) * 100;
+    const pct = Math.min(100, Math.max(0, (USER.grains / Math.max(1, USER.nextTierAt)) * 100));
+    const atTop = !USER.nextTier || USER.nextTier === USER.grainsTier || USER.nextTierAt <= USER.grains;
     return (
       <Card className="overflow-hidden">
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-4 text-white">
@@ -164,10 +165,14 @@ export default function ScreenAccount() {
             <div className="h-2 rounded-full bg-white/20 overflow-hidden">
               <div className="h-full bg-white rounded-full" style={{width: pct + "%"}}/>
             </div>
-            <p className="mt-1 text-[10px] text-white/85 tabular-nums">Encore <b>{(USER.nextTierAt - USER.grains).toLocaleString('fr-FR')}</b> grains pour le palier Platinum</p>
+            <p className="mt-1 text-[10px] text-white/85 tabular-nums">
+              {atTop
+                ? 'Palier maximum atteint'
+                : <>Encore <b>{Math.max(0, USER.nextTierAt - USER.grains).toLocaleString('fr-FR')}</b> grains pour le palier {USER.nextTier}</>}
+            </p>
           </div>
         </div>
-        <button className="w-full py-2.5 text-[12px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Utiliser mes grains →</button>
+        <Link href="/grains" className="block w-full py-2.5 text-center text-[12px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Utiliser mes grains →</Link>
       </Card>
     );
   };

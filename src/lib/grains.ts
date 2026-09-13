@@ -407,11 +407,33 @@ export async function reverseGrainsForOrder(userId: string | mongoose.Types.Obje
   })
 }
 
+// Paliers du programme Grains — source unique de vérité
+export const GRAIN_TIERS = [
+  { name: 'Bronze', min: 0 },
+  { name: 'Argent', min: 500 },
+  { name: 'Or', min: 2000 },
+  { name: 'Platine', min: 5000 },
+] as const
+
+export type GrainTierName = (typeof GRAIN_TIERS)[number]['name']
+
+export function getTierFromBalance(balance: number): GrainTierName {
+  let tier: GrainTierName = 'Bronze'
+  for (const t of GRAIN_TIERS) if (balance >= t.min) tier = t.name
+  return tier
+}
+
+export function nextTierInfo(tier: GrainTierName): { name: GrainTierName; min: number } {
+  const idx = GRAIN_TIERS.findIndex((t) => t.name === tier)
+  const next = GRAIN_TIERS[Math.min(idx + 1, GRAIN_TIERS.length - 1)] ?? GRAIN_TIERS[0]
+  return { name: next.name, min: next.min }
+}
+
 export async function updateTierFromBalance(userId: string | mongoose.Types.ObjectId) {
   const uid = toObjectId(userId)
   const balance = await getGrainsBalance(uid)
 
-  const tier = balance >= 5000 ? 'Platine' : balance >= 2000 ? 'Or' : balance >= 500 ? 'Argent' : 'Bronze'
+  const tier = getTierFromBalance(balance)
   await User.updateOne({ _id: uid }, { $set: { tier } })
   return tier
 }

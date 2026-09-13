@@ -7,34 +7,16 @@ import { Order } from '@/lib/models/Order'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import ProductValidated from '@/lib/models/Product.validated'
 import GrainsTransaction, { getGrainsBalance } from '@/lib/models/GrainsTransaction'
+import { GRAIN_TIERS, getTierFromBalance, nextTierInfo, type GrainTierName } from '@/lib/grains'
 import Activity from '@/lib/models/Activity'
 import Reward from '@/lib/models/Reward'
 
-function getTierFromBalance(balance: number): 'Bronze' | 'Argent' | 'Or' | 'Platine' {
-  if (balance >= 2000) return 'Platine'
-  if (balance >= 1000) return 'Or'
-  if (balance >= 500) return 'Argent'
-  return 'Bronze'
-}
-
 function tierThreshold(tier: string): number {
-  switch (tier) {
-    case 'Bronze': return 0
-    case 'Argent': return 500
-    case 'Or': return 1000
-    case 'Platine': return 2000
-    default: return 0
-  }
+  return GRAIN_TIERS.find((t) => t.name === tier)?.min ?? 0
 }
 
 function nextTier(tier: string): string {
-  switch (tier) {
-    case 'Bronze': return 'Argent'
-    case 'Argent': return 'Or'
-    case 'Or': return 'Platine'
-    case 'Platine': return 'Platine'
-    default: return 'Argent'
-  }
+  return nextTierInfo(tier as GrainTierName).name
 }
 
 function initials(name?: string): string {

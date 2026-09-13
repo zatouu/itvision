@@ -425,21 +425,15 @@ export function mapUser(user: any, dashboard?: any): User {
     .join('')
     .toUpperCase()
     .slice(0, 2) || 'U';
-  const tier = dashboard?.user?.tier || user?.tier || 'Bronze';
-  const thresholds: Record<string, number> = {
-    Bronze: 500,
-    Argent: 1000,
-    Or: 2000,
-    Platine: 10000,
-  };
-  const nextTierName: Record<string, string> = {
-    Bronze: 'Argent',
-    Argent: 'Or',
-    Or: 'Platine',
-    Platine: 'Platine',
-  };
-  const nextTier = nextTierName[tier] ?? 'Argent';
-  const nextTierAt = thresholds[nextTier] ?? 10000;
+  const grainsBalance = dashboard?.grains?.balance ?? user?.grainsBalance ?? 0;
+  const tier = dashboard?.grains?.tier || dashboard?.user?.tier || user?.tier || 'Bronze';
+  // Seuils serveur prioritaires (source : GRAIN_TIERS dans lib/grains)
+  const TIER_MIN: Record<string, number> = { Bronze: 0, Argent: 500, Or: 2000, Platine: 5000 };
+  const nextTier = dashboard?.grains?.nextTier
+    ?? (tier === 'Bronze' ? 'Argent' : tier === 'Argent' ? 'Or' : 'Platine');
+  const nextTierAt = dashboard?.grains?.grainsToNextTier != null
+    ? grainsBalance + dashboard.grains.grainsToNextTier
+    : (TIER_MIN[nextTier] ?? 5000);
 
   const mapProduct = (p: any) => ({
     id: String(p?._id ?? p?.id ?? ''),
@@ -456,7 +450,7 @@ export function mapUser(user: any, dashboard?: any): User {
     memberSince: user?.createdAt
       ? new Date(user.createdAt).getFullYear().toString()
       : '2026',
-    grains: dashboard?.grains?.balance ?? user?.grainsBalance ?? 0,
+    grains: grainsBalance,
     grainsTier: tier,
     nextTier,
     nextTierAt,
