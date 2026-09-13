@@ -16,6 +16,18 @@ export interface IUser extends Document {
   companyClientId?: mongoose.Types.ObjectId
   // Rôle interne dans l'entreprise cliente (portail B2B) — owner = compte d'origine
   companyRole?: 'owner' | 'admin' | 'finance' | 'technical' | 'viewer'
+  // Carnet d'adresses marketplace (livraison)
+  savedAddresses?: mongoose.Types.DocumentArray<{
+    label: string
+    fullName: string
+    phone: string
+    region: string
+    department: string
+    neighborhood: string
+    street: string
+    additionalInfo?: string
+    isDefault: boolean
+  }>
   // Profils découplés par domaine
   marketplaceProfileId?: mongoose.Types.ObjectId
   corporateProfileId?: mongoose.Types.ObjectId
@@ -74,6 +86,20 @@ const UserSchema = new Schema<IUser>({
   providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },
   vendorProfileId: { type: Schema.Types.ObjectId, ref: 'VendorProfile', sparse: true, index: true },
   favoriteProductIds: { type: [String], default: [] },
+  savedAddresses: {
+    type: [{
+      label: { type: String, trim: true, default: 'Domicile' },
+      fullName: { type: String, trim: true, required: true },
+      phone: { type: String, trim: true, required: true },
+      region: { type: String, trim: true, required: true },
+      department: { type: String, trim: true, required: true },
+      neighborhood: { type: String, trim: true, required: true },
+      street: { type: String, trim: true, required: true },
+      additionalInfo: { type: String, trim: true },
+      isDefault: { type: Boolean, default: false },
+    }],
+    default: [],
+  },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN', 'VENDOR', 'PROVIDER'], default: 'CLIENT', index: true },
   marketplaceTier: { type: String, enum: ['standard', 'pro', 'reseller', 'partner'], default: 'standard', index: true },
   proRequestedAt: { type: Date },

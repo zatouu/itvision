@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import SoftMessage from '@/components/ui/SoftMessage'
 import LogoutButton from '@/components/auth/LogoutButton'
+import AddressBook from '@/components/market/AddressBook'
 
 type Profile = {
   _id: string
@@ -207,6 +208,8 @@ export default function CompteProfilPage() {
                   />
                 </div>
               </div>
+
+              <AddressBook />
 
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">Changer le mot de passe (optionnel)</div>

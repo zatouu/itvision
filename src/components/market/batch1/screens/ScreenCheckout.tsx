@@ -12,6 +12,7 @@ import { Card } from '../Card';
 import { Section } from '../Section';
 import { TrustStrip } from '../TrustStrip';
 import { mapCartItem } from '../data-mappers';
+import AddressFields, { type AddressFieldsValue } from '@/components/market/AddressFields';
 import type { CartItem } from '../types';
 
 const GRAIN_VALUE_FCFA = 2;
@@ -27,6 +28,14 @@ const methodInternalId: Record<string, string> = {
   aerien: 'air_15',
   maritime: 'sea_freight',
 };
+
+interface SavedAddress extends AddressFieldsValue {
+  id: string;
+  label: string;
+  fullName: string;
+  phone: string;
+  isDefault: boolean;
+}
 
 interface CheckoutQuote {
   items: { id: string; unitPrice: number }[];
@@ -50,12 +59,16 @@ export default function ScreenCheckout() {
   const [CART, setCART] = useState<CartItem[]>([]);
 
   const [ship, setShip] = useState("aerien");
-  const [region, setRegion] = useState("Dakar");
-  const [dept, setDept] = useState("Dakar");
-  const [quartier, setQuartier] = useState("Almadies");
+  const [addr, setAddr] = useState<AddressFieldsValue>({
+    region: "", department: "", neighborhood: "", street: "", additionalInfo: "",
+  });
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [street, setStreet] = useState("");
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [addressLabel, setAddressLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [shippingRates, setShippingRates] = useState<Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }>>({});
@@ -99,18 +112,43 @@ export default function ScreenCheckout() {
     fetch('/api/client/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.profile) {
-          const u = d.profile;
-          if (u.name) setFullName(u.name);
-          if (u.phone) setPhone(u.phone.replace(/^\+221\s?/, ''));
-          if (u.address?.street) setStreet(u.address.street);
-          if (u.address?.region) setRegion(u.address.region);
-          if (u.address?.department) setDept(u.address.department);
-          if (u.address?.neighborhood) setQuartier(u.address.neighborhood);
+        if (!d?.profile) return;
+        setLoggedIn(true);
+        const u = d.profile;
+        if (u.name) setFullName(u.name);
+        if (u.phone) setPhone(u.phone.replace(/^\+221\s?/, ''));
+        // Adresse structurée : lastAddress (déduite de la dernière commande)
+        const la = d.lastAddress;
+        if (la) {
+          setAddr({
+            region: la.region || '',
+            department: la.department || '',
+            neighborhood: la.neighborhood || '',
+            street: la.street || '',
+            additionalInfo: la.additionalInfo || '',
+          });
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetch('/api/client/addresses', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const list: SavedAddress[] = Array.isArray(d?.addresses) ? d.addresses : [];
+        if (list.length === 0) return;
+        setSavedAddresses(list);
+        // Pré-remplit depuis l'adresse par défaut (la liste est triée default d'abord)
+        const def = list.find(a => a.isDefault) || list[0];
+        setSelectedAddressId(def.id);
+        setFullName(def.fullName || '');
+        setPhone(String(def.phone || '').replace(/^\+221\s?/, ''));
+        setAddr({
+          region: def.region, department: def.department,
+          neighborhood: def.neighborhood, street: def.street,
+          additionalInfo: def.additionalInfo || '',
+        });
+      })
+      .catch(() => {});
     fetch('/api/grains', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (typeof d?.balance === 'number') setGrainsBalance(d.balance); })
@@ -185,8 +223,8 @@ export default function ScreenCheckout() {
 
   const handleCheckout = async () => {
     setCheckoutError('');
-    if (!fullName.trim() || !phone.trim() || !street.trim()) {
-      setCheckoutError('Veuillez renseigner votre nom, téléphone et adresse.');
+    if (!fullName.trim() || !phone.trim() || !addr.street.trim() || !addr.region || !addr.department || !addr.neighborhood) {
+      setCheckoutError('Veuillez renseigner votre nom, téléphone et adresse complète (région, département, quartier, rue).');
       return;
     }
     if (items.length === 0) {
@@ -213,10 +251,11 @@ export default function ScreenCheckout() {
           name: fullName.trim(),
           phone: `+221 ${phone.replace(/\D/g, '').replace(/^(221|00221)/, '').trim()}`,
           address: {
-            region,
-            department: dept,
-            neighborhood: quartier,
-            street: street.trim(),
+            region: addr.region,
+            department: addr.department,
+            neighborhood: addr.neighborhood,
+            street: addr.street.trim(),
+            additionalInfo: addr.additionalInfo?.trim() || undefined,
             country: 'Sénégal',
           },
           shippingMethod: methodMap[ship] || 'air_15j',
@@ -232,6 +271,27 @@ export default function ScreenCheckout() {
       localStorage.removeItem('cart:items');
       localStorage.removeItem('cart:promo');
       window.dispatchEvent(new CustomEvent('cart:updated'));
+      if (loggedIn) {
+        // Carnet d'adresses + synchro nom/téléphone du profil (fire-and-forget)
+        const headers = { 'Content-Type': 'application/json' };
+        if (saveAddress) {
+          fetch('/api/client/addresses', {
+            method: 'POST', headers, credentials: 'include',
+            body: JSON.stringify({
+              label: addressLabel.trim() || 'Domicile',
+              fullName: fullName.trim(),
+              phone: `+221 ${phone.replace(/\D/g, '')}`,
+              region: addr.region, department: addr.department,
+              neighborhood: addr.neighborhood, street: addr.street.trim(),
+              additionalInfo: addr.additionalInfo?.trim() || undefined,
+            }),
+          }).catch(() => {});
+        }
+        fetch('/api/client/profile', {
+          method: 'PUT', headers, credentials: 'include',
+          body: JSON.stringify({ name: fullName.trim(), phone: `+221 ${phone.replace(/\D/g, '')}` }),
+        }).catch(() => {});
+      }
       router.push(data.confirmationUrl || `/commandes/${data.orderId}`);
     } catch {
       setCheckoutError('Impossible de communiquer avec le serveur.');
@@ -274,14 +334,14 @@ export default function ScreenCheckout() {
             o.disabled && "opacity-50 cursor-not-allowed",
             active ? "border-emerald-600 bg-emerald-50 shadow-sm dark:border-emerald-500 dark:bg-emerald-950/40" : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
           )}>
-            <div className="flex items-start justify-between w-full">
-              <span className={cn("grid h-10 w-10 place-items-center rounded-lg", active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
-                <Icon name={o.icon} size={18}/>
-              </span>
-              {o.groupTag && <Badge tone="violet"><Icon name="users" size={10}/> Idéal en groupe</Badge>}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">{o.label}</p>
+            <span className={cn("grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg", active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
+              <Icon name={o.icon} size={18}/>
+            </span>
+            <div className="min-w-0 flex-1 md:w-full">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">{o.label}</p>
+                {o.groupTag && <Badge tone="violet"><Icon name="users" size={10}/> Idéal en groupe</Badge>}
+              </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{o.sub}</p>
               <div className="mt-2 flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300"><Icon name="clock" size={11}/>{o.days}</span>
@@ -302,6 +362,59 @@ export default function ScreenCheckout() {
 
   const AddressForm = () => (
     <div className="space-y-3">
+      {/* Adresses enregistrées — sélection en un tap */}
+      {savedAddresses.length > 0 && (
+        <div className="space-y-1.5">
+          {savedAddresses.map((a) => {
+            const active = selectedAddressId === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => {
+                  setSelectedAddressId(a.id);
+                  setFullName(a.fullName || '');
+                  setPhone(String(a.phone || '').replace(/^\+221\s?/, ''));
+                  setAddr({
+                    region: a.region, department: a.department,
+                    neighborhood: a.neighborhood, street: a.street,
+                    additionalInfo: a.additionalInfo || '',
+                  });
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all",
+                  active
+                    ? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40"
+                    : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
+                )}
+              >
+                <span className={cn(
+                  "grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg",
+                  active ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                )}>
+                  <Icon name="mapPin" size={16}/>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[13px] font-extrabold text-slate-900 dark:text-white">{a.label}</span>
+                    {a.isDefault && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">Défaut</span>}
+                  </span>
+                  <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
+                    {a.fullName} · {a.street}, {a.neighborhood}, {a.department}
+                  </span>
+                </span>
+                <span className={cn(
+                  "grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border-2",
+                  active ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 dark:border-slate-600"
+                )}>
+                  {active && <Icon name="check" size={11}/>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nom complet</span>
@@ -315,32 +428,33 @@ export default function ScreenCheckout() {
           </div>
         </label>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Région</span>
-          <select value={region} onChange={e=>setRegion(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-            <option>Dakar</option><option>Thiès</option><option>Saint-Louis</option><option>Ziguinchor</option>
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Département</span>
-          <select value={dept} onChange={e=>setDept(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-            <option>Dakar</option><option>Pikine</option><option>Rufisque</option>
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quartier</span>
-          <select value={quartier} onChange={e=>setQuartier(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-            <option>Almadies</option><option>Plateau</option><option>Point E</option><option>Mermoz</option>
-          </select>
-        </label>
-      </div>
-      <label className="block">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Adresse (rue, N°, point de repère)</span>
-        <input value={street} onChange={e => setStreet(e.target.value)} placeholder="Rue, N°, point de repère" className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white"/>
-      </label>
 
-      {/* Map placeholder */}
+      <AddressFields value={addr} onChange={setAddr}/>
+
+      {/* Enregistrer dans le carnet d'adresses (compte connecté) */}
+      {loggedIn && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={saveAddress}
+              onChange={e => setSaveAddress(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 accent-emerald-600"
+            />
+            Enregistrer cette adresse pour mes prochaines commandes
+          </label>
+          {saveAddress && (
+            <input
+              value={addressLabel}
+              onChange={e => setAddressLabel(e.target.value)}
+              placeholder="Nom de l'adresse (ex : Domicile, Bureau)"
+              className="h-10 w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 text-[12px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Repère visuel */}
       <div className="relative h-40 md:h-52 overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 via-emerald-50 to-slate-50 dark:border-slate-800 dark:from-blue-950/30 dark:via-emerald-950/30 dark:to-slate-900">
         <svg viewBox="0 0 400 200" className="h-full w-full opacity-50">
           <path d="M0,120 Q100,80 200,110 T400,90 L400,200 L0,200 Z" fill="rgba(16,185,129,0.15)"/>
@@ -350,7 +464,7 @@ export default function ScreenCheckout() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-slate-900 shadow-md dark:bg-slate-900 dark:text-white">
             <Icon name="mapPin" size={14} className="text-red-600"/>
-            {quartier ? `${quartier}, ${dept}` : 'Adresse de livraison'}
+            {addr.neighborhood ? `${addr.neighborhood}, ${addr.department}` : 'Adresse de livraison'}
           </div>
         </div>
       </div>
@@ -484,18 +598,18 @@ export default function ScreenCheckout() {
         <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
 
         <div className="flex-1 overflow-y-auto pb-32">
-          <div className="p-4"><Stepper/></div>
+          <div className="p-4">{Stepper()}</div>
 
           <Section title="Adresse de livraison" className="pb-4">
-            <Card className="p-3"><AddressForm/></Card>
+            <Card className="p-3">{AddressForm()}</Card>
           </Section>
 
           <Section title="Mode d'expédition" subtitle="Depuis Guangzhou, Chine" className="pb-4">
-            <ShippingCards/>
+            {ShippingCards()}
           </Section>
 
           <Section title="Votre commande" className="pb-4">
-            <OrderRecap/>
+            {OrderRecap()}
           </Section>
 
           {checkoutError && (
@@ -529,26 +643,26 @@ export default function ScreenCheckout() {
         <div className="min-h-full bg-slate-50 dark:bg-slate-950">
 
       <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-6"><Stepper/></div>
+        <div className="mb-6">{Stepper()}</div>
         <div className="grid grid-cols-[1fr_400px] gap-6">
           <div className="space-y-4">
             <Card className="p-5">
               <h2 className="mb-4 text-base font-extrabold text-slate-900 dark:text-white">Adresse de livraison</h2>
-              <AddressForm/>
+              {AddressForm()}
             </Card>
             <Card className="p-5">
               <div className="mb-4 flex items-baseline justify-between">
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Mode d&apos;expédition</h2>
                 <span className="text-xs text-slate-500 dark:text-slate-400">Depuis Guangzhou, Chine — inspection incluse</span>
               </div>
-              <ShippingCards/>
+              {ShippingCards()}
             </Card>
             <TrustStrip/>
           </div>
 
           <div>
             <div className="sticky top-20 space-y-4">
-              <OrderRecap/>
+              {OrderRecap()}
               {checkoutError && (
                 <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                   {checkoutError}
