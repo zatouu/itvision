@@ -18,6 +18,16 @@ export async function GET(request: NextRequest) {
       await User.updateOne({ _id: user._id }, { $set: { name: '' } })
     }
 
+    // Self-healing: les comptes créés avant le parrainage n'ont pas de code — on en génère un
+    let referralCode = user.referralCode || ''
+    if (!referralCode) {
+      referralCode = `DDM${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+      while (await User.findOne({ referralCode }).select('_id').lean()) {
+        referralCode = `DDM${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+      }
+      await User.updateOne({ _id: user._id }, { $set: { referralCode } })
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -28,7 +38,7 @@ export async function GET(request: NextRequest) {
         avatarUrl: user.avatarUrl || '',
         role: user.role || '',
         providerProfileId: user.providerProfileId ? String(user.providerProfileId) : undefined,
-        referralCode: user.referralCode || '',
+        referralCode,
         referralBalance: user.referralBalance || 0,
         referralCount: user.referralCount || 0,
       },
@@ -63,6 +73,18 @@ export async function PATCH(request: NextRequest) {
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Aucun champ à mettre à jour' }, { status: 400 })
+    }
+
+    // Changement d'email : format + unicité obligatoires (c'est l'identifiant de connexion)
+    if (update.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(update.email)) {
+        return NextResponse.json({ error: 'Adresse email invalide' }, { status: 400 })
+      }
+      const taken = await User.findOne({ email: update.email, _id: { $ne: userId } }).select('_id').lean()
+      if (taken) {
+        return NextResponse.json({ error: 'Cette adresse email est déjà utilisée' }, { status: 409 })
+      }
     }
 
     const user = await User.findByIdAndUpdate(userId, { $set: update }, { new: true }).lean() as any

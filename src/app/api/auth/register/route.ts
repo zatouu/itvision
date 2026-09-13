@@ -224,6 +224,12 @@ export async function POST(request: NextRequest) {
     // Nettoyer le code de parrainage
     const normalizedReferral = typeof referredBy === 'string' ? referredBy.toUpperCase().trim() : undefined
 
+    // Code de parrainage personnel unique (base du lien de parrainage)
+    let referralCode = `DDM${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+    while (await User.findOne({ referralCode }).select('_id').lean()) {
+      referralCode = `DDM${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+    }
+
     // Créer l'utilisateur
     const newUser = new User({
       username,
@@ -234,6 +240,7 @@ export async function POST(request: NextRequest) {
       role: role.toUpperCase(),
       isActive: true,
       loginAttempts: 0,
+      referralCode,
       ...(normalizedReferral ? { referredBy: normalizedReferral } : {})
     })
 

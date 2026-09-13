@@ -138,7 +138,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Le nouveau mot de passe doit contenir au moins 6 caractères' }, { status: 400 })
       }
 
-      profile.passwordHash = await bcrypt.hash(newPassword, 10)
+      profile.passwordHash = await bcrypt.hash(newPassword, 12)
     }
 
     await profile.save()

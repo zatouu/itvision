@@ -10,7 +10,9 @@ interface ReferralBannerProps {
 export default function ReferralBanner({ referralCode }: ReferralBannerProps) {
   const [copied, setCopied] = useState(false)
 
-  const code = referralCode || 'ADMIN2024'
+  if (!referralCode) return null
+
+  const code = referralCode
   const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://market.itvisionplus.sn'}/market/creer-compte?ref=${code}`
 
   const copy = () => {

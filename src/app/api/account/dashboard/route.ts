@@ -150,7 +150,7 @@ export async function GET() {
         status: user.isActive ? 'active' : 'inactive',
         tier,
         grainsBalance,
-        referralCode: user.referralCode || 'ADMIN2024',
+        referralCode: user.referralCode || null,
         referrals: {
           count: user.referralCount || user.referrals?.length || 0,
           totalEarned: user.referralBalance || 0,
@@ -165,7 +165,6 @@ export async function GET() {
         activeGroupBuys,
         almostCompleteGroups: almostComplete,
         totalSavings,
-        totalSavingsTrend: 12,
         openClaims: 0,
       },
       cart: {
