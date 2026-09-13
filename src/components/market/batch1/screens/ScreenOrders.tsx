@@ -98,6 +98,9 @@ export default function ScreenOrders() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-1">{o.items[0]?.name}</p>
+              {o.items[0]?.variantLabels && o.items[0].variantLabels.length > 0 && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">{o.items[0].variantLabels.join(' · ')}</p>
+              )}
               {o.items.length > 1 && <p className="text-[11px] text-slate-500 dark:text-slate-400">+ {o.items.length - 1} autre{o.items.length > 2 ? "s" : ""} article{o.items.length > 2 ? "s" : ""}</p>}
               <p className="text-[11px] text-slate-500 dark:text-slate-400">{totalPcs} pcs · {o.shipping}</p>
             </div>

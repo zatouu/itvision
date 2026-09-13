@@ -18,6 +18,8 @@ export interface OrderItem {
   qty: number;
   unit: number;
   image: string;
+  /** Libellés des variantes choisies (ex. « Couleur: Rouge ») — dérivés serveur */
+  variantLabels?: string[];
 }
 
 export interface Order {

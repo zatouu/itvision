@@ -341,6 +341,9 @@ export function mapOrder(o: any): Order {
         qty: it.qty ?? it.quantity ?? 1,
         unit: it.price ?? it.unitPrice ?? it.unit ?? 0,
         image: it.image || it.productImage || '/placeholder.svg',
+        variantLabels: Array.isArray(it.variantLabels) && it.variantLabels.length > 0
+          ? it.variantLabels
+          : (typeof it.variant === 'string' && it.variant ? [it.variant] : undefined),
       }))
     : [];
 
