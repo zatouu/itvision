@@ -39,8 +39,11 @@ const PROTECTED_PREFIXES = new Set(['kyc', 'disputes'])
 
 const STAFF_ROLES = new Set(['ADMIN', 'SUPER_ADMIN'])
 
-function toStoredUrls(filePath: string): string[] {
-  return [`/api/uploads/${filePath}`, `/uploads/${filePath}`]
+// Correspondance par suffixe : couvre /api/uploads/x, /uploads/x et les URLs
+// absolues stockées (https://host/api/uploads/x).
+function pathSuffixRegex(filePath: string): RegExp {
+  const escaped = filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`/${escaped}$`)
 }
 
 /**
@@ -52,21 +55,21 @@ function toStoredUrls(filePath: string): string[] {
  */
 async function checkUploadAccess(request: NextRequest, filePath: string): Promise<NextResponse | null> {
   const prefix = filePath.split('/')[0] || ''
-  const candidates = toStoredUrls(filePath)
+  const suffix = pathSuffixRegex(filePath)
 
   await connectMongoose()
 
   const kyc = (await KycRequest.findOne({
     $or: [
-      { idCardFrontUrl: { $in: candidates } },
-      { idCardBackUrl: { $in: candidates } },
-      { selfieUrl: { $in: candidates } },
+      { idCardFrontUrl: suffix },
+      { idCardBackUrl: suffix },
+      { selfieUrl: suffix },
     ],
   }).select('providerId').lean()) as { providerId?: unknown } | null
 
   let evidence: any = null
   if (prefix === 'disputes') {
-    evidence = await DisputeEvidence.findOne({ url: { $in: candidates } })
+    evidence = await DisputeEvidence.findOne({ url: suffix })
       .select('requestId uploadedBy').lean()
   }
 
