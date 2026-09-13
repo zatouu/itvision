@@ -73,7 +73,7 @@ export function getBaseUrl(): string { return base }
 const TIMEOUT_MS = 20_000
 const UPLOAD_TIMEOUT_MS = 60_000
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const t = getAuthToken()
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
@@ -240,11 +240,15 @@ export async function apiPostQueued(
   body: Record<string, unknown>,
   offlineMsg = 'Action enregistr\u00e9e hors ligne.'
 ): Promise<unknown | null> {
+  // Clé d'idempotence : la même opération porte le même clientOpId à la
+  // 1ère tentative et au replay — le serveur déduplique (évite le doublon
+  // quand la réponse d'un POST réussi se perd sur réseau instable).
+  const opBody = { ...body, clientOpId: `op-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
   try {
-    return await apiPost(path, body)
+    return await apiPost(path, opBody)
   } catch (err: unknown) {
     if (isNetworkError(err)) {
-      await enqueue({ method: 'POST', path, body })
+      await enqueue({ method: 'POST', path, body: opBody })
       Alert.alert('Hors ligne', offlineMsg)
       return null
     }

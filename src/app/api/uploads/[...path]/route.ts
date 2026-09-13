@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
+import { connectMongoose } from '@/lib/mongoose'
+import { requireAuth } from '@/lib/jwt'
+import KycRequest from '@/lib/models/KycRequest'
+import DisputeEvidence from '@/lib/models/DisputeEvidence'
+import ServiceRequest from '@/lib/models/ServiceRequest'
 
 // Types MIME pour les images et vidéos
 const MIME_TYPES: Record<string, string> = {
@@ -28,6 +33,77 @@ const MIME_TYPES: Record<string, string> = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 }
 
+// Préfixes sensibles : fichiers jamais publics (documents d'identité, preuves de litige).
+// Un fichier présent sous ces préfixes DOIT être référencé en BDD pour être servi.
+const PROTECTED_PREFIXES = new Set(['kyc', 'disputes'])
+
+const STAFF_ROLES = new Set(['ADMIN', 'SUPER_ADMIN'])
+
+function toStoredUrls(filePath: string): string[] {
+  return [`/api/uploads/${filePath}`, `/uploads/${filePath}`]
+}
+
+/**
+ * Retourne null si l'accès est autorisé, sinon la réponse d'erreur.
+ * - kyc/* : propriétaire de la demande KYC ou staff
+ * - disputes/* : uploader, client ou prestataire de la mission, ou staff
+ * - autres préfixes : public, SAUF si le fichier est référencé par un KYC
+ *   (docs legacy uploadés sous requests/ avant l'introduction du type kyc)
+ */
+async function checkUploadAccess(request: NextRequest, filePath: string): Promise<NextResponse | null> {
+  const prefix = filePath.split('/')[0] || ''
+  const candidates = toStoredUrls(filePath)
+
+  await connectMongoose()
+
+  const kyc = (await KycRequest.findOne({
+    $or: [
+      { idCardFrontUrl: { $in: candidates } },
+      { idCardBackUrl: { $in: candidates } },
+      { selfieUrl: { $in: candidates } },
+    ],
+  }).select('providerId').lean()) as { providerId?: unknown } | null
+
+  let evidence: any = null
+  if (prefix === 'disputes') {
+    evidence = await DisputeEvidence.findOne({ url: { $in: candidates } })
+      .select('requestId uploadedBy').lean()
+  }
+
+  const protectedHit = kyc || evidence || PROTECTED_PREFIXES.has(prefix)
+  if (!protectedHit) return null
+
+  let userId = ''
+  let role = ''
+  try {
+    const auth = await requireAuth(request)
+    userId = auth.userId
+    role = auth.role || ''
+  } catch {
+    return NextResponse.json({ error: 'Authentification requise' }, { status: 401 })
+  }
+
+  if (STAFF_ROLES.has(role)) return null
+
+  if (kyc) {
+    if (String(kyc.providerId) === String(userId)) return null
+    return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+  }
+
+  if (evidence) {
+    if (String(evidence.uploadedBy) === String(userId)) return null
+    const sr = await ServiceRequest.findById(evidence.requestId)
+      .select('clientId assignedProviderId').lean()
+    if (sr && (String(sr.clientId) === String(userId) || String(sr.assignedProviderId) === String(userId))) {
+      return null
+    }
+    return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+  }
+
+  // Fichier sous préfixe protégé mais référencé nulle part → refuser
+  return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+}
+
 /**
  * GET /api/uploads/[...path]
  * Sert les fichiers uploadés dynamiquement
@@ -39,15 +115,19 @@ export async function GET(
 ) {
   try {
     const { path: pathSegments } = await params
-    
+
     // Reconstruire le chemin du fichier
     const filePath = pathSegments.join('/')
-    
+
     // Sécurité: empêcher le path traversal
     if (filePath.includes('..') || filePath.includes('~')) {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
-    
+
+    // Documents sensibles : accès restreint aux personnes concernées
+    const denied = await checkUploadAccess(request, filePath)
+    if (denied) return denied
+
     // Chemin complet du fichier
     const fullPath = path.join(process.cwd(), 'public', 'uploads', filePath)
     

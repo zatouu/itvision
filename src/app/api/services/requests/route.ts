@@ -186,6 +186,17 @@ export async function POST(request: NextRequest) {
       ? Object.fromEntries(Object.entries(attributes).filter(([k, v]) => typeof k === 'string' && v !== undefined))
       : {}
 
+    // Clé d'idempotence (file offline mobile) : un replay avec la même clé
+    // renvoie la demande déjà créée au lieu d'en créer un doublon.
+    const clientOpId = typeof (body as any).clientOpId === 'string' && /^[\w-]{8,80}$/.test((body as any).clientOpId)
+      ? (body as any).clientOpId
+      : undefined
+    if (clientOpId) {
+      const dup = await ServiceRequest.findOne({ clientId: userId, idempotencyKey: clientOpId })
+        .select('_id status createdAt').lean()
+      if (dup) return NextResponse.json({ success: true, item: dup, deduplicated: true })
+    }
+
     const isUrgent = urgent === true || urgent === 'true' || urgent === 1
     // Réservation planifiée : créneau futur demandé par le client.
     // Mutuellement exclusif avec urgent (urgent = immédiat).
@@ -205,17 +216,28 @@ export async function POST(request: NextRequest) {
     const expiresAt = safeScheduledFor && safeScheduledFor.getTime() > defaultExpiry.getTime()
       ? safeScheduledFor
       : defaultExpiry
-    const created = await ServiceRequest.create({
-      clientId: userId, category,
-      urgent: isUrgent,
-      scheduledFor: safeScheduledFor,
-      subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
-      description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
-      media: safeMedia, location, budget: safeBudget, channel: safeChannel,
-      attributes: safeAttributes,
-      status: 'created',
-      expiresAt,
-    })
+    let created
+    try {
+      created = await ServiceRequest.create({
+        clientId: userId, category,
+        urgent: isUrgent,
+        scheduledFor: safeScheduledFor,
+        subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
+        description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
+        media: safeMedia, location, budget: safeBudget, channel: safeChannel,
+        attributes: safeAttributes,
+        status: 'created',
+        expiresAt,
+        idempotencyKey: clientOpId,
+      })
+    } catch (createErr: any) {
+      // Race : un replay concurrent a créé la demande entre le check et l'insert
+      if (createErr?.code === 11000 && clientOpId) {
+        const existing = await ServiceRequest.findOne({ clientId: userId, idempotencyKey: clientOpId }).lean()
+        if (existing) return NextResponse.json({ success: true, item: existing, deduplicated: true })
+      }
+      throw createErr
+    }
 
     // Diffusion via le Visibility Engine + Visibility Scheduler (vague immédiate
     // puis escalade progressive du rayon si pas d'offre). Fire-and-forget : ne

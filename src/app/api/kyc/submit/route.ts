@@ -9,6 +9,10 @@ import { getBrandFromHost } from '@/lib/branding'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
 const MIN_RESUBMIT_MS = 60_000
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
 function isValidUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim()) return false
   const v = value.trim()
@@ -109,14 +113,14 @@ export async function POST(request: NextRequest) {
         to: ADMIN_EMAIL || brand.contactEmail,
         fromName: brand.name,
         brand,
-        subject: `🆔 Nouvelle soumission KYC - ${name}`,
+        subject: `🆔 Nouvelle soumission KYC - ${name.replace(/[\r\n]+/g, ' ')}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
             <h2 style="color:#2563EB">Nouvelle soumission KYC</h2>
-            <p><strong>Prestataire :</strong> ${name}</p>
-            <p><strong>Métier :</strong> ${job}</p>
-            <p><strong>Téléphone :</strong> ${user?.phone || 'N/A'}</p>
-            <p><strong>Email :</strong> ${user?.email || 'N/A'}</p>
+            <p><strong>Prestataire :</strong> ${escapeHtml(name)}</p>
+            <p><strong>Métier :</strong> ${escapeHtml(job)}</p>
+            <p><strong>Téléphone :</strong> ${escapeHtml(String(user?.phone || 'N/A'))}</p>
+            <p><strong>Email :</strong> ${escapeHtml(String(user?.email || 'N/A'))}</p>
             <p><strong>Date :</strong> ${new Date().toLocaleString('fr-FR')}</p>
             <h3 style="margin-top:24px">Documents</h3>
             <ul>

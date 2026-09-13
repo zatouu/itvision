@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
     // Pour les API, on applique juste la protection CSRF
     if (pathname.startsWith('/api/')) {
       const isMobileRoute = isMobileApiRoute(pathname)
-      const corsHeaders = getMobileCorsHeaders()
+      const corsHeaders = getMobileCorsHeaders(request.headers.get('origin'))
 
       // Répondre aux preflight OPTIONS immédiatement
       const preflight = handleCorsPreflight(request, isMobileRoute)

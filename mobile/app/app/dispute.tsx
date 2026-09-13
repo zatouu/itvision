@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
+import { Image as ExpoImage } from 'expo-image'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +9,7 @@ import { Check, Camera, Send, X, Info, Wrench, Paperclip } from 'lucide-react-na
 import AppHeader from '../src/components/AppHeader'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { colors, radius, shadows, spacing, typography, getCategoryMeta } from '../src/design'
-import { apiGetRetry, apiPatch, apiUpload } from '../src/api'
+import { apiGetRetry, apiPatch, apiUpload, authHeaders } from '../src/api'
 import { resolveMediaUrl, pickMedia } from '../src/media'
 import { toast } from '../src/toast'
 import { humanErrorMessage } from '../src/errorMessages'
@@ -290,7 +291,7 @@ function DisputeScreen() {
                 {evidence.length > 0 && (
                   <View style={[s.photoRow, { marginTop: 10 }]}>
                     {evidence.filter(e => e.type === 'image').map(e => (
-                      <Image key={e._id} source={{ uri: resolveMediaUrl(e.url) }} style={s.photoThumb} />
+                      <ExpoImage key={e._id} source={{ uri: resolveMediaUrl(e.url), headers: authHeaders() }} style={s.photoThumb} />
                     ))}
                   </View>
                 )}

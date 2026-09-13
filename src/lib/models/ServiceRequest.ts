@@ -94,6 +94,8 @@ const ServiceRequestSchema = new Schema({
   aiCoach: { type: Schema.Types.Mixed, default: {} },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
+  // Clé d'idempotence client (file offline) : déduplique la création en cas de replay
+  idempotencyKey: { type: String },
   lastActivityAt: { type: Date, default: Date.now },
   lastActivityType: { type: String },
   lastActivityBy: { type: String },
@@ -107,6 +109,7 @@ ServiceRequestSchema.index({ 'location': '2dsphere' })
 ServiceRequestSchema.index({ status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
+ServiceRequestSchema.index({ clientId: 1, idempotencyKey: 1 }, { unique: true, sparse: true })
 ServiceRequestSchema.index({ status: 1, category: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ status: 1, lastActivityAt: 1 })
 

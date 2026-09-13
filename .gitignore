@@ -78,3 +78,7 @@ mobile/*/proposals/
 
 # temporary build artifacts
 tmp/
+
+# Fichiers sensibles / runtime
+*.cookies
+cookies.txt

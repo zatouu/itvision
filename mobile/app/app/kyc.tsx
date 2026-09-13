@@ -60,18 +60,18 @@ function KycScreen() {
     setSubmitting(true)
     try {
       // Upload images
-      const frontRes = await apiUpload(idFrontUri, 'cni-recto.jpg', 'image/jpeg')
-      const frontUrl = frontRes?.staticUrl || frontRes?.url
+      const frontRes = await apiUpload(idFrontUri, 'cni-recto.jpg', 'image/jpeg', 'kyc')
+      const frontUrl = frontRes?.url || frontRes?.staticUrl
       if (!frontUrl) throw new Error('Upload CNI recto échoué')
 
       let backUrl = ''
       if (idBackUri) {
-        const backRes = await apiUpload(idBackUri, 'cni-verso.jpg', 'image/jpeg')
-        backUrl = backRes?.staticUrl || backRes?.url || ''
+        const backRes = await apiUpload(idBackUri, 'cni-verso.jpg', 'image/jpeg', 'kyc')
+        backUrl = backRes?.url || backRes?.staticUrl || ''
       }
 
-      const selfieRes = await apiUpload(selfieUri, 'selfie.jpg', 'image/jpeg')
-      const selfieUrl = selfieRes?.staticUrl || selfieRes?.url
+      const selfieRes = await apiUpload(selfieUri, 'selfie.jpg', 'image/jpeg', 'kyc')
+      const selfieUrl = selfieRes?.url || selfieRes?.staticUrl
       if (!selfieUrl) throw new Error('Upload selfie échoué')
 
       await apiPost('/api/kyc/submit', {

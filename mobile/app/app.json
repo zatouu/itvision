@@ -17,8 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.xeuy.xeuy",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour le suivi de mission.",
+        "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches et pour le suivi de mission.",
         "NSCameraUsageDescription": "Xeuy Bi utilise l'appareil photo pour prendre des photos de la mission ou des documents.",
         "NSMicrophoneUsageDescription": "Xeuy Bi utilise le microphone pour les messages vocaux.",
         "ITSAppUsesNonExemptEncryption": false

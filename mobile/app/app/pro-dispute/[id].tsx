@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, Image, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native'
+import { Image } from 'expo-image'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPatch, apiUpload } from '../../src/api'
+import { apiGet, apiPatch, apiUpload, authHeaders } from '../../src/api'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { pickMedia, resolveMediaUrl } from '../../src/media'
@@ -117,7 +118,7 @@ function DisputeDetail() {
             {(item?.disputeEvidence || []).map((e: any) => (
               <View key={e._id} style={s.evidenceItem}>
                 {e.type === 'image' ? (
-                  <Image source={{ uri: resolveMediaUrl(e.url) }} style={s.evidenceThumb} />
+                  <Image source={{ uri: resolveMediaUrl(e.url), headers: authHeaders() }} style={s.evidenceThumb} />
                 ) : (
                   <View style={s.evidenceThumb}><ImageIcon size={24} color={colors.textSecondary} /></View>
                 )}
