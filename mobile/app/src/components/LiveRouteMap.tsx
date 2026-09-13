@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-nativ
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
 import { Navigation } from 'lucide-react-native'
+import { apiGet } from '../api'
 
 const DEFAULT_FIT_PADDING = { top: 80, right: 60, bottom: 80, left: 60 }
 
@@ -50,40 +51,6 @@ function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600)
   const m = Math.round((seconds % 3600) / 60)
   return m > 0 ? `${h} h ${m} min` : `${h} h`
-}
-
-function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
-  const points: Array<{ lat: number; lng: number }> = []
-  let index = 0
-  let lat = 0
-  let lng = 0
-
-  while (index < encoded.length) {
-    let b: number
-    let shift = 0
-    let result = 0
-    do {
-      b = encoded.charCodeAt(index++) - 63
-      result |= (b & 0x1f) << shift
-      shift += 5
-    } while (b >= 0x20)
-    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
-    lat += dlat
-
-    shift = 0
-    result = 0
-    do {
-      b = encoded.charCodeAt(index++) - 63
-      result |= (b & 0x1f) << shift
-      shift += 5
-    } while (b >= 0x20)
-    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1
-    lng += dlng
-
-    points.push({ lat: lat / 1e5, lng: lng / 1e5 })
-  }
-
-  return points
 }
 
 function LiveRouteMapComponent({
@@ -182,26 +149,19 @@ function LiveRouteMapComponent({
     setLoading(true)
     setError(null)
     try {
-      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      if (!apiKey) {
-        throw new Error('Google Maps API key missing')
+      // Itinéraire via le proxy serveur /api/services/route — la clé Google
+      // ne quitte plus le backend (elle n'est plus dans le bundle client).
+      const data = await apiGet(
+        `/api/services/route?origin=${activeOrigin.lat},${activeOrigin.lng}` +
+        `&destination=${destination.lat},${destination.lng}&mode=${mode}`
+      )
+      if (!data?.polyline?.length) {
+        throw new Error('Aucun itinéraire')
       }
-      const url =
-        `https://maps.googleapis.com/maps/api/directions/json` +
-        `?origin=${activeOrigin.lat},${activeOrigin.lng}` +
-        `&destination=${destination.lat},${destination.lng}` +
-        `&mode=${mode}&key=${apiKey}`
-      const res = await fetch(url)
-      const data = await res.json()
-      if (data.status !== 'OK' || !data.routes?.length) {
-        throw new Error(data.status || 'Aucun itinéraire')
-      }
-      const leg = data.routes[0].legs[0]
-      const encoded = data.routes[0].overview_polyline?.points || ''
       const newRoute = {
-        polyline: decodePolyline(encoded),
-        distance: { text: leg.distance?.text || '', value: leg.distance?.value || 0 },
-        duration: { text: leg.duration?.text || '', value: leg.duration?.value || 0 },
+        polyline: data.polyline as Array<{ lat: number; lng: number }>,
+        distance: { text: data.distance?.text || '', value: data.distance?.value || 0 },
+        duration: { text: data.duration?.text || '', value: data.duration?.value || 0 },
       }
       setRoute(newRoute)
       lastFetchOrigin.current = { lat: activeOrigin.lat, lng: activeOrigin.lng }

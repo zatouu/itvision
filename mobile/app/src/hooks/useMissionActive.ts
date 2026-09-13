@@ -16,7 +16,7 @@ import {
   clearPersistedMission,
 } from '../storage/missionStorage'
 import { humanErrorMessage } from '../errorMessages'
-import { haversineMeters, formatDistance, formatDuration, decodePolyline, remainingDistanceAlongPolyline } from '../utils/geo'
+import { haversineMeters, formatDistance, formatDuration, remainingDistanceAlongPolyline } from '../utils/geo'
 import { toast } from '../toast'
 import type { StructuredAdvice } from '../types'
 
@@ -387,31 +387,19 @@ export function useMissionActive(requestId: string | null) {
 
       isFetchingRoute.current = true
       try {
-        const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-        if (!apiKey) {
+        // Itinéraire via le proxy serveur — la clé Google reste côté backend
+        const data = await apiGet(
+          `/api/services/route?origin=${providerLocation.lat},${providerLocation.lng}` +
+          `&destination=${clientLat},${clientLng}&mode=driving`
+        )
+        if (!data?.polyline?.length) {
           isFetchingRoute.current = false
           return false
         }
-        const url =
-          `https://maps.googleapis.com/maps/api/directions/json` +
-          `?origin=${providerLocation.lat},${providerLocation.lng}` +
-          `&destination=${clientLat},${clientLng}` +
-          `&mode=driving&key=${apiKey}`
-
-        const res = await fetch(url)
-        const data = await res.json()
-        if (data.status !== 'OK' || !data.routes?.length) {
-          isFetchingRoute.current = false
-          return false
-        }
-
-        const leg = data.routes[0].legs[0]
-        const encoded = data.routes[0].overview_polyline?.points || ''
-        const polyline = decodePolyline(encoded)
 
         googleRouteRef.current = {
-          polyline,
-          distanceM: leg.distance?.value || 0,
+          polyline: data.polyline,
+          distanceM: data.distance?.value || 0,
           fetchedAt: now,
           fetchedFrom: { lat: providerLocation.lat, lng: providerLocation.lng },
         }

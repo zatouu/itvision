@@ -162,7 +162,8 @@ function Wallet() {
       toast.info(t('providerWallet.invalidAmount'), t('providerWallet.minAmount'))
       return
     }
-    if (!phone.trim() || phone.trim().length < 8) {
+    // Le retrait part toujours vers le numéro du compte (vérifié par OTP côté serveur)
+    if (!userPhone || userPhone.length < 8) {
       toast.info(t('providerWallet.invalidPhone'), t('providerWallet.phoneRequired'))
       return
     }
@@ -171,7 +172,7 @@ function Wallet() {
       const r: any = await apiPost('/api/wallet/withdraw', {
         amount: numeric,
         method: operator,
-        phone: phone.trim() || userPhone,
+        phone: userPhone,
       })
       if (r?.success) {
         toast.success(t('providerWallet.withdrawSuccess'), t('providerWallet.withdrawSuccessMsg', { amount: format(numeric) }))
@@ -446,11 +447,9 @@ function Wallet() {
             </View>
             <Text style={s.modalLabel}>{t('providerWallet.phone')}</Text>
             <TextInput
-              style={s.input}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              placeholder={t('providerWallet.phonePlaceholder')}
+              style={[s.input, { opacity: 0.6 }]}
+              value={getAuthUser()?.phone || ''}
+              editable={false}
               placeholderTextColor={colors.textMuted}
             />
             <TouchableOpacity style={s.modalBtn} onPress={onWithdraw} disabled={withdrawLoading}>
