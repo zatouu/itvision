@@ -7,6 +7,7 @@ import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
 import { resolveUserCategory } from '@/lib/user-segmentation'
+import { getPostLoginRedirect } from '@/lib/auth-redirect'
 import { setAuthCookie } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: userData,
-      redirectUrl: getRedirectUrl(user.role, companyClientId)
+      redirectUrl: getPostLoginRedirect(user.role, companyClientId)
     })
 
     setAuthCookie(response, token)
@@ -189,23 +190,6 @@ export async function POST(request: NextRequest) {
       { error: 'Erreur interne du serveur' },
       { status: 500 }
     )
-  }
-}
-
-// Fonction pour déterminer l'URL de redirection selon le rôle
-function getRedirectUrl(role: string, companyClientId?: string): string {
-  const normalized = String(role).toUpperCase()
-  switch (normalized) {
-    case 'PRODUCT_MANAGER':
-      return '/admin/produits'
-    case 'ADMIN':
-      return '/admin'
-    case 'TECHNICIAN':
-      return '/tech-interface'
-    case 'CLIENT':
-      return companyClientId ? '/portail-entreprise' : '/compte'
-    default:
-      return '/compte'
   }
 }
 

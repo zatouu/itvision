@@ -553,6 +553,7 @@ export default function UserManagementInterface() {
   const [success, setSuccess] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
+  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({})
   const usersPerPage = 10
 
   // Init filters from URL query once (e.g. /admin/users?userCategory=MARKETPLACE_CLIENT)
@@ -602,6 +603,7 @@ export default function UserManagementInterface() {
       if (data.success) {
         setUsers(data.users)
         setTotalUsers(data.total)
+        if (data.domainCounts) setDomainCounts(data.domainCounts)
       } else {
         setError(data.error || 'Erreur lors du chargement')
       }
@@ -982,13 +984,13 @@ export default function UserManagementInterface() {
           )}
         </AnimatePresence>
 
-        {/* Onglets de filtrage par entité — regroupés par domaine */}
+        {/* Onglets de filtrage par domaine — compta/utilisateurs isolés par produit */}
         <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
           {[
-            { key: 'all', label: 'Tous', color: 'bg-stone-100 text-stone-700 border-stone-300', activeColor: 'bg-stone-700 text-white border-stone-700' },
-            { key: 'ENTERPRISE_CLIENT', label: 'Entreprise', color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
-            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace', color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
-            { key: 'PLATFORM_USER', label: 'Staff & Admin', color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
+            { key: 'all', label: 'Tous', count: null as number | null, color: 'bg-stone-100 text-stone-700 border-stone-300', activeColor: 'bg-stone-700 text-white border-stone-700' },
+            { key: 'ENTERPRISE_CLIENT', label: 'Corporate', count: domainCounts.ENTERPRISE_CLIENT ?? null, color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
+            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace DDM+', count: domainCounts.MARKETPLACE_CLIENT ?? null, color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
+            { key: 'PLATFORM_USER', label: 'Staff & Admin', count: domainCounts.PLATFORM_USER ?? null, color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
           ].map(tab => {
             const isActiveTab = userCategoryFilter === tab.key || (tab.key === 'all' && userCategoryFilter === 'all')
             return (
@@ -998,9 +1000,14 @@ export default function UserManagementInterface() {
                   setUserCategoryFilter(tab.key as 'all' | UserCategory)
                   setCurrentPage(1)
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
               >
                 {tab.label}
+                {tab.count !== null && (
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
+                    {tab.count}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -1008,11 +1015,11 @@ export default function UserManagementInterface() {
           {/* Groupe isolé : comptes de l'app mobile Xeuy Bi (migration prévue) */}
           <div className="flex items-center gap-2 pl-3 ml-1 border-l-2 border-dashed border-amber-300">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 whitespace-nowrap">
-              App mobile — migration prévue
+              Xeuy Bi — app mobile
             </span>
             {[
-              { key: 'XEUY_PROVIDER', label: 'Prestataires Xeuy', color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
-              { key: 'XEUY_CLIENT', label: 'Clients Xeuy', color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
+              { key: 'XEUY_PROVIDER', label: 'Prestataires', count: domainCounts.XEUY_PROVIDER ?? null, color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
+              { key: 'XEUY_CLIENT', label: 'Clients', count: domainCounts.XEUY_CLIENT ?? null, color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
             ].map(tab => {
               const isActiveTab = userCategoryFilter === tab.key
               return (
@@ -1022,9 +1029,14 @@ export default function UserManagementInterface() {
                     setUserCategoryFilter(tab.key as 'all' | UserCategory)
                     setCurrentPage(1)
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
                 >
                   {tab.label}
+                  {tab.count !== null && (
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               )
             })}

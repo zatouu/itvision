@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import { signAuthTokenWithExpiry } from '@/lib/jwt'
+import { getPostLoginRedirect } from '@/lib/auth-redirect'
 import { setAuthCookie } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
@@ -45,24 +46,11 @@ export async function POST(request: NextRequest) {
       role: user.role
     }
 
-    const response = NextResponse.json({ success: true, user: userData, redirectUrl: getRedirectUrl(user.role) })
+    const response = NextResponse.json({ success: true, user: userData, redirectUrl: getPostLoginRedirect(user.role, user.companyClientId ? String(user.companyClientId) : undefined) })
     setAuthCookie(response, token)
 
     return response
   } catch (e) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
-  }
-}
-
-function getRedirectUrl(role: string): string {
-  const normalized = String(role).toUpperCase()
-  switch (normalized) {
-    case 'ADMIN':
-      return '/admin-reports'
-    case 'TECHNICIAN':
-      return '/tech-interface'
-    case 'CLIENT':
-    default:
-      return '/compte'
   }
 }

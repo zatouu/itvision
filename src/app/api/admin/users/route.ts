@@ -89,9 +89,22 @@ export async function GET(request: NextRequest) {
     if (isActive === 'true') query.isActive = true
     if (isActive === 'false') query.isActive = false
 
-    const [users, total] = await Promise.all([
+    const [users, total, counts] = await Promise.all([
       User.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      User.countDocuments(query)
+      User.countDocuments(query),
+      // Compteurs par domaine pour les onglets — indépendants du filtre courant
+      Promise.all([
+        User.countDocuments({ role: 'CLIENT', companyClientId: { $exists: true, $ne: null } }),
+        User.countDocuments({
+          role: 'CLIENT',
+          $or: [{ companyClientId: { $exists: false } }, { companyClientId: null }],
+          email: { $not: /@xeuy\.bi$/i },
+          username: { $not: /^mobile_/ }
+        }),
+        User.countDocuments({ $or: [{ role: 'PROVIDER' }, { providerProfileId: { $exists: true, $ne: null } }] }),
+        User.countDocuments({ role: 'CLIENT', $or: [{ email: /@xeuy\.bi$/i }, { username: /^mobile_/ }] }),
+        User.countDocuments({ role: { $nin: ['CLIENT', 'PROVIDER'] } }),
+      ])
     ])
 
     const usersWithCategory = users.map((user: any) => ({
@@ -99,7 +112,16 @@ export async function GET(request: NextRequest) {
       userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: user.providerProfileId, email: user.email, username: user.username })
     }))
 
-    return NextResponse.json({ success: true, users: usersWithCategory, total, skip, limit })
+    return NextResponse.json({
+      success: true, users: usersWithCategory, total, skip, limit,
+      domainCounts: {
+        ENTERPRISE_CLIENT: counts[0],
+        MARKETPLACE_CLIENT: counts[1],
+        XEUY_PROVIDER: counts[2],
+        XEUY_CLIENT: counts[3],
+        PLATFORM_USER: counts[4],
+      }
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
