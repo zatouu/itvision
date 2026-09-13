@@ -10,6 +10,7 @@ import type {
   OrderStatus,
   PriceTier,
 } from './types';
+import { filterSpecEntries } from '@/lib/catalog/description-format';
 
 export function fmtDeadline(date: string | Date | null | undefined): string {
   if (!date) return '—';
@@ -229,7 +230,10 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     priceTiers,
     groupBuy,
     variants: variants.length > 0 ? variants : [],
-    specs: specs.length > 0 ? specs : [],
+    specs: specs.length > 0 ? filterSpecEntries(specs) : [],
+    descriptionImages: Array.isArray(p?.descriptionImages)
+      ? p.descriptionImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
+      : [],
     shipping: {
       origin: p?.sourcing?.origin || 'Guangzhou, Chine',
       modes: modes.length > 0 ? modes : [

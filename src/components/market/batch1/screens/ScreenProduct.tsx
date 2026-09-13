@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { ProgressBar } from '../ProgressBar';
 import { LiveDot } from '../LiveDot';
 import { Section } from '../Section';
 import ProductImageGallery from '../ProductImageGallery';
+import ProductDescription from '../ProductDescription';
 import { addToCart, mapProductDetail } from '../data-mappers';
 import type { Product, PriceTier, ProductVariant, ShippingMode } from '../types';
 
@@ -388,17 +389,11 @@ export default function ScreenProduct() {
             </div>
             <div className="px-4 py-4">
               {tab === "desc" && (
-                <div className="space-y-3 text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed">
-                  <p>{p.description || 'Produit importé directement depuis la Chine. Inspection qualité incluse avant expédition.'}</p>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                    {p.specs.map(([k, v]: [string, string]) => (
-                      <Fragment key={k}>
-                        <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{k}</dt>
-                        <dd className="text-[12px] font-semibold text-slate-900 dark:text-white text-right">{v}</dd>
-                      </Fragment>
-                    ))}
-                  </dl>
-                </div>
+                <ProductDescription
+                  description={p.description}
+                  specs={p.specs}
+                  descriptionImages={p.descriptionImages}
+                />
               )}
               {tab === "ship" && (
                 <div className="space-y-2 text-[13px] text-slate-700 dark:text-slate-300">
@@ -519,19 +514,11 @@ export default function ScreenProduct() {
               </div>
               <div className="p-6">
                 {tab==="desc" && (
-                  <div className="grid grid-cols-2 gap-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    <div className="space-y-3">
-                      <p>{p.description || 'Produit importé directement depuis la Chine. Inspection qualité incluse avant expédition.'}</p>
-                    </div>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
-                      {p.specs.map(([k, v]: [string, string])=>(
-                        <Fragment key={k}>
-                          <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{k}</dt>
-                          <dd className="text-sm font-semibold text-slate-900 dark:text-white text-right">{v}</dd>
-                        </Fragment>
-                      ))}
-                    </dl>
-                  </div>
+                  <ProductDescription
+                    description={p.description}
+                    specs={p.specs}
+                    descriptionImages={p.descriptionImages}
+                  />
                 )}
                 {tab==="ship" && (
                   <div className="space-y-3">

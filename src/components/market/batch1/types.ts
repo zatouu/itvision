@@ -93,6 +93,7 @@ export interface Product {
   groupBuy?: ProductGroupBuy;
   variants: ProductVariant[];
   specs: [string, string][];
+  descriptionImages?: string[];
   shipping: ProductShipping;
   // Catalog / card shortcuts
   cat?: string;
