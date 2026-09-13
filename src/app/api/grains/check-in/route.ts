@@ -63,6 +63,10 @@ export async function POST(req: NextRequest) {
     if (err?.status === 401 || err?.message?.includes('authentifié')) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     }
+    // Double-clic / requête concurrente : l'index unique {userId, date} bloque le doublon
+    if (err?.code === 11000) {
+      return NextResponse.json({ success: false, error: 'Check-in déjà effectué aujourd\'hui' }, { status: 400 })
+    }
     console.error('[grains/check-in] error:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
   }
