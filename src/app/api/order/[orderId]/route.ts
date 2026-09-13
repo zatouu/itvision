@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db'
 import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
+import { confirmPayment } from '@/lib/payment-fulfillment'
 import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { restoreProductStock } from '@/lib/inventory'
 import { sendWebPushToOrder } from '@/lib/push-web'
@@ -184,8 +185,21 @@ export async function PATCH(
       updateData.status = body.status
     }
 
-    // Support de mise à jour du statut de paiement
-    if (body.paymentStatus) {
+    // Paiement marqué comme complété → flux canonique (grains, notifications, escrow)
+    let paymentConfirmed = false
+    if (isAdmin && body.paymentStatus === 'completed') {
+      const result = await confirmPayment({
+        reference: orderId,
+        amount: Number(body.amount || 0),
+        provider: (body.provider as any) || 'cash',
+        transactionId: body.transactionId || `admin-${Date.now()}`
+      })
+      if (!result.found) {
+        return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 })
+      }
+      paymentConfirmed = result.changed
+    } else if (body.paymentStatus) {
+      // Autres statuts (failed, refunded…) : mise à jour directe réservée admin
       updateData.paymentStatus = body.paymentStatus
     }
 

@@ -10,14 +10,6 @@ import GrainsTransaction, { getGrainsBalance } from '@/lib/models/GrainsTransact
 import Activity from '@/lib/models/Activity'
 import Reward from '@/lib/models/Reward'
 
-const DEFAULT_REWARDS = [
-  { title: '-5% sur votre prochaine commande', description: 'Remise immédiate à la caisse', icon: '🎟️', cost: 100, type: 'discount', value: { percent: 5 }, active: true, validForDays: 30 },
-  { title: '-10% sur votre prochaine commande', description: 'Remise immédiate à la caisse', icon: '🎟️', cost: 300, type: 'discount', value: { percent: 10 }, active: true, validForDays: 30 },
-  { title: 'Livraison gratuite', description: 'Frais de port offerts sur votre prochaine commande', icon: '🚚', cost: 500, type: 'free_shipping', value: {}, active: true, validForDays: 30 },
-  { title: 'Bonus achat groupé -15%', description: 'Réduction supplémentaire sur un achat groupé', icon: '🤝', cost: 1000, type: 'group_buy_bonus', value: { percent: 15 }, active: true, validForDays: 60 },
-  { title: 'Cadeau surprise', description: 'Un produit gratuit sélectionné par nos équipes', icon: '🎁', cost: 2000, type: 'gift', value: {}, active: true, validForDays: 90 },
-]
-
 function getTierFromBalance(balance: number): 'Bronze' | 'Argent' | 'Or' | 'Platine' {
   if (balance >= 2000) return 'Platine'
   if (balance >= 1000) return 'Or'
@@ -63,12 +55,6 @@ export async function GET() {
     const user = await User.findById(userId).lean() as any
     if (!user) {
       return NextResponse.json({ success: false, error: 'Utilisateur introuvable' }, { status: 404 })
-    }
-
-    // Ensure default rewards exist
-    const existingRewards = await Reward.countDocuments({ active: true })
-    if (existingRewards === 0) {
-      await Reward.insertMany(DEFAULT_REWARDS)
     }
 
     const [orders, groups, favoriteIds, openGroups, activities, grainsBalance, rewards] = await Promise.all([

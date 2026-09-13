@@ -71,11 +71,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, status: 'failed', error: 'Paiement échoué côté provider' })
     }
 
-    // 2. Confirm if: provider says succeeded OR status is unknown (trust-based for QR/cash/manual)
-    const shouldConfirm = checkResult.status === 'succeeded' || checkResult.status === 'unknown'
+    // 2. Confirm si le provider dit 'succeeded'. Les paiements manuels (wave_qr,
+    //    wave sans clé API…) n'ont PAS de vérification provider — le client ne peut
+    //    pas s'auto-confirmer : ils attendent la validation admin (anti-fraude).
+    const shouldConfirm =
+      checkResult.status === 'succeeded' ||
+      (checkResult.status === 'unknown' && !payment.manualConfirm)
 
     if (!shouldConfirm) {
-      // Still pending according to provider
+      if (payment.manualConfirm) {
+        return NextResponse.json({
+          success: true,
+          status: 'pending',
+          manualConfirm: true,
+          message: 'Paiement manuel en attente de validation par nos équipes'
+        })
+      }
       return NextResponse.json({ success: true, status: 'pending', payment, message: 'Paiement encore en cours côté provider' })
     }
 
