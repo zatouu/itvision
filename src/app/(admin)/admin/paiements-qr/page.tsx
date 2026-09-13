@@ -10,6 +10,8 @@ type ManualPayment = {
   externalId?: string
   phase?: string
   clientId: string
+  domain?: string
+  orderId?: string
   createdAt: string
 }
 type ManualTopup = {
@@ -111,7 +113,9 @@ export default function AdminManualPaymentsPage() {
                     <Briefcase className="w-5 h-5 text-cyan-600" />
                   </div>
                   <div>
-                    <div className="font-semibold text-stone-900">Mission — {p.amount.toLocaleString('fr-FR')} FCFA</div>
+                    <div className="font-semibold text-stone-900">
+                      {p.domain === 'marketplace' || p.orderId ? `Commande ${p.orderId || ''}` : 'Mission'} — {p.amount.toLocaleString('fr-FR')} FCFA
+                    </div>
                     <div className="text-xs text-stone-500">
                       Réf: <span className="font-mono font-bold text-amber-700">{p.reference || '—'}</span>
                       {' · '}{new Date(p.createdAt).toLocaleString('fr-FR')}

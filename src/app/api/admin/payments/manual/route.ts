@@ -8,6 +8,8 @@ import Offer from '@/lib/models/Offer'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { creditPoints, refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
+import { confirmPayment } from '@/lib/payment-fulfillment'
+import { Order } from '@/lib/models/Order'
 
 /**
  * Validation manuelle des paiements QR statiques (Wave QR marchand).
@@ -50,12 +52,27 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Déjà traité (${payment.status})` }, { status: 409 })
       }
 
+      const isMarketplace = payment.domain === 'marketplace' || payment.orderType === 'marketplace'
+
       if (action === 'confirm') {
         payment.status = 'held'
         payment.heldAt = new Date()
+        payment.confirmedBy = 'admin'
         await payment.save()
 
-        if (payment.requestId && payment.offerId) {
+        if (isMarketplace) {
+          // Commande marketplace : fulfillment canonique — paymentStatus completed,
+          // grains de fidélité, notification client, parrainage (idempotent).
+          const conf = await confirmPayment({
+            reference: String(payment.orderId),
+            amount: payment.amount,
+            provider: payment.provider as any,
+            transactionId: payment.externalId || `ADMIN-${payment._id}`,
+          })
+          if (!conf.found) {
+            console.error(`[manual-confirm] Commande introuvable pour payment ${payment._id} (orderId=${payment.orderId})`)
+          }
+        } else if (payment.requestId && payment.offerId) {
           const sr = await ServiceRequest.findById(payment.requestId)
           const offer = await Offer.findById(payment.offerId)
           if (sr && offer) {
@@ -79,6 +96,9 @@ export async function POST(request: NextRequest) {
         payment.failedAt = new Date()
         payment.failReason = note || 'Non reçu sur le compte marchand'
         await payment.save()
+        if (isMarketplace && payment.orderId) {
+          await Order.updateOne({ orderId: payment.orderId }, { paymentStatus: 'failed' })
+        }
         const escrowCost = payment.escrowPointsCharged || 0
         if (escrowCost > 0) {
           await refundEscrowPoints(String(payment.clientId), String(payment.requestId), escrowCost).catch(() => {})

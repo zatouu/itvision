@@ -113,6 +113,9 @@ export async function POST(request: NextRequest) {
       externalId: result.externalId,
       checkoutUrl: result.checkoutUrl,
       useEscrow: true,
+      // Paiement manuel (lien/QR Wave marchand) : doit apparaître dans la file
+      // de validation admin — sinon la commande resterait bloquée sans recours.
+      manualConfirm: !!result.manualConfirm,
     })
 
     order.paymentMethod = provider

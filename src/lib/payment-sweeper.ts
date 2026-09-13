@@ -6,6 +6,7 @@ import { checkPaymentStatus } from '@/lib/payment'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
+import { confirmPayment as fulfillPayment } from '@/lib/payment-fulfillment'
 
 /**
  * Payment Sweeper — server-side reconciliation for pending payments.
@@ -36,6 +37,12 @@ export async function sweepPendingPayments(): Promise<void> {
     const pendingPayments = await Payment.find({ status: 'pending' }).lean()
 
     for (const payment of pendingPayments as any[]) {
+      // Paiements manuels (lien/QR Wave marchand) : confirmation admin uniquement.
+      // Sans cette exclusion, le trust-confirm >5min marquerait « held » un
+      // paiement jamais reçu — et pour une commande marketplace, laisserait la
+      // commande à pending alors que le Payment dit held (état incohérent).
+      if (payment.manualConfirm) continue
+
       const ageMs = now - new Date(payment.createdAt).getTime()
 
       try {
@@ -88,8 +95,14 @@ export async function sweepPendingPayments(): Promise<void> {
             continue
           }
 
-          // Unknown (no API / QR manual) → trust-based confirm after 5 minutes
+          // Unknown → trust-confirm UNIQUEMENT pour les providers à API réelle
+          // (les manuels sont exclus en amont via manualConfirm). Un provider
+          // sans API qui n'est pas marqué manualConfirm ne doit pas être
+          // auto-confirmé — risque de fraude.
           if (checkResult.status === 'unknown' && ageMs > TRUST_CONFIRM_AFTER_MS) {
+            if (['wave', 'wave_qr', 'cash'].includes(String(payment.provider))) {
+              continue // reste pending : confirmation manuelle/admin requise
+            }
             await confirmPayment(payment, 'system_reconcile')
             console.log(`[sweeper] Payment ${payment._id} trust-confirmed (unknown status, >5min)`)
             continue
@@ -119,6 +132,24 @@ async function confirmPayment(payment: any, confirmedBy: string): Promise<void> 
     { new: true },
   )
   if (!updated) return
+
+  // Commande marketplace : fulfillment canonique — met la commande à
+  // 'completed', crédite les grains, notifie le client (idempotent).
+  if (payment.domain === 'marketplace' || payment.orderType === 'marketplace') {
+    if (payment.orderId) {
+      try {
+        await fulfillPayment({
+          reference: String(payment.orderId),
+          amount: payment.amount,
+          provider: payment.provider as any,
+          transactionId: payment.externalId || `SWEEP-${payment._id}`,
+        })
+      } catch (err) {
+        console.error(`[sweeper] fulfillPayment failed for order ${payment.orderId}:`, err)
+      }
+    }
+    return
+  }
 
   if (payment.phase !== 'balance' && payment.requestId) {
     const sr = await ServiceRequest.findById(payment.requestId)
