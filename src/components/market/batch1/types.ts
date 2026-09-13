@@ -125,6 +125,7 @@ export interface Group {
   save: number;
   status: 'live' | 'almost' | string;
   category: string;
+  createdAt?: number;
 }
 
 export interface CartItem {
@@ -143,6 +144,7 @@ export interface CartItem {
   nextTier: { at: number; save: number } | null;
   hasActiveGroup: boolean;
   groupUnit?: number;
+  groupId?: string;
   belowMOQ?: boolean;
   moqDelta?: number;
 }

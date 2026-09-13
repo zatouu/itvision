@@ -144,6 +144,7 @@ export default function ScreenProduct() {
     nextTier: nextTier ? { at: nextTier.from, save: nextTier.save } : null,
     hasActiveGroup: !!p.groupBuy?.active,
     groupUnit: p.groupBuy?.unitPrice,
+    groupId: p.groupBuy?.id,
   });
 
   const handleAddToCart = () => {

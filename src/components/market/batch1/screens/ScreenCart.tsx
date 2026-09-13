@@ -241,9 +241,12 @@ export default function ScreenCart() {
                 <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">Rejoindre le groupe : <span className="text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(it.groupUnit)}/pc</span></p>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">Économisez <b className="tabular-nums">{formatFcfa((lineUnit(it) - it.groupUnit) * it.qty)}</b> sur ce lot</p>
               </div>
-              <button className="whitespace-nowrap rounded-md bg-violet-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-violet-700 flex-shrink-0">
+              <Link
+                href={it.groupId ? `/achats-groupes/${it.groupId}` : '/achats-groupes'}
+                className="whitespace-nowrap rounded-md bg-violet-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-violet-700 flex-shrink-0"
+              >
                 Voir
-              </button>
+              </Link>
             </div>
           </div>
         )}

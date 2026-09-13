@@ -47,6 +47,13 @@ export default function ScreenAccount() {
 
   const supportWhatsApp = brandWhatsAppUrl(undefined, "Bonjour DDM+, j'ai une question sur mon compte.");
 
+  const accountLinks = [
+    { icon: "user", label: "Informations personnelles", href: "/compte/profil" },
+    { icon: "mapPin", label: "Mes adresses", href: "/compte/profil" },
+    { icon: "lock", label: "Sécurité", href: "/compte/profil" },
+    { icon: "whatsapp", label: "Aide et support", href: brandWhatsAppUrl(undefined, "Bonjour DDM+, j'ai besoin d'aide."), external: true },
+  ];
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -204,7 +211,7 @@ export default function ScreenAccount() {
     { key: "groups", label: "Mes groupes", icon: "users", sub: USER.stats.groups + " actifs", href: "/compte/achats-groupes" },
     { key: "favorites", label: "Favoris", icon: "heart", sub: `${USER.favorites?.length ?? 0} produit${(USER.favorites?.length ?? 0) > 1 ? 's' : ''}`, href: "/produits/favoris" },
     { key: "addresses", label: "Mes adresses", icon: "mapPin", sub: "Mes adresses", href: "/compte/profil" },
-    { key: "sourcing", label: "Mes demandes sourcing", icon: "camera", sub: "Mes demandes", href: "/market" },
+    { key: "claim", label: "Réclamer une commande", icon: "camera", sub: "Commande passée en invité", href: "/compte/reclamer-commande" },
     { key: "payment", label: "Modes de paiement", icon: "wallet", sub: "Mobile Money", href: "/compte/profil" },
   ];
 
@@ -235,15 +242,12 @@ export default function ScreenAccount() {
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-950 px-4 pt-6 pb-8 text-white">
             <div className="flex items-center gap-3">
               <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[16px] font-extrabold text-white">
-                CA
+                {USER.initials}
               </span>
               <div>
                 <p className="text-[16px] font-extrabold">{USER.handle}</p>
                 <p className="text-[11px] text-white/70">Membre depuis {USER.memberSince}</p>
               </div>
-              <button className="ml-auto grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-white hover:bg-white/20">
-                <Icon name="bell" size={16}/>
-              </button>
             </div>
           </div>
 
@@ -260,17 +264,20 @@ export default function ScreenAccount() {
             <div className="pt-2">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Compte</p>
               <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
-                {[
-                  { icon: "user", label: "Informations personnelles" },
-                  { icon: "lock", label: "Sécurité" },
-                  { icon: "bell", label: "Notifications" },
-                  { icon: "info", label: "Aide et FAQ" },
-                ].map((it) => (
-                  <button key={it.label} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
-                    <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
-                    <Icon name="chevronRight" size={14} className="text-slate-400"/>
-                  </button>
+                {accountLinks.map((it) => (
+                  it.external ? (
+                    <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
+                      <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
+                      <Icon name="chevronRight" size={14} className="text-slate-400"/>
+                    </a>
+                  ) : (
+                    <Link key={it.label} href={it.href} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
+                      <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
+                      <Icon name="chevronRight" size={14} className="text-slate-400"/>
+                    </Link>
+                  )
                 ))}
               </div>
             </div>
@@ -300,8 +307,7 @@ export default function ScreenAccount() {
             <p className="text-sm text-slate-500 dark:text-slate-400">Membre depuis {USER.memberSince}</p>
           </div>
           <div className="flex gap-2">
-            <button className="grid h-10 w-10 place-items-center rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"><Icon name="bell" size={16}/></button>
-            <Button variant="secondary" size="md">Paramètres</Button>
+            <Link href="/compte/profil"><Button variant="secondary" size="md">Paramètres</Button></Link>
           </div>
         </div>
 
@@ -364,17 +370,20 @@ export default function ScreenAccount() {
             <Card className="p-4">
               <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-3">Compte</h4>
               <div className="space-y-1">
-                {[
-                  { icon: "user", label: "Informations personnelles" },
-                  { icon: "lock", label: "Sécurité" },
-                  { icon: "bell", label: "Notifications" },
-                  { icon: "info", label: "Aide et FAQ" },
-                ].map((it) => (
-                  <button key={it.label} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <Icon name={it.icon} size={14} className="text-slate-500 dark:text-slate-400"/>
-                    <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">{it.label}</span>
-                    <Icon name="chevronRight" size={12} className="text-slate-400"/>
-                  </button>
+                {accountLinks.map((it) => (
+                  it.external ? (
+                    <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <Icon name={it.icon} size={14} className="text-slate-500 dark:text-slate-400"/>
+                      <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">{it.label}</span>
+                      <Icon name="chevronRight" size={12} className="text-slate-400"/>
+                    </a>
+                  ) : (
+                    <Link key={it.label} href={it.href} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <Icon name={it.icon} size={14} className="text-slate-500 dark:text-slate-400"/>
+                      <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">{it.label}</span>
+                      <Icon name="chevronRight" size={12} className="text-slate-400"/>
+                    </Link>
+                  )
                 ))}
               </div>
               <button

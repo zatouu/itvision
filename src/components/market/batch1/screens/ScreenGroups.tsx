@@ -36,7 +36,8 @@ export default function ScreenGroups() {
 
   const [cat, setCat] = useState("Tous");
   const [sort, setSort] = useState("hot");
-  const cats = ["Tous", "Sécurité", "Audio", "Éclairage", "Auto", "Mode", "Objets connectés"];
+  // Catégories dérivées des groupes réels (plus de liste codée en dur)
+  const cats = ["Tous", ...Array.from(new Set(GROUPS.map((g) => g.category).filter(Boolean)))];
   const sorts = [
     { k: "hot", l: "Populaires" },
     { k: "ending", l: "Bientôt fermés" },
@@ -44,7 +45,16 @@ export default function ScreenGroups() {
     { k: "saving", l: "Plus d'éco." },
   ];
 
-  const filtered = GROUPS.filter((g) => cat === "Tous" || g.category === cat);
+  const filtered = GROUPS
+    .filter((g) => cat === "Tous" || g.category === cat)
+    .sort((a, b) => {
+      switch (sort) {
+        case "ending": return (a.deadlineAt || Infinity) - (b.deadlineAt || Infinity);
+        case "new": return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+        case "saving": return (b.save ?? 0) - (a.save ?? 0);
+        default: return (b.participants ?? 0) - (a.participants ?? 0); // "hot"
+      }
+    });
 
   const [simQty, setSimQty] = useState(15);
   const simTiers = PRODUCT?.priceTiers ?? [];
@@ -104,7 +114,17 @@ export default function ScreenGroups() {
             </div>
             <div className="flex items-center justify-between px-4">
               <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white">{filtered.length}</b> groupes</p>
-              <button className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300"><Icon name="filter" size={13}/>{sorts.find(s => s.k === sort)?.l ?? ''}<Icon name="chevronDown" size={12}/></button>
+              <label className="relative inline-flex items-center gap-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">
+                <Icon name="filter" size={13}/>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className="appearance-none bg-transparent pr-4 text-[12px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+                >
+                  {sorts.map((s) => <option key={s.k} value={s.k}>{s.l}</option>)}
+                </select>
+                <Icon name="chevronDown" size={12} className="pointer-events-none absolute right-0"/>
+              </label>
             </div>
           </div>
 

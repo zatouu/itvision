@@ -10,7 +10,6 @@ import {
   Clock,
   Package,
   MessageCircle,
-  Heart,
   LayoutGrid,
   RefreshCcw,
   Truck,
@@ -411,9 +410,6 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                 >
                   <MessageCircle size={14} /> Contacter le vendeur
                 </a>
-                <button className="flex items-center justify-center gap-2 w-full h-10 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-700 dark:hover:bg-slate-800 transition">
-                  <Heart size={14} /> Suivre la boutique
-                </button>
               </div>
               <p className="mt-3 text-center text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-800 pt-3">
                 Paiement Escrow protégé par DDM+

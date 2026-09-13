@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
     }
 
     const groups = await GroupOrder.find(query)
-      .select('groupId status product minQty targetQty currentQty maxQty priceTiers currentUnitPrice deadline shippingMethod shippingCostPerUnit participants')
+      .select('groupId status product minQty targetQty currentQty maxQty priceTiers currentUnitPrice deadline shippingMethod shippingCostPerUnit participants createdAt')
       .sort({ deadline: 1, currentQty: -1 })
       .limit(limit)
       .lean()

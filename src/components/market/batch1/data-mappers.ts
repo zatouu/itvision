@@ -305,6 +305,7 @@ export function mapGroupOrder(g: any): Group {
       (base > 0 && unit > 0 ? Math.round(((base - unit) / base) * 100) : 0),
     status,
     category: g?.product?.category || 'Import',
+    createdAt: g?.createdAt ? new Date(g.createdAt).getTime() : undefined,
   };
 }
 
@@ -521,6 +522,7 @@ export function mapCartItem(item: any): CartItem {
     nextTier,
     hasActiveGroup: !!item?.hasActiveGroup,
     groupUnit: item?.groupUnit,
+    groupId: item?.groupId,
     belowMOQ,
     moqDelta: belowMOQ ? minOrderQty - qty : 0,
   };
