@@ -10,7 +10,7 @@ import type { ShippingMethodId } from '@/lib/logistics'
 import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
-import { productHasPricedVariants } from '@/lib/pricing/variants'
+import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/group-orders/pricing'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
@@ -283,11 +283,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Le flux groupe ne porte pas de sélection de variante : un produit dont
-    // les variantes ont leur propre prix serait facturé au tarif de base.
-    if (productHasPricedVariants(product)) {
+    // Sélection de variante du créateur — fail-closed comme le checkout standard
+    const rawVariantIds = Array.isArray(body?.variantIds) ? body.variantIds : (body?.variantId ? [body.variantId] : [])
+    const variantSelection = validateGroupVariantSelection(product, rawVariantIds)
+    if ('error' in variantSelection) {
       return NextResponse.json(
-        { success: false, error: 'L\'achat groupé n\'est pas disponible pour un produit dont les variantes ont des prix différents' },
+        { success: false, error: variantSelection.error },
         { status: 400 }
       )
     }
@@ -329,10 +330,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculer le prix unitaire initial
+    // Calculer le prix unitaire initial (tarif de base = headline du groupe)
     let currentUnitPrice = product.price || 0
     const priceTiers = product.priceTiers || []
-    
+
     if (priceTiers.length > 0) {
       const sortedTiers = [...priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
@@ -342,6 +343,11 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Prix du créateur : paliers mis à l'échelle de sa variante éventuelle
+    const creatorUnitPrice = groupParticipantUnitPrice(
+      product, product.price || 0, priceTiers, variantSelection.variantIds, qty
+    )
 
     const productWeightKg = product.weightKg || product.grossWeightKg || product.netWeightKg || 0
     const productVolumeM3 =
@@ -425,8 +431,10 @@ export async function POST(req: NextRequest) {
         phone: creatorPhone,
         email: creatorEmail,
         qty,
-        unitPrice: currentUnitPrice,
-        totalAmount: qty * currentUnitPrice,
+        unitPrice: creatorUnitPrice,
+        totalAmount: qty * creatorUnitPrice,
+        variantIds: variantSelection.variantIds.length > 0 ? variantSelection.variantIds : undefined,
+        variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined,
         paidAmount: 0,
         paymentStatus: 'pending',
         joinedAt: new Date()
@@ -460,13 +468,13 @@ export async function POST(req: NextRequest) {
     // Envoyer notification de confirmation au créateur
     try {
       await notifyGroupJoinConfirmation(
-        { 
-          name: creatorName, 
-          email: creatorEmail, 
-          phone: creatorPhone, 
-          qty, 
-          unitPrice: currentUnitPrice, 
-          totalAmount: qty * currentUnitPrice 
+        {
+          name: creatorName,
+          email: creatorEmail,
+          phone: creatorPhone,
+          qty,
+          unitPrice: creatorUnitPrice,
+          totalAmount: qty * creatorUnitPrice
         },
         {
           groupId: groupOrder.groupId,

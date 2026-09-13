@@ -293,6 +293,7 @@ export function mapGroupOrder(g: any): Group {
       ? g.participants.map((p: any) => ({
           name: String(p?.name || 'Participant'),
           qty: Number(p?.qty) || 0,
+          variantLabels: Array.isArray(p?.variantLabels) ? p.variantLabels : undefined,
           joinedAt: p?.joinedAt ? String(p.joinedAt) : undefined,
         }))
       : [],
@@ -306,6 +307,8 @@ export function mapGroupOrder(g: any): Group {
     status,
     category: g?.product?.category || 'Import',
     createdAt: g?.createdAt ? new Date(g.createdAt).getTime() : undefined,
+    variantGroups: Array.isArray(g?.variantGroups) ? g.variantGroups : undefined,
+    requiresVariant: !!g?.requiresVariant,
   };
 }
 

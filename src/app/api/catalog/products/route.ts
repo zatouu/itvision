@@ -8,7 +8,6 @@ import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
 import { buildFacetStages, formatFacets } from '@/lib/search/facets'
 import { getRedisClient } from '@/lib/redis'
-import { productHasPricedVariants } from '@/lib/pricing/variants'
 import mongoose from 'mongoose'
 
 const DEFAULT_EXCHANGE_RATE = 100
@@ -397,9 +396,9 @@ export async function GET(request: NextRequest) {
      const payload = data.map((product: any) => {
        const pricing = computeProductPricing(product, shippingRates)
 
-       // Un produit à variantes chiffrées ne peut pas être acheté en groupe —
-       // le flux groupe ne porte pas de sélection de variante.
-       const groupBuyEligible = (product.groupBuyEnabled ?? false) && !productHasPricedVariants(product)
+       // Les produits à variantes chiffrées restent éligibles : le join porte
+       // la sélection de variante et les paliers sont mis à l'échelle.
+       const groupBuyEligible = product.groupBuyEnabled ?? false
 
        // Calcul du meilleur prix et discount pour l'achat groupé
        let groupBuyBestPrice: number | undefined

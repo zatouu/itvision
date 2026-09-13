@@ -41,6 +41,7 @@ export function sanitizePublicGroupDetail(group: any) {
       ? group.participants.map((p: any) => ({
           name: maskParticipantName(p.name),
           qty: p.qty,
+          variantLabels: Array.isArray(p.variantLabels) && p.variantLabels.length > 0 ? p.variantLabels : undefined,
           joinedAt: p.joinedAt,
         }))
       : [],

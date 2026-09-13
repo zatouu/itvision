@@ -122,6 +122,9 @@ export async function GET(
         qty,
         unitPrice,
         totalAmount,
+        variantLabels: Array.isArray((participant as any).variantLabels) && (participant as any).variantLabels.length > 0
+          ? (participant as any).variantLabels
+          : undefined,
         paymentStatus: (participant as any).paymentStatus || 'pending',
         joinedAt: (participant as any).joinedAt
       },

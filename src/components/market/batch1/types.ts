@@ -119,7 +119,7 @@ export interface Group {
   currentQty: number;
   targetQty: number;
   participants: number;
-  participantList?: { name: string; qty: number; joinedAt?: string }[];
+  participantList?: { name: string; qty: number; variantLabels?: string[]; joinedAt?: string }[];
   deadline: string;
   deadlineAt?: number;
   unit: number;
@@ -128,6 +128,9 @@ export interface Group {
   status: 'live' | 'almost' | string;
   category: string;
   createdAt?: number;
+  /** Groupes de variantes du produit (sélection requise au join si non vide) */
+  variantGroups?: { name: string; variants: { id: string; name: string; price?: number; stock?: number; image?: string }[] }[];
+  requiresVariant?: boolean;
 }
 
 export interface CartItem {

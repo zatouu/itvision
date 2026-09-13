@@ -1,6 +1,6 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
 import { DEFAULT_EXCHANGE_RATE } from './pricing/exchange-rate'
-import { productHasPricedVariants } from './pricing/variants'
+
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
@@ -28,7 +28,7 @@ const normalizeGallery = (product: any): string[] => {
   }
 
 // Normalise les variantes avec prix (style 1688)
-const normalizeVariantGroups = (product: any) => {
+export const normalizeVariantGroups = (product: any) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
     return []
   }
@@ -68,9 +68,9 @@ export const formatProductDetail = (
 ) => {
   const pricing = computeProductPricing(product, shippingRates)
 
-  // Le flux groupe ne porte pas de sélection de variante : un produit dont
-  // les variantes ont leur propre prix ne peut pas être acheté en groupe.
-  const groupBuyEligible = (product.groupBuyEnabled ?? false) && !productHasPricedVariants(product)
+  // Les produits à variantes chiffrées sont éligibles : le join porte la
+  // sélection de variante et les paliers sont mis à l'échelle du prix variante.
+  const groupBuyEligible = product.groupBuyEnabled ?? false
 
   // Achat groupé: calcul du meilleur prix et discount (si activé)
   let groupBuyBestPrice: number | null = null

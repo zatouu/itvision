@@ -23,6 +23,7 @@ interface CatalogProduct {
   groupBuyBestPrice?: number
   groupBuyDiscount?: number
   priceTiers?: Array<{ minQty: number; price: number; discount?: number }>
+  variantGroups?: Array<{ name: string; variants: Array<{ id: string; name: string; price?: number; stock?: number; isDefault?: boolean }> }>
   description?: string
   tagline?: string
   stockStatus?: string
@@ -54,6 +55,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     priceTiers: [] as Array<{ minQty: number; price: number; discount: number }>,
     deadline: '', shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
     creatorName: '', creatorPhone: '', creatorEmail: '',
+    variantIds: [] as string[],
   })
 
   /* ─── Autocomplete on product name (step 2) ─── */
@@ -98,9 +100,26 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       currentUnitPrice: best,
       targetQty: p.groupBuyTargetQty ?? 30,
       priceTiers: (p.priceTiers || []).map(t => ({ minQty: t.minQty, price: t.price, discount: t.discount ?? 0 })),
+      variantIds: [],
     }))
     setShowSuggestions(false)
     setNameSuggestions([])
+
+    // La liste catalogue n'expose pas variantGroups — fetch du détail pour
+    // proposer la sélection si le produit en a.
+    fetch(`/api/catalog/products/${p.id}`)
+      .then(r => r.json())
+      .then(data => {
+        const groups = data?.product?.variantGroups
+        if (!Array.isArray(groups) || groups.length === 0) return
+        setSelectedProduct(prev => prev && prev.id === p.id ? { ...prev, variantGroups: groups } : prev)
+        // Pré-sélection des variantes marquées isDefault
+        const defaults = groups
+          .map((grp: any) => (grp.variants || []).find((v: any) => v.isDefault)?.id)
+          .filter(Boolean)
+        if (defaults.length > 0) setForm(f => ({ ...f, variantIds: defaults }))
+      })
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -176,6 +195,13 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       alert('Veuillez saisir une quantité initiale valide.')
       return
     }
+    const requiredGroups = (selectedProduct.variantGroups || []).filter(g => g.variants.length > 0)
+    const missingGroups = requiredGroups.filter(g => !form.variantIds.some(id => g.variants.some(v => v.id === id)))
+    if (missingGroups.length > 0) {
+      alert(`Veuillez sélectionner une option pour : ${missingGroups.map(g => g.name).join(', ')}`)
+      setStep(2)
+      return
+    }
     setCreating(true)
     try {
       const res = await fetchWithCsrf('/api/group-orders', {
@@ -183,6 +209,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         body: JSON.stringify({
           productId: form.productId,
           qty: form.initialQty,
+          variantIds: form.variantIds,
           deadline: form.deadline || undefined,
           shippingMethod: form.shippingMethod,
           description: form.productDescription || undefined,
@@ -210,11 +237,32 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const tiers = [...form.priceTiers].sort((a, b) => b.minQty - a.minQty)
     const matched = tiers.find(t => qty >= t.minQty)
     const price = matched?.price ?? form.productBasePrice
-    return Math.min(price, form.productBasePrice)
-  }, [form.initialQty, form.priceTiers, form.productBasePrice])
+    // Mettre à l'échelle du prix de la variante la plus chère sélectionnée
+    const variantPrice = Math.max(
+      0,
+      ...(selectedProduct?.variantGroups || [])
+        .flatMap(g => g.variants)
+        .filter(v => form.variantIds.includes(v.id))
+        .map(v => v.price || 0)
+    )
+    const scale = variantPrice > 0 && form.productBasePrice > 0 ? variantPrice / form.productBasePrice : 1
+    return Math.round(Math.min(price, form.productBasePrice) * scale)
+  }, [form.initialQty, form.priceTiers, form.productBasePrice, form.variantIds, selectedProduct])
 
-  const savingsPct = form.productBasePrice > 0
-    ? Math.max(0, Math.round(((form.productBasePrice - estimatedUnitPrice) / form.productBasePrice) * 100))
+  // Prix solo de référence = variante sélectionnée si chiffrée, sinon produit
+  const soloRefPrice = useMemo(() => {
+    const variantPrice = Math.max(
+      0,
+      ...(selectedProduct?.variantGroups || [])
+        .flatMap(g => g.variants)
+        .filter(v => form.variantIds.includes(v.id))
+        .map(v => v.price || 0)
+    )
+    return variantPrice > 0 ? variantPrice : form.productBasePrice
+  }, [selectedProduct, form.variantIds, form.productBasePrice])
+
+  const savingsPct = soloRefPrice > 0
+    ? Math.max(0, Math.round(((soloRefPrice - estimatedUnitPrice) / soloRefPrice) * 100))
     : 0
 
   return (
@@ -402,9 +450,33 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                         <input readOnly value={fmt(estimatedUnitPrice)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-[#00C853] font-semibold" />
                       </div>
                     </div>
+                    {(selectedProduct?.variantGroups || []).filter(g => g.variants.length > 0).map(grp => (
+                      <div key={grp.name}>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">{grp.name} <span className="text-red-500">*</span></label>
+                        <div className="flex flex-wrap gap-2">
+                          {grp.variants.map(v => {
+                            const active = form.variantIds.includes(v.id)
+                            return (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => setForm(f => ({
+                                  ...f,
+                                  variantIds: [...f.variantIds.filter(id => !grp.variants.some(x => x.id === id)), v.id]
+                                }))}
+                                className={`px-3 py-1.5 rounded-lg border-2 text-xs font-semibold transition ${active ? 'border-[#00C853] bg-[#00C853]/5 text-[#00C853]' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                              >
+                                {v.name}
+                                {typeof v.price === 'number' && v.price > 0 && <span className={`ml-1.5 text-[10px] ${active ? 'text-[#00C853]/70' : 'text-gray-400'}`}>{fmt(v.price)}</span>}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
                     <div className="bg-gradient-to-r from-[#00C853]/10 to-[#7C4DFF]/10 rounded-xl p-3 flex items-center justify-between">
                       <span className="text-sm text-gray-700">Prix et paliers issus du catalogue</span>
-                      <span className="font-bold text-[#00C853]">{fmt(form.productBasePrice - estimatedUnitPrice)} (-{savingsPct}%)</span>
+                      <span className="font-bold text-[#00C853]">{fmt(Math.max(0, soloRefPrice - estimatedUnitPrice))} (-{savingsPct}%)</span>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">

@@ -53,6 +53,8 @@ interface GroupOrder {
     qty: number
     unitPrice: number
     totalAmount: number
+    variantIds?: string[]
+    variantLabels?: string[]
     paidAmount: number
     paymentStatus: string
     paymentReference?: string
@@ -882,7 +884,12 @@ export default function AdminGroupOrdersPage() {
                       <tbody>
                         {selectedGroup.participants.map((p, i) => (
                           <tr key={i} className="border-b">
-                            <td className="px-4 py-3 font-semibold">{p.name}</td>
+                            <td className="px-4 py-3 font-semibold">
+                              {p.name}
+                              {p.variantLabels && p.variantLabels.length > 0 && (
+                                <p className="text-xs font-normal text-violet-600">{p.variantLabels.join(' · ')}</p>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <p>{p.phone}</p>
                               {p.email && <p className="text-xs text-stone-500">{p.email}</p>}

@@ -10,6 +10,8 @@ export interface IGroupOrderParticipant {
   qty: number
   unitPrice: number        // Prix unitaire au moment de l'inscription
   totalAmount: number      // Montant total pour ce participant
+  variantIds?: string[]    // Variantes choisies (ids des variantGroups produit)
+  variantLabels?: string[] // Libellés dérivés serveur (« Groupe: Nom »)
   paidAmount: number       // Montant déjà payé
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded'
   paymentReference?: string
@@ -103,6 +105,8 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
   qty: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true },
   totalAmount: { type: Number, required: true },
+  variantIds: { type: [String], default: undefined },
+  variantLabels: { type: [String], default: undefined },
   paidAmount: { type: Number, default: 0 },
   paymentStatus: { 
     type: String, 

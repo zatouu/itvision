@@ -18,8 +18,9 @@ import { buildGroupOrderPaymentSummary } from '@/lib/group-order-payment-summary
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
 import { sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
+import { normalizeVariantGroups } from '@/lib/catalog-format'
 import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
-import { productHasPricedVariants } from '@/lib/pricing/variants'
+import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/group-orders/pricing'
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -53,9 +54,24 @@ export async function GET(
       )
     }
 
+    // Exposer les variantes du produit (prix client normalisés) pour le
+    // sélecteur de la page de join — flag explicite pour le front.
+    let variantGroups: any[] = []
+    const groupProductId = (group as any).product?.productId
+    if (groupProductId) {
+      const groupProduct = await Product.findById(groupProductId)
+        .select('variantGroups marginRate exchangeRate')
+        .lean() as any
+      if (groupProduct) variantGroups = normalizeVariantGroups(groupProduct)
+    }
+
     return NextResponse.json({
       success: true,
-      group: sanitizePublicGroupDetail(group)
+      group: {
+        ...sanitizePublicGroupDetail(group),
+        variantGroups,
+        requiresVariant: variantGroups.length > 0,
+      }
     })
     
   } catch (error) {
@@ -151,17 +167,30 @@ export async function POST(
       )
     }
 
-    // Le flux groupe ne porte pas de sélection de variante : si le produit a
-    // des variantes à prix distincts, rejoindre facturerait le tarif de base.
+    // Charger le produit pour valider la sélection de variante et calculer
+    // le prix participant (paliers groupe mis à l'échelle de la variante).
     const groupProductId = (group as any).product?.productId
-    if (groupProductId) {
-      const groupProduct = await Product.findById(groupProductId).select('variantGroups').lean() as any
-      if (groupProduct && productHasPricedVariants(groupProduct)) {
-        return NextResponse.json(
-          { success: false, error: 'Cet achat groupé n\'est pas disponible (variantes à prix différents)' },
-          { status: 400 }
-        )
-      }
+    const groupProduct = groupProductId
+      ? await Product.findById(groupProductId)
+          .select('variantGroups priceTiers price baseCost price1688 marginRate exchangeRate b2bPrice')
+          .lean() as any
+      : null
+
+    const rawVariantIds = Array.isArray(body?.variantIds) ? body.variantIds : (body?.variantId ? [body.variantId] : [])
+    if (!groupProduct && rawVariantIds.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Produit introuvable — impossible de valider la variante' },
+        { status: 400 }
+      )
+    }
+    const variantSelection = groupProduct
+      ? validateGroupVariantSelection(groupProduct, rawVariantIds)
+      : { variantIds: [], variantLabels: [] }
+    if ('error' in variantSelection) {
+      return NextResponse.json(
+        { success: false, error: variantSelection.error },
+        { status: 400 }
+      )
     }
 
     const normalizedPhone = formatPhone(phone)
@@ -213,7 +242,7 @@ export async function POST(
     const previousUnitPrice = group.currentUnitPrice
     const newTotalQty = group.currentQty + qty
     let newUnitPrice = group.product.basePrice
-    
+
     if (group.priceTiers && group.priceTiers.length > 0) {
       const sortedTiers = [...group.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
@@ -223,7 +252,12 @@ export async function POST(
         }
       }
     }
-    
+
+    // Prix de CE participant : paliers du groupe mis à l'échelle de sa variante
+    const participantUnitPrice = groupProduct
+      ? groupParticipantUnitPrice(groupProduct, group.product.basePrice, group.priceTiers, variantSelection.variantIds, newTotalQty)
+      : newUnitPrice
+
     // Ajouter le participant (téléphone déjà normalisé)
     const chatToken = crypto.randomBytes(24).toString('hex')
     const chatTokenHash = hashChatToken(chatToken)
@@ -235,23 +269,27 @@ export async function POST(
       phone: normalizedPhone,
       email,
       qty,
-      unitPrice: newUnitPrice,
-      totalAmount: qty * newUnitPrice,
+      unitPrice: participantUnitPrice,
+      totalAmount: qty * participantUnitPrice,
+      variantIds: variantSelection.variantIds.length > 0 ? variantSelection.variantIds : undefined,
+      variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined,
       paidAmount: 0,
       paymentStatus: 'pending',
       chatAccessTokenHash: chatTokenHash,
       chatAccessTokenCreatedAt: chatTokenCreatedAt,
       joinedAt: new Date()
     })
-    
+
     group.currentQty = newTotalQty
     group.currentUnitPrice = newUnitPrice
-    
-    // Mettre à jour les prix de tous les participants si le prix a changé
+
+    // Recalculer chaque participant à son propre tarif (variante × palier)
     if (newUnitPrice !== previousUnitPrice) {
       group.participants.forEach((p: any) => {
-        p.unitPrice = newUnitPrice
-        p.totalAmount = p.qty * newUnitPrice
+        p.unitPrice = groupProduct
+          ? groupParticipantUnitPrice(groupProduct, group.product.basePrice, group.priceTiers, p.variantIds, newTotalQty)
+          : newUnitPrice
+        p.totalAmount = p.qty * p.unitPrice
       })
     }
     
@@ -294,7 +332,7 @@ export async function POST(
         deadline: group.deadline
       }
       
-      const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: newUnitPrice, totalAmount: qty * newUnitPrice }
+      const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: participantUnitPrice, totalAmount: qty * participantUnitPrice }
       
       // 1. Confirmation au nouveau participant
       await notifyGroupJoinConfirmation(newParticipantData, groupData)
@@ -325,8 +363,9 @@ export async function POST(
       group: safeGroup,
       yourParticipation: {
         qty,
-        unitPrice: newUnitPrice,
-        totalAmount: qty * newUnitPrice
+        unitPrice: participantUnitPrice,
+        totalAmount: qty * participantUnitPrice,
+        variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined
       },
       chat: {
         token: chatToken,

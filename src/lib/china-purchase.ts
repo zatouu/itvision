@@ -59,6 +59,43 @@ export async function syncChinaPurchaseFromGroupOrder(group: any, nextGroupStatu
     currency: group.product?.currency || 'FCFA'
   }
 
+  // Une ligne d'achat par combinaison de variantes — l'équipe sourcing
+  // doit connaître la répartition exacte (ex. 3× Rouge / 2× Noir).
+  const itemsByVariant = new Map<string, { qty: number; variantLabel?: string; totalFcfa: number }>()
+  for (const p of group.participants || []) {
+    const key = Array.isArray(p.variantIds) && p.variantIds.length > 0
+      ? [...p.variantIds].sort().join('+')
+      : '__base__'
+    const label = Array.isArray(p.variantLabels) && p.variantLabels.length > 0
+      ? p.variantLabels.join(', ')
+      : undefined
+    const entry = itemsByVariant.get(key) || { qty: 0, variantLabel: label, totalFcfa: 0 }
+    entry.qty += Number(p.qty) || 0
+    entry.totalFcfa += Number(p.totalAmount) || 0
+    if (label) entry.variantLabel = label
+    itemsByVariant.set(key, entry)
+  }
+  const purchaseItems = itemsByVariant.size > 0
+    ? [...itemsByVariant.values()].map(v => ({
+        productId: group.product?.productId,
+        productName: group.product?.name || 'Produit achat groupé',
+        variant: v.variantLabel,
+        quantity: v.qty || 1,
+        expectedQty: v.qty || 1,
+        receivedQty: 0,
+        defectiveQty: 0,
+        unitPriceFcfa: v.qty > 0 ? Math.round(v.totalFcfa / v.qty) : undefined
+      }))
+    : [{
+        productId: group.product?.productId,
+        productName: group.product?.name || 'Produit achat groupé',
+        quantity: Number(group.currentQty) || 1,
+        expectedQty: Number(group.currentQty) || 1,
+        receivedQty: 0,
+        defectiveQty: 0,
+        unitPriceFcfa: Number(group.currentUnitPrice) || undefined
+      }]
+
   if (existing) {
     const nextStatus = resolveInitialStatus(groupStatus, existing.status)
     if (existing.status !== nextStatus) {
@@ -66,11 +103,7 @@ export async function syncChinaPurchaseFromGroupOrder(group: any, nextGroupStatu
       existing.statusHistory.push({ status: nextStatus, changedAt: new Date(), by: 'system' })
     }
     existing.customerFinancials = customerFinancials
-    if (existing.items?.[0]) {
-      existing.items[0].quantity = Number(group.currentQty) || existing.items[0].quantity
-      existing.items[0].expectedQty = Number(group.currentQty) || existing.items[0].expectedQty
-      existing.items[0].unitPriceFcfa = Number(group.currentUnitPrice) || existing.items[0].unitPriceFcfa
-    }
+    existing.items = purchaseItems as any
     await existing.save()
     return buildChinaPurchaseSummary(existing)
   }
@@ -85,15 +118,7 @@ export async function syncChinaPurchaseFromGroupOrder(group: any, nextGroupStatu
     },
     platform: '1688',
     status,
-    items: [{
-      productId: group.product?.productId,
-      productName: group.product?.name || 'Produit achat groupé',
-      quantity: Number(group.currentQty) || 1,
-      expectedQty: Number(group.currentQty) || 1,
-      receivedQty: 0,
-      defectiveQty: 0,
-      unitPriceFcfa: Number(group.currentUnitPrice) || undefined
-    }],
+    items: purchaseItems,
     customerFinancials,
     freight: {
       shippingMethod: group.shippingMethod

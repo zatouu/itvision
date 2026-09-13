@@ -45,6 +45,7 @@ export default function ScreenGroupDetail() {
   const [qty, setQty] = useState(2);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [variantSel, setVariantSel] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [joinStatus, setJoinStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
   const [joinError, setJoinError] = useState('');
@@ -52,6 +53,18 @@ export default function ScreenGroupDetail() {
   const [chatMessages, setChatMessages] = useState<{ id: string; n: string; m: string; t: string; staff: boolean }[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
+
+  // Prix estimé côté client — le serveur recalcule de façon autoritaire au join.
+  const selectedVariantPrice = Math.max(
+    0,
+    ...(g?.variantGroups || [])
+      .flatMap((grp) => grp.variants)
+      .filter((v) => Object.values(variantSel).includes(v.id))
+      .map((v) => v.price || 0)
+  );
+  const unitVariantAdjusted = selectedVariantPrice > 0 && (g?.base || 0) > 0;
+  const unitEst = unitVariantAdjusted ? Math.round(g.unit * (selectedVariantPrice / g.base)) : (g?.unit || 0);
+  const baseEst = unitVariantAdjusted ? selectedVariantPrice : (g?.base || 0);
 
   const chatStorageKey = `gchat:${groupId}`;
 
@@ -145,7 +158,7 @@ export default function ScreenGroupDetail() {
   const participants = (g.participantList || [])
     .slice()
     .sort((a, b) => (b.joinedAt ? new Date(b.joinedAt).getTime() : 0) - (a.joinedAt ? new Date(a.joinedAt).getTime() : 0))
-    .map((p) => ({ i: initialsOf(p.name), n: maskName(p.name), q: p.qty, t: relTime(p.joinedAt) }));
+    .map((p) => ({ i: initialsOf(p.name), n: maskName(p.name), q: p.qty, v: p.variantLabels?.join(' · '), t: relTime(p.joinedAt) }));
   const joinedLastHour = (g.participantList || []).filter(
     (p) => p.joinedAt && Date.now() - new Date(p.joinedAt).getTime() < 3600000
   ).length;
@@ -185,6 +198,14 @@ export default function ScreenGroupDetail() {
       setJoinError('Veuillez renseigner votre nom et téléphone.');
       return;
     }
+    const variantIds = (g?.variantGroups || [])
+      .map((grp) => variantSel[grp.name])
+      .filter(Boolean);
+    if (g?.requiresVariant && variantIds.length < (g.variantGroups?.length || 0)) {
+      setJoinStatus('error');
+      setJoinError('Veuillez sélectionner une option pour chaque variante.');
+      return;
+    }
     try {
       const res = await fetch(`/api/group-orders/${groupId}`, {
         method: 'POST',
@@ -193,6 +214,7 @@ export default function ScreenGroupDetail() {
           name: name.trim(),
           phone: `+221 ${cleanPhone.replace(/^(221|00221)/, '')}`,
           qty,
+          variantIds,
         }),
       });
       const data = await res.json();
@@ -316,20 +338,50 @@ export default function ScreenGroupDetail() {
             <button onClick={()=>setQty(q=>q+1)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
           </div>
         </label>
+        {(g.variantGroups || []).map((grp) => (
+          <div key={grp.name}>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{grp.name} <span className="text-red-500">*</span></span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {grp.variants.map((v) => {
+                const active = variantSel[grp.name] === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setVariantSel((s) => ({ ...s, [grp.name]: v.id }))}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors",
+                      active
+                        ? "border-violet-600 bg-violet-50 text-violet-700 dark:border-violet-400 dark:bg-violet-950/50 dark:text-violet-300"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600"
+                    )}
+                  >
+                    {v.name}
+                    {typeof v.price === 'number' && v.price > 0 && (
+                      <span className={cn("ml-1 text-[10px] tabular-nums", active ? "text-violet-500 dark:text-violet-400" : "text-slate-400")}>
+                        {formatFcfa(v.price)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
         <div className="flex justify-between text-[12px]">
-          <span className="text-slate-600 dark:text-slate-400">Prix groupe</span>
-          <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}/pc</span>
+          <span className="text-slate-600 dark:text-slate-400">Prix groupe{unitVariantAdjusted ? ' (votre variante)' : ''}</span>
+          <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(unitEst)}/pc</span>
         </div>
         <div className="mt-1 flex justify-between text-[12px]">
           <span className="text-slate-600 dark:text-slate-400">Sous-total</span>
-          <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatFcfa(g.unit * qty)}</span>
+          <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatFcfa(unitEst * qty)}</span>
         </div>
         <div className="mt-1 flex justify-between text-[12px]">
           <span className="text-emerald-700 dark:text-emerald-300">Économie vs. seul</span>
-          <span className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">-{formatFcfa((g.base - g.unit) * qty)}</span>
+          <span className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">-{formatFcfa(Math.max(0, baseEst - unitEst) * qty)}</span>
         </div>
       </div>
 
@@ -396,7 +448,7 @@ export default function ScreenGroupDetail() {
             <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[11px] font-extrabold text-white">{p.i}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-bold text-slate-900 dark:text-white">{p.n}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">{p.t}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">{[p.v, p.t].filter(Boolean).join(' · ')}</p>
             </div>
             <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 tabular-nums">{p.q} pcs</span>
           </div>
