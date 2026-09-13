@@ -105,6 +105,9 @@ const ICONS = {
 
 export type IconName = keyof typeof ICONS;
 
+/** Noms d'icônes valides — pour valider les valeurs venant de la base. */
+export const ICON_NAMES = new Set<string>(Object.keys(ICONS));
+
 export interface IconProps extends Omit<LucideProps, 'size' | 'name'> {
   name: IconName | (string & {});
   size?: number;

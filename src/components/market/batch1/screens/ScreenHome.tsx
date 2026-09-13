@@ -175,29 +175,6 @@ export default function ScreenHome() {
             </Section>
           )}
 
-          {/* Catégories populaires — cartes image */}
-          {popularCategories.length > 0 && (
-            <Section title="Catégories populaires" className="mt-6" right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}>
-              <div className="grid grid-cols-2 gap-2.5">
-                {popularCategories.slice(0, 6).map((c) => (
-                  <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-28 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-md dark:border-slate-800">
-                    {c.image ? (
-                      <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
-                    ) : (
-                      <span className="absolute inset-0 grid place-items-center bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"><Icon name={c.icon} size={28}/></span>
-                    )}
-                    <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent"/>
-                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-slate-900"><Icon name="arrowRight" size={12}/></span>
-                    <span className="absolute inset-x-0 bottom-0 p-2.5">
-                      <span className="block text-[12px] font-extrabold text-white leading-tight">{c.label}</span>
-                      <span className="mt-0.5 block text-[10px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </Section>
-          )}
-
           {/* 3 façons d’importer */}
           <div className="mt-6 px-4 space-y-2.5">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">3 façons d’importer</p>
@@ -294,6 +271,29 @@ export default function ScreenHome() {
               </div>
             </div>
           </div>
+
+          {/* Catégories populaires — cartes image (descendue : navigation après les offres) */}
+          {popularCategories.length > 0 && (
+            <Section title="Catégories populaires" className="mt-6" right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}>
+              <div className="grid grid-cols-2 gap-2.5">
+                {popularCategories.slice(0, 6).map((c) => (
+                  <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-28 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-md dark:border-slate-800">
+                    {c.image && !String(c.image).includes('placeholder') ? (
+                      <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+                    ) : (
+                      <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-500"><Icon name={c.icon} size={28}/></span>
+                    )}
+                    <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent"/>
+                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-slate-900"><Icon name="arrowRight" size={12}/></span>
+                    <span className="absolute inset-x-0 bottom-0 p-2.5">
+                      <span className="block text-[12px] font-extrabold text-white leading-tight">{c.label}</span>
+                      <span className="mt-0.5 block text-[10px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {/* Trust */}
           <div className="mt-6 px-4">
@@ -457,37 +457,6 @@ export default function ScreenHome() {
           )}
         </div>
 
-        {/* Catégories populaires — cartes image */}
-        {popularCategories.length > 0 && (
-        <div className="mt-10">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories populaires</h2>
-            <Link href="/produits" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">Toutes →</Link>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {popularCategories.map((c) => (
-              <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-44 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-lg dark:border-slate-800 transition-shadow">
-                {c.image ? (
-                  <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
-                ) : (
-                  <span className="absolute inset-0 grid place-items-center bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"><Icon name={c.icon} size={40}/></span>
-                )}
-                <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"/>
-                <span className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
-                  <span>
-                    <span className="block text-[15px] font-extrabold text-white leading-tight">{c.label}</span>
-                    <span className="mt-0.5 block text-[11px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    Explorer <Icon name="arrowRight" size={11}/>
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
-
         {/* Populaires */}
         {CATALOG.length > 0 && (
         <div className="mt-10">
@@ -601,6 +570,37 @@ export default function ScreenHome() {
             </button>
           </div>
         </div>
+
+        {/* Catégories populaires — cartes image (descendue : après les offres) */}
+        {popularCategories.length > 0 && (
+        <div className="mt-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Catégories populaires</h2>
+            <Link href="/produits" className="text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">Toutes →</Link>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {popularCategories.map((c) => (
+              <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-44 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-lg dark:border-slate-800 transition-shadow">
+                {c.image && !String(c.image).includes('placeholder') ? (
+                  <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+                ) : (
+                  <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-500"><Icon name={c.icon} size={40}/></span>
+                )}
+                <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"/>
+                <span className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
+                  <span>
+                    <span className="block text-[15px] font-extrabold text-white leading-tight">{c.label}</span>
+                    <span className="mt-0.5 block text-[11px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    Explorer <Icon name="arrowRight" size={11}/>
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
 
         {/* Trust */}
         <div className="mt-10">

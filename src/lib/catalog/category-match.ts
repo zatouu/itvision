@@ -78,15 +78,18 @@ export function productMatchesCategory(
 export function countProductsByCategory<T extends { category?: string | null; name?: string | null }>(
   products: T[],
   slugs: string[]
-): Map<string, { count: number; image?: string }> {
-  const result = new Map<string, { count: number; image?: string }>()
-  for (const slug of slugs) result.set(slug, { count: 0 })
+): Map<string, { count: number; image?: string; images?: string[] }> {
+  const result = new Map<string, { count: number; image?: string; images?: string[] }>()
+  for (const slug of slugs) result.set(slug, { count: 0, images: [] })
   for (const p of products) {
+    const img = (p as any).image
+    const usable = typeof img === 'string' && img && !img.includes('placeholder')
     for (const slug of slugs) {
       if (productMatchesCategory(p, slug)) {
         const entry = result.get(slug)!
         entry.count += 1
-        if (!entry.image && (p as any).image) entry.image = (p as any).image
+        if (usable && (entry.images?.length ?? 0) < 5) entry.images!.push(img)
+        if (!entry.image && usable) entry.image = img
       }
     }
   }

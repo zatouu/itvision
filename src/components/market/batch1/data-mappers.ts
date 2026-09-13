@@ -11,6 +11,7 @@ import type {
   PriceTier,
 } from './types';
 import { filterSpecEntries } from '@/lib/catalog/description-format';
+import { ICON_NAMES } from './Icon';
 
 export function fmtDeadline(date: string | Date | null | undefined): string {
   if (!date) return '—';
@@ -406,7 +407,7 @@ export function mapCategory(c: any): Category {
     key,
     label: c?.labelFr || c?.label || c?.name || key,
     icon:
-      (c?.icon && !isEmoji(c.icon) ? c.icon : undefined) ||
+      (c?.icon && !isEmoji(c.icon) && ICON_NAMES.has(c.icon) ? c.icon : undefined) ||
       iconMap[key] ||
       'package',
     count: c?.count ?? c?.productCount ?? 0,

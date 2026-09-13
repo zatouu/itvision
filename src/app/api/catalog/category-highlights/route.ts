@@ -39,16 +39,22 @@ export async function GET() {
     const slugs = categories.map((c: any) => String(c.slug || c._id || c.name || '').toLowerCase())
     const stats = countProductsByCategory(products as any, slugs)
 
+    // Une image ne doit illustrer qu'une seule catégorie : on pioche dans le
+    // pool de chaque slug la première image pas encore utilisée ailleurs.
+    const usedImages = new Set<string>()
     const items = categories.map((c: any) => {
       const slug = String(c.slug || c._id || c.name || '').toLowerCase()
       const stat = stats.get(slug)
+      const pool = stat?.images ?? []
+      const image = pool.find((u) => !usedImages.has(u)) ?? pool[0] ?? null
+      if (image) usedImages.add(image)
       return {
         slug,
         name: c.name,
         labelFr: c.labelFr || c.name,
         icon: c.icon,
         count: stat?.count ?? 0,
-        image: stat?.image ?? null,
+        image,
       }
     })
 
