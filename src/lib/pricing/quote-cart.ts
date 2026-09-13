@@ -60,7 +60,152 @@ export interface QuoteCartItemInput {
   id: string
   qty?: number
   name?: string
+  variantId?: string
   variantIds?: string[]
+}
+
+/** Ids de variantes demandés par le client (fusion variantId + variantIds, dédupliqué). */
+export function itemVariantIds(item: { variantId?: string; variantIds?: string[] }): string[] {
+  const ids = Array.isArray(item.variantIds) ? item.variantIds : []
+  const merged = item.variantId ? [item.variantId, ...ids] : ids
+  return [...new Set(merged.filter((v): v is string => typeof v === 'string' && v.trim().length > 0))]
+}
+
+// ─── Résolution des variantes ─────────────────────────────────────────────────
+
+export interface ResolvedVariant {
+  id: string
+  name: string
+  groupName: string
+  /** Coût sourcing spécifique en FCFA (priceFCFA, sinon price1688 × taux). null = prix produit */
+  sourcingBaseFcfa: number | null
+  stock: number | null
+}
+
+export function productHasVariantGroups(db: any): boolean {
+  return Array.isArray(db?.variantGroups) &&
+    db.variantGroups.some((g: any) => Array.isArray(g?.variants) && g.variants.length > 0)
+}
+
+/**
+ * Résout les variantIds demandés contre les variantGroups du produit DB.
+ * Retourne les variantes trouvées + les ids inconnus (à rejeter côté appelant).
+ */
+export function resolveItemVariants(
+  db: any,
+  variantIds: string[] | undefined,
+  exchangeRate: number = DEFAULT_EXCHANGE_RATE
+): { variants: ResolvedVariant[]; missing: string[] } {
+  const requested = Array.isArray(variantIds) ? variantIds.filter(Boolean) : []
+  const groups = Array.isArray(db?.variantGroups) ? db.variantGroups : []
+  const all: { v: any; groupName: any }[] = groups.flatMap((g: any) =>
+    (Array.isArray(g?.variants) ? g.variants : []).map((v: any) => ({ v, groupName: g?.name }))
+  )
+  const variants: ResolvedVariant[] = []
+  const missing: string[] = []
+  for (const id of requested) {
+    const hit = all.find(({ v }) => v?.id === id)
+    if (!hit) {
+      missing.push(id)
+      continue
+    }
+    const { v, groupName } = hit
+    const sourcingBaseFcfa =
+      typeof v.priceFCFA === 'number' && v.priceFCFA > 0
+        ? v.priceFCFA
+        : typeof v.price1688 === 'number' && v.price1688 > 0
+          ? v.price1688 * (db?.exchangeRate || exchangeRate)
+          : null
+    variants.push({
+      id,
+      name: v.name || 'Variante',
+      groupName: groupName || 'Option',
+      sourcingBaseFcfa,
+      stock: typeof v.stock === 'number' ? v.stock : null,
+    })
+  }
+  return { variants, missing }
+}
+
+export interface EffectiveItemPricing {
+  /** Prix unitaire affiché (coût sourcing × (1 + marge)) — variante si elle a son prix */
+  displayPrice: number
+  baseCostFcfa?: number
+  price1688?: number
+  b2bPrice?: number
+  priceTiers?: { minQty?: number; maxQty?: number; price?: number; discount?: number }[]
+  /** Libellés « Groupe: Variante » dérivés du serveur (jamais du client) */
+  variantLabels?: string[]
+  hasVariantPricing: boolean
+}
+
+/**
+ * Prix effectif d'un item : si une variante sélectionnée porte son propre coût
+ * sourcing (priceFCFA / price1688), elle devient la base de calcul. Avec
+ * plusieurs variantes chiffrées, le coût le plus élevé s'applique — le modèle
+ * ne représente pas les combinaisons, on ne sous-facture jamais.
+ *
+ * Les paliers quantité et le prix wholesale étant définis en absolu sur le prix
+ * de base, ils sont mis à l'échelle du prix variante (même ratio de remise) —
+ * sinon un palier « base » plafonnerait une variante plus chère.
+ */
+export function computeEffectivePricing(
+  db: any,
+  variantIds: string[] | undefined,
+  exchangeRate: number = DEFAULT_EXCHANGE_RATE
+): EffectiveItemPricing {
+  const marginRate = typeof db?.marginRate === 'number' && db.marginRate > 0 ? db.marginRate : 0
+  const productSourcing =
+    typeof db?.baseCost === 'number' && db.baseCost > 0
+      ? db.baseCost
+      : db?.price1688 && db.price1688 > 0
+        ? db.price1688 * (db.exchangeRate || exchangeRate)
+        : 0
+  const productDisplay =
+    productSourcing > 0 ? Math.round(productSourcing * (1 + marginRate / 100)) : (db?.price ?? 0)
+
+  const { variants } = resolveItemVariants(db, variantIds, exchangeRate)
+  const variantLabels = variants.length > 0
+    ? variants.map((v) => `${v.groupName}: ${v.name}`)
+    : undefined
+  const priced = variants
+    .map((v) => v.sourcingBaseFcfa)
+    .filter((n): n is number => typeof n === 'number' && n > 0)
+  const variantSourcing = priced.length > 0 ? Math.max(...priced) : null
+
+  if (variantSourcing === null) {
+    return {
+      displayPrice: productDisplay,
+      baseCostFcfa: db?.baseCost,
+      price1688: db?.price1688,
+      b2bPrice: db?.b2bPrice,
+      priceTiers: db?.priceTiers,
+      variantLabels,
+      hasVariantPricing: false,
+    }
+  }
+
+  const variantDisplay = Math.round(variantSourcing * (1 + marginRate / 100))
+  const scale = productDisplay > 0 ? variantDisplay / productDisplay : 1
+  const b2bPrice =
+    typeof db?.b2bPrice === 'number' && db.b2bPrice > 0
+      ? Math.round(db.b2bPrice * scale)
+      : undefined
+  const priceTiers = Array.isArray(db?.priceTiers)
+    ? db.priceTiers.map((t: any) => ({
+        ...t,
+        price: typeof t?.price === 'number' ? Math.round(t.price * scale) : t?.price,
+      }))
+    : undefined
+
+  return {
+    displayPrice: variantDisplay,
+    baseCostFcfa: variantSourcing,
+    b2bPrice,
+    priceTiers,
+    variantLabels,
+    hasVariantPricing: true,
+  }
 }
 
 /**
@@ -85,7 +230,8 @@ export interface CartProductsContext {
 const PRODUCT_SELECT =
   '_id name price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate ' +
   'weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg ' +
-  'stockStatus stockQuantity baseCost marginRate requiresQuote'
+  'stockStatus stockQuantity baseCost marginRate requiresQuote ' +
+  'variantGroups priceTiers'
 
 /**
  * Charge les produits du panier depuis MongoDB et valide leur disponibilité.
@@ -126,8 +272,21 @@ export async function loadCartProducts(
     if (!dbProduct) {
       return { ok: false, error: `Produit introuvable ou non disponible: ${item.name || item.id}` }
     }
+
+    // Variantes : fail-closed. Un produit avec groupes de variantes exige une
+    // sélection valide ; tout id inconnu est rejeté (sinon la commande
+    // enregistrerait une variante fantôme au prix de base).
+    const requestedVariantIds = itemVariantIds(item)
+    const { variants: resolvedVariants, missing } = resolveItemVariants(dbProduct, requestedVariantIds)
+    if (missing.length > 0) {
+      return { ok: false, error: `${dbProduct.name}: variante sélectionnée invalide` }
+    }
+    if (productHasVariantGroups(dbProduct) && resolvedVariants.length === 0) {
+      return { ok: false, error: `${dbProduct.name}: veuillez sélectionner une variante` }
+    }
+
     if (opts.checkStock) {
-      const stockCheck = await checkStockAvailability(productId, item.qty || 1, item.variantIds)
+      const stockCheck = await checkStockAvailability(productId, item.qty || 1, requestedVariantIds)
       if (!stockCheck.ok) {
         return { ok: false, error: `${stockCheck.productName || dbProduct.name}: ${stockCheck.reason}` }
       }
@@ -151,25 +310,17 @@ export function buildCalculatorItems(
     const rawId = String(item.id || '')
     const productId = ctx.itemProductIdMap.get(rawId)
     const db = productId ? ctx.dbProductMap.get(productId) : null
-    // Prix affiché catalogue : salePrice = coût sourcing × (1 + marge) quand un
-    // coût existe, sinon le champ `price` manuel.
-    const marginRate = typeof db?.marginRate === 'number' && db.marginRate > 0 ? db.marginRate : 0
-    const sourcingBase =
-      typeof db?.baseCost === 'number' && db.baseCost > 0
-        ? db.baseCost
-        : db?.price1688 && db.price1688 > 0
-          ? db.price1688 * (db.exchangeRate || exchangeRate)
-          : 0
-    const displayPrice =
-      sourcingBase > 0 ? Math.round(sourcingBase * (1 + marginRate / 100)) : (db?.price ?? 0)
+    // Prix effectif : variante si elle porte son propre coût, sinon produit.
+    const eff = computeEffectivePricing(db, itemVariantIds(item), exchangeRate)
     return {
       id: productId || rawId,
       name: db?.name || item.name || 'Produit',
-      price: displayPrice,
-      b2bPrice: db?.b2bPrice,
-      baseCostFcfa: db?.baseCost,
+      price: eff.displayPrice,
+      b2bPrice: eff.b2bPrice,
+      baseCostFcfa: eff.baseCostFcfa,
       marginRate: db?.marginRate,
-      price1688: db?.price1688,
+      price1688: eff.price1688,
+      priceTiers: eff.priceTiers,
       exchangeRate: db?.exchangeRate,
       serviceFeeRate: db?.serviceFeeRate,
       insuranceRate: db?.insuranceRate,
@@ -190,25 +341,17 @@ export function resolveItemUnitPrice(
   qty: number,
   marketplaceTier: MarketplaceTier,
   totalCartQty: number,
-  exchangeRate: number = DEFAULT_EXCHANGE_RATE
+  exchangeRate: number = DEFAULT_EXCHANGE_RATE,
+  variantIds?: string[]
 ): { appliedPrice: number; priceType: 'retail' | 'wholesale' } {
-  // Aligné sur le catalogue : quand un coût sourcing existe, le prix affiché
-  // est le salePrice = coût × (1 + marge) — pas le champ `price` manuel.
-  const marginRate = typeof db?.marginRate === 'number' && db.marginRate > 0 ? db.marginRate : 0
-  const sourcingBase =
-    typeof db?.baseCost === 'number' && db.baseCost > 0
-      ? db.baseCost
-      : db?.price1688 && db.price1688 > 0
-        ? db.price1688 * (db.exchangeRate || exchangeRate)
-        : 0
-  const displayPrice =
-    sourcingBase > 0 ? Math.round(sourcingBase * (1 + marginRate / 100)) : (db?.price ?? 0)
+  const eff = computeEffectivePricing(db, variantIds, exchangeRate)
   return resolveProductPrice({
-    price: displayPrice,
-    b2bPrice: db?.b2bPrice,
+    price: eff.displayPrice,
+    b2bPrice: eff.b2bPrice,
     qty,
     marketplaceTier,
     totalCartQty,
+    priceTiers: eff.priceTiers,
   })
 }
 
@@ -254,6 +397,8 @@ export interface CartQuote {
     qty: number
     unitPrice: number
     priceType: 'retail' | 'wholesale'
+    variantIds?: string[]
+    variantLabels?: string[]
   }[]
   /** Décomposition métier : sourcing + frais de service + assurance */
   pricing: {
@@ -399,7 +544,9 @@ export async function quoteCart(params: {
       const rawId = String(item.id || '')
       const productId = loaded.ctx.itemProductIdMap.get(rawId) || rawId
       const db = loaded.ctx.dbProductMap.get(productId)
-      const resolved = resolveItemUnitPrice(db, item.qty || 1, marketplaceTier, calculation.totalQuantity, exchangeRate)
+      const variantIds = itemVariantIds(item)
+      const resolved = resolveItemUnitPrice(db, item.qty || 1, marketplaceTier, calculation.totalQuantity, exchangeRate, variantIds)
+      const { variants } = resolveItemVariants(db, variantIds, exchangeRate)
       return {
         id: rawId,
         productId,
@@ -407,6 +554,8 @@ export async function quoteCart(params: {
         qty: item.qty || 1,
         unitPrice: resolved.appliedPrice,
         priceType: resolved.priceType,
+        variantIds: variantIds.length > 0 ? variantIds : undefined,
+        variantLabels: variants.length > 0 ? variants.map((v) => `${v.groupName}: ${v.name}`) : undefined,
       }
     }),
     pricing: {

@@ -106,31 +106,37 @@ export default function ScreenProduct() {
   }
 
   const p = PRODUCT;
+  const selectedVariant = p.variants.find((v: ProductVariant) => v.id === variant);
+  // Prix unitaire de base : celui de la variante si elle en porte un, sinon produit.
+  const baseUnit = selectedVariant?.price && selectedVariant.price > 0 ? selectedVariant.price : p.price;
+  // Les paliers sont définis sur le prix produit — mis à l'échelle de la variante
+  // (même ratio de remise, comme le devis serveur).
+  const tierScale = baseUnit !== p.price && p.price > 0 ? baseUnit / p.price : 1;
+  const effectiveTiers = tierScale !== 1
+    ? p.priceTiers.map((t: PriceTier) => ({ ...t, unit: Math.round(t.unit * tierScale) }))
+    : p.priceTiers;
   const tier =
-    p.priceTiers.slice().reverse().find((t: PriceTier) => qty >= t.from) ||
-    p.priceTiers[0] || { unit: p.price, from: 1, to: null, save: 0 };
-  const currentUnit = tier?.unit ?? p.price;
-  const nextTier = p.priceTiers.find((t: PriceTier) => qty < t.from) || null;
-  const savingsVsBase = (p.basePrice - currentUnit) * qty;
+    effectiveTiers.slice().reverse().find((t: PriceTier) => qty >= t.from && t.unit < baseUnit) || null;
+  const currentUnit = tier?.unit ?? baseUnit;
+  const nextTier = effectiveTiers.find((t: PriceTier) => qty < t.from) || null;
+  const savingsVsBase = (baseUnit - currentUnit) * qty;
   const distanceToNext = nextTier ? nextTier.from - qty : 0;
 
   const inc = () => setQty((q: number) => q + 1);
   const dec = () => setQty((q: number) => Math.max(p.minOrderQty, q - 1));
 
-  const selectedVariant = p.variants.find((v: ProductVariant) => v.id === variant);
-
   const buildCartItem = () => ({
     id: p.id,
     name: selectedVariant ? `${p.name} — ${selectedVariant.label}` : p.name,
     variant: selectedVariant?.label,
-    variantId: variant,
+    variantId: variant || undefined,
     variantIds: variant ? [variant] : undefined,
     variantLabels: selectedVariant ? [selectedVariant.label] : undefined,
-    image: p.images[activeImg] || p.images[0] || '/placeholder.svg',
-    unit: p.basePrice,
+    image: selectedVariant?.image || p.images[activeImg] || p.images[0] || '/placeholder.svg',
+    unit: baseUnit,
     qty,
     minOrderQty: p.minOrderQty,
-    priceTiers: p.priceTiers,
+    priceTiers: effectiveTiers,
     tierUnit: currentUnit,
     nextTier: nextTier ? { at: nextTier.from, save: nextTier.save } : null,
     hasActiveGroup: !!p.groupBuy?.active,
@@ -194,14 +200,18 @@ export default function ScreenProduct() {
               <span className="text-[28px] font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">
                 {formatFcfa(currentUnit)}
               </span>
-              <span className="text-[13px] font-semibold text-slate-400 line-through tabular-nums">
-                {formatFcfa(p.basePrice)}
-              </span>
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                -{Math.round((1 - currentUnit / p.basePrice) * 100)}%
-              </span>
+              {currentUnit < baseUnit && (
+                <>
+                  <span className="text-[13px] font-semibold text-slate-400 line-through tabular-nums">
+                    {formatFcfa(baseUnit)}
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    -{Math.round((1 - currentUnit / baseUnit) * 100)}%
+                  </span>
+                </>
+              )}
             </div>
-            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Prix unitaire · faibles frais de service inclus</p>
+            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''} · faibles frais de service inclus</p>
 
             <button
               onClick={() => setShowMoqExplain((s) => !s)}
@@ -226,7 +236,7 @@ export default function ScreenProduct() {
             <div className="mt-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix par palier</p>
               <div className="grid grid-cols-3 gap-2">
-                {p.priceTiers.map((t: PriceTier, i) => {
+                {effectiveTiers.map((t: PriceTier, i) => {
                   const active = qty >= t.from && (!t.to || qty <= t.to);
                   return (
                     <button
@@ -329,14 +339,21 @@ export default function ScreenProduct() {
                   key={v.id}
                   onClick={() => setVariant(v.id)}
                   className={cn(
-                    "rounded-xl border px-3 py-2 text-[12px] font-semibold",
+                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-semibold",
                     variant === v.id
                       ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                       : "border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300"
                   )}
                 >
-                  {v.label}
-                  <span className="ml-1 text-[10px] font-normal text-slate-500 dark:text-slate-400">· {v.stock} en stock</span>
+                  {v.image && (
+                    <img src={v.image} alt="" className="h-8 w-8 rounded-lg object-cover" loading="lazy" />
+                  )}
+                  <span>
+                    {v.label}
+                    <span className="block text-[10px] font-normal text-slate-500 dark:text-slate-400">
+                      {v.price && v.price !== p.price ? `${formatFcfa(v.price)} · ` : ''}{v.stock} en stock
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -500,7 +517,7 @@ export default function ScreenProduct() {
                       <Badge tone="emerald"><Icon name="checkCircle" size={11}/> Fournisseur vérifié</Badge>
                       <Badge tone="amber"><Icon name="package" size={11}/> Lot min. {p.minOrderQty}</Badge>
                     </div>
-                    <div className="absolute right-4 top-4"><Badge tone="red"><Icon name="flame" size={11}/> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge></div>
+                    {p.basePrice > p.price && <div className="absolute right-4 top-4"><Badge tone="red"><Icon name="flame" size={11}/> -{Math.round((1 - p.price / p.basePrice) * 100)}%</Badge></div>}
                   </>
                 }
               />
@@ -592,9 +609,11 @@ export default function ScreenProduct() {
 
                 <div className="mt-4 flex items-baseline gap-2">
                   <span className="text-3xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(currentUnit)}</span>
-                  <span className="text-sm font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(p.basePrice)}</span>
+                  {currentUnit < baseUnit && (
+                    <span className="text-sm font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(baseUnit)}</span>
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Prix unitaire · faibles frais de service inclus</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''} · faibles frais de service inclus</p>
 
                 <button onClick={()=>setShowMoqExplain(s=>!s)} className="mt-3 flex w-full items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-left dark:border-amber-900 dark:bg-amber-950/40">
                   <div className="flex items-center gap-2">
@@ -615,7 +634,7 @@ export default function ScreenProduct() {
                 <div className="mt-4">
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix par palier</p>
                   <div className="space-y-2">
-                    {p.priceTiers.map((t: PriceTier, i)=>{
+                    {effectiveTiers.map((t: PriceTier, i)=>{
                       const active = qty >= t.from && (!t.to || qty <= t.to);
                       return (
                         <button key={i} onClick={()=>setQty(t.from)} className={cn("flex w-full items-center justify-between rounded-xl border p-3 text-left transition-all", active?"border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40":"border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700")}>

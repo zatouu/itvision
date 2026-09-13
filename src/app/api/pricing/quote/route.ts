@@ -19,7 +19,8 @@ const quoteSchema = z.object({
       z.object({
         id: z.string().min(1),
         qty: z.number().int().min(1).max(10000).default(1),
-        variantIds: z.array(z.string()).optional(),
+        variantId: z.string().max(128).optional(),
+        variantIds: z.array(z.string().max(128)).max(10).optional(),
       })
     )
     .min(1)

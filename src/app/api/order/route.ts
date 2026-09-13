@@ -20,7 +20,9 @@ import {
   extractProductObjectId,
   loadCartProducts,
   buildCalculatorItems,
+  itemVariantIds,
   resolveItemUnitPrice,
+  resolveItemVariants,
   resolveShippingMethod,
   validatePromoCode,
 } from '@/lib/pricing/quote-cart'
@@ -184,12 +186,16 @@ export async function POST(req: NextRequest) {
         const rawId = String(item.id || '')
         const productId = itemProductIdMap.get(rawId)
         const db = productId ? dbProductMap.get(productId) : null
-        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate)
+        const variantIds = itemVariantIds(item)
+        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate, variantIds)
+        // Libellés dérivés du serveur — jamais du payload client.
+        const { variants: resolvedVariants } = resolveItemVariants(db, variantIds, exchangeRate)
+        const variantLabels = resolvedVariants.map((v) => `${v.groupName}: ${v.name}`)
         return {
           id: productId || String(item.id),
-          variantId: item.variantId,
-          variantIds: item.variantIds,
-          variantLabels: item.variantLabels,
+          variantId: variantIds[0],
+          variantIds: variantIds.length > 0 ? variantIds : undefined,
+          variantLabels: variantLabels.length > 0 ? variantLabels : undefined,
           name: db?.name || item.name,
           qty,
           price: resolved.appliedPrice,
@@ -284,10 +290,10 @@ export async function POST(req: NextRequest) {
       const productId = itemProductIdMap.get(rawId)
       if (!productId) continue
       const qty = item.qty || 1
-      const variantIds = Array.isArray(item.variantIds) ? item.variantIds : undefined
-      const decrement = await decrementProductStock(productId, qty, variantIds)
+      const variantIds = itemVariantIds(item)
+      const decrement = await decrementProductStock(productId, qty, variantIds.length > 0 ? variantIds : undefined)
       if (decrement.ok) {
-        reservations.push({ productId, qty, variantIds, restored: false, decrementedAt: new Date() })
+        reservations.push({ productId, qty, variantIds: variantIds.length > 0 ? variantIds : undefined, restored: false, decrementedAt: new Date() })
       } else {
         console.error(`[order] Échec décrémentation stock commande ${orderId}, produit ${productId}:`, decrement.error)
       }

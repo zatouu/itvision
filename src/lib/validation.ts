@@ -6,9 +6,9 @@ export const orderCreateSchema = z.object({
       id: z.string().min(1),
       qty: z.number().int().min(1).default(1),
       name: z.string().optional(),
-      variantId: z.string().optional(),
-      variantIds: z.array(z.string()).optional(),
-      variantLabels: z.array(z.string()).optional(),
+      variantId: z.string().max(128).optional(),
+      variantIds: z.array(z.string().max(128)).max(10).optional(),
+      variantLabels: z.array(z.string().max(200)).max(10).optional(),
       shipping: z.record(z.string(), z.any()).optional(),
     })
   ).min(1),

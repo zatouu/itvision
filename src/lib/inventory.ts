@@ -34,6 +34,11 @@ function getVariantStock(product: any, variantId: string): number | null {
   return typeof stock === 'number' ? stock : null
 }
 
+function productHasVariantGroups(product: any): boolean {
+  return Array.isArray(product?.variantGroups) &&
+    product.variantGroups.some((g: any) => Array.isArray(g?.variants) && g.variants.length > 0)
+}
+
 export async function checkStockAvailability(
   productId: string,
   qty: number,
@@ -58,9 +63,25 @@ export async function checkStockAvailability(
     return { ok: false, available: 0, reason: 'Produit en rupture de stock', productName }
   }
 
-  // Si des variantes sont demandées, on vérifie d'abord leur stock propre
-  const effectiveVariantIds = Array.isArray(variantIds) && variantIds.length > 0 ? variantIds : []
-  if (effectiveVariantIds.length > 0) {
+  const effectiveVariantIds = Array.isArray(variantIds) ? variantIds.filter(Boolean) : []
+
+  // Validation fail-closed : un produit à variantes exige une sélection, et tout
+  // id demandé doit exister sur CE produit (sinon : commande à variante fantôme).
+  if (productHasVariantGroups(product)) {
+    if (effectiveVariantIds.length === 0) {
+      return { ok: false, available: 0, reason: 'Veuillez sélectionner une variante', productName }
+    }
+    for (const variantId of effectiveVariantIds) {
+      if (!findVariant(product, variantId)) {
+        return { ok: false, available: 0, reason: 'Variante sélectionnée invalide', productName }
+      }
+    }
+  }
+
+  // Le stock n'est contraignant que pour les produits en stock local (`in_stock`).
+  // Un produit `preorder` est sourcé à la demande (import) : stockQuantity reste
+  // à 0 et les stocks variantes sont indicatifs — ne jamais bloquer la commande.
+  if ((product as any).stockStatus === 'in_stock') {
     for (const variantId of effectiveVariantIds) {
       const variantStock = getVariantStock(product, variantId)
       if (variantStock !== null && variantStock < qty) {
@@ -72,21 +93,44 @@ export async function checkStockAvailability(
         }
       }
     }
-  }
 
-  // Vérification du stock global (quantité totale)
-  const globalStock = typeof (product as any).stockQuantity === 'number' ? (product as any).stockQuantity : 0
-  if (globalStock < qty) {
-    return {
-      ok: false,
-      available: globalStock,
-      reason: `Stock insuffisant (disponible: ${globalStock})`,
-      productName
+    const globalStock = typeof (product as any).stockQuantity === 'number' ? (product as any).stockQuantity : 0
+    if (globalStock < qty) {
+      return {
+        ok: false,
+        available: globalStock,
+        reason: `Stock insuffisant (disponible: ${globalStock})`,
+        productName
+      }
     }
+    return { ok: true, available: globalStock, productName }
   }
 
-  return { ok: true, available: globalStock, productName }
+  return { ok: true, available: Number.MAX_SAFE_INTEGER, productName }
 }
+
+const VARIANT_DECREMENT = (qty: number) => ({
+  $inc: { 'variantGroups.$[group].variants.$[variant].stock': qty },
+})
+
+const variantArrayFilters = (variantId: string) => [
+  { 'group.variants.id': variantId },
+  { 'variant.id': variantId },
+]
+
+/**
+ * Filtre de requête garantissant le stock — la contrainte DOIT être dans le
+ * filtre (pas dans arrayFilters) : un arrayFilter qui ne matche rien produit un
+ * no-op silencieux et findOneAndUpdate retourne quand même le document.
+ */
+const variantStockFilter = (productId: string, variantId: string, minQty: number) => ({
+  _id: productId,
+  variantGroups: {
+    $elemMatch: {
+      variants: { $elemMatch: { id: variantId, stock: { $gte: minQty } } },
+    },
+  },
+})
 
 export async function decrementProductStock(
   productId: string,
@@ -100,26 +144,57 @@ export async function decrementProductStock(
     return { ok: false, error: 'Quantité invalide' }
   }
 
-  const effectiveVariantIds = Array.isArray(variantIds) && variantIds.length > 0 ? variantIds : []
+  const effectiveVariantIds = Array.isArray(variantIds) ? variantIds.filter(Boolean) : []
 
   try {
-    if (effectiveVariantIds.length > 0) {
-      // Décrémenter le stock de chaque variante via arrayFilters
+    const current = await Product.findOne({ _id: productId }).lean()
+    if (!current) {
+      return { ok: false, error: 'Produit introuvable' }
+    }
+
+    // Preorder = sourcé à la demande (import) : aucun stock physique à réserver.
+    // Le statut est la source de vérité — stockQuantity reste à 0 sur ces produits.
+    if ((current as any).stockStatus === 'preorder') {
+      return { ok: true }
+    }
+
+    // Fail closed : les variantes demandées doivent exister sur ce produit.
+    if (productHasVariantGroups(current)) {
       for (const variantId of effectiveVariantIds) {
-        const variantResult = await Product.findOneAndUpdate(
+        if (!findVariant(current, variantId)) {
+          return { ok: false, error: `Variante ${variantId} invalide pour ce produit` }
+        }
+      }
+    }
+
+    const decrementedVariantIds: string[] = []
+    const rollbackVariants = async () => {
+      for (const variantId of decrementedVariantIds) {
+        await Product.findOneAndUpdate(
           { _id: productId, 'variantGroups.variants.id': variantId },
-          { $inc: { 'variantGroups.$[group].variants.$[variant].stock': -qty } },
-          {
-            arrayFilters: [
-              { 'group.variants.id': variantId },
-              { 'variant.id': variantId }
-            ],
-            new: true
-          }
+          VARIANT_DECREMENT(qty),
+          { arrayFilters: variantArrayFilters(variantId) }
+        ).catch(() => {})
+      }
+    }
+
+    if (effectiveVariantIds.length > 0) {
+      // Décrément atomique GARDÉ (variant.stock >= qty dans le filtre) : empêche
+      // l'oversell — deux commandes simultanées ne passent plus toutes les deux.
+      // Seules les variantes à stock numérique sont décrémentées (stock géré).
+      for (const variantId of effectiveVariantIds) {
+        const found = findVariant(current, variantId)
+        if (!found || typeof found.variant?.stock !== 'number') continue
+        const variantResult = await Product.findOneAndUpdate(
+          variantStockFilter(productId, variantId, qty),
+          VARIANT_DECREMENT(-qty),
+          { arrayFilters: variantArrayFilters(variantId), new: true }
         )
         if (!variantResult) {
-          return { ok: false, error: `Variante ${variantId} introuvable ou stock déjà épuisé` }
+          await rollbackVariants()
+          return { ok: false, error: `Stock insuffisant pour la variante ${variantId}` }
         }
+        decrementedVariantIds.push(variantId)
       }
     }
 
@@ -131,21 +206,7 @@ export async function decrementProductStock(
     )
 
     if (!product) {
-      // Rollback des variantes si possible (best effort)
-      if (effectiveVariantIds.length > 0) {
-        for (const variantId of effectiveVariantIds) {
-          await Product.findOneAndUpdate(
-            { _id: productId, 'variantGroups.variants.id': variantId },
-            { $inc: { 'variantGroups.$[group].variants.$[variant].stock': qty } },
-            {
-              arrayFilters: [
-                { 'group.variants.id': variantId },
-                { 'variant.id': variantId }
-              ]
-            }
-          )
-        }
-      }
+      await rollbackVariants()
       return { ok: false, error: 'Stock global insuffisant ou produit introuvable' }
     }
 
@@ -178,9 +239,18 @@ export async function restoreProductStock(
     return { ok: false, error: 'Paramètres invalides' }
   }
 
-  const effectiveVariantIds = Array.isArray(variantIds) && variantIds.length > 0 ? variantIds : []
+  const effectiveVariantIds = Array.isArray(variantIds) ? variantIds.filter(Boolean) : []
 
   try {
+    // Symétrique au décrément : un produit preorder n'a rien à restituer.
+    const current = await Product.findOne({ _id: productId }).lean()
+    if (!current) {
+      return { ok: false, error: 'Produit introuvable' }
+    }
+    if ((current as any).stockStatus === 'preorder') {
+      return { ok: true }
+    }
+
     const update: any = { $inc: { stockQuantity: qty } }
     const product = await Product.findOneAndUpdate({ _id: productId }, update, { new: true })
     if (!product) {
@@ -188,16 +258,14 @@ export async function restoreProductStock(
     }
 
     if (effectiveVariantIds.length > 0) {
+      // Ne restituer que les variantes à stock géré (numérique) — symétrique.
       for (const variantId of effectiveVariantIds) {
+        const found = findVariant(current, variantId)
+        if (!found || typeof found.variant?.stock !== 'number') continue
         await Product.findOneAndUpdate(
           { _id: productId, 'variantGroups.variants.id': variantId },
-          { $inc: { 'variantGroups.$[group].variants.$[variant].stock': qty } },
-          {
-            arrayFilters: [
-              { 'group.variants.id': variantId },
-              { 'variant.id': variantId }
-            ]
-          }
+          VARIANT_DECREMENT(qty),
+          { arrayFilters: variantArrayFilters(variantId) }
         )
       }
     }

@@ -1,4 +1,5 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
+import { DEFAULT_EXCHANGE_RATE } from './pricing/exchange-rate'
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
@@ -31,18 +32,32 @@ const normalizeVariantGroups = (product: any) => {
     return []
   }
 
+  // Prix client affiché par variante = coût sourcing variante × (1 + marge) —
+  // même formule que le salePrice produit, mêmes règles que le devis serveur.
+  const marginRate = typeof product.marginRate === 'number' && product.marginRate > 0 ? product.marginRate : 0
+  const exchangeRate = typeof product.exchangeRate === 'number' && product.exchangeRate > 0 ? product.exchangeRate : DEFAULT_EXCHANGE_RATE
+  const variantSourcingFcfa = (v: any): number | null =>
+    typeof v?.priceFCFA === 'number' && v.priceFCFA > 0 ? v.priceFCFA
+      : typeof v?.price1688 === 'number' && v.price1688 > 0 ? Math.round(v.price1688 * exchangeRate)
+      : null
+
   return product.variantGroups.map((group: any, gIdx: number) => ({
     name: group.name || 'Option',
-    variants: Array.isArray(group.variants) ? group.variants.map((v: any, vIdx: number) => ({
-      id: v.id || `var_${gIdx}_${vIdx}`,
-      name: v.name || 'Variante',
-      sku: v.sku || undefined,
-      image: v.image || undefined,
-      // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
-      priceFCFA: v.priceFCFA ?? undefined,
-      stock: v.stock ?? 0,
-      isDefault: v.isDefault ?? false
-    })) : []
+    variants: Array.isArray(group.variants) ? group.variants.map((v: any, vIdx: number) => {
+      const sourcing = variantSourcingFcfa(v)
+      return {
+        id: v.id || `var_${gIdx}_${vIdx}`,
+        name: v.name || 'Variante',
+        sku: v.sku || undefined,
+        image: v.image || undefined,
+        // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
+        priceFCFA: v.priceFCFA ?? undefined,
+        // Prix unitaire client de la variante (marge incluse) — undefined = prix produit
+        price: sourcing !== null ? Math.round(sourcing * (1 + marginRate / 100)) : undefined,
+        stock: v.stock ?? 0,
+        isDefault: v.isDefault ?? false
+      }
+    }) : []
   })).filter((g: any) => g.variants.length > 0)
 }
 

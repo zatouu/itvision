@@ -16,6 +16,7 @@ import { mapCartItem, mapCatalogItem, mapGroupOrder, saveCart } from '../data-ma
 import type { CartItem, Group, Product } from '../types';
 
 interface CartQuoteData {
+  items?: { id: string; unitPrice: number; variantIds?: string[] }[];
   pricing: {
     sourcingCost: number;
     usingRetailPricing: boolean;
@@ -110,10 +111,14 @@ export default function ScreenCart() {
     if (saved) { setAppliedPromo(saved); setPromoInput(saved); }
   }, []);
 
-  const updateQty = (id: string, delta: number) => {
+  // Identité d'une ligne = produit + variante (deux variantes d'un même produit
+  // partagent le même id produit — sans la variante, +/−/suppr toucherait les deux).
+  const lineKey = (it: CartItem) => `${it.id}__${it.variantId ?? it.variantIds?.join('+') ?? ''}`;
+
+  const updateQty = (key: string, delta: number) => {
     setItems((cur) => {
       const next = cur.map((it) =>
-        it.id === id
+        lineKey(it) === key
           ? { ...it, qty: Math.max(it.minOrderQty ?? 1, it.qty + delta) }
           : it
       );
@@ -122,21 +127,34 @@ export default function ScreenCart() {
     });
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (key: string) => {
     setItems((cur) => {
-      const next = cur.filter((it) => it.id !== id);
+      const next = cur.filter((it) => lineKey(it) !== key);
       saveCart(next);
       return next;
     });
   };
 
+  // Prix unitaire facturé : celui du devis serveur quand la ligne matche
+  // (produit + variantes), sinon le palier local calculé à l'ajout.
+  const serverUnitFor = (it: CartItem): number | null => {
+    if (!quote?.items) return null;
+    const want = (it.variantIds ?? (it.variantId ? [it.variantId] : [])).slice().sort().join('+');
+    const hit = quote.items.find((qi: any) =>
+      qi.id === it.id &&
+      (Array.isArray(qi.variantIds) ? qi.variantIds.slice().sort().join('+') : '') === want
+    );
+    return typeof hit?.unitPrice === 'number' ? hit.unitPrice : null;
+  };
+  const lineUnit = (it: CartItem) => serverUnitFor(it) ?? it.tierUnit;
+
   const totalQty = items.reduce((s, it) => s + it.qty, 0);
 
   const totals = useMemo(() => {
-    const sub = items.reduce((s, it) => s + it.tierUnit * it.qty, 0);
-    const savings = items.reduce((s, it) => s + (it.unit - it.tierUnit) * it.qty, 0);
+    const sub = items.reduce((s, it) => s + lineUnit(it) * it.qty, 0);
+    const savings = items.reduce((s, it) => s + (it.unit - lineUnit(it)) * it.qty, 0);
     const groupItemsCount = items.filter(it => it.hasActiveGroup && it.groupUnit).length;
-    const groupSavingsPotential = items.reduce((s, it) => it.hasActiveGroup && it.groupUnit ? s + (it.tierUnit - it.groupUnit) * it.qty : s, 0);
+    const groupSavingsPotential = items.reduce((s, it) => it.hasActiveGroup && it.groupUnit ? s + (lineUnit(it) - it.groupUnit) * it.qty : s, 0);
     // Montants facturés : devis serveur (sourcing + service + assurance + transport)
     const service = quote?.pricing.serviceFee.amount ?? 0;
     const insurance = quote?.pricing.insurance.amount ?? 0;
@@ -164,7 +182,7 @@ export default function ScreenCart() {
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight">{it.name}</p>
                 <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{it.variant}</p>
               </div>
-              <button onClick={() => removeItem(it.id)} className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600 dark:hover:bg-slate-800" aria-label="Supprimer"><Icon name="trash" size={15}/></button>
+              <button onClick={() => removeItem(lineKey(it))} className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600 dark:hover:bg-slate-800" aria-label="Supprimer"><Icon name="trash" size={15}/></button>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Badge tone={isBelow?"red":"amber"}><Icon name="package" size={10}/> Lot min. {it.minOrderQty}</Badge>
@@ -172,13 +190,13 @@ export default function ScreenCart() {
             </div>
             <div className="mt-3 flex items-end justify-between gap-2">
               <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
-                <button onClick={() => updateQty(it.id, -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
+                <button onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
                 <span className="w-8 text-center text-sm font-extrabold text-slate-900 dark:text-white tabular-nums">{it.qty}</span>
-                <button onClick={() => updateQty(it.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
+                <button onClick={() => updateQty(lineKey(it), 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
               </div>
               <div className="text-right">
-                <p className="whitespace-nowrap text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(it.tierUnit * it.qty)}</p>
-                <p className="whitespace-nowrap text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(it.tierUnit)} × {it.qty}</p>
+                <p className="whitespace-nowrap text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(lineUnit(it) * it.qty)}</p>
+                <p className="whitespace-nowrap text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(lineUnit(it))} × {it.qty}</p>
               </div>
             </div>
           </div>
@@ -192,7 +210,7 @@ export default function ScreenCart() {
               <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
                 Ajoutez <b className="tabular-nums">{it.minOrderQty - it.qty}</b> unités pour atteindre le lot minimum de {it.minOrderQty}
               </p>
-              <button onClick={() => updateQty(it.id, it.minOrderQty - it.qty)} className="ml-auto rounded-md bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700 flex-shrink-0">
+              <button onClick={() => updateQty(lineKey(it), it.minOrderQty - it.qty)} className="ml-auto rounded-md bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700 flex-shrink-0">
                 Ajouter
               </button>
             </div>
@@ -207,7 +225,7 @@ export default function ScreenCart() {
               <p className="text-[12px] font-semibold text-emerald-900 dark:text-emerald-200">
                 Ajoutez <b className="tabular-nums">{nextTierDelta}</b> unités pour débloquer <b>−{it.nextTier.save}%</b>
               </p>
-              <button onClick={() => updateQty(it.id, nextTierDelta)} className="ml-auto rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 flex-shrink-0">
+              <button onClick={() => updateQty(lineKey(it), nextTierDelta)} className="ml-auto rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 flex-shrink-0">
                 Compléter
               </button>
             </div>
@@ -221,7 +239,7 @@ export default function ScreenCart() {
               <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="users" size={14}/></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">Rejoindre le groupe : <span className="text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(it.groupUnit)}/pc</span></p>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">Économisez <b className="tabular-nums">{formatFcfa((it.tierUnit - it.groupUnit) * it.qty)}</b> sur ce lot</p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">Économisez <b className="tabular-nums">{formatFcfa((lineUnit(it) - it.groupUnit) * it.qty)}</b> sur ce lot</p>
               </div>
               <button className="whitespace-nowrap rounded-md bg-violet-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-violet-700 flex-shrink-0">
                 Voir

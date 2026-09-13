@@ -208,11 +208,21 @@ export default function ScreenCheckout() {
   }, [shippingRates, quote]);
 
   const items = CART;
-  const sub = quote?.pricing.sourcingCost ?? items.reduce((s,it)=>s+it.tierUnit*it.qty,0);
+  // Prix unitaire facturé par ligne : devis serveur quand la ligne matche
+  // (produit + variantes), sinon palier local calculé à l'ajout au panier.
+  const lineUnit = (it: CartItem): number => {
+    const want = (it.variantIds ?? (it.variantId ? [it.variantId] : [])).slice().sort().join('+');
+    const hit = quote?.items?.find((qi: any) =>
+      qi.id === it.id &&
+      (Array.isArray(qi.variantIds) ? qi.variantIds.slice().sort().join('+') : '') === want
+    );
+    return typeof hit?.unitPrice === 'number' ? hit.unitPrice : it.tierUnit;
+  };
+  const sub = quote?.pricing.sourcingCost ?? items.reduce((s,it)=>s+lineUnit(it)*it.qty,0);
   const service = quote?.pricing.serviceFee.amount ?? 0;
   const insurance = quote?.pricing.insurance.amount ?? 0;
   const shipCost = quote?.shipping?.cost ?? 0;
-  const savings = items.reduce((s,it)=>s+(it.unit-it.tierUnit)*it.qty,0);
+  const savings = items.reduce((s,it)=>s+(it.unit-lineUnit(it))*it.qty,0);
   const promoDiscount = quote?.discounts.promo?.discount ?? 0;
   const qtyDiscount = quote?.pricing.quantityDiscount?.amount ?? 0;
   // Grains : aperçu client — le serveur revalide (solde, plafond 50%)
@@ -490,7 +500,7 @@ export default function ScreenCheckout() {
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">{it.variant}</span>
               </div>
             </div>
-            <p className="text-[12px] font-extrabold text-slate-900 dark:text-white tabular-nums flex-shrink-0">{formatFcfa(it.tierUnit * it.qty)}</p>
+            <p className="text-[12px] font-extrabold text-slate-900 dark:text-white tabular-nums flex-shrink-0">{formatFcfa(lineUnit(it) * it.qty)}</p>
           </div>
         ))}
       </div>

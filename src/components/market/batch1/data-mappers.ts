@@ -153,9 +153,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
         for (const v of g.variants) {
           variants.push({
             id: v.id || String(variants.length + 1),
-            label: v.label || `${g.name}: ${v.value}`,
+            label: v.label || v.name || `${g.name}: ${v.value}`,
             stock:
               typeof v.stock === 'number' ? v.stock : typeof g.stock === 'number' ? g.stock : 100,
+            price: typeof v.price === 'number' && v.price > 0 ? v.price : undefined,
+            image: typeof v.image === 'string' && v.image ? v.image : undefined,
           });
         }
       }

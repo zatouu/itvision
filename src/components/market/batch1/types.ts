@@ -52,6 +52,9 @@ export interface ProductVariant {
   id: string;
   label: string;
   stock: number;
+  /** Prix unitaire client de la variante (marge incluse). undefined = prix produit */
+  price?: number;
+  image?: string;
 }
 
 export interface ProductSpec {
