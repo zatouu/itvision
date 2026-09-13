@@ -76,7 +76,7 @@ services:
       # ── SMS / OTP ─────────────────────────────────────────
       # SMS_PROVIDER est obligatoire en production (twilio) — le défaut "console"
       # activerait le mode OTP gratuit (code fixe 000000) côté code si le code ne le bloquait pas.
-      SMS_PROVIDER: ${SMS_PROVIDER:?SMS_PROVIDER doit être défini en production (ex: twilio)}
+      SMS_PROVIDER: "${SMS_PROVIDER:?SMS_PROVIDER doit être défini en production - ex twilio}"
       ALLOW_TEST_CODES: "false"
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
