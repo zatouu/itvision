@@ -109,12 +109,19 @@ export async function updateOrderStatus(
         if (reservation.restored) continue
         try {
           const productId = String(reservation.productId || '')
-          const qty = typeof reservation.qty === 'number' ? reservation.qty : 0
+          const reserved = typeof reservation.qty === 'number' ? reservation.qty : 0
+          const alreadyRestored = typeof reservation.restoredQty === 'number' ? reservation.restoredQty : 0
+          const qty = reserved - alreadyRestored
           const variantIds = Array.isArray(reservation.variantIds)
             ? reservation.variantIds.map((v) => String(v))
             : undefined
+          if (qty <= 0) {
+            reservation.restored = true
+            continue
+          }
           const result = await restoreProductStock(productId, qty, variantIds)
           if (result.ok) {
+            reservation.restoredQty = reserved
             reservation.restored = true
           } else {
             console.error(`[order-status] Échec restauration stock commande ${orderId}:`, result.error)

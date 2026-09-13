@@ -43,6 +43,8 @@ export interface IInventoryReservation {
   qty: number
   variantIds?: string[]
   restored?: boolean
+  /** Quantité déjà restituée (retours partiels) — `restored` = tout restitué */
+  restoredQty?: number
   decrementedAt?: Date
 }
 
@@ -189,6 +191,7 @@ const InventoryReservationSchema = new Schema<IInventoryReservation>({
   qty: { type: Number, required: true, min: 1 },
   variantIds: { type: [String] },
   restored: { type: Boolean, default: false },
+  restoredQty: { type: Number, default: 0 },
   decrementedAt: { type: Date }
 }, { _id: false })
 

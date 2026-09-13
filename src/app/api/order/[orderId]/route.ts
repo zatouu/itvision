@@ -35,9 +35,16 @@ async function restoreOrderStock(order: any) {
   if (!order || !Array.isArray(order.inventoryReservations) || order.inventoryReservations.length === 0) return
   for (const reservation of order.inventoryReservations) {
     if (reservation.restored) continue
+    // Ne restituer que ce qui n'a pas déjà été restitué (retours partiels)
+    const remaining = reservation.qty - (reservation.restoredQty || 0)
+    if (remaining <= 0) {
+      reservation.restored = true
+      continue
+    }
     try {
-      const result = await restoreProductStock(reservation.productId, reservation.qty, reservation.variantIds)
+      const result = await restoreProductStock(reservation.productId, remaining, reservation.variantIds)
       if (result.ok) {
+        reservation.restoredQty = reservation.qty
         reservation.restored = true
       } else {
         console.error(`[order] Échec restauration stock commande ${order.orderId}:`, result.error)
@@ -181,8 +188,16 @@ export async function PATCH(
       updateData.address = body.address
     }
 
-    // Support de mise à jour du statut
+    // Support de mise à jour du statut — enum validé (findOneAndUpdate ne
+    // valide pas le schéma, un statut arbitraire passerait sinon)
+    const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
     if (body.status) {
+      if (!ORDER_STATUSES.includes(String(body.status))) {
+        return NextResponse.json(
+          { success: false, error: `Statut invalide — attendu : ${ORDER_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
       updateData.status = body.status
     }
 
@@ -200,7 +215,14 @@ export async function PATCH(
       }
       paymentConfirmed = result.changed
     } else if (body.paymentStatus) {
-      // Autres statuts (failed, refunded…) : mise à jour directe réservée admin
+      // Autres statuts (failed…) : mise à jour directe réservée admin — enum validé
+      const PAYMENT_STATUSES = ['pending', 'completed', 'failed']
+      if (!PAYMENT_STATUSES.includes(String(body.paymentStatus))) {
+        return NextResponse.json(
+          { success: false, error: `paymentStatus invalide — attendu : ${PAYMENT_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
       updateData.paymentStatus = body.paymentStatus
     }
 

@@ -410,10 +410,16 @@ export async function resolveDispute(
   if (!transaction || !transaction.dispute) {
     throw new Error('Transaction ou litige non trouvé')
   }
-  
+
+  // Idempotent : un litige déjà résolu ne peut pas être résolu une 2e fois
+  // (sinon double remboursement enregistré / timeline falsifiée)
+  if (transaction.dispute.resolvedAt) {
+    throw new Error('Ce litige est déjà résolu')
+  }
+
   transaction.dispute.resolution = resolution.note
   transaction.dispute.resolvedAt = new Date()
-  
+
   switch (resolution.decision) {
     case 'refund_full':
       transaction.refund = {
@@ -423,15 +429,20 @@ export async function resolveDispute(
       }
       transaction.addEvent('refunded', `Remboursement intégral: ${resolution.note}`, resolution.adminId)
       break
-      
-    case 'refund_partial':
+
+    case 'refund_partial': {
+      const refundAmount = Number(resolution.refundAmount || 0)
+      if (!Number.isFinite(refundAmount) || refundAmount <= 0 || refundAmount > transaction.amount) {
+        throw new Error(`Montant de remboursement invalide (max ${transaction.amount} FCFA)`)
+      }
       transaction.refund = {
-        amount: resolution.refundAmount || 0,
+        amount: refundAmount,
         reason: transaction.dispute.reason,
         method: 'wave'
       }
-      transaction.addEvent('refunded', `Remboursement partiel (${resolution.refundAmount} FCFA): ${resolution.note}`, resolution.adminId)
+      transaction.addEvent('refunded', `Remboursement partiel (${refundAmount} FCFA): ${resolution.note}`, resolution.adminId)
       break
+    }
       
     case 'replacement':
       transaction.addEvent('order_placed', `Remplacement du produit: ${resolution.note}`, resolution.adminId)

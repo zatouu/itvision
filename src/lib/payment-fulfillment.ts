@@ -27,72 +27,118 @@ export interface ConfirmPaymentResult {
 export async function confirmPayment(input: ConfirmPaymentInput): Promise<ConfirmPaymentResult> {
   await connectDB()
 
-  const groupOrder = await GroupOrder.findOne({
-    'participants.paymentReference': input.reference
-  })
+  // ── Paiement participant d'un achat groupé ──────────────────────────────
+  // Claim atomique : un seul callback passe le filtre paymentStatus ≠ 'paid',
+  // ce qui rend la confirmation idempotente en concurrence.
+  const groupClaim = await GroupOrder.findOneAndUpdate(
+    {
+      participants: {
+        $elemMatch: {
+          paymentReference: input.reference,
+          paymentStatus: { $in: ['pending', 'partial'] }
+        }
+      }
+    },
+    {
+      $inc: { 'participants.$.paidAmount': input.amount },
+      $set: {
+        'participants.$.paymentMethod': input.provider,
+        'participants.$.transactionId': input.transactionId,
+        'participants.$.paymentUpdatedAt': new Date()
+      }
+    },
+    { new: true }
+  )
 
-  if (groupOrder) {
-    const participant = groupOrder.participants.find(
+  if (groupClaim) {
+    const participant = groupClaim.participants.find(
       (p: any) => p.paymentReference === input.reference
     )
-
     if (!participant) {
       return { found: false, changed: false, reference: input.reference }
     }
 
-    if (participant.paymentStatus === 'paid') {
-      return { found: true, changed: false, type: 'group', reference: input.reference }
+    const expected = Number(participant.totalAmount || 0)
+    const isFullyPaid = expected > 0 ? Number(participant.paidAmount || 0) >= expected : true
+
+    if (isFullyPaid) {
+      participant.paymentStatus = 'paid'
+      if (Number(participant.paidAmount) > expected) {
+        console.error(`[fulfillment] SURPAIEMENT groupe ${groupClaim.groupId}: ${participant.paidAmount} > ${expected} (${input.reference})`)
+      }
+    } else {
+      participant.paymentStatus = 'partial'
+      console.error(`[fulfillment] SOUS-PAIEMENT groupe ${groupClaim.groupId}: ${participant.paidAmount} < ${expected} (${input.reference})`)
     }
 
-    participant.paymentStatus = 'paid'
-    participant.paidAmount = input.amount
-    participant.paymentMethod = input.provider
-    participant.transactionId = input.transactionId
-    participant.paymentUpdatedAt = new Date()
-
-    if ((groupOrder as any).chinaPurchase?.purchaseId) {
-      const chinaPurchase = await syncChinaPurchaseFromGroupOrder(groupOrder)
+    if ((groupClaim as any).chinaPurchase?.purchaseId) {
+      const chinaPurchase = await syncChinaPurchaseFromGroupOrder(groupClaim)
       if (chinaPurchase) {
-        const groupOrderWithChinaPurchase = groupOrder as any
+        const groupOrderWithChinaPurchase = groupClaim as any
         groupOrderWithChinaPurchase.chinaPurchase = chinaPurchase
       }
     }
 
-    await groupOrder.save()
-    await notifyGroupPaymentConfirmed(participant, groupOrder, input.transactionId)
+    await groupClaim.save()
+    await notifyGroupPaymentConfirmed(participant, groupClaim, input.transactionId)
 
     return { found: true, changed: true, type: 'group', reference: input.reference }
   }
 
-  const standardOrder = await Order.findOne({ orderId: input.reference })
-
-  if (standardOrder) {
-    if (standardOrder.paymentStatus === 'completed') {
-      return { found: true, changed: false, type: 'order', reference: input.reference }
-    }
-
-    standardOrder.paymentStatus = 'completed'
-    standardOrder.paymentMethod = input.provider
-    standardOrder.transactionId = input.transactionId
-
-    await standardOrder.save()
-    await notifyStandardOrderPaymentConfirmed(standardOrder, input.transactionId)
-
-    // Grains de fidélité + parrainage : crédités uniquement sur paiement confirmé
-    if (standardOrder.clientId) {
-      try {
-        const userId = String(standardOrder.clientId)
-        await maybeCreditGrainsForOrder(userId, standardOrder._id, standardOrder.total)
-        await recordReferralFirstOrder(userId, standardOrder._id)
-        await updateTierFromBalance(userId)
-        await syncUserToProfiles(userId)
-      } catch (grainsErr) {
-        console.error('[fulfillment] Erreur crédit grains commande payée:', grainsErr)
-      }
-    }
-
-    return { found: true, changed: true, type: 'order', reference: input.reference }
+  // Élément déjà payé (ou référence appartenant à un groupe) ?
+  const groupOrder = await GroupOrder.findOne({
+    'participants.paymentReference': input.reference
+  }).lean()
+  if (groupOrder) {
+    return { found: true, changed: false, type: 'group', reference: input.reference }
   }
 
-  return { found: false, changed: false, reference: input.reference }
+  // ── Commande standard ───────────────────────────────────────────────────
+  const standardOrder = await Order.findOneAndUpdate(
+    { orderId: input.reference, paymentStatus: { $ne: 'completed' } },
+    {
+      $set: {
+        paymentStatus: 'completed',
+        paymentMethod: input.provider,
+        transactionId: input.transactionId
+      }
+    },
+    { new: true }
+  ).lean() as any
+
+  if (!standardOrder) {
+    const exists = await Order.exists({ orderId: input.reference })
+    return exists
+      ? { found: true, changed: false, type: 'order', reference: input.reference }
+      : { found: false, changed: false, reference: input.reference }
+  }
+
+  // Sous-paiement : la facture PayDunya ne se complète qu'à montant plein,
+  // mais on vérifie — une anomalie doit être visible, pas silencieuse.
+  const expectedTotal = Number(standardOrder.total || 0)
+  if (expectedTotal > 0 && input.amount < expectedTotal) {
+    console.error(`[fulfillment] SOUS-PAIEMENT commande ${input.reference}: ${input.amount} < ${expectedTotal}`)
+    const note = `[PAYMENT] Sous-paiement détecté : ${input.amount} F reçus / ${expectedTotal} F attendus (${input.provider}, tx ${input.transactionId})`
+    await Order.updateOne(
+      { _id: standardOrder._id },
+      { $set: { internalNotes: standardOrder.internalNotes ? `${standardOrder.internalNotes}\n${note}` : note } }
+    )
+  }
+
+  await notifyStandardOrderPaymentConfirmed(standardOrder, input.transactionId)
+
+  // Grains de fidélité + parrainage : crédités uniquement sur paiement confirmé
+  if (standardOrder.clientId) {
+    try {
+      const userId = String(standardOrder.clientId)
+      await maybeCreditGrainsForOrder(userId, standardOrder._id, standardOrder.total)
+      await recordReferralFirstOrder(userId, standardOrder._id)
+      await updateTierFromBalance(userId)
+      await syncUserToProfiles(userId)
+    } catch (grainsErr) {
+      console.error('[fulfillment] Erreur crédit grains commande payée:', grainsErr)
+    }
+  }
+
+  return { found: true, changed: true, type: 'order', reference: input.reference }
 }

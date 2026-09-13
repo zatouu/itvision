@@ -5,6 +5,7 @@ import { Order } from '@/lib/models/Order'
 import ReturnRequest from '@/lib/models/ReturnRequest'
 import { requireAuth } from '@/lib/jwt'
 import { requireAdminApi } from '@/lib/api-auth'
+import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 
 function hashTrackingToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -12,6 +13,9 @@ function hashTrackingToken(token: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = await applyRateLimit(req, apiRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     await connectDB()
 
     let userId: string | null = null
@@ -35,6 +39,37 @@ export async function POST(req: NextRequest) {
     const order = await Order.findOne({ orderId: orderReference }).lean() as any
     if (!order) {
       return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 })
+    }
+
+    // Un retour suppose une commande payée/livrée — pas sur une commande annulée ou impayée
+    if (order.status === 'cancelled' || order.paymentStatus !== 'completed') {
+      return NextResponse.json(
+        { success: false, error: 'Retour impossible : commande non payée ou annulée' },
+        { status: 400 }
+      )
+    }
+
+    // Les articles retournés doivent appartenir à la commande, qté ≤ qté commandée
+    const orderedQty = new Map<string, number>()
+    for (const it of order.items || []) {
+      orderedQty.set(String(it.id), (orderedQty.get(String(it.id)) || 0) + (Number(it.qty) || 0))
+    }
+    for (const i of items) {
+      const pid = String(i.productId || i.id || '')
+      const want = Math.max(1, Number(i.qty) || 1)
+      const ordered = orderedQty.get(pid)
+      if (ordered === undefined) {
+        return NextResponse.json(
+          { success: false, error: `Article hors commande : ${i.name || pid}` },
+          { status: 400 }
+        )
+      }
+      if (want > ordered) {
+        return NextResponse.json(
+          { success: false, error: `Quantité retournée supérieure à la commande : ${i.name || pid}` },
+          { status: 400 }
+        )
+      }
     }
 
     // Vérifier que l'utilisateur est autorisé (propriétaire ou invité avec token)
