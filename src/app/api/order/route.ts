@@ -332,8 +332,11 @@ export async function POST(req: NextRequest) {
 
     // L'utilisation promo a déjà été consommée atomiquement en amont (fail-closed).
 
-    // Décrémenter le stock et enregistrer les réservations d'inventaire (best effort, loggé si erreur)
+    // Décrémenter le stock et enregistrer les réservations d'inventaire.
+    // Un échec ici = race entre le check amont et le décrément — la commande
+    // existe déjà : on la marque pour revue admin au lieu de la perdre.
     const reservations: any[] = []
+    const stockIssues: string[] = []
     for (const item of cart) {
       const rawId = String(item.id || '')
       const productId = itemProductIdMap.get(rawId)
@@ -345,10 +348,17 @@ export async function POST(req: NextRequest) {
         reservations.push({ productId, qty, variantIds: variantIds.length > 0 ? variantIds : undefined, restored: false, decrementedAt: new Date() })
       } else {
         console.error(`[order] Échec décrémentation stock commande ${orderId}, produit ${productId}:`, decrement.error)
+        stockIssues.push(`${productId} x${qty}: ${decrement.error || 'décrément impossible'}`)
       }
     }
-    if (reservations.length > 0) {
+    if (reservations.length > 0 || stockIssues.length > 0) {
       orderDoc.inventoryReservations = reservations
+      if (stockIssues.length > 0) {
+        orderDoc.internalNotes = [
+          `[STOCK] Décrément impossible après création — vérifier la disponibilité réelle :\n${stockIssues.join('\n')}`,
+          orderDoc.internalNotes,
+        ].filter(Boolean).join('\n')
+      }
       await orderDoc.save()
     }
 
