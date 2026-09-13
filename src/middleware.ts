@@ -100,7 +100,7 @@ export async function middleware(request: NextRequest) {
   if (!onMarketDomain) {
     if (isMarketplaceRoute(pathname)) {
       const marketUrl = new URL(pathname, request.url)
-      marketUrl.host = `market.${host}`
+      marketUrl.host = `market.${host.replace(/^www\./, '')}`
       return NextResponse.redirect(marketUrl)
     }
     // /produits sur le site principal → vitrine corporate B2B/B2C

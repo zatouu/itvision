@@ -20,7 +20,8 @@ import { sendPushToUser } from '@/lib/push'
  * 1. Find the pending payment for this requestId + clientId
  * 2. If mock mode → auto-confirm
  * 3. If provider API available → query real status
- * 4. If API says succeeded or status is unknown (trust-based for QR/cash) → confirm
+ * 4. Confirm ONLY when the provider reports 'succeeded'. 'unknown' (provider API
+ *    down/unconfigured) stays pending — webhook or admin validation decides.
  * 5. Transition payment to 'held' + accept offer + start mission
  */
 export async function POST(request: NextRequest) {
@@ -71,14 +72,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, status: 'failed', error: 'Paiement échoué côté provider' })
     }
 
-    // 2. Confirm si le provider dit 'succeeded'. Les paiements manuels (wave_qr,
-    //    wave sans clé API…) n'ont PAS de vérification provider — le client ne peut
-    //    pas s'auto-confirmer : ils attendent la validation admin (anti-fraude).
-    const shouldConfirm =
-      checkResult.status === 'succeeded' ||
-      (checkResult.status === 'unknown' && !payment.manualConfirm)
+    // 2. Confirmer UNIQUEMENT si le provider dit 'succeeded'. Un statut
+    //    'unknown' (API provider en panne, non configurée, ou flux manuel QR)
+    //    ne doit JAMAIS confirmer — sinon un client peut valider une mission
+    //    sans avoir payé, et l'escrow serait libéré au prestataire en fin de mission.
+    const shouldConfirm = checkResult.status === 'succeeded'
 
     if (!shouldConfirm) {
+      if (checkResult.status === 'unknown') {
+        // Alerte opérationnelle : l'API provider ne répond pas — la confirmation
+        // repose alors uniquement sur le webhook signé ou la validation admin.
+        console.warn(`[payments/confirm] Statut provider inconnu (provider=${payment.provider}, payment=${payment._id}) — pas de confirmation client`)
+      }
       if (payment.manualConfirm) {
         return NextResponse.json({
           success: true,
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
     // 3. Transition to held
     payment.status = 'held'
     payment.heldAt = new Date()
-    payment.confirmedBy = checkResult.status === 'succeeded' ? 'client' : 'client'
+    payment.confirmedBy = 'client'
     await payment.save()
 
     // 4. Accept offer + start mission (unless balance phase)

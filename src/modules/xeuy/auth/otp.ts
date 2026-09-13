@@ -13,10 +13,19 @@ const OTP_TTL_MIN = 5
 const MAX_ATTEMPTS = 5
 const TEST_CODE = '000000'
 
+// Le mode "free" (code fixe + code renvoyé dans la réponse) est strictement
+// réservé au développement — jamais actif en production, même si la config le demande.
 const isFreeMode =
-  process.env.OTP_FREE_MODE === 'true' ||
-  process.env.ALLOW_TEST_CODES === 'true' ||
-  (process.env.SMS_PROVIDER || 'console') === 'console'
+  process.env.NODE_ENV !== 'production' &&
+  (process.env.OTP_FREE_MODE === 'true' ||
+    process.env.ALLOW_TEST_CODES === 'true' ||
+    (process.env.SMS_PROVIDER || 'console') === 'console')
+
+// En production, le provider SMS doit être réellement configuré — sinon aucun
+// OTP ne peut être délivré et on préfère échouer explicitement.
+const isSmsConfigured =
+  process.env.NODE_ENV !== 'production' ||
+  ((process.env.SMS_PROVIDER || 'console') !== 'console')
 
 function generateOtp(): string {
   const digits = '0123456789'
@@ -40,6 +49,11 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
   const phone = normalizePhone(rawPhone)
   if (!phone) {
     return { success: false, phone: '', expiresIn: 0, error: 'Numéro invalide', status: 400 }
+  }
+
+  if (!isSmsConfigured) {
+    console.error('[OTP] SMS_PROVIDER non configuré en production — envoi impossible')
+    return { success: false, phone: '', expiresIn: 0, error: 'Service SMS indisponible', status: 503 }
   }
 
   await connectMongoose()

@@ -15,6 +15,7 @@ import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import { syncUserToProfiles } from '@/lib/user-profiles'
 import { decrementProductStock } from '@/lib/inventory'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { getRedisClient } from '@/lib/redis'
 import { orderCreateSchema, validate } from '@/lib/validation'
 import {
   extractProductObjectId,
@@ -35,6 +36,9 @@ function hashTrackingToken(token: string): string {
 
 export async function POST(req: NextRequest) {
   let mongoConnected = false
+  // Verrou grains (double-dépense) — hissé hors du try pour le catch global
+  let grainsLockKey: string | null = null
+  let grainsLocked = false
 
   try {
     const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
@@ -121,9 +125,24 @@ export async function POST(req: NextRequest) {
     let validatedGrainsAmount = 0
     let validatedPromoDiscount = 0
 
-    if (grainsAmount && grainsAmount > 0) {
+    // Verrou anti double-dépense : le solde grains est un agrégat, le
+    // check-then-débit ci-dessous n'est pas atomique. Deux commandes
+    // concurrentes ne doivent pas passer toutes les deux la validation.
+    if (userId && grainsAmount && grainsAmount > 0) {
+      const redis = getRedisClient()
+      if (redis) {
+        grainsLockKey = `grains:order:${userId}`
+        grainsLocked = (await redis.set(grainsLockKey, '1', 'EX', 15, 'NX')) === 'OK'
+        if (!grainsLocked) {
+          return NextResponse.json(
+            { success: false, error: 'Une autre commande utilise vos grains. Réessayez dans un instant.' },
+            { status: 429 }
+          )
+        }
+      }
+
       const maxGrains = Math.floor(subtotal * 0.5 / GRAIN_VALUE_FCFA)
-      const balance = userId ? await getGrainsBalance(userId) : 0
+      const balance = await getGrainsBalance(userId)
       validatedGrainsAmount = Math.max(0, Math.min(grainsAmount, maxGrains, balance))
     }
 
@@ -143,6 +162,7 @@ export async function POST(req: NextRequest) {
       const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
 
       if (!seaEligibility.eligible) {
+        if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
         return NextResponse.json(
           {
             success: false,
@@ -158,6 +178,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!shipping) {
+      if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
       return NextResponse.json(
         { success: false, error: 'Impossible de calculer les frais de transport pour cette commande' },
         { status: 400 }
@@ -273,6 +294,11 @@ export async function POST(req: NextRequest) {
       } catch (grainsErr) {
         console.error('[order] Erreur débit grains:', grainsErr)
       }
+    }
+    // Le débit est enregistré (ou a échoué) : le verrou peut être libéré
+    if (grainsLocked && grainsLockKey) {
+      await getRedisClient()?.del(grainsLockKey).catch(() => {})
+      grainsLocked = false
     }
 
     if (validatedPromoDiscount > 0 && promo?.code) {
@@ -540,6 +566,9 @@ export async function POST(req: NextRequest) {
     )
   } catch (e) {
     console.error('Erreur traitement commande:', e)
+    if (grainsLocked && grainsLockKey) {
+      await getRedisClient()?.del(grainsLockKey).catch(() => {})
+    }
     return NextResponse.json(
       {
         success: false,

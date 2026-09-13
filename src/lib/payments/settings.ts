@@ -232,10 +232,15 @@ export function readPaymentSettings(): PaymentSettings {
         rules: sanitizeGroupOrderRules(parsed?.groupOrders?.rules, DEFAULT_GROUP_ORDER_RULES)
       },
       providers: {
-        // Priorité : fichier admin > env PAYMENTS_MOCK > défaut (false)
-        mockEnabled: typeof parsed?.providers?.mockEnabled === 'boolean'
-          ? parsed.providers.mockEnabled
-          : process.env.PAYMENTS_MOCK === 'true',
+        // En production, le mode mock est verrouillé sur la variable d'env :
+        // le toggle admin (fichier) ne doit jamais pouvoir désactiver la
+        // vérification des signatures webhook ni auto-valider les paiements.
+        // En dev : priorité fichier admin > env > défaut (false).
+        mockEnabled: process.env.NODE_ENV === 'production'
+          ? process.env.PAYMENTS_MOCK === 'true'
+          : (typeof parsed?.providers?.mockEnabled === 'boolean'
+              ? parsed.providers.mockEnabled
+              : process.env.PAYMENTS_MOCK === 'true'),
         manual: {
           // Priorité : valeur saisie par l'admin (fichier) > variable d'env > défaut.
           // Avant : l'env écrasait la config admin, ce qui faisait "sauter" le numéro marchand.

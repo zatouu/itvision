@@ -31,11 +31,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Le code de dev n'est jamais exposé en production
+    const exposeDevCode = process.env.NODE_ENV !== 'production' && result.devCode
     return NextResponse.json({
       success: true,
       phone: result.phone,
       expiresIn: result.expiresIn,
-      ...(result.devCode ? { _devCode: result.devCode, isFreeMode: true } : {}),
+      ...(exposeDevCode ? { _devCode: result.devCode, isFreeMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)
