@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     const returnRequest = await ReturnRequest.create({
-      orderId,
+      orderId: order.orderId, // valeur canonique — pas le champ client
       orderReference,
       clientId: order.clientId ? String(order.clientId) : undefined,
       clientName: order.clientName,
