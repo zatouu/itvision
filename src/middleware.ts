@@ -88,7 +88,8 @@ export async function middleware(request: NextRequest) {
       const rule = getPageRule(pathname)
       if (rule && rule.access === 'public') {
         const mainUrl = new URL(pathname + request.nextUrl.search, request.url)
-        mainUrl.host = host.replace(/^market\./, '')
+        mainUrl.hostname = host.split(':')[0].replace(/^market\./, '')
+        mainUrl.port = ''
         return NextResponse.redirect(mainUrl)
       }
       const marketHomeUrl = new URL('/market', request.url)
@@ -100,7 +101,8 @@ export async function middleware(request: NextRequest) {
   if (!onMarketDomain) {
     if (isMarketplaceRoute(pathname)) {
       const marketUrl = new URL(pathname, request.url)
-      marketUrl.host = `market.${host.replace(/^www\./, '')}`
+      marketUrl.hostname = `market.${host.split(':')[0].replace(/^www\./, '')}`
+      marketUrl.port = ''
       return NextResponse.redirect(marketUrl)
     }
     // /produits sur le site principal → vitrine corporate B2B/B2C
