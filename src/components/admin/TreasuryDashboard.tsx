@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   TrendingUp, TrendingDown, Wallet, Banknote, Receipt, AlertTriangle,
   RefreshCw, Calendar, Building2, FileText, ArrowUpRight, ArrowDownRight,
-  PieChart, Activity, Clock, CheckCircle2, Plus, Download
+  PieChart, Activity, Clock, CheckCircle2, Plus, Download,
+  ShoppingBag, Zap, Globe
 } from 'lucide-react'
 
 interface TreasuryData {
@@ -46,6 +47,24 @@ interface TreasuryData {
   }>
   topPayables: Array<any>
   topReceivables: Array<any>
+  domains?: {
+    corporate: {
+      revenueBilled: number; revenueCollected: number; receivablesOpen: number; receivablesOverdue: number
+      expensesTotal: number; expensesPaid: number; payablesOpen: number; margin: number; marginPct: number
+      invoicesCount: number; expensesCount: number
+    }
+    marketplace: {
+      ordersCount: number; groupsWithPayments: number; revenueCollected: number; revenuePending: number
+      serviceFees: number; insuranceFees: number; shippingCollected: number; discountsGranted: number
+    }
+    xeuy: {
+      paymentsHeld: number; paymentsReleased: number; paymentsPending: number; paymentsRefunded: number
+      paymentsFailed: number; topupsCollected: number; topupsPending: number; totalCollected: number
+    }
+  }
+  global?: {
+    revenueCollected: number; revenuePending: number; expensesPaid: number; treasuryBalance: number
+  }
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -208,22 +227,22 @@ export default function TreasuryDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Solde de trésorerie"
-          value={fmt(k.treasuryBalance)}
+          value={fmt(data.global?.treasuryBalance ?? k.treasuryBalance)}
           sub={`Projeté: ${fmt(k.projectedBalance)}`}
           icon={Wallet}
-          color={k.treasuryBalance >= 0 ? 'emerald' : 'red'}
+          color={(data.global?.treasuryBalance ?? k.treasuryBalance) >= 0 ? 'emerald' : 'red'}
           accent
         />
         <KpiCard
           label="Revenus encaissés"
-          value={fmt(k.revenueCollected)}
-          sub={`Facturé: ${fmt(k.revenueBilled)}`}
+          value={fmt(data.global?.revenueCollected ?? k.revenueCollected)}
+          sub={`Dont corporate facturé: ${fmt(k.revenueBilled)}`}
           icon={TrendingUp}
           color="green"
         />
         <KpiCard
           label="Dépenses payées"
-          value={fmt(k.expensesPaid)}
+          value={fmt(data.global?.expensesPaid ?? k.expensesPaid)}
           sub={`Total: ${fmt(k.expensesTotal)}`}
           icon={TrendingDown}
           color="orange"
@@ -236,6 +255,71 @@ export default function TreasuryDashboard() {
           color={k.grossMargin >= 0 ? 'blue' : 'red'}
         />
       </div>
+
+      {/* Finance par domaine + consolidation */}
+      {data.domains && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-stone-500" />
+            <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wide">Finance par domaine</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Corporate */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-emerald-100 p-2 rounded-lg"><Building2 className="h-4 w-4 text-emerald-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Corporate</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.corporate.revenueCollected)} bold />
+                <DomainRow label="Facturé" value={fmt(data.domains.corporate.revenueBilled)} />
+                <DomainRow label="Créances" value={fmt(data.domains.corporate.receivablesOpen)} />
+                <DomainRow label="Dépenses payées" value={fmt(data.domains.corporate.expensesPaid)} />
+                <DomainRow label="Marge" value={`${fmt(data.domains.corporate.margin)} (${data.domains.corporate.marginPct.toFixed(1)}%)`} />
+              </div>
+              <p className="text-[11px] text-stone-400 mt-3">{data.domains.corporate.invoicesCount} factures · {data.domains.corporate.expensesCount} dépenses</p>
+            </div>
+            {/* Marketplace */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-blue-100 p-2 rounded-lg"><ShoppingBag className="h-4 w-4 text-blue-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Marketplace DDM+</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.marketplace.revenueCollected)} bold />
+                <DomainRow label="En attente" value={fmt(data.domains.marketplace.revenuePending)} />
+                <DomainRow label="Frais service" value={fmt(data.domains.marketplace.serviceFees)} />
+                <DomainRow label="Assurance" value={fmt(data.domains.marketplace.insuranceFees)} />
+                <DomainRow label="Remises accordées" value={fmt(data.domains.marketplace.discountsGranted)} />
+              </div>
+              <p className="text-[11px] text-stone-400 mt-3">{data.domains.marketplace.ordersCount} commandes · {data.domains.marketplace.groupsWithPayments} groupes payés</p>
+            </div>
+            {/* Xeuy */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-violet-100 p-2 rounded-lg"><Zap className="h-4 w-4 text-violet-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Xeuy Services</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.xeuy.totalCollected)} bold />
+                <DomainRow label="En séquestre" value={fmt(data.domains.xeuy.paymentsHeld)} />
+                <DomainRow label="Reversé" value={fmt(data.domains.xeuy.paymentsReleased)} />
+                <DomainRow label="Recharges wallet" value={fmt(data.domains.xeuy.topupsCollected)} />
+                <DomainRow label="En attente" value={fmt(data.domains.xeuy.paymentsPending + data.domains.xeuy.topupsPending)} />
+              </div>
+            </div>
+          </div>
+          {data.global && (
+            <div className="bg-stone-900 text-white rounded-2xl px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
+              <span className="font-semibold uppercase tracking-wide text-xs text-stone-400">Global consolidé</span>
+              <span>Encaissé : <b>{fmt(data.global.revenueCollected)}</b></span>
+              <span>En attente : <b>{fmt(data.global.revenuePending)}</b></span>
+              <span>Dépensé : <b>{fmt(data.global.expensesPaid)}</b></span>
+              <span>Solde trésorerie : <b className={data.global.treasuryBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(data.global.treasuryBalance)}</b></span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sous-KPIs : créances/dettes / BRS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -546,6 +630,15 @@ function KpiCard({ label, value, sub, icon: Icon, color, accent }: any) {
       <p className="text-xs text-stone-500 font-medium">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${c.text}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500 mt-1">{sub}</p>}
+    </div>
+  )
+}
+
+function DomainRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-stone-500">{label}</span>
+      <span className={bold ? 'font-bold text-stone-900' : 'text-stone-700'}>{value}</span>
     </div>
   )
 }
