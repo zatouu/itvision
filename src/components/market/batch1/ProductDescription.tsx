@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { formatDescription, type DescBlock } from '@/lib/catalog/description-format'
+import MediaLightbox from '@/components/market/MediaLightbox'
 
 /**
  * Rendu premium « façon Taobao » de la description produit :
@@ -17,6 +19,7 @@ export default function ProductDescription({
   specs?: [string, string][]
   descriptionImages?: string[]
 }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const blocks = formatDescription(description)
   const hasSpecs = specs.length > 0
   const hasContent = blocks.length > 0 || hasSpecs || descriptionImages.length > 0
@@ -62,16 +65,32 @@ export default function ProductDescription({
       {descriptionImages.length > 0 && (
         <div className="-mx-1 space-y-2">
           {descriptionImages.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <button
               key={i}
-              src={src}
-              alt=""
-              loading="lazy"
-              className="w-full rounded-lg object-cover"
-            />
+              type="button"
+              onClick={() => setLightboxIndex(i)}
+              className="block w-full cursor-zoom-in"
+              aria-label="Agrandir l'image"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                className="w-full rounded-lg object-cover transition hover:brightness-95"
+              />
+            </button>
           ))}
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <MediaLightbox
+          images={descriptionImages}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onIndexChange={setLightboxIndex}
+        />
       )}
     </div>
   )

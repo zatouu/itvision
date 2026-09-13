@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { Icon } from './Icon';
+import MediaLightbox from '@/components/market/MediaLightbox';
 
 interface ProductImageGalleryProps {
   images: string[]
@@ -231,33 +231,13 @@ export default function ProductImageGallery({
       </div>
 
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
-          onClick={() => { setLightbox(false); setScale(1); setPan({ x: 0, y: 0 }); }}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); setLightbox(false); setScale(1); setPan({ x: 0, y: 0 }); }}
-            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white"
-          >
-            <Icon name="x" size={20} />
-          </button>
-          <img
-            src={imageSrc}
-            alt={name}
-            draggable={false}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onClick={(e) => e.stopPropagation()}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
-            className="max-h-full max-w-full object-contain transition-transform duration-200"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-              transformOrigin: 'center center',
-              touchAction: 'none',
-            }}
-          />
-        </div>
+        <MediaLightbox
+          images={images}
+          index={active}
+          name={name}
+          onClose={() => { setLightbox(false); setScale(1); setPan({ x: 0, y: 0 }); }}
+          onIndexChange={(i) => setActive(i)}
+        />
       )}
     </div>
   );
