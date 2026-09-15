@@ -64,6 +64,21 @@ export default function ScreenGroups() {
   // Référence = prix produit réel (basePrice = meilleur palier, pas le prix plein)
   const simSavings = Math.max(0, ((PRODUCT?.price ?? 0) - simTier.unit) * simQty);
 
+  // Courbe de prix — calculée sur les vrais paliers quantité du moteur.
+  // x = quantité, y = indice de prix (100 = prix unitaire).
+  // Hooks AVANT l'early return loading (règle react-hooks).
+  const curvePoints = useMemo(() => {
+    const pts = [{ qty: 1, idx: 100 }];
+    for (const t of QUANTITY_TIERS) pts.push({ qty: t.minQuantity, idx: 100 - t.discountPercent });
+    const last = QUANTITY_TIERS[QUANTITY_TIERS.length - 1];
+    if (last) pts.push({ qty: last.minQuantity + 20, idx: 100 - last.discountPercent });
+    return pts;
+  }, []);
+  const maxQty = curvePoints[curvePoints.length - 1]?.qty ?? 120;
+  const cx = (q: number) => 24 + (q / maxQty) * 296;
+  const cy = (idx: number) => 16 + ((100 - idx) / 20) * 128;
+  const curvePath = curvePoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${cx(p.qty).toFixed(1)} ${cy(p.idx).toFixed(1)}`).join(' ');
+
   if (loading) {
     return (
       <div className="min-h-full bg-slate-50 dark:bg-slate-950">
@@ -78,23 +93,8 @@ export default function ScreenGroups() {
   }
 
   const hasGroups = GROUPS.length > 0;
-  const maxSave = GROUPS.length ? Math.max(...GROUPS.map((g) => g.save ?? 0)) : 0;
   const totalParticipants = GROUPS.reduce((s, g) => s + (g.participants ?? 0), 0);
   const avgSave = GROUPS.length ? Math.round(GROUPS.reduce((s, g) => s + (g.save ?? 0), 0) / GROUPS.length) : 0;
-
-  // Courbe de prix — calculée sur les vrais paliers quantité du moteur.
-  // x = quantité, y = indice de prix (100 = prix unitaire).
-  const curvePoints = useMemo(() => {
-    const pts = [{ qty: 1, idx: 100 }];
-    for (const t of QUANTITY_TIERS) pts.push({ qty: t.minQuantity, idx: 100 - t.discountPercent });
-    const last = QUANTITY_TIERS[QUANTITY_TIERS.length - 1];
-    if (last) pts.push({ qty: last.minQuantity + 20, idx: 100 - last.discountPercent });
-    return pts;
-  }, []);
-  const maxQty = curvePoints[curvePoints.length - 1]?.qty ?? 120;
-  const cx = (q: number) => 24 + (q / maxQty) * 296;
-  const cy = (idx: number) => 16 + ((100 - idx) / 20) * 128;
-  const curvePath = curvePoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${cx(p.qty).toFixed(1)} ${cy(p.idx).toFixed(1)}`).join(' ');
 
   const steps = [
     { n: '01', icon: 'search', ttl: 'Choisissez', sub: 'un produit du catalogue ou un groupe existant' },
