@@ -454,6 +454,9 @@ export async function GET(request: NextRequest) {
          },
          pricing,
          b2bPrice: product.b2bPrice ?? null,
+         // Une sélection de variante est obligatoire côté serveur avant devis :
+         // la carte doit renvoyer vers la fiche plutôt que proposer un ajout direct.
+         hasVariants: Array.isArray(product.variantGroups) && product.variantGroups.length > 0,
          // Backwards compat for older consumers
          price: pricing.salePrice ?? product.price ?? product.baseCost ?? null,
          weightKg,

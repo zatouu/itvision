@@ -9,6 +9,8 @@ import { useSourcingModal } from '../SourcingModalContext';
 import { Icon } from '../Icon';
 import { Button } from '../Button';
 import { ProductCard } from '../ProductCard';
+import { ProductGridSkeleton } from '../Skeleton';
+import { useQuickAdd } from '../useQuickAdd';
 import { mapCatalogItem, mapCategory } from '../data-mappers';
 import { productMatchesCategory } from '@/lib/catalog/category-match';
 import type { Product, Category } from '../types';
@@ -27,6 +29,7 @@ const SORT_MAP: Record<string, string> = {
 export default function ScreenCatalog() {
   const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
+  const { quickAdd, toast: quickAddToast } = useQuickAdd();
   const [loading, setLoading] = useState(true);
   const [CATEGORIES, setCATEGORIES] = useState<Category[]>([]);
   const [CATALOG, setCATALOG] = useState<Product[]>([]);
@@ -121,13 +124,19 @@ export default function ScreenCatalog() {
     return () => obs.disconnect();
   }, [hasMore, loading, loadingMore, page, loadPage]);
 
-  // Paramètres d'entrée : ?cat=<slug> (catégorie) et ?q=<recherche>
+  // Paramètres d'entrée : ?cat=<slug>, ?q=<recherche>, ?moq=<bucket>, ?groupe=1
+  const MOQ_BUCKETS = ['1-4', '5-9', '10-24', '25+'];
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const catParam = params.get('cat') || params.get('category');
     const qParam = params.get('q');
+    const moqParam = params.get('moq');
     if (catParam) setCat(catParam);
     if (qParam) setQuery(qParam);
+    // « lot » = raccourci vitrine vers les produits à lot conséquent
+    if (moqParam === 'lot') setMoqFilter('25+');
+    else if (moqParam && MOQ_BUCKETS.includes(moqParam)) setMoqFilter(moqParam);
+    if (params.get('groupe') === '1') setGroupOnly(true);
   }, []);
 
   // Plage de prix réelle du catalogue (le slider suit le max observé)
@@ -256,11 +265,30 @@ export default function ScreenCatalog() {
   );
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-5 md:px-6">
+        <div className="h-10 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+        <ProductGridSkeleton count={8} className="mt-4" />
+      </div>
+    );
   }
 
-  if (CATALOG.length === 0 && !loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Aucun produit dans le catalogue</div>;
+  // Catalogue réellement vide : proposer la seule action utile (sourcing).
+  if (CATALOG.length === 0) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-6 py-20 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+          <Icon name="package" size={26} />
+        </span>
+        <p className="mt-4 text-[15px] font-extrabold text-slate-900 dark:text-white">Catalogue momentanément vide</p>
+        <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
+          Dites-nous ce que vous cherchez : notre équipe en Chine vous répond sous 24h ouvrées.
+        </p>
+        <Button variant="violet" size="md" className="mt-5" onClick={openSourcing}>
+          <Icon name="camera" size={14} />Demander un sourcing
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -321,7 +349,7 @@ export default function ScreenCatalog() {
             <div className="p-4">
               <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""}</p>
               <div className="grid grid-cols-2 gap-3">
-                {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
               </div>
               {LoadMore()}
             </div>
@@ -423,7 +451,7 @@ export default function ScreenCatalog() {
             ) : (
               <Fragment>
                 <div className="grid grid-cols-4 gap-4">
-                  {filtered.map((p) => <ProductCard key={p.id} product={p} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                  {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
                 </div>
                 <div className="mt-4 flex items-center justify-center">
                   <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {filtered.length} / {displayCount}</span>
@@ -436,6 +464,7 @@ export default function ScreenCatalog() {
       </div>
     </div>
   </div>
+  {quickAddToast}
 </>
   );
 

@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   Bell,
   Boxes,
   Camera,
@@ -59,6 +60,7 @@ const ICONS = {
   user: User,
   search: Search,
   heart: Heart,
+  barChart: BarChart3,
   camera: Camera,
   package: Package,
   clock: Clock,

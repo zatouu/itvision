@@ -1,5 +1,6 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
 import { DEFAULT_EXCHANGE_RATE } from './pricing/exchange-rate'
+import { resolveDisplayPrice } from './pricing/display-price'
 
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
@@ -171,8 +172,9 @@ export const formatSimilarProducts = (
         tags: normalizeTags(item),
       image: normalizeGallery(item)[0] ?? '/placeholder.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
-      // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice
-      priceAmount: !item.requiresQuote ? (pricing.baseCost ?? pricing.salePrice) : null,
+      // Prix tout compris (marchandise + frais de service + assurance), cohérent
+      // avec le catalogue et le devis serveur — `baseCost` seul sous-affichait.
+      priceAmount: !item.requiresQuote ? resolveDisplayPrice(pricing, item.price) || null : null,
       currency: pricing.currency,
       requiresQuote: item.requiresQuote ?? false,
       availabilityStatus: item.stockStatus ?? 'preorder',

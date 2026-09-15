@@ -12,18 +12,22 @@ import { Section } from '../Section';
 import { TrustStrip } from '../TrustStrip';
 import { ProgressBar } from '../ProgressBar';
 import { ProductCard } from '../ProductCard';
+import { HomeSkeleton } from '../Skeleton';
+import { useQuickAdd } from '../useQuickAdd';
 import { mapCatalogItem, mapGroupOrder, mapCategory } from '../data-mappers';
-import type { Product, Group, Category, Testimonial } from '../types';
+import { QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing';
+import { SERVICE_FEE_TIERS } from '@/lib/pricing/tiered-service-fees';
+import type { Product, Group, Category } from '../types';
 
 
 export default function ScreenHome() {
   const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
+  const { quickAdd, toast: quickAddToast } = useQuickAdd();
   const [loading, setLoading] = useState(true);
   const [CATALOG, setCATALOG] = useState<Product[]>([]);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
   const [CATEGORIES, setCATEGORIES] = useState<Category[]>([]);
-  const TESTIMONIALS: Testimonial[] = [];
 
   useEffect(() => {
     setLoading(true);
@@ -55,8 +59,41 @@ export default function ScreenHome() {
     ? Math.round(liveGroups.reduce((s, g) => s + (g.save || 0), 0) / liveGroups.length)
     : 0;
 
+  // Paliers de remise quantité dérivés du moteur de prix : la vitrine annonçait
+  // « 5-9 pcs → -13% / 25+ → -40% » alors que le moteur applique 20+ → -5%,
+  // 50+ → -10%, 100+ → -15%. Les chiffres viennent désormais de la source.
+  const quantityTierRows = useMemo(() => {
+    const first = QUANTITY_TIERS[0];
+    return [
+      {
+        qty: first ? `1-${first.minQuantity - 1} pcs` : '1+ pcs',
+        price: 'Prix unitaire',
+        muted: true,
+        icon: 'x',
+        highlight: false,
+      },
+      ...QUANTITY_TIERS.map((t, i) => ({
+        qty: t.maxQuantity ? `${t.minQuantity}-${t.maxQuantity} pcs` : `${t.minQuantity}+ pcs`,
+        price: `-${t.discountPercent}%`,
+        muted: false,
+        icon: i === QUANTITY_TIERS.length - 1 ? 'flame' : 'check',
+        highlight: i === QUANTITY_TIERS.length - 1,
+      })),
+    ];
+  }, []);
+
+  const maxQuantityDiscount = useMemo(
+    () => QUANTITY_TIERS.reduce((m, t) => Math.max(m, t.discountPercent), 0),
+    []
+  );
+  const standardServiceFeeRate = SERVICE_FEE_TIERS[0]?.feeRate ?? 10;
+  const bestServiceFeeRate = useMemo(
+    () => SERVICE_FEE_TIERS.reduce((m, t) => Math.min(m, t.feeRate), standardServiceFeeRate),
+    [standardServiceFeeRate]
+  );
+
   if (loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+    return <HomeSkeleton />;
   }
 
   
@@ -103,7 +140,7 @@ export default function ScreenHome() {
                 <p className="mt-2 text-[12px] leading-snug text-white/85">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 4-45 jours.</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap"><Icon name="camera" size={11}/>Trouvez-moi 24h</span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap"><Icon name="users" size={11}/>Groupés −45%</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap"><Icon name="users" size={11}/>Achats groupés</span>
                   <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap"><Icon name="package" size={11}/>Prix par palier</span>
                 </div>
                 <div className="mt-4 flex gap-2">
@@ -161,14 +198,14 @@ export default function ScreenHome() {
           {/* Best sellers mobile : horizontal scroll */}
           {popular.length > 0 && (
             <Section
-              title="⭐ Best sellers"
+              title="À la une"
               className="mt-4"
               right={<Link href="/produits" className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Voir tout</Link>}
             >
               <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
                 {popular.map((p) => (
                   <div key={p.id} className="flex-shrink-0 snap-start w-[150px]">
-                    <ProductCard product={p} onClick={() => router.push(`/produits/${p.id}`)}/>
+                    <ProductCard product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>
                   </div>
                 ))}
               </div>
@@ -180,8 +217,8 @@ export default function ScreenHome() {
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">3 façons d’importer</p>
             {[
               { icon: "camera", tone: "violet", tag: "01 · Sourcing", ttl: "Trouvez-moi ce produit en 24h", sub: "Photo, lien ou description → devis garanti sous 24h ouvrées." },
-              { icon: "users", tone: "emerald", tag: "02 · Groupes", ttl: "Rejoignez un achat groupé", sub: "Plus on est nombreux, moins c’est cher — jusqu’à -45%." },
-              { icon: "package", tone: "amber", tag: "03 · Lot minimum", ttl: "Débloquez le prix par palier", sub: "À partir de X unités, économisez jusqu’à -40%." },
+              { icon: "users", tone: "emerald", tag: "02 · Groupes", ttl: "Rejoignez un achat groupé", sub: liveGroups.length > 0 && avgSave > 0 ? `${liveGroups.length} groupe${liveGroups.length > 1 ? 's' : ''} en cours · −${avgSave}% en moyenne.` : "Plus on est nombreux, plus le prix baisse." },
+              { icon: "package", tone: "amber", tag: "03 · Lot minimum", ttl: "Débloquez le prix par palier", sub: `Dès ${QUANTITY_TIERS[0]?.minQuantity ?? 20} unités, jusqu’à −${maxQuantityDiscount}% sur la commande.` },
             ].map((b, i) => {
               const toneMap: Record<string, string> = {
                 violet: "bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
@@ -193,9 +230,13 @@ export default function ScreenHome() {
                 emerald: "text-emerald-700 dark:text-emerald-400",
                 amber: "text-amber-700 dark:text-amber-300",
               };
-              const routes: Record<string, string> = { camera: '/produits', users: '/achats-groupes', package: '/produits' };
+              // La carte Sourcing doit ouvrir le formulaire de demande — elle
+              // renvoyait au catalogue, c'est-à-dire l'inverse de sa promesse.
+              const activate = b.icon === 'camera'
+                ? openSourcing
+                : () => router.push(b.icon === 'users' ? '/achats-groupes' : '/produits?moq=lot');
               return (
-                <Card key={i} onClick={() => router.push(routes[b.icon] || '/produits')} className="cursor-pointer overflow-hidden hover:shadow-md transition-shadow">
+                <Card key={i} onClick={activate} className="cursor-pointer overflow-hidden hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3 p-3">
                     <span className={cn("grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl", toneMap[b.tone])}>
                       <Icon name={b.icon} size={22}/>
@@ -252,14 +293,9 @@ export default function ScreenHome() {
                   <p className="text-[14px] font-extrabold text-slate-900 dark:text-white leading-tight">Pourquoi commander en quantité ?</p>
                 </div>
               </div>
-              <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400 leading-snug">Le prix baisse par palier. Plus vous commandez, plus vous économisez.</p>
+              <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400 leading-snug">Le prix baisse par palier. Plus vous commandez, plus vous économisez — et les frais de service passent de {standardServiceFeeRate}% à {bestServiceFeeRate}% sur les gros volumes.</p>
               <div className="mt-3 space-y-1.5">
-                {[
-                  { qty: "1-4 pcs", price: "Prix local", icon: "x", muted: true },
-                  { qty: "5-9 pcs", price: "-13%", icon: "check", muted: false },
-                  { qty: "10-24 pcs", price: "-25%", icon: "check", muted: false, highlight: true },
-                  { qty: "25+ pcs", price: "-40%", icon: "flame", muted: false },
-                ].map((t, i) => (
+                {quantityTierRows.map((t, i) => (
                   <div key={i} className={cn("flex items-center justify-between rounded-lg px-3 py-1.5", t.highlight ? "bg-white dark:bg-slate-900 shadow-sm" : "")}>
                     <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 tabular-nums inline-flex items-center gap-1">
                       <Icon name={t.icon as string} size={11} className={cn(t.muted ? "text-slate-400" : "text-emerald-600")} />
@@ -299,29 +335,6 @@ export default function ScreenHome() {
           <div className="mt-6 px-4">
             <TrustStrip compact/>
           </div>
-
-          {/* Testimonials */}
-          {TESTIMONIALS.length > 0 && (
-            <Section title="Ils nous font confiance" className="mt-6">
-              <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
-                {TESTIMONIALS.map((t) => (
-                  <Card key={t.initials} className="flex-shrink-0 w-[260px] p-4">
-                    <div className="mb-2 flex text-amber-500">
-                      {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={13} strokeWidth={0} className={i < t.rating ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
-                    </div>
-                    <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">« {t.quote} »</p>
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[10px] font-extrabold text-white">{t.initials}</span>
-                      <div>
-                        <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">{t.handle}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{t.role}</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </Section>
-          )}
 
           <div className="mt-6 px-4 py-6 text-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">DDM+ · Dieund Dal Ma</p>
@@ -364,7 +377,7 @@ export default function ScreenHome() {
                 <p className="mt-3 max-w-md text-[15px] text-white/85 leading-snug">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 4-45 jours selon votre choix.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap"><Icon name="camera" size={13}/>Trouvez-moi 24h</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap"><Icon name="users" size={13}/>Achats groupés −45%</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap"><Icon name="users" size={13}/>Achats groupés</span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap"><Icon name="package" size={13}/>Prix par palier</span>
                 </div>
                 <div className="mt-5 flex gap-3">
@@ -377,7 +390,7 @@ export default function ScreenHome() {
               <div className="relative">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="inline-flex items-center gap-1 rounded-md bg-slate-900/40 backdrop-blur px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-ping-slow"/>Best sellers
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-ping-slow"/>À la une
                   </span>
                   <Link href="/produits" className="text-[11px] font-bold text-white/90 hover:text-white cursor-pointer">Voir tout →</Link>
                 </div>
@@ -461,13 +474,15 @@ export default function ScreenHome() {
         {CATALOG.length > 0 && (
         <div className="mt-10">
           <div className="mb-3 flex items-baseline justify-between">
+            {/* L'API trie par mise en avant puis nouveauté — « populaires cette
+                semaine » laissait croire à un signal de ventes inexistant. */}
             <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white inline-flex items-center gap-1.5">
-              <Icon name="flame" size={18} className="text-red-500"/> Populaires cette semaine
+              <Icon name="sparkles" size={18} className="text-emerald-600"/> Sélection DDM+
             </h2>
             <Link href="/produits" className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap cursor-pointer">Voir tous →</Link>
           </div>
           <div className="grid grid-cols-6 gap-3">
-            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg" onClick={() => router.push(`/produits/${p.id}`)}/>)}
+            {CATALOG.slice(0, 6).map((p) => <ProductCard key={p.id} product={p} size="lg" onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
           </div>
         </div>
         )}
@@ -478,8 +493,8 @@ export default function ScreenHome() {
           <div className="grid grid-cols-3 gap-4">
             {[
               { icon: "camera", tone: "violet", tag: "01 · Sourcing", ttl: "Trouvez-moi 24h", sub: "Photo, lien ou description — devis garanti sous 24h ouvrées par notre équipe en Chine.", cta: "Envoyer une demande" },
-              { icon: "users", tone: "emerald", tag: "02 · Groupes", ttl: "Achats groupés", sub: "Rejoignez ou créez un groupe. Plus on est nombreux, plus le prix baisse — jusqu’à -45%.", cta: "Voir les groupes actifs" },
-              { icon: "package", tone: "amber", tag: "03 · Lot minimum", ttl: "Prix par palier", sub: "Le prix baisse par tranche. Simulez votre lot en un clic pour voir votre économie.", cta: "Calculer mon lot" },
+              { icon: "users", tone: "emerald", tag: "02 · Groupes", ttl: "Achats groupés", sub: liveGroups.length > 0 && avgSave > 0 ? `${liveGroups.length} groupe${liveGroups.length > 1 ? 's' : ''} en cours, −${avgSave}% d’économie moyenne sur les groupes ouverts.` : "Rejoignez ou créez un groupe : plus on est nombreux, plus le prix baisse.", cta: "Voir les groupes actifs" },
+              { icon: "package", tone: "amber", tag: "03 · Lot minimum", ttl: "Prix par palier", sub: `Remise quantité dès ${QUANTITY_TIERS[0]?.minQuantity ?? 20} unités, jusqu’à −${maxQuantityDiscount}%, et frais de service dégressifs de ${standardServiceFeeRate}% à ${bestServiceFeeRate}%.`, cta: "Voir les produits en lot" },
             ].map((b, i) => {
               const toneMap: Record<string, string> = {
                 violet: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
@@ -491,9 +506,12 @@ export default function ScreenHome() {
                 emerald: "text-emerald-700 dark:text-emerald-400",
                 amber: "text-amber-700 dark:text-amber-300",
               };
-              const routes: Record<string, string> = { camera: '/produits', users: '/achats-groupes', package: '/produits' };
+              // « Envoyer une demande » doit ouvrir le formulaire de sourcing.
+              const activate = b.icon === 'camera'
+                ? openSourcing
+                : () => router.push(b.icon === 'users' ? '/achats-groupes' : '/produits?moq=lot');
               return (
-                <Card key={i} onClick={() => router.push(routes[b.icon] || '/produits')} className="cursor-pointer p-5 hover:shadow-md transition-shadow group" tabIndex={0}>
+                <Card key={i} onClick={activate} className="cursor-pointer p-5 hover:shadow-md transition-shadow group" tabIndex={0}>
                   <div className="mb-3 flex items-center justify-between">
                     <span className={cn("grid h-12 w-12 place-items-center rounded-xl", toneMap[b.tone])}>
                       <Icon name={b.icon} size={22}/>
@@ -548,15 +566,10 @@ export default function ScreenHome() {
                 <h3 className="text-[20px] font-extrabold text-slate-900 dark:text-white tracking-tight">Pourquoi commander en quantité ?</h3>
               </div>
             </div>
-            <p className="mt-3 text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed">Le prix baisse par palier. Plus vous commandez, plus vous économisez — le fournisseur négocie mieux à volume.</p>
+            <p className="mt-3 text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed">Le prix baisse par palier et les frais de service sont dégressifs : {standardServiceFeeRate}% en standard, jusqu&apos;à {bestServiceFeeRate}% sur les gros volumes.</p>
             <div className="mt-4 space-y-1.5">
-              {[
-                { qty: "1-4 pcs", price: "Prix local", icon: "x", muted: true, bg: "" },
-                { qty: "5-9 pcs", price: "-13%", icon: "check", muted: false, bg: "" },
-                { qty: "10-24 pcs", price: "-25%", icon: "check", muted: false, bg: "bg-white shadow-sm dark:bg-slate-900" },
-                { qty: "25+ pcs", price: "-40%", icon: "flame", muted: false, bg: "" },
-              ].map((t, i) => (
-                <div key={i} className={cn("flex items-center justify-between rounded-lg px-3 py-2", t.bg)}>
+              {quantityTierRows.map((t, i) => (
+                <div key={i} className={cn("flex items-center justify-between rounded-lg px-3 py-2", t.highlight ? "bg-white shadow-sm dark:bg-slate-900" : "")}>
                   <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-300 tabular-nums inline-flex items-center gap-1">
                     <Icon name={t.icon as string} size={12} className={cn(t.muted ? "text-slate-400" : "text-emerald-600")} />
                     {t.qty}
@@ -607,47 +620,12 @@ export default function ScreenHome() {
           <TrustStrip/>
         </div>
 
-        {/* Testimonials */}
-        {TESTIMONIALS.length > 0 && (
-        <div className="mt-10">
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white">Ils nous font confiance</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {TESTIMONIALS.map((t) => (
-              <Card key={t.initials} className="p-5">
-                <div className="mb-3 flex text-amber-500">
-                  {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={14} strokeWidth={0} className={i < t.rating ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}
-                </div>
-                <p className="text-[14px] leading-relaxed text-slate-700 dark:text-slate-300">« {t.quote} »</p>
-                <div className="mt-4 flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[12px] font-extrabold text-white">{t.initials}</span>
-                  <div>
-                    <p className="text-[13px] font-bold text-slate-900 dark:text-white">{t.handle}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{t.role}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-        )}
-
-        {/* Footer */}
-        <div className="mt-14 border-t border-slate-200 pt-6 pb-4 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-white"><span className="text-emerald-600">DDM</span>+</p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Import direct Chine → Sénégal · Escrow Mobile Money · Support 7j/7</p>
-            </div>
-            <div className="flex gap-4 text-[12px] text-slate-500 dark:text-slate-400">
-              <Link href="/produits">À propos</Link><Link href="/contact">Contact</Link><Link href="/cgv">CGU</Link><Link href="/politique-confidentialite">Confidentialité</Link>
-            </div>
-          </div>
-        </div>
+        {/* Le footer est monté par (market)/layout.tsx — en rendre un second ici
+            produisait deux pieds de page empilés sur /market en desktop. */}
       </div>
     </div>
   </div>
+  {quickAddToast}
 </>
   );
 

@@ -11,6 +11,7 @@ import type {
   PriceTier,
 } from './types';
 import { filterSpecEntries } from '@/lib/catalog/description-format';
+import { resolveDisplayPrice, toAllIn, describeIncludedFees } from '@/lib/pricing/display-price';
 import { ICON_NAMES } from './Icon';
 
 export function fmtDeadline(date: string | Date | null | undefined): string {
@@ -29,13 +30,28 @@ export function fmtDeadline(date: string | Date | null | undefined): string {
 }
 
 export function mapCatalogItem(p: any): Product {
-  const price = p?.pricing?.salePrice ?? p?.price ?? 0;
-  const base = p?.pricing?.baseCost ?? p?.baseCost ?? p?.price ?? 0;
+  // Prix affiché = tout compris (marchandise + frais de service + assurance),
+  // aligné sur le devis serveur. Le transport reste hors prix unitaire.
+  const price = resolveDisplayPrice(p?.pricing, p?.price);
   const moq =
     typeof p?.minOrderQty === 'number' && p.minOrderQty > 0 ? p.minOrderQty : 1;
-  const save =
-    p?.groupBuyDiscount ??
-    (base > 0 && price > 0 ? Math.round(((base - price) / base) * 100) : 0);
+
+  // Meilleure référence réellement moins chère (palier quantité ou prix groupe),
+  // portée au niveau tout compris. Aucune remise inventée : sans référence
+  // inférieure, pas de prix barré ni de badge.
+  const tierPrices = Array.isArray(p?.priceTiers)
+    ? p.priceTiers
+        .map((t: any) => (typeof t?.price === 'number' && t.price > 0 ? t.price : null))
+        .filter((v: number | null): v is number => v !== null)
+    : [];
+  const bestTierAllIn = tierPrices.length > 0
+    ? toAllIn(Math.min(...tierPrices), p?.pricing)
+    : 0;
+  const bestGroupAllIn = typeof p?.groupBuyBestPrice === 'number' && p.groupBuyBestPrice > 0
+    ? toAllIn(p.groupBuyBestPrice, p?.pricing)
+    : 0;
+  const bestAllIn = [bestTierAllIn, bestGroupAllIn].filter((v) => v > 0 && v < price).sort((a, b) => a - b)[0] ?? 0;
+  const save = bestAllIn > 0 && price > 0 ? Math.round(((price - bestAllIn) / price) * 100) : 0;
 
   const activeGroup = p?.groupStats?.bestActiveGroup;
   const groupBuy = activeGroup
@@ -51,10 +67,10 @@ export function mapCatalogItem(p: any): Product {
               ? activeGroup.participants.length
               : 0,
         deadline: fmtDeadline(activeGroup.deadline),
-        unitPrice: activeGroup.currentPrice ?? price,
+        unitPrice: toAllIn(activeGroup.currentPrice, p?.pricing) || price,
         savePct:
-          base > 0 && activeGroup.currentPrice
-            ? Math.round(((base - activeGroup.currentPrice) / base) * 100)
+          price > 0 && toAllIn(activeGroup.currentPrice, p?.pricing) > 0
+            ? Math.max(0, Math.round(((price - toAllIn(activeGroup.currentPrice, p?.pricing)) / price) * 100))
             : 0,
       }
     : undefined;
@@ -63,20 +79,25 @@ export function mapCatalogItem(p: any): Product {
     id: p?._id || p?.id || '',
     name: p?.name || 'Produit',
     brand: p?.sellerName || p?.category || 'DDM+',
-    rating: p?.rating ?? 4.5,
+    // Aucune note par défaut : sans avis, la carte n'affiche pas d'étoiles.
+    rating: typeof p?.rating === 'number' && p.rating > 0 ? p.rating : 0,
     reviews: p?.reviewCount ?? 0,
     reviewCount: p?.reviewCount ?? 0,
     images: [p?.image || '/placeholder.svg'],
     price,
-    basePrice: base,
+    // Prix barré = meilleure référence réellement inférieure, 0 sinon.
+    basePrice: bestAllIn,
     minOrderQty: moq,
     moq,
-    priceTiers: (p?.priceTiers ?? []).map((t: any) => ({
-      from: t.minQty ?? 1,
-      to: null,
-      unit: t.price ?? price,
-      save: base > 0 && t.price ? Math.round(((base - t.price) / base) * 100) : 0,
-    })),
+    priceTiers: (p?.priceTiers ?? []).map((t: any) => {
+      const unit = toAllIn(t.price, p?.pricing) || price;
+      return {
+        from: t.minQty ?? 1,
+        to: null,
+        unit,
+        save: price > 0 && unit > 0 && unit < price ? Math.round(((price - unit) / price) * 100) : 0,
+      };
+    }),
     groupBuy,
     variants: [],
     specs: [],
@@ -89,39 +110,53 @@ export function mapCatalogItem(p: any): Product {
     verified: !!p?.sellerVerified,
     save,
     createdAt: p?.createdAt,
+    availabilityStatus: p?.availability?.status,
+    hasVariants: !!p?.hasVariants,
+    includedFees: describeIncludedFees(p?.pricing) ?? undefined,
   };
 }
 
 export function mapProductDetail(p: any, activeGroup?: any): Product {
   const pricing = p?.pricing || {};
-  const price = pricing.salePrice ?? p?.price ?? 0;
-  const base = pricing.baseCost ?? p?.baseCost ?? price;
+  // Prix tout compris (marchandise + frais de service + assurance), hors transport.
+  const price = resolveDisplayPrice(pricing, p?.price);
 
   const rawTiers = (p?.priceTiers ?? []) as { minQty?: number; price?: number; discount?: number }[];
   const priceTiers: PriceTier[] = Array.isArray(rawTiers)
     ? rawTiers
         .slice()
         .sort((a, b) => (a.minQty ?? 1) - (b.minQty ?? 1))
-        .map((t, i, arr) => ({
-          from: t.minQty ?? 1,
-          to: arr[i + 1] ? (arr[i + 1].minQty ?? 1) - 1 : null,
-          unit: t.price ?? price,
-          save:
-            t.discount ??
-            (base > 0 && t.price
-              ? Math.round(((base - t.price) / base) * 100)
-              : 0),
-        }))
+        .map((t, i, arr) => {
+          const unit = toAllIn(t.price, pricing) || price;
+          return {
+            from: t.minQty ?? 1,
+            to: arr[i + 1] ? (arr[i + 1].minQty ?? 1) - 1 : null,
+            unit,
+            // Économie mesurée contre le prix unitaire affiché, jamais contre le
+            // coût sourcing (qui est structurellement inférieur au prix de vente).
+            save: price > 0 && unit > 0 && unit < price
+              ? Math.round(((price - unit) / price) * 100)
+              : 0,
+          };
+        })
     : [];
 
+  // Objectif du groupe : valeur configurée uniquement. Pas d'objectif inventé
+  // (l'ancien fallback `minQty × 10` / `100` affichait une barre de progression
+  // mesurée contre une cible qui n'existait pas).
   const groupBuyTarget =
     typeof p?.groupBuyTargetQty === 'number' && p.groupBuyTargetQty > 0
       ? p.groupBuyTargetQty
       : typeof p?.groupBuyMinQty === 'number' && p.groupBuyMinQty > 0
-        ? p.groupBuyMinQty * 10
-        : 100;
+        ? p.groupBuyMinQty
+        : 0;
 
   const groupBest = activeGroup || (p?.groupStats?.bestActiveGroup as any);
+
+  const groupUnitAllIn = toAllIn(
+    p?.groupBuyBestPrice ?? groupBest?.currentPrice ?? groupBest?.currentUnitPrice,
+    pricing
+  );
 
   const groupBuy = p?.groupBuyEnabled
     ? {
@@ -136,13 +171,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
               ? groupBest.participants.length
               : 0,
         deadline: fmtDeadline(groupBest?.deadline),
-        unitPrice:
-          p?.groupBuyBestPrice ?? groupBest?.currentPrice ?? groupBest?.currentUnitPrice ?? price,
+        unitPrice: groupUnitAllIn || price,
         savePct:
-          p?.groupBuyDiscount ??
-          (base > 0 && p?.groupBuyBestPrice
-            ? Math.round(((base - p.groupBuyBestPrice) / base) * 100)
-            : 0),
+          price > 0 && groupUnitAllIn > 0 && groupUnitAllIn < price
+            ? Math.round(((price - groupUnitAllIn) / price) * 100)
+            : 0,
       }
     : undefined;
 
@@ -154,9 +187,12 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
           variants.push({
             id: v.id || String(variants.length + 1),
             label: v.label || v.name || `${g.name}: ${v.value}`,
+            // Stock réel uniquement — les variantes legacy sans stock ne sont pas
+            // contraintes côté serveur, afficher « 100 en stock » était faux.
             stock:
-              typeof v.stock === 'number' ? v.stock : typeof g.stock === 'number' ? g.stock : 100,
-            price: typeof v.price === 'number' && v.price > 0 ? v.price : undefined,
+              typeof v.stock === 'number' ? v.stock : typeof g.stock === 'number' ? g.stock : undefined,
+            // Le prix variante est exprimé au niveau salePrice → tout compris.
+            price: typeof v.price === 'number' && v.price > 0 ? toAllIn(v.price, pricing) : undefined,
             image: typeof v.image === 'string' && v.image ? v.image : undefined,
           });
         }
@@ -219,7 +255,8 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
       p?.category ||
       (p?.isImported ? 'Import direct' : 'DDM+'),
     description: p?.description || p?.tagline || '',
-    rating: p?.rating ?? 4.5,
+    // Aucune note par défaut : sans avis réel, pas d'étoiles.
+    rating: typeof p?.rating === 'number' && p.rating > 0 ? p.rating : 0,
     reviews: p?.reviewCount ?? p?.reviews ?? 0,
     reviewCount: p?.reviewCount ?? p?.reviews ?? 0,
     images:
@@ -227,7 +264,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
         ? p.gallery
         : [p?.image || '/placeholder.svg'],
     price,
-    basePrice: base,
+    // Référence barrée = meilleur palier réellement inférieur, sinon aucune.
+    basePrice: priceTiers.reduce(
+      (best, t) => (t.unit > 0 && t.unit < price && (best === 0 || t.unit < best) ? t.unit : best),
+      0
+    ),
     minOrderQty,
     moq: minOrderQty,
     priceTiers,
@@ -239,16 +280,17 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
       : [],
     shipping: {
       origin: p?.sourcing?.origin || 'Guangzhou, Chine',
-      modes: modes.length > 0 ? modes : [
-        { key: 'express', label: 'Express aérien', days: '3-5j', from: 0 },
-        { key: 'aerien', label: 'Standard aérien', days: '10-15j', from: 0 },
-        { key: 'maritime', label: 'Maritime', days: '45-50j', from: 0 },
-      ],
+      // Pas de modes fictifs : si le produit n'a pas d'options calculées
+      // (produit en stock local, par ex.), la section n'a rien à annoncer.
+      modes,
     },
     cat: p?.category,
     category: p?.category,
     image: p?.image,
     img: p?.image,
+    availabilityStatus: p?.availability?.status,
+    hasVariants: Array.isArray(p?.variantGroups) && p.variantGroups.length > 0,
+    includedFees: describeIncludedFees(pricing) ?? undefined,
   };
 }
 
@@ -548,6 +590,41 @@ export function saveCart(items: CartItem[]) {
   if (typeof window === 'undefined') return;
   localStorage.setItem('cart:items', JSON.stringify(items));
   window.dispatchEvent(new CustomEvent('cart:updated'));
+}
+
+/**
+ * Ajout rapide depuis une carte produit (catalogue, accueil, boutique).
+ *
+ * Réservé aux produits sans groupe de variantes : le devis serveur exige une
+ * sélection par groupe de variantes, un ajout « à l'aveugle » serait rejeté.
+ * La quantité part du lot minimum pour ne pas créer de ligne sous-MOQ.
+ */
+export function quickAddToCart(product: Product): boolean {
+  if (product.hasVariants) return false;
+  const minOrderQty = Math.max(1, product.minOrderQty ?? product.moq ?? 1);
+  const priceTiers = product.priceTiers ?? [];
+  const { tierUnit, nextTier } =
+    priceTiers.length > 0
+      ? getTierForQty(minOrderQty, priceTiers)
+      : { tierUnit: product.price, nextTier: null };
+
+  addToCart({
+    id: product.id,
+    name: product.name,
+    image: product.img || product.image || product.images?.[0] || '/placeholder.svg',
+    unit: product.price,
+    qty: minOrderQty,
+    minOrderQty,
+    priceTiers,
+    tierUnit: tierUnit || product.price,
+    nextTier,
+    hasActiveGroup: !!product.groupBuy?.active,
+    groupUnit: product.groupBuy?.unitPrice,
+    groupId: product.groupBuy?.id,
+    belowMOQ: false,
+    moqDelta: 0,
+  });
+  return true;
 }
 
 export function addToCart(item: CartItem) {

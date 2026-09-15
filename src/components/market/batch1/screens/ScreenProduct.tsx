@@ -17,12 +17,15 @@ import { LiveDot } from '../LiveDot';
 import { Section } from '../Section';
 import ProductImageGallery from '../ProductImageGallery';
 import ProductDescription from '../ProductDescription';
+import { VariantPicker } from '../VariantPicker';
+import { useWishlist } from '../useWishlist';
 import { addToCart, mapProductDetail } from '../data-mappers';
 import type { Product, PriceTier, ProductVariant, ShippingMode } from '../types';
 
 
 export default function ScreenProduct() {
   const router = useRouter();
+  const { isFavorite, toggle: toggleFavorite } = useWishlist();
   const [loading, setLoading] = useState(true);
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
   const [SIMILAR, setSIMILAR] = useState<Product[]>([]);
@@ -188,13 +191,20 @@ export default function ScreenProduct() {
             <h1 className="mt-1 text-[19px] font-extrabold leading-snug tracking-tight text-slate-900 dark:text-white break-words">
               {p.name}
             </h1>
+            {/* Étoiles seulement si des avis existent — sinon on invite à en laisser un */}
             <div className="mt-2 flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-0.5 text-amber-500">
-                {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={13} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"} />)}
-              </span>
-              <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span>
-              <span>·</span>
-              <span>{reviewCount} avis</span>
+              {reviewCount > 0 && p.rating > 0 ? (
+                <>
+                  <span className="flex items-center gap-0.5 text-amber-500">
+                    {Array.from({ length: 5 }).map((_, i) => <Icon key={i} name="star" size={13} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"} />)}
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{p.rating.toFixed(1)}</span>
+                  <span>·</span>
+                  <span>{reviewCount} avis</span>
+                </>
+              ) : (
+                <span>Aucun avis pour le moment</span>
+              )}
             </div>
           </div>
 
@@ -215,7 +225,15 @@ export default function ScreenProduct() {
                 </>
               )}
             </div>
-            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''} · faibles frais de service inclus</p>
+            {/* Composition du prix annoncée explicitement : le devis serveur
+                ajoute ensuite le transport selon le mode choisi. */}
+            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">
+              Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''}
+              {p.includedFees ? ` · ${p.includedFees} inclus` : ''}
+            </p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+              Transport calculé au panier selon le mode de livraison
+            </p>
 
             <button
               onClick={() => setShowMoqExplain((s) => !s)}
@@ -337,30 +355,7 @@ export default function ScreenProduct() {
           {/* Variant */}
           <div className="mt-2 bg-white px-4 py-4 dark:bg-slate-900">
             <p className="mb-2 text-[13px] font-bold text-slate-900 dark:text-white">Configuration</p>
-            <div className="flex flex-wrap gap-2">
-              {p.variants.map((v: ProductVariant) => (
-                <button
-                  key={v.id}
-                  onClick={() => setVariant(v.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-semibold",
-                    variant === v.id
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
-                      : "border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300"
-                  )}
-                >
-                  {v.image && (
-                    <img src={v.image} alt="" className="h-8 w-8 rounded-lg object-cover" loading="lazy" />
-                  )}
-                  <span>
-                    {v.label}
-                    <span className="block text-[10px] font-normal text-slate-500 dark:text-slate-400">
-                      {v.price && v.price !== p.price ? `${formatFcfa(v.price)} · ` : ''}{v.stock} en stock
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <VariantPicker variants={p.variants} value={variant} onChange={setVariant} productPrice={p.price} />
 
             <p className="mb-2 mt-4 text-[13px] font-bold text-slate-900 dark:text-white">Quantité</p>
             <div className="flex items-center gap-3">
@@ -374,7 +369,7 @@ export default function ScreenProduct() {
                 </button>
               </div>
               <div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Total ({qty} pcs)</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Total ({qty} pcs) hors transport</p>
                 <p className="text-[17px] font-extrabold tracking-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(currentUnit * qty)}</p>
               </div>
             </div>
@@ -481,15 +476,30 @@ export default function ScreenProduct() {
         {/* Sticky bottom bar */}
         <div className="absolute bottom-14 left-0 right-0 z-20 border-t border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950">
           <div className="mb-1.5 flex items-center justify-between text-[10px] whitespace-nowrap">
-            <span className="text-slate-500 dark:text-slate-400">Total <b className="text-slate-900 dark:text-white tabular-nums">{formatFcfa(currentUnit * qty)}</b> · {qty} pcs</span>
+            <span className="text-slate-500 dark:text-slate-400">Total <b className="text-slate-900 dark:text-white tabular-nums">{formatFcfa(currentUnit * qty)}</b> · {qty} pcs · hors transport</span>
             {savingsVsBase > 0 && <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">Éco. {formatFcfa(savingsVsBase)}</span>}
           </div>
+          {/* Hiérarchie : « Ajouter » est l'action principale, « Acheter » le
+              raccourci. Les actions secondaires (contact, favori) restent en icône. */}
           <div className="flex gap-1.5">
-            <button onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
+            <button onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-slate-200 text-emerald-700 dark:border-slate-700 dark:text-emerald-400" aria-label="Poser une question sur WhatsApp">
               <Icon name="whatsapp" size={16} />
             </button>
-            <Button variant="outline" size="sm" className="flex-1 !text-[12px] whitespace-nowrap" onClick={handleAddToCart}><Icon name="cart" size={14}/>Ajouter</Button>
-            <Button variant="primary" size="sm" className="flex-1 whitespace-nowrap" onClick={handleBuyNow}>Acheter</Button>
+            <button
+              onClick={() => toggleFavorite(p.id)}
+              aria-label={isFavorite(p.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              aria-pressed={isFavorite(p.id)}
+              className={cn(
+                'grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border transition-colors',
+                isFavorite(p.id)
+                  ? 'border-red-500 bg-red-500 text-white'
+                  : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'
+              )}
+            >
+              <Icon name="heart" size={16} className={isFavorite(p.id) ? 'fill-current' : undefined} />
+            </button>
+            <Button variant="primary" size="sm" className="flex-1 whitespace-nowrap" onClick={handleAddToCart}><Icon name="cart" size={14}/>Ajouter</Button>
+            <Button variant="outline" size="sm" className="flex-shrink-0 !text-[12px] whitespace-nowrap" onClick={handleBuyNow}>Acheter</Button>
           </div>
         </div>
 
@@ -607,8 +617,14 @@ export default function ScreenProduct() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.brand}</p>
                 <h1 className="mt-1 text-xl font-extrabold leading-snug tracking-tight text-slate-900 dark:text-white break-words">{p.name}</h1>
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={12} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}</span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{p.rating}</span> · <span>{reviewCount} avis</span>
+                  {reviewCount > 0 && p.rating > 0 ? (
+                    <>
+                      <span className="flex text-amber-500">{Array.from({length:5}).map((_,i)=><Icon key={i} name="star" size={12} strokeWidth={0} className={i < Math.round(p.rating) ? "fill-amber-500" : "fill-slate-200 dark:fill-slate-700"}/>)}</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{p.rating.toFixed(1)}</span> · <span>{reviewCount} avis</span>
+                    </>
+                  ) : (
+                    <span>Aucun avis pour le moment</span>
+                  )}
                 </div>
 
                 <div className="mt-4 flex items-baseline gap-2">
@@ -617,7 +633,13 @@ export default function ScreenProduct() {
                     <span className="text-sm font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(baseUnit)}</span>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''} · faibles frais de service inclus</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Prix unitaire{selectedVariant ? ` · ${selectedVariant.label}` : ''}
+                  {p.includedFees ? ` · ${p.includedFees} inclus` : ''}
+                </p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                  Transport calculé au panier selon le mode de livraison
+                </p>
 
                 <button onClick={()=>setShowMoqExplain(s=>!s)} className="mt-3 flex w-full items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-left dark:border-amber-900 dark:bg-amber-950/40">
                   <div className="flex items-center gap-2">
@@ -635,6 +657,17 @@ export default function ScreenProduct() {
                   </div>
                 )}
 
+                {/* Sélecteur de variante : absent de cette colonne, il laissait
+                    l'utilisateur desktop figé sur la première variante alors que
+                    prix et stock en dépendent. */}
+                {p.variants.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Configuration</p>
+                    <VariantPicker variants={p.variants} value={variant} onChange={setVariant} productPrice={p.price} size="md" />
+                  </div>
+                )}
+
+                {effectiveTiers.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix par palier</p>
                   <div className="space-y-2">
@@ -658,6 +691,7 @@ export default function ScreenProduct() {
                     </p>
                   )}
                 </div>
+                )}
 
                 <div className="mt-4">
                   <p className="mb-2 text-xs font-bold text-slate-900 dark:text-white">Quantité</p>
@@ -668,7 +702,7 @@ export default function ScreenProduct() {
                       <button onClick={inc} className="grid h-10 w-10 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={16}/></button>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Total ({qty} pcs)</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Total ({qty} pcs) hors transport</p>
                       <p className="text-lg font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(currentUnit * qty)}</p>
                     </div>
                   </div>
@@ -677,7 +711,18 @@ export default function ScreenProduct() {
                 <div className="mt-4 space-y-2">
                   <Button variant="primary" size="lg" className="w-full" onClick={handleAddToCart}><Icon name="cart" size={16}/>Ajouter au panier</Button>
                   <Button variant="outline" size="lg" className="w-full" onClick={handleBuyNow}>Acheter maintenant</Button>
-                  <Button variant="ghost" size="md" className="w-full" onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')}><Icon name="whatsapp" size={16}/>Poser une question par WhatsApp</Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      className={cn('flex-1', isFavorite(p.id) && '!text-red-600 dark:!text-red-400')}
+                      onClick={() => toggleFavorite(p.id)}
+                    >
+                      <Icon name="heart" size={16} className={isFavorite(p.id) ? 'fill-current' : undefined} />
+                      {isFavorite(p.id) ? 'En favoris' : 'Ajouter aux favoris'}
+                    </Button>
+                    <Button variant="ghost" size="md" className="flex-1" onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')}><Icon name="whatsapp" size={16}/>Question</Button>
+                  </div>
                 </div>
               </Card>
 

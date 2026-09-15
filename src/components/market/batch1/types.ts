@@ -53,8 +53,9 @@ export interface ShippingMode {
 export interface ProductVariant {
   id: string;
   label: string;
-  stock: number;
-  /** Prix unitaire client de la variante (marge incluse). undefined = prix produit */
+  /** Stock réel de la variante. undefined = non suivi (non contraint côté serveur) */
+  stock?: number;
+  /** Prix unitaire client tout compris de la variante. undefined = prix produit */
   price?: number;
   image?: string;
 }
@@ -85,11 +86,14 @@ export interface Product {
   name: string;
   brand?: string;
   description?: string;
+  /** Note moyenne réelle. 0 = aucun avis, ne pas afficher d'étoiles */
   rating: number;
   reviews?: number;
   reviewCount?: number;
   images: string[];
+  /** Prix unitaire tout compris (marchandise + frais de service + assurance), hors transport */
   price: number;
+  /** Meilleure référence réellement inférieure (palier/groupe). 0 = aucune, pas de prix barré */
   basePrice: number;
   base?: number;
   minOrderQty: number;
@@ -109,6 +113,12 @@ export interface Product {
   hasGroup?: boolean;
   verified?: boolean;
   createdAt?: string;
+  /** 'in_stock' | 'preorder' | 'out_of_stock' — pilote le badge de disponibilité */
+  availabilityStatus?: string;
+  /** true si le produit a des groupes de variantes (sélection obligatoire avant panier) */
+  hasVariants?: boolean;
+  /** Libellé des frais inclus dans `price` (ex. « frais de service 10% + assurance 2,5% ») */
+  includedFees?: string;
 }
 
 export interface Group {
