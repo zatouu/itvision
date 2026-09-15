@@ -3,8 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product.validated'
 import { computeProductPricing } from '@/lib/logistics'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+import { accentInsensitiveRegex, stripAccents } from '@/lib/search/accents'
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,13 +30,14 @@ export async function GET(request: NextRequest) {
     let suggestions: any[] = []
 
     if (q.length >= 2) {
-      const regex = { $regex: escapeRegex(q), $options: 'i' }
+      const regex = { $regex: accentInsensitiveRegex(q), $options: 'i' }
+      const qFolded = stripAccents(q)
       const suggestionQuery = {
         isPublished: { $ne: false },
         $or: [
           { name: regex },
           { tagline: regex },
-          { tags: { $in: [q] } },
+          { tags: { $in: qFolded !== q ? [q, qFolded] : [q] } },
           { 'sourcing.title': regex },
         ],
       }

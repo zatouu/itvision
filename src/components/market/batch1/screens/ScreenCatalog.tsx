@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { useSourcingModal } from '../SourcingModalContext';
@@ -125,19 +125,21 @@ export default function ScreenCatalog() {
   }, [hasMore, loading, loadingMore, page, loadPage]);
 
   // Paramètres d'entrée : ?cat=<slug>, ?q=<recherche>, ?moq=<bucket>, ?groupe=1
+  // Abonné à useSearchParams : une recherche depuis le header alors qu'on est
+  // déjà sur /produits doit répercuter le nouveau terme.
+  const searchParams = useSearchParams();
   const MOQ_BUCKETS = ['1-4', '5-9', '10-24', '25+'];
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const catParam = params.get('cat') || params.get('category');
-    const qParam = params.get('q');
-    const moqParam = params.get('moq');
+    const catParam = searchParams.get('cat') || searchParams.get('category');
+    const qParam = searchParams.get('q');
+    const moqParam = searchParams.get('moq');
     if (catParam) setCat(catParam);
-    if (qParam) setQuery(qParam);
+    if (qParam !== null) setQuery(qParam);
     // « lot » = raccourci vitrine vers les produits à lot conséquent
     if (moqParam === 'lot') setMoqFilter('25+');
     else if (moqParam && MOQ_BUCKETS.includes(moqParam)) setMoqFilter(moqParam);
-    if (params.get('groupe') === '1') setGroupOnly(true);
-  }, []);
+    if (searchParams.get('groupe') === '1') setGroupOnly(true);
+  }, [searchParams]);
 
   // Plage de prix réelle du catalogue (le slider suit le max observé)
   const catalogMaxPrice = useMemo(

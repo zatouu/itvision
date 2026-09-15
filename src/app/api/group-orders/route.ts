@@ -128,6 +128,11 @@ export async function GET(req: NextRequest) {
         minJoinQty: groupRules.minJoinQty,
         maxJoinQtyPerParticipant: groupRules.maxJoinQtyPerParticipant,
         defaultDeadlineDays: groupRules.defaultDeadlineDays,
+        // Exposés pour que le formulaire de création affiche les seuils
+        // réellement appliqués par le POST au lieu de valeurs inventées.
+        defaultMinQty: groupRules.defaultMinQty,
+        defaultTargetQty: groupRules.defaultTargetQty,
+        defaultMaxQty: groupRules.defaultMaxQty,
         allowedShippingMethods
       }
     }

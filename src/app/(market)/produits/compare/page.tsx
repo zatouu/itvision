@@ -86,6 +86,7 @@ function CompareContent() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
+        // Pas de compact=1 ici : la comparaison affiche features/description/tagline.
         const res = await fetch(`/api/catalog/products?ids=${ids.join(',')}&limit=${ids.length}`)
         const data = await res.json()
 

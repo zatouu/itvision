@@ -6,6 +6,7 @@ import { GroupOrder } from '@/lib/models/GroupOrder'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
+import { accentInsensitiveRegex } from '@/lib/search/accents'
 import { buildFacetStages, formatFacets } from '@/lib/search/facets'
 import { getRedisClient } from '@/lib/redis'
 import mongoose from 'mongoose'
@@ -23,7 +24,18 @@ const asNumber = (value: string | null) => {
   return Number.isFinite(n) ? n : undefined
 }
 
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// Le schéma ne déclare pas d'index texte : il peut exister (créé hors schéma)
+// ou pas. Détecté une fois par process ; absent → on bascule sur le regex
+// accent-insensible au lieu d'échouer en 500.
+let textIndexProbe: Promise<boolean> | null = null
+function hasCatalogTextIndex() {
+  if (!textIndexProbe) {
+    textIndexProbe = Product.collection.indexes()
+      .then((indexes: any[]) => indexes.some((i) => i?.key?._fts === 'text'))
+      .catch(() => false)
+  }
+  return textIndexProbe
+}
 
 const CATALOG_CACHE_TTL = 60 // secondes
 const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
@@ -178,16 +190,18 @@ export async function GET(request: NextRequest) {
     if (!isIdLookup && q) {
       const tokens = tokenizeQuery(q).filter(Boolean)
       const allLong = tokens.length > 0 && tokens.every((t: string) => t.length >= 3)
-      if (allLong) {
+      if (allLong && (await hasCatalogTextIndex())) {
+        // expandToken émet déjà la variante désaccentuée : couvre les index
+        // diacritic-sensitive comme insensibles.
         const terms = [...new Set(tokens.flatMap((t: string) => expandToken(t)).filter((t: string) => t.length >= 2))].slice(0, 30)
         match.$text = { $search: terms.join(' ') }
         useTextSearch = true
       } else if (tokens.length > 0) {
         const terms = [...new Set(expandQuery(q).filter((t: string) => t.length >= 1))].slice(0, 20)
         const clauses = terms.flatMap((term: string) => [
-          { name: { $regex: escapeRegex(term), $options: 'i' } },
-          { tagline: { $regex: escapeRegex(term), $options: 'i' } },
-          { tags: { $regex: escapeRegex(term), $options: 'i' } },
+          { name: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
+          { tagline: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
+          { tags: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
         ])
         regexSearchMatch = clauses.length === 1 ? clauses[0] : { $or: clauses }
       }

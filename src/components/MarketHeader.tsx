@@ -1,21 +1,26 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Menu, X, ShoppingBag, Package, Users, Heart,
   Home, Store, UserRound, Truck, Sparkles, Gem,
-  BarChart3, Search, Shield, Headphones
+  BarChart3, Shield, Headphones
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
 import ThemeToggle from './ThemeToggle'
 import CategoryMegaMenu from './catalog/CategoryMegaMenu'
 import DDMLogo from './branding/DDMLogo'
+import SearchAutocomplete from './SearchAutocomplete'
+import { useSourcingModal } from './market/batch1/SourcingModalContext'
 
 export default function MarketHeader() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { open: openSourcing } = useSourcingModal()
+  const [searchQuery, setSearchQuery] = useState('')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
   const [compareCount, setCompareCount] = useState(0)
@@ -57,10 +62,12 @@ export default function MarketHeader() {
     syncGrains()
 
     window.addEventListener('cart:updated', syncCartAndCompare)
+    window.addEventListener('compare:updated', syncCartAndCompare)
     window.addEventListener('grains:updated', syncGrains)
     window.addEventListener('storage', syncCartAndCompare)
     return () => {
       window.removeEventListener('cart:updated', syncCartAndCompare)
+      window.removeEventListener('compare:updated', syncCartAndCompare)
       window.removeEventListener('grains:updated', syncGrains)
       window.removeEventListener('storage', syncCartAndCompare)
     }
@@ -91,6 +98,10 @@ export default function MarketHeader() {
   ]
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+
+  const handleSearch = useCallback((term: string) => {
+    router.push(`/produits?q=${encodeURIComponent(term)}`)
+  }, [router])
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
@@ -181,13 +192,6 @@ export default function MarketHeader() {
 
         {/* Mobile toggle */}
         <div className="flex items-center gap-2 md:hidden">
-          <Link
-            href="/produits"
-            className="rounded-xl p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
-            aria-label="Rechercher"
-          >
-            <Search className="h-5 w-5" />
-          </Link>
           <CartIcon count={cartCount} />
           {compareCount > 0 && (
             <Link
@@ -213,6 +217,21 @@ export default function MarketHeader() {
           </button>
         </div>
       </nav>
+
+      {/* Recherche — action principale du marketplace, visible sur tous les écrans */}
+      <div className="border-t border-gray-100 dark:border-slate-800">
+        <div className="mx-auto max-w-7xl px-4 py-2">
+          <div className="flex items-center rounded-full border border-gray-200 bg-white py-0.5 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20 dark:border-slate-700 dark:bg-slate-900">
+            <SearchAutocomplete
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSearch={handleSearch}
+              onCameraClick={openSourcing}
+              placeholder="Rechercher un produit, une marque, une catégorie…"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Mobile menu */}
       {isMenuOpen && (

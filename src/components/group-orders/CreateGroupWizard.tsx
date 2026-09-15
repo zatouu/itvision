@@ -49,14 +49,56 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null)
   const [creating, setCreating] = useState(false)
 
+  // Seuils réellement appliqués par le POST /api/group-orders (réglages admin).
+  // Ils étaient devinés côté client (objectif 30, base 50 000, groupe −30%),
+  // si bien que le formulaire annonçait une remise que le serveur n'appliquait pas.
+  const [groupDefaults, setGroupDefaults] = useState<{
+    targetQty: number
+    minQty: number
+    maxJoinQty: number
+    allowedShipping: string[] | null
+  }>({
+    targetQty: 0,
+    minQty: 1,
+    maxJoinQty: 0,
+    allowedShipping: null,
+  })
+
   const [form, setForm] = useState({
     productId: '', productName: '', productCategory: 'Tech', productImage: '', productDescription: '',
-    productBasePrice: 50000, targetQty: 30, initialQty: 1, currentUnitPrice: 30000,
+    productBasePrice: 0, targetQty: 0, initialQty: 1, currentUnitPrice: 0,
     priceTiers: [] as Array<{ minQty: number; price: number; discount: number }>,
     deadline: '', shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
     creatorName: '', creatorPhone: '', creatorEmail: '',
     variantIds: [] as string[],
   })
+
+  useEffect(() => {
+    fetch('/api/group-orders?limit=1')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const c = d?.config
+        if (!c) return
+        const next = {
+          targetQty: Number(c.defaultTargetQty) > 0 ? Number(c.defaultTargetQty) : 0,
+          minQty: Math.max(Number(c.defaultMinQty) || 0, Number(c.minJoinQty) || 0, 1),
+          maxJoinQty: Number(c.maxJoinQtyPerParticipant) > 0 ? Number(c.maxJoinQtyPerParticipant) : 0,
+          allowedShipping: Array.isArray(c.allowedShippingMethods) && c.allowedShippingMethods.length > 0
+            ? c.allowedShippingMethods.map((m: any) => String(m?.key ?? m)).filter(Boolean)
+            : null,
+        }
+        setGroupDefaults(next)
+        setForm(f => {
+          const patch: Partial<typeof f> = {}
+          if (!(f.targetQty > 0) && next.targetQty > 0) patch.targetQty = next.targetQty
+          if (next.allowedShipping && !next.allowedShipping.includes(f.shippingMethod)) {
+            patch.shippingMethod = next.allowedShipping[0] as typeof f.shippingMethod
+          }
+          return Object.keys(patch).length > 0 ? { ...f, ...patch } : f
+        })
+      })
+      .catch(() => null)
+  }, [])
 
   /* ─── Autocomplete on product name (step 2) ─── */
   const [nameSuggestions, setNameSuggestions] = useState<CatalogProduct[]>([])
@@ -73,7 +115,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     const timer = setTimeout(async () => {
       setSuggestLoading(true)
       try {
-        const res = await fetch(`/api/catalog/products?limit=20&q=${encodeURIComponent(form.productName.trim())}`)
+        const res = await fetch(`/api/catalog/products?limit=20&compact=1&q=${encodeURIComponent(form.productName.trim())}`)
         const data = await res.json()
         if (data.success && Array.isArray(data.products)) {
           setNameSuggestions(data.products)
@@ -87,8 +129,18 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
 
   function applyProduct(p: CatalogProduct) {
     setSelectedProduct(p)
-    const base = p.price ?? p.baseCost ?? 50000
-    const best = p.groupBuyBestPrice ?? Math.round(base * 0.7)
+    // Prix réels du produit : aucun montant de repli inventé. Le prix de groupe
+    // annoncé est le meilleur palier existant ; sans palier, il est égal au
+    // prix de base — ce que le serveur appliquera effectivement.
+    const base = p.price ?? p.baseCost ?? 0
+    const bestTier = Array.isArray(p.priceTiers) && p.priceTiers.length > 0
+      ? Math.min(...p.priceTiers.map(t => (typeof t.price === 'number' && t.price > 0 ? t.price : Infinity)))
+      : Infinity
+    const best = p.groupBuyBestPrice && p.groupBuyBestPrice > 0
+      ? p.groupBuyBestPrice
+      : Number.isFinite(bestTier) && bestTier < base
+        ? bestTier
+        : base
     setForm(f => ({
       ...f,
       productId: p.id,
@@ -98,19 +150,24 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       productDescription: p.description || p.tagline || '',
       productBasePrice: base,
       currentUnitPrice: best,
-      targetQty: p.groupBuyTargetQty ?? 30,
+      targetQty: p.groupBuyTargetQty ?? groupDefaults.targetQty ?? 0,
       priceTiers: (p.priceTiers || []).map(t => ({ minQty: t.minQty, price: t.price, discount: t.discount ?? 0 })),
       variantIds: [],
     }))
     setShowSuggestions(false)
     setNameSuggestions([])
 
-    // La liste catalogue n'expose pas variantGroups — fetch du détail pour
-    // proposer la sélection si le produit en a.
+    // La liste compacte n'expose ni variantGroups ni description — fetch du
+    // détail pour la sélection des variantes et le résumé affiché.
     fetch(`/api/catalog/products/${p.id}`)
       .then(r => r.json())
       .then(data => {
-        const groups = data?.product?.variantGroups
+        const prod = data?.product
+        const groups = prod?.variantGroups
+        const desc = typeof prod?.description === 'string' && prod.description.trim()
+          ? prod.description
+          : (typeof prod?.tagline === 'string' ? prod.tagline : '')
+        if (desc) setForm(f => (f.productId === p.id && !f.productDescription ? { ...f, productDescription: desc } : f))
         if (!Array.isArray(groups) || groups.length === 0) return
         setSelectedProduct(prev => prev && prev.id === p.id ? { ...prev, variantGroups: groups } : prev)
         // Pré-sélection des variantes marquées isDefault
@@ -138,7 +195,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         setProdLoading(true)
         const catParam = prodCat !== 'Tous' ? `&category=${encodeURIComponent(prodCat)}` : ''
         const qParam = prodSearch.trim() ? `&q=${encodeURIComponent(prodSearch.trim())}` : ''
-        const res = await fetch(`/api/catalog/products?limit=100${catParam}${qParam}`)
+        const res = await fetch(`/api/catalog/products?limit=100&compact=1${catParam}${qParam}`)
         const data = await res.json()
         if (!cancelled && data.success && Array.isArray(data.products)) {
           setProducts(data.products)
@@ -191,8 +248,10 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       alert('Veuillez remplir votre nom et votre téléphone.')
       return
     }
-    if (!Number.isFinite(form.initialQty) || form.initialQty < 1) {
-      alert('Veuillez saisir une quantité initiale valide.')
+    const minQty = groupDefaults.minQty
+    const maxQty = groupDefaults.maxJoinQty
+    if (!Number.isFinite(form.initialQty) || form.initialQty < minQty || (maxQty > 0 && form.initialQty > maxQty)) {
+      alert(`Quantité initiale invalide : entre ${minQty} et ${maxQty > 0 ? maxQty : '∞'}.`)
       return
     }
     const requiredGroups = (selectedProduct.variantGroups || []).filter(g => g.variants.length > 0)
@@ -439,7 +498,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
-                        <input type="number" min={1} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Math.max(1, Math.round(Number(e.target.value) || 1))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <input type="number" min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(Number(e.target.value) || groupDefaults.minQty))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>
@@ -476,7 +535,9 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     ))}
                     <div className="bg-gradient-to-r from-[#00C853]/10 to-[#7C4DFF]/10 rounded-xl p-3 flex items-center justify-between">
                       <span className="text-sm text-gray-700">Prix et paliers issus du catalogue</span>
-                      <span className="font-bold text-[#00C853]">{fmt(Math.max(0, soloRefPrice - estimatedUnitPrice))} (-{savingsPct}%)</span>
+                      {savingsPct > 0
+                        ? <span className="font-bold text-[#00C853]">{fmt(soloRefPrice - estimatedUnitPrice)} (-{savingsPct}%)</span>
+                        : <span className="font-bold text-gray-500">Aucune remise palier</span>}
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -518,7 +579,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-2">Mode de transport</label>
                       <div className="grid grid-cols-3 gap-3">
-                        {SHIPPING_OPTS.map(opt => {
+                        {SHIPPING_OPTS.filter(opt => !groupDefaults.allowedShipping || groupDefaults.allowedShipping.includes(opt.key)).map(opt => {
                           const active = form.shippingMethod === opt.key
                           const Icon = opt.icon
                           return (
@@ -576,15 +637,15 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                       <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 rounded-full text-[10px] font-semibold text-gray-600">{form.productCategory}</span>
                       <p className="text-xs text-gray-500 mt-1 line-clamp-2">{form.productDescription}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-gray-600 flex-wrap">
-                        <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> 0/{form.targetQty}</span>
+                        {form.targetQty > 0 && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> 0/{form.targetQty}</span>}
                         <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5"/> {form.shippingMethod==='maritime_60j'?'Maritime':form.shippingMethod==='air_15j'?'Aérien':'Express'}</span>
                         {form.deadline && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5"/> {getDays(form.deadline)}j</span>}
                       </div>
                     </div>
                     <div className="text-right shrink-0 sm:mt-0 mt-2">
-                      <div className="text-sm text-gray-400 line-through">{fmt(form.productBasePrice)}</div>
+                      {savingsPct > 0 && <div className="text-sm text-gray-400 line-through">{fmt(soloRefPrice)}</div>}
                       <div className="text-xl font-bold text-[#00C853]">{fmt(estimatedUnitPrice)}</div>
-                      <div className="text-xs font-bold text-[#FF5252]">-{savingsPct}%</div>
+                      {savingsPct > 0 && <div className="text-xs font-bold text-[#FF5252]">-{savingsPct}%</div>}
                     </div>
                   </div>
                 </div>
