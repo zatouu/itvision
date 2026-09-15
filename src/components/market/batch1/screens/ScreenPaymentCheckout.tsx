@@ -366,7 +366,7 @@ export default function ScreenPaymentCheckout({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 md:pb-8">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 sticky top-0 z-20">
+      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 sticky top-[var(--mkt-header-h,0px)] z-20">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/produits" className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition font-medium">
@@ -450,7 +450,7 @@ export default function ScreenPaymentCheckout({
           </div>
 
           <div>
-            <div className="md:sticky md:top-24 space-y-4">
+            <div className="md:sticky md:top-[calc(var(--mkt-header-h,0px)+12px)] space-y-4">
               <OrderRecap />
               <button
                 onClick={handlePay}

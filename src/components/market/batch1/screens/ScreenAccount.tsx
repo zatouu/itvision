@@ -232,174 +232,120 @@ export default function ScreenAccount() {
     </div>
   );
 
+  const activityBlock = (
+    <div>
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:mb-3 md:text-[16px] md:font-extrabold md:normal-case md:tracking-tight md:text-slate-900 md:dark:text-white">Activité récente</p>
+      <Card className="divide-y divide-slate-200 dark:divide-slate-800">
+        {(USER.activities ?? []).length === 0 ? (
+          <div className="p-4 text-[13px] text-slate-500 dark:text-slate-400">Aucune activité récente.</div>
+        ) : (
+          USER.activities!.map((a, i) => {
+            const typeConfig: Record<string, { icon: string; tone: string }> = {
+              order: { icon: 'package', tone: 'emerald' },
+              group: { icon: 'users', tone: 'violet' },
+              group_order: { icon: 'users', tone: 'violet' },
+              grains: { icon: 'sparkles', tone: 'amber' },
+              reward: { icon: 'sparkles', tone: 'amber' },
+              sourcing: { icon: 'camera', tone: 'violet' },
+              default: { icon: 'info', tone: 'slate' },
+            };
+            const cfg = typeConfig[a.type] || typeConfig.default;
+            const toneMap: Record<string, string> = {
+              emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+              violet: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+              amber: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+              slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+            };
+            const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+            const right = a.amount ? `${a.amount}${a.unit ? ` ${a.unit}` : ''}` : '';
+            return (
+              <div key={a.id || i} className="flex items-center gap-3 p-4">
+                <span className={cn("grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg", toneMap[cfg.tone])}><Icon name={cfg.icon} size={16}/></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">{a.description}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{date}</p>
+                </div>
+                {right && <p className="text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white flex-shrink-0 whitespace-nowrap">{right}</p>}
+              </div>
+            );
+          })
+        )}
+      </Card>
+    </div>
+  );
+
+  const accountLinksCard = (
+    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
+      {accountLinks.map((it) => (
+        it.external ? (
+          <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
+            <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
+            <Icon name="chevronRight" size={14} className="text-slate-400"/>
+          </a>
+        ) : (
+          <Link key={it.label} href={it.href} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
+            <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
+            <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
+            <Icon name="chevronRight" size={14} className="text-slate-400"/>
+          </Link>
+        )
+      ))}
+      <button
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 disabled:opacity-50"
+      >
+        <span className="flex-1">{loggingOut ? 'Déconnexion…' : 'Se déconnecter'}</span>
+      </button>
+    </div>
+  );
+
   return (
-    <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
-
-        <div className="flex-1 overflow-y-auto pb-20">
-          {/* Header profile */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-950 px-4 pt-6 pb-8 text-white">
-            <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[16px] font-extrabold text-white">
-                {USER.initials}
-              </span>
-              <div>
-                <p className="text-[16px] font-extrabold">{USER.handle}</p>
-                <p className="text-[11px] text-white/70">Membre depuis {USER.memberSince}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="-mt-4 px-4 space-y-4">
-            <Stats/>
-            <ActiveOrder/>
-            <Grains/>
-            <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Raccourcis</p>
-              <Shortcuts/>
-            </div>
-            <WhatsAppCard/>
-
-            <div className="pt-2">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Compte</p>
-              <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
-                {accountLinks.map((it) => (
-                  it.external ? (
-                    <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
-                      <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
-                      <Icon name="chevronRight" size={14} className="text-slate-400"/>
-                    </a>
-                  ) : (
-                    <Link key={it.label} href={it.href} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
-                      <span className="flex-1 text-[13px] font-semibold text-slate-900 dark:text-white">{it.label}</span>
-                      <Icon name="chevronRight" size={14} className="text-slate-400"/>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="w-full py-3 text-[13px] font-bold text-red-600 dark:text-red-400 disabled:opacity-50"
-            >
-              {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
-            </button>
+    <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+      {/* En-tête profil — mobile */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 px-4 pb-8 pt-6 text-white dark:from-slate-800 dark:to-slate-950 md:hidden">
+        <div className="flex items-center gap-3">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-emerald-500 text-[16px] font-extrabold text-white">
+            {USER.initials}
+          </span>
+          <div>
+            <p className="text-[16px] font-extrabold">{USER.handle}</p>
+            {USER.memberSince && <p className="text-[11px] text-white/70">Membre depuis {USER.memberSince}</p>}
           </div>
         </div>
-
       </div>
-    );
 
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-6 flex items-baseline justify-between">
+      <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+        {/* Titre — desktop */}
+        <div className="mb-6 hidden items-baseline justify-between md:flex">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Mon compte</p>
             <h1 className="mt-1 text-[28px] font-extrabold tracking-tight text-slate-900 dark:text-white">Bonjour, {USER.handle}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Membre depuis {USER.memberSince}</p>
+            {USER.memberSince && <p className="text-sm text-slate-500 dark:text-slate-400">Membre depuis {USER.memberSince}</p>}
           </div>
-          <div className="flex gap-2">
-            <Link href="/compte/profil"><Button variant="secondary" size="md">Paramètres</Button></Link>
-          </div>
+          <Link href="/compte/profil"><Button variant="secondary" size="md">Paramètres</Button></Link>
         </div>
 
-        <div className="grid grid-cols-[1fr_320px] gap-6">
-          {/* Main col */}
-          <div className="space-y-6">
-            <Stats/>
-            <ActiveOrder/>
-            <div>
-              <h3 className="mb-3 text-[16px] font-extrabold tracking-tight text-slate-900 dark:text-white">Raccourcis</h3>
-              <Shortcuts/>
-            </div>
-
-            <div>
-              <h3 className="mb-3 text-[16px] font-extrabold tracking-tight text-slate-900 dark:text-white">Activité récente</h3>
-              <Card className="divide-y divide-slate-200 dark:divide-slate-800">
-                {(USER.activities ?? []).length === 0 ? (
-                  <div className="p-4 text-[13px] text-slate-500 dark:text-slate-400">Aucune activité récente.</div>
-                ) : (
-                  USER.activities!.map((a, i) => {
-                    const typeConfig: Record<string, { icon: string; tone: string }> = {
-                      order: { icon: 'package', tone: 'emerald' },
-                      group: { icon: 'users', tone: 'violet' },
-                      group_order: { icon: 'users', tone: 'violet' },
-                      grains: { icon: 'sparkles', tone: 'amber' },
-                      reward: { icon: 'sparkles', tone: 'amber' },
-                      sourcing: { icon: 'camera', tone: 'violet' },
-                      default: { icon: 'info', tone: 'slate' },
-                    };
-                    const cfg = typeConfig[a.type] || typeConfig.default;
-                    const toneMap: Record<string, string> = {
-                      emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-                      violet: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-                      amber: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-                      slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-                    };
-                    const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
-                    const right = a.amount ? `${a.amount}${a.unit ? ` ${a.unit}` : ''}` : '';
-                    return (
-                      <div key={a.id || i} className="flex items-center gap-3 p-4">
-                        <span className={cn("grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg", toneMap[cfg.tone])}><Icon name={cfg.icon} size={16}/></span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate">{a.description}</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{date}</p>
-                        </div>
-                        {right && <p className="text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white flex-shrink-0 whitespace-nowrap">{right}</p>}
-                      </div>
-                    );
-                  })
-                )}
-              </Card>
-            </div>
+        {/* Ordre mobile : stats → commande → grains → raccourcis → whatsapp → activité → compte.
+            Desktop : gauche (stats, commande, raccourcis, activité), droite (grains, whatsapp, compte). */}
+        <div className="-mt-4 flex flex-col gap-4 px-4 pb-20 md:mt-0 md:grid md:grid-cols-[1fr_320px] md:gap-6 md:px-0 md:pb-0">
+          <div className="md:col-start-1 md:row-start-1"><Stats/></div>
+          <div className="md:col-start-1 md:row-start-2"><ActiveOrder/></div>
+          <div className="md:col-start-2 md:row-start-1"><Grains/></div>
+          <div className="md:col-start-1 md:row-start-3">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:mb-3 md:text-[16px] md:font-extrabold md:normal-case md:tracking-tight md:text-slate-900 md:dark:text-white">Raccourcis</p>
+            <Shortcuts/>
           </div>
-
-          {/* Sidebar right */}
-          <div className="space-y-4">
-            <Grains/>
-            <WhatsAppCard/>
-
-            <Card className="p-4">
-              <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-3">Compte</h4>
-              <div className="space-y-1">
-                {accountLinks.map((it) => (
-                  it.external ? (
-                    <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <Icon name={it.icon} size={14} className="text-slate-500 dark:text-slate-400"/>
-                      <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">{it.label}</span>
-                      <Icon name="chevronRight" size={12} className="text-slate-400"/>
-                    </a>
-                  ) : (
-                    <Link key={it.label} href={it.href} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <Icon name={it.icon} size={14} className="text-slate-500 dark:text-slate-400"/>
-                      <span className="flex-1 text-[12px] font-semibold text-slate-700 dark:text-slate-300">{it.label}</span>
-                      <Icon name="chevronRight" size={12} className="text-slate-400"/>
-                    </Link>
-                  )
-                ))}
-              </div>
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="mt-3 w-full py-2 text-[12px] font-bold text-red-600 dark:text-red-400 border-t border-slate-200 dark:border-slate-800 pt-3 disabled:opacity-50"
-              >
-                {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
-              </button>
-            </Card>
+          <div className="md:col-start-2 md:row-start-2"><WhatsAppCard/></div>
+          <div className="md:col-start-1 md:row-start-4">{activityBlock}</div>
+          <div className="md:col-start-2 md:row-start-3">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:mb-3 md:text-[13px] md:normal-case md:tracking-normal md:text-slate-900 md:dark:text-white">Compte</p>
+            {accountLinksCard}
           </div>
         </div>
       </div>
     </div>
-  </div>
-</>
   );
 
 }

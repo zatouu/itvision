@@ -388,7 +388,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 sticky top-0 z-20">
+      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 sticky top-[var(--mkt-header-h,0px)] z-20">
         <div className="mx-auto max-w-3xl px-4 py-3">
           <div className="flex items-center gap-2">
             <button onClick={() => router.back()} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400">

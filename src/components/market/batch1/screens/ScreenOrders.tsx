@@ -168,51 +168,10 @@ export default function ScreenOrders() {
   }
 
   return (
-    <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
-
-
-        {/* Tabs */}
-        <div className="sticky top-14 z-20 flex-shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex px-1">
-            {tabs.map((t) => (
-              <button key={t.k} onClick={() => setTab(t.k)} className={cn(
-                "flex-1 border-b-2 py-3 text-[12px] font-bold transition-colors",
-                tab === t.k ? "border-emerald-600 text-emerald-700 dark:text-emerald-400" : "border-transparent text-slate-500 dark:text-slate-400"
-              )}>
-                {t.l} <span className="tabular-nums text-[10px]">({t.count})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto pb-20">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-              <div className="grid h-20 w-20 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                <Icon name="package" size={32} className="text-slate-400"/>
-              </div>
-              <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Aucune commande</p>
-              <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Vos commandes apparaîtront ici.</p>
-              <Link href="/produits"><Button variant="primary" size="md" className="mt-4">Explorer le catalogue</Button></Link>
-            </div>
-          ) : (
-            <div className="p-4 space-y-3">
-              {filtered.map((o) => <OrderCard key={o.id} o={o}/>)}
-            </div>
-          )}
-        </div>
-
-      </div>
-    );
-
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-6">
+    <div className="min-h-full bg-slate-50 pb-20 dark:bg-slate-950 md:pb-0">
+      <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+        {/* Fil d'ariane + titre — desktop */}
+        <div className="mb-6 hidden md:block">
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
             <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte" className="cursor-pointer">Mon compte</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mes commandes</span>
           </div>
@@ -220,35 +179,36 @@ export default function ScreenOrders() {
           <p className="text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{ORDERS.length}</b> commandes au total</p>
         </div>
 
-        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 w-fit">
-          {tabs.map((t) => (
-            <button key={t.k} onClick={() => setTab(t.k)} className={cn(
-              "rounded-lg px-4 py-2 text-[13px] font-bold transition-colors",
-              tab === t.k ? "bg-white text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-400"
-            )}>
-              {t.l} <span className="ml-1 tabular-nums text-[11px] opacity-70">({t.count})</span>
-            </button>
-          ))}
+        {/* Onglets — sticky sous le header sur mobile */}
+        <div className="sticky top-[var(--mkt-header-h,0px)] z-20 border-b border-slate-200 bg-slate-50 px-4 pt-3 dark:border-slate-800 dark:bg-slate-950 md:static md:border-0 md:bg-transparent md:px-0 md:pt-0 md:dark:bg-transparent">
+          <div className="mb-3 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800 md:mb-4">
+            {tabs.map((t) => (
+              <button key={t.k} onClick={() => setTab(t.k)} className={cn(
+                "whitespace-nowrap rounded-lg px-3 py-2 text-[12px] font-bold transition-colors md:px-4 md:text-[13px]",
+                tab === t.k ? "bg-white text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-400"
+              )}>
+                {t.l} <span className="ml-1 tabular-nums text-[11px] opacity-70">({t.count})</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-16 text-center dark:border-slate-800 dark:bg-slate-900">
-            <div className="grid h-24 w-24 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-              <Icon name="package" size={40} className="text-slate-400"/>
+          <div className="mx-4 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center dark:border-slate-800 dark:bg-slate-900 md:mx-0 md:p-16">
+            <div className="grid h-20 w-20 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4 md:h-24 md:w-24">
+              <Icon name="package" size={32} className="text-slate-400"/>
             </div>
-            <p className="text-[16px] font-extrabold text-slate-900 dark:text-white">Aucune commande</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Vos commandes apparaîtront ici.</p>
-            <Link href="/produits"><Button variant="primary" size="md" className="mt-6">Explorer le catalogue</Button></Link>
+            <p className="text-[14px] font-extrabold text-slate-900 dark:text-white md:text-[16px]">Aucune commande</p>
+            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400 md:text-sm">Vos commandes apparaîtront ici.</p>
+            <Link href="/produits"><Button variant="primary" size="md" className="mt-4 md:mt-6">Explorer le catalogue</Button></Link>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 p-4 md:p-0">
             {filtered.map((o) => <OrderCard key={o.id} o={o}/>)}
           </div>
         )}
       </div>
     </div>
-  </div>
-</>
   );
 
 }

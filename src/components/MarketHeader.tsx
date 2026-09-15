@@ -27,6 +27,22 @@ export default function MarketHeader() {
   const [grainsBalance, setGrainsBalance] = useState<number | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+
+  // Hauteur réelle du header exposée en variable CSS : les barres sticky des
+  // écrans s'alignent dessous sans constante magique (le header grandit avec
+  // la barre de recherche, bannière, etc.).
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const apply = () => {
+      document.documentElement.style.setProperty('--mkt-header-h', `${el.offsetHeight}px`)
+    }
+    apply()
+    const observer = new ResizeObserver(apply)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const syncCartAndCompare = () => {
@@ -104,7 +120,7 @@ export default function MarketHeader() {
   }, [router])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
+    <header ref={headerRef} className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
       <div className="hidden border-b border-green-100 bg-gradient-to-r from-green-600 via-emerald-600 to-violet-600 text-white md:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs font-semibold">
           <div className="flex items-center gap-2">

@@ -295,72 +295,99 @@ export default function ScreenCatalog() {
 
   return (
     <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
 
-
-        {/* Search sticky */}
-        <div className="sticky top-14 z-20 flex-shrink-0 border-b border-slate-200 bg-white px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800">
-            <Icon name="search" size={16} className="text-slate-500 dark:text-slate-400"/>
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher…" className="flex-1 bg-transparent text-[12px] outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"/>
-            <button onClick={openSourcing} className="grid h-7 w-7 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="camera" size={13}/></button>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <Icon name="filter" size={12}/>Filtres
-              {activeFilters.length > 0 && <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-[9px] text-white tabular-nums">{activeFilters.length}</span>}
-            </button>
-            <select value={sort} onChange={e => setSort(e.target.value)} className="flex-1 rounded-lg bg-slate-100 border-0 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <option value="popular">Populaires</option>
-              <option value="price_asc">Prix croissant</option>
-              <option value="price_desc">Prix décroissant</option>
-              <option value="save">+ d&apos;économies</option>
-              <option value="new">Récents</option>
-            </select>
-          </div>
-          {activeFilters.length > 0 && (
-            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
-              {activeFilters.map((f, i) => (
-                <span key={i} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
-                  {f}<Icon name="x" size={10}/>
-                </span>
-              ))}
+        {/* Recherche + tri : barre unique, sticky sous le header (toutes tailles) */}
+        <div className="sticky top-[var(--mkt-header-h,0px)] z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          <div className="mx-auto max-w-6xl px-4 py-2.5 md:px-6 md:py-3">
+            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
+              <div className="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800 md:basis-auto">
+                <Icon name="search" size={16} className="text-slate-500 dark:text-slate-400"/>
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un produit, une catégorie, une marque…" className="flex-1 min-w-0 bg-transparent text-[12px] md:text-[13px] outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"/>
+                <button onClick={openSourcing} aria-label="Recherche par image / sourcing" className="grid h-7 w-7 md:h-8 md:w-8 flex-shrink-0 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="camera" size={13}/></button>
+              </div>
+              <div className="flex w-full items-center gap-2 md:w-auto">
+                <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:hidden">
+                  <Icon name="filter" size={12}/>Filtres
+                  {activeFilters.length > 0 && <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-[9px] text-white tabular-nums">{activeFilters.length}</span>}
+                </button>
+                <select value={sort} onChange={e => setSort(e.target.value)} className="flex-1 rounded-lg bg-slate-100 border-0 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:h-11 md:flex-none md:rounded-xl md:border md:border-slate-200 md:bg-white md:text-sm md:font-semibold md:outline-none md:dark:border-slate-700 md:dark:bg-slate-900 md:dark:text-white">
+                  <option value="popular">Populaires</option>
+                  <option value="price_asc">Prix croissant</option>
+                  <option value="price_desc">Prix décroissant</option>
+                  <option value="save">+ d&apos;économies</option>
+                  <option value="new">Récents</option>
+                </select>
+              </div>
             </div>
-          )}
+            {activeFilters.length > 0 && (
+              <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:flex-wrap md:gap-2 md:px-0">
+                {activeFilters.map((f, i) => (
+                  <span key={i} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
+                    {f}<Icon name="x" size={10}/>
+                  </span>
+                ))}
+                <button onClick={reset} className="hidden md:inline text-[11px] font-bold text-slate-500 dark:text-slate-400 underline">Tout effacer</button>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-20">
-          {filtered.length === 0 && !hasMore ? (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-              <div className="grid h-20 w-20 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                <Icon name="search" size={32} className="text-slate-400"/>
+        <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
+          {/* Fil d'ariane + titre : desktop uniquement */}
+          <div className="mb-4 hidden items-baseline justify-between md:flex">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
               </div>
-              <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Aucun produit trouvé</p>
-              <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400 max-w-xs">Essayez d&apos;ajuster vos filtres ou envoyez une demande de sourcing.</p>
-              <div className="mt-4 flex flex-col gap-2 w-full max-w-xs">
-                <Button variant="secondary" size="md" onClick={reset}>Réinitialiser les filtres</Button>
-                <Button variant="violet" size="md" onClick={openSourcing}><Icon name="camera" size={14}/>Demander un sourcing</Button>
-              </div>
+              <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
+              </h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""} trouvé{displayCount > 1 ? "s" : ""}</p>
             </div>
-          ) : filtered.length === 0 ? (
-            /* Filtres client restrictifs : le chargement continue en arrière-plan */
-            <div className="p-4">{LoadMore()}</div>
-          ) : (
-            <div className="p-4">
-              <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""}</p>
-              <div className="grid grid-cols-2 gap-3">
-                {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
-              </div>
-              {LoadMore()}
+          </div>
+
+          <div className="md:grid md:grid-cols-[240px_1fr] md:gap-6">
+            {/* Sidebar filtres : desktop uniquement (mobile = bottom sheet) */}
+            <aside className="sticky top-[calc(var(--mkt-header-h,0px)+12px)] hidden self-start rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:block">
+              {FiltersPanel({})}
+            </aside>
+
+            <div>
+              {filtered.length === 0 && !hasMore ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-slate-200 px-6 py-16 text-center md:border md:bg-white md:p-16 dark:border-slate-800 dark:md:bg-slate-900">
+                  <div className="grid h-20 w-20 md:h-24 md:w-24 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
+                    <Icon name="search" size={32} className="text-slate-400"/>
+                  </div>
+                  <p className="text-[14px] md:text-[16px] font-extrabold text-slate-900 dark:text-white">Aucun produit trouvé</p>
+                  <p className="mt-1 text-[12px] md:text-sm text-slate-500 dark:text-slate-400 max-w-xs md:max-w-md">Essayez d&apos;ajuster vos filtres ou envoyez une demande de sourcing.</p>
+                  <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-2 md:gap-3 w-full md:w-auto max-w-xs">
+                    <Button variant="secondary" size="md" onClick={reset}>Réinitialiser les filtres</Button>
+                    <Button variant="violet" size="md" onClick={openSourcing}><Icon name="camera" size={14}/>Demander un sourcing</Button>
+                  </div>
+                </div>
+              ) : filtered.length === 0 ? (
+                /* Filtres client restrictifs : le chargement continue en arrière-plan */
+                <div>{LoadMore()}</div>
+              ) : (
+                <Fragment>
+                  <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 md:hidden"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""}</p>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                    {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                  </div>
+                  <div className="mt-4 hidden items-center justify-center md:flex">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {filtered.length} / {displayCount}</span>
+                  </div>
+                  {LoadMore()}
+                </Fragment>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Bottom sheet filtres */}
+        {/* Bottom sheet filtres — mobile uniquement */}
         {filtersOpen && (
-          <div className="absolute inset-0 z-40 bg-slate-900/40" onClick={() => setFiltersOpen(false)}>
+          <div className="fixed inset-0 z-40 bg-slate-900/40 md:hidden" onClick={() => setFiltersOpen(false)}>
             <div className="absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-2xl bg-white dark:bg-slate-950 overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3">
                 <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Filtres</p>
@@ -376,98 +403,8 @@ export default function ScreenCatalog() {
             </div>
           </div>
         )}
-
-
       </div>
-    );
-
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-
-      {/* Sticky search + filters bar */}
-      <div className="sticky top-16 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
-        <div className="mx-auto max-w-6xl px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800">
-              <Icon name="search" size={16} className="text-slate-500 dark:text-slate-400"/>
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un produit, une catégorie, une marque…" className="flex-1 bg-transparent text-[13px] outline-none text-slate-900 dark:text-white"/>
-              <button onClick={openSourcing} className="grid h-8 w-8 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="camera" size={14}/></button>
-            </div>
-            <select value={sort} onChange={e => setSort(e.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-              <option value="popular">Tri : Populaires</option>
-              <option value="price_asc">Prix croissant</option>
-              <option value="price_desc">Prix décroissant</option>
-              <option value="save">+ d&apos;économies</option>
-              <option value="new">Récents</option>
-            </select>
-          </div>
-          {activeFilters.length > 0 && (
-            <div className="mt-2 flex gap-2 flex-wrap">
-              {activeFilters.map((f, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
-                  {f}<Icon name="x" size={11}/>
-                </span>
-              ))}
-              <button onClick={reset} className="text-[11px] font-bold text-slate-500 dark:text-slate-400 underline">Tout effacer</button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-4 flex items-baseline justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-              <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
-            </div>
-            <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
-            </h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""} trouvé{displayCount > 1 ? "s" : ""}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-[240px_1fr] gap-6">
-          {/* Sidebar filtres */}
-          <aside className="sticky top-36 self-start rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            {FiltersPanel({})}
-          </aside>
-
-          <div>
-            {filtered.length === 0 && !hasMore ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-16 text-center dark:border-slate-800 dark:bg-slate-900">
-                <div className="grid h-24 w-24 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                  <Icon name="search" size={40} className="text-slate-400"/>
-                </div>
-                <p className="text-[16px] font-extrabold text-slate-900 dark:text-white">Aucun produit ne correspond</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-md">Essayez d&apos;ajuster vos filtres ou demandez à notre équipe de sourcing en Chine de le trouver pour vous.</p>
-                <div className="mt-6 flex gap-3">
-                  <Button variant="secondary" size="md" onClick={reset}>Réinitialiser</Button>
-                  <Button variant="violet" size="md" onClick={openSourcing}><Icon name="camera" size={14}/>Demander un sourcing</Button>
-                </div>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div>{LoadMore()}</div>
-            ) : (
-              <Fragment>
-                <div className="grid grid-cols-4 gap-4">
-                  {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
-                </div>
-                <div className="mt-4 flex items-center justify-center">
-                  <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {filtered.length} / {displayCount}</span>
-                </div>
-                {LoadMore()}
-              </Fragment>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  {quickAddToast}
-</>
+      {quickAddToast}
+    </>
   );
-
 }

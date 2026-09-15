@@ -388,7 +388,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
           </div>
 
           <aside className="hidden lg:block">
-            <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 sticky top-24">
+            <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 sticky top-[calc(var(--mkt-header-h,0px)+12px)]">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Contact vendeur</p>
               <div className="space-y-1.5 text-[12px]">
                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">

@@ -604,89 +604,59 @@ export default function ScreenCheckout() {
 
   return (
     <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-full bg-slate-50 pb-32 dark:bg-slate-950 md:pb-0">
+        <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+          <div className="p-4 pb-0 md:mb-6 md:p-0">{Stepper()}</div>
 
-        <div className="flex-1 overflow-y-auto pb-32">
-          <div className="p-4">{Stepper()}</div>
+          <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            <div>
+              <Section title="Adresse de livraison" className="py-4 md:p-0">
+                <Card className="p-3 md:p-5">{AddressForm()}</Card>
+              </Section>
 
-          <Section title="Adresse de livraison" className="pb-4">
-            <Card className="p-3">{AddressForm()}</Card>
-          </Section>
+              <Section title="Mode d'expédition" subtitle="Depuis Guangzhou, Chine — inspection incluse" className="pb-4 md:mt-4 md:p-0">
+                {ShippingCards()}
+              </Section>
 
-          <Section title="Mode d'expédition" subtitle="Depuis Guangzhou, Chine" className="pb-4">
-            {ShippingCards()}
-          </Section>
+              <div className="px-4 pb-4 md:hidden"><TrustStrip compact/></div>
+              <div className="mt-4 hidden md:block"><TrustStrip/></div>
+            </div>
 
-          <Section title="Votre commande" className="pb-4">
-            {OrderRecap()}
-          </Section>
-
-          {checkoutError && (
-            <div className="px-4 pb-2">
-              <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                {checkoutError}
+            {/* Récap + CTA : dans le flux mobile, colonne droite sticky desktop */}
+            <div className="md:sticky md:top-[calc(var(--mkt-header-h,0px)+12px)] md:self-start">
+              <Section title="Votre commande" className="pb-3 md:p-0 md:pb-4">
+                {OrderRecap()}
+              </Section>
+              <div className="space-y-3 px-4 md:space-y-4 md:px-0">
+                {checkoutError && (
+                  <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                    {checkoutError}
+                  </div>
+                )}
+                <Button variant="primary" size="lg" className="hidden w-full md:flex" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
+                  {submitting ? 'Traitement...' : 'Aller au paiement'} <Icon name="arrowRight" size={16}/>
+                </Button>
+                <p className="hidden items-center justify-center gap-1 text-center text-[11px] text-slate-500 dark:text-slate-400 md:flex"><Icon name="lock" size={12}/>Paiement sécurisé · Escrow Mobile Money</p>
               </div>
             </div>
-          )}
-          <div className="px-4 pb-4">
-            <TrustStrip compact/>
-          </div>
-        </div>
-
-        {/* Sticky bottom */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">Total à payer</p>
-              <p className="mt-0.5 text-[17px] font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight whitespace-nowrap">{formatFcfa(total)}</p>
-            </div>
-            <Button variant="primary" size="md" className="whitespace-nowrap flex-shrink-0" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
-              {submitting ? 'Traitement...' : 'Aller au paiement'}
-              <Icon name="arrowRight" size={14}/>
-            </Button>
           </div>
         </div>
       </div>
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
 
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-6">{Stepper()}</div>
-        <div className="grid grid-cols-[1fr_400px] gap-6">
-          <div className="space-y-4">
-            <Card className="p-5">
-              <h2 className="mb-4 text-base font-extrabold text-slate-900 dark:text-white">Adresse de livraison</h2>
-              {AddressForm()}
-            </Card>
-            <Card className="p-5">
-              <div className="mb-4 flex items-baseline justify-between">
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Mode d&apos;expédition</h2>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Depuis Guangzhou, Chine — inspection incluse</span>
-              </div>
-              {ShippingCards()}
-            </Card>
-            <TrustStrip/>
+      {/* Barre total + CTA — mobile */}
+      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">Total à payer</p>
+            <p className="mt-0.5 text-[17px] font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight whitespace-nowrap">{formatFcfa(total)}</p>
           </div>
-
-          <div>
-            <div className="sticky top-20 space-y-4">
-              {OrderRecap()}
-              {checkoutError && (
-                <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-[12px] text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-                  {checkoutError}
-                </div>
-              )}
-              <Button variant="primary" size="lg" className="w-full" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>{submitting ? 'Traitement...' : 'Aller au paiement'} <Icon name="arrowRight" size={16}/></Button>
-              <p className="text-center text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Icon name="lock" size={12}/>Paiement sécurisé · Escrow Mobile Money</p>
-            </div>
-          </div>
+          <Button variant="primary" size="md" className="whitespace-nowrap flex-shrink-0" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
+            {submitting ? 'Traitement...' : 'Aller au paiement'}
+            <Icon name="arrowRight" size={14}/>
+          </Button>
         </div>
       </div>
-    </div>
-  </div>
-</>
+    </>
   );
 
 }

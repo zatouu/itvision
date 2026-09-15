@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,7 @@ import { Icon } from '../Icon';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
-import { Section } from '../Section';
+
 import { CountdownChip } from '../CountdownChip';
 import { mapCartItem, mapCatalogItem, mapGroupOrder, saveCart } from '../data-mappers';
 import type { CartItem, Group, Product } from '../types';
@@ -255,7 +255,7 @@ export default function ScreenCart() {
   };
 
   const Summary = ({ sticky = false }) => (
-    <div className={cn("space-y-3", sticky && "sticky top-20")}>
+    <div className={cn("space-y-3", sticky && "sticky top-[calc(var(--mkt-header-h,0px)+12px)]")}>
       <Card className="p-4">
         <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Récapitulatif</h3>
         <dl className="space-y-2 text-[13px]">
@@ -379,178 +379,103 @@ export default function ScreenCart() {
 
   return (
     <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
+          <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
+            <Link href="/market">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mon panier</span>
+          </div>
+          <div className="mb-4 flex items-baseline justify-between md:mb-6">
+            <div>
+              <h1 className="text-lg md:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Mon panier</h1>
+              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">{items.length} articles · {items.reduce((s,i)=>s+i.qty,0)} pièces au total</p>
+            </div>
+            <Link href="/produits" className="hidden text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white md:inline"><Icon name="arrowLeft" size={14} className="inline mr-1"/>Continuer mes achats</Link>
+          </div>
 
-        <div className="flex-1 overflow-y-auto pb-40">
           {!canCheckout && (
-            <div className="px-4 pt-3">
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
-                <div className="flex items-start gap-2">
-                  <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
-                  <div>
-                    <p className="text-[12px] font-bold text-amber-900 dark:text-amber-200">Lot minimum non atteint</p>
-                    <p className="text-[11px] text-amber-800 dark:text-amber-300/80 mt-0.5">{belowMOQ.length} article à compléter avant le checkout</p>
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 md:p-4 dark:border-amber-800 dark:bg-amber-950/40">
+              <div className="flex items-start gap-2 md:gap-3">
+                <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
+                <div>
+                  <p className="text-[12px] md:text-sm font-bold text-amber-900 dark:text-amber-200">Lot minimum non atteint sur {belowMOQ.length} article(s)</p>
+                  <p className="text-[11px] md:text-xs text-amber-800 dark:text-amber-300/80 mt-0.5">Complétez le lot pour débloquer le passage en caisse — c&apos;est un import direct usine.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            <div className="space-y-3">
+              {items.map((it)=><CartItemCard key={it.id} it={it}/>)}
+
+              {suggestions.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Complétez votre commande</h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {suggestions.map((p, i)=>(
+                      <Link key={p.id} href={`/produits/${p.id}`} className={cn("rounded-xl border border-slate-200 p-2 transition-colors hover:border-emerald-400 dark:border-slate-800 dark:hover:border-emerald-700", i >= 2 && "hidden md:block")}>
+                        <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+                          <Image src={p.img || p.image || '/placeholder.svg'} alt={p.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
+                          {p.minOrderQty > 1 && <span className="absolute left-1.5 top-1.5"><Badge tone="amber">Min. {p.minOrderQty}</Badge></span>}
+                        </div>
+                        <p className="text-[11px] font-semibold text-slate-900 dark:text-white line-clamp-2 min-h-[28px] leading-tight">{p.name}</p>
+                        <p className="mt-1 text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(p.price)}</p>
+                      </Link>
+                    ))}
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
+                </Card>
+              )}
 
-          <div className="p-4 space-y-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{items.length} articles</p>
-            {items.map((it)=><CartItemCard key={it.id} it={it}/>)}
-          </div>
-
-          {suggestions.length > 0 && (
-            <Section title="Complétez votre commande" subtitle="Disponible au catalogue" className="py-4">
-              <div className="grid grid-cols-2 gap-3">
-                {suggestions.slice(0, 2).map((p)=>(
-                  <Link key={p.id} href={`/produits/${p.id}`}>
-                    <Card className="overflow-hidden h-full">
-                      <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
-                        <Image src={p.img || p.image || '/placeholder.svg'} alt={p.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
-                        {p.minOrderQty > 1 && <span className="absolute left-1.5 top-1.5"><Badge tone="amber">Min. {p.minOrderQty}</Badge></span>}
-                      </div>
-                      <div className="p-2.5">
-                        <p className="text-[11px] font-semibold text-slate-900 dark:text-white line-clamp-2 leading-tight">{p.name}</p>
-                        <p className="mt-1 text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(p.price)}</p>
-                      </div>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {GROUPS.length > 0 && (
-            <Section title="Achats groupés en cours" subtitle="Rejoignez pour partager les frais" className="py-4">
-              <div className="space-y-2">
-                {GROUPS.slice(0,2).map((g)=>(
-                  <Card key={g.id} className="p-3">
-                    <div className="flex items-center gap-3">
-                      <span className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg">
-                        <Image src={g.image} alt={g.name} fill sizes="56px" className="object-cover" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
-                        <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                          <span className="tabular-nums">{formatFcfa(g.unit)}</span>
-                          {g.save > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">-{g.save}%</span>}
-                          <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[10px] !px-1.5 !py-0.5"/>
+              {GROUPS.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Icon name="users" size={16} className="text-violet-600 dark:text-violet-400"/>
+                    Achats groupés en cours
+                  </h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {GROUPS.slice(0,2).map((g)=>(
+                      <div key={g.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <span className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg">
+                          <Image src={g.image} alt={g.name} fill sizes="56px" className="object-cover" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
+                          <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                            <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
+                            {g.save > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">-{g.save}%</span>}
+                            <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[10px] !px-1.5 !py-0.5"/>
+                          </div>
                         </div>
+                        <Button variant="violet" size="sm" onClick={() => router.push(`/achats-groupes/${g.id}`)}>Rejoindre</Button>
                       </div>
-                      <Button variant="violet" size="sm" onClick={() => router.push(`/achats-groupes/${g.id}`)}>Rejoindre</Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </Section>
-          )}
-        </div>
-
-        {/* Sticky bottom */}
-        <div className="absolute bottom-14 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-shrink">
-              <p className="whitespace-nowrap text-[10px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
-              <p className="whitespace-nowrap mt-0.5 text-[15px] font-extrabold leading-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</p>
-              {totals.savings>0 && <p className="whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
+                    ))}
+                  </div>
+                </Card>
+              )}
             </div>
-            <Button variant="primary" size="md" disabled={!canCheckout} className="whitespace-nowrap flex-shrink-0 !px-3 !text-[13px]" onClick={() => canCheckout && router.push('/checkout/adresse')}>
-              Commander
-              <Icon name="arrowRight" size={14}/>
-            </Button>
-          </div>
-        </div>
 
-      </div>
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <a>Accueil</a><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mon panier</span>
-        </div>
-        <div className="mb-6 flex items-baseline justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Mon panier</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{items.length} articles · {items.reduce((s,i)=>s+i.qty,0)} pièces au total</p>
-          </div>
-          <Link href="/produits" className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"><Icon name="arrowLeft" size={14} className="inline mr-1"/>Continuer mes achats</Link>
-        </div>
-
-        {!canCheckout && (
-          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
-            <div className="flex items-start gap-3">
-              <Icon name="info" size={18} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
-              <div>
-                <p className="text-sm font-bold text-amber-900 dark:text-amber-200">Lot minimum non atteint sur {belowMOQ.length} article(s)</p>
-                <p className="text-xs text-amber-800 dark:text-amber-300/80 mt-0.5">Complétez le lot pour débloquer le passage en caisse — c&apos;est un import direct usine.</p>
-              </div>
+            {/* Récap + promo + CTA : sidebar desktop, inline mobile */}
+            <div className="mt-4 md:mt-0">
+              <Summary sticky/>
             </div>
           </div>
-        )}
-
-        <div className="grid grid-cols-[1fr_400px] gap-6">
-          <div className="space-y-3">
-            {items.map((it)=><CartItemCard key={it.id} it={it}/>)}
-
-            {suggestions.length > 0 && (
-              <Card className="p-4">
-                <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Complétez votre commande</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {suggestions.map((p)=>(
-                    <Link key={p.id} href={`/produits/${p.id}`} className="rounded-xl border border-slate-200 p-2 transition-colors hover:border-emerald-400 dark:border-slate-800 dark:hover:border-emerald-700">
-                      <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-                        <Image src={p.img || p.image || '/placeholder.svg'} alt={p.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
-                        {p.minOrderQty > 1 && <span className="absolute left-1.5 top-1.5"><Badge tone="amber">Min. {p.minOrderQty}</Badge></span>}
-                      </div>
-                      <p className="text-[11px] font-semibold text-slate-900 dark:text-white line-clamp-2 min-h-[28px] leading-tight">{p.name}</p>
-                      <p className="mt-1 text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(p.price)}</p>
-                    </Link>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {GROUPS.length > 0 && (
-              <Card className="p-4">
-                <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Icon name="users" size={16} className="text-violet-600 dark:text-violet-400"/>
-                  Achats groupés en cours
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {GROUPS.slice(0,2).map((g)=>(
-                    <div key={g.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                      <span className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg">
-                        <Image src={g.image} alt={g.name} fill sizes="56px" className="object-cover" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
-                        <div className="mt-1 flex items-center gap-1.5 text-[11px]">
-                          <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
-                          {g.save > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">-{g.save}%</span>}
-                          <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[10px] !px-1.5 !py-0.5"/>
-                        </div>
-                      </div>
-                      <Button variant="violet" size="sm" onClick={() => router.push(`/achats-groupes/${g.id}`)}>Rejoindre</Button>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
-
-          <div>
-            <Summary sticky/>
-          </div>
         </div>
       </div>
-    </div>
-  </div>
-</>
+
+      {/* Barre de commande sticky — mobile uniquement */}
+      <div className="sticky bottom-16 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-shrink">
+            <p className="whitespace-nowrap text-[10px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
+            <p className="whitespace-nowrap mt-0.5 text-[15px] font-extrabold leading-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</p>
+            {totals.savings>0 && <p className="whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
+          </div>
+          <Button variant="primary" size="md" disabled={!canCheckout} className="whitespace-nowrap flex-shrink-0 !px-3 !text-[13px]" onClick={() => canCheckout && router.push('/checkout/adresse')}>
+            Commander
+            <Icon name="arrowRight" size={14}/>
+          </Button>
+        </div>
+      </div>
+    </>
   );
-
 }

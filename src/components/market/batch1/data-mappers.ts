@@ -498,7 +498,7 @@ export function mapUser(user: any, dashboard?: any): User {
     initials,
     memberSince: user?.createdAt
       ? new Date(user.createdAt).getFullYear().toString()
-      : '2026',
+      : '',
     grains: grainsBalance,
     grainsTier: tier,
     nextTier,

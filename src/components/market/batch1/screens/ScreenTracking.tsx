@@ -288,133 +288,103 @@ export default function ScreenTracking() {
     </Card>
   );
 
+  const contactCard = (
+    <Card className="p-4 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
+          <Icon name="whatsapp" size={20}/>
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Une question ?</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe suit votre commande 7j/7</p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          className="!bg-emerald-600 flex-shrink-0 md:hidden"
+          onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+        >
+          Contacter
+        </Button>
+      </div>
+      <Button
+        variant="primary"
+        size="md"
+        className="!bg-emerald-600 mt-3 hidden w-full md:flex"
+        onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
+      >
+        <Icon name="whatsapp" size={14}/>Contacter le support
+      </Button>
+    </Card>
+  );
+
+  const actionsCard = (
+    <Card className="p-4">
+      <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-2">Actions</h4>
+      <div className="space-y-1.5">
+        <button onClick={copyTracking} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+          <Icon name="copy" size={14}/>Copier le n° de suivi
+        </button>
+        <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+          <Icon name="mapPin" size={14}/>Modifier l&apos;adresse (contact)
+        </button>
+        <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+          <Icon name="info" size={14}/>Facture (contact)
+        </button>
+        <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">
+          <Icon name="x" size={14}/>Signaler un problème
+        </button>
+      </div>
+    </Card>
+  );
+
   return (
     <Fragment>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
-
-        <div className="flex-1 overflow-y-auto pb-6">
-          {/* Status banner */}
-          <div className={cn("px-4 py-4 text-white", cfg.tone === 'red' ? "bg-gradient-to-br from-red-600 to-red-700 dark:from-red-800 dark:to-red-950" : "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-950")}>
-            <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 backdrop-blur"><Icon name={cfg.icon} size={16}/></span>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/{steps.length || 5}</p>
-                <p className="text-[15px] font-extrabold">{steps[currentStep - 1]?.label ?? ""}</p>
-              </div>
-              <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold">
-                <span className={cn("h-1.5 w-1.5 rounded-full animate-ping-slow", cfg.tone === 'red' ? "bg-red-300" : "bg-emerald-300")}/>{cfg.label}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <DeliveryCard/>
-            <OrderInfo/>
-
-            <Card className="p-4">
-              <h3 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-4">Historique</h3>
-              <Timeline/>
-            </Card>
-
-            {/* Contact */}
-            <Card className="p-4 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900">
-              <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
-                  <Icon name="whatsapp" size={20}/>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Une question ?</p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe suit votre commande 7j/7</p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="!bg-emerald-600 flex-shrink-0"
-                  onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
-                >
-                  Contacter
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </div>
-      </div>
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte/commandes" className="cursor-pointer">Mes commandes</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{order.id}</span>
-        </div>
-
-        <div className="mb-6 flex items-start justify-between gap-4">
+      {/* Bannière d'étape — mobile */}
+      <div className={cn("px-4 py-4 text-white md:hidden", cfg.tone === 'red' ? "bg-gradient-to-br from-red-600 to-red-700 dark:from-red-800 dark:to-red-950" : "bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-800 dark:to-emerald-950")}>
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 backdrop-blur"><Icon name={cfg.icon} size={16}/></span>
           <div>
-            <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">Suivi de commande</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Commande <b className="text-slate-900 dark:text-white">{order.id}</b> · Passée le {new Date(order.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/{steps.length || 5}</p>
+            <p className="text-[15px] font-extrabold">{steps[currentStep - 1]?.label ?? ""}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold">
+            <span className={cn("h-1.5 w-1.5 rounded-full animate-ping-slow", cfg.tone === 'red' ? "bg-red-300" : "bg-emerald-300")}/>{cfg.label}
+          </span>
+        </div>
+      </div>
+
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+          {/* Fil d'ariane + titre — desktop */}
+          <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
+            <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte/commandes" className="cursor-pointer">Mes commandes</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{order.id}</span>
+          </div>
+          <div className="mb-6 hidden items-start justify-between gap-4 md:flex">
+            <div>
+              <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">Suivi de commande</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Commande <b className="text-slate-900 dark:text-white">{order.id}</b> · Passée le {new Date(order.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+            </div>
             <Badge tone={cfg.tone}><Icon name={cfg.icon} size={12}/>{cfg.label} · Étape {currentStep}/{steps.length || 5}</Badge>
           </div>
-        </div>
 
-        <div className="grid grid-cols-[1fr_380px] gap-6">
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4 p-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:p-0">
+            {/* Ordre mobile : livraison → infos → historique → contact → actions.
+                Ordre desktop : colonne gauche (livraison+historique), colonne droite (infos+contact+actions). */}
             <DeliveryCard/>
-
-            <Card className="p-6">
-              <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white mb-5">Historique détaillé</h3>
+            <div className="md:col-start-2 md:row-start-1">
+              <OrderInfo/>
+            </div>
+            <Card className="p-4 md:col-start-1 md:row-start-2 md:p-6">
+              <h3 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-4 md:text-[15px] md:mb-5">Historique</h3>
               <Timeline/>
             </Card>
-          </div>
-
-          <div className="space-y-4">
-            <OrderInfo/>
-
-            <Card className="p-4 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900">
-              <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
-                  <Icon name="whatsapp" size={20}/>
-                </span>
-                <div>
-                  <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Support 7j/7</p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">Réponse sous 15 min</p>
-                </div>
-              </div>
-              <Button
-                variant="primary"
-                size="md"
-                className="!bg-emerald-600 w-full mt-3"
-                onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')}
-              >
-                <Icon name="whatsapp" size={14}/>Contacter le support
-              </Button>
-            </Card>
-
-            <Card className="p-4">
-              <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-white mb-2">Actions</h4>
-              <div className="space-y-1.5">
-                <button onClick={copyTracking} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <Icon name="copy" size={14}/>Copier le n° de suivi
-                </button>
-                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <Icon name="mapPin" size={14}/>Modifier l&apos;adresse (contact)
-                </button>
-                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <Icon name="info" size={14}/>Facture (contact)
-                </button>
-                <button onClick={() => window.open(supportWhatsApp, '_blank', 'noopener,noreferrer')} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">
-                  <Icon name="x" size={14}/>Signaler un problème
-                </button>
-              </div>
-            </Card>
+            <div className="md:col-start-2 md:row-start-2">{contactCard}</div>
+            <div className="md:col-start-2 md:row-start-3">{actionsCard}</div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</Fragment>
+    </Fragment>
   );
 
 }

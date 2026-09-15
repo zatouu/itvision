@@ -511,139 +511,104 @@ export default function ScreenGroupDetail() {
 
   return (
     <>
-      <div className="md:hidden">
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-950">
-        <div className="flex-1 overflow-y-auto pb-24">
-          {/* Hero */}
-          <div className="bg-white dark:bg-slate-900">
-            <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
-              <Image src={g.image} alt={g.name} fill sizes="100vw" className="object-cover" priority />
-              <div className="absolute left-3 top-3"><Badge tone="violet"><Icon name="users" size={11}/> Achat groupé</Badge></div>
-              <div className="absolute right-3 top-3"><CountdownChip time={g.deadline} urgent={g.status==="almost"}/></div>
-            </div>
-            <div className="p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{g.category}</p>
-              <h1 className="mt-0.5 text-[19px] font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">{g.name}</h1>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-[28px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
-                <span className="text-[13px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(g.base)}</span>
-                <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">-{g.save}%</span>
-              </div>
-              <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">Prix débloqué à la clôture du groupe</p>
-            </div>
+      <div className="min-h-full bg-slate-50 pb-28 dark:bg-slate-950 md:pb-0">
+        <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+          {/* Fil d'ariane — desktop */}
+          <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
+            <Link href="/market" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
+            <Link href="/achats-groupes" className="hover:text-slate-700 dark:hover:text-slate-300">Achats groupés</Link><Icon name="chevronRight" size={12}/>
+            <span className="line-clamp-1 max-w-[260px] text-slate-700 dark:text-slate-300">{g.name}</span>
           </div>
 
-          <div className="mt-2 bg-white p-4 dark:bg-slate-900">
-            <ProgressPanel/>
-          </div>
-
-          <Section title="Comment ça marche ?" className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <HowItWorks/>
-          </Section>
-
-          <Section title="Rejoindre" className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <JoinForm/>
-          </Section>
-
-          <Section title="Inviter" className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <ShareCard/>
-          </Section>
-
-          <Section className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <ParticipantsList/>
-          </Section>
-
-          <Section className="mt-2 py-4 bg-white dark:bg-slate-900">
-            <ChatBox/>
-          </Section>
-
-          <div className="px-4 py-4">
-            <TrustStrip compact/>
-          </div>
-        </div>
-
-        {/* Sticky bottom */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">{g.currentQty}/{g.targetQty} pcs · {pct}%</p>
-              <div className="mt-0.5 flex items-baseline gap-1.5 whitespace-nowrap">
-                <p className="text-[16px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</p>
-                <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">-{g.save}%</p>
-              </div>
-            </div>
-            {canJoin ? (
-              <Button
-                variant="violet"
-                size="md"
-                className="whitespace-nowrap flex-shrink-0"
-                disabled={joinStatus === 'submitting' || joinStatus === 'success'}
-                onClick={handleJoin}
-              >
-                {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
-              </Button>
-            ) : (
-              <span className="whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{closedLabel}</span>
-            )}
-          </div>
-        </div>
-      </div>
-      </div>
-      <div className="hidden md:block">
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">
-
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <a>Accueil</a><Icon name="chevronRight" size={12}/><a>Achats groupés</a><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{g.name}</span>
-        </div>
-
-        <div className="grid grid-cols-[1fr_400px] gap-6">
-          <div className="space-y-4">
-            <Card className="overflow-hidden">
-              <div className="grid grid-cols-2">
-                <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
-                  <Image src={g.image} alt={g.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
-                  <div className="absolute left-4 top-4"><Badge tone="violet"><Icon name="users" size={11}/> Achat groupé</Badge></div>
+          <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            {/* Hero produit + progression */}
+            <Card className="overflow-hidden rounded-none border-x-0 md:rounded-2xl md:border-x md:col-start-1 md:row-start-1">
+              <div className="md:grid md:grid-cols-2">
+                <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800 md:aspect-square">
+                  <Image src={g.image} alt={g.name} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" priority />
+                  <div className="absolute left-3 top-3 md:left-4 md:top-4"><Badge tone="violet"><Icon name="users" size={11}/> Achat groupé</Badge></div>
+                  <div className="absolute right-3 top-3"><CountdownChip time={g.deadline} urgent={g.status==="almost"}/></div>
                 </div>
-                <div className="p-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{g.category}</p>
-                  <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white">{g.name}</h1>
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
-                    <span className="text-base font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(g.base)}</span>
+                <div className="p-4 md:p-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:text-xs">{g.category}</p>
+                  <h1 className="mt-0.5 text-[19px] font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white md:mt-1 md:text-2xl">{g.name}</h1>
+                  <div className="mt-3 flex items-baseline gap-2 md:mt-4">
+                    <span className="text-[28px] font-extrabold text-violet-700 tabular-nums dark:text-violet-300 md:text-4xl">{formatFcfa(g.unit)}</span>
+                    {g.save > 0 && g.base > g.unit && (
+                      <>
+                        <span className="text-[13px] font-semibold text-slate-400 line-through tabular-nums md:text-base">{formatFcfa(g.base)}</span>
+                        <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">-{g.save}%</span>
+                      </>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Prix débloqué à la clôture du groupe · Économie -{g.save}%</p>
-                  <div className="mt-6">
+                  <p className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400 md:mt-1 md:text-xs">Prix débloqué à la clôture du groupe</p>
+                  <div className="mt-4 md:mt-6">
                     <ProgressPanel/>
                   </div>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5">
+            {/* Rejoindre + partager : flux mobile, colonne droite sticky desktop */}
+            <div className="md:col-start-2 md:row-start-1 md:row-span-4">
+              <div className="md:sticky md:top-[calc(var(--mkt-header-h,0px)+12px)] md:space-y-4">
+                <Section title="Rejoindre" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-0 md:bg-transparent md:p-0 md:dark:bg-transparent">
+                  <JoinForm/>
+                </Section>
+                <Section title="Inviter" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-4 md:bg-transparent md:p-0 md:dark:bg-transparent">
+                  <ShareCard/>
+                </Section>
+              </div>
+            </div>
+
+            <Card className="mt-2 rounded-none border-x-0 p-4 dark:border-slate-800 md:col-start-1 md:row-start-2 md:mt-0 md:rounded-2xl md:border-x md:p-5">
               <h2 className="mb-4 text-base font-extrabold text-slate-900 dark:text-white">Comment ça marche ?</h2>
               <HowItWorks/>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
-              <ParticipantsList/>
-              <ChatBox/>
+            <div className="mt-2 md:col-start-1 md:row-start-3 md:mt-0 md:grid md:grid-cols-2 md:gap-4">
+              <div className="bg-white px-4 py-4 dark:bg-slate-900 md:bg-transparent md:p-0 md:dark:bg-transparent">
+                <ParticipantsList/>
+              </div>
+              <div className="mt-2 bg-white px-4 py-4 dark:bg-slate-900 md:mt-0 md:bg-transparent md:p-0 md:dark:bg-transparent">
+                <ChatBox/>
+              </div>
             </div>
 
-            <TrustStrip/>
-          </div>
-
-          <div>
-            <div className="sticky top-20 space-y-4">
-              <JoinForm/>
-              <ShareCard/>
+            <div className="px-4 py-4 md:col-start-1 md:row-start-4 md:p-0">
+              <div className="md:hidden"><TrustStrip compact/></div>
+              <div className="hidden md:block"><TrustStrip/></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</>
+
+      {/* Barre rejoindre — mobile */}
+      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">{g.currentQty}/{g.targetQty} pcs · {pct}%</p>
+            <div className="mt-0.5 flex items-baseline gap-1.5 whitespace-nowrap">
+              <p className="text-[16px] font-extrabold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</p>
+              {g.save > 0 && <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">-{g.save}%</p>}
+            </div>
+          </div>
+          {canJoin ? (
+            <Button
+              variant="violet"
+              size="md"
+              className="whitespace-nowrap flex-shrink-0"
+              disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+              onClick={handleJoin}
+            >
+              {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
+            </Button>
+          ) : (
+            <span className="whitespace-nowrap rounded-lg bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{closedLabel}</span>
+          )}
+        </div>
+      </div>
+    </>
   );
 
 }

@@ -250,7 +250,7 @@ export default function ScreenPricing() {
           </div>
 
           {/* Tiers */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="lg:sticky lg:top-[calc(var(--mkt-header-h,0px)+12px)] lg:self-start">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Remises par volume</p>
             <h2 className="text-[20px] md:text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">Le prix baisse dès que vous augmentez</h2>
             <div className="mt-4 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
