@@ -10,6 +10,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 import { Section } from '../Section';
 import { GroupCard } from '../GroupCard';
+import { Skeleton } from '../Skeleton';
 import { mapProductDetail, mapGroupOrder } from '../data-mappers';
 import type { Product, Group } from '../types';
 
@@ -66,13 +67,19 @@ export default function ScreenGroups() {
   const simSavings = Math.max(0, ((PRODUCT?.price ?? 0) - simTier.unit) * simQty);
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+    return (
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+          <Skeleton className="h-44 w-full md:h-64 md:rounded-3xl" />
+          <div className="grid grid-cols-2 gap-3 p-4 md:mt-4 md:grid-cols-3 md:gap-4 md:p-0">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  if (GROUPS.length === 0 && !loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Aucun groupe disponible</div>;
-  }
-
+  const hasGroups = GROUPS.length > 0;
   const maxSave = GROUPS.length ? Math.max(...GROUPS.map((g) => g.save ?? 0)) : 0;
   const totalParticipants = GROUPS.reduce((s, g) => s + (g.participants ?? 0), 0);
   const avgSave = GROUPS.length ? Math.round(GROUPS.reduce((s, g) => s + (g.save ?? 0), 0) / GROUPS.length) : 0;
@@ -87,7 +94,7 @@ export default function ScreenGroups() {
           </div>
           <div className="relative md:grid md:grid-cols-[1fr_auto] md:items-end md:gap-6">
             <div>
-              <Badge tone="ink" className="!text-white !bg-white/15 !border-white/25"><Icon name="flame" size={11}/> En direct</Badge>
+              <Badge tone="ink" className="!text-white !bg-white/15 !border-white/25"><Icon name="flame" size={11}/> {hasGroups ? 'En direct' : 'Lancez le premier groupe'}</Badge>
               <h1 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight md:mt-3 md:text-4xl md:leading-[1.05]">
                 Achats groupés<br/>
                 <span className="text-emerald-300">{maxSave > 0 ? `Jusqu'à -${maxSave}%` : 'Plus on est, moins cher'}</span>
@@ -112,7 +119,8 @@ export default function ScreenGroups() {
           </div>
         </div>
 
-        {/* Filtres — sticky sous le header sur mobile */}
+        {/* Filtres — sticky sous le header sur mobile (masqués s'il n'y a aucun groupe) */}
+        {hasGroups && (
         <div className="sticky top-[var(--mkt-header-h,0px)] z-10 border-b border-slate-200 bg-slate-50 pb-2 pt-3 dark:border-slate-800 dark:bg-slate-950 md:static md:mt-6 md:flex md:items-center md:justify-between md:gap-4 md:border-0 md:bg-transparent md:p-0 md:dark:bg-transparent">
           <div className="mb-2 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mb-0 md:gap-2 md:px-0 md:pb-0">
             {cats.map((c)=>(
@@ -137,11 +145,49 @@ export default function ScreenGroups() {
             </select>
           </div>
         </div>
+        )}
 
-        {/* Grille */}
-        <div className="grid grid-cols-2 gap-3 p-4 md:mt-4 md:grid-cols-3 md:gap-4 md:p-0">
-          {filtered.map((g) => <GroupCard key={g.id} group={g} onClick={() => router.push(`/achats-groupes/${g.id}`)}/>)}
-        </div>
+        {/* Grille ou état vide */}
+        {filtered.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 p-4 md:mt-4 md:grid-cols-3 md:gap-4 md:p-0">
+            {filtered.map((g) => <GroupCard key={g.id} group={g} onClick={() => router.push(`/achats-groupes/${g.id}`)}/>)}
+          </div>
+        ) : hasGroups ? (
+          <div className="mx-4 my-6 flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900 md:mx-0">
+            <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Aucun groupe dans « {cat} »</p>
+            <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Essayez une autre catégorie ou un autre tri.</p>
+            <Button variant="secondary" size="md" className="mt-4" onClick={() => setCat('Tous')}>Voir tous les groupes</Button>
+          </div>
+        ) : (
+          <div className="mx-4 my-6 md:mx-0 md:my-8">
+            <Card className="p-6 text-center md:p-10">
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                <Icon name="users" size={28}/>
+              </span>
+              <h2 className="mt-4 text-[18px] font-extrabold tracking-tight text-slate-900 dark:text-white md:text-xl">Aucun achat groupé en cours</h2>
+              <p className="mx-auto mt-2 max-w-md text-[13px] text-slate-500 dark:text-slate-400 md:text-sm">
+                Un achat groupé permet à plusieurs acheteurs de commander ensemble pour atteindre le palier de prix usine — le prix baisse à mesure que le groupe grandit.
+              </p>
+              <div className="mx-auto mt-6 grid max-w-lg grid-cols-1 gap-2 text-left sm:grid-cols-3">
+                {[
+                  { icon: 'search', title: '1. Choisissez', sub: 'un produit du catalogue' },
+                  { icon: 'users', title: '2. Invitez', sub: 'd\'autres acheteurs' },
+                  { icon: 'checkCircle', title: '3. Économisez', sub: 'au palier débloqué' },
+                ].map((s) => (
+                  <div key={s.title} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                    <Icon name={s.icon} size={16} className="text-violet-600 dark:text-violet-400"/>
+                    <p className="mt-1.5 text-[12px] font-bold text-slate-900 dark:text-white">{s.title}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{s.sub}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+                <Button variant="violet" size="lg" onClick={() => router.push('/achats-groupes/nouveau')}><Icon name="plus" size={16}/>Créer le premier groupe</Button>
+                <Button variant="secondary" size="lg" onClick={() => router.push('/produits')}>Explorer le catalogue</Button>
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Simulateur de paliers */}
         <Section title="Simulateur — quel prix pour votre lot ?" subtitle="Ajustez la quantité pour voir le prix palier appliqué" className="mt-2 bg-white py-5 dark:bg-slate-900 md:mt-8 md:bg-transparent md:p-0 md:dark:bg-transparent">

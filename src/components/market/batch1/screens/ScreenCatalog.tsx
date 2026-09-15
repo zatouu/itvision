@@ -297,15 +297,18 @@ export default function ScreenCatalog() {
     <>
       <div className="min-h-full bg-slate-50 dark:bg-slate-950">
 
-        {/* Recherche + tri : barre unique, sticky sous le header (toutes tailles) */}
+        {/* Tri + filtres : barre sticky sous le header. La recherche vit dans
+            le header (SearchAutocomplete) — pas de second champ ici. */}
         <div className="sticky top-[var(--mkt-header-h,0px)] z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
           <div className="mx-auto max-w-6xl px-4 py-2.5 md:px-6 md:py-3">
             <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
-              <div className="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800 md:basis-auto">
-                <Icon name="search" size={16} className="text-slate-500 dark:text-slate-400"/>
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher un produit, une catégorie, une marque…" className="flex-1 min-w-0 bg-transparent text-[12px] md:text-[13px] outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"/>
-                <button onClick={openSourcing} aria-label="Recherche par image / sourcing" className="grid h-7 w-7 md:h-8 md:w-8 flex-shrink-0 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="camera" size={13}/></button>
-              </div>
+              {query && (
+                <div className="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 dark:bg-emerald-950/40 md:basis-auto">
+                  <Icon name="search" size={14} className="flex-shrink-0 text-emerald-700 dark:text-emerald-400"/>
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-emerald-800 dark:text-emerald-300">« {query} »</span>
+                  <button onClick={() => { setQuery(''); router.push('/produits'); }} aria-label="Effacer la recherche" className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-full text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/60"><Icon name="x" size={12}/></button>
+                </div>
+              )}
               <div className="flex w-full items-center gap-2 md:w-auto">
                 <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:hidden">
                   <Icon name="filter" size={12}/>Filtres
