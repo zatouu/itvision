@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { Icon } from '../Icon';
 import { Button } from '../Button';
 import { GroupCard } from '../GroupCard';
+import { GroupNotifyCard } from '../GroupNotifyCard';
 import { QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing';
 import { Skeleton } from '../Skeleton';
 import { mapProductDetail, mapGroupOrder } from '../data-mappers';
@@ -18,17 +19,36 @@ export default function ScreenGroups() {
   const [loading, setLoading] = useState(true);
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
+  const [FEATURED, setFEATURED] = useState<Group[]>([]);
+  const [FEATURED_META, setFEATURED_META] = useState<Record<string, { progress: number; daysLeft: number; savingsPercent: number; reason: string }>>({});
+  const [ACTIVITIES, setACTIVITIES] = useState<{ type: string; userName: string; groupId: string; productName: string; createdAt: string }[]>([]);
+  const [STATS, setSTATS] = useState<{ openGroupsCount: number; totalFilled: number; totalParticipants: number; totalSaved: number } | null>(null);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       fetch('/api/group-orders?limit=50').then(r => r.json()).catch(() => null),
       fetch('/api/catalog/products?limit=1&compact=1').then(r => r.json()).catch(() => null),
-    ]).then(([res, prodRes]) => {
+      fetch('/api/group-orders/featured').then(r => r.json()).catch(() => null),
+      fetch('/api/group-orders/activities').then(r => r.json()).catch(() => null),
+      fetch('/api/group-orders/stats').then(r => r.json()).catch(() => null),
+    ]).then(([res, prodRes, featRes, actRes, statsRes]) => {
       if (res?.groups?.length) setGROUPS(res.groups.map(mapGroupOrder));
       if (prodRes?.products?.[0] || prodRes?.items?.[0]) {
         setPRODUCT(mapProductDetail(prodRes.products?.[0] || prodRes.items?.[0]) as Product | null);
       }
+      if (Array.isArray(featRes?.featured)) {
+        const meta: Record<string, { progress: number; daysLeft: number; savingsPercent: number; reason: string }> = {};
+        const mapped = featRes.featured.map((f: any) => {
+          const reason = f.isAlmostFull ? 'Presque plein' : f.isPopular ? 'Populaire' : f.isNew ? 'Nouveau' : 'Grosse économie';
+          meta[f.groupId] = { progress: f.progress ?? 0, daysLeft: f.daysLeft ?? 0, savingsPercent: f.savingsPercent ?? 0, reason };
+          return mapGroupOrder(f);
+        });
+        setFEATURED(mapped);
+        setFEATURED_META(meta);
+      }
+      if (Array.isArray(actRes?.activities)) setACTIVITIES(actRes.activities);
+      if (statsRes?.stats) setSTATS(statsRes.stats);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -132,19 +152,21 @@ export default function ScreenGroups() {
                   </span>
                 )}
               </div>
-              {hasGroups && (
+              {(hasGroups || STATS) && (
                 <div className="mt-6 grid max-w-sm grid-cols-3 gap-3">
                   <div>
-                    <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{GROUPS.length}</p>
+                    <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{STATS?.openGroupsCount ?? GROUPS.length}</p>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Groupes actifs</p>
                   </div>
                   <div>
-                    <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{totalParticipants}</p>
+                    <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{STATS?.totalParticipants ?? totalParticipants}</p>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Participants</p>
                   </div>
                   <div>
-                    <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums text-emerald-600 dark:text-emerald-400 md:text-[28px]">{avgSave > 0 ? `-${avgSave}%` : '—'}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Éco. moyenne</p>
+                    <p className="font-[var(--font-brand)] text-[18px] font-black tabular-nums text-emerald-600 dark:text-emerald-400 md:text-[22px]">
+                      {STATS && STATS.totalSaved > 0 ? formatFcfa(STATS.totalSaved) : avgSave > 0 ? `-${avgSave}%` : '—'}
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{STATS && STATS.totalSaved > 0 ? 'Économisés' : 'Éco. moyenne'}</p>
                   </div>
                 </div>
               )}
@@ -178,6 +200,68 @@ export default function ScreenGroups() {
             </div>
           </div>
         </div>
+
+        {/* Fil d'activité — preuve sociale anonymisée */}
+        {ACTIVITIES.length > 0 && (
+          <div className="mt-4 flex gap-2 overflow-x-auto px-4 pb-1 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {ACTIVITIES.slice(0, 8).map((a, i) => (
+              <button
+                key={`${a.groupId}-${a.userName}-${i}`}
+                onClick={() => router.push(`/achats-groupes/${a.groupId}`)}
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition-colors hover:border-violet-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <span className={cn('h-1.5 w-1.5 rounded-full', a.type === 'group_created' ? 'bg-violet-500' : 'bg-emerald-500')}/>
+                {a.type === 'group_created'
+                  ? <Fragment><b>{a.userName}</b> a lancé <span className="max-w-[140px] truncate">{a.productName}</span></Fragment>
+                  : <Fragment><b>{a.userName}</b> a rejoint <span className="max-w-[140px] truncate">{a.productName}</span></Fragment>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* À la une — sélection serveur : urgent / populaire / nouveau */}
+        {FEATURED.length > 0 && (
+          <div className="mt-8 md:mt-10">
+            <div className="flex items-center gap-2 px-4 md:px-0">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"><Icon name="flame" size={14}/></span>
+              <h2 className="font-[var(--font-brand)] text-[20px] font-black tracking-tight md:text-[26px]">Achats groupés à la une</h2>
+            </div>
+            <div className="mt-3 flex gap-3 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-3 md:gap-4 md:px-0 md:pb-0">
+              {FEATURED.map((f) => {
+                const meta = FEATURED_META[f.id];
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => router.push(`/achats-groupes/${f.id}`)}
+                    className="w-[270px] flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900 md:w-auto"
+                  >
+                    <div className="relative h-32 bg-slate-100 dark:bg-slate-800">
+                      <img src={f.image} alt={f.name} className="h-full w-full object-cover"/>
+                      <span className="absolute left-2 top-2 rounded-md bg-slate-900/85 px-1.5 py-0.5 text-[9px] font-bold text-white">{meta?.reason}</span>
+                      {meta && meta.savingsPercent > 0 && (
+                        <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">-{meta.savingsPercent}%</span>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="line-clamp-1 text-[13px] font-extrabold text-slate-900 dark:text-white">{f.name}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-500" style={{ width: `${Math.min(100, meta?.progress ?? 0)}%` }}/>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        <span className="tabular-nums"><b className="text-slate-900 dark:text-white">{f.currentQty}</b>/{f.targetQty} pcs</span>
+                        <span className="tabular-nums">{meta && meta.daysLeft > 0 ? `${meta.daysLeft}j restants` : 'Dernier jour'}</span>
+                      </div>
+                      <div className="mt-2 flex items-baseline justify-between">
+                        <span className="text-[15px] font-extrabold tabular-nums text-violet-700 dark:text-violet-300">{formatFcfa(f.unit)}</span>
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Rejoindre →</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Opportunités */}
         <div className="mt-8 md:mt-12">
@@ -230,6 +314,7 @@ export default function ScreenGroups() {
                   </button>
                   <button onClick={() => router.push('/produits')} className="text-[13px] font-bold text-slate-600 underline-offset-4 hover:underline dark:text-slate-300">Explorer le catalogue</button>
                 </div>
+                <div className="mx-auto mt-5 max-w-xs text-left"><GroupNotifyCard/></div>
               </div>
             </div>
           )}
@@ -269,7 +354,22 @@ export default function ScreenGroups() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</span>
                   <span className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[26px]">{simQty} pcs</span>
                 </div>
-                <input type="range" min={PRODUCT?.minOrderQty ?? 1} max={50} value={simQty} onChange={e=>setSimQty(+e.target.value)} className="mt-1 w-full accent-emerald-600"/>
+                <div className="mt-2 flex gap-1.5">
+                  {[10, 25, 50, 100].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setSimQty(q)}
+                      className={cn('flex-1 rounded-lg border py-1.5 text-[12px] font-bold tabular-nums transition-colors',
+                        simQty === q
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <input type="range" min={PRODUCT?.minOrderQty ?? 1} max={100} value={simQty} onChange={e=>setSimQty(+e.target.value)} className="mt-2 w-full accent-emerald-600"/>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 md:mt-0 md:gap-3">
                 <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800 md:w-32">

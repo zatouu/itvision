@@ -136,6 +136,8 @@ export interface Group {
   base: number;
   save: number;
   status: 'live' | 'almost' | string;
+  /** Paliers de prix réels du groupe (minQty → prix unitaire) */
+  priceTiers?: { minQty: number; price: number }[];
   category: string;
   createdAt?: number;
   /** Groupes de variantes du produit (sélection requise au join si non vide) */

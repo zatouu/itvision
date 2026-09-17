@@ -320,6 +320,12 @@ export function mapGroupOrder(g: any): Group {
             : 'live';
 
   const deadlineDate = g?.deadline ? new Date(g.deadline).getTime() : 0;
+  // Un groupe 'open' dont la deadline est dépassée n'accepte plus d'inscription
+  // (le POST le rejette) — l'UI doit afficher 'expired', pas 'live'.
+  const mappedStatus: Group['status'] =
+    (status === 'live' || status === 'almost') && Number.isFinite(deadlineDate) && deadlineDate > 0 && deadlineDate < Date.now()
+      ? 'expired'
+      : status;
 
   return {
     id: g?.groupId || g?.id || '',
@@ -346,7 +352,13 @@ export function mapGroupOrder(g: any): Group {
     save:
       g?.savePct ??
       (base > 0 && unit > 0 ? Math.round(((base - unit) / base) * 100) : 0),
-    status,
+    status: mappedStatus,
+    priceTiers: Array.isArray(g?.priceTiers)
+      ? g.priceTiers
+          .filter((t: any) => Number.isFinite(t?.minQty) && Number.isFinite(t?.price))
+          .map((t: any) => ({ minQty: Number(t.minQty), price: Number(t.price) }))
+          .sort((a: any, b: any) => a.minQty - b.minQty)
+      : undefined,
     category: g?.product?.category || 'Import',
     createdAt: g?.createdAt ? new Date(g.createdAt).getTime() : undefined,
     variantGroups: Array.isArray(g?.variantGroups) ? g.variantGroups : undefined,

@@ -18,6 +18,7 @@ import { Section } from '../Section';
 import ProductImageGallery from '../ProductImageGallery';
 import ProductDescription from '../ProductDescription';
 import { VariantPicker } from '../VariantPicker';
+import { GroupNotifyCard } from '../GroupNotifyCard';
 import { useWishlist } from '../useWishlist';
 import { addToCart, mapProductDetail } from '../data-mappers';
 import type { Product, PriceTier, ProductVariant, ShippingMode } from '../types';
@@ -410,6 +411,7 @@ export default function ScreenProduct() {
                 </Card>
 
                 {groupBuyCard}
+                {!p.groupBuy?.active && <GroupNotifyCard productId={p.id}/>}
               </div>
             </aside>
 

@@ -17,6 +17,7 @@ import { ProgressBar } from '../ProgressBar';
 import { CountdownChip } from '../CountdownChip';
 import { LiveDot } from '../LiveDot';
 import { mapGroupOrder } from '../data-mappers';
+import { Skeleton } from '../Skeleton';
 import type { Group } from '../types';
 
 
@@ -53,6 +54,10 @@ export default function ScreenGroupDetail() {
   const [chatMessages, setChatMessages] = useState<{ id: string; n: string; m: string; t: string; staff: boolean }[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
+  const [myPhone, setMyPhone] = useState('');
+  const [myPay, setMyPay] = useState<'idle'|'loading'|'found'|'error'>('idle');
+  const [myPayData, setMyPayData] = useState<any>(null);
+  const [myPayError, setMyPayError] = useState('');
 
   // Prix estimé côté client — le serveur recalcule de façon autoritaire au join.
   const selectedVariantPrice = Math.max(
@@ -124,15 +129,49 @@ export default function ScreenGroupDetail() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+    return (
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto max-w-6xl md:px-6 md:py-6">
+          <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            <div className="md:grid md:grid-cols-2">
+              <Skeleton className="aspect-[4/3] w-full md:aspect-square"/>
+              <div className="space-y-3 p-4 md:p-6">
+                <Skeleton className="h-3 w-24"/>
+                <Skeleton className="h-6 w-3/4"/>
+                <Skeleton className="h-10 w-40"/>
+                <Skeleton className="h-32 w-full rounded-2xl"/>
+              </div>
+            </div>
+            <div className="space-y-4 p-4 md:p-0">
+              <Skeleton className="h-64 w-full rounded-2xl"/>
+              <Skeleton className="h-40 w-full rounded-2xl"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!g) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Groupe introuvable</div>;
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+        <Icon name="package" size={32}/>
+        <p className="text-sm font-semibold">Groupe introuvable</p>
+        <Link href="/achats-groupes" className="text-[12px] font-bold text-violet-600 dark:text-violet-400">← Voir les achats groupés</Link>
+      </div>
+    );
   }
 
   const pct = g.targetQty > 0 ? Math.round((g.currentQty / g.targetQty) * 100) : 0;
   const remaining = Math.max(0, g.targetQty - g.currentQty);
+
+  // Paliers réels du groupe : palier courant = plus grand minQty ≤ currentQty,
+  // prochain palier = premier minQty > currentQty.
+  const tiers = (g.priceTiers || []).slice().sort((a, b) => a.minQty - b.minQty);
+  const nextTier = tiers.find((t) => t.minQty > g.currentQty);
+  const unitsToNextTier = nextTier ? Math.max(0, nextTier.minQty - g.currentQty) : 0;
+  const joinable = g.status === 'live' || g.status === 'almost';
+  const nearGoal = joinable && g.targetQty > 0 && remaining > 0 && remaining <= Math.max(3, Math.ceil(g.targetQty * 0.1));
 
   const relTime = (iso?: string) => {
     if (!iso) return '';
@@ -165,13 +204,14 @@ export default function ScreenGroupDetail() {
 
   // Seuls les groupes ouverts acceptent des inscriptions — 'filled', 'ordered',
   // 'shipped', 'delivered', 'cancelled', 'draft' affichent leur état réel.
-  const canJoin = g.status === 'live' || g.status === 'almost';
+  const canJoin = joinable;
   const closedLabel = ({
     filled: 'Groupe complet — commande en préparation',
     ordered: 'Commande groupée passée — traitement en cours',
     shipped: 'Commande groupée expédiée',
     delivered: 'Groupe livré',
     cancelled: 'Groupe annulé',
+    expired: 'Date limite dépassée — inscriptions closes',
     draft: 'Groupe en préparation',
   } as Record<string, string>)[g.status] || 'Inscriptions fermées';
 
@@ -188,6 +228,29 @@ export default function ScreenGroupDetail() {
       setCopied(false);
     }
   };
+
+  const checkMyPayment = async (rawPhone?: string) => {
+    const p = (rawPhone ?? myPhone).replace(/\s/g, '').replace(/^(221|00221)/, '');
+    if (!p) return;
+    setMyPay('loading');
+    setMyPayError('');
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}/my-payment?phone=${encodeURIComponent(`+221 ${p}`)}`);
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setMyPay('error');
+        setMyPayError(data?.error || 'Aucune participation trouvée avec ce numéro.');
+        return;
+      }
+      setMyPay('found');
+      setMyPayData(data);
+    } catch {
+      setMyPay('error');
+      setMyPayError('Impossible de contacter le serveur.');
+    }
+  };
+
+  const shareText = `Achat groupé DDM+ : ${g.name} — on est déjà ${g.participants} participant${g.participants > 1 ? 's' : ''}. ${nextTier ? `Encore ${unitsToNextTier} unité${unitsToNextTier > 1 ? 's' : ''} pour passer à ${formatFcfa(nextTier.price)}/pc.` : `Prix débloqué : ${formatFcfa(g.unit)}/pc.`} ${shareUrl}`;
 
   const handleJoin = async () => {
     setJoinStatus('submitting');
@@ -228,6 +291,8 @@ export default function ScreenGroupDetail() {
         try { sessionStorage.setItem(chatStorageKey, data.chat.token); } catch {}
         setChatToken(data.chat.token);
       }
+      // Auto-vérifie le statut participant via le téléphone saisi (my-payment)
+      void checkMyPayment(cleanPhone);
       // refresh group data
       const refreshed = await fetch(`/api/group-orders/${groupId}`).then(r => r.json());
       if (refreshed?.group) setGROUPS([mapGroupOrder(refreshed.group)]);
@@ -295,6 +360,19 @@ export default function ScreenGroupDetail() {
           </div>
         </div>
 
+        {nextTier && joinable ? (
+          <div className={cn('mt-3 rounded-xl p-2.5 text-[11px] font-semibold', nearGoal ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300')}>
+            <div className="flex items-center gap-1.5">
+              <Icon name={nearGoal ? 'flame' : 'trending'} size={12}/>
+              {nearGoal ? 'Presque au but !' : 'Prochain palier'} — encore <b className="tabular-nums">{unitsToNextTier}</b> unité{unitsToNextTier > 1 ? 's' : ''} pour passer à <b className="tabular-nums">{formatFcfa(nextTier.price)}</b>/pc
+            </div>
+          </div>
+        ) : !nextTier && tiers.length > 0 && g.save > 0 ? (
+          <p className="mt-3 rounded-xl bg-emerald-50 p-2.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <Icon name="check" size={12} className="mr-1 inline"/>Meilleur palier débloqué — {formatFcfa(g.unit)}/pc
+          </p>
+        ) : null}
+
         <p className="mt-3 text-[11px] text-slate-600 dark:text-slate-400">
           {joinedLastHour > 0 ? (
             <Fragment><b className="text-violet-700 dark:text-violet-300">{joinedLastHour} personne{joinedLastHour > 1 ? 's' : ''}</b> {joinedLastHour > 1 ? 'ont rejoint' : 'a rejoint'} dans la dernière heure.</Fragment>
@@ -306,12 +384,74 @@ export default function ScreenGroupDetail() {
     </Card>
   );
 
+  const TiersPanel = () => {
+    if (tiers.length === 0) return null;
+    const firstUnreachedIdx = tiers.findIndex((t) => t.minQty > g.currentQty);
+    return (
+      <Card className="p-4">
+        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Paliers de prix</h3>
+        <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Plus le groupe achète, plus le prix baisse.</p>
+        <div className="mt-3 space-y-1.5">
+          {tiers.map((t, i) => {
+            const reached = g.currentQty >= t.minQty;
+            const isNext = i === firstUnreachedIdx;
+            return (
+              <div key={t.minQty} className={cn(
+                'flex items-center justify-between rounded-xl border px-3 py-2',
+                reached
+                  ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/30'
+                  : isNext
+                    ? 'border-violet-300 bg-violet-50 dark:border-violet-700 dark:bg-violet-950/40'
+                    : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+              )}>
+                <div className="flex items-center gap-2">
+                  <span className={cn('grid h-5 w-5 place-items-center rounded-full text-[10px] font-extrabold',
+                    reached ? 'bg-emerald-600 text-white' : isNext ? 'bg-violet-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400')}>
+                    {reached ? <Icon name="check" size={10}/> : i + 1}
+                  </span>
+                  <span className="text-[12px] font-bold text-slate-900 dark:text-white tabular-nums">{t.minQty} pcs</span>
+                  {isNext && <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">← prochain objectif</span>}
+                </div>
+                <span className={cn('text-[12px] font-extrabold tabular-nums', reached ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white')}>
+                  {formatFcfa(t.price)}<span className="text-[10px] font-semibold text-slate-400">/pc</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  };
+
   const JoinForm = () => !canJoin ? (
     <Card className="p-4">
       <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Rejoindre le groupe</h3>
       <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[12px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
         {closedLabel}
       </div>
+    </Card>
+  ) : joinStatus === 'success' ? (
+    <Card className="p-4">
+      <div className="flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-600 text-white"><Icon name="check" size={15}/></span>
+        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Participation enregistrée</h3>
+      </div>
+      <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400 leading-relaxed">
+        Ton inscription est associée à ton numéro de téléphone. Tu seras notifié à la clôture pour le paiement.
+      </p>
+      {nextTier ? (
+        <div className="mt-3 rounded-xl bg-violet-50 p-2.5 text-[12px] font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+          Encore <b className="tabular-nums">{unitsToNextTier}</b> unité{unitsToNextTier > 1 ? 's' : ''} pour passer à <b className="tabular-nums">{formatFcfa(nextTier.price)}</b>/pc — invite pour accélérer.
+        </div>
+      ) : null}
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-extrabold text-white hover:bg-emerald-700"
+      >
+        <Icon name="whatsapp" size={15}/>Inviter des amis
+      </a>
     </Card>
   ) : (
     <Card className="p-4">
@@ -390,16 +530,11 @@ export default function ScreenGroupDetail() {
           {joinError}
         </div>
       )}
-      {joinStatus === 'success' && (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-          Vous avez rejoint le groupe. Vous serez notifié à la clôture.
-        </div>
-      )}
       <Button
         variant="violet"
         size="lg"
         className="mt-3 w-full"
-        disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+        disabled={joinStatus === 'submitting'}
         onClick={handleJoin}
       >
         {joinStatus === 'submitting' ? 'Inscription…' : `Rejoindre pour ${qty} pcs`}
@@ -426,12 +561,84 @@ export default function ScreenGroupDetail() {
         </button>
       </div>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        <a href={`https://wa.me/?text=${encodeURIComponent(`Achat groupé DDM+ : ${g.name} — ${shareUrl}`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="whatsapp" size={13}/>WhatsApp</a>
+        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="whatsapp" size={13}/>WhatsApp</a>
         <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">Facebook</a>
-        <a href={`sms:?&body=${encodeURIComponent(`Achat groupé DDM+ : ${g.name} — ${shareUrl}`)}`} className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">SMS</a>
+        <a href={`sms:?&body=${encodeURIComponent(shareText)}`} className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">SMS</a>
       </div>
     </Card>
   );
+
+  const MyStatusCard = () => {
+    const payStatus = myPayData?.participant?.paymentStatus;
+    return (
+      <Card className="p-4">
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Icon name="user" size={15}/></span>
+          <div>
+            <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Déjà inscrit ?</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Retrouve ta participation et ton paiement.</p>
+          </div>
+        </div>
+
+        {myPay === 'found' && myPayData ? (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-xl bg-slate-50 p-3 text-[12px] dark:bg-slate-800">
+              <div className="flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Participant</span>
+                <span className="font-bold text-slate-900 dark:text-white">{myPayData.participant?.name || '—'}</span>
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Quantité</span>
+                <span className="font-bold text-slate-900 dark:text-white tabular-nums">{myPayData.participant?.qty} pcs</span>
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Total</span>
+                <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatFcfa(myPayData.participant?.totalAmount || 0)}</span>
+              </div>
+            </div>
+            {payStatus === 'paid' ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-center text-[12px] font-bold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                ✓ Participation payée — confirmée
+              </div>
+            ) : (
+              <Fragment>
+                <div className={cn('rounded-xl border p-2.5 text-center text-[12px] font-bold',
+                  payStatus === 'partial'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')}>
+                  {payStatus === 'partial' ? 'Paiement partiel — solde à régler' : 'Paiement en attente'}
+                </div>
+                {myPayData.checkoutUrl && (
+                  <Button variant="emerald" size="md" className="w-full" onClick={() => router.push(myPayData.checkoutUrl)}>
+                    {payStatus === 'partial' ? 'Finaliser mon paiement' : 'Payer maintenant'}
+                  </Button>
+                )}
+              </Fragment>
+            )}
+          </div>
+        ) : (
+          <Fragment>
+            <div className="mt-3 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">+221</span>
+              <input
+                value={myPhone}
+                onChange={e => setMyPhone(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void checkMyPayment(); }}
+                placeholder="77 123 45 67"
+                className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"
+              />
+            </div>
+            {myPay === 'error' && myPayError && (
+              <p className="mt-2 text-[11px] font-semibold text-red-600 dark:text-red-400">{myPayError}</p>
+            )}
+            <Button variant="secondary" size="sm" className="mt-2 w-full" disabled={myPay === 'loading' || !myPhone.trim()} onClick={() => void checkMyPayment()}>
+              {myPay === 'loading' ? 'Recherche…' : 'Voir mon statut'}
+            </Button>
+          </Fragment>
+        )}
+      </Card>
+    );
+  };
 
   const ParticipantsList = () => (
     <Card className="p-4">
@@ -555,9 +762,11 @@ export default function ScreenGroupDetail() {
                 <Section title="Rejoindre" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-0 md:bg-transparent md:p-0 md:dark:bg-transparent">
                   <JoinForm/>
                 </Section>
+                <div className="mx-4 mt-2 md:mx-0 md:mt-4"><TiersPanel/></div>
                 <Section title="Inviter" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-4 md:bg-transparent md:p-0 md:dark:bg-transparent">
                   <ShareCard/>
                 </Section>
+                <div className="mx-4 mt-2 md:mx-0 md:mt-4"><MyStatusCard/></div>
               </div>
             </div>
 
@@ -593,12 +802,14 @@ export default function ScreenGroupDetail() {
               {g.save > 0 && <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">-{g.save}%</p>}
             </div>
           </div>
-          {canJoin ? (
+          {joinStatus === 'success' ? (
+            <span className="whitespace-nowrap flex-shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white">✓ Inscrit</span>
+          ) : canJoin ? (
             <Button
               variant="violet"
               size="md"
               className="whitespace-nowrap flex-shrink-0"
-              disabled={joinStatus === 'submitting' || joinStatus === 'success'}
+              disabled={joinStatus === 'submitting'}
               onClick={handleJoin}
             >
               {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}

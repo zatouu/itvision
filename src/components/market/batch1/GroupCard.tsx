@@ -59,7 +59,7 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
             </span>
           ) : !joinable ? (
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-slate-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
-              {group.status === 'cancelled' ? 'Annulé' : group.status === 'delivered' ? 'Livré' : group.status === 'shipped' ? 'Expédié' : 'En cours'}
+              {group.status === 'cancelled' ? 'Annulé' : group.status === 'expired' ? 'Expiré' : group.status === 'delivered' ? 'Livré' : group.status === 'shipped' ? 'Expédié' : 'En cours'}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-bold text-slate-900 dark:bg-slate-900/95 dark:text-white">

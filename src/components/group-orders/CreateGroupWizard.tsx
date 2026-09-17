@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation'
 import { useCsrf } from '@/hooks/useCsrf'
 import {
   Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
-  Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users
+  Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users,
+  Share2, Copy, Check
 } from 'lucide-react'
 
 interface CatalogProduct {
@@ -48,6 +49,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   const [categories, setCategories] = useState<{ slug: string; name: string }[]>([])
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null)
   const [creating, setCreating] = useState(false)
+  const [createdGroup, setCreatedGroup] = useState<{ groupId: string; productName: string; unitPrice: number; targetQty: number; deadline: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   // Seuils réellement appliqués par le POST /api/group-orders (réglages admin).
   // Ils étaient devinés côté client (objectif 30, base 50 000, groupe −30%),
@@ -277,7 +280,13 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       })
       const data = await res.json()
       if (data.success && data.group?.groupId) {
-        router.push(`/achats-groupes/${data.group.groupId}`)
+        setCreatedGroup({
+          groupId: data.group.groupId,
+          productName: data.group.product?.name || selectedProduct?.name || 'Produit',
+          unitPrice: data.group.currentUnitPrice || estimatedUnitPrice,
+          targetQty: data.group.targetQty || form.targetQty || 0,
+          deadline: data.group.deadline || form.deadline || '',
+        })
       } else if (data.code === 'GROUP_ALREADY_EXISTS' && data.group?.groupId) {
         const shouldOpen = window.confirm(`${data.error}\n\nVoulez-vous rejoindre le groupe existant ?`)
         if (shouldOpen) router.push(`/achats-groupes/${data.group.groupId}`)
@@ -342,6 +351,65 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {createdGroup ? (
+          <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} className="mx-auto max-w-lg">
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle className="h-7 w-7"/>
+              </span>
+              <h2 className="mt-4 text-xl font-bold text-gray-900">Ton achat groupé est créé</h2>
+              <p className="mt-1 text-sm text-gray-500">{createdGroup.productName}</p>
+
+              <div className="mt-5 grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-3 text-center">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Prix actuel</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-gray-900 tabular-nums">{createdGroup.unitPrice.toLocaleString('fr-FR')} F</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Objectif</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-gray-900 tabular-nums">{createdGroup.targetQty} pcs</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Deadline</p>
+                  <p className="mt-0.5 text-sm font-extrabold text-gray-900">{createdGroup.deadline ? new Date(createdGroup.deadline).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}</p>
+                </div>
+              </div>
+
+              <p className="mt-4 text-[13px] font-semibold text-gray-700">Partage-le maintenant — plus on est, plus le prix baisse.</p>
+              <div className="mt-3 flex gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`J'ai lancé un achat groupé DDM+ sur ${createdGroup.productName}. Rejoins-moi : ${typeof window !== 'undefined' ? window.location.origin : ''}/achats-groupes/${createdGroup.groupId}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#00C853] text-sm font-bold text-white hover:opacity-90"
+                >
+                  <Share2 className="h-4 w-4"/>Partager sur WhatsApp
+                </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(`${window.location.origin}/achats-groupes/${createdGroup.groupId}`)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 1500)
+                    } catch {}
+                  }}
+                  className="grid h-11 w-11 place-items-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  aria-label="Copier le lien"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-600"/> : <Copy className="h-4 w-4"/>}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/achats-groupes/${createdGroup.groupId}`)}
+                className="mt-3 w-full rounded-xl bg-[#1A1A2E] py-2.5 text-sm font-semibold text-white hover:bg-[#2A2A4E] transition"
+              >
+                Voir le groupe
+              </button>
+            </div>
+          </motion.div>
+        ) : (
         <form onSubmit={handleCreate}>
           <AnimatePresence mode="wait">
 
@@ -662,6 +730,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
             )}
           </AnimatePresence>
         </form>
+        )}
       </div>
     </div>
   )

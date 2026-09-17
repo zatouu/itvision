@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import GroupInterest from '@/lib/models/GroupInterest'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
+import { sendSms } from '@/lib/sms'
+import { MARKET_BRAND } from '@/lib/branding'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import type { ShippingMethodId } from '@/lib/logistics'
@@ -493,7 +496,32 @@ export async function POST(req: NextRequest) {
     } catch (notifError) {
       console.error('Erreur notification:', notifError)
     }
-    
+
+    // « Préviens-moi » : notifier par SMS les intéressés sur ce produit
+    try {
+      const interests = await GroupInterest.find({
+        productId: groupOrder.product?.productId,
+        notified: false,
+      }).select('phone').lean()
+      if (interests.length > 0) {
+        const groupUrl = `${MARKET_BRAND.url}/achats-groupes/${groupOrder.groupId}`
+        await Promise.allSettled(
+          interests.map((i: any) =>
+            sendSms(
+              i.phone,
+              `DDM+ : un achat groupé vient d'être lancé sur ${groupOrder.product?.name || 'ce produit'} — ${groupUrl}`
+            )
+          )
+        )
+        await GroupInterest.updateMany(
+          { _id: { $in: interests.map((i: any) => i._id) } },
+          { $set: { notified: true } }
+        )
+      }
+    } catch (interestErr) {
+      console.error('Erreur notification préviens-moi:', interestErr)
+    }
+
     const response = NextResponse.json({
       success: true,
       message: 'Achat groupé créé avec succès',
