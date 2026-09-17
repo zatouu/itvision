@@ -72,6 +72,11 @@ services:
       PAYDUNYA_TOKEN: ${PAYDUNYA_TOKEN:-}
       PAYDUNYA_MODE: ${PAYDUNYA_MODE:-live}
       PAYDUNYA_STORE_NAME: ${PAYDUNYA_STORE_NAME:-IT Vision Plus}
+      # ── Paiement manuel (liens marchands / téléphones) ────
+      WAVE_PAY_URL: ${WAVE_PAY_URL:-}
+      WAVE_MERCHANT_PHONE: ${WAVE_MERCHANT_PHONE:-}
+      ORANGE_MERCHANT_PHONE: ${ORANGE_MERCHANT_PHONE:-}
+      FREE_MONEY_MERCHANT_PHONE: ${FREE_MONEY_MERCHANT_PHONE:-}
       APP_BASE_URL: ${NEXT_PUBLIC_SITE_URL}
       # ── SMS / OTP ─────────────────────────────────────────
       # SMS_PROVIDER est obligatoire en production (twilio) — le défaut "console"
@@ -98,6 +103,7 @@ services:
     volumes:
       - uploads_data:/app/public/uploads
       - app_logs:/app/logs
+      - settings_data:/app/data
     depends_on:
       mongodb:
         condition: service_healthy
@@ -114,6 +120,7 @@ services:
       - "127.0.0.1:3000:3000"
 
 volumes:
+  settings_data:
   mongodb_data:
   mongodb_config:
   redis_data:
