@@ -65,8 +65,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 COPY --from=deps --chown=nextjs:nodejs /ms-playwright /ms-playwright
 
-# Dossier pour les uploads
-RUN mkdir -p ./public/uploads
+# Dossiers persistants : uploads + data/ (payment-settings.json etc.)
+# Le chown est critique : un volume nommé monté sur un dossier absent ou
+# root-owned rend l'écriture impossible pour le user non-root (EACCES).
+RUN mkdir -p ./public/uploads ./data
 RUN chown -R nextjs:nodejs /app
 RUN chmod -R 755 /ms-playwright
 USER nextjs

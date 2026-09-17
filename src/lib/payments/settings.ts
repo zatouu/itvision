@@ -181,9 +181,15 @@ const DEFAULT_SETTINGS: PaymentSettings = {
 }
 
 function ensureFile() {
-  const dir = path.dirname(FILE_PATH)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2))
+  try {
+    const dir = path.dirname(FILE_PATH)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2))
+  } catch (e) {
+    // Volume non inscriptible (ex. permissions) : l'app continue sur les
+    // défauts/env plutôt que de planter au premier accès aux réglages.
+    console.warn('[payment-settings] data/ non inscriptible — réglages en lecture seule :', e instanceof Error ? e.message : e)
+  }
 }
 
 /**
