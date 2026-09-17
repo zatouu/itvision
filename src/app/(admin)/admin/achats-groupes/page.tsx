@@ -142,8 +142,14 @@ export default function AdminGroupOrdersPage() {
   >(null)
   const [paymentLinksLoading, setPaymentLinksLoading] = useState<string | null>(null)
 
+  const [interests, setInterests] = useState<{ globalInterested: number; products: { productId: string; productName: string; interested: number; activeGroups: number }[] } | null>(null)
+
   useEffect(() => {
     fetchGroups()
+    fetch('/api/admin/group-orders/interests')
+      .then(r => r.json())
+      .then(d => { if (d?.success) setInterests(d) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -484,6 +490,53 @@ export default function AdminGroupOrdersPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto p-8">
+        {/* Demande latente — « Préviens-moi » par produit */}
+        {interests && (interests.products.length > 0 || interests.globalInterested > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border p-6 shadow-lg mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Demande latente</h2>
+                <p className="text-sm text-gray-500">Inscriptions « Préviens-moi » — produits à proposer en achat groupé</p>
+              </div>
+              {interests.globalInterested > 0 && (
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">
+                  {interests.globalInterested} abonné{interests.globalInterested > 1 ? 's' : ''} génériques
+                </span>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
+                    <th className="pb-2 pr-4 font-semibold">Produit</th>
+                    <th className="pb-2 pr-4 font-semibold">Intéressés</th>
+                    <th className="pb-2 font-semibold">Groupes actifs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {interests.products.slice(0, 10).map((p) => (
+                    <tr key={p.productId} className="border-b last:border-0">
+                      <td className="py-2.5 pr-4 font-semibold text-gray-900">{p.productName}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{p.interested}</span>
+                      </td>
+                      <td className="py-2.5">
+                        {p.activeGroups > 0
+                          ? <span className="text-xs font-semibold text-gray-600">{p.activeGroups} groupe{p.activeGroups > 1 ? 's' : ''}</span>
+                          : <span className="rounded-md bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">aucun</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
         {/* Filtres */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}

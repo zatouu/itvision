@@ -81,6 +81,8 @@ export async function GET(
 
     const participant = group.participants[participantIndex]
 
+    const isCreator = formatPhone((group as any).createdBy?.phone || '') === formattedPhone
+
     // Si déjà payé
     if ((participant as any).paymentStatus === 'paid') {
       return NextResponse.json({
@@ -91,7 +93,8 @@ export async function GET(
           name: maskName(participant.name),
           qty: (participant as any).qty,
           totalAmount: (participant as any).totalAmount,
-          paymentStatus: (participant as any).paymentStatus
+          paymentStatus: (participant as any).paymentStatus,
+          isCreator
         },
         group: {
           groupId: (group as any).groupId,
@@ -126,7 +129,8 @@ export async function GET(
           ? (participant as any).variantLabels
           : undefined,
         paymentStatus: (participant as any).paymentStatus || 'pending',
-        joinedAt: (participant as any).joinedAt
+        joinedAt: (participant as any).joinedAt,
+        isCreator
       },
       payment: {
         reference,

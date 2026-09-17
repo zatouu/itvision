@@ -58,6 +58,8 @@ export default function ScreenGroupDetail() {
   const [myPay, setMyPay] = useState<'idle'|'loading'|'found'|'error'>('idle');
   const [myPayData, setMyPayData] = useState<any>(null);
   const [myPayError, setMyPayError] = useState('');
+  const [extending, setExtending] = useState(false);
+  const [extendMsg, setExtendMsg] = useState('');
 
   // Prix estimé côté client — le serveur recalcule de façon autoritaire au join.
   const selectedVariantPrice = Math.max(
@@ -251,6 +253,30 @@ export default function ScreenGroupDetail() {
   };
 
   const shareText = `Achat groupé DDM+ : ${g.name} — on est déjà ${g.participants} participant${g.participants > 1 ? 's' : ''}. ${nextTier ? `Encore ${unitsToNextTier} unité${unitsToNextTier > 1 ? 's' : ''} pour passer à ${formatFcfa(nextTier.price)}/pc.` : `Prix débloqué : ${formatFcfa(g.unit)}/pc.`} ${shareUrl}`;
+
+  const handleExtend = async () => {
+    const p = myPhone.replace(/\s/g, '').replace(/^(221|00221)/, '');
+    if (!p || extending) return;
+    setExtending(true);
+    setExtendMsg('');
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: `+221 ${p}` }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setExtendMsg(data?.error || 'Prolongation impossible.');
+      } else {
+        setExtendMsg(data.message || 'Deadline prolongée.');
+        if (data.group) setGROUPS([mapGroupOrder(data.group)]);
+      }
+    } catch {
+      setExtendMsg('Impossible de contacter le serveur.');
+    }
+    setExtending(false);
+  };
 
   const handleJoin = async () => {
     setJoinStatus('submitting');
@@ -613,6 +639,18 @@ export default function ScreenGroupDetail() {
                     {payStatus === 'partial' ? 'Finaliser mon paiement' : 'Payer maintenant'}
                   </Button>
                 )}
+              </Fragment>
+            )}
+            {myPayData.participant?.isCreator && canJoin && (
+              <Fragment>
+                <button
+                  onClick={() => void handleExtend()}
+                  disabled={extending}
+                  className="w-full rounded-xl border border-violet-200 bg-violet-50 py-2 text-[12px] font-bold text-violet-700 hover:bg-violet-100 disabled:opacity-60 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300 dark:hover:bg-violet-950/60"
+                >
+                  {extending ? 'Prolongation…' : 'Prolonger le groupe (+3 j)'}
+                </button>
+                {extendMsg && <p className="text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400">{extendMsg}</p>}
               </Fragment>
             )}
           </div>

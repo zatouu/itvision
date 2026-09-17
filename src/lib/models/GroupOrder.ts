@@ -61,6 +61,7 @@ export interface IGroupOrder extends Document {
   
   // Dates
   deadline: Date               // Date limite pour rejoindre
+  deadlineExtended?: boolean   // Prolongation unique déjà consommée (créateur)
   estimatedDelivery?: Date     // Date estimée de livraison
   
   // Transport
@@ -170,6 +171,7 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   maxParticipants: { type: Number },
   
   deadline: { type: Date, required: true, },
+  deadlineExtended: { type: Boolean, default: false },
   estimatedDelivery: { type: Date },
   
   shippingMethod: { 
