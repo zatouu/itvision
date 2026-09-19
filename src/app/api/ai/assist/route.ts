@@ -16,7 +16,7 @@ export const maxDuration = 60
 // 'mission_coach' est volontairement absent : la fiche est générée côté serveur
 // à chaque transition de mission (mission-lifecycle → ai/mission-coach) et poussée
 // via socket — elle n'est pas appelable par le client pour éviter la génération à la demande.
-const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips', 'suggest_offer']
+const VALID_TYPES: AssistType[] = ['enhance_request', 'clarify_request', 'analyze_request', 'mission_help', 'daily_tips', 'suggest_offer', 'general_chat']
 
 async function computeMarketPrices(category: string): Promise<{ category: string; count: number; medianPrice: number; minPrice: number; maxPrice: number; avgPrice: number } | undefined> {
   try {
@@ -106,6 +106,15 @@ export async function POST(request: NextRequest) {
     const earnings = typeof raw.earnings === 'number' ? raw.earnings : undefined
     const rating = typeof raw.rating === 'number' ? raw.rating : undefined
     const requestBudget = typeof raw.requestBudget === 'number' ? raw.requestBudget : undefined
+    const history = Array.isArray(raw.history)
+      ? raw.history
+          .filter((m): m is { role: 'user' | 'assistant'; content: string } =>
+            typeof m === 'object' && m !== null &&
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string')
+          .map(m => ({ role: m.role, content: m.content.slice(0, 500) }))
+          .slice(-8)
+      : undefined
 
     if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
@@ -168,6 +177,7 @@ export async function POST(request: NextRequest) {
         requestBudget,
         marketPrices,
         providerCompletedMissions,
+        history,
       })
     } catch (aiErr) {
       // Le modèle a échoué : on ne facture pas l'appel

@@ -30,6 +30,8 @@ export type Offer = {
 type Props = {
   offer: Offer
   isBest: boolean
+  /** Score de compatibilité 0-100 (normalisé par l'écran parent) */
+  matchScore?: number
   /** Offre la moins chère de la liste → chip « Meilleur prix » */
   isCheapest?: boolean
   budget?: number
@@ -58,7 +60,7 @@ function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) 
   )
 }
 
-export default function OfferCard({ offer, isBest, isCheapest, budget, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
+export default function OfferCard({ offer, isBest, matchScore, isCheapest, budget, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
   const { t, i18n } = useTranslation()
   const slideAnim = useRef(new Animated.Value(offer.isNew ? 50 : 0)).current
   const fadeAnim = useRef(new Animated.Value(offer.isNew ? 0 : 1)).current
@@ -144,6 +146,12 @@ export default function OfferCard({ offer, isBest, isCheapest, budget, scheduled
 
       {/* Pills row */}
       <View style={s.pillsRow}>
+        {matchScore != null && (
+          <View style={s.pillMatch}>
+            <Sparkles size={10} color={colors.brandInk} />
+            <Text style={s.pillMatchText}>{t('clientOffers.matchPercent', { percent: matchScore, defaultValue: '{{percent}}% match' })}</Text>
+          </View>
+        )}
         {offer.providerVerified && (
           <View style={s.pillVerified}>
             <Check size={10} color={colors.primary} />
@@ -407,6 +415,22 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     fontWeight: typography.weight.medium as any,
+  },
+  pillMatch: {
+    backgroundColor: colors.brandTint,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.brandSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  pillMatchText: {
+    fontSize: 11,
+    color: colors.brandInk,
+    fontWeight: typography.weight.extrabold as any,
   },
   pillVerified: {
     backgroundColor: colors.primaryLight,

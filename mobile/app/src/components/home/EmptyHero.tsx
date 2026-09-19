@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Plus, Zap } from 'lucide-react-native'
-import { colors, spacing, typography } from '../../design'
+import { colors, spacing, typography, fonts } from '../../design'
 
 export type UrgentEligibility = {
   eligible: boolean
@@ -97,7 +97,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.6, textTransform: 'uppercase', opacity: 0.8,
   },
   title: {
-    color: '#fff', fontSize: 22, fontWeight: typography.weight.extrabold as any,
+    color: '#fff', fontSize: 22, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any,
     letterSpacing: -0.4, marginTop: 6, lineHeight: 26,
   },
   sub: { color: '#fff', fontSize: 13, opacity: 0.85, marginTop: 6 },

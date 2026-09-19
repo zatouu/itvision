@@ -17,6 +17,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { hapticWarning } from '../src/haptics'
 import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2, CalendarClock } from 'lucide-react-native'
 import SideMenu from '../src/components/SideMenu'
+import TabBar from '../src/components/TabBar'
 import { formatSlot } from '../src/components/SchedulePicker'
 
 const ACTIVE_MISSION_STATUSES = ['accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
@@ -361,6 +362,7 @@ function MyRequests() {
         </ScrollView>
       )}
 
+      <TabBar active="requests" />
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )

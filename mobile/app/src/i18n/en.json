@@ -59,7 +59,11 @@
     "myOffers": "My offers",
     "modePro": "Pro mode",
     "modeClient": "Client mode",
-    "becomeProvider": "Become a provider →"
+    "becomeProvider": "Become a provider →",
+    "messages": "Messages",
+    "privacy": "Privacy",
+    "assistant": "AI Assistant",
+    "shop": "DDM+ Shop"
   },
   "setup": {
     "title": "Welcome!",
@@ -199,7 +203,7 @@
     "positionOk": "Location set ✓",
     "landmark": "Landmark / Neighborhood",
     "landmarkPlaceholder": "E.g.: Near the Mermoz mosque, next to the school...",
-    "landmarkHint": "Required — helps the provider find you",
+    "landmarkHint": "Optional — helps the provider find you",
     "publish": "Publish request 🚀",
     "published": "Request published",
     "publishedSub": "Nearby providers will send you their offers.",
@@ -282,8 +286,7 @@
     "updatedTitle": "Your request has been updated",
     "updatedSub": "Nearby providers have received the updated information.",
     "loadingEdit": "Loading request…",
-    "budgetRequired": "Please enter a budget (greater than 0).",
-    "landmarkHint": "Optional — helps the provider find you"
+    "budgetRequired": "Please enter a budget (greater than 0)."
   },
   "schedule": {
     "whenLabel": "When?",
@@ -680,7 +683,9 @@
     "statAccepted": "Accepted",
     "statRevenue": "Revenue (FCFA)",
     "referralSubtitleProvider": "Invite other providers and earn when they complete their first mission.",
-    "referralShareProvider": "Join me on Xeuy Bi Pro! Use my code {{code}} and earn 1,000 FCFA. Download the app here: https://xeuy.sn/pro"
+    "referralShareProvider": "Join me on Xeuy Bi Pro! Use my code {{code}} and earn 1,000 FCFA. Download the app here: https://xeuy.sn/pro",
+    "messages": "Messages",
+    "privacy": "Privacy"
   },
   "chat": {
     "title": "Chat",
@@ -876,7 +881,8 @@
     "providersPreparing_other": "{{count}} providers are preparing an offer",
     "moreOffersComing": "Providers are viewing your request",
     "offersArriveSoon": "Estimated arrival in the next minutes",
-    "bestPrice": "Best price"
+    "bestPrice": "Best price",
+    "matchPercent": "{{percent}}% match"
   },
   "clientProvider": {
     "title": "Provider detail",
@@ -1302,5 +1308,75 @@
     "toClarify": "To clarify before the offer",
     "risks": "Risks",
     "makeOffer": "Make an offer"
+  },
+  "messages": {
+    "title": "Messages",
+    "empty": "No conversations",
+    "emptyHint": "Your chats with providers will appear here once a mission starts.",
+    "now": "Now",
+    "minAgo": "{{n}} min ago",
+    "hAgo": "{{n}} h ago",
+    "dAgo": "{{n}} d ago"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "profilePublic": "Public profile",
+    "profilePublicHint": "Your profile is visible to providers and clients",
+    "preciseLocation": "Precise location",
+    "preciseLocationHint": "Shared only during an active mission",
+    "smsNotifs": "SMS notifications",
+    "smsNotifsHint": "Receive important alerts by SMS in addition to push",
+    "exportData": "Download my data",
+    "exportDataHint": "JSON export of your profile, missions and messages (GDPR)",
+    "exportDone": "Export ready",
+    "deleteAccount": "Delete my account",
+    "deleteHint": "Permanent anonymization — active missions and non-empty wallet block deletion",
+    "deleteConfirmTitle": "Delete your account?",
+    "deleteConfirmMsg": "Your account will be anonymized and deactivated. This cannot be undone.",
+    "deleteConfirmTitle2": "Final confirmation",
+    "deleteConfirmMsg2": "Do you confirm permanent deletion of your Xeuy Bi account?",
+    "deleteBlockedTitle": "Deletion not possible",
+    "deleteDone": "Account deleted",
+    "controlTitle": "You stay in control",
+    "controlText": "Your data belongs to you. Export it or delete your account anytime — no conditions."
+  },
+  "passport": {
+    "title": "Pro passport",
+    "phoneVerified": "Phone verified",
+    "identityVerified": "Identity verified",
+    "identityPending": "Identity verification pending",
+    "memberSince": "Member since {{year}}",
+    "missions": "Missions",
+    "rating": "Rating",
+    "score": "Xeuy score",
+    "qrTitle": "My identifier",
+    "qrHint": "Have this code scanned to prove your Xeuy identity",
+    "share": "Share my profile",
+    "fallbackTrade": "Service provider"
+  },
+  "assistant": {
+    "title": "Xeuy Assistant",
+    "subtitle": "Tips & help, in simple French",
+    "heroTitle": "Ask me anything",
+    "heroClient": "Describe a need, understand offers, pay safely — I explain in simple words.",
+    "heroPro": "Pricing, offers, missions, visibility — I explain in simple words.",
+    "placeholder": "Type your question…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "noAnswer": "I have no answer — please rephrase.",
+    "unavailable": "Assistant unavailable",
+    "unavailableHint": "The AI assistant is temporarily disabled. Try again later.",
+    "quickRequest": "New request",
+    "quickNearby": "Nearby requests",
+    "sugTips": "My daily tips",
+    "sugTipsPrompt": "Give me my daily tips",
+    "sugOffer": "How to price an offer?",
+    "sugOfferPrompt": "How to price an offer on Xeuy?",
+    "sugHow": "How does a mission work?",
+    "sugHowPrompt": "How does a mission work on Xeuy?",
+    "sugRequest": "How to describe my need?",
+    "sugRequestPrompt": "How to describe my request to get good offers?",
+    "sugPrice": "How much for an artisan?",
+    "sugPricePrompt": "What are the usual prices for an artisan in Dakar?"
   }
 }

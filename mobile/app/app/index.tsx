@@ -20,10 +20,11 @@ import EmptyHero from '../src/components/home/EmptyHero'
 import OffersHero from '../src/components/home/OffersHero'
 import NearbyStrip from '../src/components/home/NearbyStrip'
 import Skeleton from '../src/components/Skeleton'
-import { colors, radius, spacing, typography } from '../src/design'
-import { BellRing, Check, Menu, LucideIcon } from 'lucide-react-native'
+import { colors, radius, spacing, typography, fonts } from '../src/design'
+import { BellRing, Check, Menu, LucideIcon, Sparkles } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
+import TabBar from '../src/components/TabBar'
 import { ModePill } from '../src/components/ModeSwitch'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
@@ -361,6 +362,9 @@ function Home() {
           </View>
           <View style={s.headerRight}>
             <ModePill />
+            <TouchableOpacity style={s.headerBtn} onPress={() => router.push('/assistant')} accessibilityLabel={t('menu.assistant', { defaultValue: 'Assistant IA' })}>
+              <Sparkles size={18} color={colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity style={s.headerBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
               {unread > 0 && <View style={s.notifDot} />}
@@ -527,6 +531,7 @@ function Home() {
 
       </ScrollView>
 
+      <TabBar active="home" />
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
@@ -536,7 +541,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  appName: { fontSize: 17, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.2 },
+  appName: { fontSize: 17, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface,
@@ -547,7 +552,7 @@ const s = StyleSheet.create({
   avatarText: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.surface },
   greeting: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
   greetTitle: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
-  greetName: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.4, marginTop: 2 },
+  greetName: { fontSize: 22, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.4, marginTop: 2 },
   greetNameHint: { fontSize: 12, color: colors.primary, fontWeight: typography.weight.semibold as any, marginTop: 2 },
 
   // Secondary strip — compact chips
@@ -567,7 +572,7 @@ const s = StyleSheet.create({
 
   // Categories
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: spacing.lg, marginBottom: 12, marginTop: 22 },
-  sectionTitle: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.text },
+  sectionTitle: { fontSize: 16, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any, color: colors.text },
   seeAllText: { fontSize: 13, color: colors.primary, fontWeight: typography.weight.semibold as any },
   catCard: {
     flexDirection: 'row', marginHorizontal: spacing.lg, backgroundColor: colors.surface,

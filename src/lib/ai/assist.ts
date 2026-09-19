@@ -1,6 +1,6 @@
 import { qwenChat, qwenVision, type ChatMessage } from './qwen'
 
-export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_coach' | 'mission_help' | 'daily_tips' | 'suggest_offer'
+export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_coach' | 'mission_help' | 'daily_tips' | 'suggest_offer' | 'general_chat'
 
 /** Contexte mission chargé côté serveur (ServiceRequest) pour les types prestataire. */
 export interface MissionContext {
@@ -59,6 +59,8 @@ interface AssistContext {
   requestBudget?: number
   marketPrices?: MarketPriceData
   providerCompletedMissions?: number
+  /** Historique borné (general_chat) : derniers échanges user/assistant */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
 }
 
 export interface ClarifyQuestion {
@@ -338,6 +340,28 @@ Profil prestataire: ${ctx.providerCompletedMissions || 0} missions terminées, n
 
 Suggère un prix d'offre compétitif et un message professionnel pour répondre à cette demande.`,
         },
+      ]
+    }
+
+    case 'general_chat': {
+      const history = (ctx.history || [])
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+        .slice(-8)
+        .map(m => ({ role: m.role, content: m.content.trim().slice(0, 500) }))
+      return [
+        {
+          role: 'system',
+          content: `Tu es l'assistant de Xeuy Bi, l'app sénégalaise qui met en relation des clients et des artisans/prestataires de services (plomberie, électricité, ménage, déménagement, sécurité, etc.).
+RÈGLES:
+1. Français très simple et direct — beaucoup d'utilisateurs sont peu scolarisés. Réponds court (max 150 mots), concret, en tutoyant naturellement.
+2. Ton rôle : aider à utiliser l'app (créer une demande, comprendre les offres, le paiement Wave/OM/Free, l'escrow, les missions), donner des conseils pratiques liés aux services, et orienter vers la bonne action.
+3. Si la question porte sur un prix, donne une fourchette réaliste du marché sénégalais en FCFA en précisant que le prix final se négocie via les offres.
+4. Ne promets jamais une action que tu ne peux pas faire : tu ne crées pas de demande toi-même, tu expliques comment faire (bouton « Nouvelle demande » ou micro sur l'accueil).
+5. Si la question n'a rien à voir avec les services/l'app, réponds brièvement puis ramène à l'essentiel.
+6. Pas de markdown lourd : phrases simples, listes à puces courtes si utile.`,
+        },
+        ...history,
+        { role: 'user' as const, content: ctx.question || ctx.description || 'Bonjour' },
       ]
     }
 

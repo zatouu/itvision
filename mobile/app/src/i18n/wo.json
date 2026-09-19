@@ -59,7 +59,11 @@
     "myOffers": "Sama ay mbir",
     "modePro": "Anamu Pro",
     "modeClient": "Anamu Client",
-    "becomeProvider": "Bulal sama bopp ci pro →"
+    "becomeProvider": "Bulal sama bopp ci pro →",
+    "messages": "Bataaxal",
+    "privacy": "Sutura",
+    "assistant": "Ndimbal IA",
+    "shop": "Butik DDM+"
   },
   "setup": {
     "title": "Dalal jàmm!",
@@ -199,7 +203,7 @@
     "positionOk": "Pozisiyoŋ bi amna ✓",
     "landmark": "Repeer / Kër-gu-mag",
     "landmarkPlaceholder": "Misaal: Ci gannaaw jaaka Mermoz, ci wetu ekol bi…",
-    "landmarkHint": "War naa am — jàppale liggéeykat bi ngir mu la gis",
+    "landmarkHint": "Ci biir sa bopp — dindi pro bi",
     "publish": "Soppi laaj bi 🚀",
     "published": "Laaj bi dafa am",
     "publishedSub": "Liggéeykat yi nekk ci sa wàll dinañu la yónnee seen ofr.",
@@ -282,8 +286,7 @@
     "updatedTitle": "Sa laaj soppali na",
     "updatedSub": "Yéen ya ci wetu ñu am xibaar bu bees.",
     "loadingEdit": "Mbindi laaj bi…",
-    "budgetRequired": "Duggal mbay (amulu 0).",
-    "landmarkHint": "Ci biir sa bopp — dindi pro bi"
+    "budgetRequired": "Duggal mbay (amulu 0)."
   },
   "schedule": {
     "whenLabel": "Kan ?",
@@ -680,7 +683,9 @@
     "statAccepted": "Nangu",
     "statRevenue": "Jot (FCFA)",
     "referralSubtitleProvider": "Yónnee yeneen liggéeykat te nangu bu ñu jeexal misiyoŋ bu njëkk.",
-    "referralShareProvider": "Duggal moom ci Xeuy Bi Pro! Jëfandikoo kood bu {{code}} te nangu 1 000 FCFA. Télécharge aplikasion bi fii: https://xeuy.sn/pro"
+    "referralShareProvider": "Duggal moom ci Xeuy Bi Pro! Jëfandikoo kood bu {{code}} te nangu 1 000 FCFA. Télécharge aplikasion bi fii: https://xeuy.sn/pro",
+    "messages": "Bataaxal",
+    "privacy": "Sutura"
   },
   "chat": {
     "title": "Baat",
@@ -876,7 +881,8 @@
     "providersPreparing_other": "Prestataire {{count}} ñooy waajal offre",
     "moreOffersComing": "Prestataire yi ñooy seet sa laaj",
     "offersArriveSoon": "Offre yi ñëw nañu léegi",
-    "bestPrice": "Njëg gi gën a baax"
+    "bestPrice": "Njëg gi gën a baax",
+    "matchPercent": "{{percent}}% jotna"
   },
   "clientProvider": {
     "title": "Benn liggéeykat",
@@ -1294,5 +1300,75 @@
     "toClarify": "Li war nga wóorlu laaj bu mbir",
     "risks": "Ay nguy",
     "makeOffer": "Toxal ab mbir"
+  },
+  "messages": {
+    "title": "Bataaxal",
+    "empty": "Bataaxal bennul",
+    "emptyHint": "Sa waxtaan ak liggéeykat yi dinañu feeñ fi bu liggéey bi tàmbli.",
+    "now": "Leegi",
+    "minAgo": "{{n}} minuti nooy na",
+    "hAgo": "{{n}} waxti nooy na",
+    "dAgo": "{{n}} fan nooy na"
+  },
+  "privacy": {
+    "title": "Sutura",
+    "profilePublic": "Profil bu ñépp gis",
+    "profilePublicHint": "Sa profil dafay gis liggéeykat yi ak kilifaa yi",
+    "preciseLocation": "Béru wér gi",
+    "preciseLocationHint": "Séddaal nañu ko rekk bu liggéey bi doy",
+    "smsNotifs": "Xibaar SMS",
+    "smsNotifsHint": "Jël xibaar yu mag yi ci SMS lu ko ëpp push",
+    "exportData": "Sàkk yéene yi",
+    "exportDataHint": "Export JSON bu sa profil, sa liggéey yi ak sa bataaxal yi",
+    "exportDone": "Export bi jeex na",
+    "deleteAccount": "Dindi sama konto",
+    "deleteHint": "Dindi bu mujj — liggéey yi di doy walla wallet bu am xaalis dafay tere",
+    "deleteConfirmTitle": "Dindi sa konto?",
+    "deleteConfirmMsg": "Sa konto dina soppi te dindi. Jëf ji mënul dellusi.",
+    "deleteConfirmTitle2": "Wóor bu mujj",
+    "deleteConfirmMsg2": "Ndax danga wóor dindi bu mujj bu sa konto Xeuy Bi ?",
+    "deleteBlockedTitle": "Dindi mënul am",
+    "deleteDone": "Konto bi dindi na",
+    "controlTitle": "Yow ngaa yóbbu",
+    "controlText": "Sa yéene yiy sa yónné. Mënga leen export walla dindi sa konto bu ngay bëgg — amul ay sart."
+  },
+  "passport": {
+    "title": "Passeport bu liggéeykat",
+    "phoneVerified": "Telefoon bu wóoru",
+    "identityVerified": "Niit bu wóoru",
+    "identityPending": "Wóor bu niit di la ñu xool",
+    "memberSince": "Càkkalekat koo {{year}}",
+    "missions": "Liggéey yi",
+    "rating": "Note",
+    "score": "Score Xeuy",
+    "qrTitle": "Sama identifiant",
+    "qrHint": "Ñu scan code bi ngir wóor sa niit ci Xeuy",
+    "share": "Séddaal sama profil",
+    "fallbackTrade": "Liggéeykat"
+  },
+  "assistant": {
+    "title": "Ndimbal Xeuy",
+    "subtitle": "Këyit ak ndimbal, ci làkk bu yomb",
+    "heroTitle": "Laaj ma sa laaj",
+    "heroClient": "Waxal sa soxla, xamal ofer yi, feyy ci wóor — may la leeb ci làkk bu yomb.",
+    "heroPro": "Njërñ, ofer, liggéey, feeñ — may la leeb ci làkk bu yomb.",
+    "placeholder": "Bindal sa laaj…",
+    "send": "Yónnée",
+    "thinking": "Damaa xàmm…",
+    "noAnswer": "Amuma tontu — jéemaatu wax laaj bi.",
+    "unavailable": "Ndimbal féñu",
+    "unavailableHint": "Ndimbal IA dafa tëju léegi. Jéemaatal ci kanam.",
+    "quickRequest": "Soxla bu bees",
+    "quickNearby": "Soxla yi ci wet",
+    "sugTips": "Sama këyit yu bës",
+    "sugTipsPrompt": "Jókk ma sama këyit yu bës",
+    "sugOffer": "Na lañuy tëggin benn ofer ?",
+    "sugOfferPrompt": "Na lañuy tëggin benn ofer ci Xeuy ?",
+    "sugHow": "Naka liggéey buy dox ?",
+    "sugHowPrompt": "Naka benn liggéey buy dox ci Xeuy ?",
+    "sugRequest": "Naka lañuy waxal sama soxla ?",
+    "sugRequestPrompt": "Naka lañuy waxal sama soxla ngir am ofer yu baax ?",
+    "sugPrice": "Ñaata lay fay artisan ?",
+    "sugPricePrompt": "Lan mooy njërñ yu mag yu artisan ci Ndakaaru ?"
   }
 }

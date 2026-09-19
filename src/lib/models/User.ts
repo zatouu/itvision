@@ -64,6 +64,16 @@ export interface IUser extends Document {
     reliabilityScore: number // 0..100 (100 = jamais annulé, défaut 100)
     lastUpdatedAt?: Date
   }
+  // Préférences de confidentialité (RGPD) — écran Privacy de l'app mobile
+  privacy?: {
+    profilePublic?: boolean
+    preciseLocation?: boolean
+    smsNotifications?: boolean
+  }
+  // Suppression de compte (RGPD) : le user est anonymisé et désactivé,
+  // jamais supprimé physiquement (intégrité financière/escrow/audit)
+  deletedAt?: Date
+  anonymizedAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -129,6 +139,13 @@ const UserSchema = new Schema<IUser>({
     reliabilityScore: { type: Number, default: 100, min: 0, max: 100 },
     lastUpdatedAt: { type: Date },
   },
+  privacy: {
+    profilePublic: { type: Boolean, default: true },
+    preciseLocation: { type: Boolean, default: true },
+    smsNotifications: { type: Boolean, default: false },
+  },
+  deletedAt: { type: Date },
+  anonymizedAt: { type: Date },
 }, { timestamps: true })
 
 UserSchema.index({ referredBy: 1 })

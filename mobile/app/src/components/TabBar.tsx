@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { Home, ClipboardList, FileText, Bell, UserCircle } from 'lucide-react-native'
+import { Home, ClipboardList, FileText, MessageCircle, UserCircle } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
+import { loadInbox, subscribeInbox, getInboxState, bindInboxSocket } from '../chat-inbox'
 import { colors, radius, spacing, typography } from '../design'
 import { hapticSelect } from '../haptics'
 import type { AppMode } from '../mode'
 
-export type TabKey = 'home' | 'requests' | 'offers' | 'notifications' | 'profile'
+export type TabKey = 'home' | 'requests' | 'offers' | 'messages' | 'notifications' | 'profile'
 
 interface TabBarProps {
   active: TabKey
@@ -17,10 +18,11 @@ interface TabBarProps {
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
+// 4 onglets (pattern type ATD) — les notifications restent dans la cloche du header.
 const CLIENT_TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
   { key: 'home',          label: 'Accueil',       icon: Home,          route: '/' },
   { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/my-requests' },
-  { key: 'notifications', label: 'Notifications', icon: Bell,          route: '/notifications' },
+  { key: 'messages',      label: 'Messages',      icon: MessageCircle, route: '/messages' },
   { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/profile' },
 ]
 
@@ -28,12 +30,13 @@ const PROVIDER_TABS: { key: TabKey; label: string; icon: React.ComponentType<Ico
   { key: 'home',          label: 'Accueil',       icon: Home,          route: '/pro-home' },
   { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/nearby-requests' },
   { key: 'offers',        label: 'Offres',        icon: FileText,      route: '/my-offers' },
-  { key: 'notifications', label: 'Notifications', icon: Bell,          route: '/notifications' },
+  { key: 'messages',      label: 'Messages',      icon: MessageCircle, route: '/messages' },
   { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/pro-profile' },
 ]
 
 export default function TabBar({ active, mode = 'client' }: TabBarProps) {
   const [unread, setUnread] = useState(0)
+  const [unreadChat, setUnreadChat] = useState(0)
   const tabs = mode === 'provider' ? PROVIDER_TABS : CLIENT_TABS
 
   useEffect(() => {
@@ -43,6 +46,14 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
       if (mounted) setUnread(unreadCount())
     })
     return () => { mounted = false; unsubscribe() }
+  }, [])
+
+  // Badge messages non lus (inbox chat)
+  useEffect(() => {
+    bindInboxSocket()
+    setUnreadChat(getInboxState().totalUnread)
+    loadInbox()
+    return subscribeInbox(() => setUnreadChat(getInboxState().totalUnread))
   }, [])
 
   const onPress = (tab: typeof tabs[number]) => {
@@ -59,7 +70,8 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
     <View style={s.bar}>
       {tabs.map(tab => {
         const isActive = tab.key === active
-        const showBadge = tab.key === 'notifications' && unread > 0
+        const badgeCount = tab.key === 'notifications' ? unread : tab.key === 'messages' ? unreadChat : 0
+        const showBadge = badgeCount > 0 && tab.key !== active
         const Icon = tab.icon
         return (
           <TouchableOpacity
@@ -75,7 +87,7 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
               <Icon size={20} color={isActive ? colors.primary : colors.textMuted} strokeWidth={isActive ? 2.5 : 2} />
               {showBadge && (
                 <View style={s.badge}>
-                  <Text style={s.badgeText}>{unread > 9 ? '9+' : String(unread)}</Text>
+                  <Text style={s.badgeText}>{badgeCount > 9 ? '9+' : String(badgeCount)}</Text>
                 </View>
               )}
             </View>

@@ -59,7 +59,11 @@
     "verified": "Vérifié",
     "guest": "Invité",
     "nearbyRequests": "Demandes proches",
-    "myOffers": "Mes offres"
+    "myOffers": "Mes offres",
+    "messages": "Messages",
+    "privacy": "Confidentialité",
+    "assistant": "Assistant IA",
+    "shop": "Boutique DDM+"
   },
   "setup": {
     "title": "Bienvenue !",
@@ -199,7 +203,7 @@
     "positionOk": "Position obtenue ✓",
     "landmark": "Repère / Quartier",
     "landmarkPlaceholder": "Ex: Près de la mosquée de Mermoz, à côté de l'école...",
-    "landmarkHint": "Obligatoire — aide le prestataire à vous trouver",
+    "landmarkHint": "Optionnel — aide le prestataire à vous trouver",
     "publish": "Publier la demande 🚀",
     "published": "Demande publiée",
     "publishedSub": "Les prestataires proches vont vous envoyer leurs offres.",
@@ -282,8 +286,7 @@
     "updatedTitle": "Votre demande a été mise à jour",
     "updatedSub": "Les prestataires proches ont reçu les nouvelles informations.",
     "loadingEdit": "Chargement de la demande…",
-    "budgetRequired": "Veuillez indiquer un budget (supérieur à 0).",
-    "landmarkHint": "Optionnel — aide le prestataire à vous trouver"
+    "budgetRequired": "Veuillez indiquer un budget (supérieur à 0)."
   },
   "schedule": {
     "whenLabel": "Quand ?",
@@ -680,7 +683,9 @@
     "statAccepted": "Acceptées",
     "statRevenue": "Revenus (FCFA)",
     "referralSubtitleProvider": "Invitez d'autres prestataires et gagnez quand ils complètent leur première mission.",
-    "referralShareProvider": "Rejoins-moi sur Xeuy Bi Pro ! Utilise mon code {{code}} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn/pro"
+    "referralShareProvider": "Rejoins-moi sur Xeuy Bi Pro ! Utilise mon code {{code}} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn/pro",
+    "messages": "Messages",
+    "privacy": "Confidentialité"
   },
   "chat": {
     "title": "Chat",
@@ -924,7 +929,8 @@
     "sortCheapest": "Moins cher",
     "sortNearest": "Plus proche",
     "sortBestRated": "Mieux noté",
-    "sortFastest": "Plus rapide"
+    "sortFastest": "Plus rapide",
+    "matchPercent": "{{percent}}% match"
   },
   "clientProvider": {
     "title": "Détail prestataire",
@@ -1350,5 +1356,75 @@
     "toClarify": "À clarifier avant l'offre",
     "risks": "Risques",
     "makeOffer": "Faire une offre"
+  },
+  "messages": {
+    "title": "Messages",
+    "empty": "Aucune conversation",
+    "emptyHint": "Vos échanges avec les prestataires apparaîtront ici dès qu'une mission démarre.",
+    "now": "À l'instant",
+    "minAgo": "Il y a {{n}} min",
+    "hAgo": "Il y a {{n}} h",
+    "dAgo": "Il y a {{n}} j"
+  },
+  "privacy": {
+    "title": "Confidentialité",
+    "profilePublic": "Profil public",
+    "profilePublicHint": "Votre profil est visible par les prestataires et les clients",
+    "preciseLocation": "Localisation précise",
+    "preciseLocationHint": "Partagée uniquement pendant une mission active",
+    "smsNotifs": "Notifications SMS",
+    "smsNotifsHint": "Recevoir les alertes importantes par SMS en plus du push",
+    "exportData": "Télécharger mes données",
+    "exportDataHint": "Export JSON de votre profil, missions et messages (RGPD)",
+    "exportDone": "Export prêt",
+    "deleteAccount": "Supprimer mon compte",
+    "deleteHint": "Anonymisation définitive — missions en cours et wallet non vide bloquants",
+    "deleteConfirmTitle": "Supprimer votre compte ?",
+    "deleteConfirmMsg": "Votre compte sera anonymisé et désactivé. Cette action est irréversible.",
+    "deleteConfirmTitle2": "Dernière confirmation",
+    "deleteConfirmMsg2": "Confirmez-vous la suppression définitive de votre compte Xeuy Bi ?",
+    "deleteBlockedTitle": "Suppression impossible",
+    "deleteDone": "Compte supprimé",
+    "controlTitle": "Vous gardez le contrôle",
+    "controlText": "Vos données vous appartiennent. Exportez-les ou supprimez votre compte à tout moment — sans condition."
+  },
+  "passport": {
+    "title": "Passeport pro",
+    "phoneVerified": "Téléphone vérifié",
+    "identityVerified": "Identité vérifiée",
+    "identityPending": "Identité en cours de vérification",
+    "memberSince": "Membre depuis {{year}}",
+    "missions": "Missions",
+    "rating": "Note",
+    "score": "Score Xeuy",
+    "qrTitle": "Mon identifiant",
+    "qrHint": "Faites scanner ce code pour prouver votre identité Xeuy",
+    "share": "Partager mon profil",
+    "fallbackTrade": "Prestataire de services"
+  },
+  "assistant": {
+    "title": "Assistant Xeuy",
+    "subtitle": "Conseils & aide, en français simple",
+    "heroTitle": "Pose-moi ta question",
+    "heroClient": "Décrire un besoin, comprendre les offres, payer en sécurité — je t'explique en langage simple.",
+    "heroPro": "Tarifs, offres, missions, visibilité — je t'explique en langage simple.",
+    "placeholder": "Écris ta question…",
+    "send": "Envoyer",
+    "thinking": "Je réfléchis…",
+    "noAnswer": "Je n'ai pas de réponse — reformule ta question.",
+    "unavailable": "Assistant indisponible",
+    "unavailableHint": "L'assistant IA est temporairement désactivé. Réessaie plus tard.",
+    "quickRequest": "Nouvelle demande",
+    "quickNearby": "Demandes proches",
+    "sugTips": "Mes conseils du jour",
+    "sugTipsPrompt": "Donne-moi mes conseils du jour",
+    "sugOffer": "Comment bien chiffrer une offre ?",
+    "sugOfferPrompt": "Comment bien chiffrer une offre sur Xeuy ?",
+    "sugHow": "Comment marche une mission ?",
+    "sugHowPrompt": "Comment se déroule une mission sur Xeuy ?",
+    "sugRequest": "Comment décrire mon besoin ?",
+    "sugRequestPrompt": "Comment bien décrire ma demande pour recevoir de bonnes offres ?",
+    "sugPrice": "Combien coûte un artisan ?",
+    "sugPricePrompt": "Quels sont les prix habituels pour un artisan à Dakar ?"
   }
 }

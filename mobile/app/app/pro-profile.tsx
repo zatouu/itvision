@@ -10,7 +10,7 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import {
   User, Camera, Star, Briefcase, Calendar, ShieldCheck, FolderOpen, MessageSquare,
   ChevronRight, Crown, Zap, Award, TrendingUp, Clock, MapPin, Sliders, Eye, Wallet,
-  Lock, Bell, Power, CheckCircle2, Circle, Plus
+  Lock, Bell, Power, CheckCircle2, Circle, Plus, QrCode
 } from 'lucide-react-native'
 import { loadCategories } from '../src/categories'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
@@ -37,6 +37,7 @@ const SECTIONS = [
   {
     title: 'Ma réputation',
     items: [
+      { icon: QrCode, label: 'Passeport pro', route: '/pro-passport' },
       { icon: FolderOpen, label: 'Portfolio', route: '/portfolio' },
       { icon: ShieldCheck, label: 'Vérification', route: '/verification' },
       { icon: MessageSquare, label: 'Avis clients', route: '/reviews' },
@@ -68,6 +69,7 @@ const SECTIONS = [
     items: [
       { icon: User, label: 'Informations personnelles', route: '/profile-detail?section=personal' },
       { icon: Lock, label: 'Sécurité', route: '/profile-detail?section=security' },
+      { icon: ShieldCheck, label: 'Confidentialité', route: '/privacy' },
       { icon: Bell, label: 'Notifications', route: '/notifications' },
     ],
   },

@@ -97,6 +97,7 @@ export type AiFeatureKey =
   | 'mission_help'
   | 'suggest_offer'
   | 'daily_tips'
+  | 'general_chat'
 
 /**
  * free              → toujours gratuit
@@ -132,7 +133,7 @@ export interface IAiConfig {
   maxImagesPerCall: number
 }
 
-export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_coach', 'mission_help', 'suggest_offer', 'daily_tips']
+export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_coach', 'mission_help', 'suggest_offer', 'daily_tips', 'general_chat']
 
 /** Fonctionnalités gratuites par défaut : déclenchées automatiquement par l'app (pas à la demande de l'utilisateur). */
 export const AI_AUTO_FEATURES: AiFeatureKey[] = ['mission_coach', 'daily_tips']

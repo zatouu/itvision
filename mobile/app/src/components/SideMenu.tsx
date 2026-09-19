@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Pressable, ScrollView, BackHandler, Animated, Easing } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Pressable, ScrollView, BackHandler, Animated, Easing, Linking } from 'react-native'
 import { router } from 'expo-router'
 import {
   X, Home, ClipboardList, MapPin, FileText, Wallet, BellRing, UserCircle,
   HelpCircle, Info, LogOut, ChevronRight, Heart, Globe, Pencil, Shield, RefreshCw,
-  ArrowLeftRight,
+  ArrowLeftRight, MessageCircle, Sparkles, ShoppingBag,
 } from 'lucide-react-native'
 import { colors, radius, shadows, spacing, typography, cat } from '../design'
 import { getAuthUser, clearAuth } from '../auth'
@@ -22,10 +22,15 @@ interface MenuItem {
   icon: any
   label: string
   route?: string
+  /** Lien externe (ex : boutique DDM+) — ouvert via Linking, pas de route interne */
+  externalUrl?: string
   color: string
   badge?: number
   active?: boolean
 }
+
+/** Boutique produits DDM+ — domaine market, accès par deep-link public */
+const DDM_SHOP_URL = 'https://market.itvisionplus.sn/produits'
 
 interface SideMenuProps {
   visible: boolean
@@ -106,6 +111,9 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
         { icon: Home, label: t('menu.home'), route: '/pro-home', color: colors.primary, active: true },
         { icon: MapPin, label: t('menu.nearbyRequests', { defaultValue: 'Demandes proches' }), route: '/nearby-requests', color: colors.info },
         { icon: FileText, label: t('menu.myOffers', { defaultValue: 'Mes offres' }), route: '/my-offers', color: colors.info },
+        { icon: MessageCircle, label: t('menu.messages', { defaultValue: 'Messages' }), route: '/messages', color: colors.info },
+        { icon: Sparkles, label: t('menu.assistant', { defaultValue: 'Assistant IA' }), route: '/assistant', color: '#8B5CF6' },
+        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: DDM_SHOP_URL, color: '#F59E0B' },
         { icon: Wallet, label: t('menu.wallet'), route: '/pro-wallet', color: colors.ink },
         { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
         { icon: UserCircle, label: t('menu.profile'), route: '/pro-profile', color: colors.textMuted },
@@ -113,6 +121,9 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
     : [
         { icon: Home, label: t('menu.home'), route: '/', color: colors.primary, active: true },
         { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', color: colors.info },
+        { icon: MessageCircle, label: t('menu.messages', { defaultValue: 'Messages' }), route: '/messages', color: colors.info },
+        { icon: Sparkles, label: t('menu.assistant', { defaultValue: 'Assistant IA' }), route: '/assistant', color: '#8B5CF6' },
+        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: DDM_SHOP_URL, color: '#F59E0B' },
         { icon: Wallet, label: t('menu.wallet'), route: '/wallet', color: colors.ink },
         { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
         { icon: UserCircle, label: t('menu.profile'), route: '/profile', color: colors.textMuted },
@@ -128,6 +139,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
   }
 
   const settingItems: MenuItem[] = [
+    { icon: Shield, label: t('menu.privacy', { defaultValue: 'Confidentialité' }), route: '/privacy', color: colors.textMuted },
     { icon: Globe, label: `${t('menu.language', { defaultValue: 'Langue' })} · ${langLabel}`, route: '/profile', color: colors.textMuted },
     { icon: HelpCircle, label: t('menu.help'), route: '/profile', color: colors.textMuted },
     { icon: Info, label: t('menu.about'), route: '/profile', color: colors.textMuted },
@@ -140,7 +152,15 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
         key={key}
         style={[s.row, compact && s.rowCompact, item.active && s.rowActive]}
         activeOpacity={0.65}
-        onPress={() => item.route && navigateTo(item.route)}
+        onPress={() => {
+          if (item.externalUrl) {
+            hapticSelect()
+            onClose()
+            Linking.openURL(item.externalUrl).catch(() => {})
+            return
+          }
+          item.route && navigateTo(item.route)
+        }}
       >
         <View style={[s.rowIcon, compact && s.rowIconSm, { backgroundColor: `${item.color}15` }]}>
           <Icon size={compact ? 15 : 17} color={item.color} />

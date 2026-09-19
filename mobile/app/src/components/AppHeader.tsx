@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ArrowLeft, Bell } from 'lucide-react-native'
-import { colors, spacing, typography } from '../design'
+import { colors, spacing, typography, fonts } from '../design'
 
 type Props = {
   title?: string
@@ -66,6 +66,7 @@ const s = StyleSheet.create({
   right: { justifyContent: 'flex-end' },
   title: {
     fontSize: typography.lg.fontSize,
+    fontFamily: fonts.display,
     fontWeight: typography.weight.extrabold as any,
     color: colors.text,
     textAlign: 'center',

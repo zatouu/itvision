@@ -1,12 +1,14 @@
+import { Platform } from 'react-native'
+
 export const colors = {
-  // Backgrounds
-  bg: '#F4F6F9',
-  backgroundPrimary: '#F4F6F9',
+  // Backgrounds — neutres chauds (crème) façon ATD Connect
+  bg: '#FAF8F3',
+  backgroundPrimary: '#FAF8F3',
   backgroundSecondary: '#FFFFFF',
   surface: '#FFFFFF',
-  bgDeep: '#E9EDF2',
+  bgDeep: '#F1ECE3',
   // Profil premium (provider)
-  bgGlobal: '#F5F6FA',
+  bgGlobal: '#F7F3EC',
   heroDark: '#091A2F',
   platinum: '#E5E4E2',
   // Primary / emerald
@@ -71,10 +73,10 @@ export const colors = {
   freeSoft: '#FDF5C6',
   freeInk: '#8A7100',
   // Misc
-  border: '#E2E8F0',
-  borderLight: '#E2E8F0',
-  borderSoft: '#EEF1F6',
-  divider: '#F1F4F8',
+  border: '#E8E1D3',
+  borderLight: '#E8E1D3',
+  borderSoft: '#EEE7DA',
+  divider: '#F0EBE1',
   shadow: '#000000',
   slate50: '#F8FAFC',
   slate100: '#F1F5F9',
@@ -215,6 +217,12 @@ export const momo = {
   orange: mkCat('#FF7900', '#FFECDA', '#B05300'),
   free:   mkCat('#F5D000', '#FDF5C6', '#8A7100'),
 } as const
+
+// Serif éditorial pour les titres — polices système, aucune font à bundler.
+// iOS: Georgia · Android: serif · Web: stack Georgia.
+export const fonts = {
+  display: Platform.select({ ios: 'Georgia', android: 'serif', web: 'Georgia, "Times New Roman", serif', default: undefined }),
+}
 
 export const getCategoryMeta = (key?: string) => {
   const k = (key || '').toLowerCase()

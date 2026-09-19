@@ -235,6 +235,20 @@ function OffersReceived() {
     return list
   }, [offers, sort])
 
+  // % de match normalisé (55–98 %) à partir du score "recommended"
+  const matchScores = useMemo(() => {
+    const raw = offers.map(o =>
+      (o.providerRating?.avg || 0) * 10 - (o.price / 1000) - (o.etaMinutes || 0) * 0.5 + (o.providerVerified ? 5 : 0)
+    )
+    const min = Math.min(...raw)
+    const max = Math.max(...raw)
+    const map = new Map<string, number>()
+    offers.forEach((o, i) => {
+      map.set(o._id, max === min ? 92 : Math.round(55 + 43 * (raw[i] - min) / (max - min)))
+    })
+    return map
+  }, [offers])
+
   const acceptOffer = async (offer: Offer) => {
     const ok = await confirm(
       t('clientOffers.confirmTitle'),
@@ -376,6 +390,7 @@ function OffersReceived() {
                     key={offer._id}
                     offer={offer}
                     isBest={idx === 0 && sort === 'recommended'}
+                    matchScore={matchScores.get(offer._id)}
                     isCheapest={offer.price === cheapestPrice}
                     budget={request?.budget}
                     scheduledFor={request?.scheduledFor}

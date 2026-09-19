@@ -94,6 +94,9 @@ const ServiceRequestSchema = new Schema({
   aiCoach: { type: Schema.Types.Mixed, default: {} },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
+  // Quand chaque partie a lu le chat de mission (badges inbox "Messages")
+  clientChatReadAt: { type: Date },
+  providerChatReadAt: { type: Date },
   // Clé d'idempotence client (file offline) : déduplique la création en cas de replay
   idempotencyKey: { type: String },
   lastActivityAt: { type: Date, default: Date.now },

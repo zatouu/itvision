@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { apiGet, apiGetRetry, apiUpload, apiPatch, apiPost, logoutApi } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import SideMenu from '../src/components/SideMenu'
+import TabBar from '../src/components/TabBar'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
 import { humanErrorMessage } from '../src/errorMessages'
@@ -238,6 +239,8 @@ function Profile() {
         <View style={s.menuGroup}>
           {menuItem(t('profile.wallet'), () => router.push('/wallet'))}
           {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
+          {menuItem(t('profile.messages', { defaultValue: 'Messages' }), () => router.push('/messages' as any))}
+          {menuItem(t('profile.privacy', { defaultValue: 'Confidentialité' }), () => router.push('/privacy' as any))}
           {!isProviderCapable() && menuItem(
             t('profile.becomeProvider', { defaultValue: 'Devenir prestataire' }),
             () => router.push('/onboarding-provider' as any)
@@ -266,6 +269,7 @@ function Profile() {
         </TouchableOpacity>
       </ScrollView>
 
+      <TabBar active="profile" />
       <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )

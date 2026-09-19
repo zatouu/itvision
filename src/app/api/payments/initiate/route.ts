@@ -10,6 +10,7 @@ import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { offerPaymentInitSchema, validate } from '@/lib/validation'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { sendManualReviewEmail } from '@/lib/payments/manual-review'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']
 
@@ -204,6 +205,18 @@ export async function POST(request: NextRequest) {
     }
 
     const isManual = !!result.manualConfirm
+    // Paiement manuel (QR/lien Wave marchand, pas d'API provider) : alerter
+    // l'admin comme DDM+ et les recharges — sinon il faudrait surveiller la file.
+    if (isManual && !isMockMode()) {
+      void sendManualReviewEmail({
+        kind: 'payment',
+        id: String(payment._id),
+        reference: payment.reference || `Mission ${String(sr._id).slice(-6)}`,
+        amount: amountToPayNow,
+        provider: payment.provider,
+        clientPhone: phone,
+      })
+    }
     if (!isManual && (isMockMode() || provider === 'cash')) {
       payment.status = 'held'
       payment.heldAt = new Date()

@@ -740,13 +740,13 @@ function CreateRequest() {
             )}
           </View>
 
-          {/* Message vocal */}
-          <View>
+          {/* Message vocal — saisie vocale mise en avant (wolof/français) */}
+          <View style={s.voiceCard}>
             <Text style={s.label}>{t('request.voiceNoteLabel')}</Text>
             {voiceNote ? (
               <VoicePlayer uri={voiceNote.uri} durationMs={voiceNote.durationMs} onRemove={() => setVoiceNote(null)} />
             ) : (
-              <VoiceRecorder onRecorded={setVoiceNote} maxDurationSec={60} />
+              <VoiceRecorder variant="orb" onRecorded={setVoiceNote} maxDurationSec={60} />
             )}
           </View>
 
@@ -1085,6 +1085,8 @@ const s = StyleSheet.create({
   mediaRemove: { position: 'absolute', top: -5, right: -5, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   mediaAddBtn: { width: 84, height: 84, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 4 },
   mediaAddText: { fontSize: 10, fontWeight: typography.weight.semibold as any, color: colors.textDim },
+  // Message vocal — carte dédiée (variante orb)
+  voiceCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderSoft, padding: spacing.md, paddingBottom: spacing.lg },
   // Budget
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   budgetChip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },

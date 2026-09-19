@@ -86,6 +86,8 @@ function MissionChat() {
     try {
       const res = await apiGet(`/api/services/chat?requestId=${id}`)
       setMessages(res.messages || [])
+      // Marque la conversation comme lue (badge inbox)
+      apiPost('/api/services/chat/read', { requestId: id }).catch(() => {})
     } catch (e) {
       console.warn('[Chat] Erreur chargement:', e)
     } finally {
