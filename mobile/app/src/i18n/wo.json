@@ -685,7 +685,10 @@
     "referralSubtitleProvider": "Yónnee yeneen liggéeykat te nangu bu ñu jeexal misiyoŋ bu njëkk.",
     "referralShareProvider": "Duggal moom ci Xeuy Bi Pro! Jëfandikoo kood bu {{code}} te nangu 1 000 FCFA. Télécharge aplikasion bi fii: https://xeuy.sn/pro",
     "messages": "Bataaxal",
-    "privacy": "Sutura"
+    "privacy": "Sutura",
+    "shop": "Butik DDM+",
+    "myShop": "Sama butik",
+    "becomeSeller": "Amal butik ci DDM+"
   },
   "chat": {
     "title": "Baat",

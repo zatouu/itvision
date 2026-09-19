@@ -26,8 +26,6 @@ interface VendorInfo {
   productCount: number
   description?: string
   location?: string
-  responseTime?: string
-  onTimeRate?: number
   categories?: string[]
   type?: 'factory' | 'partner'
 }
@@ -83,8 +81,6 @@ export default function VendorStorefrontPage() {
             productCount: data.total || items.length,
             description: first.sellerDescription,
             location: first.sellerLocation || 'Sénégal',
-            responseTime: first.sellerResponseTime || '< 2h',
-            onTimeRate: typeof first.sellerOnTimeRate === 'number' ? first.sellerOnTimeRate : 98,
             categories,
             type: first.sellerType === 'factory' ? 'factory' : 'partner',
           })
@@ -117,12 +113,9 @@ export default function VendorStorefrontPage() {
       verified: vendor.verified,
       rating: vendor.rating ?? 0,
       reviewCount: 0,
-      yearsActive: 3,
       location: vendor.location || 'Sénégal',
       categories: vendor.categories?.length ? vendor.categories : ['Général'],
       description: vendor.description,
-      responseTime: vendor.responseTime || '< 2h',
-      onTimeRate: vendor.onTimeRate ?? 98,
       productCount: vendor.productCount,
     }
   }, [vendor])

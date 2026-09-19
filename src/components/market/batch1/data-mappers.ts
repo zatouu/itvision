@@ -508,6 +508,7 @@ export function mapUser(user: any, dashboard?: any): User {
   return {
     handle: firstName,
     initials,
+    role: user?.role || '',
     memberSince: user?.createdAt
       ? new Date(user.createdAt).getFullYear().toString()
       : '',

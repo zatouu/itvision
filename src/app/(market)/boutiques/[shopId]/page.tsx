@@ -54,7 +54,11 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
           country: shop.country,
           city: shop.city,
           categories: shop.categories,
+          createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : undefined,
           socialWhatsApp: shop.socialLinks?.whatsapp,
+          socialInstagram: shop.socialLinks?.instagram,
+          socialFacebook: shop.socialLinks?.facebook,
+          socialWebsite: shop.socialLinks?.website,
         }}
       />
     </main>

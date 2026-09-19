@@ -22,6 +22,7 @@ export default function ScreenAccount() {
   const [USER, setUSER] = useState<User | null>(null);
   const [ORDER_STEPS, setORDER_STEPS] = useState<OrderStep[]>([]);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [vendorShop, setVendorShop] = useState<{ name: string; slug: string; status: string } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -29,8 +30,17 @@ export default function ScreenAccount() {
       fetch('/api/users/me', { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch('/api/account/dashboard', { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]).then(([userRes, dashRes]) => {
-      if (userRes?.user || dashRes?.dashboard?.user) {
-        setUSER(mapUser(userRes?.user, dashRes?.dashboard) as User);
+      const mapped = userRes?.user || dashRes?.dashboard?.user
+        ? (mapUser(userRes?.user, dashRes?.dashboard) as User)
+        : null;
+      if (mapped) setUSER(mapped);
+      if (mapped?.role === 'VENDOR') {
+        fetch('/api/vendor/shop', { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            if (d?.shop) setVendorShop({ name: d.shop.name, slug: d.shop.slug, status: d.shop.status });
+          })
+          .catch(() => {});
       }
       if (dashRes?.dashboard?.latestOrder) {
         setORDERS([mapOrder(dashRes.dashboard.latestOrder) as Order]);
@@ -184,6 +194,46 @@ export default function ScreenAccount() {
     );
   };
 
+  const VendorShopCard = () => {
+    if (USER.role !== 'VENDOR') return null;
+    const pending = vendorShop?.status === 'pending_review';
+    return (
+      <Card className="overflow-hidden">
+        <div className="bg-gradient-to-br from-violet-600 to-violet-800 p-4 text-white">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-white/15 backdrop-blur">
+                <Icon name="store" size={20}/>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">Ma boutique</p>
+                <p className="text-[15px] font-extrabold truncate">{vendorShop?.name || 'Espace vendeur'}</p>
+                {pending && (
+                  <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-300/30 px-1.5 py-px text-[9px] font-bold text-amber-200">
+                    En vérification
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+          <Link href="/espace-vendeur" className="flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+            <Icon name="barChart" size={14} className="text-violet-600"/> Tableau de bord <Icon name="chevronRight" size={13} className="ml-auto text-slate-400"/>
+          </Link>
+          {vendorShop && !pending && (
+            <Link href={`/boutiques/${vendorShop.slug}`} className="flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+              <Icon name="eye" size={14} className="text-violet-600"/> Voir ma vitrine <Icon name="chevronRight" size={13} className="ml-auto text-slate-400"/>
+            </Link>
+          )}
+          <Link href="/espace-vendeur/parametres" className="flex items-center gap-2 px-4 py-2.5 text-[12px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+            <Icon name="lock" size={14} className="text-violet-600"/> Paramètres boutique <Icon name="chevronRight" size={13} className="ml-auto text-slate-400"/>
+          </Link>
+        </div>
+      </Card>
+    );
+  };
+
   const WhatsAppCard = () => (
     <Card className="p-4 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900">
       <div className="flex items-center gap-3">
@@ -274,9 +324,16 @@ export default function ScreenAccount() {
     </div>
   );
 
+  const allAccountLinks = [
+    ...accountLinks,
+    ...(!['VENDOR', 'ADMIN', 'SUPER_ADMIN'].includes(USER.role || '')
+      ? [{ icon: "store", label: "Devenir vendeur", href: "/devenir-vendeur" }]
+      : []),
+  ];
+
   const accountLinksCard = (
     <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
-      {accountLinks.map((it) => (
+      {allAccountLinks.map((it) => (
         it.external ? (
           <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
             <Icon name={it.icon} size={16} className="text-slate-500 dark:text-slate-400"/>
@@ -332,14 +389,17 @@ export default function ScreenAccount() {
         <div className="-mt-4 flex flex-col gap-4 px-4 pb-20 md:mt-0 md:grid md:grid-cols-[1fr_320px] md:gap-6 md:px-0 md:pb-0">
           <div className="md:col-start-1 md:row-start-1"><Stats/></div>
           <div className="md:col-start-1 md:row-start-2"><ActiveOrder/></div>
-          <div className="md:col-start-2 md:row-start-1"><Grains/></div>
+          {USER.role === 'VENDOR' && (
+            <div className="md:col-start-2 md:row-start-1"><VendorShopCard/></div>
+          )}
+          <div className={USER.role === 'VENDOR' ? 'md:col-start-2 md:row-start-2' : 'md:col-start-2 md:row-start-1'}><Grains/></div>
           <div className="md:col-start-1 md:row-start-3">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:mb-3 md:text-[16px] md:font-extrabold md:normal-case md:tracking-tight md:text-slate-900 md:dark:text-white">Raccourcis</p>
             <Shortcuts/>
           </div>
-          <div className="md:col-start-2 md:row-start-2"><WhatsAppCard/></div>
+          <div className={USER.role === 'VENDOR' ? 'md:col-start-2 md:row-start-3' : 'md:col-start-2 md:row-start-2'}><WhatsAppCard/></div>
           <div className="md:col-start-1 md:row-start-4">{activityBlock}</div>
-          <div className="md:col-start-2 md:row-start-3">
+          <div className={USER.role === 'VENDOR' ? 'md:col-start-2 md:row-start-4' : 'md:col-start-2 md:row-start-3'}>
             <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:mb-3 md:text-[13px] md:normal-case md:tracking-normal md:text-slate-900 md:dark:text-white">Compte</p>
             {accountLinksCard}
           </div>

@@ -215,6 +215,7 @@ export interface User {
   handle: string;
   initials?: string;
   memberSince: string;
+  role?: string;
   grains: number;
   grainsTier: string;
   nextTier?: string;

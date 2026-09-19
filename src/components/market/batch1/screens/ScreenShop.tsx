@@ -17,6 +17,9 @@ import {
   Shield,
   Loader2,
   AlertCircle,
+  Instagram,
+  Facebook,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
@@ -45,12 +48,14 @@ interface ShopData {
   verified: boolean;
   rating: number;
   reviewCount: number;
-  yearsActive: number;
+  yearsActive?: number;
+  memberSince?: string;
   location: string;
   categories: string[];
   description?: string;
   logo?: string;
   coverImage?: string;
+  socials?: { whatsapp?: string; instagram?: string; facebook?: string; website?: string };
   responseTime?: string;
   onTimeRate?: number;
   productCount: number;
@@ -147,8 +152,12 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
               <span className="font-bold tabular-nums">{shop.rating.toFixed(1)}</span>
               <span className="text-white/70">({shop.reviewCount})</span>
             </div>
-            <span className="text-white/50">·</span>
-            <span>{shop.yearsActive} ans</span>
+            {shop.memberSince && (
+              <>
+                <span className="text-white/50">·</span>
+                <span>Membre depuis {shop.memberSince}</span>
+              </>
+            )}
             <span className="text-white/50">·</span>
             <span className="truncate">{shop.location}</span>
           </div>
@@ -260,14 +269,18 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Note</p>
           <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.rating.toFixed(1)}<span className="text-[11px] text-slate-500 dark:text-slate-400">/5</span></p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Réponse</p>
-          <p className="mt-1 text-[18px] font-extrabold text-emerald-600 dark:text-emerald-400">{shop.responseTime || '< 2h'}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">À l&apos;heure</p>
-          <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.onTimeRate ?? 98}%</p>
-        </div>
+        {shop.responseTime && (
+          <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Réponse</p>
+            <p className="mt-1 text-[18px] font-extrabold text-emerald-600 dark:text-emerald-400">{shop.responseTime}</p>
+          </div>
+        )}
+        {shop.onTimeRate != null && (
+          <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">À l&apos;heure</p>
+            <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.onTimeRate}%</p>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 md:p-6">
@@ -400,12 +413,16 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
             <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 sticky top-[calc(var(--mkt-header-h,0px)+12px)]">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Contact vendeur</p>
               <div className="space-y-1.5 text-[12px]">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <Clock size={13} className="text-emerald-600" /> Répond en {shop.responseTime || '< 2h'}
-                </div>
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <CheckCircle size={13} className="text-emerald-600" /> {shop.onTimeRate ?? 98}% livré à l&apos;heure
-                </div>
+                {shop.responseTime && (
+                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Clock size={13} className="text-emerald-600" /> Répond en {shop.responseTime}
+                  </div>
+                )}
+                {shop.onTimeRate != null && (
+                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <CheckCircle size={13} className="text-emerald-600" /> {shop.onTimeRate}% livré à l&apos;heure
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                   <Package size={13} className="text-slate-500" /> {shop.productCount} produits en catalogue
                 </div>
@@ -419,6 +436,25 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                 >
                   <MessageCircle size={14} /> Contacter le vendeur
                 </a>
+                {(shop.socials?.instagram || shop.socials?.facebook || shop.socials?.website) && (
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    {shop.socials?.instagram && (
+                      <a href={shop.socials.instagram.startsWith('http') ? shop.socials.instagram : `https://instagram.com/${shop.socials.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-pink-400 hover:text-pink-600 transition dark:border-slate-700 dark:text-slate-300" title="Instagram">
+                        <Instagram size={15} />
+                      </a>
+                    )}
+                    {shop.socials?.facebook && (
+                      <a href={shop.socials.facebook.startsWith('http') ? shop.socials.facebook : `https://facebook.com/${shop.socials.facebook.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-blue-500 hover:text-blue-600 transition dark:border-slate-700 dark:text-slate-300" title="Facebook">
+                        <Facebook size={15} />
+                      </a>
+                    )}
+                    {shop.socials?.website && (
+                      <a href={shop.socials.website} target="_blank" rel="noopener noreferrer" className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 transition dark:border-slate-700 dark:text-slate-300" title="Site web">
+                        <Globe size={15} />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
               <p className="mt-3 text-center text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-800 pt-3">
                 Paiement Escrow protégé par DDM+

@@ -685,7 +685,10 @@
     "referralSubtitleProvider": "Invite other providers and earn when they complete their first mission.",
     "referralShareProvider": "Join me on Xeuy Bi Pro! Use my code {{code}} and earn 1,000 FCFA. Download the app here: https://xeuy.sn/pro",
     "messages": "Messages",
-    "privacy": "Privacy"
+    "privacy": "Privacy",
+    "shop": "DDM+ Shop",
+    "myShop": "My shop",
+    "becomeSeller": "Become a DDM+ seller"
   },
   "chat": {
     "title": "Chat",

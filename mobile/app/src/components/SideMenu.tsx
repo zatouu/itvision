@@ -14,6 +14,7 @@ import { hapticSelect, hapticLight } from '../haptics'
 import { subscribeNotifications, unreadCount } from '../notifications'
 import { getMode, setMode, isProviderCapable, homeRouteForMode, subscribeMode, AppMode } from '../mode'
 import { useTranslation } from 'react-i18next'
+import { marketLinks } from '../links'
 
 const SCREEN_W = Dimensions.get('window').width
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320)
@@ -28,9 +29,6 @@ interface MenuItem {
   badge?: number
   active?: boolean
 }
-
-/** Boutique produits DDM+ — domaine market, accès par deep-link public */
-const DDM_SHOP_URL = 'https://market.itvisionplus.sn/produits'
 
 interface SideMenuProps {
   visible: boolean
@@ -113,7 +111,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
         { icon: FileText, label: t('menu.myOffers', { defaultValue: 'Mes offres' }), route: '/my-offers', color: colors.info },
         { icon: MessageCircle, label: t('menu.messages', { defaultValue: 'Messages' }), route: '/messages', color: colors.info },
         { icon: Sparkles, label: t('menu.assistant', { defaultValue: 'Assistant IA' }), route: '/assistant', color: '#8B5CF6' },
-        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: DDM_SHOP_URL, color: '#F59E0B' },
+        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: marketLinks.catalog, color: '#F59E0B' },
         { icon: Wallet, label: t('menu.wallet'), route: '/pro-wallet', color: colors.ink },
         { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
         { icon: UserCircle, label: t('menu.profile'), route: '/pro-profile', color: colors.textMuted },
@@ -123,7 +121,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
         { icon: ClipboardList, label: t('menu.myRequests'), route: '/my-requests', color: colors.info },
         { icon: MessageCircle, label: t('menu.messages', { defaultValue: 'Messages' }), route: '/messages', color: colors.info },
         { icon: Sparkles, label: t('menu.assistant', { defaultValue: 'Assistant IA' }), route: '/assistant', color: '#8B5CF6' },
-        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: DDM_SHOP_URL, color: '#F59E0B' },
+        { icon: ShoppingBag, label: t('menu.shop', { defaultValue: 'Boutique DDM+' }), externalUrl: marketLinks.catalog, color: '#F59E0B' },
         { icon: Wallet, label: t('menu.wallet'), route: '/wallet', color: colors.ink },
         { icon: BellRing, label: t('menu.notifications'), route: '/notifications', color: colors.warning, badge: notifBadge },
         { icon: UserCircle, label: t('menu.profile'), route: '/profile', color: colors.textMuted },

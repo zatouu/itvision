@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, TextInput } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Share, Image, TextInput, Linking } from 'react-native'
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -18,12 +18,14 @@ import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { ChevronRight, Camera, Menu, Pencil, Phone } from 'lucide-react-native'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
 import { isProviderCapable } from '../src/mode'
+import { marketLinks } from '../src/links'
 
 function Profile() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { t } = useTranslation()
   const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0 })
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
+  const [vendorShop, setVendorShop] = useState<{ name: string; slug: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(getAuthUser())
   const [editingName, setEditingName] = useState(false)
@@ -56,6 +58,10 @@ function Profile() {
   }
 
   useEffect(() => {
+    // Boutique DDM+ du compte (si vendeur) — affiche « Ma boutique » dans le menu
+    apiGetRetry('/api/market/vendors/me')
+      .then(r => setVendorShop(r?.shop || null))
+      .catch(() => {})
     apiGet('/api/users/me')
       .then(r => {
         if (r.user) updateAuthUser(r.user)
@@ -241,6 +247,15 @@ function Profile() {
           {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
           {menuItem(t('profile.messages', { defaultValue: 'Messages' }), () => router.push('/messages' as any))}
           {menuItem(t('profile.privacy', { defaultValue: 'Confidentialité' }), () => router.push('/privacy' as any))}
+          {menuItem(t('profile.shop', { defaultValue: 'Boutique DDM+' }), () => Linking.openURL(marketLinks.catalog).catch(() => {}))}
+          {vendorShop && menuItem(
+            `${t('profile.myShop', { defaultValue: 'Ma boutique' })} · ${vendorShop.name}`,
+            () => Linking.openURL(marketLinks.vendorDashboard).catch(() => {})
+          )}
+          {!vendorShop && isProviderCapable() && menuItem(
+            t('profile.becomeSeller', { defaultValue: 'Devenir vendeur sur DDM+' }),
+            () => Linking.openURL(marketLinks.becomeVendor).catch(() => {})
+          )}
           {!isProviderCapable() && menuItem(
             t('profile.becomeProvider', { defaultValue: 'Devenir prestataire' }),
             () => router.push('/onboarding-provider' as any)

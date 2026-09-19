@@ -685,7 +685,10 @@
     "referralSubtitleProvider": "Invitez d'autres prestataires et gagnez quand ils complètent leur première mission.",
     "referralShareProvider": "Rejoins-moi sur Xeuy Bi Pro ! Utilise mon code {{code}} et gagne 1 000 FCFA. Télécharge l'app ici : https://xeuy.sn/pro",
     "messages": "Messages",
-    "privacy": "Confidentialité"
+    "privacy": "Confidentialité",
+    "shop": "Boutique DDM+",
+    "myShop": "Ma boutique",
+    "becomeSeller": "Devenir vendeur sur DDM+"
   },
   "chat": {
     "title": "Chat",

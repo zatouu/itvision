@@ -30,7 +30,11 @@ interface ShopData {
   country?: string
   city?: string
   categories?: string[]
+  createdAt?: string
   socialWhatsApp?: string
+  socialInstagram?: string
+  socialFacebook?: string
+  socialWebsite?: string
 }
 
 interface ShopPageClientProps {
@@ -104,12 +108,15 @@ export default function ShopPageClient({
     coverImage: shop?.coverImage,
     rating: 0,
     reviewCount: 0,
-    yearsActive: 3,
+    memberSince: shop?.createdAt ? new Date(shop.createdAt).getFullYear().toString() : undefined,
     location: shop?.city ? `${shop.city}, ${shop?.country || 'Sénégal'}` : (shop?.country || 'Sénégal'),
     categories: categories.length ? categories : (shop?.categories ?? ['Général']),
     description: shopDescription || shop?.description,
-    responseTime: '< 2h',
-    onTimeRate: 98,
+    socials: {
+      instagram: shop?.socialInstagram,
+      facebook: shop?.socialFacebook,
+      website: shop?.socialWebsite,
+    },
     productCount: items.length,
   }), [shopName, shop, shopDescription, categories, items.length])
 
@@ -131,5 +138,9 @@ export default function ShopPageClient({
     )
   }
 
-  return <ScreenShop shop={shopData} products={products} contactWhatsApp={shop?.socialWhatsApp} />
+  const whatsappUrl = shop?.socialWhatsApp
+    ? `https://wa.me/${shop.socialWhatsApp.replace(/\D/g, '')}`
+    : undefined
+
+  return <ScreenShop shop={shopData} products={products} contactWhatsApp={whatsappUrl} />
 }

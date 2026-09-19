@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image, Platform, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image, Platform, Alert, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -10,8 +10,9 @@ import { colors, spacing, radius, typography, shadows } from '../src/design'
 import {
   User, Camera, Star, Briefcase, Calendar, ShieldCheck, FolderOpen, MessageSquare,
   ChevronRight, Crown, Zap, Award, TrendingUp, Clock, MapPin, Sliders, Eye, Wallet,
-  Lock, Bell, Power, CheckCircle2, Circle, Plus, QrCode
+  Lock, Bell, Power, CheckCircle2, Circle, Plus, QrCode, ShoppingBag
 } from 'lucide-react-native'
+import { marketLinks } from '../src/links'
 import { loadCategories } from '../src/categories'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
 import { toast } from '../src/toast'
@@ -62,6 +63,7 @@ const SECTIONS = [
       { icon: TrendingUp, label: 'Performances', route: '/performance' },
       { icon: Wallet, label: 'Wallet', route: '/pro-wallet' },
       { icon: Crown, label: 'Premium', route: '/premium' },
+      { icon: ShoppingBag, label: 'Ma boutique DDM+', externalUrl: marketLinks.vendorDashboard },
     ],
   },
   {
@@ -280,7 +282,11 @@ function Profile() {
             {section.items.map((item, idx) => {
               const Icon = item.icon
               return (
-                <TouchableOpacity key={item.label} style={[s.row, idx < section.items.length - 1 && s.rowBorder]} onPress={() => router.push(item.route as any)}>
+                <TouchableOpacity key={item.label} style={[s.row, idx < section.items.length - 1 && s.rowBorder]} onPress={() => {
+                  const ext = (item as any).externalUrl as string | undefined
+                  if (ext) { Linking.openURL(ext).catch(() => {}); return }
+                  if ((item as any).route) router.push((item as any).route)
+                }}>
                   <View style={[s.rowIcon, { backgroundColor: colors.bgGlobal }]}>
                     <Icon size={18} color={colors.primary} />
                   </View>
