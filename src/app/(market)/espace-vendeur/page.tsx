@@ -17,8 +17,13 @@ import {
   Eye,
   Settings,
   Clock,
+  Wallet,
+  ShoppingBag,
+  Users,
+  LifeBuoy,
 } from 'lucide-react'
 import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { TreasuryTab, PurchasesTab, GroupsTab, SupportTab, NewProductModal } from './tabs'
 
 interface VendorStats {
   productsCount: number
@@ -62,15 +67,19 @@ interface VendorOrder {
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900',
+  confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-900',
+  processing: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-900',
   shipped: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-900',
   delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900',
   cancelled: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-900',
 }
 
 function statusLabel(s: string) {
-  const map: Record<string, string> = { pending: 'En attente', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée' }
+  const map: Record<string, string> = { pending: 'En attente', confirmed: 'Confirmée', processing: 'En préparation', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée' }
   return map[s] || s
 }
+
+type TabKey = 'products' | 'orders' | 'treasury' | 'purchases' | 'groups' | 'support' | 'reviews'
 
 export default function VendorDashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -79,7 +88,10 @@ export default function VendorDashboardPage() {
   const [stats, setStats] = useState<VendorStats | null>(null)
   const [products, setProducts] = useState<VendorProduct[]>([])
   const [orders, setOrders] = useState<VendorOrder[]>([])
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'reviews'>('products')
+  const [activeTab, setActiveTab] = useState<TabKey>('products')
+  const [tabData, setTabData] = useState<Partial<Record<TabKey, any>>>({})
+  const [tabLoading, setTabLoading] = useState(false)
+  const [showNewProduct, setShowNewProduct] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,6 +125,30 @@ export default function VendorDashboardPage() {
     }
     fetchData()
   }, [])
+
+  const loadTab = async (tab: TabKey) => {
+    if (tabData[tab] !== undefined) return
+    const endpoints: Partial<Record<TabKey, string>> = {
+      treasury: '/api/vendor/treasury',
+      purchases: '/api/vendor/purchases',
+      groups: '/api/vendor/groups',
+      support: '/api/vendor/support',
+    }
+    const url = endpoints[tab]
+    if (!url) return
+    try {
+      setTabLoading(true)
+      const res = await fetch(url, { credentials: 'include' })
+      const data = await res.json()
+      if (res.ok) setTabData(prev => ({ ...prev, [tab]: data }))
+    } catch {}
+    setTabLoading(false)
+  }
+
+  const switchTab = (tab: TabKey) => {
+    setActiveTab(tab)
+    loadTab(tab)
+  }
 
   const updateStock = async (productId: string, newQty: number) => {
     try {
@@ -246,20 +282,24 @@ export default function VendorDashboardPage() {
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
           <div className="border-b border-slate-200 dark:border-slate-800 flex overflow-x-auto">
             {[
-              { k: 'products', l: 'Produits' },
-              { k: 'orders', l: 'Commandes' },
-              { k: 'reviews', l: 'Avis' },
+              { k: 'products' as TabKey, l: 'Stock', icon: Package },
+              { k: 'orders' as TabKey, l: 'Ventes', icon: ShoppingBag },
+              { k: 'treasury' as TabKey, l: 'Trésorerie', icon: Wallet },
+              { k: 'purchases' as TabKey, l: 'Appro', icon: Truck },
+              { k: 'groups' as TabKey, l: 'Groupes', icon: Users },
+              { k: 'support' as TabKey, l: 'Support', icon: LifeBuoy },
+              { k: 'reviews' as TabKey, l: 'Avis', icon: Star },
             ].map((t) => (
               <button
                 key={t.k}
-                onClick={() => setActiveTab(t.k as any)}
+                onClick={() => switchTab(t.k)}
                 className={`flex-shrink-0 whitespace-nowrap px-5 py-3 text-[13px] font-bold border-b-2 transition ${
                   activeTab === t.k
                     ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
                     : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
-                {t.l}
+                <span className="inline-flex items-center gap-1.5"><t.icon size={14} /> {t.l}</span>
               </button>
             ))}
           </div>
@@ -269,11 +309,14 @@ export default function VendorDashboardPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[13px] font-bold text-slate-900 dark:text-white">{products.length} produits</p>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 text-[10px] font-bold">
-                    <Plus size={10} /> BIENTÔT
-                  </span>
+                  <button
+                    onClick={() => setShowNewProduct(true)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-emerald-600 text-white text-[12px] font-bold hover:bg-emerald-700 transition"
+                  >
+                    <Plus size={13} /> Nouveau produit
+                  </button>
                 </div>
-                {products.length === 0 && <p className="text-slate-500 text-center py-8">Aucun produit associé à ce vendeur.</p>}
+                {products.length === 0 && <p className="text-slate-500 text-center py-8">Aucun produit. Ajoutez votre premier produit ou réapprovisionnez-vous via un achat groupé.</p>}
                 {products.map((product) => (
                   <div key={product.id} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-800 rounded-2xl">
                     <img src={product.image} alt={product.name} className="w-14 h-14 object-cover rounded-xl bg-slate-100 dark:bg-slate-800" />
@@ -337,6 +380,29 @@ export default function VendorDashboardPage() {
               </div>
             )}
 
+            {activeTab === 'treasury' && (
+              <TreasuryTab
+                data={tabData.treasury}
+                loading={tabLoading}
+                onRequested={() => {
+                  setTabData(prev => ({ ...prev, treasury: undefined }))
+                  setTimeout(() => loadTab('treasury'), 0)
+                }}
+              />
+            )}
+
+            {activeTab === 'purchases' && (
+              <PurchasesTab data={tabData.purchases} loading={tabLoading} />
+            )}
+
+            {activeTab === 'groups' && (
+              <GroupsTab data={tabData.groups} loading={tabLoading} />
+            )}
+
+            {activeTab === 'support' && (
+              <SupportTab data={tabData.support} loading={tabLoading} />
+            )}
+
             {activeTab === 'reviews' && (
               <div className="text-center py-12">
                 <div className="grid h-16 w-16 mx-auto place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
@@ -349,6 +415,17 @@ export default function VendorDashboardPage() {
           </div>
         </div>
       </main>
+
+      {showNewProduct && (
+        <NewProductModal
+          onClose={() => setShowNewProduct(false)}
+          onCreated={async () => {
+            const res = await fetch('/api/vendor/products', { credentials: 'include' })
+            const data = await res.json()
+            if (data.success) setProducts(data.products)
+          }}
+        />
+      )}
     </div>
   )
 }

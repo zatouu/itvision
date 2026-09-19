@@ -271,6 +271,8 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   ReturnRequest: 'market',
   SourcingRequest: 'market',
   ChinaPurchase: 'market',
+  VendorPayout: 'market',
+  StockMovement: 'market',
   OrderChatMessage: 'market',
   GroupOrderChatMessage: 'market',
   Campaign: 'market',

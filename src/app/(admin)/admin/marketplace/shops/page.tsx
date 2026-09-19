@@ -2,7 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import Breadcrumb from '@/components/Breadcrumb'
-import { Store, Loader2, CheckCircle, XCircle, Plus, Search } from 'lucide-react'
+import { Store, Loader2, CheckCircle, XCircle, Plus, Search, Wallet } from 'lucide-react'
+
+interface Payout {
+  id: string
+  vendor?: { name: string; slug: string } | null
+  amount: number
+  method: string
+  phone?: string
+  status: 'pending' | 'approved' | 'paid' | 'rejected'
+  note?: string
+  requestedAt: string
+  rejectionReason?: string
+}
 
 interface Shop {
   _id: string
@@ -22,6 +34,35 @@ export default function AdminShopsPage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', ownerEmail: '', ownerPhone: '' })
+  const [payouts, setPayouts] = useState<Payout[]>([])
+
+  const loadPayouts = async () => {
+    try {
+      const res = await fetch('/api/admin/vendor-payouts', { credentials: 'include' })
+      const data = await res.json()
+      if (res.ok) setPayouts(data.payouts || [])
+    } catch {}
+  }
+
+  const processPayout = async (id: string, action: 'approve' | 'paid' | 'reject') => {
+    let rejectionReason: string | undefined
+    if (action === 'reject') {
+      rejectionReason = window.prompt('Motif du rejet ?') || 'Non précisé'
+    }
+    try {
+      const res = await fetch('/api/admin/vendor-payouts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ payoutId: id, action, rejectionReason }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erreur')
+      await loadPayouts()
+    } catch (e: any) {
+      alert(e.message)
+    }
+  }
 
   const loadShops = async () => {
     try {
@@ -37,7 +78,7 @@ export default function AdminShopsPage() {
     }
   }
 
-  useEffect(() => { loadShops() }, [])
+  useEffect(() => { loadShops(); loadPayouts() }, [])
 
   const createShop = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -168,6 +209,58 @@ export default function AdminShopsPage() {
             ))}
           </div>
         )}
+
+        {/* Retraits vendeurs */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2 mb-4">
+            <Wallet className="h-5 w-5 text-emerald-600" />
+            Demandes de retrait
+          </h2>
+          {payouts.length === 0 ? (
+            <p className="text-sm text-stone-500 rounded-xl border border-dashed border-stone-300 p-4 text-center">Aucune demande de retrait.</p>
+          ) : (
+            <div className="space-y-3">
+              {payouts.map(p => (
+                <div key={p.id} className="bg-white rounded-xl border border-stone-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-stone-900">{p.amount.toLocaleString('fr-FR')} F</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        p.status === 'paid' ? 'bg-emerald-100 text-emerald-800'
+                        : p.status === 'pending' ? 'bg-amber-100 text-amber-800'
+                        : p.status === 'approved' ? 'bg-blue-100 text-blue-800'
+                        : 'bg-red-100 text-red-800'
+                      }`}>
+                        {p.status === 'paid' ? 'Versé' : p.status === 'pending' ? 'En attente' : p.status === 'approved' ? 'Approuvé' : 'Rejeté'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-stone-600 mt-0.5">
+                      {p.vendor?.name || 'Vendeur'} · {p.method} {p.phone ? `· ${p.phone}` : ''} · {new Date(p.requestedAt).toLocaleDateString('fr-FR')}
+                    </p>
+                    {p.rejectionReason && <p className="text-xs text-red-600 mt-0.5">Motif : {p.rejectionReason}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    {p.status === 'pending' && (
+                      <button onClick={() => processPayout(p.id, 'approve')} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                        Approuver
+                      </button>
+                    )}
+                    {p.status === 'approved' && (
+                      <button onClick={() => processPayout(p.id, 'paid')} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+                        Marquer versé
+                      </button>
+                    )}
+                    {['pending', 'approved'].includes(p.status) && (
+                      <button onClick={() => processPayout(p.id, 'reject')} className="px-3 py-1.5 border border-red-300 text-red-700 rounded-lg text-sm hover:bg-red-50">
+                        Rejeter
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
