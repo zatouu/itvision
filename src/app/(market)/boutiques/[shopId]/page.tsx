@@ -39,7 +39,24 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
 
   return (
     <main>
-      <ShopPageClient shopId={String(shop._id)} shopName={shop.name} shopSlug={shop.slug} shopLogo={shop.logo} shopDescription={shop.description} />
+      <ShopPageClient
+        shopId={String(shop._id)}
+        shopName={shop.name}
+        shopSlug={shop.slug}
+        shopLogo={shop.logo}
+        shopDescription={shop.description}
+        shop={{
+          name: shop.name,
+          description: shop.description,
+          logo: shop.logo,
+          coverImage: shop.coverImage,
+          isVerified: !!shop.isVerified,
+          country: shop.country,
+          city: shop.city,
+          categories: shop.categories,
+          socialWhatsApp: shop.socialLinks?.whatsapp,
+        }}
+      />
     </main>
   )
 }

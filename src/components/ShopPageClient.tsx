@@ -25,6 +25,7 @@ interface ShopData {
   name: string
   description?: string
   logo?: string
+  coverImage?: string
   isVerified: boolean
   country?: string
   city?: string
@@ -99,6 +100,8 @@ export default function ShopPageClient({
     initials: getInitials(shopName),
     type: 'partner' as const,
     verified: shop?.isVerified ?? false,
+    logo: shop?.logo,
+    coverImage: shop?.coverImage,
     rating: 0,
     reviewCount: 0,
     yearsActive: 3,

@@ -49,6 +49,8 @@ interface ShopData {
   location: string;
   categories: string[];
   description?: string;
+  logo?: string;
+  coverImage?: string;
   responseTime?: string;
   onTimeRate?: number;
   productCount: number;
@@ -95,6 +97,9 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       coverGradient,
       compact ? 'px-4 pt-4 pb-5' : 'px-4 md:px-10 pt-6 md:pt-8 pb-6 md:pb-8 rounded-3xl'
     )}>
+      {shop.coverImage && (
+        <img src={shop.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+      )}
       <div className="absolute inset-0 opacity-15">
         <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
           <defs>
@@ -107,10 +112,14 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       </div>
       <div className="relative flex items-start gap-3 md:gap-5">
         <span className={cn(
-          'grid flex-shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20 text-white font-extrabold',
+          'grid flex-shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20 text-white font-extrabold overflow-hidden',
           compact ? 'h-14 w-14 text-[18px]' : 'h-20 w-20 text-[24px]'
         )}>
-          {shop.initials}
+          {shop.logo ? (
+            <img src={shop.logo} alt={shop.name} className="h-full w-full object-cover" />
+          ) : (
+            shop.initials
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">

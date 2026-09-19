@@ -194,9 +194,12 @@ export default function VendorDashboardPage() {
               >
                 <Eye size={14} /> Voir ma boutique
               </Link>
-              <button className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white text-slate-900 text-[13px] font-semibold hover:bg-slate-100 transition">
+              <Link
+                href="/espace-vendeur/parametres"
+                className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white text-slate-900 text-[13px] font-semibold hover:bg-slate-100 transition"
+              >
                 <Settings size={14} /> Paramètres
-              </button>
+              </Link>
             </div>
           </div>
         </div>
