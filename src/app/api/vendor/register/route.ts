@@ -56,51 +56,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
     }
 
-    // Mongo standalone (pas de replica set) → pas de transactions. Écritures
-    // séquentielles + compensation : si une étape échoue, on supprime ce qui
-    // a été créé pour ne pas laisser de boutique orpheline.
+    const vendorDoc = {
+      userId: user._id,
+      name: cleanName,
+      slug,
+      description: description ? String(description).trim() : undefined,
+      contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
+      contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+      verified: false,
+      rating: 0,
+      commissionRate: 0,
+    }
+    const shopDoc = {
+      name: cleanName,
+      slug,
+      description: description ? String(description).trim() : undefined,
+      ownerId: user._id,
+      ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
+      ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+      status: 'pending_review',
+      isVerified: false,
+    }
+
+    // Replica set (prod) → transaction atomique. Standalone (dev) → séquentiel
+    // + compensation : si une étape échoue, on supprime ce qui a été créé.
     let vendor: any
-    let shopCreated = false
+    const session = await mongoose.startSession()
     try {
-      vendor = await VendorProfile.create({
-        userId: user._id,
-        name: cleanName,
-        slug,
-        description: description ? String(description).trim() : undefined,
-        contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
-        contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-        verified: false,
-        rating: 0,
-        commissionRate: 0,
+      await session.withTransaction(async () => {
+        const created = await VendorProfile.create([vendorDoc], { session })
+        vendor = created[0]
+        await Shop.create([shopDoc], { session })
+        user.role = 'VENDOR'
+        user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
+        await user.save({ session })
       })
-
-      await Shop.create({
-        name: cleanName,
-        slug,
-        description: description ? String(description).trim() : undefined,
-        ownerId: user._id,
-        ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
-        ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-        status: 'pending_review',
-        isVerified: false,
-      })
-      shopCreated = true
-
-      user.role = 'VENDOR'
-      user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
-      await user.save()
     } catch (error: any) {
-      // Compensation best-effort
-      if (shopCreated) {
-        await Shop.deleteOne({ slug, ownerId: user._id }).catch(() => {})
+      const noReplicaSet = error?.code === 20 || error?.codeName === 'IllegalOperation'
+      if (!noReplicaSet) {
+        if (error.code === 11000) {
+          return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
+        }
+        throw error
       }
-      if (vendor) {
-        await VendorProfile.deleteOne({ _id: vendor._id }).catch(() => {})
+      // Fallback standalone : écritures séquentielles + compensation
+      let shopCreated = false
+      try {
+        vendor = await VendorProfile.create(vendorDoc)
+        await Shop.create(shopDoc)
+        shopCreated = true
+        user.role = 'VENDOR'
+        user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
+        await user.save()
+      } catch (seqErr: any) {
+        if (shopCreated) await Shop.deleteOne({ slug, ownerId: user._id }).catch(() => {})
+        if (vendor) await VendorProfile.deleteOne({ _id: vendor._id }).catch(() => {})
+        if (seqErr.code === 11000) {
+          return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
+        }
+        throw seqErr
       }
-      if (error.code === 11000) {
-        return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
-      }
-      throw error
+    } finally {
+      await session.endSession()
     }
 
     const response = NextResponse.json({

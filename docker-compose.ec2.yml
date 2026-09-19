@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:7.0
@@ -14,7 +12,9 @@ services:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
       - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
-    command: ["mongod", "--auth", "--quiet", "--logpath", "/dev/null"]
+      - ./docker/mongodb/rs-entrypoint.sh:/etc/mongo/rs-entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/etc/mongo/rs-entrypoint.sh"]
+    command: ["mongod", "--auth", "--replSet", "rs0", "--keyFile", "/data/keyfile/mongo-keyfile", "--quiet", "--logpath", "/dev/null"]
     networks:
       - itvision-internal
     healthcheck:
@@ -22,6 +22,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # Initialise le replica set (idempotent) — requis pour les transactions
+  mongodb-rs-init:
+    image: mongo:7.0
+    container_name: itvision-mongodb-rs-init
+    environment:
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - itvision-internal
+    command: >
+      sh -c "mongosh 'mongodb://admin:$${MONGO_ROOT_PASSWORD}@mongodb:27017/admin?directConnection=true'
+      --eval 'try { rs.status().ok } catch (e) { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongodb:27017\" }] }) }'"
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -45,7 +61,8 @@ services:
     shm_size: '512mb'
     environment:
       NODE_ENV: production
-      MONGODB_URI: ${MONGODB_URI}
+      # replicaSet=rs0 requis pour les transactions (boutiques, achats groupés)
+      MONGODB_URI: mongodb://itvision_app:${MONGO_APP_PASSWORD}@mongodb:27017/itvision_db?authSource=itvision_db&replicaSet=rs0
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
@@ -107,6 +124,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      mongodb-rs-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
