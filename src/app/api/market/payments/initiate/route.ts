@@ -3,9 +3,12 @@ import { connectDB } from '@/lib/db'
 import { Order } from '@/lib/models/Order'
 import Payment from '@/lib/models/Payment'
 import { initiatePayment, PaymentProvider, InitiateResult } from '@/lib/payment'
+import { confirmPayment } from '@/lib/payment-fulfillment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { paymentInitSchema, validate } from '@/lib/validation'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { sendManualReviewEmail } from '@/lib/payments/manual-review'
+import { resolvePaymentReference, type ResolvedGroupPayment } from '@/lib/payments/resolve-payment-reference'
 import { verifyAuthServer } from '@/lib/auth-server'
 import crypto from 'crypto'
 
@@ -40,27 +43,38 @@ export async function POST(request: NextRequest) {
     }
     const { orderId, provider, clientPhone, phase } = validated.data
 
-    const order = await Order.findOne({ orderId })
+    // Référence CMD-… → commande standard ; AG-… → participant d'achat groupé
+    // (pay-by-link : la référence elle-même est la capacité, pas de session requise).
+    const order: any = await Order.findOne({ orderId })
+    let groupPayment: ResolvedGroupPayment | null = null
     if (!order) {
+      const resolved = await resolvePaymentReference(orderId)
+      if (resolved?.type === 'group') groupPayment = resolved
+    }
+    if (!order && !groupPayment) {
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
     }
 
-    // Autorisation : authentifié et propriétaire, ou token de suivi valide
-    const auth = await verifyAuthServer(request).catch(() => null)
-    const isOwner = auth?.user?.id && order.clientId && String(order.clientId) === String(auth.user.id)
-    const token = rawBody?.token
-    const tokenValid = token ? order.trackingAccessTokenHash === hashTrackingToken(token) : false
-    if (!isOwner && !tokenValid) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
+    if (order) {
+      // Autorisation : authentifié et propriétaire, ou token de suivi valide
+      const auth = await verifyAuthServer(request).catch(() => null)
+      const isOwner = auth?.user?.id && order.clientId && String(order.clientId) === String(auth.user.id)
+      const token = rawBody?.token
+      const tokenValid = token ? order.trackingAccessTokenHash === hashTrackingToken(token) : false
+      if (!isOwner && !tokenValid) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+      }
 
-    // Vérifier que le téléphone correspond à la commande
-    if (clientPhone && order.clientPhone && clientPhone.replace(/\+/g, '') !== order.clientPhone.replace(/\+/g, '')) {
-      return NextResponse.json({ error: 'Téléphone non reconnu pour cette commande' }, { status: 403 })
-    }
+      // Vérifier que le téléphone correspond à la commande
+      if (clientPhone && order.clientPhone && clientPhone.replace(/\+/g, '') !== order.clientPhone.replace(/\+/g, '')) {
+        return NextResponse.json({ error: 'Téléphone non reconnu pour cette commande' }, { status: 403 })
+      }
 
-    if (order.paymentStatus === 'completed') {
-      return NextResponse.json({ error: 'Commande déjà payée' }, { status: 409 })
+      if (order.paymentStatus === 'completed') {
+        return NextResponse.json({ error: 'Commande déjà payée' }, { status: 409 })
+      }
+    } else if (groupPayment!.paymentStatus === 'paid') {
+      return NextResponse.json({ error: 'Participation déjà payée' }, { status: 409 })
     }
 
     // Vérifier un paiement en cours existant
@@ -79,9 +93,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const amount = Math.max(order.total || 0, 100)
-    const description = `DDM+ Marketplace - Commande ${orderId}`
-    const clientId = order.clientId ? String(order.clientId) : orderId
+    const amount = Math.max(groupPayment ? groupPayment.amount : order.total || 0, 100)
+    const description = groupPayment
+      ? `DDM+ Achat groupé ${groupPayment.group.groupId} - ${groupPayment.group.productName}`
+      : `DDM+ Marketplace - Commande ${orderId}`
+    const clientId = groupPayment
+      ? (groupPayment.participant.userId || orderId)
+      : (order.clientId ? String(order.clientId) : orderId)
 
     let result: InitiateResult
     try {
@@ -103,8 +121,8 @@ export async function POST(request: NextRequest) {
 
     const payment = await Payment.create({
       orderId,
-      orderType: 'marketplace',
-      domain: 'marketplace',
+      orderType: groupPayment ? 'group' : 'marketplace',
+      domain: groupPayment ? 'group' : 'marketplace',
       clientId,
       amount,
       provider,
@@ -118,9 +136,25 @@ export async function POST(request: NextRequest) {
       manualConfirm: !!result.manualConfirm,
     })
 
-    order.paymentMethod = provider
-    order.transactionId = result.externalId
-    await order.save()
+    if (order) {
+      order.paymentMethod = provider
+      order.transactionId = result.externalId
+      await order.save()
+    }
+
+    // Paiement manuel (pas d'API provider) : alerter l'admin par email avec un
+    // lien de vérification signé — le client verra « en attente de confirmation ».
+    if (payment.manualConfirm && !isMockMode()) {
+      void sendManualReviewEmail({
+        kind: 'payment',
+        id: String(payment._id),
+        reference: orderId,
+        amount,
+        provider: payment.provider,
+        clientPhone: order?.clientPhone || groupPayment?.participant.phone,
+        clientName: order?.clientName || groupPayment?.participant.name,
+      })
+    }
 
     // En dev : simuler le paiement confirmé pour permettre les tests sans compte marchand
     if (isMockMode()) {
@@ -128,10 +162,20 @@ export async function POST(request: NextRequest) {
       payment.heldAt = new Date()
       await payment.save()
 
-      order.paymentStatus = 'completed'
-      order.status = 'confirmed'
-      order.confirmedAt = new Date()
-      await order.save()
+      if (order) {
+        order.paymentStatus = 'completed'
+        order.status = 'confirmed'
+        order.confirmedAt = new Date()
+        await order.save()
+      } else {
+        // Participant groupe : confirmation canonique (idempotente)
+        await confirmPayment({
+          reference: orderId,
+          amount,
+          provider: provider as any,
+          transactionId: result.externalId || `MOCK-${payment._id}`,
+        })
+      }
     }
 
     return NextResponse.json({

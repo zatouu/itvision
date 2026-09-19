@@ -6,6 +6,7 @@ import { initiatePayment, PaymentProvider } from '@/lib/payment'
 import { creditPoints, getAppConfig, getOrCreateWallet } from '@/lib/wallet'
 import TopupPayment from '@/lib/models/TopupPayment'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { sendManualReviewEmail } from '@/lib/payments/manual-review'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'wave_qr']
 const MIN_POINTS = 10
@@ -124,6 +125,19 @@ export async function POST(request: NextRequest) {
       phone: payPhone,
     })
     const wallet = await getOrCreateWallet(String(userId))
+
+    // Recharge manuelle (pas d'API provider) : alerter l'admin pour vérification.
+    if (topup.manualConfirm) {
+      void sendManualReviewEmail({
+        kind: 'topup',
+        id: String(topup._id),
+        reference: topup.reference || String(topup._id),
+        amount: amountFcfa,
+        provider,
+        clientPhone: payPhone,
+      })
+    }
+
     return NextResponse.json({
       success: true,
       confirmed: false,

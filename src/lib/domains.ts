@@ -198,6 +198,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/auth', domain: 'shared', access: 'public', note: 'Login web+mobile, OTP, register — point d\'entrée des 3 domaines' },
   { prefix: '/api/notifications', domain: 'shared', access: 'auth' },
   { prefix: '/api/messages', domain: 'shared', access: 'auth' },
+  { prefix: '/api/payments/manual-review', domain: 'shared', access: 'public', note: 'Décision admin sur paiement manuel via lien email — authentification par token HMAC signé, pas de session requise' },
   { prefix: '/api/payments', domain: 'shared', access: 'auth', note: 'Gateway transversale : Order (market) + ServiceRequest (xeuy) — candidat module payment séparé', review: true },
   { prefix: '/api/users', domain: 'shared', access: 'auth' },
   { prefix: '/api/feedback', domain: 'shared', access: 'auth' },

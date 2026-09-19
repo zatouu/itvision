@@ -72,6 +72,7 @@ export default function ScreenPaymentCheckout({
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState('pending');
+  const [awaitingReview, setAwaitingReview] = useState(false);
 
   const totalPcs = items.reduce((s, i) => s + i.qty, 0);
   const manual = settings.providers.manual;
@@ -170,6 +171,9 @@ export default function ScreenPaymentCheckout({
           setPaymentStatus('paid');
           showToast('Paiement confirmé ! Redirection...');
           setTimeout(() => router.push(successUrl), 2000);
+        } else if (data?.status === 'failed') {
+          setPaymentStatus('failed');
+          setAwaitingReview(false);
         }
       } catch {}
     }, 8000);
@@ -220,6 +224,9 @@ export default function ScreenPaymentCheckout({
       } else {
         showToast(data.message || 'Paiement initié. Confirmez depuis votre téléphone.');
       }
+      // Paiement manuel : la confirmation repose sur la vérification admin
+      // (pas d'API provider). Le client voit un état « en attente » explicite.
+      if (data?.payment?.manualConfirm) setAwaitingReview(true);
     } catch {
       showToast('Erreur réseau');
     } finally {
@@ -460,6 +467,30 @@ export default function ScreenPaymentCheckout({
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
                 Payer {formatFcfa(amount)}
               </button>
+              {awaitingReview && paymentStatus !== 'failed' && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <Loader2 size={15} className="mt-0.5 flex-shrink-0 animate-spin text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <p className="text-[12px] font-extrabold text-amber-800 dark:text-amber-300">Paiement en attente de confirmation</p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-amber-700 dark:text-amber-400">
+                        Nous vérifions la réception sur le compte marchand. Vous serez notifié dès validation — inutile de payer une deuxième fois.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {paymentStatus === 'failed' && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 p-3.5">
+                  <p className="text-[12px] font-extrabold text-red-800 dark:text-red-300">Paiement non confirmé</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-red-700 dark:text-red-400">
+                    Le paiement n&apos;a pas été retrouvé sur le compte marchand. Si vous avez été débité, contactez-nous sur WhatsApp avec votre reçu.
+                  </p>
+                  <a href={brandWhatsAppUrl(MARKET_BRAND, `Paiement ${reference} non confirmé`)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-red-700">
+                    <MessageCircle size={12} /> Contacter le support
+                  </a>
+                </div>
+              )}
               {settings.providers.escrow.enabled && (
                 <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Paiement sécurisé · débité seulement après confirmation</p>
               )}
