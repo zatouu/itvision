@@ -40,8 +40,7 @@ import {
   Search,
   ImageIcon,
   Eye,
-  Scale,
-  Smartphone
+  Scale
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -118,18 +117,6 @@ const menuSections: MenuSection[] = [
         label: 'Planning',
         icon: Calendar,
         href: '/admin/planning'
-      },
-      {
-        id: 'clients',
-        label: 'Clients entreprise',
-        icon: Building2,
-        href: '/admin/clients'
-      },
-      {
-        id: 'technicians',
-        label: 'Techniciens',
-        icon: Users,
-        href: '/admin/technicians'
       },
       {
         id: 'finance',
@@ -283,12 +270,7 @@ const menuSections: MenuSection[] = [
         icon: Download,
         href: '/admin/auto-import'
       },
-      {
-        id: 'marketplace-comptes-pro',
-        label: 'Comptes Pro',
-        icon: UsersRound,
-        href: '/admin/marketplace/comptes-pro'
-      },
+
       {
         id: 'marketplace-sourcing',
         label: 'Trouvez-moi (sourcing)',
@@ -376,55 +358,18 @@ const menuSections: MenuSection[] = [
     ]
   },
 
-  // ─── COMPTES UTILISATEURS (regroupé par rôle / domaine) ────────
+  // ─── UTILISATEURS & RÔLES (unifié — le rôle/catégorie détermine le scope) ──
   {
     id: 'comptes',
-    label: 'Comptes utilisateurs',
+    label: 'Utilisateurs',
     icon: Users,
     color: 'slate',
     items: [
       {
-        id: 'comptes-tous',
-        label: 'Tous les comptes',
+        id: 'utilisateurs-roles',
+        label: 'Utilisateurs et rôles',
         icon: Users,
         href: '/admin/users'
-      },
-      {
-        id: 'comptes-staff',
-        label: 'Staff & admins',
-        icon: Shield,
-        href: '/admin/users?userCategory=PLATFORM_USER'
-      },
-      {
-        id: 'comptes-entreprise',
-        label: 'Clients entreprise',
-        icon: Building2,
-        href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
-      },
-      {
-        id: 'comptes-marketplace',
-        label: 'Clients marketplace',
-        icon: ShoppingCart,
-        href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
-      },
-      {
-        id: 'comptes-xeuy',
-        label: 'App mobile Xeuy (migration)',
-        icon: Smartphone,
-        children: [
-          {
-            id: 'comptes-xeuy-prestataires',
-            label: 'Prestataires Xeuy Bi',
-            icon: Wrench,
-            href: '/admin/users?userCategory=XEUY_PROVIDER'
-          },
-          {
-            id: 'comptes-xeuy-clients',
-            label: 'Clients Xeuy Bi',
-            icon: Users,
-            href: '/admin/users?userCategory=XEUY_CLIENT'
-          }
-        ]
       }
     ]
   },

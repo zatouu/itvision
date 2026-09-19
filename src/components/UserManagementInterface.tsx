@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -1055,6 +1056,23 @@ export default function UserManagementInterface() {
               </p>
             </div>
           </div>
+        )}
+
+        {/* Outils métier liés à la catégorie active (hors sidebar, accès contextuel) */}
+        {userCategoryFilter === 'ENTERPRISE_CLIENT' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/clients" className="font-semibold text-blue-600 hover:underline">contrats & suivi clients B2B →</Link>
+          </p>
+        )}
+        {userCategoryFilter === 'PLATFORM_USER' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/technicians" className="font-semibold text-blue-600 hover:underline">planning & compétences techniciens →</Link>
+          </p>
+        )}
+        {userCategoryFilter === 'MARKETPLACE_CLIENT' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/marketplace/comptes-pro" className="font-semibold text-blue-600 hover:underline">validation des comptes pro →</Link>
+          </p>
         )}
 
         {/* Filtres */}
