@@ -35,9 +35,17 @@ services:
         condition: service_healthy
     networks:
       - itvision-internal
+    # -u/-p évitent les problèmes d'encodage URI du mot de passe ; retry car
+    # mongod peut accepter les connexions avant d'être prêt ; AlreadyInitialized
+    # (code 23) est toléré pour rester idempotent.
     command: >
-      sh -c "mongosh 'mongodb://admin:$${MONGO_ROOT_PASSWORD}@mongodb:27017/admin?directConnection=true'
-      --eval 'try { rs.status().ok } catch (e) { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongodb:27017\" }] }) }'"
+      sh -c "for i in 1 2 3 4 5 6 7 8 9 10; do
+      mongosh --quiet --host mongodb:27017 -u admin -p \"$${MONGO_ROOT_PASSWORD}\"
+      --authenticationDatabase admin
+      --eval 'try { if (rs.status().ok === 1) quit(0); quit(1) }
+      catch (e) { try { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongodb:27017\" }] }); quit(0) }
+      catch (e2) { if (e2.code === 23) quit(0); quit(1) } }' && exit 0;
+      sleep 3; done; exit 1"
     restart: "no"
 
   redis:
