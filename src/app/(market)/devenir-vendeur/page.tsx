@@ -10,19 +10,16 @@ import {
   AlertCircle,
   CheckCircle,
   TrendingUp,
-  Clock,
-  Percent,
   Package,
   Globe,
-  Shield,
 } from 'lucide-react'
 
 const BENEFITS = [
   'Prix usine sans intermédiaire',
-  'Logistique incluse',
-  'Assurance 2%',
-  'Visibilité 10 000+ clients',
-  'Escrow',
+  'Logistique Chine → Dakar incluse',
+  'Assurance cargo sur vos marchandises',
+  'Votre boutique en ligne sur DDM+',
+  'Paiements sécurisés',
   'Support 7j/7',
 ]
 
@@ -31,6 +28,15 @@ const STEPS = [
   { icon: Globe, title: 'Recevez le stock', desc: 'Nous livrons à Dakar, vous récupérez vos produits prêts à vendre.' },
   { icon: TrendingUp, title: 'Revendez', desc: 'Vendez en ligne ou en magasin avec une marge attractive.' },
 ]
+
+function slugify(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 export default function BecomeVendorPage() {
   const router = useRouter()
@@ -122,16 +128,16 @@ export default function BecomeVendorPage() {
               </p>
               <div className="mt-6 grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
-                  <p className="text-[22px] font-extrabold text-emerald-400">+45%</p>
-                  <p className="text-[11px] text-white/70">Marge moyenne</p>
-                </div>
-                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
-                  <p className="text-[22px] font-extrabold text-emerald-400">10min</p>
-                  <p className="text-[11px] text-white/70">Setup</p>
-                </div>
-                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
                   <p className="text-[22px] font-extrabold text-emerald-400">0%</p>
                   <p className="text-[11px] text-white/70">Commission</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
+                  <p className="text-[22px] font-extrabold text-emerald-400">Groupé</p>
+                  <p className="text-[11px] text-white/70">Import mutualisé</p>
+                </div>
+                <div className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3">
+                  <p className="text-[22px] font-extrabold text-emerald-400">Dakar</p>
+                  <p className="text-[11px] text-white/70">Livraison incluse</p>
                 </div>
               </div>
             </div>
@@ -142,13 +148,17 @@ export default function BecomeVendorPage() {
                 <div className="text-center py-8">
                   <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
                   <p className="font-bold text-white">Boutique créée !</p>
-                  <p className="text-white/70 text-sm">Redirection…</p>
+                  <p className="text-white/70 text-sm">Elle sera vérifiée par nos équipes avant mise en ligne.</p>
+                  <p className="text-white/50 text-xs mt-1">Redirection vers votre espace…</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {!auth && (
-                    <div className="rounded-xl bg-amber-100/20 border border-amber-200/30 p-3 text-sm text-amber-100">
-                      <Link href="/login?return=/devenir-vendeur" className="font-semibold underline">Connectez-vous</Link> pour créer votre boutique.
+                    <div className="rounded-xl bg-amber-100/20 border border-amber-200/30 p-3 text-sm text-amber-100 flex items-center justify-between gap-3">
+                      <span>Un compte est requis pour créer votre boutique.</span>
+                      <Link href="/login?return=/devenir-vendeur" className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-slate-900 hover:bg-slate-100 transition">
+                        Se connecter
+                      </Link>
                     </div>
                   )}
                   {error && (
@@ -167,6 +177,11 @@ export default function BecomeVendorPage() {
                       placeholder="Ex: Tech Dakar Store"
                       className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
+                    {form.name.trim().length >= 2 && (
+                      <p className="mt-1 text-[10px] text-white/60 font-mono truncate">
+                        Votre adresse : ddmplus.sn/vendeur/{slugify(form.name.trim())}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[12px] font-bold text-white/80 mb-1">Description</label>
@@ -250,59 +265,6 @@ export default function BecomeVendorPage() {
           </div>
         </div>
 
-        {/* Mobile form duplicate */}
-        <div className="mt-8 md:mt-12 lg:hidden rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-5">
-          <h2 className="text-[18px] font-bold text-slate-900 dark:text-white mb-4">Créer ma boutique</h2>
-          {!auth && (
-            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300 mb-3">
-              <Link href="/login?return=/devenir-vendeur" className="font-semibold underline">Connectez-vous</Link> pour créer votre boutique.
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-300">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                {error}
-              </div>
-            )}
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Nom de la boutique"
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Description"
-              rows={3}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <input
-              type="email"
-              value={form.contactEmail}
-              onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-              placeholder="Email"
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <input
-              type="tel"
-              value={form.contactPhone}
-              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-              placeholder="Téléphone"
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <button
-              type="submit"
-              disabled={loading || !auth}
-              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Créer ma boutique <ArrowRight className="w-4 h-4" /></>}
-            </button>
-          </form>
-        </div>
       </div>
     </div>
   )

@@ -56,46 +56,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
     }
 
-    const session = await mongoose.startSession()
+    // Mongo standalone (pas de replica set) → pas de transactions. Écritures
+    // séquentielles + compensation : si une étape échoue, on supprime ce qui
+    // a été créé pour ne pas laisser de boutique orpheline.
     let vendor: any
+    let shopCreated = false
     try {
-      await session.withTransaction(async () => {
-        vendor = await VendorProfile.create([{
-          userId: user._id,
-          name: cleanName,
-          slug,
-          description: description ? String(description).trim() : undefined,
-          contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
-          contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-          verified: false,
-          rating: 0,
-          commissionRate: 0,
-        }], { session })
-        vendor = vendor[0]
-
-        await Shop.create([{
-          name: cleanName,
-          slug,
-          description: description ? String(description).trim() : undefined,
-          ownerId: user._id,
-          ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
-          ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-          status: 'pending_review',
-          isVerified: false,
-        }], { session })
-
-        user.role = 'VENDOR'
-        user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
-        await user.save({ session })
+      vendor = await VendorProfile.create({
+        userId: user._id,
+        name: cleanName,
+        slug,
+        description: description ? String(description).trim() : undefined,
+        contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
+        contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+        verified: false,
+        rating: 0,
+        commissionRate: 0,
       })
+
+      await Shop.create({
+        name: cleanName,
+        slug,
+        description: description ? String(description).trim() : undefined,
+        ownerId: user._id,
+        ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
+        ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+        status: 'pending_review',
+        isVerified: false,
+      })
+      shopCreated = true
+
+      user.role = 'VENDOR'
+      user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
+      await user.save()
     } catch (error: any) {
-      await session.endSession()
+      // Compensation best-effort
+      if (shopCreated) {
+        await Shop.deleteOne({ slug, ownerId: user._id }).catch(() => {})
+      }
+      if (vendor) {
+        await VendorProfile.deleteOne({ _id: vendor._id }).catch(() => {})
+      }
       if (error.code === 11000) {
         return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
       }
       throw error
     }
-    await session.endSession()
 
     const response = NextResponse.json({
       success: true,
