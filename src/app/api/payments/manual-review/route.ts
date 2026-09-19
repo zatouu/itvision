@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
+import { requireAdminApi } from '@/lib/api-auth'
 import Payment from '@/lib/models/Payment'
 import TopupPayment from '@/lib/models/TopupPayment'
 import {
@@ -12,7 +13,9 @@ import {
  * GET/POST /api/payments/manual-review?token=<signé>
  *
  * Lien envoyé à l'admin quand un paiement manuel (Wave pay-link, OM, Free)
- * ne peut pas être vérifié par API. Le token HMAC remplace la session admin.
+ * ne peut pas être vérifié par API. Double protection : session admin requise
+ * (sinon redirection vers /login avec retour au lien) + token HMAC signé
+ * mono-objet expirant (7 j).
  *
  * - GET  → page de décision (récap + boutons Confirmer / Décliner). Aucun effet
  *          de bord : les scanners d'emails peuvent préfetcher sans rien déclencher.
@@ -41,12 +44,23 @@ function html(body: string): NextResponse {
 
 const esc = (s: unknown) => String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]!))
 
+function requireAdminOrLogin(request: NextRequest, token: string) {
+  return requireAdminApi(request).then((auth) => {
+    if (auth.ok) return null
+    const back = `/api/payments/manual-review?token=${encodeURIComponent(token)}`
+    return NextResponse.redirect(new URL(`/login?redirect=${encodeURIComponent(back)}`, request.url))
+  })
+}
+
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token') || ''
   const verified = verifyReviewToken(token)
   if (!verified) {
     return html('<h1>Lien invalide ou expiré</h1><p class="sub">Ce lien de vérification n\'est plus valide. Connectez-vous au tableau de bord admin pour traiter le paiement.</p>')
   }
+
+  const gate = await requireAdminOrLogin(request, token)
+  if (gate) return gate
 
   await connectMongoose()
   const doc: any = verified.kind === 'payment'
@@ -105,6 +119,8 @@ export async function POST(request: NextRequest) {
   if (!verified) {
     return html('<h1>Lien invalide ou expiré</h1><p class="sub">Impossible de traiter cette demande.</p>')
   }
+  const gate = await requireAdminOrLogin(request, token)
+  if (gate) return gate
   if (!['confirm', 'reject'].includes(action)) {
     return html('<h1>Action invalide</h1>')
   }

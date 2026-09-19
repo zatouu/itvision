@@ -109,7 +109,7 @@ export async function sendManualReviewEmail(params: {
         <div style="margin:24px 0;text-align:center">
           <a href="${reviewUrl}" style="display:inline-block;background:#059669;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700">Examiner le paiement</a>
         </div>
-        <p style="color:#94a3b8;font-size:12px">Ce lien est valable 7 jours et ouvre une page de confirmation sécurisée (aucune action n'est exécutée au simple clic).</p>
+        <p style="color:#94a3b8;font-size:12px">Ce lien est valable 7 jours et ouvre une page de confirmation sécurisée (connexion admin requise ; aucune action n'est exécutée au simple clic).</p>
       </div>`,
   }).catch((e) => console.error('[manual-review] email admin échoué:', e))
 }
