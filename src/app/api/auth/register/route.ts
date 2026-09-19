@@ -4,7 +4,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Technician from '@/lib/models/Technician'
 import emailService from '@/lib/email-service'
-import { getBrandFromHost } from '@/lib/branding'
+import { MARKET_BRAND } from '@/lib/branding'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { createUserProfiles } from '@/lib/user-profiles'
 
@@ -122,7 +122,9 @@ function generateUsername(email: string, name: string): string {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const brand = getBrandFromHost(request.nextUrl.host)
+    // Cette route ne crée que des comptes CLIENT marketplace — l'email de
+    // bienvenue est toujours brandé DDM+, quel que soit le host de la requête.
+    const brand = MARKET_BRAND
 
     // Rate limiting strict pour les inscriptions (3 par 15min par IP)
     const limited = await applyRateLimit(request, registerRateLimiter)

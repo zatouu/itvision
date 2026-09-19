@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
 import SentEmail from '@/lib/models/SentEmail'
-import { BrandConfig, getDefaultBrand } from './branding'
+import { BrandConfig, getDefaultBrand, MARKET_BRAND } from './branding'
 
 interface EmailConfig {
   host: string
@@ -508,6 +508,14 @@ class EmailService {
     const secondary = brand.secondaryColor || '#764ba2'
     const siteUrl = brand.url
 
+    // Les fonctionnalités mises en avant dépendent du produit — un client DDM+
+    // ne doit pas recevoir le discours corporate (maintenance, factures B2B).
+    const isMarket = brand === MARKET_BRAND
+    const features = isMarket
+      ? ['🛒 Commander sur tout le catalogue', '📦 Suivre vos commandes en temps réel', '👥 Rejoindre des achats groupés', '🌾 Cumuler des grains de fidélité']
+      : ['📊 Suivre vos projets en temps réel', '📋 Consulter vos rapports de maintenance', '💬 Communiquer avec nos équipes', '📄 Gérer vos factures et devis']
+    const featuresHtml = features.map(f => `              <li>${f}</li>`).join('\n')
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -536,10 +544,7 @@ class EmailService {
             
             <p>Vous pouvez maintenant accéder à votre espace personnel pour :</p>
             <ul>
-              <li>📊 Suivre vos projets en temps réel</li>
-              <li>📋 Consulter vos rapports de maintenance</li>
-              <li>💬 Communiquer avec nos équipes</li>
-              <li>📄 Gérer vos factures et devis</li>
+${featuresHtml}
             </ul>
             
             <div style="text-align: center;">
