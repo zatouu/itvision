@@ -22,6 +22,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const body = await req.json()
     const { status, isVerified } = body
+    if (status && !['pending_review', 'active', 'inactive', 'suspended'].includes(status)) {
+      return NextResponse.json({ success: false, error: 'Statut invalide' }, { status: 400 })
+    }
 
     await connectMongoose()
     const update: any = {}

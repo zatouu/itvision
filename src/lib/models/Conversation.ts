@@ -35,7 +35,7 @@ const ConversationSchema = new Schema<IConversation>(
 ConversationSchema.index({ participants: 1, updatedAt: -1 })
 ConversationSchema.index(
   { participantKey: 1 },
-  { unique: true, sparse: true, partialFilterExpression: { participantKey: { $type: 'string' } } }
+  { unique: true, partialFilterExpression: { participantKey: { $type: 'string' } } }
 )
 
 export const Conversation =

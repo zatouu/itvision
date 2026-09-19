@@ -35,6 +35,7 @@ interface VendorInfo {
   verified: boolean
   rating: number
   memberSince?: string
+  shopStatus?: string
 }
 
 interface VendorProduct {
@@ -202,6 +203,18 @@ export default function VendorDashboardPage() {
       </div>
 
       <main className="mx-auto max-w-6xl px-4 md:px-6 -mt-6">
+        {vendor?.shopStatus === 'pending_review' && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4 flex items-start gap-3">
+            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">Boutique en cours de vérification</p>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                Nos équipes examinent votre boutique. Elle sera visible publiquement dès son approbation — vous pouvez déjà préparer vos produits.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           {statCards.map((s) => {

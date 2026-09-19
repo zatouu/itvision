@@ -12,7 +12,7 @@ interface Shop {
   logo?: string
   ownerEmail?: string
   ownerPhone?: string
-  status: 'active' | 'inactive' | 'suspended'
+  status: 'pending_review' | 'active' | 'inactive' | 'suspended'
   isVerified: boolean
   createdAt: string
 }
@@ -141,8 +141,8 @@ export default function AdminShopsPage() {
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-stone-900">{shop.name}</h3>
                     {shop.isVerified ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-stone-400" />}
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${shop.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-800'}`}>
-                      {shop.status}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${shop.status === 'active' ? 'bg-emerald-100 text-emerald-800' : shop.status === 'pending_review' ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-800'}`}>
+                      {shop.status === 'pending_review' ? 'En attente' : shop.status}
                     </span>
                   </div>
                   <p className="text-sm text-stone-600">{shop.description || 'Pas de description'}</p>
@@ -153,7 +153,7 @@ export default function AdminShopsPage() {
                     onClick={() => toggleStatus(shop, shop.status === 'active' ? 'inactive' : 'active')}
                     className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm hover:bg-stone-50"
                   >
-                    {shop.status === 'active' ? 'Désactiver' : 'Activer'}
+                    {shop.status === 'active' ? 'Désactiver' : shop.status === 'pending_review' ? 'Approuver' : 'Activer'}
                   </button>
                   <a
                     href={`/boutiques/${shop.slug}`}

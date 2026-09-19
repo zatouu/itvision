@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
+import Shop from '@/lib/models/Shop'
 import Product from '@/lib/models/Product'
 import { Order } from '@/lib/models/Order'
 
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
     if (!vendor) {
       return NextResponse.json({ success: false, error: 'Profil vendeur introuvable' }, { status: 404 })
     }
+
+    const shop = await Shop.findOne({ slug: vendor.slug }).select('status').lean() as any
 
     const products = await Product.find({ sellerSlug: vendor.slug }).select('_id name price stockQuantity stockStatus sellerSlug sellerName').lean()
     const productIds = products.map(p => String(p._id))
@@ -56,6 +59,7 @@ export async function GET(req: NextRequest) {
         slug: vendor.slug,
         verified: vendor.verified,
         rating: vendor.rating,
+        shopStatus: shop?.status || 'active',
       },
       stats: {
         productsCount: products.length,

@@ -9,7 +9,7 @@ export interface IShop extends Document {
   ownerId?: string
   ownerEmail?: string
   ownerPhone?: string
-  status: 'active' | 'inactive' | 'suspended'
+  status: 'pending_review' | 'active' | 'inactive' | 'suspended'
   isVerified: boolean
   commissionRate?: number
   categories?: string[]
@@ -35,7 +35,7 @@ const ShopSchema = new Schema<IShop>({
   ownerId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
   ownerEmail: { type: String },
   ownerPhone: { type: String },
-  status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active', index: true },
+  status: { type: String, enum: ['pending_review', 'active', 'inactive', 'suspended'], default: 'active', index: true },
   isVerified: { type: Boolean, default: false },
   commissionRate: { type: Number, default: 10 },
   categories: { type: [String], default: [] },
