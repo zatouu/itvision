@@ -273,6 +273,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   ChinaPurchase: 'market',
   VendorPayout: 'market',
   StockMovement: 'market',
+  ShopFollower: 'market',
   OrderChatMessage: 'market',
   GroupOrderChatMessage: 'market',
   Campaign: 'market',

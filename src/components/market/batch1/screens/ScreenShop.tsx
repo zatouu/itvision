@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Factory,
   MapPin,
@@ -20,6 +21,12 @@ import {
   Instagram,
   Facebook,
   Globe,
+  Share2,
+  UserPlus,
+  UserCheck,
+  Lock,
+  ChevronRight,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
@@ -69,6 +76,18 @@ interface Review {
   text: string;
 }
 
+export interface SimilarShop {
+  slug: string;
+  name: string;
+  logo?: string;
+  coverImage?: string;
+  city?: string;
+  country?: string;
+  categories: string[];
+  isVerified: boolean;
+  productCount: number;
+}
+
 interface ScreenShopProps {
   shop: ShopData;
   products: Product[];
@@ -76,6 +95,10 @@ interface ScreenShopProps {
   isLoading?: boolean;
   error?: string | null;
   contactWhatsApp?: string;
+  shopSlug?: string;
+  shopId?: string;
+  followers?: number;
+  similarShops?: SimilarShop[];
 }
 
 const CONDITIONS = [
@@ -85,9 +108,64 @@ const CONDITIONS = [
   { icon: Shield, ttl: 'Garantie', txt: 'Garantie fabricant 12 mois sur l\'électronique. Support DDM+ pour toute réclamation.' },
 ]
 
-export default function ScreenShop({ shop, products, reviews = [], isLoading, error, contactWhatsApp = brandWhatsAppUrl() }: ScreenShopProps) {
+export default function ScreenShop({ shop, products, reviews = [], isLoading, error, contactWhatsApp = brandWhatsAppUrl(), shopSlug, shopId, followers = 0, similarShops = [] }: ScreenShopProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<'products' | 'reviews' | 'about' | 'conditions'>('products');
   const [catFilter, setCatFilter] = useState('Tous');
+  const [following, setFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(followers);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  // État « suivi » du visiteur (silencieux si non connecté)
+  useEffect(() => {
+    if (!shopId) return;
+    fetch(`/api/shops/${shopId}/follow`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success) {
+          setFollowing(!!d.following);
+          setFollowerCount(d.followers ?? 0);
+        }
+      })
+      .catch(() => {});
+  }, [shopId]);
+
+  const toggleFollow = async () => {
+    if (!shopId || followBusy) return;
+    try {
+      setFollowBusy(true);
+      const res = await fetch(`/api/shops/${shopId}/follow`, { method: 'POST', credentials: 'include' });
+      if (res.status === 401) {
+        router.push(`/login?role=client&next=${encodeURIComponent(`/boutiques/${shopSlug || shopId}`)}`);
+        return;
+      }
+      const d = await res.json();
+      if (d?.success) {
+        setFollowing(!!d.following);
+        setFollowerCount(d.followers ?? 0);
+      }
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  const shareShop = async () => {
+    if (typeof window === 'undefined') return;
+    const url = `${window.location.origin}/boutiques/${shopSlug || shopId || ''}`;
+    const payload = { title: `${shop.name} — Boutique DDM+`, text: `Découvrez ${shop.name} sur DDM+`, url };
+    try {
+      if (navigator.share) {
+        await navigator.share(payload);
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      // annulation utilisateur — rien à faire
+    }
+  };
 
   const cats = useMemo(() => ['Tous', ...Array.from(new Set(products.map((p) => p.cat || p.category || 'Autre')))], [products]);
   const filtered = useMemo(() => catFilter === 'Tous' ? products : products.filter((p) => (p.cat || p.category || 'Autre') === catFilter), [products, catFilter]);
@@ -158,15 +236,15 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                 <span>Membre depuis {shop.memberSince}</span>
               </>
             )}
-            <span className="text-white/50">·</span>
-            <span className="truncate">{shop.location}</span>
           </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {shop.categories.map((c) => (
-              <span key={c} className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap">
-                {c}
-              </span>
-            ))}
+          <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/75">
+            <span className="inline-flex items-center gap-1 truncate"><MapPin size={11} /> {shop.location}</span>
+            {shop.responseTime && (
+              <>
+                <span className="text-white/50">·</span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock size={11} /> Réponse moyenne : {shop.responseTime}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -356,10 +434,101 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
     );
   }
 
+  const trustBadges = [
+    shop.verified
+      ? { icon: CheckCircle, ttl: 'Vendeur vérifié', txt: 'Identité contrôlée' }
+      : null,
+    { icon: Shield, ttl: 'Paiement Escrow protégé', txt: 'Transactions sécurisées' },
+    shop.responseTime
+      ? { icon: Clock, ttl: 'Réponse rapide', txt: `Réponse moyenne ${shop.responseTime}` }
+      : null,
+    shop.type === 'factory'
+      ? { icon: Factory, ttl: 'Usine inspectée', txt: 'Contrôle qualité DDM+' }
+      : { icon: MapPin, ttl: 'Partenaire local', txt: 'Soutient l’économie locale' },
+  ].filter(Boolean) as { icon: any; ttl: string; txt: string }[];
+
+  const FollowButton = ({ className }: { className?: string }) => (
+    <button
+      type="button"
+      onClick={toggleFollow}
+      disabled={followBusy}
+      className={cn(
+        'inline-flex items-center justify-center gap-1.5 h-10 rounded-xl border font-semibold text-[13px] transition disabled:opacity-60',
+        following
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:text-emerald-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300',
+        className
+      )}
+    >
+      {followBusy ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : following ? (
+        <UserCheck size={14} />
+      ) : (
+        <UserPlus size={14} />
+      )}
+      {following ? 'Abonné' : 'Suivre la boutique'}
+      {followerCount > 0 && <span className="tabular-nums text-[11px] opacity-70">· {followerCount}</span>}
+    </button>
+  );
+
+  const ShareButton = ({ className }: { className?: string }) => (
+    <button
+      type="button"
+      onClick={shareShop}
+      className={cn(
+        'inline-flex items-center justify-center gap-1.5 h-10 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-[13px] hover:border-emerald-400 hover:text-emerald-600 transition dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300',
+        className
+      )}
+    >
+      <Share2 size={14} /> {shared ? 'Lien copié !' : 'Partager'}
+    </button>
+  );
+
+  const EmptyCatalog = () => (
+    <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-8 md:p-10 text-center">
+      <div className="grid h-16 w-16 mx-auto place-items-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 mb-4">
+        <Package size={26} className="text-emerald-600 dark:text-emerald-400" />
+      </div>
+      <p className="text-[16px] font-extrabold text-slate-900 dark:text-white">Le catalogue arrive bientôt</p>
+      <p className="mt-1.5 text-[13px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+        Nous préparons soigneusement notre sélection de produits de qualité.
+        Revenez bientôt pour découvrir nos offres exclusives sur cette boutique.
+      </p>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <a
+          href={contactWhatsApp}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl bg-emerald-600 text-white font-semibold text-[13px] hover:bg-emerald-700 transition"
+        >
+          <MessageCircle size={14} /> Contacter le vendeur
+        </a>
+        <FollowButton className="px-4" />
+        <ShareButton className="px-4" />
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 md:pb-12">
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-4 md:py-6">
         <HeaderShop />
+
+        {/* Badges de confiance */}
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+          {trustBadges.map((b) => (
+            <div key={b.ttl} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
+              <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <b.icon size={15} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">{b.ttl}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{b.txt}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           <div>
@@ -380,28 +549,50 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
 
             {tab === 'products' && (
               <>
-                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
-                  {cats.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setCatFilter(c)}
-                      className={cn(
-                        'rounded-full px-3 md:px-3.5 py-1.5 text-[11px] md:text-[12px] font-semibold whitespace-nowrap',
-                        catFilter === c
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300'
-                      )}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                  <span className="ml-auto text-[12px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    <b className="text-slate-900 dark:text-white tabular-nums">{filtered.length}</b> produits
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                  {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
-                </div>
+                {shop.categories.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Catégories spécialisées</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {shop.categories.map((c) => (
+                        <span key={c} className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300">
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {products.length > 0 && (
+                  <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+                    {cats.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setCatFilter(c)}
+                        className={cn(
+                          'rounded-full px-3 md:px-3.5 py-1.5 text-[11px] md:text-[12px] font-semibold whitespace-nowrap',
+                          catFilter === c
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300'
+                        )}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                    <span className="ml-auto text-[12px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <b className="text-slate-900 dark:text-white tabular-nums">{filtered.length}</b> produits
+                    </span>
+                  </div>
+                )}
+                {products.length === 0 ? (
+                  <EmptyCatalog />
+                ) : filtered.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-8 text-center">
+                    <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Aucun produit dans cette catégorie.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
+                  </div>
+                )}
               </>
             )}
             {tab === 'reviews' && <Reviews />}
@@ -410,34 +601,52 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
           </div>
 
           <aside className="hidden lg:block">
-            <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 sticky top-[calc(var(--mkt-header-h,0px)+12px)]">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Contact vendeur</p>
-              <div className="space-y-1.5 text-[12px]">
-                {shop.responseTime && (
-                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <Clock size={13} className="text-emerald-600" /> Répond en {shop.responseTime}
-                  </div>
-                )}
-                {shop.onTimeRate != null && (
-                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <CheckCircle size={13} className="text-emerald-600" /> {shop.onTimeRate}% livré à l&apos;heure
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <Package size={13} className="text-slate-500" /> {shop.productCount} produits en catalogue
+            <div className="space-y-4 sticky top-[calc(var(--mkt-header-h,0px)+12px)]">
+              {/* Contact vendeur */}
+              <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Contact vendeur</p>
+                <div className="flex items-center gap-2 text-[12px] text-slate-700 dark:text-slate-300 mb-3">
+                  <Package size={13} className="text-slate-500" /> {shop.productCount} produits au catalogue
                 </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <a
-                  href={contactWhatsApp}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
-                >
-                  <MessageCircle size={14} /> Contacter le vendeur
-                </a>
+                <div className="space-y-2">
+                  <a
+                    href={contactWhatsApp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-emerald-600 text-white font-semibold text-[13px] hover:bg-emerald-700 transition"
+                  >
+                    <MessageCircle size={14} /> Contacter le vendeur
+                  </a>
+                  <FollowButton className="w-full" />
+                </div>
+
+                <div className="mt-4 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+                  {shop.responseTime && (
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400"><Clock size={12} /> Réponse moyenne</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{shop.responseTime}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="text-slate-500 dark:text-slate-400">Statut</span>
+                    <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                      {shop.verified ? <><CheckCircle size={12} /> Vendeur vérifié</> : 'Boutique partenaire'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="text-slate-500 dark:text-slate-400">Localisation</span>
+                    <span className="font-bold text-slate-900 dark:text-white truncate ml-2">{shop.location}</span>
+                  </div>
+                  {shop.onTimeRate != null && (
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-slate-500 dark:text-slate-400">Livré à l&apos;heure</span>
+                      <span className="font-bold text-slate-900 dark:text-white tabular-nums">{shop.onTimeRate}%</span>
+                    </div>
+                  )}
+                </div>
+
                 {(shop.socials?.instagram || shop.socials?.facebook || shop.socials?.website) && (
-                  <div className="flex items-center justify-center gap-2 pt-1">
+                  <div className="flex items-center justify-center gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
                     {shop.socials?.instagram && (
                       <a href={shop.socials.instagram.startsWith('http') ? shop.socials.instagram : `https://instagram.com/${shop.socials.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:border-pink-400 hover:text-pink-600 transition dark:border-slate-700 dark:text-slate-300" title="Instagram">
                         <Instagram size={15} />
@@ -456,12 +665,70 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                   </div>
                 )}
               </div>
-              <p className="mt-3 text-center text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-800 pt-3">
-                Paiement Escrow protégé par DDM+
-              </p>
+
+              {/* Escrow */}
+              <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/60 dark:bg-emerald-950/20 dark:border-emerald-900/40 p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Shield size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <p className="text-[12px] font-bold text-emerald-900 dark:text-emerald-300">Paiement Escrow protégé par DDM+</p>
+                </div>
+                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400/80 leading-relaxed">
+                  Vos transactions sont sécurisées. Les fonds ne sont débloqués qu&apos;après confirmation de réception.
+                </p>
+                <p className="mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-900/40 flex items-center gap-1.5 text-[10px] text-emerald-700/80 dark:text-emerald-500/80">
+                  <Lock size={11} /> Vos données sont protégées
+                </p>
+              </div>
             </div>
           </aside>
         </div>
+
+        {/* Boutiques similaires */}
+        {similarShops.length > 0 && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[15px] md:text-[17px] font-extrabold text-slate-900 dark:text-white">Boutiques similaires</h2>
+              <Link href="/market/boutiques" className="inline-flex items-center gap-1 text-[12px] font-bold text-emerald-600 hover:text-emerald-700">
+                Voir tout <ChevronRight size={14} />
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory md:grid md:grid-cols-4 md:overflow-visible">
+              {similarShops.map((s) => (
+                <Link
+                  key={s.slug}
+                  href={`/boutiques/${s.slug}`}
+                  className="w-44 md:w-auto flex-shrink-0 snap-start rounded-2xl overflow-hidden border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 hover:shadow-md transition-shadow"
+                >
+                  <div className="relative h-24 bg-gradient-to-br from-emerald-600 to-teal-700 overflow-hidden">
+                    {s.coverImage ? (
+                      <img src={s.coverImage} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="absolute inset-0 grid place-items-center text-white/60"><Store size={26} /></span>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-center gap-1">
+                      {s.logo ? (
+                        <img src={s.logo} alt="" className="h-5 w-5 rounded-md object-cover flex-shrink-0" />
+                      ) : null}
+                      <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{s.name}</p>
+                      {s.isVerified && <CheckCircle size={11} className="text-emerald-500 flex-shrink-0" />}
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                      <b className="tabular-nums text-slate-700 dark:text-slate-300">{s.productCount}</b> produits
+                      {s.categories[0] ? ` · ${s.categories[0]}` : ''}
+                    </p>
+                    {s.city && (
+                      <p className="mt-0.5 text-[10px] text-slate-400 flex items-center gap-0.5 truncate">
+                        <MapPin size={9} /> {s.city}{s.country ? `, ${s.country}` : ''}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
@@ -474,6 +741,26 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
           >
             <MessageCircle size={14} /> Contacter
           </a>
+          <button
+            onClick={toggleFollow}
+            disabled={followBusy}
+            aria-label={following ? 'Ne plus suivre' : 'Suivre la boutique'}
+            className={cn(
+              'inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl border font-semibold text-[13px] transition disabled:opacity-60',
+              following
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                : 'border-slate-200 bg-white text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'
+            )}
+          >
+            {followBusy ? <Loader2 size={14} className="animate-spin" /> : following ? <UserCheck size={14} /> : <UserPlus size={14} />}
+          </button>
+          <button
+            onClick={shareShop}
+            aria-label="Partager la boutique"
+            className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-slate-200 bg-white text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"
+          >
+            <Share2 size={14} />
+          </button>
           <button
             onClick={() => setTab('products')}
             className="flex-1 inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-emerald-600 text-white font-semibold"

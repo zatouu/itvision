@@ -30,6 +30,7 @@ interface ShopData {
   country?: string
   city?: string
   categories?: string[]
+  responseTimeHours?: number
   createdAt?: string
   socialWhatsApp?: string
   socialInstagram?: string
@@ -37,13 +38,24 @@ interface ShopData {
   socialWebsite?: string
 }
 
+import type { SimilarShop } from '@/components/market/batch1/screens/ScreenShop'
+
 interface ShopPageClientProps {
   shopId: string
   shopName: string
   shopSlug: string
   shopLogo?: string
   shopDescription?: string
+  followers?: number
+  similarShops?: SimilarShop[]
   shop?: ShopData
+}
+
+function formatResponseTime(hours?: number): string | undefined {
+  if (hours == null || hours < 0) return undefined
+  if (hours < 1) return '< 1h'
+  if (hours < 24) return `< ${Math.ceil(hours)}h`
+  return `< ${Math.ceil(hours / 24)}j`
 }
 
 function getInitials(name: string) {
@@ -57,7 +69,10 @@ function getInitials(name: string) {
 export default function ShopPageClient({
   shopId,
   shopName,
+  shopSlug,
   shopDescription,
+  followers = 0,
+  similarShops = [],
   shop,
 }: ShopPageClientProps) {
   const [items, setItems] = useState<ProductItem[]>([])
@@ -110,6 +125,7 @@ export default function ShopPageClient({
     reviewCount: 0,
     memberSince: shop?.createdAt ? new Date(shop.createdAt).getFullYear().toString() : undefined,
     location: shop?.city ? `${shop.city}, ${shop?.country || 'Sénégal'}` : (shop?.country || 'Sénégal'),
+    responseTime: formatResponseTime(shop?.responseTimeHours),
     categories: categories.length ? categories : (shop?.categories ?? ['Général']),
     description: shopDescription || shop?.description,
     socials: {
@@ -142,5 +158,15 @@ export default function ShopPageClient({
     ? `https://wa.me/${shop.socialWhatsApp.replace(/\D/g, '')}`
     : undefined
 
-  return <ScreenShop shop={shopData} products={products} contactWhatsApp={whatsappUrl} />
+  return (
+    <ScreenShop
+      shop={shopData}
+      products={products}
+      contactWhatsApp={whatsappUrl}
+      shopSlug={shopSlug}
+      shopId={shopId}
+      followers={followers}
+      similarShops={similarShops}
+    />
+  )
 }

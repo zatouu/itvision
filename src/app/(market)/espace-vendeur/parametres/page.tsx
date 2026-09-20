@@ -26,6 +26,7 @@ interface ShopForm {
   ownerPhone: string
   city: string
   address: string
+  responseTimeHours: string
   whatsapp: string
   instagram: string
   facebook: string
@@ -76,6 +77,7 @@ export default function VendorShopSettingsPage() {
           ownerPhone: s.ownerPhone || '',
           city: s.city || '',
           address: s.address || '',
+          responseTimeHours: s.responseTimeHours != null ? String(s.responseTimeHours) : '',
           whatsapp: s.socialLinks?.whatsapp || '',
           instagram: s.socialLinks?.instagram || '',
           facebook: s.socialLinks?.facebook || '',
@@ -126,6 +128,7 @@ export default function VendorShopSettingsPage() {
           ownerPhone: form.ownerPhone || undefined,
           city: form.city || undefined,
           address: form.address || undefined,
+          responseTimeHours: form.responseTimeHours === '' ? null : parseFloat(form.responseTimeHours),
           socialLinks: {
             whatsapp: form.whatsapp || undefined,
             instagram: form.instagram || undefined,
@@ -318,6 +321,9 @@ export default function VendorShopSettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Ville">
               <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={inputCls} placeholder="Dakar" />
+            </Field>
+            <Field label="Temps de réponse moyen (heures)" hint="Affiché sur votre vitrine — ex : 1 pour « Réponse moyenne : < 1h ».">
+              <input type="number" min={0} max={720} step="0.5" value={form.responseTimeHours} onChange={(e) => setForm({ ...form, responseTimeHours: e.target.value })} className={inputCls} placeholder="Ex : 1" />
             </Field>
             <Field label="Adresse">
               <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={inputCls} placeholder="Quartier, rue…" />

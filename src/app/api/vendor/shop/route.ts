@@ -14,6 +14,7 @@ const updateSchema = z.object({
   ownerPhone: z.string().trim().min(8, 'Téléphone invalide').max(20).optional(),
   city: z.string().trim().max(100).optional(),
   address: z.string().trim().max(300).optional(),
+  responseTimeHours: z.number().min(0).max(720).nullable().optional(),
   socialLinks: z.object({
     whatsapp: z.string().trim().max(30).optional(),
     instagram: z.string().trim().max(100).optional(),
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
         ownerPhone: shop.ownerPhone,
         city: shop.city,
         address: shop.address,
+        responseTimeHours: shop.responseTimeHours ?? null,
         status: shop.status,
         isVerified: shop.isVerified,
         socialLinks: shop.socialLinks || {},
@@ -88,15 +90,23 @@ export async function PATCH(req: NextRequest) {
     for (const key of ['description', 'logo', 'coverImage', 'ownerEmail', 'ownerPhone', 'city', 'address'] as const) {
       if (data[key] !== undefined) update[key] = data[key]
     }
+    const unset: Record<string, 1> = {}
+    if (data.responseTimeHours !== undefined) {
+      if (data.responseTimeHours === null) unset.responseTimeHours = 1
+      else update.responseTimeHours = data.responseTimeHours
+    }
     if (data.socialLinks) {
       for (const [k, v] of Object.entries(data.socialLinks)) {
         if (v !== undefined) update[`socialLinks.${k}`] = v
       }
     }
 
+    const updateOp: any = Object.keys(update).length ? { $set: update } : {}
+    if (Object.keys(unset).length) updateOp.$unset = unset
+
     const shop = await Shop.findOneAndUpdate(
       { $or: [{ slug: vendor.slug }, { ownerId: auth.user.id }] },
-      update,
+      updateOp,
       { new: true }
     ).lean() as any
     if (!shop) {

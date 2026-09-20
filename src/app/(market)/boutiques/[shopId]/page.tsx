@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
+import Product from '@/lib/models/Product'
+import ShopFollower from '@/lib/models/ShopFollower'
 import ShopPageClient from '@/components/ShopPageClient'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
@@ -37,6 +39,39 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
   const shop = await fetchShop(shopId)
   if (!shop) notFound()
 
+  // Boutiques similaires : mêmes catégories en priorité, puis autres actives
+  const [followers, sameCat] = await Promise.all([
+    ShopFollower.countDocuments({ shopId: shop._id }),
+    Shop.find({
+      _id: { $ne: shop._id },
+      status: 'active',
+      ...(shop.categories?.length ? { categories: { $in: shop.categories } } : {}),
+    }).sort({ isVerified: -1, createdAt: -1 }).limit(8).lean() as Promise<any[]>,
+  ])
+  const similar = sameCat.length >= 4
+    ? sameCat
+    : [
+        ...sameCat,
+        ...(await Shop.find({
+          _id: { $nin: [shop._id, ...sameCat.map(s => s._id)] },
+          status: 'active',
+        }).sort({ isVerified: -1, createdAt: -1 }).limit(8 - sameCat.length).lean() as any[]),
+      ]
+
+  const similarShops = await Promise.all(
+    similar.map(async s => ({
+      slug: s.slug,
+      name: s.name,
+      logo: s.logo,
+      coverImage: s.coverImage,
+      city: s.city,
+      country: s.country,
+      categories: s.categories || [],
+      isVerified: !!s.isVerified,
+      productCount: await Product.countDocuments({ shopId: s._id, isPublished: true }),
+    }))
+  )
+
   return (
     <main>
       <ShopPageClient
@@ -45,6 +80,8 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
         shopSlug={shop.slug}
         shopLogo={shop.logo}
         shopDescription={shop.description}
+        followers={followers}
+        similarShops={similarShops}
         shop={{
           name: shop.name,
           description: shop.description,
@@ -54,6 +91,7 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
           country: shop.country,
           city: shop.city,
           categories: shop.categories,
+          responseTimeHours: shop.responseTimeHours,
           createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : undefined,
           socialWhatsApp: shop.socialLinks?.whatsapp,
           socialInstagram: shop.socialLinks?.instagram,

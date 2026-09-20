@@ -22,6 +22,7 @@ export interface IShop extends Document {
   address?: string
   city?: string
   country?: string
+  responseTimeHours?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -47,7 +48,8 @@ const ShopSchema = new Schema<IShop>({
   },
   address: { type: String },
   city: { type: String },
-  country: { type: String, default: 'Sénégal' }
+  country: { type: String, default: 'Sénégal' },
+  responseTimeHours: { type: Number, min: 0 }
 }, { timestamps: true })
 
 function slugify(text: string): string {
