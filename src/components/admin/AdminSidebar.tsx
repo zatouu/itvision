@@ -40,7 +40,8 @@ import {
   Search,
   ImageIcon,
   Eye,
-  Scale
+  Scale,
+  Store
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -117,6 +118,31 @@ const menuSections: MenuSection[] = [
         label: 'Planning',
         icon: Calendar,
         href: '/admin/planning'
+      },
+      {
+        id: 'clients-equipe',
+        label: 'Clients & Équipe',
+        icon: Users,
+        children: [
+          {
+            id: 'clients-b2b',
+            label: 'Clients B2B',
+            icon: Users,
+            href: '/admin/clients'
+          },
+          {
+            id: 'techniciens',
+            label: 'Techniciens',
+            icon: Wrench,
+            href: '/admin/technicians'
+          },
+          {
+            id: 'catalogue-services',
+            label: 'Catalogue services',
+            icon: ListChecks,
+            href: '/admin/catalog'
+          }
+        ]
       },
       {
         id: 'finance',
@@ -222,6 +248,31 @@ const menuSections: MenuSection[] = [
         href: '/admin/marketplace'
       },
       {
+        id: 'vendeurs-boutiques',
+        label: 'Boutiques & Vendeurs',
+        icon: Store,
+        children: [
+          {
+            id: 'boutiques-validation',
+            label: 'Boutiques & retraits',
+            icon: Store,
+            href: '/admin/marketplace/shops'
+          },
+          {
+            id: 'comptes-pro',
+            label: 'Comptes Pro',
+            icon: Shield,
+            href: '/admin/marketplace/comptes-pro'
+          },
+          {
+            id: 'retours-litiges',
+            label: 'Retours & litiges',
+            icon: Scale,
+            href: '/admin/marketplace/retours'
+          }
+        ]
+      },
+      {
         id: 'produits',
         label: 'Produits',
         icon: Package,
@@ -259,35 +310,48 @@ const menuSections: MenuSection[] = [
         href: '/admin/achats-groupes'
       },
       {
-        id: 'achats-chine',
-        label: 'Achats Chine',
-        icon: Package,
-        href: '/admin/achats-chine'
-      },
-      {
-        id: 'auto-import',
-        label: 'Auto Import 1688/Ali',
+        id: 'sourcing-import',
+        label: 'Sourcing & Import',
         icon: Download,
-        href: '/admin/auto-import'
+        children: [
+          {
+            id: 'achats-chine',
+            label: 'Achats Chine',
+            icon: Package,
+            href: '/admin/achats-chine'
+          },
+          {
+            id: 'auto-import',
+            label: 'Auto Import 1688/Ali',
+            icon: Download,
+            href: '/admin/auto-import'
+          },
+          {
+            id: 'marketplace-sourcing',
+            label: 'Trouvez-moi (sourcing)',
+            icon: Search,
+            href: '/admin/market/sourcing-requests'
+          }
+        ]
       },
-
       {
-        id: 'marketplace-sourcing',
-        label: 'Trouvez-moi (sourcing)',
-        icon: Search,
-        href: '/admin/market/sourcing-requests'
-      },
-      {
-        id: 'marketplace-promo-slides',
-        label: 'Slides promotionnelles',
+        id: 'contenu-marketplace',
+        label: 'Contenu',
         icon: ImageIcon,
-        href: '/admin/market/promo-slides'
-      },
-      {
-        id: 'marketplace-image-embeddings',
-        label: 'Recherche par image',
-        icon: Search,
-        href: '/admin/market/image-embeddings'
+        children: [
+          {
+            id: 'marketplace-promo-slides',
+            label: 'Slides promotionnelles',
+            icon: ImageIcon,
+            href: '/admin/market/promo-slides'
+          },
+          {
+            id: 'marketplace-image-embeddings',
+            label: 'Recherche par image',
+            icon: Search,
+            href: '/admin/market/image-embeddings'
+          }
+        ]
       }
     ]
   },
@@ -433,8 +497,8 @@ export default function AdminSidebar() {
     if (!href) return false
     const [targetPath, targetQuery = ''] = href.split('?')
 
-    if (targetPath === '/admin') {
-      return pathname === '/admin'
+    if (targetPath === '/admin' || targetPath === '/admin/marketplace') {
+      return pathname === targetPath
     }
 
     const active = pathname.startsWith(targetPath)

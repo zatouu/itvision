@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Breadcrumb from '@/components/Breadcrumb'
-import { Store, Loader2, CheckCircle, XCircle, Plus, Search, Wallet } from 'lucide-react'
+import { Store, Loader2, CheckCircle, XCircle, Plus, Wallet, AlertCircle } from 'lucide-react'
 
 interface Payout {
   id: string
@@ -29,12 +29,26 @@ interface Shop {
   createdAt: string
 }
 
+const STATUS_FILTERS = [
+  { id: 'pending_review', label: 'À valider' },
+  { id: 'active', label: 'Actives' },
+  { id: 'inactive', label: 'Inactives' },
+  { id: 'suspended', label: 'Suspendues' },
+  { id: 'all', label: 'Toutes' },
+] as const
+
 export default function AdminShopsPage() {
   const [shops, setShops] = useState<Shop[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', ownerEmail: '', ownerPhone: '' })
   const [payouts, setPayouts] = useState<Payout[]>([])
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  const pendingCount = shops.filter(s => s.status === 'pending_review').length
+  const filteredShops = (statusFilter === 'all' ? shops : shops.filter(s => s.status === statusFilter))
+    .slice()
+    .sort((a, b) => (a.status === 'pending_review' ? 0 : 1) - (b.status === 'pending_review' ? 0 : 1))
 
   const loadPayouts = async () => {
     try {
@@ -128,6 +142,41 @@ export default function AdminShopsPage() {
           Gestion des boutiques
         </h1>
 
+        {pendingCount > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            <p className="text-sm text-amber-800">
+              <strong>{pendingCount} boutique{pendingCount > 1 ? 's' : ''}</strong> en attente de validation —
+              non visible{pendingCount > 1 ? 's' : ''} publiquement tant que non approuvée{pendingCount > 1 ? 's' : ''}.
+            </p>
+            <button
+              onClick={() => setStatusFilter('pending_review')}
+              className="ml-auto text-sm font-semibold text-amber-800 underline hover:no-underline"
+            >
+              Voir
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          {STATUS_FILTERS.map(f => {
+            const count = f.id === 'all' ? shops.length : shops.filter(s => s.status === f.id).length
+            return (
+              <button
+                key={f.id}
+                onClick={() => setStatusFilter(f.id)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  statusFilter === f.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                {f.label} ({count})
+              </button>
+            )
+          })}
+        </div>
+
         <form onSubmit={createShop} className="bg-white rounded-xl border border-stone-200 p-4 mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <input
             type="text"
@@ -172,11 +221,13 @@ export default function AdminShopsPage() {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
           </div>
-        ) : shops.length === 0 ? (
-          <div className="text-center py-12 text-stone-500">Aucune boutique.</div>
+        ) : filteredShops.length === 0 ? (
+          <div className="text-center py-12 text-stone-500">
+            {shops.length === 0 ? 'Aucune boutique.' : 'Aucune boutique dans ce statut.'}
+          </div>
         ) : (
           <div className="space-y-3">
-            {shops.map(shop => (
+            {filteredShops.map(shop => (
               <div key={shop._id} className="bg-white rounded-xl border border-stone-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -189,13 +240,25 @@ export default function AdminShopsPage() {
                   <p className="text-sm text-stone-600">{shop.description || 'Pas de description'}</p>
                   <p className="text-xs text-stone-500 mt-1">Slug: {shop.slug}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => toggleStatus(shop, shop.status === 'active' ? 'inactive' : 'active')}
-                    className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm hover:bg-stone-50"
+                    className={`px-3 py-1.5 rounded-lg text-sm ${
+                      shop.status === 'pending_review'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'border border-stone-300 hover:bg-stone-50'
+                    }`}
                   >
                     {shop.status === 'active' ? 'Désactiver' : shop.status === 'pending_review' ? 'Approuver' : 'Activer'}
                   </button>
+                  {shop.status === 'pending_review' && (
+                    <button
+                      onClick={() => toggleStatus(shop, 'suspended')}
+                      className="px-3 py-1.5 border border-red-300 text-red-700 rounded-lg text-sm hover:bg-red-50"
+                    >
+                      Rejeter
+                    </button>
+                  )}
                   <a
                     href={`/boutiques/${shop.slug}`}
                     target="_blank"
