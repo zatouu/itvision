@@ -41,7 +41,8 @@ import {
   ImageIcon,
   Eye,
   Scale,
-  Store
+  Store,
+  Bot
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -96,6 +97,12 @@ const menuSections: MenuSection[] = [
         label: 'Support',
         icon: AlertCircle,
         href: '/admin/tickets'
+      },
+      {
+        id: 'copilot',
+        label: 'Copilote IA',
+        icon: Bot,
+        href: '/admin/copilot'
       }
     ]
   },

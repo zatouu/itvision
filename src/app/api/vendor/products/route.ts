@@ -5,6 +5,7 @@ import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import { vendorShopQuery } from '@/lib/vendor'
 import { notifyAdmins } from '@/lib/notify'
+import { enqueueAgentJob } from '@/lib/agents/queue'
 import Product from '@/lib/models/Product'
 import { z } from 'zod'
 
@@ -142,14 +143,8 @@ export async function POST(req: NextRequest) {
       channels: ['marketplace'],
     })
 
-    notifyAdmins({
-      type: 'info',
-      title: 'Produit vendeur à valider',
-      message: `${vendor.name} a ajouté « ${product.name} » (${price.toLocaleString('fr-FR')} F) — en attente de publication.`,
-      actionUrl: '/admin/produits',
-      metadata: { productId: String(product._id), shopSlug: vendor.slug },
-      push: false,
-    }).catch(e => console.error('[vendor/products] notify failed:', e))
+    // File de modération IA — l'agent analyse et propose une décision aux admins
+    void enqueueAgentJob('product_moderation', String(product._id))
 
     return NextResponse.json({
       success: true,

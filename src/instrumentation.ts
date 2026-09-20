@@ -38,5 +38,9 @@ export async function register() {
     // Payment sweeper — réconciliation des paiements pending (fallback webhook)
     const { startPaymentSweeper } = await import('@/lib/payment-sweeper')
     startPaymentSweeper()
+
+    // Worker agents IA (LangGraph) — actif si AGENT_WORKER_ENABLED=true
+    const { startAgentWorker } = await import('@/lib/agents/worker')
+    startAgentWorker()
   }
 }
