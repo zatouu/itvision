@@ -873,6 +873,17 @@ export class BrowserScraper {
 
   // ======== UTILITAIRES ========
 
+  /**
+   * Ouvre une page dans le profil persisté (usage : login manuel 1688).
+   * À utiliser avec headless:false — la session est sauvegardée au close().
+   */
+  async openSession(url: string): Promise<Page> {
+    const context = await this.createContext()
+    const page = await context.newPage()
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.config.timeout })
+    return page
+  }
+
   async screenshot(url: string, path: string): Promise<void> {
     const context = await this.createContext()
     const page = await context.newPage()

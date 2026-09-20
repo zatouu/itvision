@@ -55,7 +55,9 @@ export async function closeSourcingBrowser() {
 async function getScraper(): Promise<BrowserScraper> {
   if (!scraper) {
     scraper = new BrowserScraper({
-      headless: true,
+      // SCRAPER_HEADLESS=false → navigateur visible : permet le login 1688
+      // manuel initial (la session est persistée dans le profil).
+      headless: process.env.SCRAPER_HEADLESS !== 'false',
       // Profil persisté par défaut : la session 1688 (login manuel préalable)
       // survit entre les scans → franchit les murs de login.
       profileDir: process.env.SCRAPER_PROFILE_DIR || 'data/browser-profile',

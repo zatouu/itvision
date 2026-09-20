@@ -299,3 +299,26 @@ L'extraction est du DOM parsing (déterministe, gratuit) et le pricing est une f
 ### Rythme visé (~20 produits/jour)
 
 Un scan de 20 offres ≈ 3-5 min de navigation. Lancer 1-2 scans/jour par catégorie suffit. Le goulot n'est pas l'agent — c'est la file de modération (volontaire : la qualité prime sur le volume).
+
+### Déploiement sur IP résidentielle (box / machine locale)
+
+L'IP datacenter du serveur est le premier motif de blocage 1688. Plutôt qu'un
+proxy payant, le worker peut tourner sur une machine derrière une IP
+résidentielle — la file MongoDB fait le lien (prod enfile, local dépile).
+
+```
+# Sur la machine locale (une fois) : login manuel 1688
+npx playwright install chromium
+npx tsx scripts/browser-login.ts        # navigateur visible → login → Entrée
+
+# Puis worker standalone (pas besoin de Next.js) :
+AGENT_WORKER_TYPES=sourcing_scan npx tsx scripts/agent-worker.ts
+```
+
+`AGENT_WORKER_TYPES=sourcing_scan` borne ce worker aux scans — la modération
+reste sur le serveur. `MONGODB_URI` pointe vers la base prod (directe ou via
+tunnel SSH `ssh -L 27017:localhost:27017 …`).
+
+Alternative : `SCRAPER_PROXY=socks5://…` vers un proxy exposé sur la box
+(microsocks/3proxy + Tailscale) — utile si le serveur doit garder le worker,
+mais dépend de la disponibilité du tunnel.

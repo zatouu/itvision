@@ -19,6 +19,14 @@ const TYPE_CONCURRENCY: Record<string, number> = {
   sourcing_scan: 1,
 }
 
+// AGENT_WORKER_TYPES=sourcing_scan → ce worker ne prend QUE les scans 1688.
+// Cas d'usage : worker local sur une IP résidentielle (box/tunnel) pendant
+// que le serveur traite la modération. Vide/absent = tous les types.
+const ENABLED_TYPES = (process.env.AGENT_WORKER_TYPES || '')
+  .split(',')
+  .map((t) => t.trim())
+  .filter(Boolean)
+
 const RUNNERS: Record<string, (job: any) => Promise<void>> = {
   product_moderation: (job) => runProductModeration(String(job._id), job.refId),
   sourcing_scan: (job) => runSourcingScan(job),
@@ -34,7 +42,9 @@ async function tick(): Promise<boolean> {
   const saturated = Object.entries(TYPE_CONCURRENCY)
     .filter(([t, max]) => (runningByType.get(t) || 0) >= max)
     .map(([t]) => t)
-  const allowedTypes = Object.keys(RUNNERS).filter((t) => !saturated.includes(t))
+  const allowedTypes = Object.keys(RUNNERS).filter(
+    (t) => !saturated.includes(t) && (ENABLED_TYPES.length === 0 || ENABLED_TYPES.includes(t))
+  )
   if (allowedTypes.length === 0) return false
 
   // Claim atomique : le premier worker qui pose 'running' gagne le job
@@ -88,5 +98,5 @@ export function startAgentWorker() {
   }
   setInterval(loop, POLL_MS).unref()
   void loop()
-  console.log(`[agent-worker] démarré — poll ${POLL_MS}ms, concurrence ${CONCURRENCY}`)
+  console.log(`[agent-worker] démarré — poll ${POLL_MS}ms, concurrence ${CONCURRENCY}, types: ${ENABLED_TYPES.length ? ENABLED_TYPES.join(',') : 'tous'}`)
 }
