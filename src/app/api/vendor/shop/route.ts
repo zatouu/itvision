@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
+import { vendorShopQuery } from '@/lib/vendor'
 import { z } from 'zod'
 
 const updateSchema = z.object({
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Profil vendeur introuvable' }, { status: 404 })
     }
 
-    const shop = await Shop.findOne({ slug: vendor.slug }).lean() as any
+    const shop = await vendorShopQuery(vendor, auth.user.id).lean() as any
     if (!shop) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }
@@ -93,7 +94,11 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const shop = await Shop.findOneAndUpdate({ slug: vendor.slug }, update, { new: true }).lean() as any
+    const shop = await Shop.findOneAndUpdate(
+      { $or: [{ slug: vendor.slug }, { ownerId: auth.user.id }] },
+      update,
+      { new: true }
+    ).lean() as any
     if (!shop) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }

@@ -4,6 +4,7 @@ import { verifyAuthServer, setAuthCookie } from '@/lib/auth-server'
 import { signAuthTokenWithExpiry } from '@/lib/jwt'
 import { keycloakEnabled } from '@/lib/keycloak'
 import { resolveUserCategory } from '@/lib/user-segmentation'
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import User from '@/lib/models/User'
@@ -36,6 +37,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vous avez déjà une boutique' }, { status: 409 })
     }
 
+    // Empêcher un administrateur de perdre son rôle
+    if (['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      return NextResponse.json({ success: false, error: 'Les administrateurs ne peuvent pas devenir vendeurs depuis ce formulaire.' }, { status: 403 })
+    }
+
+    // Rattachement : boutique créée par un admin avec l'email du compte
+    // (ownerEmail/ownerId) → provisionne le VendorProfile manquant.
+    const rec = await reconcileVendorAccount(String(user._id))
+    if (rec?.healed) {
+      const response = NextResponse.json({
+        success: true,
+        attached: true,
+        vendor: { id: String(rec.vendor._id), name: rec.vendor.name, slug: rec.vendor.slug },
+        message: 'Votre boutique existante a été rattachée à votre compte.',
+      })
+      await reissueAuthCookie(response, user)
+      return response
+    }
+
     const body = await req.json()
     const parsed = registerSchema.safeParse(body)
     if (!parsed.success) {
@@ -45,11 +65,6 @@ export async function POST(req: NextRequest) {
     const { name, description, contactEmail, contactPhone } = parsed.data
     const cleanName = name.trim()
     const slug = slugify(cleanName)
-
-    // Empêcher un administrateur de perdre son rôle
-    if (['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json({ success: false, error: 'Les administrateurs ne peuvent pas devenir vendeurs depuis ce formulaire.' }, { status: 403 })
-    }
 
     const slugTaken = await VendorProfile.findOne({ slug }).lean() as any
     if (slugTaken) {

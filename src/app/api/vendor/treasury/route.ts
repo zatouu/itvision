@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
+import { vendorShopQuery } from '@/lib/vendor'
 import Product from '@/lib/models/Product'
 import { Order } from '@/lib/models/Order'
 import VendorPayout from '@/lib/models/VendorPayout'
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     if (!vendor) {
       return NextResponse.json({ success: false, error: 'Profil vendeur introuvable' }, { status: 404 })
     }
-    const shop = await Shop.findOne({ slug: vendor.slug }).select('commissionRate status').lean() as any
+    const shop = await vendorShopQuery(vendor, auth.user.id).select('commissionRate status').lean() as any
     const commissionRate = typeof shop?.commissionRate === 'number' ? shop.commissionRate : (vendor.commissionRate ?? 0)
 
     const products = await Product.find({ sellerSlug: vendor.slug }).select('_id').lean()

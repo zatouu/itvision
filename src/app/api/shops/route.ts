@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
+import User from '@/lib/models/User'
+import VendorProfile from '@/lib/models/VendorProfile'
 import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(req: NextRequest) {
@@ -45,7 +47,42 @@ export async function POST(req: NextRequest) {
       city
     })
 
-    return NextResponse.json({ success: true, shop }, { status: 201 })
+    // Lier au compte propriétaire si l'email correspond à un utilisateur :
+    // VendorProfile + ownerId + rôle VENDOR — sinon la boutique reste orpheline
+    // et le propriétaire n'a jamais accès à /espace-vendeur.
+    let ownerLinked = false
+    if (ownerEmail) {
+      const owner = await User.findOne({ email: String(ownerEmail).toLowerCase().trim() })
+      if (owner) {
+        shop.ownerId = owner._id
+        await shop.save()
+
+        let vp = await VendorProfile.findOne({ userId: owner._id })
+        if (!vp) {
+          vp = await VendorProfile.create({
+            userId: owner._id,
+            name: shop.name,
+            slug: shop.slug,
+            description: shop.description,
+            logo: shop.logo,
+            banner: shop.coverImage,
+            contactEmail: shop.ownerEmail,
+            contactPhone: shop.ownerPhone || owner.phone,
+            verified: !!shop.isVerified,
+            rating: 0,
+            commissionRate: shop.commissionRate ?? 0,
+          })
+        }
+        owner.vendorProfileId = vp._id
+        if (!['ADMIN', 'SUPER_ADMIN'].includes(owner.role)) {
+          owner.role = 'VENDOR'
+        }
+        await owner.save()
+        ownerLinked = true
+      }
+    }
+
+    return NextResponse.json({ success: true, shop, ownerLinked }, { status: 201 })
   } catch (err: any) {
     console.error('[shops] POST error:', err)
     if (err.code === 11000) {

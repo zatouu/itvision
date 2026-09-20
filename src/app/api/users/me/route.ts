@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
 import { isPhoneLike, normalizePhone } from '@/lib/sms'
 import { verifyXeuyOtp } from '@/modules/xeuy'
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +30,18 @@ export async function GET(request: NextRequest) {
       await User.updateOne({ _id: user._id }, { $set: { referralCode } })
     }
 
-    return NextResponse.json({
+    // Self-healing : boutique créée par un admin (ownerEmail) sans VendorProfile
+    // → provisionne le profil + rôle VENDOR (sinon espace vendeur invisible).
+    let healedVendor = false
+    try {
+      const rec = await reconcileVendorAccount(String(user._id))
+      healedVendor = !!rec?.healed
+      if (healedVendor) user.role = 'VENDOR'
+    } catch (e) {
+      console.error('[users/me] vendor reconcile failed:', e)
+    }
+
+    const response = NextResponse.json({
       success: true,
       user: {
         _id: String(user._id),
@@ -44,6 +56,8 @@ export async function GET(request: NextRequest) {
         referralCount: user.referralCount || 0,
       },
     })
+    if (healedVendor) await reissueAuthCookie(response, user)
+    return response
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[GET /api/users/me]', e)

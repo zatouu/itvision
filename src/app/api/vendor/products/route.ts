@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
+import { vendorShopQuery } from '@/lib/vendor'
 import Product from '@/lib/models/Product'
 import { z } from 'zod'
 
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     if (!vendor) {
       return NextResponse.json({ success: false, error: 'Profil vendeur introuvable' }, { status: 404 })
     }
-    const shop = await Shop.findOne({ slug: vendor.slug }).select('_id status isVerified').lean() as any
+    const shop = await vendorShopQuery(vendor, auth.user.id).select('_id status isVerified').lean() as any
     if (!shop) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }

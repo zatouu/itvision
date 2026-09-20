@@ -505,10 +505,15 @@ export function mapUser(user: any, dashboard?: any): User {
     groupBuyEnabled: p?.groupBuyEnabled,
   });
 
+  // users/me et account/dashboard sont appelés en parallèle ; si l'un des deux
+  // a déclenché la réconciliation vendeur, son rôle peut être plus récent.
+  const roles = [user?.role, dashboard?.user?.role].filter(Boolean);
+  const role = roles.find(r => ['SUPER_ADMIN', 'ADMIN', 'VENDOR', 'PROVIDER'].includes(r)) || roles[0] || '';
+
   return {
     handle: firstName,
     initials,
-    role: user?.role || '',
+    role,
     memberSince: user?.createdAt
       ? new Date(user.createdAt).getFullYear().toString()
       : '',

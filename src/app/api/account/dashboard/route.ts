@@ -10,6 +10,7 @@ import GrainsTransaction, { getGrainsBalance } from '@/lib/models/GrainsTransact
 import { GRAIN_TIERS, getTierFromBalance, nextTierInfo, type GrainTierName } from '@/lib/grains'
 import Activity from '@/lib/models/Activity'
 import Reward from '@/lib/models/Reward'
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
 
 function tierThreshold(tier: string): number {
   return GRAIN_TIERS.find((t) => t.name === tier)?.min ?? 0
@@ -37,6 +38,17 @@ export async function GET() {
     const user = await User.findById(userId).lean() as any
     if (!user) {
       return NextResponse.json({ success: false, error: 'Utilisateur introuvable' }, { status: 404 })
+    }
+
+    // Self-healing : boutique créée par un admin (ownerEmail) sans VendorProfile
+    // → provisionne le profil + rôle VENDOR, sinon l'espace vendeur reste invisible.
+    let healedVendor = false
+    try {
+      const rec = await reconcileVendorAccount(String(user._id))
+      healedVendor = !!rec?.healed
+      if (healedVendor) user.role = 'VENDOR'
+    } catch (e) {
+      console.error('[dashboard] vendor reconcile failed:', e)
     }
 
     const [orders, groups, favoriteIds, openGroups, activities, grainsBalance, rewards] = await Promise.all([
@@ -127,6 +139,7 @@ export async function GET() {
         firstName: user.name?.split(' ')[0] || user.username || 'Utilisateur',
         lastName: user.name?.split(' ').slice(1).join(' ') || '',
         email: user.email,
+        role: user.role || '',
         avatarUrl: user.avatarUrl,
         initial: initials(user.name || user.username),
         status: user.isActive ? 'active' : 'inactive',
@@ -236,7 +249,9 @@ export async function GET() {
       })),
     }
 
-    return NextResponse.json({ success: true, dashboard })
+    const response = NextResponse.json({ success: true, dashboard })
+    if (healedVendor) await reissueAuthCookie(response, user)
+    return response
   } catch (err) {
     console.error('Dashboard error:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
