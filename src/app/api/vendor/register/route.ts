@@ -5,6 +5,7 @@ import { signAuthTokenWithExpiry } from '@/lib/jwt'
 import { keycloakEnabled } from '@/lib/keycloak'
 import { resolveUserCategory } from '@/lib/user-segmentation'
 import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
+import { notifyAdmins, notifyUser } from '@/lib/notify'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import User from '@/lib/models/User'
@@ -134,6 +135,25 @@ export async function POST(req: NextRequest) {
     } finally {
       await session.endSession()
     }
+
+    // Notifications : admins (file de validation) + confirmation vendeur
+    await Promise.all([
+      notifyAdmins({
+        type: 'warning',
+        title: 'Nouvelle boutique à valider',
+        message: `« ${vendor.name} » vient de s'inscrire et attend votre approbation.`,
+        actionUrl: '/admin/marketplace/shops',
+        metadata: { slug: vendor.slug },
+        push: false,
+      }),
+      notifyUser(String(user._id), {
+        type: 'info',
+        title: 'Boutique créée',
+        message: `« ${vendor.name} » est en cours de vérification — vous serez notifié dès sa mise en ligne.`,
+        actionUrl: '/espace-vendeur',
+        metadata: { slug: vendor.slug },
+      }),
+    ]).catch(e => console.error('[vendor/register] notify failed:', e))
 
     const response = NextResponse.json({
       success: true,

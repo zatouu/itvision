@@ -32,6 +32,27 @@ export default function ProductImageGallery({
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
+  // Zoom au survol (desktop, style Amazon) : l'image zoome vers le curseur
+  const [hoverZoom, setHoverZoom] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
+  const canHover = useRef(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!canHover.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setZoomOrigin({
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    });
+  };
+
+  const handleMouseEnter = () => {
+    canHover.current = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (canHover.current && scale <= 1.05) setHoverZoom(true);
+  };
+
+  const handleMouseLeave = () => setHoverZoom(false);
+
   const touch = useRef<{
     startX: number
     startY: number
@@ -189,10 +210,17 @@ export default function ProductImageGallery({
   };
 
   const imageSrc = images[active] || images[0] || '/placeholder.svg';
+  const hoverZoomed = hoverZoom && scale <= 1.05;
 
   return (
     <div className={cn('bg-white dark:bg-slate-900', className)}>
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 select-none">
+      <div
+        className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 select-none"
+        onMouseEnter={handleMouseEnter}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: hoverZoomed ? 'zoom-in' : undefined }}
+      >
         <img
           src={imageSrc}
           alt={name}
@@ -203,11 +231,19 @@ export default function ProductImageGallery({
           onClick={handleMainClick}
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
           className="h-full w-full object-cover transition-transform duration-200"
-          style={{
-            transform: `translateX(${pan.x}px) scale(${scale})`,
-            transformOrigin: 'center center',
-            touchAction: 'pan-y',
-          }}
+          style={
+            hoverZoomed
+              ? {
+                  transform: 'scale(1.8)',
+                  transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                  transitionDuration: '100ms',
+                }
+              : {
+                  transform: `translateX(${pan.x}px) scale(${scale})`,
+                  transformOrigin: 'center center',
+                  touchAction: 'pan-y',
+                }
+          }
         />
         {badges}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">

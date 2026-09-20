@@ -363,6 +363,41 @@ export async function POST(req: NextRequest) {
       await orderDoc.save()
     }
 
+    // Notifier chaque vendeur concerné (boutiques marketplace) — best effort
+    try {
+      const sellerTotals = new Map<string, { sellerName: string; total: number; qty: number }>()
+      for (const item of cart) {
+        const productId = itemProductIdMap.get(String(item.id || ''))
+        const db = productId ? dbProductMap.get(productId) : null
+        const slug = db?.sellerSlug
+        if (!slug) continue
+        const qty = item.qty || 1
+        const variantIds = itemVariantIds(item)
+        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate, variantIds)
+        const cur = sellerTotals.get(slug) || { sellerName: db.sellerName || 'Boutique', total: 0, qty: 0 }
+        cur.total += resolved.appliedPrice * qty
+        cur.qty += qty
+        sellerTotals.set(slug, cur)
+      }
+      if (sellerTotals.size > 0) {
+        const VendorProfile = (await import('@/lib/models/VendorProfile')).default
+        const { notifyUser } = await import('@/lib/notify')
+        for (const [slug, info] of sellerTotals) {
+          const vp = await VendorProfile.findOne({ slug }).select('userId').lean() as any
+          if (!vp?.userId) continue
+          await notifyUser(String(vp.userId), {
+            type: 'success',
+            title: 'Nouvelle vente',
+            message: `${info.qty} article${info.qty > 1 ? 's' : ''} vendu${info.qty > 1 ? 's' : ''} — ${Math.round(info.total).toLocaleString('fr-FR')} F (commande ${orderId})`,
+            actionUrl: '/espace-vendeur',
+            metadata: { orderId, amount: info.total, qty: info.qty },
+          })
+        }
+      }
+    } catch (e) {
+      console.error('[order] vendor sale notification failed:', e)
+    }
+
     // Incrémenter les stats marketplace de l'utilisateur authentifié
     if (userId) {
       try {

@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import { vendorShopQuery } from '@/lib/vendor'
+import { notifyAdmins } from '@/lib/notify'
 import Product from '@/lib/models/Product'
 import { Order } from '@/lib/models/Order'
 import VendorPayout from '@/lib/models/VendorPayout'
@@ -112,6 +113,15 @@ export async function POST(req: NextRequest) {
       phone,
       note,
     })
+
+    notifyAdmins({
+      type: 'warning',
+      title: 'Demande de retrait vendeur',
+      message: `${vendor.name} demande ${amount.toLocaleString('fr-FR')} F via ${method}${phone ? ` (${phone})` : ''}.`,
+      actionUrl: '/admin/marketplace/shops',
+      metadata: { payoutId: String(payout._id), amount, method },
+      push: false,
+    }).catch(e => console.error('[vendor/payouts] notify failed:', e))
 
     return NextResponse.json({ success: true, payout: { id: String(payout._id), amount, status: 'pending' } }, { status: 201 })
   } catch (error) {

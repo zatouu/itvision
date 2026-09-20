@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
-  Loader2, Wallet, Truck, Users, LifeBuoy, Plus, ImageIcon,
-  CheckCircle, Clock, AlertTriangle, MessageCircle,
+  Loader2, Wallet, Users, LifeBuoy, Plus, ImageIcon,
+  CheckCircle, MessageCircle, X, Trash2, ChevronDown,
 } from 'lucide-react'
 import { formatFcfa } from '@/components/market/batch1/formatFcfa'
 import { brandWhatsAppUrl } from '@/lib/branding'
@@ -355,35 +355,108 @@ export function SupportTab({ data, loading }: { data: any; loading: boolean }) {
 }
 
 // ─── Nouveau produit ─────────────────────────────────────────
+type VariantRow = { name: string; price: string; stock: string; imageIndex: string }
+type VariantGroupRow = { name: string; variants: VariantRow[] }
+type TierRow = { minQty: string; price: string }
+
+const MAX_PHOTOS = 8
+
+function Section({ title, hint, open, onToggle, children }: {
+  title: string; hint?: string; open: boolean; onToggle: () => void; children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+        <span className="text-left">
+          <span className="block text-[13px] font-bold text-slate-900 dark:text-white">{title}</span>
+          {hint && <span className="block text-[11px] text-slate-400">{hint}</span>}
+        </span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="p-4 space-y-3">{children}</div>}
+    </div>
+  )
+}
+
 export function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '' })
-  const [image, setImage] = useState('')
+  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '', weightKg: '', tags: '' })
+  const [photos, setPhotos] = useState<string[]>([])
+  const [features, setFeatures] = useState<string[]>([''])
+  const [variantGroups, setVariantGroups] = useState<VariantGroupRow[]>([])
+  const [priceTiers, setPriceTiers] = useState<TierRow[]>([])
+  const [categories, setCategories] = useState<{ slug: string; name: string }[]>([])
+  const [open, setOpen] = useState({ variants: false, tiers: false, details: false })
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const uploadImage = async (file: File) => {
+  useEffect(() => {
+    fetch('/api/catalog/categories')
+      .then(r => r.json())
+      .then(d => {
+        const list = (d.categories || d || []) as any[]
+        setCategories(list.map(c => ({ slug: c.slug, name: c.labelFr || c.name || c.slug })))
+      })
+      .catch(() => {})
+  }, [])
+
+  const uploadImages = async (files: FileList) => {
     try {
       setUploading(true)
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('type', 'products')
-      const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error || 'Erreur upload')
-      setImage(d.url)
+      const room = MAX_PHOTOS - photos.length
+      for (const file of Array.from(files).slice(0, room)) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('type', 'products')
+        const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' })
+        const d = await res.json()
+        if (!res.ok) throw new Error(d.error || 'Erreur upload')
+        setPhotos(prev => [...prev, d.url].slice(0, MAX_PHOTOS))
+      }
     } catch (e: any) {
       setError(e.message)
     } finally {
       setUploading(false)
+      if (fileInput.current) fileInput.current.value = ''
     }
   }
+
+  const removePhoto = (i: number) => setPhotos(prev => prev.filter((_, idx) => idx !== i))
+  const promotePhoto = (i: number) =>
+    setPhotos(prev => (i <= 0 ? prev : [prev[i], ...prev.filter((_, idx) => idx !== i)]))
+
+  const setGroup = (gi: number, patch: Partial<VariantGroupRow>) =>
+    setVariantGroups(prev => prev.map((g, i) => (i === gi ? { ...g, ...patch } : g)))
+  const setVariant = (gi: number, vi: number, patch: Partial<VariantRow>) =>
+    setVariantGroups(prev =>
+      prev.map((g, i) => (i === gi ? { ...g, variants: g.variants.map((v, j) => (j === vi ? { ...v, ...patch } : v)) } : g))
+    )
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setSaving(true); setError(null)
+
+      const groups = variantGroups
+        .map(g => ({
+          name: g.name.trim(),
+          variants: g.variants
+            .filter(v => v.name.trim())
+            .map((v, i) => ({
+              name: v.name.trim(),
+              priceFCFA: v.price ? parseInt(v.price, 10) : undefined,
+              stock: v.stock ? parseInt(v.stock, 10) : undefined,
+              image: v.imageIndex !== '' ? photos[parseInt(v.imageIndex, 10)] : undefined,
+              isDefault: i === 0,
+            })),
+        }))
+        .filter(g => g.name && g.variants.length > 0)
+
+      const tiers = priceTiers
+        .filter(t => parseInt(t.minQty, 10) >= 2 && parseInt(t.price, 10) >= 1)
+        .map(t => ({ minQty: parseInt(t.minQty, 10), price: parseInt(t.price, 10) }))
+
       const res = await fetch('/api/vendor/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -394,7 +467,15 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
           category: form.category || undefined,
           price: parseInt(form.price, 10),
           stockQuantity: parseInt(form.stockQuantity || '0', 10),
-          image: image || undefined,
+          image: photos[0],
+          gallery: photos,
+          condition: form.condition,
+          deliveryDays: form.deliveryDays ? parseInt(form.deliveryDays, 10) : undefined,
+          weightKg: form.weightKg ? parseFloat(form.weightKg) : undefined,
+          tags: form.tags.split(',').map(t => t.trim()).filter(Boolean).slice(0, 10),
+          features: features.map(f => f.trim()).filter(Boolean).slice(0, 10),
+          variantGroups: groups.length ? groups : undefined,
+          priceTiers: tiers.length ? tiers : undefined,
         }),
       })
       const d = await res.json()
@@ -411,32 +492,56 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
       <div
-        className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 p-5 md:p-6"
+        className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 p-5 md:p-6"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">Nouveau produit</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-            <ImageIcon className="hidden" /><span className="text-slate-400 text-lg leading-none">×</span>
+            <span className="text-slate-400 text-lg leading-none">×</span>
           </button>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            className="relative w-full aspect-video rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 overflow-hidden hover:border-emerald-500 transition group"
-          >
-            {image ? (
-              <img src={image} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full flex-col items-center justify-center text-slate-400 gap-1.5">
-                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon size={24} />}
-                <span className="text-[12px] font-semibold">Photo du produit</span>
-              </span>
-            )}
-          </button>
-          <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+          {/* Photos — multi-upload, première = principale */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Photos ({photos.length}/{MAX_PHOTOS})</label>
+              {photos.length > 1 && <span className="text-[10px] text-slate-400">Cliquez sur une photo pour la mettre en principale</span>}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {photos.map((url, i) => (
+                <div key={url} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group">
+                  <button type="button" onClick={() => promotePhoto(i)} className="block h-full w-full" title={i === 0 ? 'Photo principale' : 'Définir comme principale'}>
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </button>
+                  {i === 0 ? (
+                    <span className="absolute top-1 left-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">Principale</span>
+                  ) : (
+                    <span className="absolute top-1 left-1 rounded-md bg-slate-900/60 px-1.5 py-0.5 text-[9px] font-bold text-white opacity-0 group-hover:opacity-100 transition">★ 1re</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1 right-1 rounded-full bg-slate-900/70 p-1 text-white opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-1 hover:border-emerald-500 hover:text-emerald-600 transition"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon size={18} />}
+                  <span className="text-[10px] font-semibold">Ajouter</span>
+                </button>
+              )}
+            </div>
+            <input ref={fileInput} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files?.length && uploadImages(e.target.files)} />
+          </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nom *</label>
@@ -454,15 +559,160 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
             </div>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Catégorie</label>
-            <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls} placeholder="Ex : Électronique, Mode…" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Catégorie</label>
+              {categories.length > 0 ? (
+                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
+                  <option value="">— Choisir —</option>
+                  {categories.map(c => <option key={c.slug} value={c.name}>{c.name}</option>)}
+                </select>
+              ) : (
+                <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls} placeholder="Ex : Électronique, Mode…" />
+              )}
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">État</label>
+              <select value={form.condition} onChange={e => setForm({ ...form, condition: e.target.value })} className={inputCls}>
+                <option value="new">Neuf</option>
+                <option value="used">Occasion</option>
+                <option value="refurbished">Reconditionné</option>
+              </select>
+            </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Description</label>
             <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} maxLength={2000} className={inputCls} placeholder="Caractéristiques, état, délais…" />
           </div>
+
+          {/* Variantes */}
+          <Section
+            title="Variantes"
+            hint={variantGroups.length ? `${variantGroups.length} groupe(s) — couleur, taille…` : 'Couleur, taille, capacité… avec prix/stock spécifiques'}
+            open={open.variants}
+            onToggle={() => setOpen(o => ({ ...o, variants: !o.variants }))}
+          >
+            {variantGroups.map((g, gi) => (
+              <div key={gi} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={g.name}
+                    onChange={e => setGroup(gi, { name: e.target.value })}
+                    className={`${inputCls} flex-1`}
+                    placeholder="Nom du groupe : Couleur, Taille…"
+                  />
+                  <button type="button" onClick={() => setVariantGroups(prev => prev.filter((_, i) => i !== gi))} className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {g.variants.map((v, vi) => (
+                  <div key={vi} className="grid grid-cols-[1fr_80px_70px_70px_32px] gap-1.5 items-center">
+                    <input value={v.name} onChange={e => setVariant(gi, vi, { name: e.target.value })} className={inputCls} placeholder="Rouge, XL…" />
+                    <input type="number" min={0} value={v.price} onChange={e => setVariant(gi, vi, { price: e.target.value })} className={inputCls} placeholder="Prix" title="Prix spécifique (vide = prix de base)" />
+                    <input type="number" min={0} value={v.stock} onChange={e => setVariant(gi, vi, { stock: e.target.value })} className={inputCls} placeholder="Stock" title="Stock spécifique" />
+                    <select value={v.imageIndex} onChange={e => setVariant(gi, vi, { imageIndex: e.target.value })} className={inputCls} title="Photo associée">
+                      <option value="">Photo</option>
+                      {photos.map((_, pi) => <option key={pi} value={pi}>N°{pi + 1}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setGroup(gi, { variants: g.variants.filter((_, i) => i !== vi) })} className="p-1.5 text-slate-400 hover:text-red-500">
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setGroup(gi, { variants: [...g.variants, { name: '', price: '', stock: '', imageIndex: '' }] })}
+                  className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                >
+                  <Plus size={12} /> Ajouter une variante
+                </button>
+              </div>
+            ))}
+            {variantGroups.length < 3 && (
+              <button
+                type="button"
+                onClick={() => setVariantGroups(prev => [...prev, { name: '', variants: [{ name: '', price: '', stock: '', imageIndex: '' }] }])}
+                className="w-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-2.5 text-[12px] font-bold text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition flex items-center justify-center gap-1.5"
+              >
+                <Plus size={13} /> Ajouter un groupe de variantes
+              </button>
+            )}
+            <p className="text-[10px] text-slate-400">Prix/stock vides = le prix et stock de base du produit s'appliquent.</p>
+          </Section>
+
+          {/* Prix dégressifs */}
+          <Section
+            title="Prix dégressifs"
+            hint={priceTiers.length ? `${priceTiers.length} palier(s)` : 'Prix réduit par quantité — encourage le gros achat'}
+            open={open.tiers}
+            onToggle={() => setOpen(o => ({ ...o, tiers: !o.tiers }))}
+          >
+            {priceTiers.map((t, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_32px] gap-2 items-center">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-slate-400 whitespace-nowrap">Dès</span>
+                  <input type="number" min={2} value={t.minQty} onChange={e => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, minQty: e.target.value } : x)))} className={inputCls} placeholder="10" />
+                  <span className="text-[11px] text-slate-400">pièces</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input type="number" min={1} value={t.price} onChange={e => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className={inputCls} placeholder="13500" />
+                  <span className="text-[11px] text-slate-400">F/pc</span>
+                </div>
+                <button type="button" onClick={() => setPriceTiers(prev => prev.filter((_, j) => j !== i))} className="p-1.5 text-slate-400 hover:text-red-500">
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+            {priceTiers.length < 8 && (
+              <button
+                type="button"
+                onClick={() => setPriceTiers(prev => [...prev, { minQty: '', price: '' }])}
+                className="w-full rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-2.5 text-[12px] font-bold text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition flex items-center justify-center gap-1.5"
+              >
+                <Plus size={13} /> Ajouter un palier
+              </button>
+            )}
+          </Section>
+
+          {/* Détails */}
+          <Section
+            title="Détails & logistique"
+            hint="Points forts, tags, délai, poids"
+            open={open.details}
+            onToggle={() => setOpen(o => ({ ...o, details: !o.details }))}
+          >
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Points forts</label>
+              {features.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 mb-1.5">
+                  <input value={f} onChange={e => setFeatures(prev => prev.map((x, j) => (j === i ? e.target.value : x)))} className={`${inputCls} flex-1`} placeholder="Ex : Batterie 5000 mAh, garantie 1 an…" />
+                  <button type="button" onClick={() => setFeatures(prev => prev.filter((_, j) => j !== i))} className="p-1.5 text-slate-400 hover:text-red-500">
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+              {features.length < 10 && (
+                <button type="button" onClick={() => setFeatures(prev => [...prev, ''])} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                  <Plus size={12} /> Ajouter un point fort
+                </button>
+              )}
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Tags</label>
+              <input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className={inputCls} placeholder="sneakers, running, homme (séparés par des virgules)" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Délai livraison (jours)</label>
+                <input type="number" min={0} max={90} value={form.deliveryDays} onChange={e => setForm({ ...form, deliveryDays: e.target.value })} className={inputCls} placeholder="Ex : 2" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Poids (kg)</label>
+                <input type="number" min={0} step="0.1" value={form.weightKg} onChange={e => setForm({ ...form, weightKg: e.target.value })} className={inputCls} placeholder="Ex : 0.5" />
+              </div>
+            </div>
+          </Section>
 
           {error && <p className="text-[12px] font-semibold text-red-600">{error}</p>}
 

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
 import CartIcon from './CartIcon'
+import NotificationCenter from './NotificationCenter'
 import ThemeToggle from './ThemeToggle'
 import CategoryMegaMenu from './catalog/CategoryMegaMenu'
 import DDMLogo from './branding/DDMLogo'
@@ -173,6 +174,7 @@ export default function MarketHeader() {
           >
             <Heart className="h-5 w-5" />
           </Link>
+          <NotificationCenter />
           <CartIcon count={cartCount} />
           {compareCount > 0 && (
             <Link
@@ -208,6 +210,7 @@ export default function MarketHeader() {
 
         {/* Mobile toggle */}
         <div className="flex items-center gap-2 md:hidden">
+          <NotificationCenter />
           <CartIcon count={cartCount} />
           {compareCount > 0 && (
             <Link

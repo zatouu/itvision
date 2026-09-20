@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import { vendorShopQuery } from '@/lib/vendor'
+import { notifyAdmins } from '@/lib/notify'
 import Product from '@/lib/models/Product'
 import { z } from 'zod'
 
@@ -52,6 +53,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const variantSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  priceFCFA: z.number().int().min(0).optional(),
+  stock: z.number().int().min(0).optional(),
+  image: z.string().trim().max(500).optional(),
+  isDefault: z.boolean().optional(),
+})
+
 const createSchema = z.object({
   name: z.string().trim().min(3, 'Nom trop court (min. 3 caractères)').max(200),
   description: z.string().trim().max(2000).optional(),
@@ -60,6 +69,19 @@ const createSchema = z.object({
   stockQuantity: z.number().int().min(0).default(0),
   image: z.string().trim().max(500).optional(),
   gallery: z.array(z.string().trim().max(500)).max(8).optional(),
+  condition: z.enum(['new', 'used', 'refurbished']).default('new'),
+  tags: z.array(z.string().trim().max(50)).max(10).optional(),
+  features: z.array(z.string().trim().max(200)).max(10).optional(),
+  deliveryDays: z.number().int().min(0).max(90).optional(),
+  weightKg: z.number().min(0).max(10000).optional(),
+  variantGroups: z
+    .array(z.object({ name: z.string().trim().min(1).max(50), variants: z.array(variantSchema).min(1).max(20) }))
+    .max(3)
+    .optional(),
+  priceTiers: z
+    .array(z.object({ minQty: z.number().int().min(2), price: z.number().int().min(1) }))
+    .max(8)
+    .optional(),
 })
 
 // Le produit vendeur démarre non publié — validation admin avant mise en ligne.
@@ -86,7 +108,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }
 
-    const { name, description, category, price, stockQuantity, image, gallery } = parsed.data
+    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, variantGroups, priceTiers } = parsed.data
+
+    // Si des variantes définissent leur propre stock, le stock total = somme des stocks variantes
+    const variantStockSum = (variantGroups || [])
+      .flatMap(g => g.variants)
+      .reduce((acc, v) => acc + (v.stock ?? 0), 0)
+    const effectiveStock = variantStockSum > 0 ? variantStockSum : stockQuantity
+
     const product = await Product.create({
       name,
       description,
@@ -95,8 +124,15 @@ export async function POST(req: NextRequest) {
       currency: 'FCFA',
       image,
       gallery: gallery || (image ? [image] : []),
-      stockQuantity,
-      stockStatus: stockQuantity > 0 ? 'in_stock' : 'out_of_stock',
+      condition,
+      tags: tags || [],
+      features: features || [],
+      deliveryDays: deliveryDays ?? 0,
+      weightKg,
+      variantGroups: variantGroups || [],
+      priceTiers: priceTiers || [],
+      stockQuantity: effectiveStock,
+      stockStatus: effectiveStock > 0 ? 'in_stock' : 'out_of_stock',
       sellerName: vendor.name,
       sellerSlug: vendor.slug,
       sellerVerified: !!shop.isVerified,
@@ -104,8 +140,16 @@ export async function POST(req: NextRequest) {
       shopId: shop._id,
       isPublished: false,
       channels: ['marketplace'],
-      condition: 'new',
     })
+
+    notifyAdmins({
+      type: 'info',
+      title: 'Produit vendeur à valider',
+      message: `${vendor.name} a ajouté « ${product.name} » (${price.toLocaleString('fr-FR')} F) — en attente de publication.`,
+      actionUrl: '/admin/produits',
+      metadata: { productId: String(product._id), shopSlug: vendor.slug },
+      push: false,
+    }).catch(e => console.error('[vendor/products] notify failed:', e))
 
     return NextResponse.json({
       success: true,
