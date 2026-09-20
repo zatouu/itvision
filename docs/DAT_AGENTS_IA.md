@@ -255,3 +255,47 @@ Ordre suggéré : modération produit (ce doc) → payout → validation boutiqu
 - **`Command({resume})`** : relancer le graphe avec la réponse humaine
 - **HITL** : Human-In-The-Loop — l'humain tranche les décisions à impact
 - **Structured output** : forcer le LLM à répondre en JSON validé (zod), pas en texte libre
+
+---
+
+## 9. Agent implémenté n°2 — Veille sourcing 1688 (`sourcing_scan`)
+
+Deuxième agent, différent du premier : **pas de jugement LLM, pas d'interrupt** — c'est un agent *d'acquisition*. Son travail : naviguer sur 1688 comme un acheteur humain et ramener des produits. Le HITL n'est pas dans le graphe : il est **enchaîné** — chaque produit importé devient un brouillon qui déclenche `product_moderation`. Deux agents qui se passent le relais.
+
+### Le graphe
+
+```
+search → extract → score → importDrafts → report
+```
+
+| Nœud | Rôle | LLM ? |
+|---|---|---|
+| `search` | Page recherche 1688 → top N URLs d'offres | Non |
+| `extract` | Fiche par fiche (4-9s entre chaque — pacing humain) | Non |
+| `score` | Prix CNY→FCFA + marge 15% + frais 10% + assurance 2,5% via `computeProductPricing` | Non |
+| `importDrafts` | Brouillons `isPublished:false`, dédup par `sourcing.productUrl` | Non |
+| `report` | Enqueue `product_moderation` par brouillon + notif récap admin | Non |
+
+### Pourquoi zéro LLM ici
+
+L'extraction est du DOM parsing (déterministe, gratuit) et le pricing est une formule (la même que le checkout — jamais un LLM pour l'argent). Le LLM du graphe modération fournit le jugement en aval. Chaque agent fait ce qu'il fait de mieux.
+
+### Anti-blocage — ce qui change vs le scraper qui échouait
+
+- **Stealth réel** : `playwright-extra` + `puppeteer-extra-plugin-stealth` (dépendances déjà présentes, enfin branchées — fallback vanilla si indisponible)
+- **Profil persisté** (`SCRAPER_PROFILE_DIR`) : cookies/session 1688 conservés entre les scans. Une connexion manuelle unique (`headless:false` + login) persiste → franchit les murs de login
+- **Proxy** (`SCRAPER_PROXY`) : résidentiel recommandé, les IPs datacenter sont flaggées par Alibaba
+- **Pacing humain** : `humanDelay(4-9s)` entre les fiches, scroll progressif
+- **Arrêt propre** : 3 échecs consécutifs ou CAPTCHA → stop + notif admin « reconnectez la session ». Pas de contournement de CAPTCHA.
+
+### Concurrence
+
+`sourcing_scan` est borné à **1 job actif** (navigateur lourd, ~150-300MB) via `TYPE_CONCURRENCY` dans le worker — indépendant de la concurrence globale.
+
+### Déclenchement
+
+`POST /api/admin/sourcing { query, category?, maxItems?, groupBuyEligible? }` → UI `/admin/sourcing` (sidebar « Veille 1688 ») avec historique des scans. Option `groupBuyEligible` → brouillons pré-configurés pour achats groupés (min 5, cible 20).
+
+### Rythme visé (~20 produits/jour)
+
+Un scan de 20 offres ≈ 3-5 min de navigation. Lancer 1-2 scans/jour par catégorie suffit. Le goulot n'est pas l'agent — c'est la file de modération (volontaire : la qualité prime sur le volume).

@@ -16,6 +16,8 @@ interface ScraperConfig {
   userAgent?: string
   viewport?: { width: number; height: number }
   timeout?: number
+  /** Répertoire de profil Chromium persisté (cookies/session survivent entre les runs) */
+  profileDir?: string
 }
 
 interface ScrapingResult<T> {
@@ -116,6 +118,7 @@ const DEFAULT_VIEWPORTS = [
 
 export class BrowserScraper {
   private browser: Browser | null = null
+  private persistentContext: BrowserContext | null = null
   private config: ScraperConfig
 
   constructor(config: ScraperConfig = {}) {
@@ -126,8 +129,29 @@ export class BrowserScraper {
     }
   }
 
+  /**
+   * Lanceur Chromium avec plugin stealth si disponible (playwright-extra),
+   * sinon fallback sur playwright vanilla. Le stealth masque les empreintes
+   * headless (webdriver, WebGL, fonts...) que les simples init scripts ne couvrent pas.
+   */
+  private async getLauncher(): Promise<typeof chromium> {
+    try {
+      const extra = await import('playwright-extra')
+      const stealthMod = (await import('puppeteer-extra-plugin-stealth')) as { default?: () => unknown }
+      const stealthFactory = stealthMod.default || (stealthMod as unknown as () => unknown)
+      extra.chromium.use(stealthFactory() as never)
+      return extra.chromium as unknown as typeof chromium
+    } catch (e) {
+      console.warn('[scraper] Stealth indisponible, fallback playwright vanilla:', (e as Error).message)
+      return chromium
+    }
+  }
+
   async init(): Promise<void> {
-    if (this.browser) return
+    if (this.browser || this.persistentContext) return
+
+    const proxy = this.config.proxy || process.env.SCRAPER_PROXY
+    const profileDir = this.config.profileDir || process.env.SCRAPER_PROFILE_DIR
 
     const launchOptions: any = {
       headless: this.config.headless,
@@ -144,14 +168,40 @@ export class BrowserScraper {
       ],
     }
 
-    if (this.config.proxy) {
-      launchOptions.proxy = { server: this.config.proxy }
+    if (proxy) {
+      launchOptions.proxy = { server: proxy }
     }
 
-    this.browser = await chromium.launch(launchOptions)
+    const launcher = await this.getLauncher()
+
+    // Profil persisté : cookies/session (ex. login 1688) réutilisés entre les runs.
+    // Indispensable contre les murs de login — une connexion manuelle reste valable.
+    if (profileDir) {
+      const userAgent = this.config.userAgent ||
+        DEFAULT_USER_AGENTS[Math.floor(Math.random() * DEFAULT_USER_AGENTS.length)]
+      const viewport = this.config.viewport ||
+        DEFAULT_VIEWPORTS[Math.floor(Math.random() * DEFAULT_VIEWPORTS.length)]
+
+      this.persistentContext = await launcher.launchPersistentContext(profileDir, {
+        ...launchOptions,
+        userAgent,
+        viewport,
+        locale: 'fr-FR',
+        timezoneId: 'Europe/Paris',
+        colorScheme: 'light',
+      })
+      await this.patchContext(this.persistentContext)
+      return
+    }
+
+    this.browser = await launcher.launch(launchOptions)
   }
 
   async close(): Promise<void> {
+    if (this.persistentContext) {
+      await this.persistentContext.close()
+      this.persistentContext = null
+    }
     if (this.browser) {
       await this.browser.close()
       this.browser = null
@@ -159,6 +209,7 @@ export class BrowserScraper {
   }
 
   private async createContext(): Promise<BrowserContext> {
+    if (this.persistentContext) return this.persistentContext
     if (!this.browser) throw new Error('Browser not initialized')
 
     const userAgent = this.config.userAgent || 
@@ -176,6 +227,11 @@ export class BrowserScraper {
       colorScheme: 'light',
     })
 
+    await this.patchContext(context)
+    return context
+  }
+
+  private async patchContext(context: BrowserContext): Promise<void> {
     // Inject script pour masquer automation
     await context.addInitScript(() => {
       // Workaround tsx/esbuild + Playwright: __name helper injecté par le transpileur
@@ -203,8 +259,6 @@ export class BrowserScraper {
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters)
     })
-
-    return context
   }
 
   private async scrapeWithRetry<T>(
@@ -236,7 +290,9 @@ export class BrowserScraper {
         // Extraction des données
         const data = await extractor(page)
 
-        await context.close()
+        // Contexte persisté : on ferme seulement l'onglet, la session survit
+        if (this.persistentContext) await page.close()
+        else await context.close()
 
         return {
           success: true,
@@ -246,7 +302,8 @@ export class BrowserScraper {
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
-        await context.close()
+        if (this.persistentContext) await page.close().catch(() => {})
+        else await context.close()
 
         if (attempt < maxRetries) {
           // Backoff exponentiel avec jitter
@@ -278,6 +335,53 @@ export class BrowserScraper {
   }
 
   // ======== EXTRACTEURS SPÉCIFIQUES ========
+
+  /**
+   * Recherche 1688 → URLs d'offres. Utilisé par l'agent de veille sourcing.
+   * 1688 sert parfois un mur de login/CAPTCHA sur la recherche anonyme :
+   * le profil persisté + une session authentifiée réduisent fortement ce cas.
+   */
+  async search1688(query: string, limit = 20): Promise<ScrapingResult<string[]>> {
+    const endpoints = [
+      `https://s.1688.com/selloffer/offer_search.htm?keywords=${encodeURIComponent(query)}`,
+      `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(query)}`,
+    ]
+
+    let lastResult: ScrapingResult<string[]> | null = null
+    for (const searchUrl of endpoints) {
+      const result = await this.scrapeWithRetry(searchUrl, async (page) => {
+        // Les liens d'offres apparaissent après le rendu JS de la grille résultats
+        await page.waitForSelector('a[href*="detail.1688.com/offer/"], a[href*="//detail.1688.com"]', {
+          timeout: 15000,
+        }).catch(() => {})
+
+        const rawUrls = await page.$$eval(
+          'a[href*="detail.1688.com/offer/"], a[href*="/offer/"]',
+          (els) => els.map((el) => (el as HTMLAnchorElement).href).filter(Boolean)
+        )
+
+        const seen = new Set<string>()
+        const urls: string[] = []
+        for (const u of rawUrls) {
+          const m = u.match(/offer\/(\d+)\.html/)
+          if (!m || seen.has(m[1])) continue
+          seen.add(m[1])
+          urls.push(`https://detail.1688.com/offer/${m[1]}.html`)
+          if (urls.length >= limit) break
+        }
+        if (urls.length === 0) {
+          // Page sans offres = probablement bloquée (login wall / CAPTCHA)
+          const title = await page.title().catch(() => '')
+          throw new Error(`SEARCH_EMPTY: aucune offre extraite (${title || 'page vide'})`)
+        }
+        return urls
+      }, 2)
+
+      lastResult = result
+      if (result.success) return result
+    }
+    return lastResult || { success: false, error: 'Recherche échouée', attempts: 0, durationMs: 0 }
+  }
 
   async scrape1688(url: string): Promise<ScrapingResult<Product1688>> {
     return this.scrapeWithRetry(url, async (page) => {
@@ -827,6 +931,16 @@ export async function scrapeAliExpressWithBrowser(url: string): Promise<Scraping
   } finally {
     await scraper.close()
   }
+}
+
+/**
+ * Pause « humaine » entre deux actions de l'agent sourcing.
+ * Un bot qui enchaîne les pages en 200ms est flaggé instantanément ;
+ * un humain lit une fiche en 5-15s. Le jitter évite les patterns réguliers.
+ */
+export function humanDelay(minMs = 4000, maxMs = 9000): Promise<void> {
+  const ms = minMs + Math.random() * (maxMs - minMs)
+  return new Promise((r) => setTimeout(r, ms))
 }
 
 export type { ScrapingResult, Product1688, ProductAliExpress, ScraperConfig }

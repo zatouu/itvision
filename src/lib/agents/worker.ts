@@ -7,31 +7,48 @@
 import { connectMongoose } from '@/lib/mongoose'
 import AgentJob from '@/lib/models/AgentJob'
 import { runProductModeration } from './moderation/run'
+import { runSourcingScan } from './sourcing/run'
 
 const POLL_MS = parseInt(process.env.AGENT_POLL_MS || '15000', 10)
 const CONCURRENCY = Math.max(1, parseInt(process.env.AGENT_CONCURRENCY || '3', 10))
 const MAX_ATTEMPTS = 3
 
-const RUNNERS: Record<string, (jobId: string, refId: string) => Promise<void>> = {
-  product_moderation: runProductModeration,
+// Concurrence max PAR TYPE : un navigateur Chrome par scan sourcing max —
+// deux Chromium simultanés satureraient la RAM du conteneur.
+const TYPE_CONCURRENCY: Record<string, number> = {
+  sourcing_scan: 1,
+}
+
+const RUNNERS: Record<string, (job: any) => Promise<void>> = {
+  product_moderation: (job) => runProductModeration(String(job._id), job.refId),
+  sourcing_scan: (job) => runSourcingScan(job),
 }
 
 let started = false
 let running = 0
+const runningByType = new Map<string, number>()
 
 async function tick(): Promise<boolean> {
   if (running >= CONCURRENCY) return false
+  // Types dont la concurrence par-type est saturée → exclus du claim
+  const saturated = Object.entries(TYPE_CONCURRENCY)
+    .filter(([t, max]) => (runningByType.get(t) || 0) >= max)
+    .map(([t]) => t)
+  const allowedTypes = Object.keys(RUNNERS).filter((t) => !saturated.includes(t))
+  if (allowedTypes.length === 0) return false
+
   // Claim atomique : le premier worker qui pose 'running' gagne le job
   const job = await AgentJob.findOneAndUpdate(
-    { status: 'pending', runAfter: { $lte: new Date() }, type: { $in: Object.keys(RUNNERS) } },
+    { status: 'pending', runAfter: { $lte: new Date() }, type: { $in: allowedTypes } },
     { $set: { status: 'running' }, $inc: { attempts: 1 } },
     { sort: { createdAt: 1 }, new: true }
   )
   if (!job) return false
 
   running++
+  runningByType.set(job.type, (runningByType.get(job.type) || 0) + 1)
   const runner = RUNNERS[job.type]
-  runner(String(job._id), job.refId)
+  runner(job)
     .catch(async (e: any) => {
       console.error(`[agent-worker] job ${job._id} (${job.type}) failed:`, e?.message)
       const attempts = job.attempts ?? 1
@@ -46,7 +63,10 @@ async function tick(): Promise<boolean> {
         console.error('[agent-worker] failed to update job:', e2)
       }
     })
-    .finally(() => { running-- })
+    .finally(() => {
+      running--
+      runningByType.set(job.type, (runningByType.get(job.type) || 1) - 1)
+    })
   return true
 }
 

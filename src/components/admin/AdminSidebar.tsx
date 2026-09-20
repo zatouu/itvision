@@ -103,6 +103,12 @@ const menuSections: MenuSection[] = [
         label: 'Copilote IA',
         icon: Bot,
         href: '/admin/copilot'
+      },
+      {
+        id: 'sourcing',
+        label: 'Veille 1688',
+        icon: Globe,
+        href: '/admin/sourcing'
       }
     ]
   },
