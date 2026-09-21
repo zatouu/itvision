@@ -371,6 +371,9 @@ export class BrowserScraper {
         if (this.persistentContext) await page.close().catch(() => {})
         else await context.close()
 
+        // Offre délistée / page explicitement morte : retenter ne sert à rien.
+        if (lastError.message.startsWith('DELISTED:')) break
+
         if (attempt < maxRetries) {
           // Backoff exponentiel avec jitter
           const delay = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 1000, 10000)
@@ -451,6 +454,13 @@ export class BrowserScraper {
 
   async scrape1688(url: string, maxRetries = 3): Promise<ScrapingResult<Product1688>> {
     return this.scrapeWithRetry(url, async (page) => {
+        // Offre délistée/retirée : page 200 mais sans prix — fréquent sur les
+        // URLs remontées par les moteurs (index contient des offres mortes).
+        const bodyStart = await page.evaluate(() => document.body?.innerText?.slice(0, 3000) || '')
+        if (/商品已下架|已下架|该商品不存在|商品不存在|页面不存在|很抱歉.*该宝贝/.test(bodyStart)) {
+          throw new Error('DELISTED: offre retirée du catalogue 1688')
+        }
+
         // Attendre le chargement du titre (dynamique sur 1688)
         await page.waitForFunction(() => {
           const h1 = document.querySelector('h1')

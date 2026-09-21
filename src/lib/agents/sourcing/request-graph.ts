@@ -26,7 +26,7 @@ import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 
 const MAX_CANDIDATES = 5
-const EXTRACT_LIMIT = 6 // on scrape un peu plus que nécessaire (certains échouent)
+const EXTRACT_LIMIT = 8 // ~moitié des URLs moteurs sont délistées/mortes — on en tente plus
 
 const RequestState = Annotation.Root({
   requestId: Annotation<string>,
@@ -71,7 +71,7 @@ async function search(state: typeof RequestState.State) {
   if (state.directUrls.length > 0) {
     return { offerUrls: state.directUrls, candidates: [] as Product1688[] }
   }
-  const { urls, blockedReason } = await discover1688Urls(state.query, EXTRACT_LIMIT + 2)
+  const { urls, blockedReason } = await discover1688Urls(state.query, EXTRACT_LIMIT + 4)
   return { offerUrls: urls, candidates: [] as Product1688[], blockedReason }
 }
 

@@ -32,7 +32,9 @@
  */
 
 import dotenv from 'dotenv'
-dotenv.config({ path: '.env.local' })
+// WORKER_ENV_FILE permet de pointer une env dédiée (ex: .env.worker avec
+// MONGODB_URI vers la prod via tunnel SSH) sans toucher à .env.local.
+dotenv.config({ path: process.env.WORKER_ENV_FILE || '.env.local' })
 dotenv.config() // .env en fallback pour les clés manquantes
 import { execSync } from 'child_process'
 import fs from 'fs'

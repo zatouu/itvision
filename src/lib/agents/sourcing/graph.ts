@@ -18,6 +18,7 @@ import Product from '@/lib/models/Product'
 import { notifyAdmins } from '@/lib/notify'
 import { enqueueAgentJob } from '../queue'
 import { BrowserScraper, humanDelay, Product1688, ScrapingResult, search1688ViaEngines } from '@/lib/browser-scraper'
+import { toChineseQuery } from './query-translate'
 import { computeProductPricing } from '@/lib/logistics'
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 
@@ -79,8 +80,13 @@ export async function discover1688Urls(
   query: string,
   maxItems: number
 ): Promise<{ urls: string[]; blockedReason?: string }> {
-  console.log(`[sourcing] recherche moteurs pour « ${query} »…`)
-  const engineUrls = await search1688ViaEngines(query, maxItems)
+  // Les listings 1688 sont chinois : traduire la requête FR avant la
+  // recherche moteurs, sinon les résultats sont hors-sujet.
+  const zhQuery = await toChineseQuery(query)
+  if (zhQuery !== query) console.log(`[sourcing] requête traduite : « ${query} » → « ${zhQuery} »`)
+
+  console.log(`[sourcing] recherche moteurs pour « ${zhQuery} »…`)
+  const engineUrls = await search1688ViaEngines(zhQuery, maxItems)
   console.log(`[sourcing] moteurs → ${engineUrls.length} URLs`)
   if (engineUrls.length > 0) return { urls: engineUrls }
 
@@ -92,7 +98,7 @@ export async function discover1688Urls(
   }
   console.log('[sourcing] moteurs vides — fallback navigateur 1688')
   const s = await getScraper()
-  const result = await s.search1688(query, maxItems)
+  const result = await s.search1688(zhQuery, maxItems)
   if (!result.success || !result.data?.length) {
     const reason = result.error || 'aucun résultat'
     return { urls: [], blockedReason: BLOCK_PATTERNS.test(reason) ? reason : undefined }
