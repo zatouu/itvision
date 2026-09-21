@@ -8,6 +8,7 @@
 
 import { chromium, Browser, BrowserContext, Page } from 'playwright'
 import fs from 'fs/promises'
+import fsSync from 'fs'
 import path from 'path'
 
 interface ScraperConfig {
@@ -119,6 +120,7 @@ const DEFAULT_VIEWPORTS = [
 export class BrowserScraper {
   private browser: Browser | null = null
   private persistentContext: BrowserContext | null = null
+  private profileDir: string | null = null
   private config: ScraperConfig
 
   constructor(config: ScraperConfig = {}) {
@@ -155,6 +157,12 @@ export class BrowserScraper {
 
     const launchOptions: any = {
       headless: this.config.headless,
+      // 'chromium' = vrai binaire Chrome en headless new-mode au lieu de
+      // chrome-headless-shell (empreinte différente, flaggée par le 风控 1688).
+      channel: 'chromium',
+      // --enable-automation est ajouté par défaut par Playwright et rend le
+      // navigateur détectable immédiatement par les anti-bots (1688, Taobao).
+      ignoreDefaultArgs: ['--enable-automation'],
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -177,8 +185,19 @@ export class BrowserScraper {
     // Profil persisté : cookies/session (ex. login 1688) réutilisés entre les runs.
     // Indispensable contre les murs de login — une connexion manuelle reste valable.
     if (profileDir) {
+      // Un navigateur zombie tenant le profil lock la base Cookies : la session
+      // tomberait silencieusement en mémoire et rien ne persisterait.
+      try {
+        const cookiesDb = path.join(profileDir, 'Default', 'Network', 'Cookies')
+        if (fsSync.existsSync(cookiesDb)) fsSync.closeSync(fsSync.openSync(cookiesDb, 'r+'))
+      } catch {
+        console.warn('[scraper] Profil verrouillé par un process zombie — la session ne persistera pas')
+      }
+      // UA FIXE avec profil persisté : la session login est liée à l'empreinte
+      // navigateur — un UA aléatoire à chaque run invaliderait les cookies.
       const userAgent = this.config.userAgent ||
-        DEFAULT_USER_AGENTS[Math.floor(Math.random() * DEFAULT_USER_AGENTS.length)]
+        process.env.SCRAPER_USER_AGENT ||
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
       const viewport = this.config.viewport ||
         DEFAULT_VIEWPORTS[Math.floor(Math.random() * DEFAULT_VIEWPORTS.length)]
 
@@ -191,14 +210,50 @@ export class BrowserScraper {
         colorScheme: 'light',
       })
       await this.patchContext(this.persistentContext)
+      this.profileDir = profileDir
+      await this.restoreSessionCookies()
       return
     }
 
     this.browser = await launcher.launch(launchOptions)
   }
 
+  /**
+   * Chromium supprime les cookies de session (cookie2, _tb_token_… — justement
+   * ceux du login 1688) au redémarrage. On contourne en exportant l'état complet
+   * vers storage-state.json à la fermeture et en le réinjectant à l'init.
+   */
+  private stateFile(): string {
+    return path.join(this.profileDir!, 'storage-state.json')
+  }
+
+  private async restoreSessionCookies(): Promise<void> {
+    if (!this.persistentContext || !this.profileDir) return
+    try {
+      const raw = await fs.readFile(this.stateFile(), 'utf8')
+      const state = JSON.parse(raw) as { cookies?: Array<Record<string, unknown>> }
+      const cookies = (state.cookies || [])
+        .filter((c) => typeof c.name === 'string' && typeof c.value === 'string')
+        .map((c) => {
+          const out = { ...c }
+          if (typeof out.expires === 'number' && out.expires <= 0) delete out.expires
+          return out
+        })
+      if (cookies.length) {
+        await this.persistentContext.addCookies(cookies as never)
+      }
+    } catch {
+      // Pas d'état sauvegardé (premier run) ou fichier corrompu — on continue.
+    }
+  }
+
   async close(): Promise<void> {
     if (this.persistentContext) {
+      try {
+        await this.persistentContext.storageState({ path: this.stateFile() })
+      } catch {
+        // Contexte déjà fermé ou mort — le profil garde au moins les cookies datés.
+      }
       await this.persistentContext.close()
       this.persistentContext = null
     }

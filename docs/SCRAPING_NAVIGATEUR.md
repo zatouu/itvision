@@ -38,10 +38,23 @@
 - **Stealth** : `playwright-extra` + `puppeteer-extra-plugin-stealth`
   (fallback playwright vanilla si indisponible) + init script maison
   (`navigator.webdriver`, plugins, languages, chrome.runtime, permissions)
-- **Profil persisté** `SCRAPER_PROFILE_DIR` : cookies/session 1688 conservés
-  entre les runs — un login manuel (`browser-login.ts`) débloque la
-  recherche interne et améliore fortement le taux de réussite des fiches
-- **User-agents et viewports réels**, arguments Chromium anti-automation
+- **Profil persisté** `SCRAPER_PROFILE_DIR` + **`storage-state.json`** :
+  Chromium supprime les cookies de session (`cookie2`, `_tb_token_` — ceux
+  du login) au redémarrage. Le scraper exporte l'état complet via
+  `storageState()` à la fermeture et le réinjecte à l'init — la session
+  survit vraiment aux runs.
+- **UA fixe** avec profil persisté (`SCRAPER_USER_AGENT` pour override) :
+  l'empreinte navigateur est liée aux cookies — un UA aléatoire invalide
+  la session.
+- **`channel: 'chromium'`** : le vrai binaire Chrome en headless new-mode
+  au lieu de `chrome-headless-shell` (empreinte flaggée par le 风控).
+- **`--enable-automation` retiré** (`ignoreDefaultArgs`) : flag de
+  détection automation immédiat.
+- **Garde anti-zombie** : si un navigateur orphelin tient le lock SQLite
+  du profil, les cookies basculent en mémoire et rien ne persiste —
+  warning `[scraper] Profil verrouillé` au démarrage.
+- **Pacing humain** (`humanDelay` 3-9s entre fiches) — un bot qui enchaîne
+  en 200ms est flaggé instantanément
 - **Pacing humain** (`humanDelay` 3-9s entre fiches) — un bot qui enchaîne
   en 200ms est flaggé instantanément
 - **Timeout dur 120s + 1 retry** par fiche — une page qui traîne ne bloque
@@ -70,7 +83,10 @@
    client 1688 (les fiches produit passent anonymement)
 2. **Moteurs de recherche** — `site:detail.1688.com` sur DuckDuckGo/Bing en
    fetch simple (pas de navigateur, pas de login)
-3. **Recherche interne 1688** — seulement si session persistée authentifiée
+3. **Recherche interne 1688** — **opt-in** `SCRAPER_1688_INTERNAL_SEARCH=1` :
+   le 风控 Alibaba (`_____tmd_____` challenge) la mure même avec session
+   authentifiée sur IP non chinoise — testé loggé, headed et headless.
+   Pertinent seulement pour un worker sur IP résidentielle chinoise.
 
 ## Worker standalone (IP résidentielle)
 
@@ -90,16 +106,18 @@ Un seul worker à la fois (PID file `data/agent-worker.pid`). Les jobs restés
 ## Configuration
 
 ```bash
-SCRAPER_PROFILE_DIR=data/browser-profile   # session persistée
+SCRAPER_PROFILE_DIR=data/browser-profile   # session persistée (+ storage-state.json)
 SCRAPER_PROXY=http://user:pass@host:port   # optionnel
 SCRAPER_HEADLESS=false                     # navigateur visible (debug/login)
+SCRAPER_USER_AGENT=...                     # UA fixe du profil (override)
+SCRAPER_1688_INTERNAL_SEARCH=1             # recherche interne s.1688 (IP chinoise)
 AGENT_WORKER_TYPES=sourcing_scan           # filtre de types de jobs
 ```
 
 ## Limitations connues
 
-1. **Recherche interne 1688** — mur `login.taobao.com` en anonyme ; fiches
-   directes OK. C'est pourquoi la découverte passe par les moteurs.
+1. **Recherche interne 1688** — challenge 风控 `_____tmd_____` même loggé
+   (comportemental, pas juste auth) → moteurs + URLs directes = chemin nominal.
 2. **Rate-limiting IP** — ~15-20 fiches anonymes avant CAPTCHA ; la session
    loggée lève largement ce plafond.
 3. **Taobao/Tmall** — non supporté.

@@ -84,6 +84,12 @@ export async function discover1688Urls(
   console.log(`[sourcing] moteurs → ${engineUrls.length} URLs`)
   if (engineUrls.length > 0) return { urls: engineUrls }
 
+  // La recherche interne s.1688.com est protégée par le 风控 Alibaba : mur de
+  // login même avec session authentifiée sur IP non chinoise. Opt-in uniquement
+  // (worker hébergé en Chine : SCRAPER_1688_INTERNAL_SEARCH=1).
+  if (process.env.SCRAPER_1688_INTERNAL_SEARCH !== '1') {
+    return { urls: [] }
+  }
   console.log('[sourcing] moteurs vides — fallback navigateur 1688')
   const s = await getScraper()
   const result = await s.search1688(query, maxItems)
