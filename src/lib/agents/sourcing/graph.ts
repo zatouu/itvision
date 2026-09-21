@@ -17,7 +17,7 @@ import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
 import Product from '@/lib/models/Product'
 import { notifyAdmins } from '@/lib/notify'
 import { enqueueAgentJob } from '../queue'
-import { BrowserScraper, humanDelay, Product1688, search1688ViaEngines } from '@/lib/browser-scraper'
+import { BrowserScraper, humanDelay, Product1688, ScrapingResult, search1688ViaEngines } from '@/lib/browser-scraper'
 import { computeProductPricing } from '@/lib/logistics'
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 
@@ -133,22 +133,35 @@ async function extract(state: typeof SourcingState.State) {
     const t0 = Date.now()
     // 1 seul retry interne + timeout dur 120s : un échec sur une URL
     // ne doit pas bloquer le scan entier.
-    const result = await Promise.race([
+    const result = await Promise.race<Promise<ScrapingResult<Product1688>>>([
       s.scrape1688(url, 1),
-      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout 120s')), 120000)),
-    ]).catch((e: Error) => ({ success: false as const, error: e.message, attempts: 0, durationMs: 0 }))
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 120s')), 120000)) as Promise<ScrapingResult<Product1688>>,
+    ]).catch((e: Error) => ({ success: false, error: e.message, attempts: 0, durationMs: 0 }) as ScrapingResult<Product1688>)
     console.log(`[sourcing] ${result.success ? '✓' : '✗'} ${url} (${Math.round((Date.now() - t0) / 1000)}s)`)
-    if (result.success && result.data?.name && result.data?.price1688) {
-      extracted.push(result.data)
+    const d = result.data
+    // Qualité : nom générique/entreprise = extraction ratée ; prix < 2 CNY =
+    // quasi toujours un acompte (定金) ou accessoire — pas un produit vendable.
+    const nameOk = !!d?.name && d.name !== 'Produit 1688' && !/公司|co\.?\s*ltd|company|factory|厂/i.test(d.name)
+    const priceOk = typeof d?.price1688 === 'number' && d.price1688 >= 2
+    if (result.success && nameOk && priceOk) {
+      extracted.push(d)
       consecutiveFailures = 0
     } else {
       failed.push(url)
-      consecutiveFailures++
-      const err = result.error || ''
-      // Enchaînement d'échecs ou signal de blocage → on stoppe proprement
-      if (BLOCK_PATTERNS.test(err) || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        blockedReason = err || `${consecutiveFailures} échecs consécutifs`
-        break
+      // Skip qualité ≠ échec réseau : la page a chargé, on ne la compte pas
+      // dans le détecteur de blocage.
+      const qualitySkip = result.success && (!nameOk || !priceOk)
+      if (!qualitySkip) {
+        consecutiveFailures++
+        const err = result.error || ''
+        // Enchaînement d'échecs ou signal de blocage → on stoppe proprement
+        if (BLOCK_PATTERNS.test(err) || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          blockedReason = err || `${consecutiveFailures} échecs consécutifs`
+          break
+        }
+      } else {
+        consecutiveFailures = 0
+        console.log(`[sourcing] ignoré (qualité) — nom:«${d?.name?.slice(0, 40)}» prix:¥${d?.price1688}`)
       }
     }
   }

@@ -39,6 +39,7 @@ export default function AdminSourcingPage() {
   const [launching, setLaunching] = useState(false)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
+  const [urls, setUrls] = useState('')
   const [category, setCategory] = useState('')
   const [maxItems, setMaxItems] = useState(10)
   const [groupBuyEligible, setGroupBuyEligible] = useState(true)
@@ -76,7 +77,8 @@ export default function AdminSourcingPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          query: query.trim(),
+          query: query.trim() || undefined,
+          urls: urls.trim() ? urls.split('\n').map((u) => u.trim()).filter(Boolean) : undefined,
           category: category || undefined,
           maxItems,
           groupBuyEligible,
@@ -87,6 +89,7 @@ export default function AdminSourcingPage() {
         setFormError(data.error || 'Erreur au lancement')
       } else {
         setQuery('')
+        setUrls('')
         await load()
       }
     } catch {
@@ -128,10 +131,20 @@ export default function AdminSourcingPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="ex : 蓝牙耳机 (écouteurs bluetooth)"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
-                required
-                minLength={2}
               />
             </div>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-4">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+              Ou URLs d&apos;offres 1688 directes (une par ligne — ex : liens de vos contacts)
+            </label>
+            <textarea
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              placeholder={'https://detail.1688.com/offer/123456789.html\nhttps://detail.1688.com/offer/987654321.html'}
+              rows={2}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Catégorie catalogue</label>
@@ -171,7 +184,7 @@ export default function AdminSourcingPage() {
           </label>
           <button
             type="submit"
-            disabled={launching || query.trim().length < 2}
+            disabled={launching || (query.trim().length < 2 && urls.trim().length === 0)}
             className="sm:ml-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {launching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}

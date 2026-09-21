@@ -322,3 +322,14 @@ tunnel SSH `ssh -L 27017:localhost:27017 …`).
 Alternative : `SCRAPER_PROXY=socks5://…` vers un proxy exposé sur la box
 (microsocks/3proxy + Tailscale) — utile si le serveur doit garder le worker,
 mais dépend de la disponibilité du tunnel.
+
+### Résultats du test réel (machine locale, IP résidentielle)
+
+- Recherche interne 1688 anonyme → **mur login.taobao.com** ; site mobile → CAPTCHA slider
+- **Fiches produit directes : accessibles anonymement** (extraction complète OK)
+- **Découverte via moteurs** (`site:detail.1688.com` sur DuckDuckGo/Bing en fetch simple) → 4 URLs sans login
+- Chaîne complète validée : scan → brouillons → `product_moderation` enchaîné → `AgentDecision` → `Command(resume)` admin → `isPublished:true`
+- Ordre de découverte dans `search` : `payload.urls` directs → moteurs → recherche interne (si session loggée)
+- Filtre qualité : prix < 2 CNY (acomptes/定金) et noms entreprise (公司/co.ltd/厂) écartés — un skip qualité ne déclenche pas le détecteur de blocage
+- Ne PAS bloquer les ressources `image` : 1688 détecte et re-navigue. Seuls `media`/`font`/trackers sont abortés.
+- Fix extraction nom : `document.title` nettoyé (le `h1` porte le nom du fournisseur)

@@ -273,6 +273,17 @@ export class BrowserScraper {
       const context = await this.createContext()
       const page = await context.newPage()
 
+      // Bloquer les ressources lourdes inutiles pour l'extraction (vidéos,
+      // fonts) et les trackers analytics. Les images restent chargées :
+      // les bloquer déclenche une re-navigation sur 1688 (testé).
+      await page.route('**/*', (route) => {
+        const req = route.request()
+        const type = req.resourceType()
+        if (type === 'media' || type === 'font') return route.abort()
+        if (/analytics|track|beacon|log\.|mmstat|go{{0}}83|umeng|atool/i.test(req.url())) return route.abort()
+        return route.continue()
+      })
+
       try {
         // Navigation : domcontentloaded est plus robuste que networkidle sur 1688/AE
         // (beaucoup de requêtes analytics/temps réel empêchent networkidle de se déclencher)
