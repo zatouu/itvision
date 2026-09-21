@@ -505,9 +505,27 @@ export class BrowserScraper {
         }
         // Fallback: chercher ¥ dans le body
         if (!result.price1688) {
-          const bodyText = document.body.innerText.slice(0, 3000)
-          const m = bodyText.match(/¥\s*(\d+(?:\.\d+)?)/)
+          const bodyText = document.body.innerText.slice(0, 8000)
+          const m = bodyText.match(/[¥￥]\s*(\d+(?:\.\d+)?)/)
           if (m) result.price1688 = parseFloat(m[1])
+        }
+        // Fallback: prix dans le JSON embarqué de la page (le prix se charge
+        // souvent en JS — discountPriceRanges / skuPriceMap / priceInfo…)
+        if (!result.price1688) {
+          const html = document.documentElement.innerHTML
+          const embeddedPatterns = [
+            /"discountPriceRanges"\s*:\s*\[\s*\{[^}]*?"price"\s*:\s*"?(\d+(?:\.\d+)?)/,
+            /"priceRanges?"\s*:\s*\[\s*\{[^}]*?"price"\s*:\s*"?(\d+(?:\.\d+)?)/,
+            /"skuPriceMap"\s*:\s*\{[^}]*?"price"\s*:\s*"?(\d+(?:\.\d+)?)/,
+            /"(?:salePrice|currentPrice|consignPrice|offerPrice|promotionPrice)"\s*:\s*"?(\d+(?:\.\d+)?)/,
+          ]
+          for (const re of embeddedPatterns) {
+            const m = html.match(re)
+            if (m) {
+              const v = parseFloat(m[1])
+              if (v > 0 && v < 1000000) { result.price1688 = v; break }
+            }
+          }
         }
 
         // ===== IMAGES (haute résolution) =====

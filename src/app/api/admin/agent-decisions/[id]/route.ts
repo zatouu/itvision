@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import AgentDecision from '@/lib/models/AgentDecision'
 import { resumeProductModeration } from '@/lib/agents/moderation/run'
+import { resumeSourcingRequest } from '@/lib/agents/sourcing/request-run'
 
 // Décision humaine → reprend le graphe figé (interrupt) avec Command({resume})
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,13 +36,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await decision.save()
 
     // Reprend le graphe — apply() applique l'action (publier/notifier…)
-    if (decision.type === 'product_moderation') {
+    const resumers: Record<string, (runId: string, d: any) => Promise<void>> = {
+      product_moderation: resumeProductModeration,
+      sourcing_request: resumeSourcingRequest,
+    }
+    const resume = resumers[decision.type]
+    if (resume) {
       try {
-        await resumeProductModeration(decision.runId, {
-          action,
-          note,
-          decidedBy: decision.decidedBy,
-        })
+        await resume(decision.runId, { action, note, decidedBy: decision.decidedBy })
       } catch (e) {
         console.error('[agent-decisions] resume failed:', e)
         // La décision est enregistrée — l'application sera rejouable

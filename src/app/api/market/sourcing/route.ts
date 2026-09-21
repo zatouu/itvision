@@ -317,6 +317,21 @@ export async function POST(request: NextRequest) {
     console.warn('[sourcing] SMS confirmation échec:', err)
   }
 
+  // Enfile l'agent sourcing_request — recherche 1688 auto + brouillon de
+  // proposition. Best-effort : si aucun worker ne dépile, la demande reste
+  // traitable manuellement par l'admin comme avant.
+  try {
+    const { enqueueAgentJob } = await import('@/lib/agents/queue')
+    await enqueueAgentJob('sourcing_request', String(doc._id), {
+      source: doc.source,
+      title: doc.title,
+      hasImage: Boolean(imageUrl),
+      hasExternalUrl: Boolean(doc.externalUrl),
+    })
+  } catch (err) {
+    console.warn('[sourcing] enqueue agent échec:', err)
+  }
+
   return NextResponse.json(
     {
       success: true,

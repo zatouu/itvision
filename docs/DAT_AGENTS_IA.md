@@ -333,3 +333,55 @@ mais dépend de la disponibilité du tunnel.
 - Filtre qualité : prix < 2 CNY (acomptes/定金) et noms entreprise (公司/co.ltd/厂) écartés — un skip qualité ne déclenche pas le détecteur de blocage
 - Ne PAS bloquer les ressources `image` : 1688 détecte et re-navigue. Seuls `media`/`font`/trackers sont abortés.
 - Fix extraction nom : `document.title` nettoyé (le `h1` porte le nom du fournisseur)
+
+## 10. Agent implémenté n°3 — « Trouvez-moi » automatisé (`sourcing_request`)
+
+### Le problème métier
+
+Un client demande un produit absent du catalogue (photo, lien ou texte) via
+`POST /api/market/sourcing` → `SourcingRequest` créée → SMS de suivi envoyé.
+Avant cet agent, l'admin cherchait à la main sur 1688 puis construisait la
+proposition chiffrée à la main. Délai réel : dépend de la disponibilité admin.
+
+### Le graphe
+
+```
+loadRequest → search → extract → score → propose → interrupt() → apply
+```
+
+- **loadRequest** : charge la `SourcingRequest` ; construit la query
+  (titre > description > categoryHint) ; un `externalUrl` 1688 devient une URL
+  directe. Demande clôturée → erreur immédiate (pas de travail inutile).
+- **search** : `discover1688Urls()` partagée — URLs directes → moteurs →
+  recherche interne (session loggée).
+- **extract** : `scrapeOne1688()` + `isQualityProduct()` partagés, pacing
+  humain, max 5 candidats.
+- **score** : pour chaque candidat, la **même formule que la route proposal** :
+  `coût (¥ × taux × qté) + frais service 10% + assurance 2,5% + transport
+  aérien éco (8500 F/kg, min 8500)` → `totalClientPrice`. Le meilleur = prix
+  total le plus bas (l'admin tranche).
+- **propose** : écrit `externalSearchResults` (affichés dans la page admin
+  existante) + crée l'`AgentDecision` + notifie les admins.
+- **interrupt()** → `/admin/copilot` affiche la demande, les candidats et le
+  prix suggéré → l'admin approuve ou rejette.
+- **apply** : si approuvé → écrit le **brouillon** `proposal` sur la demande
+  (`status: proposal_ready`). Le formulaire existant (`initProposalDraft`)
+  se pré-remplit — l'admin vérifie, ajuste et envoie via la route proposal
+  habituelle → SMS client. L'agent n'envoie **jamais** au client.
+
+### Séparation des rôles
+
+L'agent fait le travail ingrat (chercher, extraire, chiffrer). L'humain garde
+deux décisions : approuver le brouillon (copilot) et l'envoyer au client
+(page sourcing-requests existante). Aucun SMS de proposition sans double
+validation humaine.
+
+### Idempotence
+
+- `enqueueAgentJob` déduplique : un seul job actif par `SourcingRequest`.
+- `propose` réutilise la décision existante par `runId` (retry-safe).
+- `apply` n'écrase jamais une proposition déjà envoyée
+  (`status ∉ {proposal_sent, accepted, fulfilled, cancelled}`).
+- `sourcing_request` partage le pool « browser » (1 Chromium) avec
+  `sourcing_scan` — un worker local avec `AGENT_WORKER_TYPES=sourcing_scan,sourcing_request`
+  traite les deux.

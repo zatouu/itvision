@@ -7,7 +7,7 @@
 import { connectMongoose } from '@/lib/mongoose'
 import AgentJob from '@/lib/models/AgentJob'
 
-export type AgentJobType = 'product_moderation' | 'sourcing_scan'
+export type AgentJobType = 'product_moderation' | 'sourcing_scan' | 'sourcing_request'
 
 export async function enqueueAgentJob(
   type: AgentJobType,

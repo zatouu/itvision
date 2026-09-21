@@ -8,15 +8,20 @@ import { connectMongoose } from '@/lib/mongoose'
 import AgentJob from '@/lib/models/AgentJob'
 import { runProductModeration } from './moderation/run'
 import { runSourcingScan } from './sourcing/run'
+import { runSourcingRequest } from './sourcing/request-run'
 
 const POLL_MS = parseInt(process.env.AGENT_POLL_MS || '15000', 10)
 const CONCURRENCY = Math.max(1, parseInt(process.env.AGENT_CONCURRENCY || '3', 10))
 const MAX_ATTEMPTS = 3
 
-// Concurrence max PAR TYPE : un navigateur Chrome par scan sourcing max —
-// deux Chromium simultanés satureraient la RAM du conteneur.
-const TYPE_CONCURRENCY: Record<string, number> = {
-  sourcing_scan: 1,
+// Pools de concurrence : les types 'browser' partagent UNE seule instance
+// Chromium (le singleton scraper est module-level + RAM limitée).
+const TYPE_POOL: Record<string, string> = {
+  sourcing_scan: 'browser',
+  sourcing_request: 'browser',
+}
+const POOL_CONCURRENCY: Record<string, number> = {
+  browser: 1,
 }
 
 // AGENT_WORKER_TYPES=sourcing_scan → ce worker ne prend QUE les scans 1688.
@@ -30,20 +35,25 @@ const ENABLED_TYPES = (process.env.AGENT_WORKER_TYPES || '')
 const RUNNERS: Record<string, (job: any) => Promise<void>> = {
   product_moderation: (job) => runProductModeration(String(job._id), job.refId),
   sourcing_scan: (job) => runSourcingScan(job),
+  sourcing_request: (job) => runSourcingRequest(job),
 }
 
 let started = false
 let running = 0
-const runningByType = new Map<string, number>()
+const runningByPool = new Map<string, number>()
 
 async function tick(): Promise<boolean> {
   if (running >= CONCURRENCY) return false
-  // Types dont la concurrence par-type est saturée → exclus du claim
-  const saturated = Object.entries(TYPE_CONCURRENCY)
-    .filter(([t, max]) => (runningByType.get(t) || 0) >= max)
-    .map(([t]) => t)
+  // Pools saturés → types concernés exclus du claim
+  const saturatedPools = new Set(
+    Object.entries(POOL_CONCURRENCY)
+      .filter(([p, max]) => (runningByPool.get(p) || 0) >= max)
+      .map(([p]) => p)
+  )
   const allowedTypes = Object.keys(RUNNERS).filter(
-    (t) => !saturated.includes(t) && (ENABLED_TYPES.length === 0 || ENABLED_TYPES.includes(t))
+    (t) =>
+      !(TYPE_POOL[t] && saturatedPools.has(TYPE_POOL[t])) &&
+      (ENABLED_TYPES.length === 0 || ENABLED_TYPES.includes(t))
   )
   if (allowedTypes.length === 0) return false
 
@@ -56,7 +66,8 @@ async function tick(): Promise<boolean> {
   if (!job) return false
 
   running++
-  runningByType.set(job.type, (runningByType.get(job.type) || 0) + 1)
+  const pool = TYPE_POOL[job.type] || job.type
+  runningByPool.set(pool, (runningByPool.get(pool) || 0) + 1)
   const runner = RUNNERS[job.type]
   runner(job)
     .catch(async (e: any) => {
@@ -75,7 +86,7 @@ async function tick(): Promise<boolean> {
     })
     .finally(() => {
       running--
-      runningByType.set(job.type, (runningByType.get(job.type) || 1) - 1)
+      runningByPool.set(pool, Math.max(0, (runningByPool.get(pool) || 1) - 1))
     })
   return true
 }
@@ -87,6 +98,22 @@ export function startAgentWorker() {
     return
   }
   started = true
+  // Récupération crash : un job 'running' depuis >15 min = worker mort en
+  // plein run → remis en pending pour re-claim. (Garde-fou temps pour ne pas
+  // réenfiler un job légitimement long encore actif chez un autre worker.)
+  const STALE_MS = 15 * 60 * 1000
+  void (async () => {
+    try {
+      await connectMongoose()
+      const r = await AgentJob.updateMany(
+        { status: 'running', updatedAt: { $lt: new Date(Date.now() - STALE_MS) } },
+        { $set: { status: 'pending', runAfter: new Date() } }
+      )
+      if (r.modifiedCount > 0) console.log(`[agent-worker] ${r.modifiedCount} job(s) 'running' orphelins remis en file`)
+    } catch (e) {
+      console.error('[agent-worker] stale-job recovery failed:', e)
+    }
+  })()
   const loop = async () => {
     try {
       await connectMongoose()

@@ -13,13 +13,15 @@ export async function runProductModeration(jobId: string, refId: string) {
   const graph = getModerationGraph()
   const threadId = jobId
   const t0 = Date.now()
-  const run = await AgentRun.create({
-    threadId,
-    graph: 'product_moderation',
-    refId,
-    status: 'running',
-    llmUsed: !!getAgentModel(),
-  })
+  // Upsert : retry-safe (threadId = jobId a un index unique sur agentruns)
+  const run = await AgentRun.findOneAndUpdate(
+    { threadId },
+    {
+      $set: { status: 'running', graph: 'product_moderation', refId, llmUsed: !!getAgentModel(), error: undefined },
+      $setOnInsert: { threadId },
+    },
+    { upsert: true, new: true }
+  )
 
   try {
     const result = await graph.invoke(

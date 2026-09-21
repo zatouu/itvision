@@ -27,13 +27,15 @@ export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'pa
   }
 
   const t0 = Date.now()
-  const run = await AgentRun.create({
-    threadId: jobId,
-    graph: 'sourcing_scan',
-    refId: query,
-    status: 'running',
-    llmUsed: false, // extraction et pricing 100% déterministes
-  })
+  // Upsert : retry-safe (threadId = jobId a un index unique sur agentruns)
+  const run = await AgentRun.findOneAndUpdate(
+    { threadId: jobId },
+    {
+      $set: { status: 'running', graph: 'sourcing_scan', refId: query, llmUsed: false, error: undefined },
+      $setOnInsert: { threadId: jobId },
+    },
+    { upsert: true, new: true }
+  )
 
   try {
     const result = await getSourcingGraph().invoke(

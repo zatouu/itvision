@@ -23,6 +23,14 @@ interface Proposal {
   }
   llmUnavailable?: boolean
   product?: { name: string; price: number; category?: string; image?: string; sellerName?: string }
+  sourcingRequest?: {
+    reference?: string
+    description?: string
+    qty?: number
+    budgetMaxFCFA?: number
+    candidates?: Array<{ name: string; url: string; image?: string; supplier?: string; price1688?: number; totalClientPrice?: number }>
+    suggestedProposal?: { productName?: string; totalClientPrice?: number } | null
+  }
 }
 
 interface Decision {
@@ -45,6 +53,7 @@ const VERDICT_META: Record<string, { label: string; cls: string; icon: typeof Ch
 
 const TYPE_LABELS: Record<string, string> = {
   product_moderation: 'Modération produit',
+  sourcing_request: 'Trouvez-moi (sourcing)',
 }
 
 export default function AdminCopilotPage() {
@@ -193,6 +202,29 @@ export default function AdminCopilotPage() {
                     )}
                     {!!d.proposal?.suggestedFixes?.length && (
                       <p className="text-stone-600"><b className="text-stone-700">Fixes suggérés :</b> {d.proposal.suggestedFixes.join(' · ')}</p>
+                    )}
+                    {d.proposal?.sourcingRequest && (
+                      <div className="rounded-lg border border-stone-200 bg-white p-2.5 space-y-1.5">
+                        <p className="font-bold text-stone-700">
+                          Demande {d.proposal.sourcingRequest.reference}
+                          {d.proposal.sourcingRequest.qty ? ` · qté ${d.proposal.sourcingRequest.qty}` : ''}
+                          {d.proposal.sourcingRequest.budgetMaxFCFA ? ` · budget max ${d.proposal.sourcingRequest.budgetMaxFCFA.toLocaleString('fr-FR')} F` : ''}
+                        </p>
+                        {!!d.proposal.sourcingRequest.candidates?.length && (
+                          <div className="space-y-1">
+                            {d.proposal.sourcingRequest.candidates.map((c, i) => (
+                              <div key={i} className="flex items-center gap-2 text-[11px]">
+                                {c.image && <img src={c.image} alt="" className="h-8 w-8 rounded-md object-cover border border-stone-200" />}
+                                <a href={c.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-violet-700 hover:underline">{c.name}</a>
+                                {c.totalClientPrice != null && <b className="flex-shrink-0 tabular-nums">{c.totalClientPrice.toLocaleString('fr-FR')} F</b>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <a href="/admin/market/sourcing-requests" className="inline-block text-[11px] font-bold text-violet-600 hover:underline">
+                          Ouvrir les demandes sourcing →
+                        </a>
+                      </div>
                     )}
                     {d.adminNote && <p className="text-stone-500 italic">Note admin : {d.adminNote}</p>}
                     {d.decidedBy && <p className="text-stone-400 text-[10px]">par {d.decidedBy} {d.decidedAt ? `· ${new Date(d.decidedAt).toLocaleString('fr-FR')}` : ''}</p>}

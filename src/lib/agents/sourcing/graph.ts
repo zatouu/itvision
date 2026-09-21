@@ -70,49 +70,73 @@ async function getScraper(): Promise<BrowserScraper> {
 
 const BLOCK_PATTERNS = /captcha|robot|verify|verification|login|sign\s?in|access.*denied|blocked|SEARCH_EMPTY/i
 
-async function search(state: typeof SourcingState.State) {
-  // URLs fournies directement (ex: liens envoyés par les contacts en Chine)
-  if (state.directUrls?.length) {
-    return {
-      offerUrls: state.directUrls.slice(0, state.maxItems),
-      extracted: [] as Product1688[],
-      failed: [] as string[],
-      imported: [] as Array<{ productId: string; name: string; price: number }>,
-    }
-  }
-
-  // 1) Moteurs de recherche (fetch, rapide, pas de login requis) —
-  //    les fiches 1688 sont indexées publiquement même si la recherche
-  //    interne du site est derrière un mur de login.
-  console.log(`[sourcing] recherche moteurs pour « ${state.query} »…`)
-  const engineUrls = await search1688ViaEngines(state.query, state.maxItems)
+/**
+ * Découverte d'URLs d'offres 1688 — partagée par sourcing_scan et
+ * sourcing_request. Ordre : moteurs (rapide, pas de login) → recherche
+ * interne via navigateur (si session persistée authentifiée).
+ */
+export async function discover1688Urls(
+  query: string,
+  maxItems: number
+): Promise<{ urls: string[]; blockedReason?: string }> {
+  console.log(`[sourcing] recherche moteurs pour « ${query} »…`)
+  const engineUrls = await search1688ViaEngines(query, maxItems)
   console.log(`[sourcing] moteurs → ${engineUrls.length} URLs`)
-  if (engineUrls.length > 0) {
-    return {
-      offerUrls: engineUrls,
-      extracted: [] as Product1688[],
-      failed: [] as string[],
-      imported: [] as Array<{ productId: string; name: string; price: number }>,
-    }
-  }
+  if (engineUrls.length > 0) return { urls: engineUrls }
 
-  // 2) Fallback : recherche interne 1688 via navigateur — fonctionne si
-  //    le profil persisté a une session authentifiée (browser-login.ts).
   console.log('[sourcing] moteurs vides — fallback navigateur 1688')
   const s = await getScraper()
-  const result = await s.search1688(state.query, state.maxItems)
-
+  const result = await s.search1688(query, maxItems)
   if (!result.success || !result.data?.length) {
     const reason = result.error || 'aucun résultat'
-    return {
-      offerUrls: [] as string[],
-      extracted: [] as Product1688[],
-      failed: [] as string[],
-      imported: [] as Array<{ productId: string; name: string; price: number }>,
-      blockedReason: BLOCK_PATTERNS.test(reason) ? reason : undefined,
-    }
+    return { urls: [], blockedReason: BLOCK_PATTERNS.test(reason) ? reason : undefined }
   }
-  return { offerUrls: result.data, extracted: [] as Product1688[], failed: [] as string[], imported: [] as Array<{ productId: string; name: string; price: number }> }
+  return { urls: result.data }
+}
+
+async function search(state: typeof SourcingState.State) {
+  const empty = {
+    extracted: [] as Product1688[],
+    failed: [] as string[],
+    imported: [] as Array<{ productId: string; name: string; price: number }>,
+  }
+
+  // URLs fournies directement (ex: liens envoyés par les contacts en Chine)
+  if (state.directUrls?.length) {
+    return { ...empty, offerUrls: state.directUrls.slice(0, state.maxItems) }
+  }
+
+  const { urls, blockedReason } = await discover1688Urls(state.query, state.maxItems)
+  return { ...empty, offerUrls: urls, blockedReason }
+}
+
+/** Extraction d'une fiche 1688 avec timeout dur — partagée par les 2 agents sourcing. */
+export async function scrapeOne1688(url: string): Promise<ScrapingResult<Product1688>> {
+  const s = await getScraper()
+  return Promise.race<Promise<ScrapingResult<Product1688>>>([
+    s.scrape1688(url, 1),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 120s')), 120000)) as Promise<ScrapingResult<Product1688>>,
+  ]).catch((e: Error) => ({ success: false, error: e.message, attempts: 0, durationMs: 0 }) as ScrapingResult<Product1688>)
+}
+
+/** Retire les fragments « nom d'entreprise » d'un titre 1688
+ *  (ex: « écouteurs X — 深圳市XX有限公司 » → « écouteurs X »). */
+export function cleanProductName(name: string | undefined): string {
+  if (!name) return ''
+  return name
+    .split(/[-—_|·,，]/)
+    .filter((seg) => !/公司|co\.?\s*ltd|company|factory|厂|旗舰店|专营店|超市/i.test(seg))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Filtre qualité partagé : nom inexploitable même nettoyé, ou prix « acompte » < 2 ¥ */
+export function isQualityProduct(p: Product1688 | undefined): { ok: boolean; nameOk: boolean; priceOk: boolean; cleanedName?: string } {
+  const cleanedName = cleanProductName(p?.name)
+  const nameOk = cleanedName.length >= 5 && cleanedName !== 'Produit 1688'
+  const priceOk = typeof p?.price1688 === 'number' && p.price1688 >= 2
+  return { ok: nameOk && priceOk, nameOk, priceOk, cleanedName: nameOk ? cleanedName : undefined }
 }
 
 function gateAfterSearch(state: typeof SourcingState.State) {
@@ -120,7 +144,6 @@ function gateAfterSearch(state: typeof SourcingState.State) {
 }
 
 async function extract(state: typeof SourcingState.State) {
-  const s = await getScraper()
   const extracted: Product1688[] = []
   const failed: string[] = []
   let consecutiveFailures = 0
@@ -133,24 +156,22 @@ async function extract(state: typeof SourcingState.State) {
     const t0 = Date.now()
     // 1 seul retry interne + timeout dur 120s : un échec sur une URL
     // ne doit pas bloquer le scan entier.
-    const result = await Promise.race<Promise<ScrapingResult<Product1688>>>([
-      s.scrape1688(url, 1),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 120s')), 120000)) as Promise<ScrapingResult<Product1688>>,
-    ]).catch((e: Error) => ({ success: false, error: e.message, attempts: 0, durationMs: 0 }) as ScrapingResult<Product1688>)
+    const result = await scrapeOne1688(url)
     console.log(`[sourcing] ${result.success ? '✓' : '✗'} ${url} (${Math.round((Date.now() - t0) / 1000)}s)`)
     const d = result.data
     // Qualité : nom générique/entreprise = extraction ratée ; prix < 2 CNY =
     // quasi toujours un acompte (定金) ou accessoire — pas un produit vendable.
-    const nameOk = !!d?.name && d.name !== 'Produit 1688' && !/公司|co\.?\s*ltd|company|factory|厂/i.test(d.name)
-    const priceOk = typeof d?.price1688 === 'number' && d.price1688 >= 2
-    if (result.success && nameOk && priceOk) {
-      extracted.push(d)
+    const { ok: qualityOk, cleanedName } = isQualityProduct(d)
+    const qualityFailed = !qualityOk
+    if (result.success && !qualityFailed) {
+      if (cleanedName) d!.name = cleanedName
+      extracted.push(d!)
       consecutiveFailures = 0
     } else {
       failed.push(url)
       // Skip qualité ≠ échec réseau : la page a chargé, on ne la compte pas
       // dans le détecteur de blocage.
-      const qualitySkip = result.success && (!nameOk || !priceOk)
+      const qualitySkip = result.success && qualityFailed
       if (!qualitySkip) {
         consecutiveFailures++
         const err = result.error || ''
