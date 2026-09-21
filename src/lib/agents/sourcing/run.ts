@@ -15,12 +15,16 @@ export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'pa
   const jobId = String(job._id)
   const payload = (job.payload || {}) as {
     query?: string
+    urls?: string[]
     category?: string
     maxItems?: number
     groupBuyEligible?: boolean
   }
+  const directUrls = (payload.urls || []).filter((u) => /detail\.1688\.com\/offer\/\d+/.test(u))
   const query = (payload.query || job.refId || '').trim()
-  if (!query) throw new Error('sourcing_scan: query manquante dans le payload')
+  if (!query && directUrls.length === 0) {
+    throw new Error('sourcing_scan: ni query ni urls dans le payload')
+  }
 
   const t0 = Date.now()
   const run = await AgentRun.create({
@@ -35,10 +39,11 @@ export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'pa
     const result = await getSourcingGraph().invoke(
       {
         jobId,
-        query,
+        query: query || 'import direct',
         category: payload.category || 'Import Chine',
         maxItems: Math.min(Math.max(1, payload.maxItems || 10), MAX_ITEMS_CAP),
         groupBuyEligible: !!payload.groupBuyEligible,
+        directUrls,
         offerUrls: [],
         extracted: [],
         failed: [],

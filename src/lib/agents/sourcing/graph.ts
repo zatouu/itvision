@@ -17,7 +17,7 @@ import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
 import Product from '@/lib/models/Product'
 import { notifyAdmins } from '@/lib/notify'
 import { enqueueAgentJob } from '../queue'
-import { BrowserScraper, humanDelay, Product1688 } from '@/lib/browser-scraper'
+import { BrowserScraper, humanDelay, Product1688, search1688ViaEngines } from '@/lib/browser-scraper'
 import { computeProductPricing } from '@/lib/logistics'
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 
@@ -32,6 +32,7 @@ const SourcingState = Annotation.Root({
   category: Annotation<string>,
   maxItems: Annotation<number>,
   groupBuyEligible: Annotation<boolean>,
+  directUrls: Annotation<string[]>,
   offerUrls: Annotation<string[]>,
   extracted: Annotation<Product1688[]>,
   failed: Annotation<string[]>,
@@ -70,6 +71,34 @@ async function getScraper(): Promise<BrowserScraper> {
 const BLOCK_PATTERNS = /captcha|robot|verify|verification|login|sign\s?in|access.*denied|blocked|SEARCH_EMPTY/i
 
 async function search(state: typeof SourcingState.State) {
+  // URLs fournies directement (ex: liens envoyés par les contacts en Chine)
+  if (state.directUrls?.length) {
+    return {
+      offerUrls: state.directUrls.slice(0, state.maxItems),
+      extracted: [] as Product1688[],
+      failed: [] as string[],
+      imported: [] as Array<{ productId: string; name: string; price: number }>,
+    }
+  }
+
+  // 1) Moteurs de recherche (fetch, rapide, pas de login requis) —
+  //    les fiches 1688 sont indexées publiquement même si la recherche
+  //    interne du site est derrière un mur de login.
+  console.log(`[sourcing] recherche moteurs pour « ${state.query} »…`)
+  const engineUrls = await search1688ViaEngines(state.query, state.maxItems)
+  console.log(`[sourcing] moteurs → ${engineUrls.length} URLs`)
+  if (engineUrls.length > 0) {
+    return {
+      offerUrls: engineUrls,
+      extracted: [] as Product1688[],
+      failed: [] as string[],
+      imported: [] as Array<{ productId: string; name: string; price: number }>,
+    }
+  }
+
+  // 2) Fallback : recherche interne 1688 via navigateur — fonctionne si
+  //    le profil persisté a une session authentifiée (browser-login.ts).
+  console.log('[sourcing] moteurs vides — fallback navigateur 1688')
   const s = await getScraper()
   const result = await s.search1688(state.query, state.maxItems)
 
@@ -101,7 +130,14 @@ async function extract(state: typeof SourcingState.State) {
     // Pacing humain : un vrai acheteur lit une fiche, ne les enchaîne pas
     if (extracted.length + failed.length > 0) await humanDelay(4000, 9000)
 
-    const result = await s.scrape1688(url)
+    const t0 = Date.now()
+    // 1 seul retry interne + timeout dur 120s : un échec sur une URL
+    // ne doit pas bloquer le scan entier.
+    const result = await Promise.race([
+      s.scrape1688(url, 1),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout 120s')), 120000)),
+    ]).catch((e: Error) => ({ success: false as const, error: e.message, attempts: 0, durationMs: 0 }))
+    console.log(`[sourcing] ${result.success ? '✓' : '✗'} ${url} (${Math.round((Date.now() - t0) / 1000)}s)`)
     if (result.success && result.data?.name && result.data?.price1688) {
       extracted.push(result.data)
       consecutiveFailures = 0

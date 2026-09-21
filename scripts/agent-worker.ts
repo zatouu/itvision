@@ -20,7 +20,9 @@
  * Sans AGENT_WORKER_TYPES, le worker prend TOUS les types (comportement défaut).
  */
 
-import 'dotenv/config'
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
+dotenv.config() // .env en fallback pour les clés manquantes
 import { connectMongoose } from '@/lib/mongoose'
 import { startAgentWorker } from '@/lib/agents/worker'
 

@@ -383,7 +383,7 @@ export class BrowserScraper {
     return lastResult || { success: false, error: 'Recherche échouée', attempts: 0, durationMs: 0 }
   }
 
-  async scrape1688(url: string): Promise<ScrapingResult<Product1688>> {
+  async scrape1688(url: string, maxRetries = 3): Promise<ScrapingResult<Product1688>> {
     return this.scrapeWithRetry(url, async (page) => {
         // Attendre le chargement du titre (dynamique sur 1688)
         await page.waitForFunction(() => {
@@ -446,12 +446,33 @@ export class BrowserScraper {
           if (ogTitle && ogTitle.length > 5) result.name = ogTitle.trim()
         }
 
-        // Méthode 3: h1
+        // Méthode 3: document.title — format 1688 : "Nom produit - 阿里巴巴"
+        if (!result.name && document.title) {
+          const clean = document.title
+            .replace(/[-—_].*(阿里巴巴|1688\.com).*$/i, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (clean.length > 5 && clean.length < 300) result.name = clean
+        }
+
+        // Méthode 4: titre produit dans la zone offre (le h1 générique = nom du
+        // FOURNISSEUR sur 1688 — on évite les h1 hors zone produit)
+        if (!result.name) {
+          const titleSel = ['.offer-title', '#mod-detail-title', '[class*="offer-title"]', '[class*="OfferTitle"]', '.title-text']
+          for (const sel of titleSel) {
+            const el = document.querySelector(sel)
+            const clean = (el?.textContent || '').replace(/1688\.com/g, '').replace(/\s+/g, ' ').trim()
+            if (clean.length > 5 && clean.length < 300) { result.name = clean; break }
+          }
+        }
+        // Dernier recours : h1, mais uniquement s'il ne ressemble pas à un nom
+        // d'entreprise (contient 公司/co./ltd/company = fournisseur, pas produit)
         if (!result.name) {
           const h1 = document.querySelector('h1')
           if (h1) {
             const clean = (h1.textContent || '').replace(/1688\.com/g, '').replace(/\s+/g, ' ').trim()
-            if (clean.length > 5 && clean.length < 300) result.name = clean
+            const looksLikeCompany = /公司|co\.?\s*ltd|company|factory|厂/i.test(clean)
+            if (clean.length > 5 && clean.length < 300 && !looksLikeCompany) result.name = clean
           }
         }
         if (!result.name || result.name.length < 3) result.name = 'Produit 1688'
@@ -712,7 +733,7 @@ export class BrowserScraper {
         ...data,
         productUrl: url,
       } as Product1688
-    })
+    }, maxRetries)
   }
 
   async scrapeAliExpress(url: string): Promise<ScrapingResult<ProductAliExpress>> {
@@ -942,6 +963,53 @@ export async function scrapeAliExpressWithBrowser(url: string): Promise<Scraping
   } finally {
     await scraper.close()
   }
+}
+
+/**
+ * Découverte d'offres 1688 via moteurs de recherche — fallback quand la
+ * recherche interne 1688 exige un login. `site:detail.1688.com` retourne
+ * les URLs d'offres indexées. Fetch simple, pas de navigateur.
+ */
+export async function search1688ViaEngines(query: string, limit = 20): Promise<string[]> {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const push = (u: string) => {
+    const m = u.match(/detail\.1688\.com\/offer\/(\d+)\.html/)
+    if (m && !seen.has(m[1])) {
+      seen.add(m[1])
+      out.push(`https://detail.1688.com/offer/${m[1]}.html`)
+    }
+  }
+
+  const q = `site:detail.1688.com ${query}`
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+  try {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(15000),
+    })
+    if (res.ok) {
+      const html = await res.text()
+      for (const m of html.matchAll(/uddg=([^&"']+)/g)) push(decodeURIComponent(m[1]))
+      for (const m of html.matchAll(/href="(https?:\/\/detail\.1688\.com\/offer\/\d+\.html[^"]*)"/g)) push(m[1])
+    }
+  } catch {}
+
+  if (out.length < limit) {
+    try {
+      const res = await fetch(`https://www.bing.com/search?q=${encodeURIComponent(q)}&count=${Math.min(50, limit * 3)}`, {
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(15000),
+      })
+      if (res.ok) {
+        const html = await res.text()
+        for (const m of html.matchAll(/href="(https?:\/\/detail\.1688\.com\/offer\/\d+\.html[^"]*)"/g)) push(m[1])
+      }
+    } catch {}
+  }
+
+  return out.slice(0, limit)
 }
 
 /**

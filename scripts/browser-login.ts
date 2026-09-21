@@ -7,7 +7,9 @@
  * Usage : npx tsx scripts/browser-login.ts
  */
 
-import 'dotenv/config'
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
+dotenv.config() // .env en fallback
 import * as readline from 'readline'
 import { BrowserScraper } from '../src/lib/browser-scraper'
 

@@ -7,7 +7,8 @@ import Product from '@/lib/models/Product'
 import { enqueueAgentJob, hasActiveJob } from '@/lib/agents/queue'
 
 const ScanSchema = z.object({
-  query: z.string().trim().min(2).max(120),
+  query: z.string().trim().max(120).optional(),
+  urls: z.array(z.string().url()).max(30).optional(),
   category: z.string().trim().max(80).optional(),
   maxItems: z.number().int().min(1).max(30).optional(),
   groupBuyEligible: z.boolean().optional(),
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = ScanSchema.parse(await req.json())
+    if (!body.query && !body.urls?.length) {
+      return NextResponse.json({ success: false, error: 'Fournir une recherche ou des URLs 1688' }, { status: 400 })
+    }
     await connectMongoose()
 
     // Throttle : un seul scan actif à la fois (le navigateur est lourd)
@@ -37,10 +41,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // refId = query normalisée → dédup naturelle : même recherche, pas de doublon
-    const refId = body.query.toLowerCase()
+    // refId = query normalisée (ou hash des URLs) → dédup naturelle
+    const refId = body.query?.toLowerCase() || `urls:${body.urls!.length}-${Date.now()}`
     const job = await enqueueAgentJob('sourcing_scan', refId, {
       query: body.query,
+      urls: body.urls,
       category: body.category,
       maxItems: body.maxItems,
       groupBuyEligible: body.groupBuyEligible,
