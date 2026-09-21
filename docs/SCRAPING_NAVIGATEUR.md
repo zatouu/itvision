@@ -1,261 +1,106 @@
-# Système de Scraping Robuste via Navigateur
+# Scraping navigateur 1688 / AliExpress
 
-## Vue d'ensemble
+> **Mise à jour** : les routes synchrones `/api/scrape/*` et
+> `/api/market/sourcing/search-external` ont été **supprimées** — un scraping
+> lancé dans une requête HTTP depuis l'IP datacenter du serveur était bloqué
+> par 1688 quasi systématiquement. Le scraping passe désormais par les
+> **agents LangGraph** (`sourcing_scan`, `sourcing_request`) exécutés par un
+> worker — typiquement sur une machine à IP résidentielle.
+> Voir `docs/DAT_AGENTS_IA.md` pour l'architecture agents.
 
-Ce système permet de scraper les sites 1688 et AliExpress via un **véritable navigateur** (Chromium via Playwright) avec techniques d'anti-détection avancées.
-
-## Pourquoi le scraping navigateur ?
-
-| Problème | Solution |
-|----------|----------|
-| CAPTCHA / Anti-bot | User-agents réels, stealth mode |
-| Blocage IP | Rotation de proxies (optionnel) |
-| JavaScript dynamique | Rendu complet du DOM |
-| Changements de structure | Sélecteurs multiples avec fallback |
-| Rate limiting | Retries avec backoff exponentiel |
-
-## Architecture
+## Architecture actuelle
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  API Routes     │────▶│  BrowserScraper  │────▶│  Playwright     │
-│  /api/scrape/*  │     │  (anti-detection)│     │  + Chromium     │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────┐     ┌──────────────────┐
-│  Import Sources │◀────│  1688/AliExpress │
-│  Fallback       │     │  Extractors      │
-└─────────────────┘     └──────────────────┘
+┌──────────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  AgentJob (Mongo)    │────▶│  BrowserScraper  │────▶│  Playwright     │
+│  file de travail     │     │  (stealth+profil)│     │  + Chromium     │
+└──────────────────────┘     └──────────────────┘     └─────────────────┘
+        ▲                            │
+        │                            ▼
+│  POST /api/market/sourcing  │  fiches 1688 : nom, prix ¥, galerie,
+│  /admin/sourcing (scan)     │  variantes, MOQ, fournisseur, specs
+└──────────────────────┘     └──────────────────┘
 ```
 
 ## Fichiers clés
 
-- `src/lib/browser-scraper.ts` - Service principal avec anti-detection
-- `src/app/api/scrape/route.ts` - API routes pour le scraping
-- `src/lib/import-sources.ts` - Intégration avec le système d'import existant
+- `src/lib/browser-scraper.ts` — `BrowserScraper` (stealth, profil persisté, proxy), `scrape1688`, `scrapeAliExpress`, `search1688`, `search1688ViaEngines`
+- `src/lib/agents/sourcing/graph.ts` — agent veille catalogue (`sourcing_scan`)
+- `src/lib/agents/sourcing/request-graph.ts` — agent « trouvez-moi » client (`sourcing_request`)
+- `src/lib/agents/worker.ts` — worker de la file AgentJob
+- `scripts/agent-worker.ts` — worker standalone (IP résidentielle) avec gestion du cycle de vie (PID file, `stop`/`restart`/`status`)
+- `scripts/browser-login.ts` — login manuel 1688 dans le profil persisté
+- `scripts/bulk-import.ts` — import manuel par liste d'URLs (script)
+- `src/app/api/products/import/route.ts` — import admin ponctuel par URL (fiche directe)
 
-## API Endpoints
+## Anti-détection implémentée
 
-### 1. Preview produit
-```bash
-GET /api/scrape/preview?url=https://detail.1688.com/offer/xxx.html
+- **Stealth** : `playwright-extra` + `puppeteer-extra-plugin-stealth`
+  (fallback playwright vanilla si indisponible) + init script maison
+  (`navigator.webdriver`, plugins, languages, chrome.runtime, permissions)
+- **Profil persisté** `SCRAPER_PROFILE_DIR` : cookies/session 1688 conservés
+  entre les runs — un login manuel (`browser-login.ts`) débloque la
+  recherche interne et améliore fortement le taux de réussite des fiches
+- **User-agents et viewports réels**, arguments Chromium anti-automation
+- **Pacing humain** (`humanDelay` 3-9s entre fiches) — un bot qui enchaîne
+  en 200ms est flaggé instantanément
+- **Timeout dur 120s + 1 retry** par fiche — une page qui traîne ne bloque
+  pas le scan
+- **Pas de contournement de CAPTCHA** : détection → arrêt propre + notif
+  admin (« reconnectez la session »). Volontaire.
+- **Ne pas bloquer les ressources `image`** : 1688 détecte et re-navigue.
+  Seuls `media`/`font`/trackers sont abortés.
 
-Headers:
-  Authorization: Bearer <token>  # Admin/Product Manager requis
+## Extraction 1688
 
-Response:
-{
-  "success": true,
-  "platform": "1688",
-  "data": {
-    "name": "Nom du produit",
-    "price1688": 45.00,
-    "gallery": ["https://..."],
-    "supplier": { "name": "...", "verified": true },
-    "moq": 10,
-    "variantGroups": [...]
-  },
-  "meta": {
-    "attempts": 1,
-    "durationMs": 3500,
-    "scrapedAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
+- Nom : JSON-LD → og:title → `document.title` nettoyé (le `h1` porte le nom
+  du *fournisseur*) → `cleanProductName()` retire les fragments d'entreprise
+  (公司 / 厂 / co.ltd)
+- Prix : sélecteurs DOM → `¥` dans le texte → **JSON embarqué**
+  (`discountPriceRanges`, `skuPriceMap`, `salePrice`…) — le prix se charge
+  souvent en JS dynamique
+- Galerie HD (CDN alicdn, suffixes de resize nettoyés), variantes/SKU, MOQ,
+  fournisseur, specs, poids/dimensions
+- **Filtre qualité** : prix < 2 ¥ (acompte 定金/accessoire) et nom
+  inexploitable → candidat écarté sans déclencher le détecteur de blocage
 
-### 2. Bulk import
-```bash
-POST /api/scrape/bulk
+## Découverte d'URLs (ordre)
 
-Body:
-{
-  "urls": [
-    "https://detail.1688.com/offer/xxx.html",
-    "https://www.aliexpress.com/item/yyy.html"
-  ],
-  "dryRun": false  // true pour preview sans sauvegarde
-}
+1. **URLs directes** — liens collés dans `/admin/sourcing` ou `externalUrl`
+   client 1688 (les fiches produit passent anonymement)
+2. **Moteurs de recherche** — `site:detail.1688.com` sur DuckDuckGo/Bing en
+   fetch simple (pas de navigateur, pas de login)
+3. **Recherche interne 1688** — seulement si session persistée authentifiée
 
-Response:
-{
-  "success": true,
-  "results": [
-    { "url": "...", "ok": true, "action": "created", "productId": "..." },
-    { "url": "...", "ok": true, "action": "updated", "productId": "..." },
-    { "url": "...", "ok": false, "error": "..." }
-  ],
-  "summary": {
-    "total": 3,
-    "created": 1,
-    "updated": 1,
-    "failed": 1,
-    "dryRun": false
-  }
-}
-```
-
-### 3. Vérification bloquage
-```bash
-GET /api/scrape/preview?url=https://...&check=true
-
-Response:
-{
-  "success": true,
-  "url": "https://...",
-  "blocked": false
-}
-```
-
-## Utilisation via Import Sources
-
-```typescript
-import { searchProducts, ImportConfig } from '@/lib/import-sources'
-
-const config: ImportConfig = {
-  source: 'browser',
-  options: {
-    urls: [
-      'https://detail.1688.com/offer/xxx.html',
-      'https://www.aliexpress.com/item/yyy.html'
-    ],
-    headless: true,  // false pour debug visuel
-    proxy: 'http://user:pass@proxy:8080'  // optionnel
-  }
-}
-
-const result = await searchProducts('', 5, config)
-```
-
-## Anti-Détection implémentée
-
-### 1. User-Agents rotatifs
-```javascript
-const agents = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...',
-  // ...
-]
-```
-
-### 2. Viewports variables
-```javascript
-const viewports = [
-  { width: 1920, height: 1080 },
-  { width: 1366, height: 768 },
-  // ...
-]
-```
-
-### 3. Masquage automation
-```javascript
-// Injecté dans chaque page
-Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
-Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] })
-window.chrome = { runtime: {} }
-```
-
-### 4. Comportement humain
-- Scroll progressif avec pauses aléatoires
-- Délai aléatoire 1-3s après chargement
-- Mouvements souris réalistes (optionnel)
-
-### 5. Arguments Chromium anti-detection
-```javascript
-[
-  '--disable-blink-features=AutomationControlled',
-  '--disable-web-security',
-  '--disable-features=IsolateOrigins,site-per-process',
-  '--no-sandbox',
-  '--disable-setuid-sandbox'
-]
-```
-
-## Extraction de données
-
-### 1688 supporte :
-- ✅ Titre produit
-- ✅ Prix (Yuan)
-- ✅ Galerie images
-- ✅ Variantes/SKU
-- ✅ MOQ (Minimum Order Quantity)
-- ✅ Info fournisseur
-- ✅ Spécifications techniques
-
-### AliExpress supporte :
-- ✅ Titre produit
-- ✅ Prix
-- ✅ Galerie images
-- ✅ Variantes
-- ✅ Info boutique
-- ✅ Rating / Commandes / Avis
-- ✅ Options de livraison
-
-## Gestion des erreurs
-
-| Erreur | Comportement |
-|--------|--------------|
-| Timeout | Retry avec backoff ×2 |
-| CAPTCHA | Détection et rapport |
-| 403/Blocked | Retry + changement UA |
-| Structure changée | Fallback sur sélecteurs alternatifs |
-| Proxy dead | Rotation (si configuré) |
-
-## Configuration environnement
+## Worker standalone (IP résidentielle)
 
 ```bash
-# Optionnel: Proxy pour rotation IP
-SCRAPER_PROXY=http://user:pass@host:port
+npx playwright install chromium
+npx tsx scripts/browser-login.ts     # login 1688 une fois (navigateur visible)
 
-# Optionnel: Timeout personnalisé (ms)
-SCRAPER_TIMEOUT=60000
-
-# Optionnel: Nombre max retries
-SCRAPER_MAX_RETRIES=3
+AGENT_WORKER_TYPES=sourcing_scan,sourcing_request npx tsx scripts/agent-worker.ts
+npx tsx scripts/agent-worker.ts stop      # arrête + balaie les orphelins
+npx tsx scripts/agent-worker.ts status    # état
+npx tsx scripts/agent-worker.ts restart   # stop + start
 ```
 
-## Commandes utiles
+Un seul worker à la fois (PID file `data/agent-worker.pid`). Les jobs restés
+`running` après un kill sont remis en file au démarrage suivant (>15 min).
+
+## Configuration
 
 ```bash
-# Test scraping single URL
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3000/api/scrape/preview?url=https://detail.1688.com/offer/xxx.html"
-
-# Bulk import
-curl -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"urls":["url1","url2"],"dryRun":true}' \
-  http://localhost:3000/api/scrape/bulk
+SCRAPER_PROFILE_DIR=data/browser-profile   # session persistée
+SCRAPER_PROXY=http://user:pass@host:port   # optionnel
+SCRAPER_HEADLESS=false                     # navigateur visible (debug/login)
+AGENT_WORKER_TYPES=sourcing_scan           # filtre de types de jobs
 ```
-
-## Performance
-
-| Métrique | Valeur typique |
-|----------|----------------|
-| Temps scraping | 3-6s par URL |
-| Memory usage | ~150MB par instance |
-| Retry automatique | Jusqu'à 3 tentatives |
-| Concurrence | Séquentiel (éviter blocage) |
 
 ## Limitations connues
 
-1. **Taobao/Tmall** - Nécessite login, non supporté
-2. **Images** - Certaines peuvent nécessiter referer spoofing
-3. **Vidéos** - Non extraites actuellement
-4. **Stock temps réel** - Peut différer de la réalité
-
-## Roadmap
-
-- [ ] Support Puppeteer alternative
-- [ ] Proxy rotation automatique
-- [ ] Pool de browsers pour concurrence
-- [ ] Détection changements structure automatique
-- [ ] Cache résultats scraping (Redis)
-- [ ] Mode "headful" pour debug visuel
-
-## Sécurité
-
-- ⚠️ Nécessite authentification admin
-- ⚠️ Rate limiting recommandé
-- ⚠️ Ne pas exposer publiquement
-- ⚠️ Respecter ToS des sites cibles
+1. **Recherche interne 1688** — mur `login.taobao.com` en anonyme ; fiches
+   directes OK. C'est pourquoi la découverte passe par les moteurs.
+2. **Rate-limiting IP** — ~15-20 fiches anonymes avant CAPTCHA ; la session
+   loggée lève largement ce plafond.
+3. **Taobao/Tmall** — non supporté.
+4. **Stock/prix temps réel** — peut différer au moment de l'achat réel.

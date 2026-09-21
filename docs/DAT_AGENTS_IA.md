@@ -312,8 +312,19 @@ npx playwright install chromium
 npx tsx scripts/browser-login.ts        # navigateur visible → login → Entrée
 
 # Puis worker standalone (pas besoin de Next.js) :
-AGENT_WORKER_TYPES=sourcing_scan npx tsx scripts/agent-worker.ts
+AGENT_WORKER_TYPES=sourcing_scan,sourcing_request npx tsx scripts/agent-worker.ts
 ```
+
+**Cycle de vie du worker** (`scripts/agent-worker.ts`) :
+- `start` (défaut) — refuse de démarrer si un worker tourne (PID file
+  `data/agent-worker.pid`). Évite les doubles instances : un orphelin avec
+  du vieux code claîmerait des jobs et ses logs iraient dans un pipe mort.
+- `stop` — arrête le worker du PID file **et** balaie tout process node
+  `agent-worker` (orphelins hérités d'avant le PID file).
+- `restart` / `status` — remplacement propre / état.
+- SIGINT/SIGTERM → fermeture navigateur + Mongo + suppression du PID file.
+- Au démarrage, les jobs `running` depuis >15 min (worker mort en plein
+  run) sont remis en file automatiquement.
 
 `AGENT_WORKER_TYPES=sourcing_scan` borne ce worker aux scans — la modération
 reste sur le serveur. `MONGODB_URI` pointe vers la base prod (directe ou via

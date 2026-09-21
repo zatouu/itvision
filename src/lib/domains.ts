@@ -185,7 +185,6 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/payment/paydunya/callback', domain: 'market', access: 'public', note: 'Webhook PayDunya — appelé serveur-à-serveur, vérifié par signature/token' },
   { prefix: '/api/payment', domain: 'market', access: 'auth', note: 'Init/callbacks spécifiques déclarés plus haut ; reste = authentifié' },
   { prefix: '/api/payment/add-ons', domain: 'market', access: 'auth' },
-  { prefix: '/api/scrape', domain: 'market', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
   { prefix: '/api/shipping', domain: 'market', access: 'auth' },
   { prefix: '/api/shipping-rates', domain: 'market', access: 'public' },
   { prefix: '/api/exchange-rate', domain: 'market', access: 'public' },

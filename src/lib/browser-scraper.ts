@@ -934,40 +934,6 @@ export class BrowserScraper {
     return page
   }
 
-  async screenshot(url: string, path: string): Promise<void> {
-    const context = await this.createContext()
-    const page = await context.newPage()
-    
-    await page.goto(url, { waitUntil: 'networkidle' })
-    await page.screenshot({ path, fullPage: true })
-    
-    await context.close()
-  }
-
-  async checkBlocking(url: string): Promise<{ blocked: boolean; reason?: string }> {
-    const result = await this.scrapeWithRetry(url, async (page) => {
-      const content = await page.content()
-      const title = await page.title()
-      
-      const blockingIndicators = [
-        { pattern: /captcha/i, reason: 'CAPTCHA détecté' },
-        { pattern: /robot|verify|verification/i, reason: 'Vérification anti-bot' },
-        { pattern: /access.*denied|403|blocked/i, reason: 'Accès bloqué' },
-        { pattern: /cloudflare/i, reason: 'Protection Cloudflare' },
-        { pattern: /recaptcha/i, reason: 'reCAPTCHA' },
-      ]
-      
-      for (const indicator of blockingIndicators) {
-        if (indicator.pattern.test(content) || indicator.pattern.test(title)) {
-          return { blocked: true, reason: indicator.reason }
-        }
-      }
-      
-      return { blocked: false }
-    }, 1)
-
-    return result.data || { blocked: true, reason: result.error }
-  }
 }
 
 // ======== API WRAPPER ========
@@ -978,17 +944,6 @@ export async function scrape1688WithBrowser(url: string): Promise<ScrapingResult
   try {
     await scraper.init()
     return await scraper.scrape1688(url)
-  } finally {
-    await scraper.close()
-  }
-}
-
-export async function scrapeAliExpressWithBrowser(url: string): Promise<ScrapingResult<ProductAliExpress>> {
-  const scraper = new BrowserScraper({ headless: true })
-  
-  try {
-    await scraper.init()
-    return await scraper.scrapeAliExpress(url)
   } finally {
     await scraper.close()
   }

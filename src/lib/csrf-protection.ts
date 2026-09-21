@@ -59,7 +59,6 @@ export function csrfMiddleware(request: NextRequest): Response | null {
     '/api/upload', // Upload de fichiers (FormData, pas JSON)
     '/api/internal/', // Serveur-à-serveur — protégé par x-cron-secret dans les handlers
     '/api/payments/manual-review', // Lien email admin — protégé par token HMAC signé dans le handler
-    '/api/market/sourcing/search-external', // Bridge recherche 1688 (read-only, pas de mutation)
   ]
 
   if (excludedPaths.some(path => pathname.includes(path) || pathname.startsWith(path))) {

@@ -86,3 +86,4 @@ pgcsps_build/PGCSPS KARIBU V3.docx
 
 # Profil navigateur persisté (session 1688 — cookies, données sensibles)
 data/browser-profile/
+data/agent-worker.pid

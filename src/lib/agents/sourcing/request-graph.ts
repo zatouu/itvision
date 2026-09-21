@@ -17,6 +17,7 @@
 import { StateGraph, Annotation, START, END, interrupt } from '@langchain/langgraph'
 import SourcingRequest from '@/lib/models/SourcingRequest'
 import AgentDecision from '@/lib/models/AgentDecision'
+import { ExternalSearchLog } from '@/lib/models/ExternalSearchLog'
 import { notifyAdmins } from '@/lib/notify'
 import { getCheckpointer } from '../checkpointer'
 import { discover1688Urls, scrapeOne1688, isQualityProduct, closeSourcingBrowser } from './graph'
@@ -173,6 +174,20 @@ async function propose(state: typeof RequestState.State) {
   // la décision existante plutôt que créer un doublon dans la file admin.
   const existing = await AgentDecision.findOne({ runId: state.runId, status: 'pending' }).lean() as any
   if (existing) return { decisionId: String(existing._id) }
+
+  // Journal d'audit — alimente la page admin des recherches externes
+  // (remplace l'ancienne route search-external supprimée).
+  await ExternalSearchLog.create({
+    imageUrl: req.imageUrl || `agent:${state.query.slice(0, 100)}`,
+    description: req.description?.slice(0, 500),
+    platform: '1688',
+    status: candidates.length > 0 ? 'success' : state.blockedReason ? 'blocked' : 'no_results',
+    resultsCount: candidates.length,
+    results: candidates.map((c: any) => ({
+      title: c.name, price1688: c.price1688, image: c.image || '', url: c.url, supplier: c.supplier,
+    })),
+    errorMessage: state.blockedReason,
+  }).catch((e) => console.warn('[sourcing-request] log externe échoué:', e?.message))
 
   // Alimenter externalSearchResults (affiché dans la page admin existante)
   if (candidates.length > 0) {
