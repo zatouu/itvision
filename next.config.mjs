@@ -107,8 +107,15 @@ const nextConfig = {
     '/': ['./lib/**/*'],
   },
 
-  // Packages serveur exclus du bundling (binaires natifs)
-  serverExternalPackages: ['playwright', 'playwright-core'],
+  // Packages serveur exclus du bundling (binaires natifs + plugins à requires dynamiques)
+  serverExternalPackages: [
+    'playwright',
+    'playwright-core',
+    'playwright-extra',
+    'puppeteer-extra-plugin-stealth',
+    'puppeteer-extra-plugin',
+    'puppeteer-extra',
+  ],
   
   // Optimisations de sécurité
   poweredByHeader: false, // Masquer le header "Powered by Next.js"
