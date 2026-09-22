@@ -22,7 +22,8 @@
  *
  * Usage local :
  *   1. .env.local → MONGODB_URI (prod ou tunnel SSH :
- *      ssh -L 27017:localhost:27017 user@ec2)
+ *      ssh -L 27019:<mongo-interne>:27017 user@ec2)
+ *      ou fichier dédié : npx tsx scripts/agent-worker.ts --env=.env.worker
  *   2. npx playwright install chromium   (une fois)
  *   3. AGENT_WORKER_TYPES=sourcing_scan,sourcing_request \
  *      npx tsx scripts/agent-worker.ts
@@ -32,8 +33,12 @@
  */
 
 import dotenv from 'dotenv'
-// WORKER_ENV_FILE permet de pointer une env dédiée (ex: .env.worker avec
-// MONGODB_URI vers la prod via tunnel SSH) sans toucher à .env.local.
+// --env=<fichier> (ou WORKER_ENV_FILE) pointe une env dédiée — ex:
+// .env.worker avec MONGODB_URI vers la prod via tunnel SSH — sans
+// toucher à .env.local. L'arg survit aux lancements détachés Windows
+// (Start-Process ne propage pas toujours l'env du parent).
+const envArg = process.argv.find((a) => a.startsWith('--env='))
+if (envArg) process.env.WORKER_ENV_FILE = envArg.slice(6)
 dotenv.config({ path: process.env.WORKER_ENV_FILE || '.env.local' })
 dotenv.config() // .env en fallback pour les clés manquantes
 import { execSync } from 'child_process'

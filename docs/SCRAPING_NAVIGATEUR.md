@@ -134,6 +134,9 @@ SCRAPER_HEADLESS=false                     # navigateur visible (debug/login)
 SCRAPER_USER_AGENT=...                     # UA fixe du profil (override)
 SCRAPER_1688_INTERNAL_SEARCH=1             # recherche interne s.1688 (IP chinoise)
 AGENT_WORKER_TYPES=sourcing_scan           # filtre de types de jobs
+EXCHANGE_RATE_USD=600                      # taux source→FCFA par devise (CNY, EUR, MAD…)
+# Worker détaché sur la prod : npx tsx scripts/agent-worker.ts --env=.env.worker
+# (.env.worker : MONGODB_URI → tunnel SSH prod + AGENT_WORKER_TYPES)
 ```
 
 ## Limitations connues
