@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Fraunces, Plus_Jakarta_Sans, Caveat } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
 import AnalyticsScripts from '@/components/AnalyticsScripts'
@@ -9,23 +9,25 @@ import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/structured-data'
 
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['800', '900'],
+// Fontes self-hostées (fontes variables Google téléchargées dans
+// public/fonts/) — zéro fetch réseau au build, plus rapide au runtime.
+const fraunces = localFont({
+  src: '../../public/fonts/fraunces-var.woff2',
+  weight: '100 900',
   variable: '--font-fraunces',
   display: 'swap',
 })
 
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+const jakarta = localFont({
+  src: '../../public/fonts/jakarta-var.woff2',
+  weight: '100 900',
   variable: '--font-jakarta',
   display: 'swap',
 })
 
-const caveat = Caveat({
-  subsets: ['latin'],
-  weight: ['500', '700'],
+const caveat = localFont({
+  src: '../../public/fonts/caveat-var.woff2',
+  weight: '100 900',
   variable: '--font-caveat',
   display: 'swap',
 })
