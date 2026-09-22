@@ -81,13 +81,16 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
   const code = isFreeMode ? TEST_CODE : generateOtp()
   const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
-  await OtpCode.create({ phone, code, role, expiresAt })
+  const otpDoc = await OtpCode.create({ phone, code, role, expiresAt })
 
   const sent = isFreeMode
     ? true
     : await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
 
   if (!sent) {
+    // Ne pas garder un code injouable en base — sinon l'anti-spam bloque
+    // le retry 1 min alors que l'échec vient du provider (ex: panne Twilio).
+    await OtpCode.deleteOne({ _id: otpDoc._id }).catch(() => {})
     return { success: false, phone, expiresIn: 0, error: 'Impossible d\'envoyer le SMS', status: 503 }
   }
 
