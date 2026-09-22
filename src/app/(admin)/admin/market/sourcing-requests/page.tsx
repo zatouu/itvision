@@ -45,7 +45,9 @@ interface ProposalDraft {
   supplierUrl?: string
   supplierName?: string
   notes?: string
+  sourcePlatform?: '1688' | 'aliexpress' | 'alibaba'
   price1688?: number | ''
+  sourceCurrency?: string
   exchangeRate?: number | ''
   productCostFCFA: number | ''
   serviceFeeRate: number | ''
@@ -90,12 +92,21 @@ interface SourcingRow {
   externalSearchResults?: Array<{
     title: string
     price1688?: number
+    sourceCurrency?: string
     image: string
     url: string
     supplier?: string
     minOrder?: number
+    platform?: '1688' | 'aliexpress' | 'alibaba'
   }>
 }
+
+const SOURCE_PLATFORM_LABEL: Record<string, string> = {
+  '1688': '1688',
+  aliexpress: 'AliExpress',
+  alibaba: 'Alibaba',
+}
+const SOURCE_CURRENCY_SYMBOL: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€', MAD: 'DH', XOF: 'F', XAF: 'F', GBP: '£', AED: 'د.إ', SAR: '﷼' }
 
 const STATUS_OPTIONS: Array<{ value: 'all' | 'pending' | Status; label: string }> = [
   { value: 'pending', label: 'À traiter' },
@@ -743,35 +754,44 @@ function DetailPanel({
               </a>
             </Section>
           )}
-          {/* Résultats recherche externe 1688 */}
+          {/* Résultats recherche externe (1688 / AliExpress / Alibaba) */}
           {request.externalSearchResults && request.externalSearchResults.length > 0 && (
-            <Section title={`Résultats 1688 (${request.externalSearchResults.length})`}>
+            <Section title={`Résultats externes (${request.externalSearchResults.length})`}>
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {request.externalSearchResults.map((r, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-2 p-2 rounded-lg border border-stone-100 bg-white"
-                  >
-                    <div className="w-14 h-14 rounded bg-stone-100 flex-shrink-0 overflow-hidden">
-                      <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                {request.externalSearchResults.map((r, i) => {
+                  const pl = r.platform || '1688'
+                  const cur = r.sourceCurrency || 'CNY'
+                  return (
+                    <div
+                      key={i}
+                      className="flex gap-2 p-2 rounded-lg border border-stone-100 bg-white"
+                    >
+                      <div className="w-14 h-14 rounded bg-stone-100 flex-shrink-0 overflow-hidden">
+                        <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-stone-900 truncate">{r.title}</p>
+                        <p className="text-xs text-violet-600">
+                          {r.price1688
+                            ? `${SOURCE_CURRENCY_SYMBOL[cur] || ''}${r.price1688.toLocaleString('fr-FR')} ${cur}`
+                            : 'Prix N/A'}
+                          <span className="ml-1 inline-block rounded bg-stone-100 px-1 text-[10px] text-stone-500">
+                            {SOURCE_PLATFORM_LABEL[pl] || pl}
+                          </span>
+                        </p>
+                        {r.supplier && <p className="text-[11px] text-stone-500 truncate">{r.supplier}</p>}
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Voir sur {SOURCE_PLATFORM_LABEL[pl] || pl}
+                        </a>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-stone-900 truncate">{r.title}</p>
-                      <p className="text-xs text-violet-600">
-                        {r.price1688 ? `¥${r.price1688.toLocaleString('fr-FR')}` : 'Prix N/A'}
-                      </p>
-                      {r.supplier && <p className="text-[11px] text-stone-500 truncate">{r.supplier}</p>}
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Voir sur 1688
-                      </a>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </Section>
           )}
@@ -857,13 +877,13 @@ function DetailPanel({
             onChange={(v) => setProposal({ ...proposal, supplierName: v })}
           />
           <FieldInput
-            label="Prix 1688 (CNY)"
+            label={`Prix source (${proposal.sourceCurrency || 'CNY'})`}
             type="number"
             value={proposal.price1688 ?? ''}
             onChange={(v) => setProposal({ ...proposal, price1688: v === '' ? '' : Number(v) })}
           />
           <FieldInput
-            label="Taux change (1 CNY → FCFA)"
+            label={`Taux change (1 ${proposal.sourceCurrency || 'CNY'} → FCFA)`}
             type="number"
             value={proposal.exchangeRate ?? ''}
             onChange={(v) => setProposal({ ...proposal, exchangeRate: v === '' ? '' : Number(v) })}
@@ -986,7 +1006,9 @@ function initProposalDraft(req: SourcingRow): ProposalDraft {
     supplierUrl: p?.supplierUrl || req.externalUrl || '',
     supplierName: p?.supplierName || '',
     notes: p?.notes || '',
+    sourcePlatform: p?.sourcePlatform,
     price1688: p?.price1688 ?? '',
+    sourceCurrency: p?.sourceCurrency || 'CNY',
     exchangeRate: p?.exchangeRate ?? 100,
     productCostFCFA: p?.productCostFCFA ?? '',
     serviceFeeRate: p?.serviceFeeRate ?? 10,

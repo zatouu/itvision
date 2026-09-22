@@ -24,6 +24,7 @@ import User from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { sendSms } from '@/lib/sms'
 import { MARKET_BRAND } from '@/lib/branding'
+import { SOURCE_CURRENCIES } from '@/lib/pricing/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -161,7 +162,11 @@ export async function POST(
     supplierUrl: p.supplierUrl?.toString().trim() || undefined,
     supplierName: p.supplierName?.toString().trim().slice(0, 200) || undefined,
     notes: p.notes?.toString().slice(0, 2000) || undefined,
+    sourcePlatform: ['1688', 'aliexpress', 'alibaba'].includes(p.sourcePlatform)
+      ? p.sourcePlatform
+      : undefined,
     price1688: asNumber(p.price1688),
+    sourceCurrency: SOURCE_CURRENCIES.includes(p.sourceCurrency) ? p.sourceCurrency : undefined,
     exchangeRate: asNumber(p.exchangeRate),
     productCostFCFA,
     serviceFeeRate,

@@ -108,10 +108,10 @@ export default function AdminSourcingPage() {
           <Globe className="w-5 h-5 text-orange-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Veille sourcing 1688</h1>
+          <h1 className="text-xl font-bold text-slate-900">Veille sourcing</h1>
           <p className="text-sm text-slate-500">
-            L&apos;agent navigue sur 1688 comme un acheteur, extrait les offres, calcule le prix
-            (sourcing + marge + frais + assurance) et crée des brouillons soumis à la modération.
+            L&apos;agent parcourt 1688, AliExpress et Alibaba comme un acheteur, extrait les offres,
+            convertit le prix source (CNY/USD/EUR…) et crée des brouillons soumis à la modération.
           </p>
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function AdminSourcingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="sm:col-span-2">
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
-              Recherche 1688 (mot-clé, idéalement en chinois)
+              Recherche (mot-clé FR/EN/CN — traduction auto pour 1688)
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -136,12 +136,12 @@ export default function AdminSourcingPage() {
           </div>
           <div className="sm:col-span-2 lg:col-span-4">
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
-              Ou URLs d&apos;offres 1688 directes (une par ligne — ex : liens de vos contacts)
+              Ou URLs d&apos;offres directes — 1688 / AliExpress / Alibaba (une par ligne, ex : liens de vos contacts)
             </label>
             <textarea
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
-              placeholder={'https://detail.1688.com/offer/123456789.html\nhttps://detail.1688.com/offer/987654321.html'}
+              placeholder={'https://detail.1688.com/offer/123456789.html\nhttps://www.aliexpress.com/item/1005001234567890.html\nhttps://www.alibaba.com/product-detail/xxx_1600000000000.html'}
               rows={2}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
             />

@@ -28,7 +28,7 @@ interface Proposal {
     description?: string
     qty?: number
     budgetMaxFCFA?: number
-    candidates?: Array<{ name: string; url: string; image?: string; supplier?: string; price1688?: number; totalClientPrice?: number }>
+    candidates?: Array<{ name: string; url: string; image?: string; supplier?: string; price1688?: number; sourceCurrency?: string; platform?: string; totalClientPrice?: number }>
     suggestedProposal?: { productName?: string; totalClientPrice?: number } | null
   }
 }
@@ -216,6 +216,8 @@ export default function AdminCopilotPage() {
                               <div key={i} className="flex items-center gap-2 text-[11px]">
                                 {c.image && <img src={c.image} alt="" className="h-8 w-8 rounded-md object-cover border border-stone-200" />}
                                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-violet-700 hover:underline">{c.name}</a>
+                                {c.platform && <span className="flex-shrink-0 rounded bg-stone-100 px-1 text-[10px] text-stone-500">{c.platform === '1688' ? '1688' : c.platform === 'aliexpress' ? 'AliExpress' : 'Alibaba'}</span>}
+                                {c.price1688 != null && <span className="flex-shrink-0 tabular-nums text-stone-400">{c.price1688.toLocaleString('fr-FR')} {c.sourceCurrency || 'CNY'}</span>}
                                 {c.totalClientPrice != null && <b className="flex-shrink-0 tabular-nums">{c.totalClientPrice.toLocaleString('fr-FR')} F</b>}
                               </div>
                             ))}

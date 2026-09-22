@@ -20,10 +20,10 @@ import AgentDecision from '@/lib/models/AgentDecision'
 import { ExternalSearchLog } from '@/lib/models/ExternalSearchLog'
 import { notifyAdmins } from '@/lib/notify'
 import { getCheckpointer } from '../checkpointer'
-import { discover1688Urls, scrapeOne1688, isQualityProduct, closeSourcingBrowser } from './graph'
-import { humanDelay, Product1688 } from '@/lib/browser-scraper'
+import { discoverSourceUrls, scrapeOneSource, isQualityProduct, closeSourcingBrowser } from './graph'
+import { humanDelay, classifySourceUrl, Product1688, SourcePlatform } from '@/lib/browser-scraper'
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
-import { DEFAULT_EXCHANGE_RATE, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
+import { sourceCurrencyRate, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 
 const MAX_CANDIDATES = 5
 const EXTRACT_LIMIT = 8 // ~moitié des URLs moteurs sont délistées/mortes — on en tente plus
@@ -50,9 +50,9 @@ async function loadRequest(state: typeof RequestState.State) {
   }
 
   // Construction de la query : titre > début de description > hint catégorie.
-  // externalUrl 1688 = fiche directe à traiter en priorité.
+  // externalUrl 1688/AliExpress/Alibaba = fiche directe à traiter en priorité.
   const directUrls: string[] = []
-  if (request.externalUrl && /detail\.1688\.com\/offer\/\d+/.test(request.externalUrl)) {
+  if (request.externalUrl && classifySourceUrl(request.externalUrl)) {
     directUrls.push(request.externalUrl)
   }
 
@@ -71,7 +71,7 @@ async function search(state: typeof RequestState.State) {
   if (state.directUrls.length > 0) {
     return { offerUrls: state.directUrls, candidates: [] as Product1688[] }
   }
-  const { urls, blockedReason } = await discover1688Urls(state.query, EXTRACT_LIMIT + 4)
+  const { urls, blockedReason } = await discoverSourceUrls(state.query, EXTRACT_LIMIT + 4)
   return { offerUrls: urls, candidates: [] as Product1688[], blockedReason }
 }
 
@@ -88,7 +88,7 @@ async function extract(state: typeof RequestState.State) {
     if (candidates.length > 0) await humanDelay(3000, 7000)
 
     const t0 = Date.now()
-    const result = await scrapeOne1688(url)
+    const result = await scrapeOneSource(url)
     console.log(`[sourcing-request] ${result.success ? '✓' : '✗'} ${url} (${Math.round((Date.now() - t0) / 1000)}s)`)
 
     const q = isQualityProduct(result.data)
@@ -109,20 +109,24 @@ async function extract(state: typeof RequestState.State) {
 }
 
 /** Prix client estimé — même formule que la route proposal :
- *  coût (¥×taux×qté) + frais service + assurance + transport aérien éco. */
+ *  coût (prix source × taux devise × qté) + frais service + assurance
+ *  + transport aérien éco. Le taux dépend de la devise source
+ *  (CNY=1688, USD/EUR=AliExpress/Alibaba). */
 function score(state: typeof RequestState.State) {
   const qty = Math.max(1, state.request?.qty || 1)
   const rate = BASE_SHIPPING_RATES.air_15 // aérien économique = défaut proposition
 
   const scored = state.candidates.map((p) => {
-    const exchangeRate = p.exchangeRate > 0 ? p.exchangeRate : DEFAULT_EXCHANGE_RATE
+    const platform = p.platform || '1688'
+    const sourceCurrency = p.price1688Currency || 'CNY'
+    const exchangeRate = p.exchangeRate > 0 ? p.exchangeRate : sourceCurrencyRate(sourceCurrency)
     const productCostFCFA = Math.round((p.price1688 || 0) * exchangeRate * qty)
     const serviceFeeAmount = Math.round(productCostFCFA * (DEFAULT_SERVICE_FEE_RATE / 100))
     const insuranceAmount = Math.round(productCostFCFA * (DEFAULT_INSURANCE_RATE / 100))
     const weightKg = (p.weightKg || 1) * qty
     const shippingCost = Math.max(rate.minimumCharge || 0, Math.round(rate.rate * weightKg))
     const totalClientPrice = Math.round(productCostFCFA + serviceFeeAmount + insuranceAmount + shippingCost)
-    return { product: p, exchangeRate, productCostFCFA, serviceFeeAmount, insuranceAmount, shippingCost, totalClientPrice }
+    return { product: p, platform, sourceCurrency, exchangeRate, productCostFCFA, serviceFeeAmount, insuranceAmount, shippingCost, totalClientPrice }
   })
 
   // Meilleur candidat = prix total le plus bas (heuristique simple, admin tranche)
@@ -135,7 +139,9 @@ function score(state: typeof RequestState.State) {
             url: s.product.productUrl,
             image: s.product.image || s.product.gallery?.[0],
             supplier: s.product.supplier?.name,
+            platform: s.platform,
             price1688: s.product.price1688,
+            sourceCurrency: s.sourceCurrency,
             totalClientPrice: s.totalClientPrice,
           })),
           best: {
@@ -144,7 +150,9 @@ function score(state: typeof RequestState.State) {
             productGallery: (best.product.gallery || []).slice(0, 8),
             supplierUrl: best.product.productUrl,
             supplierName: best.product.supplier?.name,
+            sourcePlatform: best.platform,
             price1688: best.product.price1688,
+            sourceCurrency: best.sourceCurrency,
             exchangeRate: best.exchangeRate,
             productCostFCFA: best.productCostFCFA,
             serviceFeeRate: DEFAULT_SERVICE_FEE_RATE,
@@ -177,17 +185,26 @@ async function propose(state: typeof RequestState.State) {
 
   // Journal d'audit — alimente la page admin des recherches externes
   // (remplace l'ancienne route search-external supprimée).
-  await ExternalSearchLog.create({
-    imageUrl: req.imageUrl || `agent:${state.query.slice(0, 100)}`,
-    description: req.description?.slice(0, 500),
-    platform: '1688',
-    status: candidates.length > 0 ? 'success' : state.blockedReason ? 'blocked' : 'no_results',
-    resultsCount: candidates.length,
-    results: candidates.map((c: any) => ({
-      title: c.name, price1688: c.price1688, image: c.image || '', url: c.url, supplier: c.supplier,
-    })),
-    errorMessage: state.blockedReason,
-  }).catch((e) => console.warn('[sourcing-request] log externe échoué:', e?.message))
+  // Une entrée par plateforme trouvée (1688/aliexpress/alibaba).
+  const byPlatform = new Map<SourcePlatform, any[]>()
+  for (const c of candidates) {
+    const pl = (c.platform || '1688') as SourcePlatform
+    byPlatform.set(pl, [...(byPlatform.get(pl) || []), c])
+  }
+  const logStatus = candidates.length > 0 ? 'success' : state.blockedReason ? 'blocked' : 'no_results'
+  for (const [platform, list] of byPlatform.size ? byPlatform : ([['1688', []]] as Array<[SourcePlatform, any[]]>)) {
+    await ExternalSearchLog.create({
+      imageUrl: req.imageUrl || `agent:${state.query.slice(0, 100)}`,
+      description: req.description?.slice(0, 500),
+      platform,
+      status: logStatus,
+      resultsCount: list.length,
+      results: list.map((c: any) => ({
+        title: c.name, price1688: c.price1688, image: c.image || '', url: c.url, supplier: c.supplier,
+      })),
+      errorMessage: state.blockedReason,
+    }).catch((e) => console.warn('[sourcing-request] log externe échoué:', e?.message))
+  }
 
   // Alimenter externalSearchResults (affiché dans la page admin existante)
   if (candidates.length > 0) {
@@ -198,10 +215,11 @@ async function propose(state: typeof RequestState.State) {
           externalSearchResults: candidates.map((c: any) => ({
             title: c.name,
             price1688: c.price1688,
+            sourceCurrency: c.sourceCurrency || 'CNY',
             image: c.image || '',
             url: c.url,
             supplier: c.supplier,
-            platform: '1688',
+            platform: c.platform || '1688',
             searchedAt: new Date(),
           })),
           status: 'searching',
@@ -220,11 +238,11 @@ async function propose(state: typeof RequestState.State) {
       confidence: candidates.length > 0 ? 0.7 : 0,
       reasons: candidates.length > 0
         ? [
-            `${candidates.length} candidat(s) 1688 trouvé(s)`,
+            `${candidates.length} candidat(s) trouvé(s) (${[...byPlatform.keys()].join(', ')})`,
             `Meilleur prix estimé : ${state.suggestion.best.totalClientPrice.toLocaleString('fr-FR')} F livré`,
             state.blockedReason ? `Blocage partiel : ${state.blockedReason}` : null,
           ].filter(Boolean)
-        : [state.blockedReason ? `Bloqué : ${state.blockedReason}` : 'Aucun candidat 1688 trouvé'],
+        : [state.blockedReason ? `Bloqué : ${state.blockedReason}` : 'Aucun candidat trouvé'],
       suggestedFixes: [],
       riskFlags: [],
       checks: { autoSearch: true, candidatesFound: candidates.length },

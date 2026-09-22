@@ -361,15 +361,19 @@ loadRequest → search → extract → score → propose → interrupt() → app
 ```
 
 - **loadRequest** : charge la `SourcingRequest` ; construit la query
-  (titre > description > categoryHint) ; un `externalUrl` 1688 devient une URL
-  directe. Demande clôturée → erreur immédiate (pas de travail inutile).
-- **search** : `discover1688Urls()` partagée — URLs directes → moteurs →
-  recherche interne (session loggée).
-- **extract** : `scrapeOne1688()` + `isQualityProduct()` partagés, pacing
-  humain, max 5 candidats.
+  (titre > description > categoryHint) ; un `externalUrl` 1688/AliExpress/
+  Alibaba (`classifySourceUrl`) devient une URL directe. Demande clôturée →
+  erreur immédiate (pas de travail inutile).
+- **search** : `discoverSourceUrls()` partagée — URLs directes → moteurs
+  (1688 traduit+original, AliExpress/Alibaba en original) → recherche
+  interne 1688 (opt-in, session loggée).
+- **extract** : `scrapeOneSource()` (dispatch par plateforme, normalisé en
+  `Product1688`) + `isQualityProduct()` (plancher de prix par devise)
+  partagés, pacing humain, max 5 candidats.
 - **score** : pour chaque candidat, la **même formule que la route proposal** :
-  `coût (¥ × taux × qté) + frais service 10% + assurance 2,5% + transport
-  aérien éco (8500 F/kg, min 8500)` → `totalClientPrice`. Le meilleur = prix
+  `coût (prix source × taux devise × qté) + frais service 10% + assurance
+  2,5% + transport aérien éco (8500 F/kg, min 8500)` → `totalClientPrice`.
+  Le taux dépend de `sourceCurrency` (CNY/USD/EUR). Le meilleur = prix
   total le plus bas (l'admin tranche).
 - **propose** : écrit `externalSearchResults` (affichés dans la page admin
   existante) + crée l'`AgentDecision` + notifie les admins.

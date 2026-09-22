@@ -8,6 +8,7 @@ import AgentRun from '@/lib/models/AgentRun'
 import AgentJob from '@/lib/models/AgentJob'
 import type { IAgentJob } from '@/lib/models/AgentJob'
 import { getSourcingGraph, closeSourcingBrowser } from './graph'
+import { classifySourceUrl } from '@/lib/browser-scraper'
 
 const MAX_ITEMS_CAP = 30
 
@@ -20,7 +21,8 @@ export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'pa
     maxItems?: number
     groupBuyEligible?: boolean
   }
-  const directUrls = (payload.urls || []).filter((u) => /detail\.1688\.com\/offer\/\d+/.test(u))
+  // URLs directes 1688/AliExpress/Alibaba (ex: liens fournis par les contacts en Chine)
+  const directUrls = (payload.urls || []).filter((u) => classifySourceUrl(u) !== null)
   const query = (payload.query || job.refId || '').trim()
   if (!query && directUrls.length === 0) {
     throw new Error('sourcing_scan: ni query ni urls dans le payload')

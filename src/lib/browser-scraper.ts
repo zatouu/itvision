@@ -29,15 +29,18 @@ interface ScrapingResult<T> {
   durationMs: number
 }
 
+type SourcePlatform = '1688' | 'aliexpress' | 'alibaba'
+
 interface Product1688 {
   offerId?: string
   name: string
   productUrl: string
   image?: string
   gallery: string[]
-  price1688?: number
-  price1688Currency: 'CNY'
-  exchangeRate: number
+  price1688?: number                    // prix source dans sa devise d'origine
+  price1688Currency: string             // ISO: CNY=1688, USD/EUR/MAD…=AliExpress/Alibaba
+  platform?: SourcePlatform             // défaut '1688' quand absent
+  exchangeRate: number                  // 1 unité source → FCFA
   currency: 'FCFA'
   category: string
   tagline: string
@@ -80,6 +83,7 @@ interface ProductAliExpress {
   gallery: string[]
   baseCost?: number
   price?: number
+  priceCurrency?: string                // devise ISO affichée sur la fiche source
   currency: string
   weightKg: number
   features: string[]
@@ -452,6 +456,38 @@ export class BrowserScraper {
     return lastResult || { success: false, error: 'Recherche échouée', attempts: 0, durationMs: 0 }
   }
 
+  /**
+   * Recherche Alibaba.com → URLs product-detail. La page /trade/search
+   * sert une « punish page » au fetch nu après quelques requêtes ; le
+   * navigateur réel passe beaucoup mieux. Extraction des liens SSR.
+   */
+  async searchAlibaba(query: string, limit = 20): Promise<ScrapingResult<string[]>> {
+    const searchUrl = `https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(query)}`
+    return this.scrapeWithRetry(searchUrl, async (page) => {
+      await page.waitForSelector('a[href*="product-detail"]', { timeout: 15000 }).catch(() => {})
+      await page.waitForTimeout(2000)
+
+      const rawUrls = await page.$$eval(
+        'a[href*="alibaba.com/product-detail/"], a[href*="/product-detail/"]',
+        (els) => els.map((el) => (el as HTMLAnchorElement).href).filter(Boolean)
+      )
+      const seen = new Set<string>()
+      const urls: string[] = []
+      for (const u of rawUrls) {
+        const m = u.match(/product-detail\/([^\s"'<>&?]+?_\d+\.html)/)
+        if (!m || seen.has(m[1])) continue
+        seen.add(m[1])
+        urls.push(`https://www.alibaba.com/product-detail/${m[1]}`)
+        if (urls.length >= limit) break
+      }
+      if (urls.length === 0) {
+        const title = await page.title().catch(() => '')
+        throw new Error(`SEARCH_EMPTY: aucun produit Alibaba (${title || 'page vide'})`)
+      }
+      return urls
+    }, 2)
+  }
+
   async scrape1688(url: string, maxRetries = 3): Promise<ScrapingResult<Product1688>> {
     return this.scrapeWithRetry(url, async (page) => {
         // Offre délistée/retirée : page 200 mais sans prix — fréquent sur les
@@ -799,6 +835,7 @@ export class BrowserScraper {
         result.tagline = 'Import 1688'
         result.currency = 'FCFA'
         result.price1688Currency = 'CNY'
+        result.platform = '1688'
         result.exchangeRate = 100
         result.weightKg = weightKg > 0 ? Number(weightKg.toFixed(2)) : 1
         result.lengthCm = lengthCm > 0 ? Math.round(lengthCm) : 10
@@ -830,10 +867,32 @@ export class BrowserScraper {
     }, maxRetries)
   }
 
-  async scrapeAliExpress(url: string): Promise<ScrapingResult<ProductAliExpress>> {
+  async scrapeAliExpress(url: string, maxRetries = 3): Promise<ScrapingResult<ProductAliExpress>> {
     return this.scrapeWithRetry(url, async (page) => {
-      // Attente spécifique AliExpress
-      await page.waitForSelector('[data-pl="product-title"], h1', { timeout: 10000 })
+      // Forcer USD : AliExpress localise la devise par geo-IP (MAD etc.).
+      // Cookie standard du groupe Alibaba — si ignoré, la devise affichée
+      // est détectée à l'extraction.
+      await page.context().addCookies([{
+        name: 'aep_usuc_f',
+        value: 'site=glo&c_tp=USD&region=US&b_locale=en_US',
+        domain: '.aliexpress.com',
+        path: '/',
+      }]).catch(() => {})
+
+      // Le contenu produit AE rend tardivement (challenge JS discret) :
+      // on attend un signal produit jusqu'à ~22s avec scroll doux —
+      // sans jamais throw : on extrait ce qui est là.
+      const t0 = Date.now()
+      while (Date.now() - t0 < 22000) {
+        const ready = await page.evaluate(() => {
+          const t = document.querySelector('[data-pl="product-title"], h1.product-title, h1')?.textContent?.trim() || ''
+          const hasPrice = !!document.querySelector('[data-pl="product-price"], .product-price-value, [class*="price--current"], [class*="Price--current"]')
+          return (t.length > 10 && !/^aliexpress$/i.test(t)) || (t.length > 10 && hasPrice)
+        }).catch(() => false)
+        if (ready) break
+        await page.mouse.wheel(0, 600).catch(() => {})
+        await page.waitForTimeout(1500)
+      }
 
       const data = await page.evaluate(() => {
         const result: Partial<ProductAliExpress> = {
@@ -842,14 +901,28 @@ export class BrowserScraper {
           shipping: [],
         }
 
-        // Titre
-        const titleEl = document.querySelector('[data-pl="product-title"], h1, .product-title')
-        result.name = titleEl?.textContent?.trim() || 'Produit AliExpress'
+        // Titre : DOM → document.title (le h1 peut rester « Aliexpress » générique)
+        const titleEl = document.querySelector('[data-pl="product-title"], h1.product-title, h1')
+        let name = titleEl?.textContent?.trim() || ''
+        if (name.length < 10 || /^aliexpress$/i.test(name)) {
+          name = document.title.replace(/\s*[-–|]\s*AliExpress.*$/i, '').trim()
+        }
+        result.name = name || 'Produit AliExpress'
 
-        // Prix
+        // Prix : sélecteurs DOM → JSON embarqué (runParams / __AER_DATA__).
+        // Devise affichée détectée (geo-IP peut servir MAD, EUR…).
+        const detectCur = (raw: string): string | undefined => {
+          const m = raw.match(/\b(USD|EUR|CNY|MAD|XOF|XAF|GBP|AED|SAR)\b/i)
+          if (m) return m[1].toUpperCase()
+          if (/€/.test(raw)) return 'EUR'
+          if (/¥|￥/.test(raw)) return 'CNY'
+          if (/US\$|\$/.test(raw)) return 'USD'
+          return undefined
+        }
         const priceSelectors = [
           '[data-pl="product-price"]',
           '.product-price-value',
+          '[class*="price--current"], [class*="Price--current"]',
           '[class*="price"] [class*="current"]',
           '.price-current',
         ]
@@ -859,32 +932,44 @@ export class BrowserScraper {
             const match = el.textContent.replace(/[^\d.,]/g, '').replace(',', '.').match(/(\d+(?:\.\d+)?)/)
             if (match) {
               result.price = parseFloat(match[1])
+              result.priceCurrency = detectCur(el.textContent)
               break
             }
           }
         }
-
-        // Images
-        const imgSelectors = [
-          '.gallery-image',
-          '.magnifier-image img',
-          '[class*="gallery"] img',
-          '.image-viewer img',
-        ]
-        for (const selector of imgSelectors) {
-          const imgs = document.querySelectorAll(selector)
-          imgs.forEach(img => {
-            const src = img.getAttribute('src') || img.getAttribute('data-src')
-            if (src && src.includes('aliexpress')) {
-              result.gallery!.push(src.replace(/_\d+x\d+/, ''))
-            }
-          })
-          if (result.gallery!.length > 0) break
+        // Fallback : JSON embarqué (runParams / __AER_DATA__) — le prix y est
+        // présent même quand le module visuel n'a pas fini de rendre.
+        if (!result.price) {
+          const html = document.documentElement.innerHTML
+          const jm = html.match(/"(?:formatedActivityPrice|formatedPrice|salePrice|minActivityAmount)"\s*:\s*"(?:[^"\d]*?)([\d.,]+)"/)
+            || html.match(/"value"\s*:\s*"?([\d.]+)"?/g)?.[0]?.match(/([\d.]+)/)
+          if (jm) {
+            result.price = parseFloat(jm[1].replace(',', '.'))
+            const curM = jm[0].match(/\b(USD|EUR|CNY|MAD)\b/i)
+            result.priceCurrency = curM ? curM[1].toUpperCase() : 'USD'
+          }
         }
+        // Fallback devise : code ISO dominant dans la page
+        if (result.price && !result.priceCurrency) {
+          const html = document.documentElement.innerHTML
+          const cm = html.match(/\b(USD|EUR|MAD)\b/)
+          result.priceCurrency = cm?.[1] || (html.includes('€') ? 'EUR' : 'USD')
+        }
+
+        // Images — CDN alicdn (ae01/02/03.alicdn.com), pas aliexpress.com
+        const seenImg = new Set<string>()
+        document.querySelectorAll('img').forEach((img) => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src')
+          if (src && /ae\d*\.alicdn\.com|alicdn\.com\/kf\//i.test(src) && !seenImg.has(src)) {
+            seenImg.add(src)
+            const full = (src.startsWith('//') ? 'https:' + src : src).replace(/_\d+x\d+[^.]*\./, '.')
+            result.gallery!.push(full)
+          }
+        })
         result.image = result.gallery?.[0]
 
-        // Boutique
-        result.shopName = document.querySelector('.shop-name, .store-name, [class*="shop"]')?.textContent?.trim()
+        // Boutique — sélecteurs stricts (un [class*="shop"] attrape le header)
+        result.shopName = document.querySelector('.shop-name, .store-name, [class*="storeName"], [class*="store-name"], a[href*="/store/"]')?.textContent?.trim()
         
         // Rating
         const ratingEl = document.querySelector('.rating-value, [class*="rating"]')
@@ -958,7 +1043,101 @@ export class BrowserScraper {
         ...data,
         productUrl: url,
       }
-    })
+    }, maxRetries)
+  }
+
+  /**
+   * Fiche produit Alibaba.com (B2B). La devise affichée dépend de la
+   * geo-IP (MAD vu depuis le Maghreb) : on force USD via cookie groupe
+   * Alibaba + reload ; si ignoré, la devise réelle est détectée à
+   * l'extraction. Échecs = erreurs opérationnelles, pas de contournement.
+   */
+  async scrapeAlibaba(url: string, maxRetries = 3): Promise<ScrapingResult<ProductAliExpress>> {
+    return this.scrapeWithRetry(url, async (page) => {
+      // Cookie devise groupe Alibaba → prix en USD déterministes
+      await page.context().addCookies([{
+        name: 'aep_usuc_f',
+        value: 'site=usa&c_tp=USD&region=US&b_locale=en_US',
+        domain: '.alibaba.com',
+        path: '/',
+      }]).catch(() => {})
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {})
+      await page.waitForSelector('h1, [class*="product-title"], [class*="ProductTitle"]', { timeout: 15000 }).catch(() => {})
+      await page.waitForTimeout(2000)
+
+      const data = await page.evaluate(() => {
+        const result: Partial<ProductAliExpress> = { gallery: [], features: [], shipping: [] }
+
+        const titleEl = document.querySelector('h1, [class*="product-title"], [class*="ProductTitle"]')
+        result.name = titleEl?.textContent?.trim() || document.title.split(/[-–|]/)[0].trim()
+
+        // Prix : « US $12.50 », « MAD 78.55 », « $12.50 - $15.00 »…
+        // On prend le PREMIER prix trouvé = palier au MOQ le plus bas
+        // (les paliers suivants = prix dégressifs gros volumes).
+        const PRICE_RE = /(?:US\s*\$|USD|\$|€|¥|MAD|AED|SAR|XOF|CFA)\s*([\d]+(?:[.,]\d+)?)/i
+        const CUR_RE = /(US\s*\$|USD|\$|€|¥|MAD|AED|SAR|XOF|CFA)/i
+        const normCur = (sym: string): string => {
+          const s = sym.replace(/\s+/g, '').toUpperCase()
+          if (s === 'US$' || s === '$' || s === 'USD') return 'USD'
+          if (s === '€' || s === 'EUR') return 'EUR'
+          if (s === '¥' || s === 'CNY') return 'CNY'
+          if (s === 'CFA' || s === 'XAF') return 'XAF'
+          return s // MAD, XOF, AED, SAR… ISO direct
+        }
+        const parsePrice = (t: string) => {
+          const m = t.match(PRICE_RE)
+          if (!m) return null
+          const v = parseFloat(m[1].replace(/[\s,]/g, ''))
+          if (!(v > 0)) return null
+          return { value: v, currency: normCur(m[0].match(CUR_RE)![0]) }
+        }
+        const bodyText = document.body?.innerText || ''
+        // Candidats : zones « price » puis le texte de la page (limité)
+        const zones = [...document.querySelectorAll('[class*="price"], [class*="Price"], [class*="ma-ref-price"]')]
+          .map((el) => el.textContent || '')
+        zones.push(bodyText.slice(0, 6000))
+        for (const z of zones) {
+          const p = parsePrice(z)
+          if (p) { result.price = p.value; result.priceCurrency = p.currency; break }
+        }
+
+        // MOQ : « 10-2,999 pieces », « MOQ: 10 pieces », « ≥3,000 pieces »
+        const moqM = bodyText.match(/(\d[\d,]*)\s*[-–]\s*[\d,]+\s*(?:piece|pieces|pcs)/i)
+          || bodyText.match(/MOQ[:\s]*(\d[\d,]*)/i)
+          || bodyText.match(/(\d[\d,]*)\s*(?:piece|pieces|pcs)\s*\(?(?:MOQ|min)/i)
+        if (moqM) result.orders = parseInt(moqM[1].replace(/,/g, '')) // MOQ côté mapping
+
+        // Images (cdn Alibaba : sc01/02.alicdn.com, s.alicdn.com)
+        const seen = new Set<string>()
+        document.querySelectorAll('img').forEach((img) => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src')
+          if (src && /alicdn\.com/i.test(src) && !seen.has(src)) {
+            seen.add(src)
+            result.gallery!.push(src.startsWith('//') ? 'https:' + src : src)
+          }
+        })
+        result.image = result.gallery?.[0]
+
+        // Fournisseur : regex « …Co., Ltd. » dans le texte → sélecteurs
+        // (les sélecteurs [class*="supplier"] attrapent des liens « View more »)
+        const cm = bodyText.match(/([A-Z][\w .,&'()-]{4,60}(?:Co\.,?[ ]*Ltd\.?|Company[ ]*Limited|Factory|Industrial))/)
+        if (cm) result.shopName = cm[1].trim()
+        if (!result.shopName) {
+          const el = document.querySelector('.company-name, a[href*="company_profile"]')
+          const t = el?.textContent?.trim()
+          if (t && t.length > 4 && t.length < 80) result.shopName = t
+        }
+
+        result.category = 'Catalogue import Chine'
+        result.tagline = 'Import Alibaba'
+        result.availabilityNote = 'Import Alibaba — freight 3j/15j/60j'
+        result.currency = 'FCFA'
+        result.weightKg = 1
+        return result as ProductAliExpress
+      })
+
+      return { ...data, productUrl: url }
+    }, maxRetries)
   }
 
   /** Injecte l'extracteur de l'extension Chrome et retourne les données brutes */
@@ -1015,22 +1194,28 @@ export async function scrape1688WithBrowser(url: string): Promise<ScrapingResult
 }
 
 /**
- * Découverte d'offres 1688 via moteurs de recherche — fallback quand la
- * recherche interne 1688 exige un login. `site:detail.1688.com` retourne
- * les URLs d'offres indexées. Fetch simple, pas de navigateur.
+ * Découverte d'offres via moteurs de recherche — DDG + Bing, fetch simple,
+ * pas de navigateur ni de login. `site:` + regex d'extraction paramétrables
+ * pour couvrir 1688, AliExpress et Alibaba.com avec le même code.
  */
-export async function search1688ViaEngines(query: string, limit = 20): Promise<string[]> {
+async function searchOffersViaEngines(
+  query: string,
+  site: string,
+  offerPattern: RegExp,
+  normalize: (m: RegExpMatchArray) => string,
+  limit: number
+): Promise<string[]> {
   const out: string[] = []
   const seen = new Set<string>()
   const push = (u: string) => {
-    const m = u.match(/detail\.1688\.com\/offer\/(\d+)\.html/)
-    if (m && !seen.has(m[1])) {
-      seen.add(m[1])
-      out.push(`https://detail.1688.com/offer/${m[1]}.html`)
+    const m = u.match(offerPattern)
+    if (m && !seen.has(m[1] || m[0])) {
+      seen.add(m[1] || m[0])
+      out.push(normalize(m))
     }
   }
 
-  const q = `site:detail.1688.com ${query}`
+  const q = `site:${site} ${query}`
   const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
   try {
@@ -1041,7 +1226,7 @@ export async function search1688ViaEngines(query: string, limit = 20): Promise<s
     if (res.ok) {
       const html = await res.text()
       for (const m of html.matchAll(/uddg=([^&"']+)/g)) push(decodeURIComponent(m[1]))
-      for (const m of html.matchAll(/href="(https?:\/\/detail\.1688\.com\/offer\/\d+\.html[^"]*)"/g)) push(m[1])
+      for (const m of html.matchAll(new RegExp(`href="(https?:\\/\\/(?:www\\.)?${site.replace(/\./g, '\\.')}\\/[^"]*)"`, 'g'))) push(m[1])
     }
   } catch {}
 
@@ -1053,12 +1238,115 @@ export async function search1688ViaEngines(query: string, limit = 20): Promise<s
       })
       if (res.ok) {
         const html = await res.text()
-        for (const m of html.matchAll(/href="(https?:\/\/detail\.1688\.com\/offer\/\d+\.html[^"]*)"/g)) push(m[1])
+        const siteRe = new RegExp(`href="(https?:\\/\\/(?:www\\.)?${site.replace(/\./g, '\\.')}\\/[^"]*)"`, 'g')
+        for (const m of html.matchAll(siteRe)) push(m[1])
+        // Bing encapsule souvent les résultats en /ck/a?…&u=a1<base64url>
+        // → décoder le param u (préfixe "a1" puis base64url de l'URL cible).
+        // NB : les & du href sont échappés (&amp;u=…), d'où le pattern lâche.
+        for (const m of html.matchAll(/\/ck\/a\?[^"']*?u=a1([A-Za-z0-9_-]{16,})/g)) {
+          try {
+            const decoded = Buffer.from(m[1], 'base64url').toString('utf8')
+            if (decoded.includes(site)) push(decoded)
+          } catch {}
+        }
       }
     } catch {}
   }
 
   return out.slice(0, limit)
+}
+
+/** Classe une URL fournisseur : '1688' | 'aliexpress' | 'alibaba' | null (non supportée). */
+export function classifySourceUrl(url: string): SourcePlatform | null {
+  if (/detail\.1688\.com\/offer\/\d+/i.test(url)) return '1688'
+  if (/aliexpress\.com\/(item|i)\/\d+/i.test(url)) return 'aliexpress'
+  if (/alibaba\.com\/(product-detail|showroom)\/[^"&'\s]+/i.test(url)) return 'alibaba'
+  return null
+}
+
+/** 1688 : detail.1688.com/offer/<id>.html */
+export function search1688ViaEngines(query: string, limit = 20): Promise<string[]> {
+  return searchOffersViaEngines(
+    query, 'detail.1688.com',
+    /detail\.1688\.com\/offer\/(\d+)\.html/,
+    (m) => `https://detail.1688.com/offer/${m[1]}.html`,
+    limit
+  )
+}
+
+const ENGINE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+/**
+ * Recherche native AliExpress — la page /wholesale est SSR pour le SEO :
+ * les URLs d'items sont dans le HTML servi, pas besoin de navigateur ni
+ * de login. Listings internationaux → requête EN/FR telle quelle.
+ */
+export async function searchAliExpressNative(query: string, limit = 20): Promise<string[]> {
+  const out: string[] = []
+  const seen = new Set<string>()
+  try {
+    const res = await fetch(`https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': ENGINE_UA, 'Accept-Language': 'en-US,en;q=0.9' },
+      signal: AbortSignal.timeout(20000),
+    })
+    if (res.ok) {
+      const html = await res.text()
+      for (const m of html.matchAll(/aliexpress\.com\/item\/(\d+)\.html/g)) {
+        if (!seen.has(m[1])) {
+          seen.add(m[1])
+          out.push(`https://www.aliexpress.com/item/${m[1]}.html`)
+        }
+      }
+    }
+  } catch {}
+  return out.slice(0, limit)
+}
+
+/**
+ * Recherche native Alibaba.com — /trade/search est également SSR :
+ * liens product-detail dans le HTML (slug complet conservé, tracking
+ * ?priceId retiré). Listings B2B anglais → pas de traduction.
+ */
+export async function searchAlibabaNative(query: string, limit = 20): Promise<string[]> {
+  const out: string[] = []
+  const seen = new Set<string>()
+  try {
+    const res = await fetch(`https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': ENGINE_UA, 'Accept-Language': 'en-US,en;q=0.9' },
+      signal: AbortSignal.timeout(20000),
+    })
+    if (res.ok) {
+      const html = await res.text()
+      for (const m of html.matchAll(/alibaba\.com\/product-detail\/([^\s"'<>&?]+?\.html)/g)) {
+        const slug = m[1]
+        if (!seen.has(slug)) {
+          seen.add(slug)
+          out.push(`https://www.alibaba.com/product-detail/${slug}`)
+        }
+      }
+    }
+  } catch {}
+  return out.slice(0, limit)
+}
+
+/** AliExpress : aliexpress.com/item/<id>.html — listings EN/FR, pas de traduction. */
+export function searchAliExpressViaEngines(query: string, limit = 20): Promise<string[]> {
+  return searchOffersViaEngines(
+    query, 'aliexpress.com',
+    /aliexpress\.com\/item\/(\d+)\.html/,
+    (m) => `https://www.aliexpress.com/item/${m[1]}.html`,
+    limit
+  )
+}
+
+/** Alibaba.com : www.alibaba.com/product-detail/<slug>_<id>.html — B2B wholesale. */
+export function searchAlibabaViaEngines(query: string, limit = 20): Promise<string[]> {
+  return searchOffersViaEngines(
+    query, 'alibaba.com',
+    /(alibaba\.com\/product-detail\/[^"&'\s]+_\d+\.html)/,
+    (m) => `https://www.${m[1]}`,
+    limit
+  )
 }
 
 /**
@@ -1071,4 +1359,4 @@ export function humanDelay(minMs = 4000, maxMs = 9000): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-export type { ScrapingResult, Product1688, ProductAliExpress, ScraperConfig }
+export type { ScrapingResult, Product1688, ProductAliExpress, ScraperConfig, SourcePlatform }

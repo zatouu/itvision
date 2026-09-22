@@ -12,6 +12,7 @@
 
 import mongoose, { Schema, Document, Model } from 'mongoose'
 import { randomBytes } from 'crypto'
+import { SOURCE_CURRENCIES } from '@/lib/pricing/constants'
 
 export type SourcingStatus =
   | 'new'              // créée, attente sourcer
@@ -36,8 +37,10 @@ export interface SourcingProposal {
   notes?: string
 
   // Pricing transparent (mêmes briques que Product/Cart calculator)
-  price1688?: number            // CNY
-  exchangeRate?: number         // 1 CNY = X FCFA (typique 100)
+  sourcePlatform?: '1688' | 'aliexpress' | 'alibaba'
+  price1688?: number            // prix source (devise sourceCurrency)
+  sourceCurrency?: string       // ISO: CNY=1688, USD/EUR/MAD…=AliExpress/Alibaba
+  exchangeRate?: number         // 1 unité source = X FCFA (typique 100 CNY)
   productCostFCFA: number       // price1688 × exchangeRate (ou baseCost direct)
   serviceFeeRate: number        // % (5/10/15)
   serviceFeeAmount: number      // FCFA
@@ -103,16 +106,17 @@ export interface ISourcingRequest extends Document {
     matchedAt: Date
   }>
 
-  // ── Résultats recherche externe 1688 (bridge) ───────────────────────────────
+  // ── Résultats recherche externe multi-sources (bridge) ──────────────────────
   externalSearchResults?: Array<{
     title: string
-    price1688?: number
+    price1688?: number            // prix affiché source (devise = sourceCurrency)
+    sourceCurrency?: string       // ISO (CNY/USD/EUR/MAD…)
     image: string
     url: string
     supplier?: string
     minOrder?: number
     location?: string
-    platform: '1688'
+    platform: '1688' | 'aliexpress' | 'alibaba'
     searchedAt: Date
   }>
 
@@ -148,7 +152,9 @@ const ProposalSchema = new Schema<SourcingProposal>(
     supplierName: { type: String, trim: true },
     notes: { type: String, trim: true, maxlength: 2000 },
 
+    sourcePlatform: { type: String, enum: ['1688', 'aliexpress', 'alibaba'] },
     price1688: { type: Number, min: 0 },
+    sourceCurrency: { type: String, enum: [...SOURCE_CURRENCIES], default: 'CNY' },
     exchangeRate: { type: Number, min: 0 },
     productCostFCFA: { type: Number, required: true, min: 0 },
     serviceFeeRate: { type: Number, required: true, min: 0, max: 100 },
@@ -202,13 +208,14 @@ const CatalogMatchSchema = new Schema(
 const ExternalSearchResultSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
-    price1688: { type: Number, min: 0 },
+    price1688: { type: Number, min: 0 },          // prix source dans sa devise
+    sourceCurrency: { type: String, enum: [...SOURCE_CURRENCIES], default: 'CNY' },
     image: { type: String, required: true, trim: true },
     url: { type: String, required: true, trim: true },
     supplier: { type: String, trim: true },
     minOrder: { type: Number, min: 0 },
     location: { type: String, trim: true },
-    platform: { type: String, default: '1688', enum: ['1688'] },
+    platform: { type: String, default: '1688', enum: ['1688', 'aliexpress', 'alibaba'] },
     searchedAt: { type: Date, default: Date.now }
   },
   { _id: false }

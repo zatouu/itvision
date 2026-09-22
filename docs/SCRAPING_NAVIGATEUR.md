@@ -1,4 +1,4 @@
-# Scraping navigateur 1688 / AliExpress
+# Scraping navigateur 1688 / AliExpress / Alibaba
 
 > **Mise à jour** : les routes synchrones `/api/scrape/*` et
 > `/api/market/sourcing/search-external` ont été **supprimées** — un scraping
@@ -24,7 +24,7 @@
 
 ## Fichiers clés
 
-- `src/lib/browser-scraper.ts` — `BrowserScraper` (stealth, profil persisté, proxy), `scrape1688`, `scrapeAliExpress`, `search1688`, `search1688ViaEngines`
+- `src/lib/browser-scraper.ts` — `BrowserScraper` (stealth, profil persisté, proxy), `scrape1688`, `scrapeAliExpress`, `scrapeAlibaba`, `search1688`, `search1688ViaEngines`, `searchAliExpressViaEngines`, `searchAlibabaViaEngines`, `classifySourceUrl`
 - `src/lib/agents/sourcing/graph.ts` — agent veille catalogue (`sourcing_scan`)
 - `src/lib/agents/sourcing/request-graph.ts` — agent « trouvez-moi » client (`sourcing_request`)
 - `src/lib/agents/worker.ts` — worker de la file AgentJob
@@ -80,13 +80,35 @@
 ## Découverte d'URLs (ordre)
 
 1. **URLs directes** — liens collés dans `/admin/sourcing` ou `externalUrl`
-   client 1688 (les fiches produit passent anonymement)
-2. **Moteurs de recherche** — `site:detail.1688.com` sur DuckDuckGo/Bing en
-   fetch simple (pas de navigateur, pas de login)
+   client : `detail.1688.com/offer/*`, `aliexpress.com/item/*`,
+   `alibaba.com/product-detail/*` (routées par `classifySourceUrl`)
+2. **Moteurs de recherche** — `site:` sur DuckDuckGo/Bing en fetch simple
+   (pas de navigateur, pas de login) :
+   - **1688** : requête traduite FR→zh (`toChineseQuery`) **+ originale**
+     (les marques/modèles latin — dahua, nvr, a9pro — existent verbatim)
+   - **AliExpress / Alibaba.com** : requête originale telle quelle —
+     listings internationaux EN, **pas de traduction**
 3. **Recherche interne 1688** — **opt-in** `SCRAPER_1688_INTERNAL_SEARCH=1` :
    le 风控 Alibaba (`_____tmd_____` challenge) la mure même avec session
    authentifiée sur IP non chinoise — testé loggé, headed et headless.
    Pertinent seulement pour un worker sur IP résidentielle chinoise.
+
+## Multi-devises
+
+Les fiches non-1688 remontent leur prix dans la devise affichée (USD/EUR).
+Le shape candidat `Product1688` porte `price1688` (prix source, toutes
+sources confondues), `price1688Currency` et `platform`. Taux par devise
+(`src/lib/pricing/constants.ts`, surchargeables) :
+
+```bash
+EXCHANGE_RATE_CNY=100   # 1 ¥ → FCFA
+EXCHANGE_RATE_USD=600   # 1 $ → FCFA
+EXCHANGE_RATE_EUR=656   # 1 € → FCFA (XOF arrimé)
+```
+
+La formule de prix reste identique quelle que soit la source :
+`coût (prix × taux × qté) + frais service + assurance + transport`
+(→ `totalClientPrice` — ajustable par l'admin avant envoi).
 
 ## Worker standalone (IP résidentielle)
 
