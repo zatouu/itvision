@@ -205,18 +205,25 @@ export class BrowserScraper {
       const viewport = this.config.viewport ||
         DEFAULT_VIEWPORTS[Math.floor(Math.random() * DEFAULT_VIEWPORTS.length)]
 
-      this.persistentContext = await launcher.launchPersistentContext(profileDir, {
-        ...launchOptions,
-        userAgent,
-        viewport,
-        locale: 'fr-FR',
-        timezoneId: 'Europe/Paris',
-        colorScheme: 'light',
-      })
-      await this.patchContext(this.persistentContext)
       this.profileDir = profileDir
-      await this.restoreSessionCookies()
-      return
+      try {
+        this.persistentContext = await launcher.launchPersistentContext(profileDir, {
+          ...launchOptions,
+          userAgent,
+          viewport,
+          locale: 'fr-FR',
+          timezoneId: 'Europe/Paris',
+          colorScheme: 'light',
+        })
+        await this.patchContext(this.persistentContext)
+        await this.restoreSessionCookies()
+        return
+      } catch {
+        // Profil tenu par un process actif (worker, fenêtre login) :
+        // naviguer sans le profil mais restaurer la session depuis
+        // storage-state.json — lecture seule, rien ne re-persiste.
+        console.warn('[scraper] Profil occupé — mode mémoire, session restaurée depuis storage-state.json')
+      }
     }
 
     this.browser = await launcher.launch(launchOptions)
@@ -231,8 +238,9 @@ export class BrowserScraper {
     return path.join(this.profileDir!, 'storage-state.json')
   }
 
-  private async restoreSessionCookies(): Promise<void> {
-    if (!this.persistentContext || !this.profileDir) return
+  private async restoreSessionCookies(target?: BrowserContext): Promise<void> {
+    const ctx = target || this.persistentContext
+    if (!ctx || !this.profileDir) return
     try {
       const raw = await fs.readFile(this.stateFile(), 'utf8')
       const state = JSON.parse(raw) as { cookies?: Array<Record<string, unknown>> }
@@ -244,7 +252,7 @@ export class BrowserScraper {
           return out
         })
       if (cookies.length) {
-        await this.persistentContext.addCookies(cookies as never)
+        await ctx.addCookies(cookies as never)
       }
     } catch {
       // Pas d'état sauvegardé (premier run) ou fichier corrompu — on continue.
@@ -287,6 +295,11 @@ export class BrowserScraper {
     })
 
     await this.patchContext(context)
+    // Profil persisté demandé mais indisponible → la session sauvegardée
+    // (storage-state.json) est injectée dans ce contexte mémoire.
+    if (this.profileDir && !this.persistentContext) {
+      await this.restoreSessionCookies(context)
+    }
     return context
   }
 
@@ -956,16 +969,36 @@ export class BrowserScraper {
           result.priceCurrency = cm?.[1] || (html.includes('€') ? 'EUR' : 'USD')
         }
 
-        // Images — CDN alicdn (ae01/02/03.alicdn.com), pas aliexpress.com
+        // Images — CDN images du groupe : alicdn (ae01…) ou aliexpress-media
+        // (ae-pic-a1…). Les URLs portent des suffixes de transformation
+        // (…jpg_220x220q75.jpg_.avi) → on tronque à la 1re extension image.
         const seenImg = new Set<string>()
-        document.querySelectorAll('img').forEach((img) => {
-          const src = img.getAttribute('src') || img.getAttribute('data-src')
-          if (src && /ae\d*\.alicdn\.com|alicdn\.com\/kf\//i.test(src) && !seenImg.has(src)) {
-            seenImg.add(src)
-            const full = (src.startsWith('//') ? 'https:' + src : src).replace(/_\d+x\d+[^.]*\./, '.')
+        const cleanImg = (u: string): string | null => {
+          const m = u.match(/^(https?:)?\/\/[^"'\s]+?\.(?:jpg|jpeg|png|webp)/i)
+          if (!m) return null
+          return m[0].startsWith('//') ? 'https:' + m[0] : m[0]
+        }
+        const pushImg = (src: string | null | undefined) => {
+          if (!src || !/alicdn\.com|aliexpress-media\.com/i.test(src)) return
+          const full = cleanImg(src)
+          if (full && !seenImg.has(full)) {
+            seenImg.add(full)
             result.gallery!.push(full)
           }
+        }
+        document.querySelectorAll('img').forEach((img) => {
+          pushImg(img.getAttribute('src') || img.getAttribute('data-src'))
         })
+        // Fallback : images dans le JSON embarqué (lazy-load = src souvent
+        // vide au moment de l'éval ; __AER_DATA__/runParams les contient)
+        if (!result.gallery!.length) {
+          const html = document.documentElement.innerHTML
+          const jsonImgs = html.match(/"imagePathList"\s*:\s*\[([^\]]*)\]/)?.[1]
+            || html.match(/"images"\s*:\s*\[([^\]]*(?:alicdn|aliexpress-media)[^\]]*)\]/)?.[1]
+          jsonImgs?.match(/"([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi)?.forEach((m) => {
+            pushImg(m.slice(1, -1).replace(/\\u002F/g, '/'))
+          })
+        }
         result.image = result.gallery?.[0]
 
         // Boutique — sélecteurs stricts (un [class*="shop"] attrape le header)
