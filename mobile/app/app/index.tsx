@@ -4,7 +4,7 @@ import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
-import { getAuthUser } from '../src/auth'
+import { getAuthUser, isLoggedIn } from '../src/auth'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
 import { fetchWithCache } from '../src/storage'
 import { connectSocket, requestOnlineProviders, onOnlineProvidersCount, joinRequestRoom, leaveRequestRoom, onProviderLocation } from '../src/socket'
@@ -165,12 +165,14 @@ function Home() {
     loadCategories().then(loaded => {
       setCats(loaded.map(c => ({ id: c.slug, label: getCategoryLabel(c, i18n.language), abbr: c.abbr, color: c.color })))
     }).catch(() => {})
-    apiGet('/api/client/profile')
-      .then((res: any) => {
-        const name = res?.profile?.name
-        if (name && name.trim() && !/^\d{7,}$/.test(name.trim())) setUserName(name.split(' ')[0])
-      })
-      .catch(() => {})
+    if (isLoggedIn()) {
+      apiGet('/api/client/profile')
+        .then((res: any) => {
+          const name = res?.profile?.name
+          if (name && name.trim() && !/^\d{7,}$/.test(name.trim())) setUserName(name.split(' ')[0])
+        })
+        .catch(() => {})
+    }
     Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
       .then(pos => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
