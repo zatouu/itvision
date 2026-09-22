@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Package, ShoppingCart, Users, UserRound } from 'lucide-react'
+import { Home, Package, ShoppingCart, Users, UserRound, LayoutDashboard } from 'lucide-react'
+import { useMarketAuth } from '@/hooks/useMarketAuth'
 
-const items = [
+const baseItems = [
   { name: 'Accueil', href: '/market', icon: Home },
   { name: 'Produits', href: '/produits', icon: Package },
   { name: 'Groupes', href: '/achats-groupes', icon: Users },
@@ -16,6 +17,13 @@ const items = [
 export default function MarketBottomNav() {
   const pathname = usePathname()
   const [cartCount, setCartCount] = useState(0)
+  const { isVendor } = useMarketAuth()
+
+  // Vendeur : « Ma boutique » remplace « Groupes » — l'admin boutique est
+  // l'action la plus fréquente ; les groupes restent via l'accueil.
+  const items = isVendor
+    ? baseItems.map((i) => (i.href === '/achats-groupes' ? { name: 'Ma boutique', href: '/espace-vendeur', icon: LayoutDashboard } : i))
+    : baseItems
 
   useEffect(() => {
     const sync = () => {

@@ -4,8 +4,11 @@ import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import { vendorShopQuery } from '@/lib/vendor'
-import { notifyAdmins } from '@/lib/notify'
+import { notifyAdmins, notifyUser } from '@/lib/notify'
 import { enqueueAgentJob } from '@/lib/agents/queue'
+import { runDeterministicChecks } from '@/lib/agents/moderation/checks'
+import AgentDecision from '@/lib/models/AgentDecision'
+import ShopFollower from '@/lib/models/ShopFollower'
 import Product from '@/lib/models/Product'
 import { z } from 'zod'
 
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('name image price stockQuantity stockStatus sellerSlug sellerVerified sellerRating')
+      .select('name image price stockQuantity stockStatus isPublished sellerSlug sellerVerified sellerRating')
       .lean()
 
     const payload = (products as any[]).map(p => ({
@@ -42,6 +45,7 @@ export async function GET(req: NextRequest) {
       price: p.price,
       stockQuantity: p.stockQuantity ?? 0,
       stockStatus: p.stockStatus,
+      isPublished: !!p.isPublished,
       sellerSlug: p.sellerSlug,
       sellerVerified: p.sellerVerified,
       sellerRating: p.sellerRating,
@@ -85,7 +89,9 @@ const createSchema = z.object({
     .optional(),
 })
 
-// Le produit vendeur démarre non publié — validation admin avant mise en ligne.
+// Modération à la création : checks déterministes inline — un produit sain
+// est publié immédiatement (audit dans copilot), un produit douteux part en
+// revue humaine via la file product_moderation.
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireRole(['VENDOR', 'ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'], req)
@@ -143,13 +149,71 @@ export async function POST(req: NextRequest) {
       channels: ['marketplace'],
     })
 
+    const autoPublishEnabled = process.env.VENDOR_PRODUCT_AUTO_PUBLISH !== '0'
+    const checks = await runDeterministicChecks(product)
+    const priceOutlier = checks.priceVsMedian != null && (checks.priceVsMedian < 0.1 || checks.priceVsMedian > 20)
+    const autoApproved = autoPublishEnabled && !checks.hardViolation && !priceOutlier
+
+    if (autoApproved) {
+      await Product.updateOne({ _id: product._id }, { $set: { isPublished: true } })
+      // Audit trail — visible dans /admin/copilot (liste « toutes ») sans action requise
+      await AgentDecision.create({
+        type: 'product_moderation',
+        refId: String(product._id),
+        runId: `auto-${product._id}`,
+        status: 'auto_approved',
+        proposal: {
+          verdict: 'approve',
+          confidence: 1,
+          reasons: ['Checks déterministes passés — publication automatique'],
+          checks,
+          product: {
+            name: product.name,
+            price: product.price,
+            category: product.category,
+            image: product.image || product.gallery?.[0],
+            sellerName: vendor.name,
+          },
+        },
+        decidedBy: 'system:auto',
+        decidedAt: new Date(),
+      }).catch((e) => console.error('[vendor-products] audit decision failed:', e))
+      void notifyAdmins({
+        type: 'info',
+        title: 'Produit vendeur auto-publié',
+        message: `« ${product.name} » (${vendor.name}) — checks déterministes OK.`,
+        actionUrl: '/admin/copilot',
+        metadata: { productId: String(product._id) },
+        push: false,
+      })
+      // Notifier les abonnés de la boutique (cap 200 — même règle que la modération manuelle)
+      const followers = await ShopFollower.find({ shopId: shop._id }).select('userId').limit(200).lean()
+      await Promise.allSettled(
+        followers.map((f: any) =>
+          notifyUser(String(f.userId), {
+            type: 'info',
+            title: `${vendor.name} a publié un produit`,
+            message: `« ${product.name} » — ${Number(product.price).toLocaleString('fr-FR')} F`,
+            actionUrl: `/boutiques/${vendor.slug}`,
+            metadata: { productId: String(product._id) },
+            push: true,
+          })
+        )
+      )
+      return NextResponse.json({
+        success: true,
+        product: { id: String(product._id), name: product.name, isPublished: true },
+        message: 'Produit créé et publié — il est visible sur votre vitrine.',
+      }, { status: 201 })
+    }
+
     // File de modération IA — l'agent analyse et propose une décision aux admins
     void enqueueAgentJob('product_moderation', String(product._id))
 
     return NextResponse.json({
       success: true,
       product: { id: String(product._id), name: product.name, isPublished: false },
-      message: 'Produit créé — il sera visible après validation par nos équipes.',
+      message: `Produit créé — il sera visible après validation par nos équipes.${checks.hardViolation ? ` (à vérifier : ${checks.hardViolation})` : priceOutlier ? ' (prix atypique — revue manuelle)' : ''}`,
     }, { status: 201 })
   } catch (error: any) {
     console.error('POST /api/vendor/products error:', error)

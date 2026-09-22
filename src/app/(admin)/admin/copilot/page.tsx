@@ -37,7 +37,7 @@ interface Decision {
   id: string
   type: string
   refId: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'auto_approved'
   proposal: Proposal
   decidedBy?: string
   decidedAt?: string
@@ -167,8 +167,12 @@ export default function AdminCopilotPage() {
                     </p>
                   </div>
                   {done && (
-                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${d.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      {d.status === 'approved' ? 'Approuvé' : 'Rejeté'}
+                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      d.status === 'rejected' ? 'bg-red-100 text-red-700'
+                      : d.status === 'auto_approved' ? 'bg-sky-100 text-sky-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {d.status === 'rejected' ? 'Rejeté' : d.status === 'auto_approved' ? 'Auto-approuvé' : 'Approuvé'}
                     </span>
                   )}
                 </div>

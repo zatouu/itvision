@@ -4,11 +4,12 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  Menu, X, ShoppingBag, Package, Users, Heart,
+  Menu, X, Package, Users, Heart,
   Home, Store, UserRound, Truck, Sparkles, Gem,
-  BarChart3, Shield, Headphones
+  BarChart3, Shield, Headphones, LayoutDashboard
 } from 'lucide-react'
 import MarketAuthButton from './MarketAuthButton'
+import { useMarketAuth } from '@/hooks/useMarketAuth'
 import CartIcon from './CartIcon'
 import NotificationCenter from './NotificationCenter'
 import ThemeToggle from './ThemeToggle'
@@ -106,11 +107,15 @@ export default function MarketHeader() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isMenuOpen])
 
+  const { isVendor } = useMarketAuth()
+
   const nav = [
     { name: 'Accueil', href: '/market', icon: Home },
     { name: 'Produits', href: '/produits', icon: Package },
     { name: 'Achats groupés', href: '/achats-groupes', icon: Users },
     { name: 'Boutiques', href: '/market/boutiques', icon: Store },
+    // Accès direct à l'admin boutique — le point d'entrée principal du vendeur
+    ...(isVendor ? [{ name: 'Ma boutique', href: '/espace-vendeur', icon: LayoutDashboard }] : []),
     { name: 'Compte', href: '/compte', icon: UserRound },
   ]
 

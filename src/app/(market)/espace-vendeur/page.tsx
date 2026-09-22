@@ -50,6 +50,7 @@ interface VendorProduct {
   price?: number
   stockQuantity: number
   stockStatus: string
+  isPublished?: boolean
   sellerSlug?: string
   category?: string
 }
@@ -321,9 +322,16 @@ export default function VendorDashboardPage() {
                   <div key={product.id} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-800 rounded-2xl">
                     <img src={product.image} alt={product.name} className="w-14 h-14 object-cover rounded-xl bg-slate-100 dark:bg-slate-800" />
                     <div className="flex-1 min-w-0">
-                      <Link href={`/produits/${product.id}`} className="font-semibold text-slate-900 dark:text-white hover:text-emerald-600 truncate block text-[13px]">
-                        {product.name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/produits/${product.id}`} className="font-semibold text-slate-900 dark:text-white hover:text-emerald-600 truncate block text-[13px]">
+                          {product.name}
+                        </Link>
+                        {product.isPublished === false ? (
+                          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">En validation</span>
+                        ) : (
+                          <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">En ligne</span>
+                        )}
+                      </div>
                       <p className="text-[12px] text-slate-500 dark:text-slate-400">
                         {product.price ? formatFcfa(product.price) : 'Sur devis'}
                       </p>

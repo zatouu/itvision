@@ -179,7 +179,7 @@ export default function BecomeVendorPage() {
                     />
                     {form.name.trim().length >= 2 && (
                       <p className="mt-1 text-[10px] text-white/60 font-mono truncate">
-                        Votre adresse : ddmplus.sn/vendeur/{slugify(form.name.trim())}
+                        Votre adresse : ddmplus.sn/boutiques/{slugify(form.name.trim())}
                       </p>
                     )}
                   </div>

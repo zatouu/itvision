@@ -27,6 +27,7 @@ import {
   Lock,
   ChevronRight,
   Store,
+  LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
@@ -115,9 +116,10 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
   const [following, setFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(followers);
   const [followBusy, setFollowBusy] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [shared, setShared] = useState(false);
 
-  // État « suivi » du visiteur (silencieux si non connecté)
+  // État « suivi » du visiteur + détection propriétaire (silencieux si non connecté)
   useEffect(() => {
     if (!shopId) return;
     fetch(`/api/shops/${shopId}/follow`, { credentials: 'include' })
@@ -126,13 +128,14 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
         if (d?.success) {
           setFollowing(!!d.following);
           setFollowerCount(d.followers ?? 0);
+          setIsOwner(!!d.isOwner);
         }
       })
       .catch(() => {});
   }, [shopId]);
 
   const toggleFollow = async () => {
-    if (!shopId || followBusy) return;
+    if (!shopId || followBusy || isOwner) return;
     try {
       setFollowBusy(true);
       const res = await fetch(`/api/shops/${shopId}/follow`, { method: 'POST', credentials: 'include' });
@@ -447,7 +450,19 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       : { icon: MapPin, ttl: 'Partenaire local', txt: 'Soutient l’économie locale' },
   ].filter(Boolean) as { icon: any; ttl: string; txt: string }[];
 
-  const FollowButton = ({ className }: { className?: string }) => (
+  const FollowButton = ({ className }: { className?: string }) => isOwner ? (
+    // Le propriétaire ne se suit pas lui-même — accès direct à l'admin boutique
+    <Link
+      href="/espace-vendeur"
+      className={cn(
+        'inline-flex items-center justify-center gap-1.5 h-10 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 font-semibold text-[13px] transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
+        className
+      )}
+    >
+      <LayoutDashboard size={14} />
+      Gérer ma boutique
+    </Link>
+  ) : (
     <button
       type="button"
       onClick={toggleFollow}
