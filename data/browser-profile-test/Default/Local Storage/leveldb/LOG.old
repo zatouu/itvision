@@ -1,6 +1,0 @@
-2026/09/22-16:31:59.441 10cc Reusing MANIFEST D:\itvision-1\data\browser-profile-test\Default\Local Storage\leveldb/MANIFEST-000001
-2026/09/22-16:31:59.451 10cc Recovering log #21
-2026/09/22-16:31:59.453 10cc Reusing old log D:\itvision-1\data\browser-profile-test\Default\Local Storage\leveldb/000021.log 
-2026/09/22-16:32:36.211 3c40 Level-0 table #25: started
-2026/09/22-16:32:36.223 3c40 Level-0 table #25: 143511 bytes OK
-2026/09/22-16:32:36.226 3c40 Delete type=0 #21
