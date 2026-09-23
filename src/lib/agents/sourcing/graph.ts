@@ -26,6 +26,7 @@ import {
 import { toChineseQuery } from './query-translate'
 import { computeProductPricing } from '@/lib/logistics'
 import { sourceCurrencyRate, minSourcePrice, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
+import { localizeProductImages } from './localize-images'
 
 const PLATFORM_LABEL: Record<SourcePlatform, string> = {
   '1688': '1688',
@@ -354,6 +355,10 @@ async function importDrafts(state: typeof SourcingState.State) {
     const exists = await Product.findOne({ 'sourcing.productUrl': p.productUrl }).select('_id').lean()
     if (exists) continue
 
+    // Rapatrie les images dans uploads/products — les CDN chinois servent
+    // des placeholders lazy-load ou bloquent le hotlink (fail-open si down)
+    const images = await localizeProductImages({ image: p.image, gallery: p.gallery })
+
     const specsMd = Object.entries(p.specifications || {})
       .slice(0, 12)
       .map(([k, v]) => `- **${k}** : ${v}`)
@@ -374,8 +379,8 @@ async function importDrafts(state: typeof SourcingState.State) {
       currency: 'FCFA',
       baseCost: item.baseCost,
       marginRate: MARGIN_RATE,
-      image: p.image || p.gallery?.[0],
-      gallery: (p.gallery || []).slice(0, 8),
+      image: images.image,
+      gallery: images.gallery,
       features: (p.features || []).slice(0, 8),
       requiresQuote: !item.suggestedPrice,
       stockStatus: 'preorder',
