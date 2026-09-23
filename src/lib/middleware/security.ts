@@ -24,7 +24,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
       "img-src 'self' data: https:",
       "font-src 'self'",
       connectSrc,
-      "frame-src 'none'",
+      "frame-src 'self' https://js.stripe.com https://pay.wave.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
