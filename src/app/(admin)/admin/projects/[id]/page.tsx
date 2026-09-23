@@ -9,7 +9,7 @@ import {
   FolderKanban, MessageSquare, Flag, Layers, BarChart3, Zap, Trash2,
   Plus, X, ExternalLink, Download, Lock, Unlock, Play, Check,
   ChevronRight, Calendar, MapPin, Phone, Mail, Building2, User,
-  DollarSign, Package, Wrench
+  DollarSign, Package, Wrench, Eye
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import WorkflowMiniPanel from '@/components/WorkflowMiniPanel'
@@ -120,6 +120,7 @@ export default function ProjectDetailPage() {
 
   // Document upload
   const [newDoc, setNewDoc] = useState({ name: '', url: '', type: '' })
+  const [previewDoc, setPreviewDoc] = useState<{ id: string; name: string; url: string; type: string } | null>(null)
 
   // Milestone detail modal
   const [selectedMilestone, setSelectedMilestone] = useState<any | null>(null)
@@ -609,20 +610,67 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(project.documents || []).map(d => (
-                <div key={d.id} className="bg-white border border-stone-200 rounded-xl p-4 flex items-start gap-3 group">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-blue-600" /></div>
-                  <div className="flex-1 min-w-0">
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-stone-900 hover:text-blue-600 truncate block">{d.name}</a>
-                    <p className="text-[10px] text-stone-400">{d.type} · {fd(d.uploadDate)}</p>
+              {(project.documents || []).map(d => {
+                const ext = (d.url || '').split('?')[0].toLowerCase()
+                const isPdf = ext.endsWith('.pdf')
+                const isImg = /\.(png|jpe?g|webp|gif)$/.test(ext)
+                const previewable = isPdf || isImg
+                const typeStyle: Record<string, string> = {
+                  quote: 'bg-blue-50 text-blue-600', invoice: 'bg-amber-50 text-amber-600',
+                  contract: 'bg-emerald-50 text-emerald-600', photo: 'bg-violet-50 text-violet-600',
+                  technical: 'bg-cyan-50 text-cyan-600', manual: 'bg-stone-100 text-stone-600',
+                }
+                const typeLabel: Record<string, string> = {
+                  quote: 'Devis / BC', invoice: 'Facture', contract: 'Contrat',
+                  photo: 'Photo', technical: 'Technique', manual: 'Manuel',
+                }
+                const cls = typeStyle[d.type] || 'bg-stone-100 text-stone-600'
+                return (
+                  <div key={d.id} className="bg-white border border-stone-200 rounded-xl p-4 flex items-start gap-3 group">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cls}`}><FileText className="w-5 h-5" /></div>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => previewable ? setPreviewDoc(d) : window.open(d.url, '_blank')} className="text-sm font-medium text-stone-900 hover:text-blue-600 truncate block text-left w-full">{d.name}</button>
+                      <p className="text-[10px] text-stone-400">{typeLabel[d.type] || d.type} · {fd(d.uploadDate)}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {previewable && (
+                          <button onClick={() => setPreviewDoc(d)} className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800"><Eye className="w-3.5 h-3.5" />Aperçu</button>
+                        )}
+                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-800"><ExternalLink className="w-3.5 h-3.5" />Ouvrir</a>
+                        <a href={d.url} download className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-800"><Download className="w-3.5 h-3.5" /></a>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteDoc(d.id)} className="p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                  <button onClick={() => handleDeleteDoc(d.id)} className="p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-              ))}
+                )
+              })}
               {(project.documents || []).length === 0 && (
                 <div className="text-center py-10 text-stone-500 col-span-full bg-white border border-stone-200 rounded-xl"><FileText className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">Aucun document</p></div>
               )}
             </div>
+
+            {/* Preview modal */}
+            {previewDoc && (
+              <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6" onClick={() => setPreviewDoc(null)}>
+                <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200">
+                    <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <p className="flex-1 min-w-0 text-sm font-semibold text-stone-900 truncate">{previewDoc.name}</p>
+                    <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Ouvrir dans un nouvel onglet"><ExternalLink className="w-4 h-4" /></a>
+                    <a href={previewDoc.url} download className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Télécharger"><Download className="w-4 h-4" /></a>
+                    <button onClick={() => setPreviewDoc(null)} className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Fermer"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="flex-1 min-h-0 bg-stone-100">
+                    {previewDoc.url.split('?')[0].toLowerCase().endsWith('.pdf') ? (
+                      <iframe src={`${previewDoc.url}#toolbar=1&view=FitH`} className="w-full h-full min-h-[70vh]" title={previewDoc.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
+                        <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

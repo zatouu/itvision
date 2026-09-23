@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   FileText, Package, Loader2, AlertCircle,
   MessageSquare, Send, CheckCircle, Ban,
-  ArrowRight, Tag, MapPin, Building2, Clock
+  ArrowRight, Tag, MapPin, Building2, Clock,
+  Paperclip, Eye, ExternalLink, Download, X
 } from 'lucide-react'
 import { CARD, fmtDate, fmtNum, quoteStatus, quoteClientResponseShort, StatusBadge, DetailHeader } from '@/components/portal-ui'
 
@@ -14,6 +15,7 @@ export default function QuoteDetailPage() {
   const [q, setQ] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null)
 
   useEffect(() => {
     fetch(`/api/client-enterprise/quotes/${id}`)
@@ -149,6 +151,31 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
+      {/* Pièces jointes */}
+      {(q.attachments || []).length > 0 && (
+        <div className={`${CARD} p-5`}>
+          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Pièces jointes ({q.attachments.length})</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {q.attachments.map((a: any, i: number) => {
+              const isPdf = (a.url || '').split('?')[0].toLowerCase().endsWith('.pdf')
+              return (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 p-3">
+                  <div className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center flex-shrink-0"><FileText className="w-4 h-4 text-emerald-700" /></div>
+                  <div className="flex-1 min-w-0">
+                    <button onClick={() => isPdf ? setPreview(a) : window.open(a.url, '_blank')} className="text-xs font-medium text-stone-900 hover:text-emerald-800 truncate block text-left w-full">{a.name}</button>
+                    <div className="flex items-center gap-2.5 mt-1">
+                      {isPdf && <button onClick={() => setPreview(a)} className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-800 hover:text-emerald-950"><Eye className="w-3 h-3" />Aperçu</button>}
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400 hover:text-stone-700"><ExternalLink className="w-3 h-3" />Ouvrir</a>
+                      <a href={a.url} download className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400 hover:text-stone-700"><Download className="w-3 h-3" /></a>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Historique réponse */}
       {q.clientResponse && q.clientResponse !== 'pending' && (
         <div className={`${CARD} p-5`}>
@@ -190,6 +217,23 @@ export default function QuoteDetailPage() {
                 <p className="text-sm text-stone-700">{c.message}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {/* Preview modal */}
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6" onClick={() => setPreview(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200">
+              <FileText className="w-5 h-5 text-emerald-700 flex-shrink-0" />
+              <p className="flex-1 min-w-0 text-sm font-semibold text-stone-900 truncate">{preview.name}</p>
+              <a href={preview.url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Ouvrir dans un nouvel onglet"><ExternalLink className="w-4 h-4" /></a>
+              <a href={preview.url} download className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Télécharger"><Download className="w-4 h-4" /></a>
+              <button onClick={() => setPreview(null)} className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Fermer"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 min-h-0 bg-stone-100">
+              <iframe src={`${preview.url}#toolbar=1&view=FitH`} className="w-full h-full min-h-[70vh]" title={preview.name} />
+            </div>
           </div>
         </div>
       )}
