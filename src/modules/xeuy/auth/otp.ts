@@ -54,6 +54,9 @@ export interface SendOtpResult {
   phone: string
   expiresIn: number
   devCode?: string
+  // true quand le numéro est whitelisté (OTP_TEST_PHONES) — permet aux routes
+  // de traiter l'envoi comme un test même en production (devCode exposable).
+  testPhone?: boolean
   error?: string
   status?: number
 }
@@ -113,7 +116,7 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
     success: true,
     phone,
     expiresIn: OTP_TTL_MIN * 60,
-    ...(isFreeMode || testBypass ? { devCode: code } : {}),
+    ...(isFreeMode || testBypass ? { devCode: code, testPhone: testBypass || undefined } : {}),
   }
 }
 
