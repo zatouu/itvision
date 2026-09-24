@@ -27,6 +27,19 @@ const isSmsConfigured =
   process.env.NODE_ENV !== 'production' ||
   ((process.env.SMS_PROVIDER || 'console') !== 'console')
 
+// Numéros de test whitelistés (démo/recette) : code fixe 000000, aucun SMS
+// envoyé — actif même en production, mais strictement limité à ces numéros.
+// Le bypass global reste impossible en prod : un code fixe universel
+// permettrait de prendre le compte de n'importe quel utilisateur.
+const TEST_PHONES = new Set(
+  (process.env.OTP_TEST_PHONES || '')
+    .split(',')
+    .map((p) => normalizePhone(p.trim()))
+    .filter((p): p is string => !!p)
+)
+
+const isTestPhone = (phone: string) => TEST_PHONES.has(phone)
+
 function generateOtp(): string {
   const digits = '0123456789'
   let otp = ''
@@ -51,7 +64,9 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
     return { success: false, phone: '', expiresIn: 0, error: 'Numéro invalide', status: 400 }
   }
 
-  if (!isSmsConfigured) {
+  const testBypass = isTestPhone(phone)
+
+  if (!isSmsConfigured && !testBypass) {
     console.error('[OTP] SMS_PROVIDER non configuré en production — envoi impossible')
     return { success: false, phone: '', expiresIn: 0, error: 'Service SMS indisponible', status: 503 }
   }
@@ -78,12 +93,12 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
     }
   }
 
-  const code = isFreeMode ? TEST_CODE : generateOtp()
+  const code = isFreeMode || testBypass ? TEST_CODE : generateOtp()
   const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
   const otpDoc = await OtpCode.create({ phone, code, role, expiresAt })
 
-  const sent = isFreeMode
+  const sent = isFreeMode || testBypass
     ? true
     : await sendSms(phone, `Votre code Xeuy : ${code}. Valide ${OTP_TTL_MIN} minutes.`)
 
@@ -98,7 +113,7 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
     success: true,
     phone,
     expiresIn: OTP_TTL_MIN * 60,
-    ...(isFreeMode ? { devCode: code } : {}),
+    ...(isFreeMode || testBypass ? { devCode: code } : {}),
   }
 }
 

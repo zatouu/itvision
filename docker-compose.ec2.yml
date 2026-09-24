@@ -106,6 +106,8 @@ services:
       APP_BASE_URL: ${NEXT_PUBLIC_SITE_URL}
       # ── Appels internes (worker sourcing, cron, media/localize) ──
       CRON_SECRET: ${CRON_SECRET:-}
+      # ── OTP test : numéros whitelistés — code fixe 000000, aucun SMS envoyé ──
+      OTP_TEST_PHONES: ${OTP_TEST_PHONES:-}
       # ── SMS / OTP ─────────────────────────────────────────
       # SMS_PROVIDER est obligatoire en production (twilio) — le défaut "console"
       # activerait le mode OTP gratuit (code fixe 000000) côté code si le code ne le bloquait pas.
