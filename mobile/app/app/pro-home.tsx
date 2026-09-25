@@ -23,7 +23,7 @@ import KpiCard from '../src/components/KpiCard'
 import Logo from '../src/components/Logo'
 import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../src/design'
 import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
-import { ModePill } from '../src/components/ModeSwitch'
+import { loadNotifications, subscribeNotifications, unreadCount } from '../src/notifications'
 import { apiGet, apiPost } from '../src/api'
 
 const REQUEST_TTL_HOURS = 2
@@ -102,6 +102,7 @@ function Home() {
     return n && !/^\d{7,}$/.test(n) ? n.split(' ')[0] : ''
   })
   const [menuOpen, setMenuOpen] = useState(false)
+  const [unread, setUnread] = useState(0)
   const [nearbyCount, setNearbyCount] = useState(0)
   const [nearbyItems, setNearbyItems] = useState<any[]>([])
   const [pendingOffers, setPendingOffers] = useState(0)
@@ -131,6 +132,16 @@ function Home() {
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
+  }, [])
+
+  // Point rouge de la cloche : nombre réel de non-lues (comme l'accueil client)
+  useEffect(() => {
+    let mounted = true
+    loadNotifications().then(() => { if (mounted) setUnread(unreadCount()) })
+    const unsubscribe = subscribeNotifications(() => {
+      if (mounted) setUnread(unreadCount())
+    })
+    return () => { mounted = false; unsubscribe() }
   }, [])
 
   // Fetch AI daily tips once per day (cached in AsyncStorage)
@@ -376,10 +387,9 @@ function Home() {
             <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
           <View style={s.headerRight}>
-            <ModePill />
             <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
-              <View style={s.notifDot} />
+              {unread > 0 && <View style={s.notifDot} />}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/pro-profile')} style={s.avatarBtn} accessibilityLabel="Profil">
               {avatarUrl ? (

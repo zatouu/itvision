@@ -25,7 +25,6 @@ import { BellRing, Check, Menu, LucideIcon, Sparkles } from 'lucide-react-native
 import { pickOption } from '../src/option-sheet'
 import SideMenu from '../src/components/SideMenu'
 import TabBar from '../src/components/TabBar'
-import { ModePill } from '../src/components/ModeSwitch'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
   created:           { label: 'Publiée',              color: '#2563EB', dot: '#2563EB' },
@@ -363,7 +362,6 @@ function Home() {
             <Text style={s.appName}>Xeuy Bi</Text>
           </View>
           <View style={s.headerRight}>
-            <ModePill />
             <TouchableOpacity style={s.headerBtn} onPress={() => router.push('/assistant')} accessibilityLabel={t('menu.assistant', { defaultValue: 'Assistant IA' })}>
               <Sparkles size={18} color={colors.primary} />
             </TouchableOpacity>
