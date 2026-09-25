@@ -1,3 +1,4 @@
+import { log } from './log'
 import { io, Socket } from 'socket.io-client'
 import { getToken, getBaseUrl, apiPost, performRefresh } from './api'
 import { getRefreshToken } from './auth'
@@ -27,12 +28,12 @@ export function getSocket(): Socket {
     })
 
     socket.on('connect', () => {
-      console.log('[WS] Connecté', socket?.id)
+      log('[WS] Connecté', socket?.id)
       // Rejoindre le canal prestataire uniquement si l'utilisateur a le profil
       if (isProviderCapable()) socket!.emit('join-provider-channel')
     })
     socket.on('disconnect', (reason) => {
-      console.log('[WS] Déconnecté:', reason)
+      log('[WS] Déconnecté:', reason)
     })
     socket.on('connect_error', async (err) => {
       console.warn('[WS] Erreur connexion:', err.message)
@@ -43,7 +44,7 @@ export function getSocket(): Socket {
           try {
             const ok = await performRefresh()
             if (ok) {
-              console.log('[WS] Token refreshed — reconnecting socket')
+              log('[WS] Token refreshed — reconnecting socket')
               resetSocket()
               connectSocket()
             }

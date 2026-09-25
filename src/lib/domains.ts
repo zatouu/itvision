@@ -126,6 +126,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/cgv', domain: 'shared', access: 'public' },
   { prefix: '/mentions-legales', domain: 'shared', access: 'public' },
   { prefix: '/politique-confidentialite', domain: 'shared', access: 'public' },
+  { prefix: '/suppression-compte', domain: 'shared', access: 'public', note: 'Procédure de suppression de compte (exigence Google Play)' },
 
   // ── Code mort ──
   { prefix: '/client-portal-v2', domain: 'deprecated', access: 'public', note: 'Doublon de portail-entreprise (ModernClientPortal, 107 Ko)' },

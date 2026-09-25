@@ -1,3 +1,4 @@
+import { log } from './log'
 import { Platform, Alert } from 'react-native'
 import * as FileSystem from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -287,7 +288,7 @@ export async function replayOfflineQueue(): Promise<ReplayResult> {
 export function initOfflineReplay(): () => void {
   // Replay immédiat au démarrage
   replayOfflineQueue().then(r => {
-    if (r.replayed > 0) console.log(`[Queue] ${r.replayed} action(s) rejou\u00e9e(s) au d\u00e9marrage`)
+    if (r.replayed > 0) log(`[Queue] ${r.replayed} action(s) rejou\u00e9e(s) au d\u00e9marrage`)
   }).catch(() => {})
   // Listener NetInfo pour replay automatique au retour réseau
   return startNetInfoReplay(queueExecutor)

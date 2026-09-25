@@ -1,3 +1,4 @@
+import { log } from '../log'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 import * as Location from 'expo-location'
@@ -441,7 +442,7 @@ export function useMissionActive(requestId: string | null) {
       if (!res) return
 
       const actualStatus = (res as any)?.item?.status || (res as any)?.status || nextStatus
-      console.log('[useMissionActive] updateStatus success', { actualStatus })
+      log('[useMissionActive] updateStatus success', { actualStatus })
       setMission(prev => (prev ? { ...prev, status: actualStatus } : null))
       setLastActivityAt(Date.now())
 

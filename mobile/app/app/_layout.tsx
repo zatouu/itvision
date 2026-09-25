@@ -1,3 +1,4 @@
+import { log } from '../src/log'
 import { useEffect, useState, useRef } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
@@ -125,7 +126,7 @@ export default function Layout(){
     // Re-vérifier le token push à chaque retour au premier plan (changement de token, nouvelle install, etc.)
     const appStateSub = AppState.addEventListener('change', next => {
       if (next === 'active') {
-        console.log('[Push] App au premier plan — re-vérification token')
+        log('[Push] App au premier plan — re-vérification token')
         registerPushToken().catch(() => {})
       }
     })
@@ -160,7 +161,7 @@ export default function Layout(){
     try {
       const { status } = await Location.getForegroundPermissionsAsync()
       if (status !== 'granted') {
-        console.log('[GPS] permission not granted, skip', reason)
+        log('[GPS] permission not granted, skip', reason)
         return
       }
       const pos = await Promise.race([
@@ -168,10 +169,10 @@ export default function Layout(){
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
       ])
       const statusFlag = isOnlineRef.current ? 'available' : 'offline'
-      console.log('[GPS] emit', reason, pos.coords.latitude, pos.coords.longitude, statusFlag)
+      log('[GPS] emit', reason, pos.coords.latitude, pos.coords.longitude, statusFlag)
       emitGps(pos.coords.latitude, pos.coords.longitude, statusFlag)
     } catch (e: any) {
-      console.log('[GPS] failed', reason, e?.message)
+      log('[GPS] failed', reason, e?.message)
     } finally {
       gpsInFlight.current = false
     }

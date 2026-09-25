@@ -1,3 +1,4 @@
+import { log } from './log'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo'
 import { useEffect, useState } from 'react'
@@ -158,7 +159,7 @@ export function startNetInfoReplay(executor: Executor): () => void {
     try {
       const result = await replay(_executor)
       if (result.replayed > 0) {
-        console.log(`[OfflineQueue] Replayed ${result.replayed} action(s) on reconnect`)
+        log(`[OfflineQueue] Replayed ${result.replayed} action(s) on reconnect`)
       }
     } catch {
       // Silently fail — next connectivity change will retry

@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { log } from './log'
 import { Platform, AppState } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
@@ -158,7 +160,7 @@ const LAST_TOKEN_KEY = 'push:lastRegisteredToken'
 async function _doRegister(): Promise<string | null> {
   const permitted = await requestPushPermission()
   if (!permitted) {
-    console.log('[Push] Permission refusée — token non enregistré')
+    log('[Push] Permission refusée — token non enregistré')
     return null
   }
 
@@ -170,7 +172,6 @@ async function _doRegister(): Promise<string | null> {
 
   // Dédup : un POST par token par device — évite un enregistrement à
   // chaque retour au premier plan (AppState 'active' → registerPushToken).
-  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
   const last = await AsyncStorage.getItem(LAST_TOKEN_KEY).catch(() => null)
   if (last === status.token) return status.token
 
@@ -181,7 +182,7 @@ async function _doRegister(): Promise<string | null> {
       appType: 'unified',
     })
     await AsyncStorage.setItem(LAST_TOKEN_KEY, status.token).catch(() => {})
-    console.log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
+    log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
     return status.token
   } catch (err: any) {
     console.warn('[Push] Erreur envoi token:', err?.message || err)
@@ -197,11 +198,10 @@ export async function unregisterPushToken(): Promise<void> {
   if (!isNative) return
   try {
     const status = await getPushTokenStatus()
-    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
     await AsyncStorage.removeItem(LAST_TOKEN_KEY).catch(() => {})
     if (!status.token) return
     await apiDelete(`/api/notifications/push-token?token=${encodeURIComponent(status.token)}`)
-    console.log('[Push] Token désenregistré côté serveur ✓')
+    log('[Push] Token désenregistré côté serveur ✓')
   } catch (err: any) {
     console.warn('[Push] Erreur désenregistrement token:', err?.message || err)
   }
@@ -228,7 +228,7 @@ export async function scheduleLocalNotification(title = 'Test local', body = 'Si
         channelId: 'services',
       },
     })
-    console.log('[Push] Notification locale programmée:', id)
+    log('[Push] Notification locale programmée:', id)
     return id
   } catch (err: any) {
     console.error('[Push] Erreur notification locale:', err?.message || err)
@@ -258,7 +258,7 @@ export async function scheduleReminderAt(title: string, body: string, date: Date
         channelId: 'services',
       } as any,
     })
-    console.log('[Push] Rappel programmé:', id, date.toISOString())
+    log('[Push] Rappel programmé:', id, date.toISOString())
     return id
   } catch (err: any) {
     console.error('[Push] Erreur rappel planifié:', err?.message || err)
@@ -436,7 +436,7 @@ export async function registerBackgroundPushTask(): Promise<void> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_NOTIFICATION_TASK)
     if (isRegistered) return
     await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK)
-    console.log('[Push] Background task registered ✓')
+    log('[Push] Background task registered ✓')
   } catch (err: any) {
     console.warn('[Push] Background task registration failed:', err.message)
   }
