@@ -1,6 +1,6 @@
 'use client';
 
-import ScreenGroupDetail from '@/components/market/batch1/screens/ScreenGroupDetail';
+import ScreenGroupDetail from '@/components/market/storefront/screens/ScreenGroupDetail';
 
 export default function Page() {
   return <ScreenGroupDetail />;

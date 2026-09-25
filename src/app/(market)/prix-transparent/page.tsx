@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import ScreenPricing from '@/components/market/batch1/screens/ScreenPricing'
+import ScreenPricing from '@/components/market/storefront/screens/ScreenPricing'
 
 export const metadata: Metadata = {
   title: 'Prix transparent — DDM+',

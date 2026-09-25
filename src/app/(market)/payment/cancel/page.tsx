@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import ScreenPaymentCancel from '@/components/market/batch1/screens/ScreenPaymentCancel'
+import ScreenPaymentCancel from '@/components/market/storefront/screens/ScreenPaymentCancel'
 
 export const metadata: Metadata = {
   title: 'Paiement annulé — DDM+',

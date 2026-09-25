@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { Loader2, AlertCircle } from 'lucide-react'
-import ScreenShop from '@/components/market/batch1/screens/ScreenShop'
+import ScreenShop from '@/components/market/storefront/screens/ScreenShop'
 
 interface ProductItem {
   id: string
@@ -38,7 +38,7 @@ interface ShopData {
   socialWebsite?: string
 }
 
-import type { SimilarShop } from '@/components/market/batch1/screens/ScreenShop'
+import type { SimilarShop } from '@/components/market/storefront/screens/ScreenShop'
 
 interface ShopPageClientProps {
   shopId: string

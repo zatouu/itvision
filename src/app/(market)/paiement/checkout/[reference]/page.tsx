@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import ScreenPaymentCheckout from '@/components/market/batch1/screens/ScreenPaymentCheckout'
+import ScreenPaymentCheckout from '@/components/market/storefront/screens/ScreenPaymentCheckout'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { verifyAuthServer } from '@/lib/auth-server'
 import {

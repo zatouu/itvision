@@ -16,7 +16,7 @@ import ThemeToggle from './ThemeToggle'
 import CategoryMegaMenu from './catalog/CategoryMegaMenu'
 import DDMLogo from './branding/DDMLogo'
 import SearchAutocomplete from './SearchAutocomplete'
-import { useSourcingModal } from './market/batch1/SourcingModalContext'
+import { useSourcingModal } from './market/storefront/SourcingModalContext'
 
 export default function MarketHeader() {
   const pathname = usePathname()
