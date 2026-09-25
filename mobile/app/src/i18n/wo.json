@@ -662,7 +662,7 @@
     "help": "Jàppale",
     "about": "Ci mbirum",
     "appVersion": "Versioŋ",
-    "memberSince": "Membre bi",
+    "memberSince": "Membre depuis",
     "defaultName": "Kliyaŋ",
     "statRequests": "Laaj",
     "statCompleted": "Jeex",
@@ -688,7 +688,12 @@
     "privacy": "Sutura",
     "shop": "Butik DDM+",
     "myShop": "Sama butik",
-    "becomeSeller": "Amal butik ci DDM+"
+    "becomeSeller": "Amal butik ci DDM+",
+    "verified": "Identité vérifiée",
+    "verifyIdentity": "Vérifier mon identité",
+    "sectionActivity": "Mon activité",
+    "sectionBenefits": "Mes avantages",
+    "sectionAccount": "Compte & sécurité"
   },
   "chat": {
     "title": "Baat",

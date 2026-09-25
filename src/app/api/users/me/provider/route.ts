@@ -21,21 +21,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, providerProfileId: String(user.providerProfileId), existing: true })
     }
 
-    const profile = await ProviderProfile.create({
-      userId: user._id,
-      kycVerified: user.kycVerified || false,
-      serviceCategories: [],
-      secondaryCategories: [],
-      zone: { city: user.city || '', region: '', radiusKm: 10, departments: [], regions: [] },
-      preferences: {},
-      currentLoad: 0,
-      providerStats: {
-        completedMissions: 0,
-        cancelledByProvider: 0,
-        cancelledByClient: 0,
-        reliabilityScore: 100,
-      },
-    })
+    // Profil existant sans lien sur le user (état partiel d'un ancien flow) :
+    // on répare le lien au lieu de tenter un create qui violerait l'index
+    // unique userId (E11000 → 500, « espace prestataire ne s'ouvre pas »).
+    const existingProfile = await ProviderProfile.findOne({ userId: user._id }).select('_id').lean() as any
+    if (existingProfile) {
+      await User.updateOne({ _id: user._id }, { $set: { providerProfileId: existingProfile._id } })
+      return NextResponse.json({ success: true, providerProfileId: String(existingProfile._id), existing: true })
+    }
+
+    // Création — course possible (double-tap, deux onglets) : l'index unique
+    // userId tranche, on retombe sur le profil gagnant.
+    let profile
+    try {
+      profile = await ProviderProfile.create({
+        userId: user._id,
+        kycVerified: user.kycVerified || false,
+        serviceCategories: [],
+        secondaryCategories: [],
+        zone: { city: user.city || '', region: '', radiusKm: 10, departments: [], regions: [] },
+        preferences: {},
+        currentLoad: 0,
+        providerStats: {
+          completedMissions: 0,
+          cancelledByProvider: 0,
+          cancelledByClient: 0,
+          reliabilityScore: 100,
+        },
+      })
+    } catch (e: any) {
+      if (e?.code === 11000) {
+        const raced = await ProviderProfile.findOne({ userId: user._id }).select('_id').lean() as any
+        if (raced) {
+          await User.updateOne({ _id: user._id }, { $set: { providerProfileId: raced._id } })
+          return NextResponse.json({ success: true, providerProfileId: String(raced._id), existing: true })
+        }
+      }
+      throw e
+    }
 
     await User.updateOne({ _id: user._id }, { $set: { providerProfileId: profile._id } })
 

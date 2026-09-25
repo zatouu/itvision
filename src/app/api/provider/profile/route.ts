@@ -65,18 +65,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Réservé aux prestataires' }, { status: 403 })
     }
 
-    let providerProfile = await ProviderProfile.findOne({ userId }).lean() as any
-    if (!providerProfile) {
-      providerProfile = await ProviderProfile.create({
-        userId,
-        kycVerified: user.kycVerified || false,
-        serviceCategories: [],
-        secondaryCategories: [],
-        zone: { city: user.city || '', region: '', radiusKm: 10, departments: [], regions: [] },
-        preferences: {},
-        currentLoad: 0,
-      })
-    }
+    // Upsert atomique : deux GET concurrents ne peuvent plus violer l'index
+    // unique userId (E11000) — l'existant est retourné tel quel.
+    let providerProfile = await ProviderProfile.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          userId,
+          kycVerified: user.kycVerified || false,
+          serviceCategories: [],
+          secondaryCategories: [],
+          zone: { city: user.city || '', region: '', radiusKm: 10, departments: [], regions: [] },
+          preferences: {},
+          currentLoad: 0,
+        },
+      },
+      { upsert: true, new: true, lean: true }
+    ) as any
 
     const kyc = await KycRequest.findOne({ providerId: userId }).lean() as any
 
