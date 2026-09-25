@@ -112,7 +112,12 @@ ServiceRequestSchema.index({ 'location': '2dsphere' })
 ServiceRequestSchema.index({ status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
-ServiceRequestSchema.index({ clientId: 1, idempotencyKey: 1 }, { unique: true, sparse: true })
+// sparse ne suffit pas : les docs avec idempotencyKey explicitement null sont
+// indexés et collisionnent. partialFilterExpression n'indexe que les vraies clés.
+ServiceRequestSchema.index({ clientId: 1, idempotencyKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+})
 ServiceRequestSchema.index({ status: 1, category: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ status: 1, lastActivityAt: 1 })
 

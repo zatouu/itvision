@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         const presenceMap = (global as any).providerPresence as Map<string, any> | undefined
         const docs = await ProviderProfile.find({
           kycVerified: true,
-          zone: {
+          'zone.coordinates': {
             $near: {
               $geometry: { type: 'Point', coordinates: [lng, lat] },
               $maxDistance: radiusKm * 1000,
