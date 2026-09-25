@@ -22,7 +22,7 @@ import {
   Users,
   LifeBuoy,
 } from 'lucide-react'
-import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { formatFcfa } from '@/components/market/storefront/formatFcfa'
 import { TreasuryTab, PurchasesTab, GroupsTab, SupportTab, NewProductModal } from './tabs'
 
 interface VendorStats {

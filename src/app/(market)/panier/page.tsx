@@ -1,6 +1,6 @@
 'use client';
 
-import ScreenCart from '@/components/market/batch1/screens/ScreenCart';
+import ScreenCart from '@/components/market/storefront/screens/ScreenCart';
 
 export default function Page() {
   return <ScreenCart />;

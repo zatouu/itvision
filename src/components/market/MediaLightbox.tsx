@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Icon } from '@/components/market/batch1/Icon'
+import { Icon } from '@/components/market/storefront/Icon'
 
 /**
  * Visionneuse plein écran — navigation flèches/clavier/molette,

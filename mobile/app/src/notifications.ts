@@ -302,7 +302,7 @@ export function bindNotificationSocket() {
       kind: 'request-new',
       title: category ? `Nouvelle demande — ${category}` : 'Nouvelle demande proche',
       body: desc || 'Un client vient de publier une demande dans votre zone.',
-      link: { pathname: '/pro/nearby-requests' },
+      link: { pathname: '/nearby-requests' },
     })
   }
 
@@ -316,7 +316,7 @@ export function bindNotificationSocket() {
       body: isScheduled
         ? `Mission confirmée pour le ${scheduledAt!.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${scheduledAt!.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`
         : 'Un client a choisi votre offre. La mission démarre.',
-      link: requestId ? { pathname: `/pro/active-mission/${requestId}` } : { pathname: '/pro/my-offers' },
+      link: requestId ? { pathname: `/active-mission/${requestId}` } : { pathname: '/my-offers' },
     })
     // Rappel local 1h avant le créneau convenu
     if (isScheduled && scheduledAt) {
@@ -336,7 +336,7 @@ export function bindNotificationSocket() {
       kind: 'offer-rejected',
       title: 'Offre refusée',
       body: 'Le client a sélectionné un autre prestataire.',
-      link: { pathname: '/pro/my-offers' },
+      link: { pathname: '/my-offers' },
     })
   }
 
@@ -346,7 +346,7 @@ export function bindNotificationSocket() {
       kind: 'offer-counter',
       title: '💬 Contre-offre client',
       body: price > 0 ? `Le client propose ${price.toLocaleString('fr-FR')} FCFA` : 'Le client a fait une contre-offre',
-      link: { pathname: '/pro/my-offers' },
+      link: { pathname: '/my-offers' },
     })
   }
 
@@ -374,7 +374,7 @@ export function bindNotificationSocket() {
       title: meta.title,
       body: meta.body,
       link: requestId
-        ? { pathname: clientSide ? `/mission/${requestId}` : `/pro/active-mission/${requestId}` }
+        ? { pathname: clientSide ? `/mission/${requestId}` : `/active-mission/${requestId}` }
         : undefined,
     })
   }

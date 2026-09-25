@@ -1,6 +1,6 @@
 'use client';
 
-import ScreenTracking from '@/components/market/batch1/screens/ScreenTracking';
+import ScreenTracking from '@/components/market/storefront/screens/ScreenTracking';
 
 export default function Page() {
   return <ScreenTracking />;

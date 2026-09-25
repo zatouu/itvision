@@ -31,14 +31,32 @@ const isSmsConfigured =
 // envoyé — actif même en production, mais strictement limité à ces numéros.
 // Le bypass global reste impossible en prod : un code fixe universel
 // permettrait de prendre le compte de n'importe quel utilisateur.
+//
+// Exception explicite : OTP_TEST_PHONES=* active le code fixe pour TOUS les
+// numéros (phase de test pré-lancement uniquement). Quiconque connaît un
+// numéro peut alors se connecter au compte associé — À RETIRER avant le
+// lancement public (remettre la liste de numéros ou vider la variable).
+const TEST_PHONE_ENTRIES = (process.env.OTP_TEST_PHONES || '')
+  .split(',')
+  .map((p) => p.trim())
+  .filter(Boolean)
+
+const ALLOW_ALL_TEST_PHONES = TEST_PHONE_ENTRIES.includes('*')
+
 const TEST_PHONES = new Set(
-  (process.env.OTP_TEST_PHONES || '')
-    .split(',')
-    .map((p) => normalizePhone(p.trim()))
+  TEST_PHONE_ENTRIES
+    .map((p) => normalizePhone(p))
     .filter((p): p is string => !!p)
 )
 
-const isTestPhone = (phone: string) => TEST_PHONES.has(phone)
+if (ALLOW_ALL_TEST_PHONES) {
+  console.warn(
+    '[OTP] ⚠️  OTP_TEST_PHONES=* — TOUS les numéros reçoivent le code fixe 000000 ' +
+    '(mode test, aucun SMS). À retirer avant le lancement public.'
+  )
+}
+
+const isTestPhone = (phone: string) => ALLOW_ALL_TEST_PHONES || TEST_PHONES.has(phone)
 
 function generateOtp(): string {
   const digits = '0123456789'

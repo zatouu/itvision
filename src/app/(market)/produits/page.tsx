@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense } from 'react';
-import ScreenCatalog from '@/components/market/batch1/screens/ScreenCatalog';
-import { ProductGridSkeleton } from '@/components/market/batch1/Skeleton';
+import ScreenCatalog from '@/components/market/storefront/screens/ScreenCatalog';
+import { ProductGridSkeleton } from '@/components/market/storefront/Skeleton';
 
 export default function Page() {
   return (

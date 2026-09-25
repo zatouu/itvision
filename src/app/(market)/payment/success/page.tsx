@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Check, Package, MessageCircle, Loader2, Users } from 'lucide-react'
-import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { formatFcfa } from '@/components/market/storefront/formatFcfa'
 import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding'
 
 const ORDER_STEPS = [

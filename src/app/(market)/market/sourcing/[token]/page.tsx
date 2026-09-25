@@ -21,7 +21,7 @@ import {
   MessageCircle,
   Calendar,
 } from 'lucide-react'
-import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { formatFcfa } from '@/components/market/storefront/formatFcfa'
 import { brandWhatsAppUrl } from '@/lib/branding'
 
 type Proposal = {

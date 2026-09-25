@@ -3,8 +3,8 @@
 import MarketHeader from '@/components/MarketHeader';
 import MarketFooter from '@/components/MarketFooter';
 import MarketBottomNav from '@/components/MarketBottomNav';
-import { SourcingModalProvider } from '@/components/market/batch1/SourcingModalContext';
-import SourcingRequestModal from '@/components/market/batch1/SourcingRequestModal';
+import { SourcingModalProvider } from '@/components/market/storefront/SourcingModalContext';
+import SourcingRequestModal from '@/components/market/storefront/SourcingRequestModal';
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
   return (

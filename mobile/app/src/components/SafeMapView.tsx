@@ -12,6 +12,12 @@ import { MapPin } from 'lucide-react-native'
  */
 export function hasGoogleMapsKey(): boolean {
   if (Platform.OS !== 'android') return true
+  // 1) Env inlinée par Metro au build (fiable : c'est la valeur utilisée par
+  //    le plugin withGoogleMapsApiKey pour la meta-data AndroidManifest).
+  const envKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+  if (typeof envKey === 'string' && envKey.length > 10) return true
+  // 2) Repli : config embarquée (peut ne pas contenir android.config.googleMaps
+  //    selon l'ordre d'évaluation d'app.config.js au build).
   const key = (Constants?.expoConfig as any)?.android?.config?.googleMaps?.apiKey
     || (Constants as any)?.manifest?.android?.config?.googleMaps?.apiKey
   return typeof key === 'string' && key.length > 10

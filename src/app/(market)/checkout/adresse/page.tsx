@@ -1,6 +1,6 @@
 'use client';
 
-import ScreenCheckout from '@/components/market/batch1/screens/ScreenCheckout';
+import ScreenCheckout from '@/components/market/storefront/screens/ScreenCheckout';
 
 export default function Page() {
   return <ScreenCheckout />;

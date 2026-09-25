@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import ScreenOrderDetail from '@/components/market/batch1/screens/ScreenOrderDetail';
+import ScreenOrderDetail from '@/components/market/storefront/screens/ScreenOrderDetail';
 
 interface OrderDetails {
   orderId: string

@@ -5,7 +5,7 @@ import {
   Loader2, Wallet, Users, LifeBuoy, Plus, ImageIcon,
   CheckCircle, MessageCircle, X, Trash2, ChevronDown,
 } from 'lucide-react'
-import { formatFcfa } from '@/components/market/batch1/formatFcfa'
+import { formatFcfa } from '@/components/market/storefront/formatFcfa'
 import { brandWhatsAppUrl } from '@/lib/branding'
 
 const METHODS = [
