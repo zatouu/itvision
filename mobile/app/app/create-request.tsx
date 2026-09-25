@@ -592,6 +592,49 @@ function CreateRequest() {
             )
           })()}
 
+          {/* Message vocal — saisie vocale mise en avant (wolof/français).
+              Placé haut : c'est le moyen d'expression principal pour beaucoup
+              d'utilisateurs, il ne doit pas être sous la ligne de flottaison. */}
+          <View style={s.voiceCard}>
+            <Text style={s.label}>{t('request.voiceNoteLabel')}</Text>
+            {voiceNote ? (
+              <VoicePlayer uri={voiceNote.uri} durationMs={voiceNote.durationMs} onRemove={() => setVoiceNote(null)} />
+            ) : (
+              <VoiceRecorder variant="orb" onRecorded={setVoiceNote} maxDurationSec={60} />
+            )}
+          </View>
+
+          {/* Budget — visible sans scroll (champ clé pour recevoir des offres) */}
+          <View>
+            <Text style={s.label}>{t('request.budgetLabel')} *</Text>
+            <View style={s.chipRow}>
+              {BUDGETS.map(b => (
+                <TouchableOpacity key={b} style={[s.budgetChip, budget === b && s.budgetChipActive]} onPress={() => { hapticLight(); setBudget(b) }} activeOpacity={0.75}>
+                  <Text style={[s.budgetChipText, budget === b && s.budgetChipTextActive]}>{b}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={s.input}
+              value={budget}
+              onChangeText={setBudget}
+              placeholder={t('request.budgetCustom')}
+              placeholderTextColor={colors.textMuted}
+              keyboardType="numeric"
+            />
+            {priceEstimate && (
+              <View style={s.priceHint}>
+                <Text style={s.priceHintText}>
+                  {t('request.priceHint', { low: priceEstimate.low.toLocaleString('fr-FR'), high: priceEstimate.high.toLocaleString('fr-FR'), median: priceEstimate.median.toLocaleString('fr-FR') })}
+                </Text>
+              </View>
+            )}
+            <View style={s.warnCallout}>
+              <Info size={14} color={colors.warnInk} />
+              <Text style={s.warnCalloutText}>{t('request.budgetDisclaimer')}</Text>
+            </View>
+          </View>
+
           <View>
             <Text style={s.label}>
               {t('request.description')} {category === 'autre' ? '*' : ''}
@@ -603,7 +646,7 @@ function CreateRequest() {
               placeholder={category === 'autre' ? t('request.descPlaceholderAutre') : t('request.descPlaceholder')}
               placeholderTextColor={colors.textMuted}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
             />
             {category === 'autre' && description.trim().length < 10 && description.length > 0 && (
               <Text style={s.descHint}>{t('request.descMinChars', { count: 10 })}</Text>
@@ -742,46 +785,6 @@ function CreateRequest() {
             )}
           </View>
 
-          {/* Message vocal — saisie vocale mise en avant (wolof/français) */}
-          <View style={s.voiceCard}>
-            <Text style={s.label}>{t('request.voiceNoteLabel')}</Text>
-            {voiceNote ? (
-              <VoicePlayer uri={voiceNote.uri} durationMs={voiceNote.durationMs} onRemove={() => setVoiceNote(null)} />
-            ) : (
-              <VoiceRecorder variant="orb" onRecorded={setVoiceNote} maxDurationSec={60} />
-            )}
-          </View>
-
-          {/* Budget */}
-          <View>
-            <Text style={s.label}>{t('request.budgetLabel')} *</Text>
-            <View style={s.chipRow}>
-              {BUDGETS.map(b => (
-                <TouchableOpacity key={b} style={[s.budgetChip, budget === b && s.budgetChipActive]} onPress={() => { hapticLight(); setBudget(b) }} activeOpacity={0.75}>
-                  <Text style={[s.budgetChipText, budget === b && s.budgetChipTextActive]}>{b}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={s.input}
-              value={budget}
-              onChangeText={setBudget}
-              placeholder={t('request.budgetCustom')}
-              placeholderTextColor={colors.textMuted}
-              keyboardType="numeric"
-            />
-            {priceEstimate && (
-              <View style={s.priceHint}>
-                <Text style={s.priceHintText}>
-                  {t('request.priceHint', { low: priceEstimate.low.toLocaleString('fr-FR'), high: priceEstimate.high.toLocaleString('fr-FR'), median: priceEstimate.median.toLocaleString('fr-FR') })}
-                </Text>
-              </View>
-            )}
-            <View style={s.warnCallout}>
-              <Info size={14} color={colors.warnInk} />
-              <Text style={s.warnCalloutText}>{t('request.budgetDisclaimer')}</Text>
-            </View>
-          </View>
         </View>
       )}
 
