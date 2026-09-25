@@ -5,6 +5,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiPatch, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import Accordion from '../src/components/Accordion'
 import TabBar from '../src/components/TabBar'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import {
@@ -276,9 +277,14 @@ function Profile() {
           })}
         </View>
 
-        {SECTIONS.map((section) => (
-          <View key={section.title} style={s.sectionCard}>
-            <Text style={s.sectionTitle}>{section.title}</Text>
+        {SECTIONS.map((section, si) => (
+          <Accordion
+            key={section.title}
+            title={section.title}
+            count={section.items.length}
+            defaultOpen={si === 0}
+            style={s.sectionAccordion}
+          >
             {section.items.map((item, idx) => {
               const Icon = item.icon
               return (
@@ -295,7 +301,7 @@ function Profile() {
                 </TouchableOpacity>
               )
             })}
-          </View>
+          </Accordion>
         ))}
 
         <TouchableOpacity style={s.logout} onPress={() => router.push('/profile-detail?section=security')}>
@@ -352,8 +358,7 @@ const s = StyleSheet.create({
   actionCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', ...shadows.sm },
   actionIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   actionLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
-  sectionCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.sm },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: spacing.md },
+  sectionAccordion: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },

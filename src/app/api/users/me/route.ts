@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
         referralCode,
         referralBalance: user.referralBalance || 0,
         referralCount: user.referralCount || 0,
+        kycVerified: !!user.kycVerified,
+        createdAt: user.createdAt,
       },
     })
     if (healedVendor) await reissueAuthCookie(response, user)

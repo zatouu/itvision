@@ -688,7 +688,12 @@
     "privacy": "Privacy",
     "shop": "DDM+ Shop",
     "myShop": "My shop",
-    "becomeSeller": "Become a DDM+ seller"
+    "becomeSeller": "Become a DDM+ seller",
+    "verified": "Identity verified",
+    "verifyIdentity": "Verify my identity",
+    "sectionActivity": "My activity",
+    "sectionBenefits": "My benefits",
+    "sectionAccount": "Account & security"
   },
   "chat": {
     "title": "Chat",

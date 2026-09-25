@@ -86,6 +86,9 @@ export interface AuthUser {
   avatarUrl?: string
   /** Présent quand l'utilisateur a un profil prestataire (capacité, pas un rôle) */
   providerProfileId?: string
+  /** Identité vérifiée (KYC) — affiché dans le profil */
+  kycVerified?: boolean
+  createdAt?: string
 }
 
 let _token: string | null = null

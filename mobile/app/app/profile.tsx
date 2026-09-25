@@ -15,7 +15,8 @@ import { pickOption } from '../src/option-sheet'
 import { clearAllUserData } from '../src/clear-user-data'
 import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
-import { ChevronRight, Camera, Menu, Pencil, Phone } from 'lucide-react-native'
+import { ChevronRight, Camera, Menu, Pencil, Phone, ShieldCheck } from 'lucide-react-native'
+import Accordion from '../src/components/Accordion'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
 import { isProviderCapable } from '../src/mode'
 import { marketLinks } from '../src/links'
@@ -193,6 +194,24 @@ function Profile() {
               <Phone size={13} color={colors.textMuted} />
               <Text style={s.phone}>{displayPhone || user?.phone || ''}</Text>
             </View>
+            <View style={s.badgeRow}>
+              {user?.kycVerified ? (
+                <View style={s.verifiedPill}>
+                  <ShieldCheck size={12} color="#047857" />
+                  <Text style={s.verifiedPillText}>{t('profile.verified', { defaultValue: 'Identité vérifiée' })}</Text>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.verifyCta} onPress={() => router.push('/kyc' as any)} activeOpacity={0.75}>
+                  <ShieldCheck size={12} color={colors.primary} />
+                  <Text style={s.verifyCtaText}>{t('profile.verifyIdentity', { defaultValue: 'Vérifier mon identité' })}</Text>
+                </TouchableOpacity>
+              )}
+              {user?.createdAt && (
+                <Text style={s.memberSince}>
+                  {t('profile.memberSince', { defaultValue: 'Membre depuis' })} {new Date(user.createdAt).getFullYear()}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
 
@@ -241,12 +260,14 @@ function Profile() {
           </View>
         )}
 
-        {/* Menu */}
-        <View style={s.menuGroup}>
-          {menuItem(t('profile.wallet'), () => router.push('/wallet'))}
+        {/* Menu — sections repliables */}
+        <Accordion title={t('profile.sectionActivity', { defaultValue: 'Mon activité' })} defaultOpen>
           {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
           {menuItem(t('profile.messages', { defaultValue: 'Messages' }), () => router.push('/messages' as any))}
-          {menuItem(t('profile.privacy', { defaultValue: 'Confidentialité' }), () => router.push('/privacy' as any))}
+          {menuItem(t('profile.wallet'), () => router.push('/wallet'))}
+        </Accordion>
+
+        <Accordion title={t('profile.sectionBenefits', { defaultValue: 'Mes avantages' })}>
           {menuItem(t('profile.shop', { defaultValue: 'Boutique DDM+' }), () => Linking.openURL(marketLinks.catalog).catch(() => {}))}
           {vendorShop && menuItem(
             `${t('profile.myShop', { defaultValue: 'Ma boutique' })} · ${vendorShop.name}`,
@@ -256,11 +277,19 @@ function Profile() {
             t('profile.becomeSeller', { defaultValue: 'Devenir vendeur sur DDM+' }),
             () => Linking.openURL(marketLinks.becomeVendor).catch(() => {})
           )}
+        </Accordion>
+
+        <Accordion title={t('profile.sectionAccount', { defaultValue: 'Compte & sécurité' })}>
+          {!user?.kycVerified && menuItem(
+            t('profile.verifyIdentity', { defaultValue: 'Vérifier mon identité' }),
+            () => router.push('/kyc' as any)
+          )}
+          {menuItem(t('profile.privacy', { defaultValue: 'Confidentialité' }), () => router.push('/privacy' as any))}
           {!isProviderCapable() && menuItem(
             t('profile.becomeProvider', { defaultValue: 'Devenir prestataire' }),
             () => router.push('/onboarding-provider' as any)
           )}
-        </View>
+        </Accordion>
 
         {/* Language */}
         <View style={s.langCard}>
@@ -318,6 +347,12 @@ const s = StyleSheet.create({
   editIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   phone: { fontSize: 14, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap', justifyContent: 'center' },
+  verifiedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ECFDF5', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#A7F3D0' },
+  verifiedPillText: { fontSize: 11, color: '#047857', fontWeight: typography.weight.bold as any },
+  verifyCta: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.slate100, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  verifyCtaText: { fontSize: 11, color: colors.primary, fontWeight: typography.weight.semibold as any },
+  memberSince: { fontSize: 11, color: colors.textMuted, fontWeight: typography.weight.medium as any },
   nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%', paddingHorizontal: 4 },
   nameInput: { flex: 1, fontSize: 18, fontWeight: typography.weight.bold as any, color: colors.text, borderWidth: 1.5, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: colors.slate50, textAlign: 'center' },
   nameSaveBtn: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 11 },
@@ -328,8 +363,7 @@ const s = StyleSheet.create({
   statNum: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text },
   statLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: typography.weight.semibold as any, marginTop: 4 },
 
-  menuGroup: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
   menuText: { flex: 1, fontSize: 15, fontWeight: typography.weight.semibold as any, color: colors.text },
 
   langCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border },
