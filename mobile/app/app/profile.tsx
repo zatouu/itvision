@@ -15,7 +15,7 @@ import { pickOption } from '../src/option-sheet'
 import { clearAllUserData } from '../src/clear-user-data'
 import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
-import { ChevronRight, Camera, Menu, Pencil, Phone, ShieldCheck } from 'lucide-react-native'
+import { ChevronRight, Camera, Gift, Menu, Pencil, Phone, ShieldCheck } from 'lucide-react-native'
 import Accordion from '../src/components/Accordion'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
 import { isProviderCapable } from '../src/mode'
@@ -231,32 +231,24 @@ function Profile() {
           </View>
         </View>
 
-        {/* Referral */}
+        {/* Parrainage — version compacte (1 ligne) */}
         {user?.referralCode && (
-          <View style={s.referralCard}>
-            <View style={s.referralHead}>
-              <Text style={s.referralTitle}>{t('profile.referralTitle')}</Text>
-              <Text style={s.referralSubtitle}>{t('profile.referralSubtitle')}</Text>
+          <View style={s.referralCompact}>
+            <View style={s.referralIcon}>
+              <Gift size={16} color="#047857" />
             </View>
-            <View style={s.referralCodeBox}>
-              <Text style={s.referralCode}>{user.referralCode}</Text>
-              <TouchableOpacity
-                style={s.referralShareBtn}
-                onPress={() => Share.share({ message: t('profile.referralShareMessage', { code: user.referralCode }) })}
-              >
-                <Text style={s.referralShareText}>{t('profile.referralShare')}</Text>
-              </TouchableOpacity>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.referralCodeSmall}>{user.referralCode}</Text>
+              <Text style={s.referralHint} numberOfLines={1}>
+                {user.referralBalance || 0} FCFA {t('profile.referralEarned')} · {referral?.count || 0} {t('profile.referralCount')}
+              </Text>
             </View>
-            <View style={s.referralRow}>
-              <View style={s.referralStat}>
-                <Text style={s.referralStatNum}>{user.referralBalance || 0} FCFA</Text>
-                <Text style={s.referralStatLabel}>{t('profile.referralEarned')}</Text>
-              </View>
-              <View style={s.referralStat}>
-                <Text style={s.referralStatNum}>{referral?.count || 0}</Text>
-                <Text style={s.referralStatLabel}>{t('profile.referralCount')}</Text>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={s.referralShareBtn}
+              onPress={() => Share.share({ message: t('profile.referralShareMessage', { code: user.referralCode }) })}
+            >
+              <Text style={s.referralShareText}>{t('profile.referralShare')}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -272,10 +264,6 @@ function Profile() {
           {vendorShop && menuItem(
             `${t('profile.myShop', { defaultValue: 'Ma boutique' })} · ${vendorShop.name}`,
             () => Linking.openURL(marketLinks.vendorDashboard).catch(() => {})
-          )}
-          {!vendorShop && isProviderCapable() && menuItem(
-            t('profile.becomeSeller', { defaultValue: 'Devenir vendeur sur DDM+' }),
-            () => Linking.openURL(marketLinks.becomeVendor).catch(() => {})
           )}
         </Accordion>
 
@@ -328,19 +316,20 @@ const s = StyleSheet.create({
 
   identityCard: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 22,
+    borderRadius: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
   },
   avatarWrap: { position: 'relative' },
-  avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: '#0D1520', alignItems: 'center', justifyContent: 'center' },
-  avatarImage: { width: 92, height: 92, borderRadius: 46, backgroundColor: colors.border },
-  avatarText: { color: colors.surface, fontSize: 32, fontWeight: typography.weight.extrabold as any },
-  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.surface },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#0D1520', alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.border },
+  avatarText: { color: colors.surface, fontSize: 26, fontWeight: typography.weight.extrabold as any },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: colors.surface },
   nameBlock: { alignItems: 'center', gap: 6, width: '100%' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.3 },
@@ -369,18 +358,12 @@ const s = StyleSheet.create({
   langCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border },
   langTitle: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text, marginBottom: 12 },
 
-  referralCard: { backgroundColor: '#ECFDF5', borderRadius: 20, padding: 18, borderWidth: 1.5, borderColor: '#A7F3D0', gap: 14 },
-  referralHead: { gap: 4 },
-  referralTitle: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#065F46' },
-  referralSubtitle: { fontSize: 12, color: '#047857', lineHeight: 18, fontWeight: typography.weight.medium as any },
-  referralCodeBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#D1FAE5' },
-  referralCode: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: 3, flex: 1 },
-  referralShareBtn: { backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  referralShareText: { color: colors.surface, fontWeight: typography.weight.bold as any, fontSize: 13 },
-  referralRow: { flexDirection: 'row', gap: 12 },
-  referralStat: { flex: 1, alignItems: 'center' },
-  referralStatNum: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: '#065F46' },
-  referralStatLabel: { fontSize: 11, color: '#10B981', marginTop: 2, fontWeight: typography.weight.semibold as any },
+  referralCompact: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ECFDF5', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#A7F3D0' },
+  referralIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
+  referralCodeSmall: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#065F46', letterSpacing: 1.5 },
+  referralHint: { fontSize: 11, color: '#047857', fontWeight: typography.weight.medium as any, marginTop: 1 },
+  referralShareBtn: { backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  referralShareText: { color: colors.surface, fontWeight: typography.weight.bold as any, fontSize: 12 },
 
   logoutBtn: { backgroundColor: '#FEF2F2', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA', marginTop: 8 },
   logoutText: { color: '#B91C1C', fontWeight: typography.weight.bold as any, fontSize: 15 },

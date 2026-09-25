@@ -250,11 +250,8 @@ function OffersReceived() {
   }, [offers])
 
   const acceptOffer = async (offer: Offer) => {
-    const ok = await confirm(
-      t('clientOffers.confirmTitle'),
-      t('clientOffers.confirmMsg', { price: offer.price.toLocaleString('fr-FR') })
-    )
-    if (!ok) return
+    // Pas de double confirmation : l'écran de paiement affiche déjà le
+    // montant exact et son propre bouton de validation.
     setAccepting(offer._id)
     try {
       hapticLight()
