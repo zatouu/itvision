@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Animated, Easing } from 'react-native'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps'
+import SafeMapView from '../SafeMapView'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Phone, MessageCircle, Star, LocateFixed, Check } from 'lucide-react-native'
@@ -154,7 +156,7 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
       {/* Live map slice */}
       {region && (
         <View style={s.mapWrap}>
-          <MapView
+          <SafeMapView
             ref={mapRef}
             provider={PROVIDER_DEFAULT}
             style={StyleSheet.absoluteFillObject}
@@ -201,7 +203,7 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
                 </View>
               </Marker>
             )}
-          </MapView>
+          </SafeMapView>
           <View style={s.liveBadge}>
             <LocateFixed size={12} color={GREEN} />
             <Text style={s.liveBadgeText}>{t('home.liveTracking')}</Text>

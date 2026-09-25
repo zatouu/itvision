@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { Marker, Polyline, PROVIDER_DEFAULT, Region } from 'react-native-maps'
+import SafeMapView from '../SafeMapView'
 import { MapPin, Home, Crosshair, Navigation, ArrowLeft, Share2 } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EtaDistancePill } from './EtaDistancePill'
@@ -147,7 +149,7 @@ export const MapHero: React.FC<Props> = ({
 
   return (
     <View style={s.container}>
-      <MapView
+      <SafeMapView
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFillObject}
@@ -192,7 +194,7 @@ export const MapHero: React.FC<Props> = ({
             </View>
           </Marker>
         )}
-      </MapView>
+      </SafeMapView>
 
       {/* Top Floating Bar */}
       <View style={[s.topBar, { top: insets.top + spacing.sm }]}>

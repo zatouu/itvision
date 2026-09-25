@@ -153,6 +153,8 @@ export async function registerPushToken(): Promise<string | null> {
   return _registering
 }
 
+const LAST_TOKEN_KEY = 'push:lastRegisteredToken'
+
 async function _doRegister(): Promise<string | null> {
   const permitted = await requestPushPermission()
   if (!permitted) {
@@ -166,12 +168,19 @@ async function _doRegister(): Promise<string | null> {
     return null
   }
 
+  // Dédup : un POST par token par device — évite un enregistrement à
+  // chaque retour au premier plan (AppState 'active' → registerPushToken).
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+  const last = await AsyncStorage.getItem(LAST_TOKEN_KEY).catch(() => null)
+  if (last === status.token) return status.token
+
   try {
     await apiPost('/api/notifications/push-token', {
       token: status.token,
       platform: status.platform,
       appType: 'unified',
     })
+    await AsyncStorage.setItem(LAST_TOKEN_KEY, status.token).catch(() => {})
     console.log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
     return status.token
   } catch (err: any) {
@@ -188,6 +197,8 @@ export async function unregisterPushToken(): Promise<void> {
   if (!isNative) return
   try {
     const status = await getPushTokenStatus()
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+    await AsyncStorage.removeItem(LAST_TOKEN_KEY).catch(() => {})
     if (!status.token) return
     await apiDelete(`/api/notifications/push-token?token=${encodeURIComponent(status.token)}`)
     console.log('[Push] Token désenregistré côté serveur ✓')

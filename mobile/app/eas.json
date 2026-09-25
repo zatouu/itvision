@@ -21,13 +21,15 @@
       "autoIncrement": true,
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn"
+        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn"
+        "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
       }
     }
   }

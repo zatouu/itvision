@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { Image } from 'expo-image'
 import * as Location from 'expo-location'
-import MapView, { PROVIDER_DEFAULT } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { PROVIDER_DEFAULT } from 'react-native-maps'
+import SafeMapView from '../src/components/SafeMapView'
 import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued, apiPatchQueued, apiPost, apiUpload, apiGet, apiGetRetry } from '../src/api'
@@ -799,10 +801,11 @@ function CreateRequest() {
                 <Text style={s.mapPlaceholderText}>{autoAddress || t('request.useGps')}</Text>
               </View>
             ) : (
-              <MapView
+              <SafeMapView
                 ref={mapRef}
                 provider={PROVIDER_DEFAULT}
                 style={StyleSheet.absoluteFill}
+                fallbackLabel={autoAddress || t('request.useGps')}
                 initialRegion={coords
                   ? { latitude: coords[1], longitude: coords[0], latitudeDelta: 0.015, longitudeDelta: 0.015 }
                   : DAKAR_REGION}

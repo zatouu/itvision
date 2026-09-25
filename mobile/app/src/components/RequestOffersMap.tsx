@@ -1,6 +1,8 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Platform, StyleSheet, AppState } from 'react-native'
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
+import SafeMapView from './SafeMapView'
 import { useTranslation } from 'react-i18next'
 import { connectSocket, joinRequestRoom, leaveRequestRoom } from '../socket'
 import { apiGet } from '../api'
@@ -196,7 +198,7 @@ const RequestOffersMap = memo(function RequestOffersMap({
           <Text style={s.mapPlaceholderText}>{t('offers.mapWebViewers')}</Text>
         </View>
       ) : (
-        <MapView
+        <SafeMapView
           provider={PROVIDER_DEFAULT}
           style={s.map}
           initialRegion={initialRegion}
@@ -244,7 +246,7 @@ const RequestOffersMap = memo(function RequestOffersMap({
               </Marker>
             )
           })}
-        </MapView>
+        </SafeMapView>
       )}
     </View>
   )

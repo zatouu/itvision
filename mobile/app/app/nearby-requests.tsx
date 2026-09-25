@@ -2,7 +2,9 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput, ActivityIndicator, RefreshControl, Alert, Platform, Animated, AppState } from 'react-native'
 import { Image } from 'expo-image'
 import BottomSheet from '../src/components/BottomSheet'
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
+import SafeMapView from '../src/components/SafeMapView'
 import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -391,7 +393,7 @@ function NearbyRequests() {
             </View>
           ) : coords && mapRegion ? (
             <>
-              <MapView
+              <SafeMapView
                 ref={mapRef}
                 style={s.map}
                 provider={PROVIDER_DEFAULT}
@@ -443,7 +445,7 @@ function NearbyRequests() {
                     </Marker>
                   )
                 })}
-              </MapView>
+              </SafeMapView>
 
               {/* Légende */}
               <View style={s.mapLegend}>

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native'
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
+import type MapView from 'react-native-maps'
+import { Marker, Polyline, PROVIDER_DEFAULT, AnimatedRegion } from 'react-native-maps'
+import SafeMapView from './SafeMapView'
 import { useTranslation } from 'react-i18next'
 import { Navigation } from 'lucide-react-native'
 import { apiGet } from '../api'
@@ -264,7 +266,7 @@ function LiveRouteMapComponent({
   return (
     <View style={[s.outerContainer, height != null ? { height } : s.outerFlex]}>
       <View style={s.container}>
-        <MapView
+        <SafeMapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
           style={s.map}
@@ -306,7 +308,7 @@ function LiveRouteMapComponent({
               strokeWidth={5}
             />
           )}
-        </MapView>
+        </SafeMapView>
 
         <View style={s.overlay} pointerEvents="none">
           {destinationLabel ? (
