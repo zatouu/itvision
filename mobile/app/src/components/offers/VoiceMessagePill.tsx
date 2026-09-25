@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { Audio } from 'expo-av'
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio'
 import { Play, Pause } from 'lucide-react-native'
 import { resolveMediaUrl } from '../../media'
 import { colors, spacing, radius, typography } from '../../design'
@@ -30,43 +30,36 @@ type Props = {
 }
 
 export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
-  const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const soundRef = useRef<Audio.Sound | null>(null)
   const bars = useMemo(() => generateBars(uri.length), [uri])
+  const fullUri = useMemo(() => resolveMediaUrl(uri), [uri])
+  const player = useAudioPlayer(fullUri ? { uri: fullUri } : null)
+  const status = useAudioPlayerStatus(player)
+
+  const playing = status.playing
+  const progress = status.duration > 0 ? Math.min(1, status.currentTime / status.duration) : 0
 
   useEffect(() => {
-    return () => { soundRef.current?.unloadAsync().catch(() => {}) }
-  }, [])
+    if (status.didJustFinish) {
+      player.seekTo(0).catch(() => {})
+    }
+  }, [status.didJustFinish])
+
+  useEffect(() => {
+    if (fullUri) player.replace({ uri: fullUri })
+  }, [fullUri])
 
   const toggle = async () => {
-    if (playing) {
-      await soundRef.current?.stopAsync()
-      setPlaying(false)
-      setProgress(0)
-      return
-    }
+    if (!fullUri) return
     try {
-      if (soundRef.current) await soundRef.current.unloadAsync()
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        playThroughEarpieceAndroid: false,
-      })
-      const fullUri = resolveMediaUrl(uri)
-      if (!fullUri) return
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: fullUri },
-        { shouldPlay: true },
-        (status) => {
-          if (!status.isLoaded) return
-          if (status.durationMillis) setProgress(status.positionMillis / status.durationMillis)
-          if (status.didJustFinish) { setPlaying(false); setProgress(0) }
-        }
-      )
-      soundRef.current = sound
-      setPlaying(true)
-    } catch { setPlaying(false) }
+      if (playing) {
+        player.pause()
+        await player.seekTo(0).catch(() => {})
+        return
+      }
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      await player.seekTo(0).catch(() => {})
+      player.play()
+    } catch { /* silencieux — pill compacte */ }
   }
 
   return (

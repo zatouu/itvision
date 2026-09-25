@@ -94,7 +94,7 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
         {/* SVG Gradient Fill matching exact measured container */}
         {cardSize.width > 0 && cardSize.height > 0 && (
           <Svg
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             width={cardSize.width}
             height={cardSize.height}
             pointerEvents="none"

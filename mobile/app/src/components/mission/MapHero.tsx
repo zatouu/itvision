@@ -152,7 +152,7 @@ export const MapHero: React.FC<Props> = ({
       <SafeMapView
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         showsUserLocation={false}
         showsCompass={false}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Easing } from 'react-native'
-import { Audio } from 'expo-av'
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio'
 import { Mic, Square, X } from 'lucide-react-native'
 import { colors, radius, spacing, typography } from '../design'
 
@@ -19,8 +19,8 @@ type Props = {
 const BAR_COUNT = 7
 
 export default function VoiceRecorder({ onRecorded, maxDurationSec = 60, variant = 'inline' }: Props) {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null)
-  const recordingRef = useRef<Audio.Recording | null>(null)
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const recordingActiveRef = useRef(false)
   const [isRecording, setIsRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const pulse = useRef(new Animated.Value(1)).current
@@ -38,8 +38,9 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60, variant
       barAnims.current.forEach(a => a.stop())
       pulse.stopAnimation()
       halo.stopAnimation()
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {})
+      if (recordingActiveRef.current) {
+        recordingActiveRef.current = false
+        recorder.stop().catch(() => {})
       }
     }
   }, [])
@@ -84,23 +85,19 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60, variant
 
   const startRecording = async () => {
     try {
-      const perm = await Audio.requestPermissionsAsync()
+      const perm = await AudioModule.requestRecordingPermissionsAsync()
       if (!perm.granted) {
         Alert.alert('Permission requise', 'Autorisez le microphone pour enregistrer un message vocal.')
         return
       }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
       })
-      const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      )
-      setRecording(rec)
-      recordingRef.current = rec
+      await recorder.prepareToRecordAsync()
+      recorder.record()
+      recordingActiveRef.current = true
       setIsRecording(true)
       setElapsed(0)
       timerRef.current = setInterval(() => {
@@ -119,42 +116,32 @@ export default function VoiceRecorder({ onRecorded, maxDurationSec = 60, variant
   }
 
   const stopRecording = async () => {
-    const rec = recordingRef.current
-    if (!rec) return
+    if (!recordingActiveRef.current) return
+    recordingActiveRef.current = false
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     setIsRecording(false)
     try {
-      await rec.stopAndUnloadAsync()
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: false,
-      })
-      const uri = rec.getURI()
-      const status = await rec.getStatusAsync()
-      setRecording(null)
-      recordingRef.current = null
-      if (uri && status.durationMillis && status.durationMillis > 500) {
-        onRecorded({ uri, durationMs: status.durationMillis })
+      // Capturer la durée AVANT stop() — currentTime est remis à zéro après.
+      const durationMs = Math.round((recorder.currentTime || 0) * 1000)
+      await recorder.stop()
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      const uri = recorder.uri
+      if (uri && durationMs > 500) {
+        onRecorded({ uri, durationMs })
       }
     } catch (err) {
       console.error('[VoiceRecorder] stop error:', err)
-      setRecording(null)
-      recordingRef.current = null
     }
   }
 
   const cancelRecording = async () => {
-    const rec = recordingRef.current
-    if (!rec) return
+    if (!recordingActiveRef.current) return
+    recordingActiveRef.current = false
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     setIsRecording(false)
     try {
-      await rec.stopAndUnloadAsync()
+      await recorder.stop()
     } catch { /* ignore */ }
-    setRecording(null)
-    recordingRef.current = null
   }
 
   const formatTime = (sec: number) => {

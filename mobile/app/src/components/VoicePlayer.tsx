@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { Audio } from 'expo-av'
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio'
 import { resolveMediaUrl } from '../media'
 
 type Props = {
@@ -10,16 +10,25 @@ type Props = {
 }
 
 export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
-  const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState(false)
-  const soundRef = useRef<Audio.Sound | null>(null)
+  const fullUri = useMemo(() => resolveMediaUrl(uri), [uri])
+  const player = useAudioPlayer(fullUri ? { uri: fullUri } : null)
+  const status = useAudioPlayerStatus(player)
 
+  const playing = status.playing
+  const progress = status.duration > 0 ? Math.min(1, status.currentTime / status.duration) : 0
+
+  // Revenir au début après la fin — permet de relancer.
   useEffect(() => {
-    return () => {
-      if (soundRef.current) soundRef.current.unloadAsync().catch(() => {})
+    if (status.didJustFinish) {
+      player.seekTo(0).catch(() => {})
     }
-  }, [])
+  }, [status.didJustFinish])
+
+  // Si l'uri change (remontage partiel), recharger la source.
+  useEffect(() => {
+    if (fullUri) player.replace({ uri: fullUri })
+  }, [fullUri])
 
   const formatTime = (ms: number) => {
     const sec = Math.round(ms / 1000)
@@ -28,57 +37,30 @@ export default function VoicePlayer({ uri, durationMs, onRemove }: Props) {
     return `${m}:${String(s).padStart(2, '0')}`
   }
 
-  const play = async () => {
+  const toggle = async () => {
+    if (!fullUri) {
+      setError(true)
+      return
+    }
     try {
       setError(false)
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync()
+      if (playing) {
+        player.pause()
+        await player.seekTo(0).catch(() => {})
+      } else {
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+        await player.seekTo(0).catch(() => {})
+        player.play()
       }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-      })
-      const fullUri = resolveMediaUrl(uri)
-      if (!fullUri) {
-        setError(true)
-        return
-      }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: fullUri },
-        { shouldPlay: true },
-        (status) => {
-          if (!status.isLoaded) return
-          if (status.durationMillis) {
-            setProgress(status.positionMillis / status.durationMillis)
-          }
-          if (status.didJustFinish) {
-            setPlaying(false)
-            setProgress(0)
-          }
-        }
-      )
-      soundRef.current = sound
-      setPlaying(true)
     } catch (err: any) {
       console.error('[VoicePlayer] play error:', err)
       setError(true)
     }
   }
 
-  const stop = async () => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync()
-      setPlaying(false)
-      setProgress(0)
-    }
-  }
-
   return (
     <View style={[s.container, error && s.containerError]}>
-      <TouchableOpacity style={[s.playBtn, error && s.playBtnError]} onPress={playing ? stop : play}>
+      <TouchableOpacity style={[s.playBtn, error && s.playBtnError]} onPress={toggle}>
         <Text style={s.playIcon}>{error ? '!' : playing ? '⏸' : '▶'}</Text>
       </TouchableOpacity>
       <View style={s.waveContainer}>

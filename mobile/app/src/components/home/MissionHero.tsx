@@ -60,9 +60,9 @@ function PulseDot({ color = GREEN, size = 8 }: { color?: string; size?: number }
   }, [anim])
   return (
     <View style={{ width: size, height: size }}>
-      <View style={[StyleSheet.absoluteFillObject, { borderRadius: size / 2, backgroundColor: color }]} />
+      <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: color }]} />
       <Animated.View
-        style={[StyleSheet.absoluteFillObject, {
+        style={[StyleSheet.absoluteFill, {
           borderRadius: size / 2,
           backgroundColor: color,
           opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
@@ -159,7 +159,7 @@ export default function MissionHero({ mission, title, categoryColor, liveProvide
           <SafeMapView
             ref={mapRef}
             provider={PROVIDER_DEFAULT}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             initialRegion={region}
             scrollEnabled={false}
             zoomEnabled={false}

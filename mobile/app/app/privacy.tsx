@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch, ActivityI
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { apiGet, apiPatch, apiPost, logoutApi } from '../src/api'
 import { clearAuth } from '../src/auth'
 import { clearAllUserData } from '../src/clear-user-data'

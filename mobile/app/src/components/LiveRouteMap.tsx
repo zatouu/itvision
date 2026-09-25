@@ -371,7 +371,7 @@ const s = StyleSheet.create({
     height: '100%',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     padding: 12,
     justifyContent: 'space-between',
   },

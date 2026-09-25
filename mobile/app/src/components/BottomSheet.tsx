@@ -127,7 +127,7 @@ export default function BottomSheet({ visible, onClose, children, maxHeight, bor
 
 const s = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheetWrapper: {

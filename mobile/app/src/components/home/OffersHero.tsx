@@ -39,9 +39,9 @@ export default function OffersHero({ request, title, categoryColor, CategoryIcon
       <View style={s.heroHead}>
         <View style={s.heroHeadLeft}>
           <View style={{ width: 8, height: 8 }}>
-            <View style={[StyleSheet.absoluteFillObject, { borderRadius: 4, backgroundColor: AMBER }]} />
+            <View style={[StyleSheet.absoluteFill, { borderRadius: 4, backgroundColor: AMBER }]} />
             <Animated.View
-              style={[StyleSheet.absoluteFillObject, {
+              style={[StyleSheet.absoluteFill, {
                 borderRadius: 4, backgroundColor: AMBER,
                 opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
                 transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }],

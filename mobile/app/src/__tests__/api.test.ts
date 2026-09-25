@@ -2,7 +2,7 @@ import { setOnUnauthorized } from '../api'
 
 // Mock fetch globally
 const mockFetch = jest.fn()
-global.fetch = mockFetch as any
+globalThis.fetch = mockFetch as any
 
 // Mock auth to avoid AsyncStorage complexity
 jest.mock('../auth', () => ({

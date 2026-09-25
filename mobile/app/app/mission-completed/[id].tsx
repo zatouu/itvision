@@ -31,7 +31,7 @@ import {
   Award,
 } from 'lucide-react-native'
 
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 
 import { apiGet } from '../../src/api'
 import { getAuthToken } from '../../src/auth'

@@ -4,15 +4,10 @@
     "slug": "xeuy-consumer",
     "scheme": "xeuyconsumer",
     "version": "1.0.0",
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "2.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.xeuy.xeuy",
@@ -43,11 +38,31 @@
       ]
     },
     "plugins": [
-      "expo-location",
+      "expo-router",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-image",
+      "@sentry/react-native",
       [
-        "expo-av",
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Xeuy Bi utilise votre position pour trouver les prestataires proches et pour le suivi de mission."
+        }
+      ],
+      [
+        "expo-audio",
         {
           "microphonePermission": "Xeuy utilise le microphone pour enregistrer des messages vocaux."
+        }
+      ],
+      "expo-video",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
         }
       ],
       [

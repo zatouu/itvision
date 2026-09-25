@@ -382,7 +382,7 @@ export function CoachSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,22,40,0.45)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(10,22,40,0.45)' },
   sheet: {
     position: 'absolute',
     left: 0,

@@ -302,8 +302,8 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
 }
 
 const s = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,22,40,0.55)' },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 100 },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(10,22,40,0.55)' },
   drawer: {
     position: 'absolute',
     top: 0,

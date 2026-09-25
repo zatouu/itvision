@@ -8,7 +8,7 @@ import {
   BackHandler,
 } from 'react-native'
 import { Image } from 'expo-image'
-import { Audio } from 'expo-av'
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio'
 import { useTranslation } from 'react-i18next'
 import {
   X,
@@ -64,33 +64,32 @@ function timeHM(ts: string | number | Date): string {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
-/** Petit player audio réutilisant expo-av (dépendance existante). */
+/** Petit player audio (expo-audio). */
 function AudioRow({ url }: { url: string }) {
-  const [playing, setPlaying] = useState(false)
-  const soundRef = useRef<Audio.Sound | null>(null)
+  const player = useAudioPlayer(url ? { uri: url } : null)
+  const status = useAudioPlayerStatus(player)
+  const playing = status.playing
 
   useEffect(() => {
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {})
+    if (status.didJustFinish) {
+      player.seekTo(0).catch(() => {})
     }
-  }, [])
+  }, [status.didJustFinish])
+
+  useEffect(() => {
+    if (url) player.replace({ uri: url })
+  }, [url])
 
   const toggle = async () => {
     try {
-      if (playing && soundRef.current) {
-        await soundRef.current.stopAsync()
-        setPlaying(false)
+      if (playing) {
+        player.pause()
+        await player.seekTo(0).catch(() => {})
         return
       }
-      if (!soundRef.current) {
-        const { sound } = await Audio.Sound.createAsync({ uri: url })
-        soundRef.current = sound
-        sound.setOnPlaybackStatusUpdate((st) => {
-          if (st.isLoaded && st.didJustFinish) setPlaying(false)
-        })
-      }
-      await soundRef.current.playAsync()
-      setPlaying(true)
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
+      await player.seekTo(0).catch(() => {})
+      player.play()
     } catch {}
   }
 

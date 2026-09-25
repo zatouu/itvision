@@ -83,7 +83,8 @@ export function setupNotificationHandler(): void {
     handleNotification: async () => {
       const active = AppState?.currentState === 'active'
       return {
-        shouldShowAlert: !active,
+        shouldShowBanner: !active,
+        shouldShowList: !active,
         shouldPlaySound: !active,
         shouldSetBadge: true,
         priority: Notifications.AndroidNotificationPriority.MAX,
@@ -410,7 +411,7 @@ const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK'
  * même quand l'application est tuée (Android/iOS).
  */
 if (isNative) {
-  TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, (body: any) => {
+  TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async (body: any) => {
     try {
       const notification = body?.data?.notification ?? body?.notification ?? body?.data ?? body
       const requestContent = notification?.request?.content ?? notification?.content ?? notification

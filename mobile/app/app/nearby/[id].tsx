@@ -19,7 +19,7 @@ import { apiGet, apiPost } from '../../src/api'
 import { toast } from '../../src/toast'
 import { humanErrorMessage } from '../../src/errorMessages'
 import { resolveMediaUrl } from '../../src/media'
-import { Video, ResizeMode } from 'expo-av'
+import { useVideoPlayer, VideoView } from 'expo-video'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitProviderLocation, emitRequestViewing, emitStopViewing } from '../../src/socket'
 import { getProviderName } from '../../src/user-profile'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
@@ -30,6 +30,33 @@ function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   const dLng = (b.lng - a.lng) * DEGS_TO_RADS
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * DEGS_TO_RADS) * Math.cos(b.lat * DEGS_TO_RADS) * Math.sin(dLng / 2) ** 2
   return 2 * 6371000 * Math.asin(Math.sqrt(x))
+}
+
+/** Vignette vidéo (frame figée, pas de lecture) — expo-video. */
+function VideoThumb({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri ? { uri } : null)
+  return (
+    <VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+    />
+  )
+}
+
+/** Lecteur plein écran avec contrôles natifs — expo-video. */
+function VideoFull({ uri, style }: { uri: string; style?: any }) {
+  const player = useVideoPlayer(uri ? { uri } : null, (p) => { p.play() })
+  return (
+    <VideoView
+      player={player}
+      style={style}
+      contentFit="contain"
+      nativeControls
+      fullscreenOptions={{ enable: true }}
+    />
+  )
 }
 
 function NearbyRequestDetail() {
@@ -273,14 +300,7 @@ function NearbyRequestDetail() {
                     <TouchableOpacity key={i} style={s.thumb} onPress={() => setFullMedia({ uri, type: m.type || 'image' })}>
                       {isVideo ? (
                         <View style={s.thumbImage}>
-                          <Video
-                            source={{ uri }}
-                            style={StyleSheet.absoluteFill}
-                            resizeMode={ResizeMode.COVER}
-                            shouldPlay={false}
-                            isLooping={false}
-                            useNativeControls={false}
-                          />
+                          <VideoThumb uri={uri} />
                           <View style={s.playOverlay}>
                             <Play size={24} color="#fff" fill="#fff" />
                           </View>
@@ -303,14 +323,7 @@ function NearbyRequestDetail() {
                 <X size={24} color="#fff" />
               </TouchableOpacity>
               {fullMedia?.type === 'video' ? (
-                <Video
-                  source={{ uri: fullMedia.uri }}
-                  style={s.fullMedia}
-                  resizeMode={ResizeMode.CONTAIN}
-                  useNativeControls
-                  shouldPlay
-                  isLooping={false}
-                />
+                <VideoFull uri={fullMedia.uri} style={s.fullMedia} />
               ) : fullMedia ? (
                 <Image source={{ uri: fullMedia.uri }} style={s.fullMedia} contentFit="contain" />
               ) : null}
@@ -419,7 +432,7 @@ const s = StyleSheet.create({
   },
   audioIcon: { fontSize: 24 },
   playOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
