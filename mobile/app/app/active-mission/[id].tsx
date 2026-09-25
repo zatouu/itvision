@@ -594,8 +594,13 @@ function ActiveMissionScreen() {
                     <TouchableOpacity
                       style={[s.primaryButton, { marginTop: 12 }]}
                       activeOpacity={0.88}
-                      onPress={() => {
-                        Alert.alert('Rappel envoyé', 'Une notification de rappel a été envoyée au client.')
+                      onPress={async () => {
+                        try {
+                          await apiPost(`/api/services/requests/${id}/remind`, {})
+                          toast.success('Rappel envoyé', 'Le client a été notifié.')
+                        } catch (e: any) {
+                          toast.error(t('common.error'), humanErrorMessage(e))
+                        }
                       }}
                     >
                       <Text style={s.primaryButtonText}>

@@ -15,7 +15,6 @@ import {
   markRead,
   subscribeNotifications,
 } from '../src/notifications'
-import { confirm } from '../src/confirm'
 import { apiPost } from '../src/api'
 import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
@@ -163,8 +162,6 @@ function NotificationsScreen() {
 
   const handleClear = async () => {
     if (items.length === 0) return
-    const ok = await confirm(t('notifications.clear'), t('notifications.clear'))
-    if (!ok) return
     await clearNotifications()
     setShowRead(false)
   }
