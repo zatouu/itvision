@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { cacheClearAll } from './storage'
 import { clearProfileStorage, resetProfile } from './user-profile'
 import { resetAllNotifications, resetNotificationBinding } from './notifications'
@@ -40,6 +41,8 @@ export async function clearAllUserData(): Promise<void> {
     resetAllNotifications(),
     clearQueue(),
     resetOnline(),
+    // Brouillon de demande (create-request) — ne doit pas passer au compte suivant
+    AsyncStorage.removeItem('request:draft:v1').catch(() => {}),
   ])
 
   // 4. Socket teardown en dernier (drop rooms + auth)

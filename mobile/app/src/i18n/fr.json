@@ -286,7 +286,9 @@
     "updatedTitle": "Votre demande a été mise à jour",
     "updatedSub": "Les prestataires proches ont reçu les nouvelles informations.",
     "loadingEdit": "Chargement de la demande…",
-    "budgetRequired": "Veuillez indiquer un budget (supérieur à 0)."
+    "budgetRequired": "Veuillez indiquer un budget (supérieur à 0).",
+    "draftRestored": "Brouillon restauré",
+    "draftDiscard": "Recommencer"
   },
   "schedule": {
     "whenLabel": "Quand ?",
@@ -424,7 +426,13 @@
     "awaitingValidationAlert_other": "{{count}} missions attendent votre validation",
     "awaitingValidationBannerTitle": "Validation en attente",
     "awaitingValidationBannerSub": "Le prestataire a terminé la mission",
-    "validateNow": "Valider maintenant"
+    "validateNow": "Valider maintenant",
+    "status_accepted": "Prestataire trouvé",
+    "status_on_the_way": "En route",
+    "status_arrived": "Sur place",
+    "status_paused": "En pause",
+    "status_dispute": "Litige",
+    "status_awaiting_validation": "À valider"
   },
   "mission": {
     "title": "Mission en cours",
@@ -1520,5 +1528,15 @@
         "sub": "Des prix transparents rassurent les clients."
       }
     }
+  },
+  "proProfile": {
+    "checkAvatar": "Photo de profil",
+    "checkCategories": "Catégories de services",
+    "checkZone": "Zone d'intervention",
+    "checkBio": "Présentation (bio)",
+    "checkPortfolio": "Au moins une réalisation",
+    "checkKyc": "Vérification d'identité",
+    "completion": "Profil complété à {{pct}}%",
+    "completionHint": "Un profil complet reçoit plus de demandes."
   }
 }
