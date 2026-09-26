@@ -596,7 +596,8 @@
     "viewRoute": "Voir l'itinéraire",
     "openMaps": "Maps",
     "offlineStatusChange": "Changement de statut enregistré — sera envoyé dès le retour réseau.",
-    "voiceMessage": "Message vocal"
+    "voiceMessage": "Message vocal",
+    "autoValidateHint": "Sans validation ni signalement de votre part, la mission sera validée automatiquement."
   },
   "rating": {
     "title": "Notez cette intervention",

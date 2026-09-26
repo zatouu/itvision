@@ -104,6 +104,11 @@ const ServiceRequestSchema = new Schema({
   lastActivityBy: { type: String },
   inactivityReminderCount: { type: Number, default: 0 },
   inactivityReminderAt: { type: Date },
+  // Validation automatique d'une mission terminée non validée par le client
+  // (cash : ~24h, escrow mobile : ~72h — cf. mission-inactivity-job).
+  autoValidationWarnCount: { type: Number, default: 0 },
+  autoValidationWarnAt: { type: Date },
+  autoValidatedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })

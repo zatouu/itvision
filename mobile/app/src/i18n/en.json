@@ -596,7 +596,8 @@
     "viewRoute": "View route",
     "openMaps": "Maps",
     "offlineStatusChange": "Status change saved — will be sent when network is back.",
-    "voiceMessage": "Voice message"
+    "voiceMessage": "Voice message",
+    "autoValidateHint": "Without validation or a reported problem, the mission will be validated automatically."
   },
   "rating": {
     "title": "Rate this service",

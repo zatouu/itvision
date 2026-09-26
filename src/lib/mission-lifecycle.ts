@@ -177,7 +177,8 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
 
   if (role) {
     // Seul le client (ou admin) peut valider la fin de mission, et uniquement depuis awaiting_validation.
-    if (to === 'completed' && role !== 'client' && role !== 'admin') {
+    // 'system' = validation automatique après délai (client prévenu, pas de litige ouvert).
+    if (to === 'completed' && role !== 'client' && role !== 'admin' && role !== 'system') {
       return { ok: false, reason: 'Seul le client peut valider la fin de la mission' }
     }
     if (to === 'completed' && from !== 'awaiting_validation' && from !== 'dispute') {
@@ -288,7 +289,8 @@ export async function transition(
   if (to === 'awaiting_validation') $set.providerCompletedAt = now
   if (to === 'completed') {
     $set.completedAt = now
-    $set.validatedByClientAt = now
+    if (actor.role === 'system') $set.autoValidatedAt = now
+    else $set.validatedByClientAt = now
   }
   if (to === 'cancelled') {
     $set.cancelledAt = now
@@ -466,7 +468,8 @@ export async function validateCompletion(
   actor: { userId: string; role: MissionRole },
   context?: TransitionContext
 ) {
-  if (actor.role !== 'client' && actor.role !== 'admin') {
+  // 'system' : validation automatique (mission-inactivity-job) après préavis au client.
+  if (actor.role !== 'client' && actor.role !== 'admin' && actor.role !== 'system') {
     throw new Error('Seul le client peut valider la fin de mission')
   }
   return transition(requestId, 'completed', { actor, context })

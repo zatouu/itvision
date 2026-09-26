@@ -636,6 +636,11 @@ function MissionDetail() {
 
       {/* Action sticky contextuelle */}
       <View style={s.footer}>
+        {canValidate && (
+          <Text style={s.autoValidateHint}>
+            {t('mission.autoValidateHint', { defaultValue: 'Sans validation ni signalement de votre part, la mission sera validée automatiquement.' })}
+          </Text>
+        )}
         {canValidate ? (
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity style={[s.footerBtn, s.footerGhost]} onPress={openDispute} activeOpacity={0.8}>
@@ -668,6 +673,7 @@ function MissionDetail() {
 }
 
 const s = StyleSheet.create({
+  autoValidateHint: { fontSize: 11.5, color: colors.textSecondary, textAlign: 'center', marginBottom: 8, lineHeight: 16 },
   safe: { flex: 1, backgroundColor: colors.bg },
   // ── Carte (phases trajet) ──
   mapContainer: { height: 260, position: 'relative' },

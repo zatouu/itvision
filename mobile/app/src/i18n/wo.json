@@ -596,7 +596,8 @@
     "viewRoute": "Xool yoon wi",
     "openMaps": "Maps",
     "offlineStatusChange": "Coppite bu ko dëgg — dina yónnee bu internetu dafay dëgg.",
-    "voiceMessage": "Baat bu bopp"
+    "voiceMessage": "Baat bu bopp",
+    "autoValidateHint": "Sans validation ni signalement de votre part, la mission sera validée automatiquement."
   },
   "rating": {
     "title": "Dimbali ci sa xel",

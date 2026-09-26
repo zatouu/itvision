@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       clientName: clientUser?.name,
       providerName: providerUser?.name,
       completedAt: sr.completedAt,
-      validatedAt: sr.validatedByClientAt,
+      validatedAt: sr.validatedByClientAt || (sr as any).autoValidatedAt,
       earnings,
       paymentLabel,
     })
