@@ -20,13 +20,13 @@ import { toast } from '../src/toast'
 import { pickOption } from '../src/option-sheet'
 import { updateAuthUser } from '../src/auth'
 
-const HERO_H = 280
+const HERO_H = 250
 
 const KPI = [
   { key: 'rating', icon: Star, label: 'Note', suffix: '' },
   { key: 'missions', icon: Briefcase, label: 'Missions', suffix: '' },
   { key: 'scoreXeuy', icon: Award, label: 'Score', suffix: '' },
-  { key: 'response', icon: Clock, label: 'Réponse', suffix: ' min' },
+  { key: 'reliability', icon: ShieldCheck, label: 'Fiabilité', suffix: '%' },
 ]
 
 const ACTIONS = [
@@ -158,7 +158,7 @@ function Profile() {
     rating: rev.average ? rev.average.toFixed(1) : '0.0',
     missions: stats.completedMissions || 0,
     scoreXeuy: p.scoreXeuy ?? 0,
-    response: p.preferences?.notifications?.responseTimeMinutes || 4,
+    reliability: typeof stats.reliabilityScore === 'number' ? Math.round(stats.reliabilityScore) : 100,
   }
 
   const isOnline = p.availabilityStatus === 'Disponible' && p.visible !== false
@@ -238,29 +238,15 @@ function Profile() {
               <Text style={s.scoreTitle}>Score Xeuy</Text>
               <Text style={s.scoreValue}>{kpi.scoreXeuy}/100</Text>
             </View>
-            <View style={s.scoreBadge}>
+            <TouchableOpacity style={s.scoreBadge} onPress={() => router.push('/performance')} activeOpacity={0.8}>
               <TrendingUp size={12} color={colors.success} />
-              <Text style={s.scoreBadgeText}>Top 5%</Text>
-            </View>
+              <Text style={s.scoreBadgeText}>Détails</Text>
+            </TouchableOpacity>
           </View>
           <View style={s.progressTrack}>
             <View style={[s.progressFill, { width: `${Math.min(100, kpi.scoreXeuy)}%` }]} />
           </View>
           <Text style={s.scoreDesc}>Avis, ponctualité, KYC, compétences, ancienneté, portefeuille, litiges et temps de réponse.</Text>
-        </View>
-
-        <View style={s.levelCard}>
-          <View style={s.levelTop}>
-            <Crown size={20} color={colors.warning} />
-            <Text style={s.levelTitle}>Niveau Or</Text>
-          </View>
-          <Text style={s.levelText}>Encore 23 missions pour atteindre Platine</Text>
-          <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width: '49%' }]} />
-          </View>
-          <TouchableOpacity style={s.levelLink}>
-            <Text style={s.levelLinkText}>Voir les avantages</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={s.actionsRow}>
@@ -319,9 +305,9 @@ const s = StyleSheet.create({
   hero: { height: HERO_H, backgroundColor: colors.heroDark, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, overflow: 'hidden' },
   heroInner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, paddingTop: 20, backgroundColor: 'rgba(15,123,79,0.35)' },
   avatarWrap: { position: 'relative', marginBottom: spacing.md },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.surface },
+  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.surface },
   camera: { position: 'absolute', bottom: 0, right: 0, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.heroGreen, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface },
-  name: { fontSize: 32, fontWeight: '600', color: colors.surface, marginBottom: spacing.xs },
+  name: { fontSize: 24, fontWeight: '700', color: colors.surface, marginBottom: spacing.xs },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
   verified: { fontSize: 14, color: colors.success, fontWeight: '500' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
@@ -348,12 +334,6 @@ const s = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: radius.pill, backgroundColor: colors.bgGlobal, overflow: 'hidden', marginBottom: spacing.sm },
   progressFill: { height: '100%', backgroundColor: colors.heroGreen, borderRadius: radius.pill },
   scoreDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  levelCard: { backgroundColor: colors.heroGreen, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg },
-  levelTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
-  levelTitle: { fontSize: 18, fontWeight: '600', color: colors.surface, flex: 1 },
-  levelText: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginBottom: spacing.sm },
-  levelLink: { alignSelf: 'flex-start', marginTop: spacing.sm },
-  levelLinkText: { fontSize: 13, color: colors.surface, fontWeight: '600', textDecorationLine: 'underline' },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: spacing.lg, marginTop: spacing.lg, gap: spacing.md },
   actionCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', ...shadows.sm },
   actionIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },

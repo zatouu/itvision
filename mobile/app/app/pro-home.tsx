@@ -21,7 +21,7 @@ import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import Logo from '../src/components/Logo'
-import { colors, spacing, radius, shadows, typography, getCategoryMeta } from '../src/design'
+import { colors, spacing, radius, shadows, typography, fonts, getCategoryMeta } from '../src/design'
 import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../src/notifications'
 import { apiGet, apiPost } from '../src/api'
@@ -39,12 +39,15 @@ function formatTimeShort(d: Date) {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+/** Durée lisible : « 35 min », « 3 h 05 », « 17 j » (au-delà de 24 h, HH:MM devenait « 410:44 »). */
 function elapsedHM(iso?: string) {
   if (!iso) return '—'
   const diff = Math.max(0, Date.now() - new Date(iso).getTime())
-  const h = Math.floor(diff / 3600000)
-  const m = Math.floor((diff % 3600000) / 60000)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const totalMin = Math.floor(diff / 60000)
+  if (totalMin < 60) return `${totalMin} min`
+  const h = Math.floor(totalMin / 60)
+  if (h < 24) return `${h} h ${String(totalMin % 60).padStart(2, '0')}`
+  return `${Math.floor(h / 24)} j`
 }
 
 function remainingHM(iso?: string) {
@@ -58,7 +61,7 @@ function remainingHM(iso?: string) {
 
 type AdviceItem = { title: string; sub: string }
 
-function getAdviceList(profile: any, offers: any[], nearbyCount: number, earnings: any, activeMission: number, gpsActive: boolean, online: boolean): AdviceItem[] {
+function getAdviceList(profile: any, offers: any[], nearbyCount: number, earnings: any, activeMission: number, gpsActive: boolean, online: boolean, t: (k: string, o?: any) => string): AdviceItem[] {
   const user = profile?.user || profile || {}
   const provider = profile?.provider || user?.providerProfile || {}
   const kyc = user.kycVerified || provider.kycVerified || false
@@ -70,23 +73,23 @@ function getAdviceList(profile: any, offers: any[], nearbyCount: number, earning
   const tips: AdviceItem[] = []
 
   if (!online) {
-    tips.push({ title: 'Activez-vous pour recevoir des demandes', sub: 'Passez en ligne dès que vous êtes disponible.' })
+    tips.push({ title: t('proHome.tips.goOnline.title', { defaultValue: 'Activez-vous pour recevoir des demandes' }), sub: t('proHome.tips.goOnline.sub', { defaultValue: 'Passez en ligne dès que vous êtes disponible.' }) })
   } else {
-    if (!gpsActive) tips.push({ title: 'Activez votre GPS', sub: 'Les clients voient les prestataires proches en priorité.' })
-    if (nearbyCount > 0 && pending === 0) tips.push({ title: 'Répondez en moins de 3 minutes', sub: 'La rapidité augmente vos chances d’acceptation.' })
-    if (activeMission > 0) tips.push({ title: 'Mission en cours', sub: 'Soyez ponctuel et professionnel pour gagner 5 étoiles.' })
-    if (nearbyCount === 0 && totalOffers === 0) tips.push({ title: 'Profitez-en pour compléter votre profil', sub: 'Un profil complet attire plus de demandes.' })
-    if ((earnings.last7Days || 0) === 0) tips.push({ title: 'Augmentez votre rayon de visibilité', sub: 'Plus de visibilité = plus d’opportunités.' })
+    if (!gpsActive) tips.push({ title: t('proHome.tips.gps.title', { defaultValue: 'Activez votre GPS' }), sub: t('proHome.tips.gps.sub', { defaultValue: 'Les clients voient les prestataires proches en priorité.' }) })
+    if (nearbyCount > 0 && pending === 0) tips.push({ title: t('proHome.tips.fastReply.title', { defaultValue: 'Répondez en moins de 3 minutes' }), sub: t('proHome.tips.fastReply.sub', { defaultValue: 'La rapidité augmente vos chances d’acceptation.' }) })
+    if (activeMission > 0) tips.push({ title: t('proHome.tips.missionOn.title', { defaultValue: 'Mission en cours' }), sub: t('proHome.tips.missionOn.sub', { defaultValue: 'Soyez ponctuel et professionnel pour gagner 5 étoiles.' }) })
+    if (nearbyCount === 0 && totalOffers === 0) tips.push({ title: t('proHome.tips.completeProfile.title', { defaultValue: 'Profitez-en pour compléter votre profil' }), sub: t('proHome.tips.completeProfile.sub', { defaultValue: 'Un profil complet attire plus de demandes.' }) })
+    if ((earnings.last7Days || 0) === 0) tips.push({ title: t('proHome.tips.radius.title', { defaultValue: 'Augmentez votre rayon de visibilité' }), sub: t('proHome.tips.radius.sub', { defaultValue: 'Plus de visibilité = plus d’opportunités.' }) })
   }
-  if (!hasAvatar) tips.push({ title: 'Ajoutez une photo de profil', sub: 'Les clients font confiance aux profils visibles.' })
-  if (!kyc) tips.push({ title: 'Complétez votre vérification', sub: 'Gagnez le badge vérifié et rassurez les clients.' })
-  if (score < 50) tips.push({ title: 'Améliorez votre Score Xeuy', sub: 'Ajoutez des réalisations, diplômes et catégories.' })
+  if (!hasAvatar) tips.push({ title: t('proHome.tips.avatar.title', { defaultValue: 'Ajoutez une photo de profil' }), sub: t('proHome.tips.avatar.sub', { defaultValue: 'Les clients font confiance aux profils visibles.' }) })
+  if (!kyc) tips.push({ title: t('proHome.tips.kyc.title', { defaultValue: 'Complétez votre vérification' }), sub: t('proHome.tips.kyc.sub', { defaultValue: 'Gagnez le badge vérifié et rassurez les clients.' }) })
+  if (score < 50) tips.push({ title: t('proHome.tips.score.title', { defaultValue: 'Améliorez votre Score Xeuy' }), sub: t('proHome.tips.score.sub', { defaultValue: 'Ajoutez des réalisations, diplômes et catégories.' }) })
 
   // Bonnes pratiques génériques
-  tips.push({ title: 'Demandez un avis après chaque mission', sub: 'Les avis positifs boostent votre ranking.' })
-  tips.push({ title: 'Gardez une réactivité rapide', sub: 'Répondez aux messages clients dans les plus brefs délais.' })
-  tips.push({ title: 'Mettez à jour vos disponibilités', sub: 'Un planning à jour évite les missions manquées.' })
-  tips.push({ title: 'Soyez clair sur vos tarifs', sub: 'Des prix transparents rassurent les clients.' })
+  tips.push({ title: t('proHome.tips.askReview.title', { defaultValue: 'Demandez un avis après chaque mission' }), sub: t('proHome.tips.askReview.sub', { defaultValue: 'Les avis positifs boostent votre ranking.' }) })
+  tips.push({ title: t('proHome.tips.reactive.title', { defaultValue: 'Gardez une réactivité rapide' }), sub: t('proHome.tips.reactive.sub', { defaultValue: 'Répondez aux messages clients dans les plus brefs délais.' }) })
+  tips.push({ title: t('proHome.tips.availability.title', { defaultValue: 'Mettez à jour vos disponibilités' }), sub: t('proHome.tips.availability.sub', { defaultValue: 'Un planning à jour évite les missions manquées.' }) })
+  tips.push({ title: t('proHome.tips.pricing.title', { defaultValue: 'Soyez clair sur vos tarifs' }), sub: t('proHome.tips.pricing.sub', { defaultValue: 'Des prix transparents rassurent les clients.' }) })
 
   return tips.slice(0, 8)
 }
@@ -103,6 +106,7 @@ function Home() {
   })
   const [menuOpen, setMenuOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [loadError, setLoadError] = useState(false)
   const [nearbyCount, setNearbyCount] = useState(0)
   const [nearbyItems, setNearbyItems] = useState<any[]>([])
   const [pendingOffers, setPendingOffers] = useState(0)
@@ -265,6 +269,10 @@ function Home() {
         matchProm,
       ])
 
+      // Réseau / API KO sur les sources principales → on le dit au lieu
+      // d'afficher des zéros qui ressemblent à « aucune activité ».
+      setLoadError(dash.status === 'rejected' && earn.status === 'rejected' && off.status === 'rejected')
+
       if (dash.status === 'fulfilled' && dash.value?.success) {
         setPendingOffers(dash.value.pendingOffers ?? 0)
         setActiveMission(dash.value.activeMissions ?? 0)
@@ -289,6 +297,7 @@ function Home() {
       try { setSynced(connectSocket().connected) } catch {}
     } catch (e) {
       console.warn('[Home] dashboard load failed', e)
+      setLoadError(true)
     }
   }, [])
 
@@ -331,7 +340,6 @@ function Home() {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
   const todayNearby = nearbyItems.filter((it: any) => it.createdAt && new Date(it.createdAt).getTime() >= todayStart.getTime()).length
-  const activityLabel = todayNearby >= 8 ? '🔥 Forte activité' : todayNearby >= 3 ? 'Moyenne' : '🟢 Faible activité'
   const activityColor = todayNearby >= 8 ? colors.danger : todayNearby >= 3 ? colors.warning : colors.success
 
   const activeStatuses = ['assigned', 'provider_arriving', 'on_the_way', 'arrived', 'in_progress', 'paused', 'awaiting_validation', 'dispute']
@@ -342,12 +350,10 @@ function Home() {
   const offersTotal = offers.length
   const offersPending = offers.filter((it: any) => it.status === 'submitted').length
   const offersAccepted = offers.filter((it: any) => it.status === 'accepted').length
-  const offersRejected = offers.filter((it: any) => it.status === 'rejected').length
-  const offersExpired = offers.filter((it: any) => it.status === 'expired').length
 
   const topRequest = [...nearbyItems].sort((a: any, b: any) => (b._score || 0) - (a._score || 0))[0]
   const currentTips = useMemo(() => {
-    const staticTips = getAdviceList(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online)
+    const staticTips = getAdviceList(profile, offers, nearbyCount, earnings, activeMission, gpsActive, online, t)
     // Merge AI tips first (if available), then static
     return aiTips.length > 0 ? [...aiTips, ...staticTips].slice(0, 8) : staticTips
   }, [profile, offers, nearbyCount, earnings, activeMission, gpsActive, online, aiTips])
@@ -380,10 +386,10 @@ function Home() {
         {/* Header */}
         <View style={s.header}>
           <View style={s.logoRow}>
-            <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Menu size={24} color={colors.text} />
+            <TouchableOpacity style={s.iconBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={t('menu.navigation', { defaultValue: 'Menu' })}>
+              <Menu size={20} color={colors.text} />
             </TouchableOpacity>
-            <Logo size={28} />
+            <Logo size={26} />
             <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
           <View style={s.headerRight}>
@@ -406,7 +412,7 @@ function Home() {
         {/* Greeting */}
         <View style={s.greeting}>
           <Text style={s.greetingTitle} numberOfLines={1}>{greeting}</Text>
-          <Text style={s.greetingSub}>Votre tableau de bord</Text>
+          <Text style={s.greetingSub}>{t('proHome.dashboard', { defaultValue: 'Votre tableau de bord' })}</Text>
         </View>
 
         {/* Status card */}
@@ -418,7 +424,7 @@ function Home() {
               {online ? (
                 <>
                   <Text style={[s.statusSub, s.statusSubOnline]}>
-                    Rayon {radius} km{onlineSince ? ` · ${onlineSince}` : ''}
+                    {t('proHome.radius', { defaultValue: 'Rayon {{km}} km', km: radius })}{onlineSince ? ` · ${onlineSince}` : ''}
                   </Text>
                   <View style={s.statusMetaRow}>
                     <Text style={s.statusMeta}>{gpsActive ? t('home.gpsOn', { defaultValue: 'GPS' }) : t('home.gpsOff', { defaultValue: 'Pas de GPS' })}</Text>
@@ -444,12 +450,19 @@ function Home() {
           />
         </View>
 
+        {loadError && (
+          <TouchableOpacity style={s.errorBanner} onPress={loadDashboard} activeOpacity={0.8} accessibilityRole="button">
+            <Text style={s.errorBannerText}>{t('proHome.loadError', { defaultValue: 'Données non à jour (connexion)' })}</Text>
+            <Text style={s.errorBannerAction}>{t('common.retry', { defaultValue: 'Réessayer' })}</Text>
+          </TouchableOpacity>
+        )}
+
         {/* KPI grid - 2x2 */}
         <View style={s.kpiGrid}>
           <KpiCard
             value={nearbyCount}
-            label="Demandes proches"
-            subLabel={`${todayNearby} aujourd'hui · ${activityLabel}`}
+            label={t('proHome.kpiNearby', { defaultValue: 'Demandes proches' })}
+            subLabel={t('proHome.kpiNearbySub', { defaultValue: "{{count}} aujourd'hui", count: todayNearby })}
             icon={<MapPin size={22} color={colors.info} />}
             iconBg={colors.infoLight}
             iconColor={colors.info}
@@ -457,8 +470,8 @@ function Home() {
           />
           <KpiCard
             value={offersTotal}
-            label="Offres envoyées"
-            subLabel={`${offersPending} en attente`}
+            label={t('proHome.kpiOffers', { defaultValue: 'Offres envoyées' })}
+            subLabel={t('proHome.kpiOffersSub', { defaultValue: '{{count}} en attente', count: offersPending })}
             icon={<FileText size={22} color={colors.warning} />}
             iconBg="#FFF7ED"
             iconColor={colors.warning}
@@ -468,8 +481,8 @@ function Home() {
         <View style={s.kpiGrid}>
           <KpiCard
             value={activeMission}
-            label="Mission en cours"
-            subLabel={activeMission > 0 && missionElapsed ? `depuis ${missionElapsed}` : 'Aucune mission active'}
+            label={t('proHome.kpiMission', { defaultValue: 'Mission en cours' })}
+            subLabel={activeMission > 0 && missionElapsed ? t('proHome.kpiMissionSince', { defaultValue: 'depuis {{d}}', d: missionElapsed }) : t('proHome.kpiMissionNone', { defaultValue: 'Aucune mission active' })}
             icon={<Briefcase size={22} color={colors.success} />}
             iconBg="#F0FDF4"
             iconColor={colors.success}
@@ -477,8 +490,8 @@ function Home() {
           />
           <KpiCard
             value={dailyRevenueValue}
-            label="Revenus du jour"
-            subLabel={`Sem. ${weeklyRevenue} · Mois ${monthlyRevenue}`}
+            label={t('proHome.kpiRevenue', { defaultValue: 'Revenus du jour' })}
+            subLabel={t('proHome.kpiRevenueSub', { defaultValue: 'Sem. {{w}} · Mois {{m}}', w: weeklyRevenue, m: monthlyRevenue })}
             icon={<Banknote size={22} color={colors.navy} />}
             iconBg={colors.slate100}
             iconColor={colors.navy}
@@ -491,7 +504,7 @@ function Home() {
         </View>
 
         {/* Actions - Nouvelles demandes en scroll horizontal pleine largeur */}
-        <Text style={s.sectionTitle}>Actions</Text>
+        <Text style={s.sectionTitle}>{t('proHome.actions', { defaultValue: 'Actions' })}</Text>
         {online && nearbyItems.length > 0 ? (
           <ScrollView
             horizontal
@@ -512,25 +525,40 @@ function Home() {
               >
                 <View style={s.requestCardTop}>
                   <View style={[s.requestCardTag, { backgroundColor: getCategoryMeta(req.category).color }]}>
-                    <Text style={s.requestCardTagText}>Nouvelle</Text>
+                    <Text style={s.requestCardTagText}>{t('proHome.tagNew', { defaultValue: 'Nouvelle' })}</Text>
                   </View>
                   {req._distance !== undefined ? <Text style={s.requestCardDistance}>{(req._distance / 1000).toFixed(1)} km</Text> : null}
                 </View>
                 <Text style={s.requestCardCategory}>{getCategoryMeta(req.category).label}</Text>
                 <Text style={s.requestCardPrice}>{Number(req.budget || 0).toLocaleString('fr-FR')} FCFA</Text>
-                <Text style={s.requestCardRemaining}>Restant : {remainingHM(req.createdAt)}</Text>
+                <Text style={s.requestCardRemaining}>{t('proHome.remaining', { defaultValue: 'Restant : {{time}}', time: remainingHM(req.createdAt) })}</Text>
                 <View style={s.requestCardCta}>
-                  <Text style={s.requestCardCtaText}>Voir</Text>
+                  <Text style={s.requestCardCtaText}>{t('proHome.see', { defaultValue: 'Voir' })}</Text>
                   <ChevronRight size={14} color={colors.navy} />
                 </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
         ) : (
-          <View style={[s.actionHero, !online && s.actionDisabled]}>
-            <View style={s.actionHeroTag}><Text style={s.actionHeroTagText}>Nouveautés</Text></View>
-            <Text style={s.actionHeroTitle}>Demandes proches</Text>
-            <Text style={s.actionHeroSub}>{online ? 'Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.' : t('home.activateToReceive', { defaultValue: 'Activez-vous pour recevoir des demandes' })}</Text>
+          <View style={s.actionHero}>
+            <Text style={s.actionHeroTitle}>{t('proHome.nearbyTitle', { defaultValue: 'Demandes proches' })}</Text>
+            <Text style={s.actionHeroSub}>
+              {online
+                ? t('proHome.nearbyOnlineSub', { defaultValue: 'Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.' })
+                : t('home.activateToReceive', { defaultValue: 'Activez-vous pour recevoir des demandes' })}
+            </Text>
+            {!online && (
+              <TouchableOpacity
+                style={s.goOnlineBtn}
+                onPress={handleToggle}
+                disabled={busy}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <View style={s.goOnlineDot} />
+                <Text style={s.goOnlineText}>{t('proHome.goOnline', { defaultValue: 'Passer en ligne' })}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -538,7 +566,7 @@ function Home() {
           <View style={s.actionRowTag}><Text style={s.actionRowTagText}>{t('home.tracking', { defaultValue: 'Suivi' })}</Text></View>
           <Text style={s.actionRowTitle}>{t('home.myOffersSent', { defaultValue: 'Mes offres envoyées' })}</Text>
           <Text style={s.actionRowSub} numberOfLines={1} ellipsizeMode="tail">
-            {offersTotal > 0 ? `${offersTotal} envoyée(s) · ${offersPending} en attente · ${offersAccepted} acceptée(s) · ${offersRejected} refusée(s) · ${offersExpired} expirée(s)` : 'Aucune offre envoyée'}
+            {offersTotal > 0 ? t('proHome.offersSummary', { defaultValue: '{{total}} envoyée(s) · {{pending}} en attente · {{accepted}} acceptée(s)', total: offersTotal, pending: offersPending, accepted: offersAccepted }) : t('proHome.noOffers', { defaultValue: 'Aucune offre envoyée' })}
           </Text>
           <ChevronRight size={22} color={colors.textMuted} />
         </TouchableOpacity>
@@ -546,7 +574,7 @@ function Home() {
         <View style={s.adviceCard}>
           <View style={s.adviceHeader}>
             <View style={[s.adviceTag, { backgroundColor: colors.infoLight }]}>
-              <Text style={[s.adviceTagText, { color: colors.info }]}>Conseil</Text>
+              <Text style={[s.adviceTagText, { color: colors.info }]}>{t('proHome.tip', { defaultValue: 'Conseil' })}</Text>
             </View>
             <Text style={s.advicePaging}>{safeTipIndex + 1} / {currentTips.length}</Text>
           </View>
@@ -578,8 +606,8 @@ function Home() {
         {showGoals && (
           <View style={s.goalCard}>
             <View style={s.goalHeader}>
-              <Text style={s.goalTitle}>Objectif du jour</Text>
-              <Text style={s.goalProgress}>{missionsToday} / {missionGoal} missions</Text>
+              <Text style={s.goalTitle}>{t('proHome.goal', { defaultValue: 'Objectif du jour' })}</Text>
+              <Text style={s.goalProgress}>{t('proHome.goalProgress', { defaultValue: '{{done}} / {{goal}} missions', done: missionsToday, goal: missionGoal })}</Text>
             </View>
             <View style={s.goalTrack}>
               <View style={[s.goalFill, { width: `${missionProgress}%` }]} />
@@ -595,18 +623,18 @@ function Home() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  appName: { fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  appName: { fontSize: 17, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   greeting: { paddingHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.md },
   greetingTitle: { fontSize: 24, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.5 },
   greetingSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
-  iconBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   iconBtnText: { color: colors.text },
-  notifDot: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
-  avatarBtn: { width: 44, height: 44, borderRadius: radius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary, overflow: 'hidden' },
-  avatarImage: { width: 44, height: 44, borderRadius: 22 },
+  notifDot: { position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
+  avatarBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary, overflow: 'hidden' },
+  avatarImage: { width: 40, height: 40, borderRadius: 12 },
   avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
   statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
   statusCardOnline: { backgroundColor: colors.primary },
@@ -631,15 +659,18 @@ const s = StyleSheet.create({
   activityCard: { marginHorizontal: spacing.lg, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   activityDot: { width: 8, height: 8, borderRadius: 4 },
   activityText: { flex: 1, fontSize: 13, color: colors.textSecondary },
-  activityLabel: { fontWeight: '700' },
   kpiGrid: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.xl, marginTop: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: typography.weight.extrabold as any, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
   actionHero: { marginHorizontal: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.navy, padding: spacing.lg, position: 'relative', overflow: 'hidden', ...shadows.lg },
   actionDisabled: { opacity: 0.55 },
-  actionHeroTag: { alignSelf: 'flex-start', backgroundColor: '#2563EB', borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, marginBottom: spacing.md },
-  actionHeroTagText: { fontSize: 11, fontWeight: typography.weight.extrabold as any, color: colors.surface },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: spacing.lg, marginBottom: spacing.md, backgroundColor: '#FFFBEB', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 10, borderWidth: 1, borderColor: '#FDE68A' },
+  errorBannerText: { flex: 1, fontSize: 13, color: '#92400E', fontWeight: typography.weight.semibold as any },
+  errorBannerAction: { fontSize: 13, color: '#92400E', fontWeight: typography.weight.extrabold as any, textDecorationLine: 'underline' },
   actionHeroTitle: { fontSize: 20, fontWeight: typography.weight.extrabold as any, color: colors.surface, marginBottom: 2 },
   actionHeroSub: { fontSize: 14, color: colors.textMuted },
+  goOnlineBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginTop: spacing.md, backgroundColor: '#22C55E', borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10 },
+  goOnlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.surface },
+  goOnlineText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.surface },
   requestCard: { backgroundColor: colors.navy, borderRadius: radius.xl, padding: spacing.lg, ...shadows.lg, gap: spacing.sm },
   requestCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   requestCardTag: { alignSelf: 'flex-start', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },

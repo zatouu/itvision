@@ -29,9 +29,10 @@ type Props = {
   durationSeconds?: number
 }
 
-export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
+export default function VoiceMessagePill({ uri, durationSeconds }: Props) {
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [loadedSec, setLoadedSec] = useState(0)
   const soundRef = useRef<Audio.Sound | null>(null)
   const bars = useMemo(() => generateBars(uri.length), [uri])
 
@@ -60,7 +61,7 @@ export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
         { shouldPlay: true },
         (status) => {
           if (!status.isLoaded) return
-          if (status.durationMillis) setProgress(status.positionMillis / status.durationMillis)
+          if (status.durationMillis) { setProgress(status.positionMillis / status.durationMillis); setLoadedSec(status.durationMillis / 1000) }
           if (status.didJustFinish) { setPlaying(false); setProgress(0) }
         }
       )
@@ -92,7 +93,7 @@ export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
           )
         })}
       </View>
-      <Text style={s.duration}>{formatDuration(durationSeconds)}</Text>
+      <Text style={s.duration}>{durationSeconds ? formatDuration(durationSeconds) : loadedSec > 0 ? formatDuration(loadedSec) : '—'}</Text>
     </View>
   )
 }

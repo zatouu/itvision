@@ -894,15 +894,14 @@
     "nearest": "Plus proche",
     "verifiedShort": "Vérifié",
     "negotiate": "Négocier",
-    "compareSoon": "Fonctionnalité disponible bientôt",
     "offersReceived": "{{count}} offres reçues",
     "offersReceived_one": "{{count}} offre reçue",
     "viewersCount": "{{count}} prestataires consultent",
     "searching": "Recherche de prestataires en cours...",
     "emptySubtitle": "Les meilleurs {{category}} proches de vous vont recevoir votre demande",
-    "estimatedTime": "Temps moyen avant première offre",
-    "estimatedValue": "2 à 5 min",
-    "tipVoice": "Astuce : les demandes avec message vocal reçoivent 2x plus d'offres",
+    "estimatedTime": "Première offre",
+    "estimatedValue": "En général quelques minutes",
+    "tipVoice": "Astuce : un message vocal aide les prestataires à bien comprendre votre besoin",
     "editRequest": "Modifier ma demande",
     "cancelRequest": "Annuler la demande",
     "howItWorks": "Comment ça marche",
@@ -1434,5 +1433,92 @@
     "estimatedTime": "Temps estimé",
     "distance": "Distance",
     "missionsCount": "{{count}} missions"
+  },
+  "tabs": {
+    "home": "Kër",
+    "requests": "Samay laaj",
+    "offers": "Samay ofr",
+    "messages": "Bataaxal",
+    "profile": "Profil"
+  },
+  "proHome": {
+    "dashboard": "Votre tableau de bord",
+    "radius": "Rayon {{km}} km",
+    "kpiNearby": "Demandes proches",
+    "kpiNearbySub": "{{count}} aujourd'hui",
+    "kpiOffers": "Offres envoyées",
+    "kpiOffersSub": "{{count}} en attente",
+    "kpiMission": "Mission en cours",
+    "kpiMissionSince": "depuis {{d}}",
+    "kpiMissionNone": "Aucune mission active",
+    "kpiRevenue": "Revenus du jour",
+    "kpiRevenueSub": "Sem. {{w}} · Mois {{m}}",
+    "actions": "Actions",
+    "tagNew": "Nouvelle",
+    "remaining": "Restant : {{time}}",
+    "see": "Voir",
+    "offersSummary": "{{total}} envoyée(s) · {{pending}} en attente · {{accepted}} acceptée(s)",
+    "noOffers": "Aucune offre envoyée",
+    "tip": "Conseil",
+    "goal": "Objectif du jour",
+    "goalProgress": "{{done}} / {{goal}} missions",
+    "nearbyTitle": "Demandes proches",
+    "nearbyOnlineSub": "Vous êtes en ligne. Les nouvelles demandes apparaîtront automatiquement ici.",
+    "goOnline": "Passer en ligne",
+    "loadError": "Données non à jour (connexion)",
+    "tips": {
+      "goOnline": {
+        "title": "Activez-vous pour recevoir des demandes",
+        "sub": "Passez en ligne dès que vous êtes disponible."
+      },
+      "gps": {
+        "title": "Activez votre GPS",
+        "sub": "Les clients voient les prestataires proches en priorité."
+      },
+      "fastReply": {
+        "title": "Répondez en moins de 3 minutes",
+        "sub": "La rapidité augmente vos chances d’acceptation."
+      },
+      "missionOn": {
+        "title": "Mission en cours",
+        "sub": "Soyez ponctuel et professionnel pour gagner 5 étoiles."
+      },
+      "completeProfile": {
+        "title": "Profitez-en pour compléter votre profil",
+        "sub": "Un profil complet attire plus de demandes."
+      },
+      "radius": {
+        "title": "Augmentez votre rayon de visibilité",
+        "sub": "Plus de visibilité = plus d’opportunités."
+      },
+      "avatar": {
+        "title": "Ajoutez une photo de profil",
+        "sub": "Les clients font confiance aux profils visibles."
+      },
+      "kyc": {
+        "title": "Complétez votre vérification",
+        "sub": "Gagnez le badge vérifié et rassurez les clients."
+      },
+      "score": {
+        "title": "Améliorez votre Score Xeuy",
+        "sub": "Ajoutez des réalisations, diplômes et catégories."
+      },
+      "askReview": {
+        "title": "Demandez un avis après chaque mission",
+        "sub": "Les avis positifs boostent votre ranking."
+      },
+      "reactive": {
+        "title": "Gardez une réactivité rapide",
+        "sub": "Répondez aux messages clients dans les plus brefs délais."
+      },
+      "availability": {
+        "title": "Mettez à jour vos disponibilités",
+        "sub": "Un planning à jour évite les missions manquées."
+      },
+      "pricing": {
+        "title": "Soyez clair sur vos tarifs",
+        "sub": "Des prix transparents rassurent les clients."
+      }
+    }
   }
 }
