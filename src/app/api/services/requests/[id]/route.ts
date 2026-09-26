@@ -136,6 +136,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       clientAvatar: (clientUser as any)?.avatarUrl || null,
       clientVerified: !!(clientUser as any)?.kycVerified,
       clientValidatedAt: (sr as any).validatedByClientAt || null,
+      autoValidatedAt: (sr as any).autoValidatedAt || null,
       providerName: providerUser?.name,
       providerPhone: providerUser?.phone,
       providerAvatar: (providerUser as any)?.avatarUrl || null,
