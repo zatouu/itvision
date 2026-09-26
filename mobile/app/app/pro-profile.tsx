@@ -1,7 +1,7 @@
-﻿import { useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Switch, Image, Platform, Alert, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiPatch, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
@@ -124,11 +124,20 @@ function Profile() {
 
   useEffect(() => { loadCategories().then(setCategories).catch(() => {}) }, [])
 
-  useEffect(() => {
+  const [portfolioCount, setPortfolioCount] = useState<number | null>(null)
+  useFocusEffect(useCallback(() => {
+    apiGet('/api/provider/portfolio')
+      .then((r: any) => setPortfolioCount(Array.isArray(r?.items) ? r.items.length : 0))
+      .catch(() => {})
+  }, []))
+
+  // Rechargé à chaque retour sur l'écran : la checklist reflète les étapes
+  // complétées dans les sous-écrans (zone, bio, KYC...).
+  useFocusEffect(useCallback(() => {
     apiGet('/api/provider/profile')
       .then((r: any) => setData({ ...emptyProfile, ...r, user: { ...emptyProfile.user, ...r.user }, provider: { ...emptyProfile.provider, ...r.provider, preferences: { ...emptyProfile.provider.preferences, ...(r.provider?.preferences || {}) } } }))
       .finally(() => setLoading(false))
-  }, [])
+  }, []))
 
   useEffect(() => {
     if (!dirty.current) return
@@ -162,6 +171,18 @@ function Profile() {
   }
 
   const isOnline = p.availabilityStatus === 'Disponible' && p.visible !== false
+
+  // Checklist de complétion : ce qui fait qu'un prestataire reçoit des demandes.
+  const checklist = [
+    { key: 'avatar', done: !!u.avatarUrl, label: t('proProfile.checkAvatar', { defaultValue: 'Photo de profil' }), onPress: uploadAvatar },
+    { key: 'categories', done: (p.serviceCategories || []).length > 0, label: t('proProfile.checkCategories', { defaultValue: 'Catégories de services' }), onPress: () => router.push('/profile-detail?section=business' as any) },
+    { key: 'zone', done: !!p.zone?.city, label: t('proProfile.checkZone', { defaultValue: "Zone d'intervention" }), onPress: () => router.push('/profile-detail?section=zone' as any) },
+    { key: 'bio', done: !!(p.preferences?.bio || '').trim(), label: t('proProfile.checkBio', { defaultValue: 'Présentation (bio)' }), onPress: () => router.push('/profile-detail?section=business' as any) },
+    { key: 'portfolio', done: (portfolioCount ?? 0) > 0, label: t('proProfile.checkPortfolio', { defaultValue: 'Au moins une réalisation' }), onPress: () => router.push('/portfolio' as any) },
+    { key: 'kyc', done: !!(u.kycVerified || p.kycVerified), label: t('proProfile.checkKyc', { defaultValue: "Vérification d'identité" }), onPress: () => router.push('/kyc' as any) },
+  ]
+  const doneCount = checklist.filter(c => c.done).length
+  const completion = Math.round((doneCount / checklist.length) * 100)
 
   if (loading) {
     return (
@@ -231,6 +252,26 @@ function Profile() {
             )
           })}
         </View>
+
+        {completion < 100 && portfolioCount !== null && (
+          <View style={s.checkCard}>
+            <View style={s.checkHead}>
+              <Text style={s.checkTitle}>{t('proProfile.completion', { defaultValue: 'Profil complété à {{pct}}%', pct: completion })}</Text>
+              <Text style={s.checkCount}>{doneCount}/{checklist.length}</Text>
+            </View>
+            <View style={s.progressTrack}>
+              <View style={[s.progressFill, { width: `${completion}%` }]} />
+            </View>
+            <Text style={s.checkHint}>{t('proProfile.completionHint', { defaultValue: 'Un profil complet reçoit plus de demandes.' })}</Text>
+            {checklist.filter(c => !c.done).map(c => (
+              <TouchableOpacity key={c.key} style={s.checkRow} onPress={c.onPress} activeOpacity={0.75} accessibilityRole="button">
+                <Circle size={18} color={colors.textMuted} />
+                <Text style={s.checkLabel}>{c.label}</Text>
+                <ChevronRight size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View style={s.scoreCard}>
           <View style={s.scoreTop}>
@@ -325,6 +366,13 @@ const s = StyleSheet.create({
   kpiCol: { flex: 1, alignItems: 'center' },
   kpiValue: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: spacing.xs },
   kpiLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  checkCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderWidth: 1, borderColor: '#FDE68A', ...shadows.sm },
+  checkHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  checkTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  checkCount: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  checkHint: { fontSize: 12, color: colors.textSecondary, marginBottom: spacing.xs },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  checkLabel: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
   scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, marginHorizontal: spacing.lg, marginTop: spacing.lg, ...shadows.md },
   scoreTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   scoreTitle: { fontSize: 15, color: colors.textSecondary },

@@ -286,7 +286,9 @@
     "updatedTitle": "Sa laaj soppali na",
     "updatedSub": "Yéen ya ci wetu ñu am xibaar bu bees.",
     "loadingEdit": "Mbindi laaj bi…",
-    "budgetRequired": "Duggal mbay (amulu 0)."
+    "budgetRequired": "Duggal mbay (amulu 0).",
+    "draftRestored": "Brouillon restauré",
+    "draftDiscard": "Recommencer"
   },
   "schedule": {
     "whenLabel": "Kan ?",
@@ -424,7 +426,13 @@
     "validateNow": "Dëggal léegi",
     "subActive": "dox",
     "subDone": "jeex",
-    "toReview": "Seet"
+    "toReview": "Seet",
+    "status_accepted": "Prestataire trouvé",
+    "status_on_the_way": "En route",
+    "status_arrived": "Sur place",
+    "status_paused": "En pause",
+    "status_dispute": "Litige",
+    "status_awaiting_validation": "À valider"
   },
   "mission": {
     "title": "Misiyoŋ bi",
@@ -1520,5 +1528,15 @@
         "sub": "Des prix transparents rassurent les clients."
       }
     }
+  },
+  "proProfile": {
+    "checkAvatar": "Photo de profil",
+    "checkCategories": "Catégories de services",
+    "checkZone": "Zone d'intervention",
+    "checkBio": "Présentation (bio)",
+    "checkPortfolio": "Au moins une réalisation",
+    "checkKyc": "Vérification d'identité",
+    "completion": "Profil complété à {{pct}}%",
+    "completionHint": "Un profil complet reçoit plus de demandes."
   }
 }

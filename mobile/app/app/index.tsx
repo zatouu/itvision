@@ -435,7 +435,7 @@ function Home() {
                 const isCompleted = it.status === 'completed'
                 const statusText = it.status === 'pending_offers' && offerCount > 0
                   ? t('home.offersReceived', { count: offerCount })
-                  : st.label
+                  : t(`requests.status_${it.status}`, { defaultValue: st.label })
                 return (
                   <TouchableOpacity
                     key={String(it._id)}
@@ -446,7 +446,10 @@ function Home() {
                     <View style={[s.stripIcon, { backgroundColor: color }]}>
                       <CatIcon size={14} color={colors.surface} />
                     </View>
-                    <Text style={s.stripLabel} numberOfLines={1}>{catFor(it)?.label || it.category}</Text>
+                    <View style={s.stripTextCol}>
+                      <Text style={s.stripLabel} numberOfLines={1}>{catFor(it)?.label || it.category}</Text>
+                      <Text style={[s.stripStatus, { color: st.color }]} numberOfLines={1}>{statusText}</Text>
+                    </View>
                     {isCompleted ? (
                       <View style={[s.stripCheckWrap, { backgroundColor: st.dot }]}>
                         <Check size={10} color="#fff" strokeWidth={3} />
@@ -559,12 +562,14 @@ const s = StyleSheet.create({
   stripScroll: { marginTop: 8 },
   stripContent: { paddingHorizontal: spacing.lg, gap: 8, paddingBottom: 4 },
   stripChip: {
-    backgroundColor: colors.surface, borderRadius: 999,
+    backgroundColor: colors.surface, borderRadius: 16,
     paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border,
     flexDirection: 'row', gap: 8, alignItems: 'center',
   },
   stripIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  stripTextCol: { maxWidth: 140 },
   stripLabel: { fontSize: 12.5, fontWeight: typography.weight.bold as any, color: colors.text },
+  stripStatus: { fontSize: 11, fontWeight: typography.weight.semibold as any, marginTop: 1 },
   stripDot: { width: 6, height: 6, borderRadius: 3 },
   stripCheckWrap: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   stripOfferBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.warning, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },

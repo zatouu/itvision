@@ -286,7 +286,9 @@
     "updatedTitle": "Your request has been updated",
     "updatedSub": "Nearby providers have received the updated information.",
     "loadingEdit": "Loading request…",
-    "budgetRequired": "Please enter a budget (greater than 0)."
+    "budgetRequired": "Please enter a budget (greater than 0).",
+    "draftRestored": "Draft restored",
+    "draftDiscard": "Start over"
   },
   "schedule": {
     "whenLabel": "When?",
@@ -424,7 +426,13 @@
     "validateNow": "Validate now",
     "subActive": "active",
     "subDone": "completed",
-    "toReview": "To review"
+    "toReview": "To review",
+    "status_accepted": "Provider found",
+    "status_on_the_way": "On the way",
+    "status_arrived": "On site",
+    "status_paused": "Paused",
+    "status_dispute": "Dispute",
+    "status_awaiting_validation": "To validate"
   },
   "mission": {
     "title": "Active mission",
@@ -1520,5 +1528,15 @@
         "sub": "Transparent prices reassure clients."
       }
     }
+  },
+  "proProfile": {
+    "checkAvatar": "Profile photo",
+    "checkCategories": "Service categories",
+    "checkZone": "Service area",
+    "checkBio": "About you (bio)",
+    "checkPortfolio": "At least one work sample",
+    "checkKyc": "Identity verification",
+    "completion": "Profile {{pct}}% complete",
+    "completionHint": "A complete profile gets more requests."
   }
 }

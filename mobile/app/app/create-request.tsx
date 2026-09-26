@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued, apiPatchQueued, apiPost, apiUpload, apiGet, apiGetRetry } from '../src/api'
 import { cacheClear } from '../src/storage'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { humanErrorMessage } from '../src/errorMessages'
 import { pickMedia, PickedMedia, resolveMediaUrl } from '../src/media'
 import { reverseGeocode } from '../src/geocode'
@@ -51,6 +52,9 @@ function mediaLabel(media: PickedMedia): string {
 
 type CatEntry = { id: string; label: string; abbr: string; color: string; requiredAttributes?: Attribute[]; optionalAttributes?: Attribute[]; subCategories?: SubCategory[] }
 
+const DRAFT_KEY = 'request:draft:v1'
+const DRAFT_TTL_MS = 3 * 24 * 60 * 60 * 1000
+
 function CreateRequest() {
   const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string; editId?: string }>()
   const isEdit = !!params.editId
@@ -83,6 +87,50 @@ function CreateRequest() {
   const [priceEstimate, setPriceEstimate] = useState<{ median: number; low: number; high: number } | null>(null)
   const [attributes, setAttributes] = useState<Record<string, string | number | boolean>>({})
   const [aiLoading, setAiLoading] = useState(false)
+
+  // ── Brouillon : si l'app est fermée en cours de saisie, la demande est
+  // restaurée à la réouverture (catégorie, texte, budget, attributs, repère).
+  // Les médias et le vocal (fichiers temporaires) ne sont pas conservés.
+  const [draftRestored, setDraftRestored] = useState(false)
+  const draftLoaded = useRef(false)
+
+  useEffect(() => {
+    if (isEdit || params.category) { draftLoaded.current = true; return }
+    AsyncStorage.getItem(DRAFT_KEY)
+      .then(raw => {
+        const d = raw ? JSON.parse(raw) : null
+        if (d?.category && Date.now() - (d.savedAt || 0) < DRAFT_TTL_MS) {
+          setCategory(d.category)
+          setSubcategory(d.subcategory || '')
+          setDescription(d.description || '')
+          setBudget(d.budget || '')
+          setAttributes(d.attributes || {})
+          setLandmark(d.landmark || '')
+          setStep(Math.min(Number(d.step) || 1, 2))
+          setDraftRestored(true)
+        }
+      })
+      .catch(() => {})
+      .finally(() => { draftLoaded.current = true })
+  }, [])
+
+  useEffect(() => {
+    if (!draftLoaded.current || isEdit || done || !category) return
+    const id = setTimeout(() => {
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ category, subcategory, description, budget, attributes, landmark, step, savedAt: Date.now() })).catch(() => {})
+    }, 600)
+    return () => clearTimeout(id)
+  }, [category, subcategory, description, budget, attributes, landmark, step, done])
+
+  useEffect(() => {
+    if (done) AsyncStorage.removeItem(DRAFT_KEY).catch(() => {})
+  }, [done])
+
+  const discardDraft = () => {
+    AsyncStorage.removeItem(DRAFT_KEY).catch(() => {})
+    setCategory(''); setSubcategory(''); setDescription(''); setBudget('')
+    setAttributes({}); setLandmark(''); setStep(1); setDraftRestored(false)
+  }
   const [aiApplying, setAiApplying] = useState(false)
   const [aiQuestions, setAiQuestions] = useState<ClarifyQuestion[]>([])
   const [aiModalVisible, setAiModalVisible] = useState(false)
@@ -481,6 +529,15 @@ function CreateRequest() {
       </View>
 
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      {draftRestored && (
+        <View style={s.draftBanner}>
+          <Text style={s.draftBannerText}>{t('request.draftRestored', { defaultValue: 'Brouillon restauré' })}</Text>
+          <TouchableOpacity onPress={discardDraft} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+            <Text style={s.draftBannerAction}>{t('request.draftDiscard', { defaultValue: 'Recommencer' })}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ── ETAPE 1 : categorie ─────────────────────────────── */}
       {step === 1 && (
         <View style={{ gap: 0 }}>
@@ -1033,6 +1090,9 @@ function DynamicAttributes({
 }
 
 const s = StyleSheet.create({
+  draftBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.infoLight, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 14 },
+  draftBannerText: { fontSize: 13, fontWeight: typography.weight.semibold as any, color: colors.infoInk },
+  draftBannerAction: { fontSize: 13, fontWeight: typography.weight.extrabold as any, color: colors.infoInk, textDecorationLine: 'underline' },
   safe: { flex: 1, backgroundColor: colors.bg },
   // Bandeau urgent
   urgentStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.danger, paddingHorizontal: 16, paddingVertical: 9 },
