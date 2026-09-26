@@ -3,16 +3,23 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
-import { ArrowLeft, Clock, ThumbsUp, Star, XCircle, TrendingUp, Award, Lightbulb } from 'lucide-react-native'
+import { ArrowLeft, CheckCircle2, ThumbsUp, Star, XCircle, Lightbulb } from 'lucide-react-native'
 import { apiGet } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 
-const PERF = (stats: any) => [
-  { icon: Clock, label: 'Temps de réponse', value: `${stats.responseTimeMinutes || 4} min` },
-  { icon: ThumbsUp, label: "Taux d'acceptation", value: `${stats.acceptanceRate || 96}%` },
-  { icon: Star, label: 'Note moyenne', value: stats.ratingAvg ? stats.ratingAvg.toFixed(1) : '4.9' },
-  { icon: XCircle, label: "Taux d'annulation", value: `${stats.cancellationRate || 2}%` },
-]
+// Valeurs réelles uniquement (providerStats + avis) — « — » quand la donnée
+// n'existe pas encore, jamais de chiffre inventé.
+const PERF = (stats: any, reviews: any) => {
+  const done = Number(stats.completedMissions || 0)
+  const cancelled = Number(stats.cancelledByProvider || 0)
+  const base = done + cancelled
+  return [
+    { icon: CheckCircle2, label: 'Missions terminées', value: String(done) },
+    { icon: Star, label: 'Note moyenne', value: reviews?.average ? Number(reviews.average).toFixed(1) : '—' },
+    { icon: XCircle, label: "Taux d'annulation", value: base > 0 ? `${Math.round((cancelled / base) * 100)}%` : '—' },
+    { icon: ThumbsUp, label: 'Fiabilité', value: typeof stats.reliabilityScore === 'number' ? `${Math.round(stats.reliabilityScore)}%` : '—' },
+  ]
+}
 
 function Performance() {
   const [data, setData] = useState<any>({ user: { providerStats: {} }, provider: {}, reviews: {} })
@@ -57,7 +64,6 @@ function Performance() {
             <View>
               <Text style={s.heroTitle}>Score Xeuy</Text>
               <Text style={s.heroScore}>{score}/100</Text>
-              <Text style={s.heroSub}>Top 5% · Dakar</Text>
             </View>
             <View style={s.circle}>
               <Text style={s.circleText}>{score}%</Text>
@@ -66,16 +72,15 @@ function Performance() {
           <Text style={s.heroUpdated}>Mis à jour en temps réel</Text>
         </View>
 
-        <Text style={s.sectionTitle}>Performances des 30 derniers jours</Text>
+        <Text style={s.sectionTitle}>Mes indicateurs</Text>
         <View style={s.grid}>
-          {PERF(stats).map((p) => {
+          {PERF(stats, data.reviews).map((p) => {
             const Icon = p.icon
             return (
               <View key={p.label} style={s.box}>
                 <Icon size={22} color={colors.primary} />
                 <Text style={s.boxValue}>{p.value}</Text>
                 <Text style={s.boxLabel}>{p.label}</Text>
-                <TrendingUp size={14} color={colors.success} />
               </View>
             )
           })}
@@ -103,7 +108,7 @@ function Performance() {
 
         <View style={s.tipCard}>
           <Lightbulb size={20} color={colors.warning} />
-          <Text style={s.tipText}>Complétez votre bio et ajoutez 2 réalisations pour gagner +10 points de Score Xeuy cette semaine.</Text>
+          <Text style={s.tipText}>Complétez votre bio et ajoutez des réalisations à votre portfolio pour améliorer votre Score Xeuy.</Text>
         </View>
 
         <TouchableOpacity style={s.cta} onPress={() => router.push('/profile-detail?section=business')}>
@@ -124,7 +129,6 @@ const s = StyleSheet.create({
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   heroTitle: { fontSize: 15, color: 'rgba(255,255,255,0.8)' },
   heroScore: { fontSize: 40, fontWeight: '700', color: '#fff', marginTop: spacing.xs },
-  heroSub: { fontSize: 13, color: colors.success, marginTop: 2 },
   heroUpdated: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: spacing.md },
   circle: { width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: colors.success, alignItems: 'center', justifyContent: 'center' },
   circleText: { fontSize: 20, fontWeight: '700', color: '#fff' },

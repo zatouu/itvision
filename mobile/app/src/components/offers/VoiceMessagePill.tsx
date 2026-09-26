@@ -29,7 +29,7 @@ type Props = {
   durationSeconds?: number
 }
 
-export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
+export default function VoiceMessagePill({ uri, durationSeconds }: Props) {
   const bars = useMemo(() => generateBars(uri.length), [uri])
   const fullUri = useMemo(() => resolveMediaUrl(uri), [uri])
   const player = useAudioPlayer(fullUri ? { uri: fullUri } : null)
@@ -85,7 +85,7 @@ export default function VoiceMessagePill({ uri, durationSeconds = 23 }: Props) {
           )
         })}
       </View>
-      <Text style={s.duration}>{formatDuration(durationSeconds)}</Text>
+      <Text style={s.duration}>{durationSeconds ? formatDuration(durationSeconds) : status.duration > 0 ? formatDuration(status.duration) : '—'}</Text>
     </View>
   )
 }

@@ -894,15 +894,14 @@
     "nearest": "Nearest",
     "verifiedShort": "Verified",
     "negotiate": "Negotiate",
-    "compareSoon": "Feature coming soon",
     "offersReceived": "{{count}} offers received",
     "offersReceived_one": "{{count}} offer received",
     "viewersCount": "{{count}} providers browsing",
     "searching": "Searching for providers...",
     "emptySubtitle": "The best {{category}} near you will receive your request",
-    "estimatedTime": "Average time to first offer",
-    "estimatedValue": "2 to 5 min",
-    "tipVoice": "Tip: requests with a voice message get 2x more offers",
+    "estimatedTime": "First offer",
+    "estimatedValue": "Usually within minutes",
+    "tipVoice": "Tip: a voice message helps providers understand your need",
     "editRequest": "Edit my request",
     "cancelRequest": "Cancel request",
     "howItWorks": "How it works",
@@ -1434,5 +1433,92 @@
     "sugRequestPrompt": "How to describe my request to get good offers?",
     "sugPrice": "How much for an artisan?",
     "sugPricePrompt": "What are the usual prices for an artisan in Dakar?"
+  },
+  "tabs": {
+    "home": "Home",
+    "requests": "Requests",
+    "offers": "Offers",
+    "messages": "Messages",
+    "profile": "Profile"
+  },
+  "proHome": {
+    "dashboard": "Your dashboard",
+    "radius": "Radius {{km}} km",
+    "kpiNearby": "Nearby requests",
+    "kpiNearbySub": "{{count}} today",
+    "kpiOffers": "Offers sent",
+    "kpiOffersSub": "{{count}} pending",
+    "kpiMission": "Active mission",
+    "kpiMissionSince": "for {{d}}",
+    "kpiMissionNone": "No active mission",
+    "kpiRevenue": "Today's earnings",
+    "kpiRevenueSub": "Wk {{w}} · Mo {{m}}",
+    "actions": "Actions",
+    "tagNew": "New",
+    "remaining": "Left: {{time}}",
+    "see": "View",
+    "offersSummary": "{{total}} sent · {{pending}} pending · {{accepted}} accepted",
+    "noOffers": "No offers sent",
+    "tip": "Tip",
+    "goal": "Today's goal",
+    "goalProgress": "{{done}} / {{goal}} missions",
+    "nearbyTitle": "Nearby requests",
+    "nearbyOnlineSub": "You're online. New requests will appear here automatically.",
+    "goOnline": "Go online",
+    "loadError": "Data not up to date (connection)",
+    "tips": {
+      "goOnline": {
+        "title": "Go online to receive requests",
+        "sub": "Switch online as soon as you're available."
+      },
+      "gps": {
+        "title": "Turn on your GPS",
+        "sub": "Clients see nearby providers first."
+      },
+      "fastReply": {
+        "title": "Reply in under 3 minutes",
+        "sub": "Speed increases your chances of being accepted."
+      },
+      "missionOn": {
+        "title": "Mission in progress",
+        "sub": "Be punctual and professional to earn 5 stars."
+      },
+      "completeProfile": {
+        "title": "Use this time to complete your profile",
+        "sub": "A complete profile attracts more requests."
+      },
+      "radius": {
+        "title": "Increase your visibility radius",
+        "sub": "More visibility = more opportunities."
+      },
+      "avatar": {
+        "title": "Add a profile photo",
+        "sub": "Clients trust profiles with a photo."
+      },
+      "kyc": {
+        "title": "Complete your verification",
+        "sub": "Earn the verified badge and reassure clients."
+      },
+      "score": {
+        "title": "Improve your Xeuy Score",
+        "sub": "Add work samples, diplomas and categories."
+      },
+      "askReview": {
+        "title": "Ask for a review after each mission",
+        "sub": "Positive reviews boost your ranking."
+      },
+      "reactive": {
+        "title": "Stay responsive",
+        "sub": "Reply to client messages as quickly as possible."
+      },
+      "availability": {
+        "title": "Keep your availability up to date",
+        "sub": "An up-to-date schedule avoids missed missions."
+      },
+      "pricing": {
+        "title": "Be clear about your prices",
+        "sub": "Transparent prices reassure clients."
+      }
+    }
   }
 }

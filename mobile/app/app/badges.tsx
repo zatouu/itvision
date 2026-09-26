@@ -12,7 +12,7 @@ const BADGES: any[] = [
   { id: 'first', icon: CheckCircle2, label: 'Première mission', desc: 'Vous avez complété une mission', color: colors.success },
   { id: 'rating', icon: Star, label: '5 étoiles', desc: 'Moyenne d\'au moins 4.8 sur 5 avis', color: colors.warning },
   { id: 'fast', icon: Zap, label: 'Réactif', desc: 'Temps de réponse moyen < 15 min', color: colors.info },
-  { id: 'top', icon: Crown, label: 'Top 5%', desc: 'Score Xeuy supérieur à 85', color: colors.platinum },
+  { id: 'top', icon: Crown, label: 'Excellence', desc: 'Score Xeuy supérieur à 85', color: colors.platinum },
   { id: 'missions', icon: TrendingUp, label: '100 missions', desc: '100 missions terminées', color: colors.painting },
 ]
 

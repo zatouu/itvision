@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Upsert atomique : deux GET concurrents ne peuvent plus violer l'index
     // unique userId (E11000) — l'existant est retourné tel quel.
-    let providerProfile = await ProviderProfile.findOneAndUpdate(
+    const providerProfile = await ProviderProfile.findOneAndUpdate(
       { userId },
       {
         $setOnInsert: {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Home, ClipboardList, FileText, MessageCircle, UserCircle } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { loadInbox, subscribeInbox, getInboxState, bindInboxSocket } from '../chat-inbox'
@@ -19,22 +20,23 @@ interface TabBarProps {
 type IconProps = { size?: number; color?: string; strokeWidth?: number }
 
 // 4 onglets (pattern type ATD) — les notifications restent dans la cloche du header.
-const CLIENT_TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
-  { key: 'home',          label: 'Accueil',       icon: Home,          route: '/' },
-  { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/my-requests' },
-  { key: 'messages',      label: 'Messages',      icon: MessageCircle, route: '/messages' },
-  { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/profile' },
+const CLIENT_TABS: { key: TabKey; labelKey: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+  { key: 'home',          labelKey: 'tabs.home', icon: Home,          route: '/' },
+  { key: 'requests',      labelKey: 'tabs.requests', icon: ClipboardList, route: '/my-requests' },
+  { key: 'messages',      labelKey: 'tabs.messages', icon: MessageCircle, route: '/messages' },
+  { key: 'profile',       labelKey: 'tabs.profile', icon: UserCircle,    route: '/profile' },
 ]
 
-const PROVIDER_TABS: { key: TabKey; label: string; icon: React.ComponentType<IconProps>; route: string }[] = [
-  { key: 'home',          label: 'Accueil',       icon: Home,          route: '/pro-home' },
-  { key: 'requests',      label: 'Demandes',      icon: ClipboardList, route: '/nearby-requests' },
-  { key: 'offers',        label: 'Offres',        icon: FileText,      route: '/my-offers' },
-  { key: 'messages',      label: 'Messages',      icon: MessageCircle, route: '/messages' },
-  { key: 'profile',       label: 'Profil',        icon: UserCircle,    route: '/pro-profile' },
+const PROVIDER_TABS: { key: TabKey; labelKey: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+  { key: 'home',          labelKey: 'tabs.home', icon: Home,          route: '/pro-home' },
+  { key: 'requests',      labelKey: 'tabs.requests', icon: ClipboardList, route: '/nearby-requests' },
+  { key: 'offers',        labelKey: 'tabs.offers', icon: FileText,      route: '/my-offers' },
+  { key: 'messages',      labelKey: 'tabs.messages', icon: MessageCircle, route: '/messages' },
+  { key: 'profile',       labelKey: 'tabs.profile', icon: UserCircle,    route: '/pro-profile' },
 ]
 
 export default function TabBar({ active, mode = 'client' }: TabBarProps) {
+  const { t } = useTranslation()
   const [unread, setUnread] = useState(0)
   const [unreadChat, setUnreadChat] = useState(0)
   const tabs = mode === 'provider' ? PROVIDER_TABS : CLIENT_TABS
@@ -80,7 +82,7 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
             onPress={() => onPress(tab)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={tab.label}
+            accessibilityLabel={t(tab.labelKey)}
             accessibilityState={{ selected: isActive }}
           >
             <View style={[s.iconWrap, isActive && s.iconWrapActive]}>
@@ -91,7 +93,7 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
                 </View>
               )}
             </View>
-            <Text style={isActive ? s.labelActive : s.label}>{tab.label}</Text>
+            <Text style={isActive ? s.labelActive : s.label}>{t(tab.labelKey)}</Text>
             {isActive && <View style={s.activeDot} />}
           </TouchableOpacity>
         )

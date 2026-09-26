@@ -24,17 +24,22 @@ export default function KpiCard({ value, label, subLabel, icon, iconBg, iconColo
     ]).start()
   }, [value])
 
+  // Disposition verticale : icône (+ accessoire) en haut, texte en pleine
+  // largeur dessous — en ligne, le libellé n'avait que ~60dp sur 360dp
+  // (« Reven us du jour », sous-libellés tronqués).
   const content = (
     <>
-      <View style={[s.icon, compact && s.iconCompact, { backgroundColor: iconBg }]}>
-        {icon}
+      <View style={s.top}>
+        <View style={[s.icon, compact && s.iconCompact, { backgroundColor: iconBg }]}>
+          {icon}
+        </View>
+        {right ? <View style={s.right}>{right}</View> : null}
       </View>
       <View style={s.text}>
         <Animated.Text style={[s.value, compact && s.valueCompact, { transform: [{ scale }] }]} numberOfLines={1} ellipsizeMode="tail">{value}</Animated.Text>
-        <Text style={[s.label, compact && s.labelCompact]} numberOfLines={compact ? 1 : undefined}>{label}</Text>
+        <Text style={[s.label, compact && s.labelCompact]} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
         {subLabel ? <Text style={s.subLabel} numberOfLines={1} ellipsizeMode="tail">{subLabel}</Text> : null}
       </View>
-      {right ? <View style={s.right}>{right}</View> : null}
     </>
   )
   if (onPress) {
@@ -57,10 +62,9 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardCompact: {
     padding: spacing.sm,
     gap: spacing.sm,
@@ -69,8 +73,8 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
   },
   icon: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',

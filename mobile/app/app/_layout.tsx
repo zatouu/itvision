@@ -5,6 +5,7 @@ import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import * as Location from 'expo-location'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 import { bindNotificationSocket, loadNotifications } from '../src/notifications'
 import { loadProfile } from '../src/user-profile'
 import { registerPushToken, setupNotificationChannel, setupNotificationHandler, setupNotificationResponseListener, setupForegroundNotificationListener, flushPendingNavigation, registerBackgroundPushTask, navigateFromPushData } from '../src/push'
@@ -211,6 +212,9 @@ export default function Layout(){
 
   return (
     <SafeAreaProvider>
+      {/* Thème clair uniquement : icônes de barre d'état sombres même si le
+          téléphone est en mode sombre (sinon blanc sur fond clair). */}
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }} />
       <ToastHost />
       <OptionSheetHost />

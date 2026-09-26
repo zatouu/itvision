@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "runtimeVersion": "2.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
