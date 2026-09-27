@@ -27,7 +27,9 @@ const DEFAULT_OVERRIDES: ShippingRateOverrides = {
   // - Maritime = 180 000 FCFA/m³ (min 0 ou proportional)
   air_express: { rate: 12000, minimumCharge: 12000 },
   air_15: { rate: 8500, minimumCharge: 8500 },
-  sea_freight: { rate: 180000, minimumCharge: 0 }
+  sea_freight: { rate: 180000, minimumCharge: 0 },
+  // Livraison locale (boutiques, stock à Dakar) : forfait coursier ≤ 24h
+  local_24h: { rate: 1500, minimumCharge: 0 }
 }
 
 function ensureFile() {
@@ -88,7 +90,8 @@ export function getConfiguredShippingRates(): Record<ShippingMethodId, ShippingR
   const merged: Record<ShippingMethodId, ShippingRate> = {
     air_express: { ...BASE_SHIPPING_RATES.air_express },
     air_15: { ...BASE_SHIPPING_RATES.air_15 },
-    sea_freight: { ...BASE_SHIPPING_RATES.sea_freight }
+    sea_freight: { ...BASE_SHIPPING_RATES.sea_freight },
+    local_24h: { ...BASE_SHIPPING_RATES.local_24h }
   }
 
   ;(Object.keys(merged) as ShippingMethodId[]).forEach((id) => {

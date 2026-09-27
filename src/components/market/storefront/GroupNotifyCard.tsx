@@ -86,7 +86,9 @@ export function GroupNotifyCard({ productId, className }: GroupNotifyCardProps) 
               onChange={e => setPhone(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
               placeholder="77 123 45 67"
+              type="tel"
               inputMode="tel"
+              autoComplete="tel-national"
               className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"
             />
           </div>

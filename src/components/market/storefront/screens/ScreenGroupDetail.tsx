@@ -617,7 +617,7 @@ export default function ScreenGroupDetail() {
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Icon name="user" size={15}/></span>
           <div>
             <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Déjà inscrit ?</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Retrouve ta participation et ton paiement.</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Retrouvez votre participation et votre paiement.</p>
           </div>
         </div>
 
@@ -677,6 +677,9 @@ export default function ScreenGroupDetail() {
                 value={myPhone}
                 onChange={e => setMyPhone(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') void checkMyPayment(); }}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel-national"
                 placeholder="77 123 45 67"
                 className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"
               />

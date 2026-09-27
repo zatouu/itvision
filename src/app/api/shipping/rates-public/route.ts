@@ -40,6 +40,11 @@ export async function GET() {
         const totalCost = Math.max(method.minimumCharge || 0, billed)
         costPerUnit = Math.round(totalCost / referenceQty)
         unit = 'F/kg'
+      } else if (method.billing === 'flat') {
+        // Forfait (livraison locale) : le tarif est le coût total, indépendant
+        // du poids/volume — pas de « coût par unité » à extrapoler.
+        costPerUnit = 0
+        unit = 'forfait'
       } else {
         // per_cubic_meter
         const billed = referenceVolumeM3 * method.rate

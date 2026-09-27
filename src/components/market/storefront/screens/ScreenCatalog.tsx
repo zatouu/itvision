@@ -180,14 +180,15 @@ export default function ScreenCatalog() {
     effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice;
   const displayCount = clientOnlyFilters ? filtered.length : (total || filtered.length);
 
-  const activeFilters = [
-    cat !== "Tous" && (CATEGORIES.find(c => c.key === cat)?.label || cat),
-    moqFilter !== "all" && (moqFilter === "lot" ? "Vendu par lot" : `Lot ${moqFilter}`),
-    groupOnly && "Groupe actif",
-    verifiedOnly && "Vérifiés",
-    minSave > 0 && `-${minSave}% min`,
-    (effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice) && `${formatFcfa(effectivePriceRange[0])}—${formatFcfa(effectivePriceRange[1])}`,
-  ].filter(Boolean);
+  // Chaque filtre actif est retirable individuellement via sa chip.
+  const activeFilters = ([
+    cat !== "Tous" && { key: 'cat', label: CATEGORIES.find(c => c.key === cat)?.label || cat, clear: () => setCat("Tous") },
+    moqFilter !== "all" && { key: 'moq', label: moqFilter === "lot" ? "Vendu par lot" : `Lot ${moqFilter}`, clear: () => setMoqFilter("all") },
+    groupOnly && { key: 'group', label: "Groupe actif", clear: () => setGroupOnly(false) },
+    verifiedOnly && { key: 'verified', label: "Vérifiés", clear: () => setVerifiedOnly(false) },
+    minSave > 0 && { key: 'save', label: `-${minSave}% min`, clear: () => setMinSave(0) },
+    (effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice) && { key: 'price', label: `${formatFcfa(effectivePriceRange[0])}—${formatFcfa(effectivePriceRange[1])}`, clear: () => setPriceRange([0, 0]) },
+  ]).filter((f): f is { key: string; label: string; clear: () => void } => Boolean(f));
 
   const reset = () => {
     setCat("Tous"); setPriceRange([0, 0]); setMoqFilter("all");
@@ -209,8 +210,8 @@ export default function ScreenCatalog() {
     </div>
   );
 
-  const FiltersPanel = ({ inSheet = false }: { inSheet?: boolean }) => (
-    <div className={cn("space-y-5", inSheet ? "p-4" : "p-4")}>
+  const FiltersPanel = () => (
+    <div className="space-y-5 p-4">
       <div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Catégorie</p>
         <div className="space-y-1">
@@ -339,12 +340,12 @@ export default function ScreenCatalog() {
             </div>
             {activeFilters.length > 0 && (
               <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:flex-wrap md:gap-2 md:px-0">
-                {activeFilters.map((f, i) => (
-                  <span key={i} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
-                    {f}<Icon name="x" size={10}/>
-                  </span>
+                {activeFilters.map(f => (
+                  <button key={f.key} onClick={f.clear} aria-label={`Retirer le filtre ${f.label}`} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
+                    {f.label}<Icon name="x" size={10}/>
+                  </button>
                 ))}
-                <button onClick={reset} className="hidden md:inline text-[11px] font-bold text-slate-500 dark:text-slate-400 underline">Tout effacer</button>
+                <button onClick={reset} className="flex-shrink-0 text-[11px] font-bold text-slate-500 dark:text-slate-400 underline">Tout effacer</button>
               </div>
             )}
           </div>
@@ -367,7 +368,7 @@ export default function ScreenCatalog() {
           <div className="md:grid md:grid-cols-[240px_1fr] md:gap-6">
             {/* Sidebar filtres : desktop uniquement (mobile = bottom sheet) */}
             <aside className="sticky top-[calc(var(--mkt-header-h,0px)+12px)] hidden self-start rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:block">
-              {FiltersPanel({})}
+              {FiltersPanel()}
             </aside>
 
             <div>
@@ -417,7 +418,7 @@ export default function ScreenCatalog() {
                 <button onClick={() => setFiltersOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Icon name="x" size={16}/></button>
               </div>
               <div className="overflow-y-auto max-h-[calc(85vh-56px-64px)]">
-                {FiltersPanel({ inSheet: true })}
+                {FiltersPanel()}
               </div>
               <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex gap-2">
                 <Button variant="secondary" size="md" onClick={reset} className="flex-1">Réinitialiser</Button>

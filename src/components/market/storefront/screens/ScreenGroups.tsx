@@ -364,7 +364,7 @@ export default function ScreenGroups() {
               </div>
             </div>
             <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 md:flex-row md:justify-end">
-              <Button variant="secondary" size="md" onClick={() => router.push('/prix-transparent')}>Voir les paliers détaillés</Button>
+              <Button variant="secondary" size="md" onClick={() => router.push('/tarification')}>Voir les paliers détaillés</Button>
               <button onClick={() => router.push('/achats-groupes/nouveau')} className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900">
                 <Icon name="plus" size={14}/>Créer un groupe à ce prix
               </button>

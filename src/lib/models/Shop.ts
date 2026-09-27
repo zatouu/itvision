@@ -23,6 +23,17 @@ export interface IShop extends Document {
   city?: string
   country?: string
   responseTimeHours?: number
+  /** Livraison locale ≤24h (stock à Dakar) — réglée par le vendeur. */
+  localDelivery?: {
+    /** Forfait coursier par livraison (absent = tarif plateforme par défaut). */
+    feeFcfa?: number
+    /** Livraison offerte dès ce montant d'achat dans la boutique. */
+    freeAboveFcfa?: number
+    /** Zones desservies (affichage vitrine). */
+    zones?: string[]
+    /** Note libre affichée aux acheteurs (ex : « retrait boutique possible »). */
+    note?: string
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -49,7 +60,13 @@ const ShopSchema = new Schema<IShop>({
   address: { type: String },
   city: { type: String },
   country: { type: String, default: 'Sénégal' },
-  responseTimeHours: { type: Number, min: 0 }
+  responseTimeHours: { type: Number, min: 0 },
+  localDelivery: {
+    feeFcfa: { type: Number, min: 0 },
+    freeAboveFcfa: { type: Number, min: 0 },
+    zones: { type: [String], default: [] },
+    note: { type: String, maxlength: 200 }
+  }
 }, { timestamps: true })
 
 function slugify(text: string): string {

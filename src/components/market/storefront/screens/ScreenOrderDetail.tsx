@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
+import { addToCart, mapCartItem } from '../data-mappers';
 import OrderChat from '@/components/OrderChat';
 import { orderStatusMeta, isPaymentSettled } from '@/lib/order-status';
 import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
@@ -33,6 +34,7 @@ interface OrderItem {
   price: number
   image?: string
   variant?: string
+  variantIds?: string[]
   variantLabels?: string[]
 }
 
@@ -125,6 +127,24 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
   const currentStep = statusIndex(order.status);
   const tracking = order.delivery?.trackingNumber || order.orderId;
   const totalPcs = useMemo(() => order.items.reduce((s, it) => s + (it.qty || 0), 0), [order.items]);
+
+  // Remet les articles de la commande dans le panier (le devis serveur
+  // revalide prix, variantes et MOQ au checkout).
+  const reorderItems = () => {
+    order.items.forEach((it) => {
+      if (!it.id && !it._id) return;
+      addToCart(mapCartItem({
+        id: it.id || it._id,
+        name: it.name,
+        image: it.image,
+        unit: it.price,
+        qty: it.qty || 1,
+        variantIds: it.variantIds,
+        variantLabels: it.variantLabels,
+      }));
+    });
+    router.push('/panier');
+  };
 
   const copy = (text: string, field: 'order' | 'tracking') => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -331,7 +351,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
   const TabActions = () => {
     const actions = [
       { i: MessageCircle, ttl: 'Contacter le support', sub: `${MARKET_BRAND.whatsapp} — WhatsApp`, primary: true, href: brandWhatsAppUrl(MARKET_BRAND, `Commande ${order.orderId}`) },
-      { i: RefreshCw, ttl: 'Répéter la commande', sub: 'Recommander les mêmes articles', href: '#' },
+      { i: RefreshCw, ttl: 'Répéter la commande', sub: 'Recommander les mêmes articles', onClick: reorderItems },
       { i: Package, ttl: 'Demander un retour', sub: 'Sous 7 jours après livraison', href: `/commandes/${order.orderId}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}` },
       { i: HelpCircle, ttl: 'Ouvrir un litige', sub: 'En cas de problème de livraison', href: `/suivi/${order.orderId}/litige` },
       { i: FileText, ttl: 'Télécharger la facture', sub: `PDF · ${order.orderId}.pdf`, href: `/api/order/${order.orderId}/invoice${token ? `?token=${encodeURIComponent(token)}` : ''}` },

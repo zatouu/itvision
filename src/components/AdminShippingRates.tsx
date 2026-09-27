@@ -6,7 +6,7 @@ import {
   type SeaFreightEligibilitySettings,
 } from '@/lib/shipping/sea-freight-eligibility'
 
-type ShippingMethodId = 'air_express' | 'air_15' | 'sea_freight'
+type ShippingMethodId = 'air_express' | 'air_15' | 'sea_freight' | 'local_24h'
 
 type Overrides = Partial<Record<ShippingMethodId, { rate: number; minimumCharge?: number }>>
 
@@ -17,6 +17,7 @@ type FormState = {
   air_15_min: number
   sea_freight_rate: number
   sea_freight_min: number
+  local_24h_rate: number
   minVolumeM3: number
   minBilledWeightKg: number
   minOrderValueFcfa: number
@@ -44,6 +45,7 @@ export default function AdminShippingRates() {
           air_15_min: toNumber(rates?.air_15?.minimumCharge, 15000),
           sea_freight_rate: toNumber(rates?.sea_freight?.rate, 180000),
           sea_freight_min: toNumber(rates?.sea_freight?.minimumCharge, 180000),
+          local_24h_rate: toNumber(rates?.local_24h?.rate, 1500),
           minVolumeM3: toNumber(d?.seaFreightEligibility?.minVolumeM3, DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minVolumeM3),
           minBilledWeightKg: toNumber(d?.seaFreightEligibility?.minBilledWeightKg, DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minBilledWeightKg),
           minOrderValueFcfa: toNumber(d?.seaFreightEligibility?.minOrderValueFcfa, DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minOrderValueFcfa),
@@ -61,6 +63,7 @@ export default function AdminShippingRates() {
           air_15_min: 15000,
           sea_freight_rate: 180000,
           sea_freight_min: 180000,
+          local_24h_rate: 1500,
           minVolumeM3: DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minVolumeM3,
           minBilledWeightKg: DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minBilledWeightKg,
           minOrderValueFcfa: DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS.minOrderValueFcfa,
@@ -74,7 +77,8 @@ export default function AdminShippingRates() {
     return {
       air_express: { rate: Math.round(form.air_express_rate), minimumCharge: Math.round(form.air_express_min) },
       air_15: { rate: Math.round(form.air_15_rate), minimumCharge: Math.round(form.air_15_min) },
-      sea_freight: { rate: Math.round(form.sea_freight_rate), minimumCharge: Math.round(form.sea_freight_min) }
+      sea_freight: { rate: Math.round(form.sea_freight_rate), minimumCharge: Math.round(form.sea_freight_min) },
+      local_24h: { rate: Math.round(form.local_24h_rate), minimumCharge: 0 }
     }
   }, [form])
 
@@ -113,6 +117,7 @@ export default function AdminShippingRates() {
           air_15_min: toNumber(rates?.air_15?.minimumCharge, form.air_15_min),
           sea_freight_rate: toNumber(rates?.sea_freight?.rate, form.sea_freight_rate),
           sea_freight_min: toNumber(rates?.sea_freight?.minimumCharge, form.sea_freight_min),
+          local_24h_rate: toNumber(rates?.local_24h?.rate, form.local_24h_rate),
           minVolumeM3: toNumber(sea?.minVolumeM3, form.minVolumeM3),
           minBilledWeightKg: toNumber(sea?.minBilledWeightKg, form.minBilledWeightKg),
           minOrderValueFcfa: toNumber(sea?.minOrderValueFcfa, form.minOrderValueFcfa),
@@ -132,7 +137,7 @@ export default function AdminShippingRates() {
   return (
     <div className="bg-white rounded-lg border p-4 mb-6">
       <h3 className="text-sm font-semibold mb-3">🚚 Tarifs transport (globaux)</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-700">Express (FCFA/kg)</div>
           <label className="space-y-1 text-xs">
@@ -173,6 +178,16 @@ export default function AdminShippingRates() {
             <input type="number" className="w-full rounded border px-2 py-1" value={form.sea_freight_min}
               onChange={e => setForm({ ...form, sea_freight_min: Number(e.target.value) })} />
           </label>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-gray-700">Livraison locale ≤24h (forfait FCFA / boutique)</div>
+          <label className="space-y-1 text-xs">
+            <div>Forfait par défaut</div>
+            <input type="number" className="w-full rounded border px-2 py-1" value={form.local_24h_rate}
+              onChange={e => setForm({ ...form, local_24h_rate: Number(e.target.value) })} />
+          </label>
+          <div className="text-[11px] text-gray-500">Produits boutique en stock à Dakar — un forfait par boutique, sauf si le vendeur a réglé son propre tarif dans ses paramètres.</div>
         </div>
       </div>
 

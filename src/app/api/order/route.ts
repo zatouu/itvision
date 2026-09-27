@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import User from '@/lib/models/User'
-import { readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
+import { readSeaFreightEligibilitySettings, getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
 import { readPricingDefaults } from '@/lib/pricing/settings'
 import { getCNYToXOFRate } from '@/lib/pricing/exchange-rate'
@@ -25,6 +25,8 @@ import {
   resolveItemUnitPrice,
   resolveItemVariants,
   resolveShippingMethod,
+  isLocalShopProduct,
+  loadLocalDeliveryShops,
   validatePromoCode,
 } from '@/lib/pricing/quote-cart'
 import { internalPost } from '@/lib/internal-auth'
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     if ('error' in resolvedMethod) {
       return NextResponse.json({ success: false, error: resolvedMethod.error }, { status: 400 })
     }
-    const { clientMethod: method, internalMethod, rate } = resolvedMethod
+    let { clientMethod: method, internalMethod, rate } = resolvedMethod
     const pricingDefaults = readPricingDefaults()
 
     // Récupérer le tier marketplace de l'utilisateur authentifié
@@ -104,9 +106,42 @@ export async function POST(req: NextRequest) {
     mongoConnected = true
     const { itemProductIdMap, dbProductMap } = loaded.ctx
 
+    // Produits boutique = stock local à Dakar → livraison coursier ≤24h.
+    // Panier 100% local : la méthode est forcée à `local_24h` ; panier mixte :
+    // le fret ne s'applique qu'aux articles importés, le forfait local couvre
+    // la jambe coursier des produits boutique.
+    const isLocalItem = (item: any) => {
+      const pid = itemProductIdMap.get(String(item?.id || ''))
+      return !!(pid && isLocalShopProduct(dbProductMap.get(pid)))
+    }
+    const allLocal = cart.length > 0 && cart.every(isLocalItem)
+    const hasLocal = cart.some(isLocalItem)
+
+    if (!allLocal && internalMethod === 'local_24h') {
+      return NextResponse.json(
+        { success: false, error: 'La livraison locale 24h est réservée aux produits en stock à Dakar.' },
+        { status: 400 }
+      )
+    }
+    if (allLocal && internalMethod !== 'local_24h') {
+      const local = resolveShippingMethod('local_24h')
+      if ('error' in local) {
+        return NextResponse.json({ success: false, error: local.error }, { status: 400 })
+      }
+      method = local.clientMethod
+      internalMethod = local.internalMethod
+      rate = local.rate
+    }
+
     // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
     const exchangeRate = await getCNYToXOFRate()
     const calculatorItems = buildCalculatorItems(cart, loaded.ctx, userMarketplaceTier, exchangeRate)
+
+    // Forfait livraison locale PAR boutique (réglé par chaque vendeur).
+    const localDeliveryFlatFee = hasLocal ? getConfiguredShippingRates().local_24h.rate : 0
+    const localDeliveryShops = hasLocal
+      ? await loadLocalDeliveryShops(loaded.ctx, localDeliveryFlatFee)
+      : []
 
     // Calcul complet
     const calculation = await calculateCartTotal(
@@ -118,7 +153,9 @@ export async function POST(req: NextRequest) {
         label: rate.label
       },
       {
-        serviceFeeTiers: pricingDefaults.serviceFeeTiers
+        serviceFeeTiers: pricingDefaults.serviceFeeTiers,
+        localDeliveryFlatFee,
+        localDeliveryShops
       }
     )
 
@@ -186,7 +223,7 @@ export async function POST(req: NextRequest) {
 
     if (internalMethod === 'sea_freight') {
       const seaFreightEligibility = readSeaFreightEligibilitySettings()
-      const seaMetrics = buildSeaFreightMetrics(calculatorItems, subtotal)
+      const seaMetrics = buildSeaFreightMetrics(calculatorItems.filter(i => !i.localDelivery), subtotal)
       const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
 
       if (!seaEligibility.eligible) {
@@ -286,7 +323,9 @@ export async function POST(req: NextRequest) {
           volumetricWeight: shipping.volumetricWeight,
           billedWeight: shipping.billedWeight,
           billingMethod: shipping.billingMethod
-        } : undefined
+        } : undefined,
+        // Segments de livraison locale — un forfait par boutique
+        localShipments: shipping?.localShipments
       },
       grainsDiscount,
       promoDiscount: validatedPromoDiscount,

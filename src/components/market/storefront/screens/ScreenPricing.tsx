@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSourcingModal } from '../SourcingModalContext';
 import {
@@ -18,11 +18,13 @@ import {
 } from 'lucide-react';
 import { formatFcfa } from '../formatFcfa';
 import { calculateServiceFeeRate } from '@/lib/pricing/tiered-service-fees';
+import { QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing';
+import { DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants';
+import { Icon } from '../Icon';
 
 const FAQS = [
   { q: 'Comment est calculé le prix final ?', a: 'Prix sourcing + frais de service dégressifs (10% jusqu\'à 500 000 F, puis 8%, 6% et 5% au-delà de 5M F) + assurance 2,5% + transport selon le mode et le poids facturé. Aucun frais caché : tout est décomposé dans le panier et au checkout.' },
-  { q: 'Puis-je payer en plusieurs fois ?', a: 'Pour les commandes supérieures à 100 000 F, un paiement en 2 fois est possible via Wave. Contactez le support pour l\'activer.' },
-  { q: 'Comment fonctionne l\'assurance ?', a: 'L\'assurance couvre la perte, le vol ou la casse pendant le transport. En cas de problème, remboursement intégral sous 7 jours.' },
+  { q: 'Comment fonctionne l\'assurance ?', a: 'L\'assurance couvre la perte, le vol ou la casse pendant le transport. En cas de problème, ouvrez un litige depuis le suivi de votre commande : votre paiement reste séquestré (escrow) jusqu\'à résolution et vous êtes remboursé si la réclamation est validée.' },
   { q: 'L\'achat groupé est-il toujours moins cher ?', a: 'Oui : plus le groupe atteint son objectif, plus le prix unitaire baisse. Vous êtes remboursé automatiquement si l\'objectif n\'est pas atteint.' },
   { q: 'Quels moyens de paiement sont acceptés ?', a: 'Wave, Orange Money, Free Money, virement bancaire, et virement SWIFT pour les gros volumes. Tous les paiements passent par notre système Escrow.' },
 ]
@@ -37,32 +39,64 @@ export default function ScreenPricing() {
   const { open: openSourcing } = useSourcingModal();
   const [simPrice, setSimPrice] = useState(15000)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [avgGroupSave, setAvgGroupSave] = useState(0)
+
+  // Économie moyenne des achats groupés : calculée sur les groupes réellement
+  // en cours (même logique que l'accueil), pas de pourcentage inventé.
+  useEffect(() => {
+    fetch('/api/group-orders/featured')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const groups = (d?.featured || d?.groups || []) as { savingsPercent?: number }[]
+        const saves = groups.map(g => g.savingsPercent ?? 0).filter(v => v > 0)
+        if (saves.length) setAvgGroupSave(Math.round(saves.reduce((s, v) => s + v, 0) / saves.length))
+      })
+      .catch(() => {})
+  }, [])
 
   const factory = simPrice
   const serviceRate = calculateServiceFeeRate(factory)
   const service = Math.round(factory * (serviceRate / 100))
-  const insurance = Math.round(factory * 0.025)
-  const shipping = 2500
+  const insurance = Math.round(factory * (DEFAULT_INSURANCE_RATE / 100))
+  const shipping = 2500 // estimation plate — le coût réel est calculé au poids au checkout
   const total = factory + service + insurance + shipping
+
+  // La remise quantité du moteur s'applique au sous-total marchandise (prix +
+  // frais de service + assurance), jamais au transport.
+  const priceAtTier = (discountPercent: number) =>
+    Math.round((factory + service + insurance) * (1 - discountPercent / 100)) + shipping
+
+  const maxTier = QUANTITY_TIERS[QUANTITY_TIERS.length - 1]
 
   const bars = useMemo(() => [
     { label: 'Prix usine', value: factory, color: 'bg-blue-500', tone: 'blue' },
     { label: `Frais de service (${serviceRate}%)`, value: service, color: 'bg-emerald-500', tone: 'emerald' },
-    { label: 'Assurance (2,5%)', value: insurance, color: 'bg-amber-500', tone: 'amber' },
-    { label: 'Transport', value: shipping, color: 'bg-violet-500', tone: 'violet' },
-  ], [factory, service, insurance, shipping])
+    { label: `Assurance (${String(DEFAULT_INSURANCE_RATE).replace('.', ',')}%)`, value: insurance, color: 'bg-amber-500', tone: 'amber' },
+    { label: 'Transport (estimation)', value: shipping, color: 'bg-violet-500', tone: 'violet' },
+  ], [factory, serviceRate, service, insurance])
 
   const cards = [
-    { key: 'solo', title: 'Achat seul', desc: 'Vous commandez juste vos pièces.', price: total, save: 0, cta: 'Voir le catalogue', tone: 'slate' as const, icon: User, best: false },
-    { key: 'groupe', title: 'Achat groupé', desc: 'Vous rejoignez d\'autres acheteurs.', price: Math.round(total * 0.72), save: 28, cta: 'Voir les groupes', tone: 'violet' as const, icon: Users, best: true },
-    { key: 'palier', title: 'Prix par palier', desc: 'Vous commandez en volume.', price: Math.round(total * 0.80), save: 20, cta: 'Simuler mon lot', tone: 'amber' as const, icon: Boxes, best: false },
+    { key: 'solo', title: 'Achat seul', desc: 'Vous commandez juste vos pièces.', price: total, qty: 10, save: 0, cta: 'Voir le catalogue', tone: 'slate' as const, icon: User, best: false },
+    { key: 'groupe', title: 'Achat groupé', desc: 'Vous rejoignez d\'autres acheteurs — le prix baisse à mesure que le groupe avance.', price: avgGroupSave > 0 ? priceAtTier(avgGroupSave) : total, qty: 10, save: avgGroupSave, cta: 'Voir les groupes', tone: 'violet' as const, icon: Users, best: avgGroupSave > 0 },
+    { key: 'palier', title: 'Prix par palier', desc: `Remise quantité garantie dès ${QUANTITY_TIERS[0]?.minQuantity ?? 20} pièces.`, price: maxTier ? priceAtTier(maxTier.discountPercent) : total, qty: maxTier?.minQuantity ?? 20, save: maxTier?.discountPercent ?? 0, cta: 'Voir les produits en lot', tone: 'amber' as const, icon: Boxes, best: false },
   ]
 
+  // Paliers dérivés du moteur de prix (QUANTITY_TIERS) — jamais codés en dur.
   const paliers = [
-    { range: '1-5', label: 'Prix local', unit: total, tone: 'slate' as const, highlight: false },
-    { range: '6-19', label: '-13%', unit: Math.round(total * 0.87), tone: 'emerald' as const, highlight: false },
-    { range: '20-49', label: '-25%', unit: Math.round(total * 0.75), tone: 'emerald' as const, highlight: true },
-    { range: '50+', label: '-40%', unit: Math.round(total * 0.60), tone: 'emerald' as const, highlight: false },
+    {
+      range: QUANTITY_TIERS[0] ? `1-${QUANTITY_TIERS[0].minQuantity - 1}` : '1+',
+      label: 'Prix unitaire',
+      unit: total,
+      tone: 'slate' as const,
+      highlight: false,
+    },
+    ...QUANTITY_TIERS.map((t, i) => ({
+      range: t.maxQuantity ? `${t.minQuantity}-${t.maxQuantity}` : `${t.minQuantity}+`,
+      label: `-${t.discountPercent}%`,
+      unit: priceAtTier(t.discountPercent),
+      tone: 'emerald' as const,
+      highlight: i === 0,
+    })),
   ]
 
   return (
@@ -154,10 +188,10 @@ export default function ScreenPricing() {
               const Icon = c.icon
               const toneBorder = c.tone === 'violet' ? 'border-violet-500 ring-4 ring-violet-500/10' : c.tone === 'amber' ? 'border-amber-300' : 'border-slate-200'
               const iconBg = c.tone === 'violet' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : c.tone === 'amber' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-              const link = c.key === 'groupe' ? '/achats-groupes' : c.key === 'palier' ? '/tarification' : '/produits'
+              const link = c.key === 'groupe' ? '/achats-groupes' : c.key === 'palier' ? '/produits?moq=lot' : '/produits'
               return (
                 <div key={c.key} className={`relative rounded-2xl border-2 bg-white dark:bg-slate-900 p-5 ${toneBorder}`}>
-                  {c.best && <span className="absolute -top-2.5 left-4 rounded-full bg-violet-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 whitespace-nowrap">⭐ Recommandé</span>}
+                  {c.best && <span className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-full bg-violet-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 whitespace-nowrap"><Icon name="star" size={10}/>Recommandé</span>}
                   <div className="flex items-center gap-2 mb-3">
                     <span className={`grid h-10 w-10 place-items-center rounded-xl ${iconBg}`}><Icon size={18} /></span>
                     <div>
@@ -169,7 +203,7 @@ export default function ScreenPricing() {
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix/pc</p>
                     <p className="mt-1 text-[22px] font-extrabold text-slate-900 dark:text-white tabular-nums whitespace-nowrap leading-none">{formatFcfa(c.price)}</p>
-                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">Total 10 pcs : {formatFcfa(c.price * 10)}</p>
+                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">Total {c.qty} pcs : {formatFcfa(c.price * c.qty)}</p>
                     <div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                       <div className={`h-full rounded-full ${c.tone === 'violet' ? 'bg-violet-500' : c.tone === 'amber' ? 'bg-amber-500' : 'bg-slate-400'}`} style={{ width: `${100 - c.save}%` }} />
                     </div>

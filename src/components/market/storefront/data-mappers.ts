@@ -217,6 +217,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
       }
     }
   }
+  // Couleurs déclarées par le vendeur — info produit (le choix contraignant
+  // passe par un groupe de variantes « Couleur » avec prix/stock par option).
+  if (Array.isArray(p?.colorOptions) && p.colorOptions.length > 0) {
+    specs.push(['Couleurs', p.colorOptions.join(', ')]);
+  }
 
   const modes: ShippingMode[] = [];
   const shippingOptions = pricing.shippingOptions || p?.shippingOptions;

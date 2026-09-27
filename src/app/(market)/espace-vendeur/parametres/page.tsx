@@ -27,6 +27,10 @@ interface ShopForm {
   city: string
   address: string
   responseTimeHours: string
+  deliveryFee: string
+  deliveryFreeAbove: string
+  deliveryZones: string
+  deliveryNote: string
   whatsapp: string
   instagram: string
   facebook: string
@@ -78,6 +82,10 @@ export default function VendorShopSettingsPage() {
           city: s.city || '',
           address: s.address || '',
           responseTimeHours: s.responseTimeHours != null ? String(s.responseTimeHours) : '',
+          deliveryFee: s.localDelivery?.feeFcfa != null ? String(s.localDelivery.feeFcfa) : '',
+          deliveryFreeAbove: s.localDelivery?.freeAboveFcfa != null ? String(s.localDelivery.freeAboveFcfa) : '',
+          deliveryZones: (s.localDelivery?.zones || []).join(', '),
+          deliveryNote: s.localDelivery?.note || '',
           whatsapp: s.socialLinks?.whatsapp || '',
           instagram: s.socialLinks?.instagram || '',
           facebook: s.socialLinks?.facebook || '',
@@ -129,6 +137,12 @@ export default function VendorShopSettingsPage() {
           city: form.city || undefined,
           address: form.address || undefined,
           responseTimeHours: form.responseTimeHours === '' ? null : parseFloat(form.responseTimeHours),
+          localDelivery: {
+            feeFcfa: form.deliveryFee === '' ? null : Math.max(0, parseInt(form.deliveryFee, 10) || 0),
+            freeAboveFcfa: form.deliveryFreeAbove === '' ? null : Math.max(0, parseInt(form.deliveryFreeAbove, 10) || 0),
+            zones: form.deliveryZones.split(',').map(z => z.trim()).filter(Boolean).slice(0, 20),
+            note: form.deliveryNote.trim().slice(0, 200) || undefined,
+          },
           socialLinks: {
             whatsapp: form.whatsapp || undefined,
             instagram: form.instagram || undefined,
@@ -292,6 +306,29 @@ export default function VendorShopSettingsPage() {
             </Field>
             <Field label="Téléphone">
               <input type="tel" value={form.ownerPhone} onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })} className={inputCls} placeholder="+221 ..." />
+            </Field>
+          </div>
+        </section>
+
+        {/* Livraison locale */}
+        <section className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 md:p-6">
+          <h2 className="text-[15px] font-extrabold text-slate-900 dark:text-white mb-1">Livraison locale</h2>
+          <p className="text-[12px] text-slate-500 dark:text-slate-400 mb-4">
+            Vos produits sont livrés par coursier à Dakar sous 24h maximum. Ces réglages s'appliquent
+            à chaque commande contenant vos produits — un forfait est facturé par boutique.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Frais de livraison (FCFA)" hint="Laisser vide pour appliquer le tarif plateforme. 0 = livraison offerte.">
+              <input type="number" min={0} step={100} value={form.deliveryFee} onChange={(e) => setForm({ ...form, deliveryFee: e.target.value })} className={inputCls} placeholder="Tarif plateforme" />
+            </Field>
+            <Field label="Livraison offerte dès (FCFA)" hint="Optionnel — au-delà de ce montant d'achat dans votre boutique, la livraison est gratuite.">
+              <input type="number" min={0} step={1000} value={form.deliveryFreeAbove} onChange={(e) => setForm({ ...form, deliveryFreeAbove: e.target.value })} className={inputCls} placeholder="Ex : 50 000" />
+            </Field>
+            <Field label="Zones desservies" hint="Séparées par des virgules — ex : Dakar, Pikine, Guédiawaye.">
+              <input type="text" value={form.deliveryZones} onChange={(e) => setForm({ ...form, deliveryZones: e.target.value })} className={inputCls} placeholder="Dakar, banlieue…" />
+            </Field>
+            <Field label="Note livraison" hint="Max 200 caractères — ex : « retrait boutique possible ».">
+              <input type="text" maxLength={200} value={form.deliveryNote} onChange={(e) => setForm({ ...form, deliveryNote: e.target.value })} className={inputCls} placeholder="Optionnel" />
             </Field>
           </div>
         </section>

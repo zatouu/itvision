@@ -19,6 +19,7 @@
 
 import mongoose from 'mongoose'
 import Product from '@/lib/models/Product'
+import Shop from '@/lib/models/Shop'
 import PromoCode from '@/lib/models/PromoCode'
 import { connectDB } from '@/lib/db'
 import { calculateCartTotal, type CartItem, type CompleteCartCalculation } from './cart-calculator'
@@ -38,6 +39,7 @@ export const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   express_3j: 'air_express',
   air_15j: 'air_15',
   maritime_60j: 'sea_freight',
+  local_24h: 'local_24h',
 }
 
 export function resolveShippingMethod(method?: string): {
@@ -48,7 +50,7 @@ export function resolveShippingMethod(method?: string): {
   const clientMethod = method || 'air_15j'
   const internalMethod =
     SHIPPING_METHOD_MAP[clientMethod] ||
-    (['air_express', 'air_15', 'sea_freight'].includes(clientMethod) ? (clientMethod as ShippingMethodId) : null)
+    (['air_express', 'air_15', 'sea_freight', 'local_24h'].includes(clientMethod) ? (clientMethod as ShippingMethodId) : null)
   if (!internalMethod) return { error: `Méthode de livraison inconnue: ${clientMethod}` }
   const rate = getConfiguredShippingRates()[internalMethod]
   if (!rate) return { error: 'Méthode de livraison invalide' }
@@ -96,13 +98,19 @@ export function resolveItemVariants(
 ): { variants: ResolvedVariant[]; missing: string[] } {
   const requested = Array.isArray(variantIds) ? variantIds.filter(Boolean) : []
   const groups = Array.isArray(db?.variantGroups) ? db.variantGroups : []
-  const all: { v: any; groupName: any }[] = groups.flatMap((g: any) =>
-    (Array.isArray(g?.variants) ? g.variants : []).map((v: any) => ({ v, groupName: g?.name }))
+  // Même fallback que normalizeVariantGroups (var_<g>_<v>) : les produits
+  // boutique historiques n'ont pas d'id persisté en base.
+  const all: { v: any; groupName: any; effectiveId: string | undefined }[] = groups.flatMap((g: any, gIdx: number) =>
+    (Array.isArray(g?.variants) ? g.variants : []).map((v: any, vIdx: number) => ({
+      v,
+      groupName: g?.name,
+      effectiveId: v?.id || `var_${gIdx}_${vIdx}`,
+    }))
   )
   const variants: ResolvedVariant[] = []
   const missing: string[] = []
   for (const id of requested) {
-    const hit = all.find(({ v }) => v?.id === id)
+    const hit = all.find(({ effectiveId }) => effectiveId === id)
     if (!hit) {
       missing.push(id)
       continue
@@ -229,7 +237,7 @@ const PRODUCT_SELECT =
   '_id name category price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate ' +
   'weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg ' +
   'stockStatus stockQuantity baseCost marginRate requiresQuote ' +
-  'variantGroups priceTiers minOrderQty'
+  'variantGroups priceTiers minOrderQty shopId'
 
 /**
  * Charge les produits du panier depuis MongoDB et valide leur disponibilité.
@@ -339,6 +347,57 @@ export function buildCalculatorItems(
       heightCm: db?.heightCm,
       volumeM3: db?.volumeM3,
       marketplaceTier,
+      // Produit boutique = stock local à Dakar → livraison coursier ≤24h,
+      // exclu du fret import (aérien/maritime).
+      localDelivery: !!db?.shopId,
+      localShopId: db?.shopId ? String(db.shopId) : undefined,
+    }
+  })
+}
+
+/** Indique si un produit du contexte est un produit boutique (stock local). */
+export function isLocalShopProduct(db: any): boolean {
+  return !!db?.shopId
+}
+
+export interface LocalDeliveryShopConfig {
+  shopId: string
+  shopName?: string
+  feeFcfa?: number
+  freeAboveFcfa?: number
+}
+
+/**
+ * Config livraison locale des boutiques présentes dans le contexte panier.
+ * Un forfait par boutique ; à défaut de réglage vendeur, le tarif plateforme
+ * (`local_24h` configuré) s'applique.
+ */
+export async function loadLocalDeliveryShops(
+  ctx: CartProductsContext,
+  defaultFeeFcfa: number
+): Promise<LocalDeliveryShopConfig[]> {
+  const shopIds = [...new Set(
+    [...ctx.dbProductMap.values()]
+      .map((p: any) => p?.shopId)
+      .filter(Boolean)
+      .map(String)
+  )]
+  if (shopIds.length === 0) return []
+
+  const validIds = shopIds.filter(id => mongoose.Types.ObjectId.isValid(id))
+  const shops = validIds.length
+    ? await Shop.find({ _id: { $in: validIds } }).select('name localDelivery').lean() as any[]
+    : []
+  const shopMap = new Map(shops.map((s: any) => [String(s._id), s]))
+
+  return shopIds.map(shopId => {
+    const shop = shopMap.get(shopId)
+    const cfg = shop?.localDelivery
+    return {
+      shopId,
+      shopName: shop?.name,
+      feeFcfa: typeof cfg?.feeFcfa === 'number' ? cfg.feeFcfa : defaultFeeFcfa,
+      freeAboveFcfa: typeof cfg?.freeAboveFcfa === 'number' && cfg.freeAboveFcfa > 0 ? cfg.freeAboveFcfa : undefined,
     }
   })
 }
@@ -425,7 +484,13 @@ export interface CartQuote {
     billedWeight: number
     billingMethod: 'actual' | 'volumetric'
     minimumCharge?: number
+    /** Part « livraison locale ≤24h » incluse dans cost (panier mixte) */
+    localFee?: number
+    /** Détail par boutique — un forfait par boutique, tarif réglé par le vendeur */
+    localShipments?: { shopId: string; shopName?: string; feeFcfa: number; subtotal: number }[]
   } | null
+  /** true si tout le panier est en stock local (boutiques) → livraison ≤24h */
+  localDelivery?: boolean
   /** Coût réel par méthode (pour afficher les 3 cartes de livraison) */
   shippingOptions?: {
     methodId: ShippingMethodId
@@ -461,20 +526,42 @@ export async function quoteCart(params: {
 }): Promise<QuoteResult> {
   const { cart, shippingMethod, marketplaceTier = 'standard', promoCode, checkStock = false, includeAllShipping = false } = params
 
-  const method = resolveShippingMethod(shippingMethod)
-  if ('error' in method) return { ok: false, status: 400, error: method.error }
+  const requested = resolveShippingMethod(shippingMethod)
+  if ('error' in requested) return { ok: false, status: 400, error: requested.error }
 
   const loaded = await loadCartProducts(cart, { checkStock })
   if (!loaded.ok) return { ok: false, status: 400, error: loaded.error }
 
+  // Produits boutique = stock local à Dakar : livraison coursier ≤24h.
+  // Panier 100% local → la méthode est forcée à `local_24h` (jamais de fret).
+  // Panier mixte → le fret ne facture que les articles importés et le forfait
+  // local couvre la jambe coursier des produits boutique.
+  const isLocalItem = (item: QuoteCartItemInput) => {
+    const pid = loaded.ctx.itemProductIdMap.get(String(item.id || ''))
+    return !!(pid && isLocalShopProduct(loaded.ctx.dbProductMap.get(pid)))
+  }
+  const allLocal = cart.length > 0 && cart.every(isLocalItem)
+  const hasLocal = cart.some(isLocalItem)
+
+  if (!allLocal && requested.internalMethod === 'local_24h') {
+    return { ok: false, status: 400, error: 'La livraison locale 24h est réservée aux produits en stock à Dakar.' }
+  }
+  const method = allLocal ? resolveShippingMethod('local_24h') : requested
+  if ('error' in method) return { ok: false, status: 400, error: method.error }
+
   const exchangeRate = await getCNYToXOFRate()
   const calculatorItems = buildCalculatorItems(cart, loaded.ctx, marketplaceTier, exchangeRate)
   const pricingDefaults = readPricingDefaults()
+  // Un forfait PAR boutique (livraison séparée), réglable par chaque vendeur.
+  const localDeliveryFlatFee = hasLocal ? getConfiguredShippingRates().local_24h.rate : 0
+  const localDeliveryShops = hasLocal
+    ? await loadLocalDeliveryShops(loaded.ctx, localDeliveryFlatFee)
+    : []
   const calculation = await calculateCartTotal(
     calculatorItems,
     method.internalMethod,
     { rate: method.rate.rate, minimumCharge: method.rate.minimumCharge, label: method.rate.label },
-    { serviceFeeTiers: pricingDefaults.serviceFeeTiers }
+    { serviceFeeTiers: pricingDefaults.serviceFeeTiers, localDeliveryFlatFee, localDeliveryShops }
   )
 
   const { fees, quantityDiscount, subtotal, shipping } = calculation
@@ -484,7 +571,7 @@ export async function quoteCart(params: {
   const seaEligibility =
     method.internalMethod === 'sea_freight' || includeAllShipping
       ? evaluateSeaFreightEligibility(
-          buildSeaFreightMetrics(calculatorItems, subtotal),
+          buildSeaFreightMetrics(calculatorItems.filter(i => !i.localDelivery), subtotal),
           readSeaFreightEligibilitySettings()
         )
       : null
@@ -513,12 +600,21 @@ export async function quoteCart(params: {
 
   const total = Math.max(0, calculation.total - (promo?.discount || 0))
 
-  // Coût réel des autres méthodes de transport (mêmes items, même poids)
+  // Coût réel des autres méthodes de transport (mêmes items, même poids).
+  // Panier 100% local : seule la livraison coursier ≤24h est proposée.
   let shippingOptions: CartQuote['shippingOptions']
   if (includeAllShipping) {
     const rates = getConfiguredShippingRates()
     shippingOptions = []
-    for (const methodId of ['air_express', 'air_15', 'sea_freight'] as ShippingMethodId[]) {
+    if (allLocal) {
+      shippingOptions.push({
+        methodId: 'local_24h',
+        label: rates.local_24h.label,
+        cost: shipping.cost,
+        billedWeight: 0,
+      })
+    }
+    for (const methodId of (allLocal ? [] : ['air_express', 'air_15', 'sea_freight'] as ShippingMethodId[])) {
       const seaMeta = methodId === 'sea_freight'
         ? {
             eligible: Boolean(seaEligibility?.eligible),
@@ -535,7 +631,7 @@ export async function quoteCart(params: {
         calculatorItems,
         methodId,
         { rate: r.rate, minimumCharge: r.minimumCharge, label: r.label },
-        { serviceFeeTiers: pricingDefaults.serviceFeeTiers }
+        { serviceFeeTiers: pricingDefaults.serviceFeeTiers, localDeliveryFlatFee, localDeliveryShops }
       )
       if (c.shipping) {
         shippingOptions.push({ methodId, label: r.label, cost: c.shipping.cost, billedWeight: c.shipping.billedWeight, ...seaMeta })
@@ -594,7 +690,10 @@ export async function quoteCart(params: {
       billedWeight: shipping.billedWeight,
       billingMethod: shipping.billingMethod,
       minimumCharge: shipping.minimumCharge,
+      localFee: shipping.localFee,
+      localShipments: shipping.localShipments,
     },
+    localDelivery: allLocal,
     shippingOptions,
     discounts: { promo, promoError },
     total,

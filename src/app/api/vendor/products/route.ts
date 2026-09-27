@@ -10,6 +10,7 @@ import { runDeterministicChecks } from '@/lib/agents/moderation/checks'
 import AgentDecision from '@/lib/models/AgentDecision'
 import ShopFollower from '@/lib/models/ShopFollower'
 import Product from '@/lib/models/Product'
+import { randomUUID } from 'crypto'
 import { z } from 'zod'
 
 export async function GET(req: NextRequest) {
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
 }
 
 const variantSchema = z.object({
+  id: z.string().trim().max(80).optional(),
   name: z.string().trim().min(1).max(80),
   priceFCFA: z.number().int().min(0).optional(),
   stock: z.number().int().min(0).optional(),
@@ -77,8 +79,10 @@ const createSchema = z.object({
   condition: z.enum(['new', 'used', 'refurbished']).default('new'),
   tags: z.array(z.string().trim().max(50)).max(10).optional(),
   features: z.array(z.string().trim().max(200)).max(10).optional(),
-  deliveryDays: z.number().int().min(0).max(90).optional(),
+  // Stock local : la livraison boutique est le jour même ou le lendemain (≤24h)
+  deliveryDays: z.number().int().min(0).max(1).optional(),
   weightKg: z.number().min(0).max(10000).optional(),
+  colorOptions: z.array(z.string().trim().max(50)).max(20).optional(),
   variantGroups: z
     .array(z.object({ name: z.string().trim().min(1).max(50), variants: z.array(variantSchema).min(1).max(20) }))
     .max(3)
@@ -116,13 +120,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }
 
-    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, variantGroups, priceTiers, minOrderQty } = parsed.data
+    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, colorOptions, variantGroups, priceTiers, minOrderQty } = parsed.data
 
     // Si des variantes définissent leur propre stock, le stock total = somme des stocks variantes
     const variantStockSum = (variantGroups || [])
       .flatMap(g => g.variants)
       .reduce((acc, v) => acc + (v.stock ?? 0), 0)
     const effectiveStock = variantStockSum > 0 ? variantStockSum : stockQuantity
+
+    // Chaque variante reçoit un id stable — le picker storefront et le devis
+    // résolvent variantIds contre cet id (même règle que l'import admin).
+    const normalizedVariantGroups = (variantGroups || []).map(g => ({
+      name: g.name,
+      variants: g.variants.map(v => ({ ...v, id: v.id || randomUUID() })),
+    }))
 
     const product = await Product.create({
       name,
@@ -135,9 +146,10 @@ export async function POST(req: NextRequest) {
       condition,
       tags: tags || [],
       features: features || [],
-      deliveryDays: deliveryDays ?? 0,
+      deliveryDays: deliveryDays ?? 1,
       weightKg,
-      variantGroups: variantGroups || [],
+      colorOptions: colorOptions || [],
+      variantGroups: normalizedVariantGroups,
       priceTiers: priceTiers || [],
       minOrderQty: minOrderQty ?? 1,
       stockQuantity: effectiveStock,

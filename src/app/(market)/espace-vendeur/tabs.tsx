@@ -379,7 +379,7 @@ function Section({ title, hint, open, onToggle, children }: {
 }
 
 export function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '', weightKg: '', tags: '', minOrderQty: '' })
+  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '1', weightKg: '', tags: '', colorOptions: '', minOrderQty: '' })
   const [photos, setPhotos] = useState<string[]>([])
   const [features, setFeatures] = useState<string[]>([''])
   const [variantGroups, setVariantGroups] = useState<VariantGroupRow[]>([])
@@ -470,8 +470,9 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
           image: photos[0],
           gallery: photos,
           condition: form.condition,
-          deliveryDays: form.deliveryDays ? parseInt(form.deliveryDays, 10) : undefined,
+          deliveryDays: parseInt(form.deliveryDays, 10) || 1,
           weightKg: form.weightKg ? parseFloat(form.weightKg) : undefined,
+          colorOptions: form.colorOptions.split(',').map(c => c.trim()).filter(Boolean).slice(0, 20),
           tags: form.tags.split(',').map(t => t.trim()).filter(Boolean).slice(0, 10),
           features: features.map(f => f.trim()).filter(Boolean).slice(0, 10),
           variantGroups: groups.length ? groups : undefined,
@@ -709,10 +710,19 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Tags</label>
               <input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className={inputCls} placeholder="sneakers, running, homme (séparés par des virgules)" />
             </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Couleurs disponibles</label>
+              <input value={form.colorOptions} onChange={e => setForm({ ...form, colorOptions: e.target.value })} className={inputCls} placeholder="noir, blanc, rouge (séparées par des virgules)" />
+              <p className="mt-1 text-[10px] text-slate-400">Pour des prix/stocks par couleur, utilisez plutôt un groupe de variantes « Couleur ».</p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Délai livraison (jours)</label>
-                <input type="number" min={0} max={90} value={form.deliveryDays} onChange={e => setForm({ ...form, deliveryDays: e.target.value })} className={inputCls} placeholder="Ex : 2" />
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Livraison locale</label>
+                <select value={form.deliveryDays} onChange={e => setForm({ ...form, deliveryDays: e.target.value })} className={inputCls}>
+                  <option value="0">Le jour même</option>
+                  <option value="1">Sous 24h</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-400">Stock à Dakar — livraison par coursier sous 24h maximum.</p>
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Poids (kg)</label>

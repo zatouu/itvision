@@ -61,6 +61,13 @@ export interface IOrderShipping {
     billedWeight: number
     billingMethod: 'actual' | 'volumetric'
   }
+  // Segments de livraison locale — un forfait par boutique (produits en stock à Dakar)
+  localShipments?: {
+    shopId: string
+    shopName?: string
+    feeFcfa: number
+    subtotal: number
+  }[]
 }
 
 export interface IOrderFees {
@@ -208,6 +215,15 @@ const OrderShippingSchema = new Schema<IOrderShipping>({
       billedWeight: { type: Number, required: true },
       billingMethod: { type: String, enum: ['actual', 'volumetric'], required: true }
     }, { _id: false }),
+    required: false
+  },
+  localShipments: {
+    type: [new Schema({
+      shopId: { type: String, required: true },
+      shopName: { type: String },
+      feeFcfa: { type: Number, required: true, min: 0 },
+      subtotal: { type: Number, required: true, min: 0 }
+    }, { _id: false })],
     required: false
   }
 }, { _id: false })

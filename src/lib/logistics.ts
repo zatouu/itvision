@@ -1,14 +1,14 @@
 import type { IProduct } from './models/Product'
 import { calculateBilledWeight } from './pricing/volumetric-weight'
 
-export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'
+export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight' | 'local_24h'
 
 export interface ShippingRate {
   id: ShippingMethodId
   label: string
   description: string
   durationDays: number
-  billing: 'per_kg' | 'per_cubic_meter'
+  billing: 'per_kg' | 'per_cubic_meter' | 'flat'
   rate: number
   minimumCharge?: number
 }
@@ -67,6 +67,10 @@ export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minim
   sea_freight: {
     rate: 130000, // 130 000 CFA/m³ (coût réel interne)
     minimumCharge: 130000
+  },
+  local_24h: {
+    rate: 1000, // ~1 000 CFA forfait coursier local (coût réel interne)
+    minimumCharge: 1000
   }
 }
 
@@ -98,6 +102,15 @@ export const BASE_SHIPPING_RATES: Record<ShippingMethodId, ShippingRate> = {
     billing: 'per_cubic_meter',
     rate: 180000, // 180 000 CFA/m³
     minimumCharge: 0 // Règle de 3 sur le volume
+  },
+  local_24h: {
+    id: 'local_24h',
+    label: 'Livraison locale 24h',
+    description: 'Produit en stock à Dakar — livré par coursier sous 24h',
+    durationDays: 1,
+    billing: 'flat',
+    rate: 1500, // 1 500 CFA forfait
+    minimumCharge: 0
   }
 }
 
@@ -195,6 +208,10 @@ export const computeProductPricing = (
     ? []
     : Object.values(shippingRates)
     .map((method): ShippingOptionPricing | null => {
+      // Le forfait local ne concerne que les produits en stock à Dakar —
+      // jamais une option pour un produit à importer.
+      if (method.billing === 'flat') return null
+
       let billedAmount: number | null = null
       let weightDetails: ShippingOptionPricing['weightDetails'] | undefined
 

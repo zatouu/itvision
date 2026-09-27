@@ -137,7 +137,7 @@ export default function ScreenHome() {
         </div>
         <ProgressBar value={g.currentQty} max={g.targetQty} tone="mixed" className="!h-1 mt-2"/>
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 md:text-slate-400 tabular-nums whitespace-nowrap">{pct}% · <span className="text-red-600 dark:text-red-400 md:text-red-400 font-bold">⏱ {g.deadline.split(" ").slice(0,2).join(" ")}</span></span>
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 md:text-slate-400 tabular-nums whitespace-nowrap">{pct}% · <span className="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 md:text-red-400 font-bold"><Icon name="clock" size={10}/>{g.deadline.split(" ").slice(0,2).join(" ")}</span></span>
           <span className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold text-white", almost ? "bg-red-500" : "bg-violet-600")}>
             {almost ? "Presque plein" : "Rejoindre"}
           </span>
@@ -172,7 +172,7 @@ export default function ScreenHome() {
                   <span className="inline-flex items-center gap-1 md:gap-1.5 rounded-full bg-white/15 border border-white/25 px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-[11px] font-bold whitespace-nowrap">Devis sous <b className="tabular-nums">24h</b></span>
                 </div>
                 <h1 className="text-[28px] md:text-[52px] font-extrabold leading-[1] md:leading-[0.98] tracking-tight">Importez de Chine,<br/>à <span className="text-emerald-300">prix usine</span>.</h1>
-                <p className="mt-2 md:mt-3 max-w-md text-[12px] md:text-[15px] leading-snug text-white/85">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 4-45 jours selon votre choix.</p>
+                <p className="mt-2 md:mt-3 max-w-md text-[12px] md:text-[15px] leading-snug text-white/85">Sourcing dédié, achats groupés et lots avantageux — livrés au Sénégal en 3-50 jours selon votre choix.</p>
                 <div className="mt-3 md:mt-4 flex flex-wrap gap-1.5 md:gap-2">
                   <span className="inline-flex items-center gap-1 md:gap-1.5 rounded-full border border-white/25 bg-white/10 px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-[12px] font-semibold whitespace-nowrap"><Icon name="camera" size={11}/>Trouvez-moi 24h</span>
                   <span className="inline-flex items-center gap-1 md:gap-1.5 rounded-full border border-white/25 bg-white/10 px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-[12px] font-semibold whitespace-nowrap"><Icon name="users" size={11}/>Achats groupés</span>

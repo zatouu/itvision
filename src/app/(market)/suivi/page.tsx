@@ -1,111 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import {
-  ShieldCheckIcon,
-  MagnifyingGlassIcon,
-  TruckIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowRightIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { Icon, type IconName } from '@/components/market/storefront/Icon'
+import { Button } from '@/components/market/storefront/Button'
+import { Card } from '@/components/market/storefront/Card'
+import { Badge } from '@/components/market/storefront/Badge'
 
-// Background animé subtil
-function TrackingBackground() {
-  return (
-    <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Gradient de base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-emerald-950/20 to-slate-950" />
-      
-      {/* Grille subtile */}
-      <div 
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(16,185,129,0.5) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(16,185,129,0.5) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
-        }}
-      />
-      
-      {/* Orbes de gradient */}
-      <motion.div 
-        className="absolute top-0 right-1/4 w-[600px] h-[600px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
-        }}
-        animate={{
-          scale: [1, 1.1, 1],
-          opacity: [0.3, 0.5, 0.3],
-        }}
-        transition={{ duration: 8, repeat: Infinity }}
-      />
-      
-      <motion.div 
-        className="absolute bottom-0 left-1/3 w-[500px] h-[500px] rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)',
-        }}
-        animate={{
-          scale: [1, 1.15, 1],
-          opacity: [0.3, 0.4, 0.3],
-        }}
-        transition={{ duration: 10, repeat: Infinity, delay: 2 }}
-      />
-    </div>
-  )
-}
-
-// Card avec effet glass
-function GlassCard({ 
-  children, 
-  className = '' 
-}: { 
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={`
-      relative overflow-hidden rounded-2xl border border-white/10
-      bg-gradient-to-br from-white/[0.08] to-white/[0.02]
-      backdrop-blur-xl shadow-2xl shadow-black/20
-      ${className}
-    `}>
-      {/* Effet de brillance */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
-      <div className="relative z-10">
-        {children}
-      </div>
-    </div>
-  )
-}
-
-// Étapes du processus
-const trackingSteps = [
+// Étapes de la garantie escrow (réelles : voir src/lib/escrow-service.ts)
+const trackingSteps: { icon: IconName; title: string; description: string }[] = [
   {
-    icon: ShieldCheckIcon,
+    icon: 'shield',
     title: 'Paiement sécurisé',
-    description: 'Votre argent est protégé jusqu\'à réception'
+    description: "Votre argent est protégé jusqu'à réception",
   },
   {
-    icon: TruckIcon,
+    icon: 'truck',
     title: 'Commande & Expédition',
-    description: 'Nous commandons et suivons votre colis'
+    description: 'Nous commandons et suivons votre colis',
   },
   {
-    icon: ClockIcon,
+    icon: 'clock',
     title: 'Livraison',
-    description: 'Livré chez vous à Dakar'
+    description: 'Livré chez vous à Dakar',
   },
   {
-    icon: CheckCircleIcon,
+    icon: 'checkCircle',
     title: 'Validation',
-    description: 'Vérifiez votre commande sous 48h'
-  }
+    description: 'Vérifiez votre commande sous 48h',
+  },
 ]
 
 export default function SuiviPage() {
@@ -116,7 +40,7 @@ export default function SuiviPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!reference.trim()) {
       setError('Veuillez entrer une référence')
       return
@@ -142,171 +66,110 @@ export default function SuiviPage() {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4">
-      <TrackingBackground />
-
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-full bg-slate-50 px-4 py-8 dark:bg-slate-950 md:py-12">
+      <div className="mx-auto max-w-3xl">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium mb-6">
-            <SparklesIcon className="w-4 h-4" />
-            Système de garantie sécurisé
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+        <div className="mb-8 text-center">
+          <Badge tone="violet" className="mb-4">
+            <Icon name="shield" size={11} /> Garantie escrow incluse
+          </Badge>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white md:text-3xl">
             Suivez votre commande
           </h1>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto">
+          <p className="mx-auto mt-2 max-w-xl text-[13px] text-slate-500 dark:text-slate-400 md:text-sm">
             Entrez votre numéro de commande (CMD-…) pour voir son état d&apos;avancement
           </p>
-        </motion.div>
+        </div>
 
         {/* Formulaire de recherche */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <GlassCard className="p-8 mb-12">
-            <form onSubmit={handleSearch} className="space-y-6">
-              <div>
-                <label className="block text-white/80 font-medium mb-3">
-                  Référence de commande
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={reference}
-                    onChange={(e) => {
-                      setReference(e.target.value.toUpperCase())
-                      setError(null)
-                    }}
-                    placeholder="Ex: CMD-1700000000-ABC123"
-                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl text-white text-lg placeholder:text-white/30 focus:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 transition-all"
-                  />
-                  <MagnifyingGlassIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-white/30" />
-                </div>
+        <Card className="p-5 md:p-6">
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div>
+              <label htmlFor="tracking-ref" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Référence de commande
+              </label>
+              <div className="relative">
+                <input
+                  id="tracking-ref"
+                  type="text"
+                  value={reference}
+                  onChange={(e) => {
+                    setReference(e.target.value.toUpperCase())
+                    setError(null)
+                  }}
+                  placeholder="Ex : CMD-1700000000-ABC123"
+                  autoComplete="off"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-11 font-mono text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+                />
+                <Icon name="search" size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
+            </div>
 
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300"
-                >
-                  <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
-                  {error}
-                </motion.div>
+            {error && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                <Icon name="info" size={16} className="flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" variant="primary" size="lg" disabled={loading} className="w-full">
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Recherche…
+                </>
+              ) : (
+                <>
+                  <Icon name="search" size={16} /> Suivre ma commande
+                </>
               )}
-
-              <motion.button
-                type="submit"
-                disabled={loading}
-                className={`
-                  w-full py-4 rounded-xl font-semibold text-white
-                  flex items-center justify-center gap-3
-                  transition-all
-                  ${loading
-                    ? 'bg-white/10 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg hover:shadow-emerald-500/25'
-                  }
-                `}
-                whileHover={!loading ? { scale: 1.02 } : {}}
-                whileTap={!loading ? { scale: 0.98 } : {}}
-              >
-                {loading ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                    />
-                    Recherche...
-                  </>
-                ) : (
-                  <>
-                    <MagnifyingGlassIcon className="w-5 h-5" />
-                    Suivre ma commande
-                  </>
-                )}
-              </motion.button>
-            </form>
-          </GlassCard>
-        </motion.div>
+            </Button>
+          </form>
+        </Card>
 
         {/* Comment ça marche */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="text-2xl font-bold text-white text-center mb-8">
-            Comment fonctionne notre garantie ?
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trackingSteps.map((step, index) => (
-              <motion.div
-                key={step.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-              >
-                <GlassCard className="p-6 h-full">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
-                      <step.icon className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div className="text-white/40 text-sm font-medium mb-2">
-                      Étape {index + 1}
-                    </div>
-                    <h3 className="text-white font-semibold mb-2">{step.title}</h3>
-                    <p className="text-white/50 text-sm">{step.description}</p>
-                  </div>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+        <h2 className="mt-10 mb-4 text-center text-[15px] font-extrabold text-slate-900 dark:text-white md:text-base">
+          Comment fonctionne notre garantie ?
+        </h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {trackingSteps.map((step, index) => (
+            <Card key={step.title} className="h-full p-4">
+              <div className="flex flex-col items-center text-center">
+                <span className="mb-3 grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                  <Icon name={step.icon} size={20} />
+                </span>
+                <span className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Étape {index + 1}
+                </span>
+                <h3 className="text-[13px] font-bold text-slate-900 dark:text-white">{step.title}</h3>
+                <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">{step.description}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
 
         {/* Lien vers achats groupés */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-12"
-        >
-          <Link href="/achats-groupes">
-            <GlassCard className="p-6 hover:border-emerald-400/30 transition-all cursor-pointer group">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center">
-                    <ShieldCheckIcon className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">Découvrez nos achats groupés</h3>
-                    <p className="text-white/50 text-sm">Économisez jusqu&apos;à 30% en achetant ensemble</p>
-                  </div>
+        <Link href="/achats-groupes" className="mt-8 block">
+          <Card className="group p-4 transition-colors hover:border-emerald-300 dark:hover:border-emerald-800">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400">
+                  <Icon name="users" size={20} />
+                </span>
+                <div>
+                  <h3 className="text-[13px] font-bold text-slate-900 dark:text-white">Découvrez nos achats groupés</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Achetez ensemble et partagez les frais de transport</p>
                 </div>
-                <ArrowRightIcon className="w-6 h-6 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
-            </GlassCard>
-          </Link>
-        </motion.div>
+              <Icon name="arrowRight" size={18} className="flex-shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600 dark:group-hover:text-slate-300" />
+            </div>
+          </Card>
+        </Link>
 
         {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="text-center text-white/40 text-sm mt-12"
-        >
-          💬 Besoin d&apos;aide ? Contactez-nous à support@itvisionplus.sn
-        </motion.p>
+        <p className="mt-8 text-center text-[12px] text-slate-400 dark:text-slate-500">
+          Besoin d&apos;aide ? Contactez-nous à support@itvisionplus.sn
+        </p>
       </div>
     </div>
   )

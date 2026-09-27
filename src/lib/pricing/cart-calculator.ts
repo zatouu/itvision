@@ -30,6 +30,10 @@ export interface CartItem {
   insuranceRate?: number
   // Tier marketplace de l'acheteur (passé depuis le JWT)
   marketplaceTier?: MarketplaceTier
+  /** Produit boutique en stock local (Dakar) — livré par coursier ≤24h, exclu du fret import */
+  localDelivery?: boolean
+  /** Boutique d'origine d'un produit local — sert à facturer un forfait par boutique */
+  localShopId?: string
 }
 
 export interface ShippingCalculation {
@@ -42,6 +46,10 @@ export interface ShippingCalculation {
   ratePerKg: number
   cost: number
   minimumCharge?: number
+  /** Forfait coursier local inclus dans `cost` (panier mixte : produits boutique + import) */
+  localFee?: number
+  /** Détail par boutique — un forfait par boutique, réglable par le vendeur */
+  localShipments?: { shopId: string; shopName?: string; feeFcfa: number; subtotal: number }[]
 }
 
 export interface CompleteCartCalculation {
@@ -109,6 +117,10 @@ export async function calculateCartTotal(
   options: {
     insuranceRate?: number
     serviceFeeTiers?: ServiceFeeTier[]
+    /** Forfait livraison locale (≤24h) par défaut — appliqué par boutique */
+    localDeliveryFlatFee?: number
+    /** Config livraison par boutique : forfait propre + seuil « offerte dès » */
+    localDeliveryShops?: { shopId: string; shopName?: string; feeFcfa?: number; freeAboveFcfa?: number }[]
   } = {}
 ): Promise<CompleteCartCalculation> {
   // 1. Récupérer le taux de change actuel
@@ -123,7 +135,9 @@ export async function calculateCartTotal(
   let totalVolume = 0
   let wholesaleItemCount = 0
   let retailItemCount = 0
-  
+  // Sous-total marchandise par boutique (produits locaux) — base du seuil « offerte dès »
+  const localShopSums = new Map<string, number>()
+
   for (const item of items) {
     const qty = item.qty || 1
     totalQuantity += qty
@@ -154,9 +168,15 @@ export async function calculateCartTotal(
     } else {
       retailOnlyItemsTotal += resolved.appliedPrice * qty
     }
-    
-    // Poids
-    if (item.weightKg) {
+
+    if (item.localDelivery) {
+      const key = item.localShopId || '_'
+      localShopSums.set(key, (localShopSums.get(key) || 0) + resolved.appliedPrice * qty)
+    }
+
+    // Poids — les produits en stock local ne passent pas par le fret import :
+    // leur poids/volume est exclu de la facturation transport aérien/maritime.
+    if (!item.localDelivery && item.weightKg) {
       totalWeight += item.weightKg * qty
       
       // Calcul volumétrique si dimensions disponibles
@@ -172,8 +192,9 @@ export async function calculateCartTotal(
     }
     
     // Volume : volumeM3 explicite, sinon dérivé des dimensions (L×l×h en cm → m³)
-    const itemVolumeM3 =
-      (typeof item.volumeM3 === 'number' && item.volumeM3 > 0)
+    const itemVolumeM3 = item.localDelivery
+      ? 0
+      : (typeof item.volumeM3 === 'number' && item.volumeM3 > 0)
         ? item.volumeM3
         : (item.lengthCm && item.widthCm && item.heightCm)
           ? (item.lengthCm * item.widthCm * item.heightCm) / 1_000_000
@@ -223,8 +244,37 @@ export async function calculateCartTotal(
   
   // 6. Calculer le transport avec poids volumétrique
   let shipping: ShippingCalculation | null = null
-  
-  if (shippingMethodId === 'sea_freight') {
+
+  // Livraison locale : un forfait PAR boutique (chaque boutique expédie
+  // séparément). Le forfait de la boutique prime ; à défaut, le tarif
+  // plateforme s'applique. Seuil « livraison offerte dès » par boutique.
+  const shopFees = new Map((options.localDeliveryShops || []).map(s => [s.shopId, s]))
+  let localFee = 0
+  const localShipments: NonNullable<ShippingCalculation['localShipments']> = []
+  for (const [sid, sub] of localShopSums) {
+    const cfg = shopFees.get(sid)
+    const fee = cfg?.feeFcfa ?? options.localDeliveryFlatFee ?? 0
+    const applied = (cfg?.freeAboveFcfa && cfg.freeAboveFcfa > 0 && sub >= cfg.freeAboveFcfa) ? 0 : Math.max(0, Math.round(fee))
+    localFee += applied
+    localShipments.push({ shopId: sid, shopName: cfg?.shopName, feeFcfa: applied, subtotal: sub })
+  }
+
+  if (shippingMethodId === 'local_24h') {
+    // Livraison locale : somme des forfaits boutiques (≤24h, poids ignoré)
+    shipping = {
+      methodId: shippingMethodId,
+      methodLabel: shippingRate.label,
+      actualWeight: totalWeight,
+      volumetricWeight: 0,
+      billedWeight: 0,
+      billingMethod: 'actual',
+      ratePerKg: shippingRate.rate,
+      cost: Math.max(localFee, shippingRate.minimumCharge || 0),
+      minimumCharge: shippingRate.minimumCharge,
+      localFee: localFee || undefined,
+      localShipments: localShipments.length > 0 ? localShipments : undefined
+    }
+  } else if (shippingMethodId === 'sea_freight') {
     // Maritime: par volume
     if (totalVolume > 0) {
       const cost = Math.max(
@@ -239,8 +289,10 @@ export async function calculateCartTotal(
         billedWeight: 0,
         billingMethod: 'actual',
         ratePerKg: shippingRate.rate,
-        cost: Math.round(cost),
-        minimumCharge: shippingRate.minimumCharge
+        cost: Math.round(cost) + localFee,
+        minimumCharge: shippingRate.minimumCharge,
+        localFee: localFee || undefined,
+        localShipments: localShipments.length > 0 ? localShipments : undefined
       }
     }
   } else {
@@ -259,8 +311,10 @@ export async function calculateCartTotal(
       billedWeight,
       billingMethod: totalVolumetricWeight > totalWeight ? 'volumetric' : 'actual',
       ratePerKg: shippingRate.rate,
-      cost: Math.round(cost),
-      minimumCharge: shippingRate.minimumCharge
+      cost: Math.round(cost) + localFee,
+      minimumCharge: shippingRate.minimumCharge,
+      localFee: localFee || undefined,
+      localShipments: localShipments.length > 0 ? localShipments : undefined
     }
   }
   
@@ -308,4 +362,4 @@ export async function calculateCartTotal(
     }
   }
 }
-
+

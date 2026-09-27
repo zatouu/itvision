@@ -21,6 +21,12 @@ const updateSchema = z.object({
     facebook: z.string().trim().max(200).optional(),
     website: z.string().trim().max(200).optional(),
   }).optional(),
+  localDelivery: z.object({
+    feeFcfa: z.number().int().min(0).max(50000).nullable().optional(),
+    freeAboveFcfa: z.number().int().min(0).max(100000000).nullable().optional(),
+    zones: z.array(z.string().trim().max(60)).max(20).optional(),
+    note: z.string().trim().max(200).optional(),
+  }).optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -58,6 +64,12 @@ export async function GET(req: NextRequest) {
         status: shop.status,
         isVerified: shop.isVerified,
         socialLinks: shop.socialLinks || {},
+        localDelivery: {
+          feeFcfa: shop.localDelivery?.feeFcfa ?? null,
+          freeAboveFcfa: shop.localDelivery?.freeAboveFcfa ?? null,
+          zones: shop.localDelivery?.zones || [],
+          note: shop.localDelivery?.note || '',
+        },
       },
     })
   } catch (error) {
@@ -99,6 +111,20 @@ export async function PATCH(req: NextRequest) {
       for (const [k, v] of Object.entries(data.socialLinks)) {
         if (v !== undefined) update[`socialLinks.${k}`] = v
       }
+    }
+    // Livraison locale : null = retirer le réglage (retour au défaut plateforme)
+    if (data.localDelivery) {
+      const d = data.localDelivery
+      if (d.feeFcfa !== undefined) {
+        if (d.feeFcfa === null) unset['localDelivery.feeFcfa'] = 1
+        else update['localDelivery.feeFcfa'] = d.feeFcfa
+      }
+      if (d.freeAboveFcfa !== undefined) {
+        if (d.freeAboveFcfa === null) unset['localDelivery.freeAboveFcfa'] = 1
+        else update['localDelivery.freeAboveFcfa'] = d.freeAboveFcfa
+      }
+      if (d.zones !== undefined) update['localDelivery.zones'] = d.zones
+      if (d.note !== undefined) update['localDelivery.note'] = d.note
     }
 
     const updateOp: any = Object.keys(update).length ? { $set: update } : {}

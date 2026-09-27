@@ -1,12 +1,6 @@
-import type { Metadata } from 'next'
-import ScreenPricing from '@/components/market/storefront/screens/ScreenPricing'
+import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = {
-  title: 'Prix transparent — DDM+',
-  description:
-    'Chaque prix est décomposé : prix usine, frais de service, assurance et transport. Aucun frais caché.',
-}
-
+// Route historique — la page canonique est /tarification.
 export default function PrixTransparentPage() {
-  return <ScreenPricing />
+  redirect('/tarification')
 }

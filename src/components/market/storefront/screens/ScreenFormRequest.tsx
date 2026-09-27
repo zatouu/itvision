@@ -334,7 +334,7 @@ export default function ScreenFormRequest({
               <input
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder="CMD-2026-XXXX"
+                placeholder="CMD-1700000000-ABC123"
                 className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white font-mono uppercase"
               />
               <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Le numéro figure dans votre email de confirmation ou par SMS.</p>
@@ -498,11 +498,14 @@ export default function ScreenFormRequest({
         <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Téléphone pour vous joindre</label>
           <div className="mt-2 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
-            <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">🇸🇳 +221</span>
+            <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">+221</span>
             <Smartphone size={14} className="text-slate-400" />
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel-national"
               placeholder="77 123 45 67"
               className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums"
             />

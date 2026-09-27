@@ -21,12 +21,7 @@ const methodMap: Record<string, string> = {
   express: 'express_3j',
   aerien: 'air_15j',
   maritime: 'maritime_60j',
-};
-
-const methodInternalId: Record<string, string> = {
-  express: 'air_express',
-  aerien: 'air_15',
-  maritime: 'sea_freight',
+  local: 'local_24h',
 };
 
 interface SavedAddress extends AddressFieldsValue {
@@ -47,7 +42,14 @@ interface CheckoutQuote {
     quantityDiscount: { percent: number; amount: number; label: string } | null;
     subtotal: number;
   };
-  shipping: { label: string; cost: number } | null;
+  shipping: {
+    label: string;
+    cost: number;
+    localFee?: number;
+    localShipments?: { shopId: string; shopName?: string; feeFcfa: number; subtotal: number }[];
+  } | null;
+  /** true si tout le panier est en stock local (boutiques) → livraison coursier ≤24h */
+  localDelivery?: boolean;
   shippingOptions?: { methodId: string; label: string; cost: number | null; eligible?: boolean; reasons?: string[] }[];
   discounts: { promo: { code: string; discount: number } | null; promoError?: string };
   total: number;
@@ -175,7 +177,13 @@ export default function ScreenCheckout() {
     })
       .then(async r => ({ ok: r.ok, data: await r.json().catch(() => null) }))
       .then(({ ok, data }) => {
-        if (ok && data?.quote) { setQuote(data.quote); setQuoteError(""); }
+        if (ok && data?.quote) {
+          setQuote(data.quote);
+          setQuoteError("");
+          // Panier 100% boutique → livraison locale ≤24h imposée ; inversement,
+          // ne pas garder « local » sélectionné sur un panier qui l'a quitté.
+          setShip(prev => (data.quote.localDelivery ? 'local' : prev === 'local' ? 'aerien' : prev));
+        }
         else { setQuote(null); setQuoteError(data?.error || 'Devis indisponible pour ce panier.'); }
       })
       .catch(() => { setQuote(null); setQuoteError('Devis indisponible pour ce panier.'); })
@@ -186,6 +194,14 @@ export default function ScreenCheckout() {
 
 
   const shippingOptions = useMemo(() => {
+    // Panier 100% boutique (stock local à Dakar) : uniquement la livraison
+    // coursier ≤24h — le fret import ne s'applique pas à ces produits.
+    if (quote?.localDelivery) {
+      const quoted = quote.shippingOptions?.find(s => s.methodId === 'local_24h');
+      return [
+        { key: "local", id: "local_24h", label: "Livraison locale", days: "≤ 24h", sub: "En stock à Dakar — livré par coursier", icon: "truck", groupTag: false, price: quoted?.cost ?? quote.shipping?.cost ?? null, disabled: false },
+      ];
+    }
     const base = [
       { key: "express", id: "air_express", label: "Express aérien", days: "3-5 jours", sub: "Prioritaire · le plus rapide", icon: "plane", groupTag: false },
       { key: "aerien", id: "air_15", label: "Standard aérien", days: "10-15 jours", sub: "Le meilleur rapport prix/délai", icon: "plane", groupTag: false },
@@ -362,6 +378,22 @@ export default function ScreenCheckout() {
         );
       })}
     </div>
+    {(quote?.shipping?.localShipments?.length ?? 0) > 0 && (
+      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+        <p className="flex items-start gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+          <Icon name="truck" size={12} className="mt-px flex-shrink-0"/>
+          Livraison locale ≤24h — un forfait par boutique, inclus dans le transport
+        </p>
+        <div className="mt-1.5 space-y-0.5">
+          {quote!.shipping!.localShipments!.map((s) => (
+            <div key={s.shopId} className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="min-w-0 truncate">{s.shopName || 'Boutique'}</span>
+              <span className="tabular-nums">{s.feeFcfa > 0 ? formatFcfa(s.feeFcfa) : 'Offerte'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     {quoteError && (
       <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
         {quoteError}
@@ -434,7 +466,7 @@ export default function ScreenCheckout() {
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Téléphone</span>
           <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
             <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">+221</span>
-            <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} placeholder="77 123 45 67" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white"/>
+            <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="77 123 45 67" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white"/>
           </div>
         </label>
       </div>

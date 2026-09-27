@@ -205,6 +205,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/shipping-rates', domain: 'market', access: 'public' },
   { prefix: '/api/exchange-rate', domain: 'market', access: 'public' },
   { prefix: '/api/corporate', domain: 'market', access: 'public', note: 'Catalogue produits B2B (corporate-produits)', review: true },
+  { prefix: '/api/newsletter', domain: 'market', access: 'public', note: 'Inscription newsletter footer — rate-limité, idempotent par email' },
 
   // ── Back-office transversal ──
   { prefix: '/api/admin/campaigns/templates', domain: 'admin', access: 'public', note: 'Templates de campagne statiques (aucune donnée) — lus par la console admin' },
@@ -304,6 +305,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   PromoCode: 'market',
   ExternalSearchLog: 'market',
   VisibilityDispatch: 'market',
+  NewsletterSubscriber: 'market',
 
   // Xeuy
   ServiceRequest: 'xeuy',

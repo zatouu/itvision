@@ -224,6 +224,9 @@ export default function AddressBook() {
                 <input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
                   placeholder="77 123 45 67"
                   className="w-full bg-transparent py-3 pr-4 text-sm text-gray-900 outline-none dark:text-gray-100"
                 />

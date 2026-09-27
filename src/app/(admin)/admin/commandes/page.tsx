@@ -48,6 +48,7 @@ const shippingLabels: Record<string, string> = {
   air_express: 'Express (3-5 jrs)',
   air_15: 'Aérien (10-15 jrs)',
   sea_freight: 'Maritime (45-50 jrs)',
+  local_24h: 'Livraison locale (24h)',
   express_3j: 'Express (3-5 jrs)', // legacy aliases
   air_15j: 'Aérien (10-15 jrs)',
   maritime_60j: 'Maritime (45-50 jrs)'
