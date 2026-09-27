@@ -4,14 +4,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": {
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_API_BASE_URL": "http://192.168.1.100:3000"
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": { "simulator": false },
-      "env": {
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_API_BASE_URL": "https://staging.itvisionplus.sn"
       }
     },
@@ -20,14 +20,14 @@
       "channel": "ec2",
       "autoIncrement": true,
       "android": { "buildType": "apk" },
-      "env": {
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
         "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
       }
     },
     "production": {
       "autoIncrement": true,
-      "env": {
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_API_BASE_URL": "https://itvisionplus.sn",
         "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE"
       }
