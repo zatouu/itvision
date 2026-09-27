@@ -731,28 +731,35 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
   const id = String(sr._id)
   if (io) {
     io.to(`request-${id}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role, metadata })
-    io.to(`user-${sr.clientId}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus })
+    io.to(`user-${sr.clientId}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role })
     if (sr.assignedProviderId) {
-      io.to(`provider-${sr.assignedProviderId}`).emit('mission:status-changed', { requestId: id, status: sr.status, prevStatus })
+      io.to(`provider-${sr.assignedProviderId}`).emit('mission:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role })
     }
   }
 
+  // Pas d'emoji : l'app affiche déjà une icône par type de notification.
   const statusLabels: Record<string, string> = {
-    broadcasted: '📡 Mission diffusée',
-    accepted: '✅ Mission acceptée',
-    on_the_way: '🚗 En route',
-    arrived: '📍 Prestataire arrivé',
-    in_progress: '🛠️ Mission démarrée',
-    paused: '⏸️ Mission en pause',
-    awaiting_validation: '⏳ Validation en attente',
-    completed: '✅ Mission terminée',
-    cancelled: '❌ Mission annulée',
-    expired: '⏰ Mission expirée',
-    dispute: '⚠️ Litige ouvert',
-    archived: '📦 Mission archivée',
+    broadcasted: 'Mission diffusée',
+    accepted: 'Mission acceptée',
+    on_the_way: 'Prestataire en route',
+    arrived: 'Prestataire arrivé',
+    in_progress: 'Mission démarrée',
+    paused: 'Mission en pause',
+    awaiting_validation: 'Validation en attente',
+    completed: 'Mission terminée',
+    cancelled: 'Mission annulée',
+    expired: 'Mission expirée',
+    dispute: 'Litige ouvert',
+    archived: 'Mission archivée',
   }
   const label = statusLabels[sr.status]
   if (label) {
+    const cat = String(sr.category || 'Service').replace(/[-_]/g, ' ')
+    const service = cat.charAt(0).toUpperCase() + cat.slice(1)
+    const by = actor.role === 'client' ? ' par le client' : actor.role === 'provider' ? ' par le prestataire' : ''
+    const body = sr.status === 'cancelled'
+      ? `${service} — annulée${by}.`
+      : `${service} · réf. ${id.slice(-6).toUpperCase()}`
     const recipients: { userId: string; appType: 'consumer' | 'provider' }[] = []
     if (sr.clientId) {
       recipients.push({ userId: String(sr.clientId), appType: 'consumer' })
@@ -760,10 +767,11 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
     if (sr.assignedProviderId) {
       recipients.push({ userId: String(sr.assignedProviderId), appType: 'provider' })
     }
-    for (const r of recipients) {
+    // L'auteur de l'action n'est pas notifié de sa propre action.
+    for (const r of recipients.filter(r => r.userId !== String(actor.userId))) {
       void sendPushToUser(r.userId, {
         title: label,
-        body: `Mission ${id.slice(-6).toUpperCase()} — ${DISPLAY_LABELS[normalizeStatus(sr.status)]}`,
+        body,
         data: { type: 'request:status-changed', requestId: id, status: sr.status, prevStatus },
         appType: r.appType,
       })

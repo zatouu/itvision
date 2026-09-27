@@ -77,7 +77,7 @@ const DISPUTE_REASONS = [
 ]
 
 function MissionDetail() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -350,7 +350,15 @@ function MissionDetail() {
     const entry = (item?.statusLog || []).find((e: any) => e.action === 'status_changed' && targets.includes(e.toStatus))
     return entry ? new Date(entry.timestamp) : null
   }
-  const fmtTs = (d: Date | null) => d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null
+  const fmtTs = (d: Date | null) => {
+    if (!d) return null
+    const time = d.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })
+    const dayDiff = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000)
+    const day = dayDiff === 0 ? t('common.today', { defaultValue: "Aujourd'hui" })
+      : dayDiff === 1 ? t('common.yesterday', { defaultValue: 'Hier' })
+      : d.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })
+    return `${day} ${time}`
+  }
   const tlStepIdx = ['accepted', 'assigned'].includes(status) ? 0
     : ['on_the_way', 'provider_arriving'].includes(status) ? 1
     : ['arrived', 'in_progress', 'paused'].includes(status) ? 2
@@ -484,7 +492,6 @@ function MissionDetail() {
                 { icon: Phone, label: t('home.call', { defaultValue: 'Appeler' }), color: colors.primary, onPress: callProvider, disabled: !offer.providerPhone },
                 { icon: MessageCircle, label: t('home.message', { defaultValue: 'Message' }), color: colors.info, onPress: openChat },
                 { icon: MapPin, label: t('mission.position', { defaultValue: 'Position' }), color: colors.warning, onPress: openPosition, disabled: !providerLocation && !hasCoords },
-                { icon: AlertTriangle, label: t('mission.dispute', { defaultValue: 'Litige' }), color: colors.danger, onPress: openDispute },
               ].map((a, i) => (
                 <TouchableOpacity key={i} style={s.quickAction} onPress={a.onPress} disabled={a.disabled} activeOpacity={0.7}>
                   <View style={[s.quickActionIcon, { backgroundColor: `${a.color}15`, opacity: a.disabled ? 0.4 : 1 }]}>
@@ -518,7 +525,7 @@ function MissionDetail() {
                 <View style={{ flex: 1, paddingBottom: 14 }}>
                   <Text style={[s.tlLabel, (done || active) && s.tlLabelOn]}>{step.label}</Text>
                   <Text style={s.tlTime}>
-                    {ts ? `${t('common.today', { defaultValue: 'Aujourd\'hui' })} ${ts}` : active ? t('mission.tlNow', { defaultValue: 'En cours…' }) : t('mission.tlPending', { defaultValue: 'En attente' })}
+                    {ts ? ts : active ? t('mission.tlNow', { defaultValue: 'En cours…' }) : t('mission.tlPending', { defaultValue: 'En attente' })}
                   </Text>
                 </View>
               </View>
@@ -549,7 +556,7 @@ function MissionDetail() {
               <Text style={s.paymentTitle}>
                 {formatMoney(offer?.price || item.payment.amount)} · {item.payment.provider === 'cash'
                   ? t('mission.cashOnPlace')
-                  : `${item.payment.provider.replace('_', ' ')} — ${item.payment.phase === 'deposit' ? t('mission.depositPhase') : item.payment.phase === 'balance' ? t('mission.balancePhase') : t('mission.totalPhase')}`}
+                  : `${PAYMENT_PROVIDER_LABELS[item.payment.provider] || item.payment.provider} — ${item.payment.phase === 'deposit' ? t('mission.depositPhase') : item.payment.phase === 'balance' ? t('mission.balancePhase') : t('mission.totalPhase')}`}
               </Text>
               <Text style={s.paymentSub}>
                 {item.payment.provider === 'cash'
@@ -592,45 +599,36 @@ function MissionDetail() {
           </TouchableOpacity>
         )}
 
-        {/* Métriques */}
-        {item?.metrics && (
+        {/* Pause en cours : motif + reprise prévue */}
+        {status === 'paused' && (item?.metrics?.currentPauseReason || item?.metrics?.estimatedResumeAt) && (
           <View style={s.card}>
-            <Text style={s.cardLabel}>{t('mission.metrics', { defaultValue: 'Suivi' })}</Text>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.lastActivity')}</Text>
-              <Text style={s.detailValue}>{item.metrics.lastActivityAgo} {t('common.ago')}</Text>
-            </View>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.totalDuration')}</Text>
-              <Text style={s.detailValue}>{item.metrics.elapsedFormatted}</Text>
-            </View>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.activeDuration')}</Text>
-              <Text style={s.detailValue}>{item.metrics.activeFormatted}</Text>
-            </View>
-            <View style={s.detailRow}>
-              <Text style={s.detailLabel}>{t('mission.pausedDuration')}</Text>
-              <Text style={s.detailValue}>{item.metrics.pausedFormatted} · {item.metrics.pauseCount} {t('mission.pauses')}</Text>
-            </View>
-            {item.metrics.estimatedResumeAt && (
-              <View style={s.detailRow}>
-                <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
-                <Text style={s.detailValue}>{new Date(item.metrics.estimatedResumeAt).toLocaleString()}</Text>
-              </View>
-            )}
+            <Text style={s.cardLabel}>{t('mission.bannerPaused', { defaultValue: 'Mission en pause' })}</Text>
             {item.metrics.currentPauseReason && (
               <View style={s.detailRow}>
                 <Text style={s.detailLabel}>{t('mission.pauseReason')}</Text>
                 <Text style={s.detailValue}>{PAUSE_REASONS.find(r => r.key === item.metrics.currentPauseReason)?.label || item.metrics.currentPauseReason}</Text>
               </View>
             )}
+            {item.metrics.estimatedResumeAt && (
+              <View style={s.detailRow}>
+                <Text style={s.detailLabel}>{t('mission.estimatedResume')}</Text>
+                <Text style={s.detailValue}>{fmtTs(new Date(item.metrics.estimatedResumeAt))}</Text>
+              </View>
+            )}
           </View>
         )}
 
-        {canCancel && !canValidate && (
-          <TouchableOpacity style={{ alignSelf: 'center', marginTop: 6, padding: 8 }} onPress={handleCancel} disabled={updating} activeOpacity={0.6}>
-            <Text style={s.cancelLink}>{t('mission.cancelBtn')}</Text>
-          </TouchableOpacity>
+        {!canValidate && !hasDispute && !['cancelled', 'completed'].includes(status) && (
+          <View style={s.bottomLinks}>
+            <TouchableOpacity onPress={openDispute} style={{ padding: 8 }} activeOpacity={0.6}>
+              <Text style={s.problemLink}>{t('mission.reportProblem', { defaultValue: 'Signaler un problème' })}</Text>
+            </TouchableOpacity>
+            {canCancel && (
+              <TouchableOpacity onPress={handleCancel} disabled={updating} style={{ padding: 8 }} activeOpacity={0.6}>
+                <Text style={s.cancelLink}>{t('mission.cancelBtn')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </ScrollView>
 
@@ -672,7 +670,11 @@ function MissionDetail() {
   )
 }
 
+const PAYMENT_PROVIDER_LABELS: Record<string, string> = { wave: 'Wave', wave_qr: 'Wave', orange_money: 'Orange Money', free_money: 'Free Money' }
+
 const s = StyleSheet.create({
+  bottomLinks: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 6 },
+  problemLink: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, textDecorationLine: 'underline' },
   autoValidateHint: { fontSize: 11.5, color: colors.textSecondary, textAlign: 'center', marginBottom: 8, lineHeight: 16 },
   safe: { flex: 1, backgroundColor: colors.bg },
   // ── Carte (phases trajet) ──

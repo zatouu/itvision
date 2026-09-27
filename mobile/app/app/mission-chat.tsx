@@ -230,7 +230,7 @@ function MissionChat() {
 
         {/* Réponses rapides */}
         <View style={st.quickRepliesWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.quickReplies}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={st.quickReplies}>
             {['chat.qr_ok', 'chat.qr_thanks', 'chat.qr_seeYou', 'chat.qr_callMe'].map(k => {
               const label = t(k)
               return (
