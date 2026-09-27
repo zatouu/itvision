@@ -5,11 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Image } from 'expo-image'
-import { MessageCircle, ShieldCheck, ChevronRight, Menu } from 'lucide-react-native'
+import { MessageCircle, ShieldCheck, ChevronRight } from 'lucide-react-native'
 import { apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import TabBar from '../src/components/TabBar'
-import SideMenu from '../src/components/SideMenu'
 import EmptyState from '../src/components/EmptyState'
 import Skeleton from '../src/components/Skeleton'
 import { loadInbox, subscribeInbox, getInboxState, markConversationRead, bindInboxSocket, Conversation } from '../src/chat-inbox'
@@ -33,7 +32,6 @@ function timeAgo(iso: string, t: TFunction): string {
 
 function Messages() {
   const { t } = useTranslation()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [items, setItems] = useState<Conversation[]>(getInboxState().items)
   const [loading, setLoading] = useState(!getInboxState().loaded)
   const [refreshing, setRefreshing] = useState(false)
@@ -128,9 +126,6 @@ function Messages() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.6} accessibilityLabel="Menu">
-          <Menu size={20} color={colors.text} />
-        </TouchableOpacity>
         <Text style={s.title}>{t('messages.title', { defaultValue: 'Messages' })}</Text>
         <View style={s.headerBtn} />
       </View>
@@ -160,7 +155,6 @@ function Messages() {
       )}
 
       <TabBar active="messages" mode={isProvider ? 'provider' : 'client'} />
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

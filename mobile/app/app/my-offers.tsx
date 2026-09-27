@@ -13,7 +13,7 @@ import { SkeletonCard } from '../src/components/Skeleton'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Map, AlertTriangle, Inbox, Search, MessageSquare, CheckCircle2, XCircle, Truck, Wrench, MapPin, Pause, Clock } from 'lucide-react-native'
+import { Map, AlertTriangle, Inbox, Search, MessageSquare, CheckCircle2, XCircle, Truck, Wrench, MapPin, Pause, Clock } from 'lucide-react-native'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   submitted: { label: 'En attente',  color: '#92400E', bg: colors.warningLight, dot: '#D97706' },
@@ -171,9 +171,6 @@ function MyOffers() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={18} color={colors.text} />
-        </TouchableOpacity>
         <Text style={s.title}>{t('offers.title')}</Text>
         <TouchableOpacity onPress={() => router.push('/nearby-requests')} style={s.addBtn}>
           <Map size={18} color={colors.text} />
@@ -393,10 +390,9 @@ function MyOffers() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.slate100 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  backBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6, gap: 10, backgroundColor: colors.bg },
   backIcon: { color: colors.text },
-  title: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  title: { flex: 1, fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
   addBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   statCard: { flex: 1, alignItems: 'center', paddingVertical: 8 },

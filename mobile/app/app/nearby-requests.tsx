@@ -24,6 +24,7 @@ import { getCategoryIcon } from '../src/categoryIcons'
 import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
+import TabBar from '../src/components/TabBar'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
 import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles, CalendarClock, Image as ImageIcon } from 'lucide-react-native'
 import SchedulePicker, { formatSlot } from '../src/components/SchedulePicker'
@@ -327,9 +328,6 @@ function NearbyRequests() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={20} color={colors.text} />
-        </TouchableOpacity>
         <Text style={s.title}>{t('nearby.title')}</Text>
         <TouchableOpacity onPress={async () => { const c = await locate(); await load(c, true) }} style={s.refreshBtn}>
           <RefreshCw size={18} color={colors.text} />
@@ -734,17 +732,17 @@ function NearbyRequests() {
           </TouchableOpacity>
         </View>
       </BottomSheet>
+      <TabBar active="requests" mode="provider" />
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md, backgroundColor: colors.surface },
-  backBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6, gap: 10, backgroundColor: colors.bg },
   backIcon: { color: colors.text },
-  title: { flex: 1, fontSize: 18, fontWeight: typography.weight.extrabold as any, color: colors.text },
-  refreshBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  title: { flex: 1, fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
+  refreshBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   refreshIcon: { color: colors.text },
   scopeChip: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.infoLight, borderRadius: radius.lg, paddingVertical: 8, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: '#BFDBFE' },
   scopeChipTxt: { fontSize: 12, fontWeight: typography.weight.semibold as any, color: colors.info, textAlign: 'center' },

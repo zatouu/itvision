@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { apiGet, apiGetRetry, apiUpload, apiPatch, apiPost, logoutApi } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import SideMenu from '../src/components/SideMenu'
 import TabBar from '../src/components/TabBar'
+import AccountSection from '../src/components/AccountSection'
 import { clearAuth, getAuthUser, subscribeAuth, updateAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
 import { humanErrorMessage } from '../src/errorMessages'
@@ -15,14 +15,13 @@ import { pickOption } from '../src/option-sheet'
 import { clearAllUserData } from '../src/clear-user-data'
 import LanguagePicker from '../src/components/LanguagePicker'
 import { captureMedia, pickMedia, resolveMediaUrl } from '../src/media'
-import { ChevronRight, Camera, Gift, Menu, Pencil, Phone, ShieldCheck } from 'lucide-react-native'
+import { ChevronRight, Camera, Gift, Pencil, Phone, ShieldCheck } from 'lucide-react-native'
 import Accordion from '../src/components/Accordion'
 import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
 import { isProviderCapable } from '../src/mode'
 import { marketLinks } from '../src/links'
 
 function Profile() {
-  const [menuOpen, setMenuOpen] = useState(false)
   const { t } = useTranslation()
   const [stats, setStats] = useState({ total: 0, completed: 0, cancelled: 0 })
   const [referral, setReferral] = useState<{ code: string; balance: number; count: number } | null>(null)
@@ -141,11 +140,7 @@ function Profile() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.iconBtn} accessibilityLabel="Menu">
-          <Menu size={20} color="#111827" />
-        </TouchableOpacity>
         <Text style={s.headerTitle}>{t('profile.title')}</Text>
-        <View style={s.iconBtn} />
       </View>
 
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
@@ -254,9 +249,9 @@ function Profile() {
 
         {/* Menu — sections repliables */}
         <Accordion title={t('profile.sectionActivity', { defaultValue: 'Mon activité' })} defaultOpen>
-          {menuItem(t('home.myRequests'), () => router.push('/my-requests'))}
-          {menuItem(t('profile.messages', { defaultValue: 'Messages' }), () => router.push('/messages' as any))}
           {menuItem(t('profile.wallet'), () => router.push('/wallet'))}
+          {menuItem(t('menu.notifications'), () => router.push('/notifications' as any))}
+          {menuItem(t('menu.assistant', { defaultValue: 'Assistant IA' }), () => router.push('/assistant' as any))}
         </Accordion>
 
         <Accordion title={t('profile.sectionBenefits', { defaultValue: 'Mes avantages' })}>
@@ -279,39 +274,19 @@ function Profile() {
           )}
         </Accordion>
 
-        {/* Language */}
-        <View style={s.langCard}>
-          <Text style={s.langTitle}>{t('profile.language')}</Text>
-          <LanguagePicker />
-        </View>
-
-        {/* Logout */}
-        <TouchableOpacity
-          style={s.logoutBtn}
-          onPress={async () => {
-            await logoutApi()
-            await clearAuth()
-            await clearAllUserData()
-            toast.info(t('auth.logout'), t('auth.logoutMsg', { defaultValue: 'Vous êtes déconnecté.' }))
-            router.replace('/login')
-          }}
-          activeOpacity={0.75}
-        >
-          <Text style={s.logoutText}>{t('auth.logout')}</Text>
-        </TouchableOpacity>
+        <AccountSection />
       </ScrollView>
 
       <TabBar active="profile" />
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.slate50 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.slate100, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: typography.weight.extrabold as any, color: '#111827', textAlign: 'center' },
+  headerTitle: { flex: 1, fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
   body: { padding: 20, paddingBottom: 40, gap: 18 },
 
   identityCard: {
@@ -355,8 +330,6 @@ const s = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
   menuText: { flex: 1, fontSize: 15, fontWeight: typography.weight.semibold as any, color: colors.text },
 
-  langCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border },
-  langTitle: { fontSize: 14, fontWeight: typography.weight.bold as any, color: colors.text, marginBottom: 12 },
 
   referralCompact: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ECFDF5', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#A7F3D0' },
   referralIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
@@ -365,8 +338,6 @@ const s = StyleSheet.create({
   referralShareBtn: { backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   referralShareText: { color: colors.surface, fontWeight: typography.weight.bold as any, fontSize: 12 },
 
-  logoutBtn: { backgroundColor: '#FEF2F2', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA', marginTop: 8 },
-  logoutText: { color: '#B91C1C', fontWeight: typography.weight.bold as any, fontSize: 15 },
 })
 
 export default withScreenBoundary(Profile, 'Profile')

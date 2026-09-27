@@ -9,7 +9,7 @@ import { getAuthUser } from '../src/auth'
 import { toast } from '../src/toast'
 import { subscribeProfile } from '../src/user-profile'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
-import SideMenu from '../src/components/SideMenu'
+import TabBar from '../src/components/TabBar'
 import {
   onNearbyRequest,
   onOfferAccepted,
@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next'
 import KpiCard from '../src/components/KpiCard'
 import Logo from '../src/components/Logo'
 import { colors, spacing, radius, shadows, typography, fonts, getCategoryMeta } from '../src/design'
-import { BellRing, Menu, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
+import { BellRing, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../src/notifications'
 import { apiGet, apiPost } from '../src/api'
 
@@ -104,7 +104,6 @@ function Home() {
     const n = authUser?.name?.trim() || ''
     return n && !/^\d{7,}$/.test(n) ? n.split(' ')[0] : ''
   })
-  const [menuOpen, setMenuOpen] = useState(false)
   const [unread, setUnread] = useState(0)
   const [loadError, setLoadError] = useState(false)
   const [nearbyCount, setNearbyCount] = useState(0)
@@ -113,8 +112,6 @@ function Home() {
   const [activeMission, setActiveMission] = useState(0)
   const [dailyRevenue, setDailyRevenue] = useState(0)
   const [hideRevenue, setHideRevenue] = useState(false)
-  const [initials, setInitials] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState(() => getAuthUser()?.avatarUrl || '')
   const [profile, setProfile] = useState<any>(null)
   const [earnings, setEarnings] = useState<any>({})
   const [offers, setOffers] = useState<any[]>([])
@@ -194,7 +191,6 @@ function Home() {
       const name = p?.name?.trim() || ''
       const clean = name && !/^\d{7,}$/.test(name) ? name : ''
       setProviderName(clean.split(' ')[0] || '')
-      setInitials(clean.slice(0, 2).toUpperCase() || 'P')
     })
   }, [])
 
@@ -281,7 +277,6 @@ function Home() {
       if (earn.status === 'fulfilled') setEarnings(earn.value || {})
       if (prof.status === 'fulfilled') {
         setProfile(prof.value)
-        setAvatarUrl(prof.value?.user?.avatarUrl || getAuthUser()?.avatarUrl || '')
       }
       if (off.status === 'fulfilled') setOffers(Array.isArray(off.value?.items) ? off.value.items : [])
       if (match.status === 'fulfilled') {
@@ -386,23 +381,16 @@ function Home() {
         {/* Header */}
         <View style={s.header}>
           <View style={s.logoRow}>
-            <TouchableOpacity style={s.iconBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.6} accessibilityRole="button" accessibilityLabel={t('menu.navigation', { defaultValue: 'Menu' })}>
-              <Menu size={20} color={colors.text} />
-            </TouchableOpacity>
             <Logo size={26} />
             <Text style={s.appName}>Xeuy Bi Pro</Text>
           </View>
           <View style={s.headerRight}>
+            <TouchableOpacity onPress={() => router.push('/assistant')} style={s.iconBtn} accessibilityLabel={t('menu.assistant', { defaultValue: 'Assistant IA' })}>
+              <Sparkles size={18} color={colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/notifications')} style={s.iconBtn} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
               {unread > 0 && <View style={s.notifDot} />}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/pro-profile')} style={s.avatarBtn} accessibilityLabel="Profil">
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={s.avatarImage} resizeMode="cover" />
-              ) : (
-                <Text style={s.avatarText}>{initials}</Text>
-              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -616,7 +604,7 @@ function Home() {
         )}
       </AnimatedScrollView>
 
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <TabBar active="home" mode="provider" />
     </SafeAreaView>
   )
 }
@@ -633,8 +621,6 @@ const s = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   iconBtnText: { color: colors.text },
   notifDot: { position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
-  avatarBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.primary, overflow: 'hidden' },
-  avatarImage: { width: 40, height: 40, borderRadius: 12 },
   avatarText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.primary },
   statusCard: { marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.md },
   statusCardOnline: { backgroundColor: colors.primary },

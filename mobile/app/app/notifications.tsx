@@ -5,7 +5,6 @@ import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import SideMenu from '../src/components/SideMenu'
 import EmptyState from '../src/components/EmptyState'
 import {
   Notification,
@@ -18,7 +17,7 @@ import {
 import { apiPost } from '../src/api'
 import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
-import { Menu, Bell, Coins, Truck, Info, Trash2, CheckCheck } from 'lucide-react-native'
+import { ArrowLeft, Bell, Coins, Truck, Info, Trash2, CheckCheck } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken, clearSystemNotifications } from '../src/push'
 
 type FilterKey = 'all' | 'offer' | 'mission' | 'info'
@@ -75,7 +74,6 @@ function NotificationsScreen() {
   const [, setTick] = useState(0)
   const [diagRunning, setDiagRunning] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [showRead, setShowRead] = useState(false)
 
@@ -206,8 +204,8 @@ function NotificationsScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.iconBtn} accessibilityLabel="Menu">
-          <Menu size={18} color={colors.ink} />
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn} accessibilityLabel={t('common.back', { defaultValue: 'Retour' })}>
+          <ArrowLeft size={18} color={colors.ink} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.title} numberOfLines={1}>{t('notifications.title')}</Text>
@@ -304,8 +302,6 @@ function NotificationsScreen() {
           ))
         )}
       </ScrollView>
-
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

@@ -7,6 +7,7 @@ import { apiGet, apiPatch, apiUpload } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import Accordion from '../src/components/Accordion'
 import TabBar from '../src/components/TabBar'
+import AccountSection from '../src/components/AccountSection'
 import { colors, spacing, radius, typography, shadows } from '../src/design'
 import {
   User, Camera, Star, Briefcase, Calendar, ShieldCheck, FolderOpen, MessageSquare,
@@ -35,45 +36,43 @@ const ACTIONS = [
   { id: 'reviews', icon: MessageSquare, label: 'Avis', color: colors.warning, route: '/reviews' },
 ]
 
+// Portfolio, Vérification et Avis sont dans les boutons rapides (ACTIONS) :
+// pas de doublon ici. Libellés traduits via proProfile.menu.<key>.
 const SECTIONS = [
   {
-    title: 'Ma réputation',
+    key: 'reputation', title: 'Ma réputation',
     items: [
-      { icon: QrCode, label: 'Passeport pro', route: '/pro-passport' },
-      { icon: FolderOpen, label: 'Portfolio', route: '/portfolio' },
-      { icon: ShieldCheck, label: 'Vérification', route: '/verification' },
-      { icon: MessageSquare, label: 'Avis clients', route: '/reviews' },
-      { icon: Zap, label: 'Compétences', route: '/profile-detail?section=business' },
-      { icon: Crown, label: 'Badges', route: '/badges' },
+      { key: 'passport', icon: QrCode, label: 'Passeport pro', route: '/pro-passport' },
+      { key: 'badges', icon: Crown, label: 'Badges', route: '/badges' },
     ],
   },
   {
-    title: 'Mon activité',
+    key: 'activity', title: 'Mon activité',
     items: [
-      { icon: Sliders, label: 'Préférences missions', route: '/profile-detail?section=preferences' },
-      { icon: MapPin, label: 'Zone d\'intervention', route: '/profile-detail?section=zone' },
-      { icon: Clock, label: 'Disponibilités', route: '/profile-detail?section=availability' },
-      { icon: Calendar, label: 'Calendrier', route: '/calendar' },
-      { icon: Eye, label: 'Visibilité', route: '/profile-detail?section=visibility' },
-      { icon: Zap, label: 'Catégories principales', route: '/profile-detail?section=business' },
+      { key: 'trades', icon: Zap, label: 'Métiers et présentation', route: '/profile-detail?section=business' },
+      { key: 'zone', icon: MapPin, label: "Zone d'intervention", route: '/profile-detail?section=zone' },
+      { key: 'availability', icon: Clock, label: 'Disponibilités', route: '/profile-detail?section=availability' },
+      { key: 'calendar', icon: Calendar, label: 'Calendrier', route: '/calendar' },
+      { key: 'preferences', icon: Sliders, label: 'Préférences missions', route: '/profile-detail?section=preferences' },
+      { key: 'visibility', icon: Eye, label: 'Visibilité', route: '/profile-detail?section=visibility' },
     ],
   },
   {
-    title: 'Mon business',
+    key: 'business', title: 'Mon business',
     items: [
-      { icon: TrendingUp, label: 'Performances', route: '/performance' },
-      { icon: Wallet, label: 'Wallet', route: '/pro-wallet' },
-      { icon: Crown, label: 'Premium', route: '/premium' },
-      { icon: ShoppingBag, label: 'Ma boutique DDM+', externalUrl: marketLinks.vendorDashboard },
+      { key: 'wallet', icon: Wallet, label: 'Portefeuille', route: '/pro-wallet' },
+      { key: 'performance', icon: TrendingUp, label: 'Performances', route: '/performance' },
+      { key: 'premium', icon: Crown, label: 'Premium', route: '/premium' },
+      { key: 'shop', icon: ShoppingBag, label: 'Boutique DDM+', externalUrl: marketLinks.catalog },
     ],
   },
   {
-    title: 'Compte & sécurité',
+    key: 'account', title: 'Compte & sécurité',
     items: [
-      { icon: User, label: 'Informations personnelles', route: '/profile-detail?section=personal' },
-      { icon: Lock, label: 'Sécurité', route: '/profile-detail?section=security' },
-      { icon: ShieldCheck, label: 'Confidentialité', route: '/privacy' },
-      { icon: Bell, label: 'Notifications', route: '/notifications' },
+      { key: 'personal', icon: User, label: 'Informations personnelles', route: '/profile-detail?section=personal' },
+      { key: 'security', icon: Lock, label: 'Sécurité', route: '/profile-detail?section=security' },
+      { key: 'notifications', icon: Bell, label: 'Notifications', route: '/notifications' },
+      { key: 'privacy', icon: ShieldCheck, label: 'Confidentialité', route: '/privacy' },
     ],
   },
 ]
@@ -306,8 +305,8 @@ function Profile() {
 
         {SECTIONS.map((section, si) => (
           <Accordion
-            key={section.title}
-            title={section.title}
+            key={section.key}
+            title={t(`proProfile.section.${section.key}`, { defaultValue: section.title })}
             count={section.items.length}
             defaultOpen={si === 0}
             style={s.sectionAccordion}
@@ -315,7 +314,7 @@ function Profile() {
             {section.items.map((item, idx) => {
               const Icon = item.icon
               return (
-                <TouchableOpacity key={item.label} style={[s.row, idx < section.items.length - 1 && s.rowBorder]} onPress={() => {
+                <TouchableOpacity key={item.key} style={[s.row, idx < section.items.length - 1 && s.rowBorder]} onPress={() => {
                   const ext = (item as any).externalUrl as string | undefined
                   if (ext) { Linking.openURL(ext).catch(() => {}); return }
                   if ((item as any).route) router.push((item as any).route)
@@ -323,7 +322,7 @@ function Profile() {
                   <View style={[s.rowIcon, { backgroundColor: colors.bgGlobal }]}>
                     <Icon size={18} color={colors.primary} />
                   </View>
-                  <Text style={s.rowLabel}>{item.label}</Text>
+                  <Text style={s.rowLabel}>{t(`proProfile.menu.${item.key}`, { defaultValue: item.label })}</Text>
                   <ChevronRight size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               )
@@ -331,9 +330,9 @@ function Profile() {
           </Accordion>
         ))}
 
-        <TouchableOpacity style={s.logout} onPress={() => router.push('/profile-detail?section=security')}>
-          <Text style={s.logoutText}>{t('profile.advancedSettings', { defaultValue: 'Paramètres avancés' })}</Text>
-        </TouchableOpacity>
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <AccountSection />
+        </View>
       </ScrollView>
       <TabBar active="profile" mode="provider" />
     </SafeAreaView>
@@ -391,8 +390,6 @@ const s = StyleSheet.create({
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowIcon: { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   rowLabel: { flex: 1, fontSize: 16, color: colors.text, fontWeight: '500' },
-  logout: { alignSelf: 'center', marginTop: spacing.xl, marginBottom: spacing.lg },
-  logoutText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
 })
 
 export default withScreenBoundary(Profile, 'Profile')
