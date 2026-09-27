@@ -12,8 +12,7 @@ import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2, CalendarClock } from 'lucide-react-native'
-import SideMenu from '../src/components/SideMenu'
+import { Plus, AlertTriangle, Inbox, Search, ChevronRight, CheckCircle2, CalendarClock } from 'lucide-react-native'
 import TabBar from '../src/components/TabBar'
 import { formatSlot } from '../src/components/SchedulePicker'
 
@@ -40,7 +39,6 @@ const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; do
 type CatEntry = { abbr: string; color: string; label: string }
 
 function MyRequests() {
-  const [menuOpen, setMenuOpen] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -139,9 +137,6 @@ function MyRequests() {
     <SafeAreaView style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => setMenuOpen(true)} style={s.iconBtn} accessibilityLabel="Menu">
-          <Menu size={18} color={colors.ink} />
-        </TouchableOpacity>
         <View style={s.headerLeft}>
           <Text style={s.title}>{t('requests.title')}</Text>
           {items.length > 0 && (
@@ -311,7 +306,6 @@ function MyRequests() {
       )}
 
       <TabBar active="requests" />
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

@@ -1538,6 +1538,36 @@
     "checkPortfolio": "Au moins une réalisation",
     "checkKyc": "Vérification d'identité",
     "completion": "Profil complété à {{pct}}%",
-    "completionHint": "Un profil complet reçoit plus de demandes."
+    "completionHint": "Un profil complet reçoit plus de demandes.",
+    "section": {
+      "reputation": "Ma réputation",
+      "activity": "Mon activité",
+      "business": "Mon business",
+      "account": "Compte & sécurité"
+    },
+    "menu": {
+      "passport": "Passeport pro",
+      "badges": "Badges",
+      "trades": "Métiers et présentation",
+      "zone": "Zone d'intervention",
+      "availability": "Disponibilités",
+      "calendar": "Calendrier",
+      "preferences": "Préférences missions",
+      "visibility": "Visibilité",
+      "wallet": "Portefeuille",
+      "performance": "Performances",
+      "premium": "Premium",
+      "shop": "Boutique DDM+",
+      "personal": "Informations personnelles",
+      "security": "Sécurité",
+      "notifications": "Notifications",
+      "privacy": "Confidentialité"
+    }
+  },
+  "account": {
+    "switchToClient": "Passer en mode client",
+    "switchToProvider": "Passer en mode prestataire",
+    "switchToClientSub": "Demander un service pour vous-même",
+    "switchToProviderSub": "Recevoir des demandes et envoyer des offres"
   }
 }

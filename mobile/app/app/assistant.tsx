@@ -3,10 +3,9 @@ import { View, Text, TouchableOpacity, FlatList, StyleSheet, TextInput, Activity
 import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Menu, Sparkles, Send, PlusCircle, MapPin, Lightbulb, HelpCircle, Coins } from 'lucide-react-native'
+import { ArrowLeft, Sparkles, Send, PlusCircle, MapPin, Lightbulb, HelpCircle, Coins } from 'lucide-react-native'
 import { apiGetRetry, apiPost } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import SideMenu from '../src/components/SideMenu'
 import EmptyState from '../src/components/EmptyState'
 import { colors, spacing, radius, typography, fonts, shadows } from '../src/design'
 import { hapticSelect } from '../src/haptics'
@@ -23,7 +22,6 @@ const nextId = () => `m${++msgSeq}`
 
 function Assistant() {
   const { t } = useTranslation()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [status, setStatus] = useState<AiStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
   const [messages, setMessages] = useState<ChatMsg[]>([])
@@ -99,8 +97,8 @@ function Assistant() {
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.6} accessibilityLabel="Menu">
-          <Menu size={20} color={colors.text} />
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.6} accessibilityLabel={t('common.back', { defaultValue: 'Retour' })}>
+          <ArrowLeft size={20} color={colors.text} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -214,8 +212,6 @@ function Assistant() {
           </View>
         )}
       </KeyboardAvoidingView>
-
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }

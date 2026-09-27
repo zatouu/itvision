@@ -1538,6 +1538,36 @@
     "checkPortfolio": "At least one work sample",
     "checkKyc": "Identity verification",
     "completion": "Profile {{pct}}% complete",
-    "completionHint": "A complete profile gets more requests."
+    "completionHint": "A complete profile gets more requests.",
+    "section": {
+      "reputation": "My reputation",
+      "activity": "My activity",
+      "business": "My business",
+      "account": "Account & security"
+    },
+    "menu": {
+      "passport": "Pro passport",
+      "badges": "Badges",
+      "trades": "Trades & bio",
+      "zone": "Service area",
+      "availability": "Availability",
+      "calendar": "Calendar",
+      "preferences": "Mission preferences",
+      "visibility": "Visibility",
+      "wallet": "Wallet",
+      "performance": "Performance",
+      "premium": "Premium",
+      "shop": "DDM+ Shop",
+      "personal": "Personal information",
+      "security": "Security",
+      "notifications": "Notifications",
+      "privacy": "Privacy"
+    }
+  },
+  "account": {
+    "switchToClient": "Switch to client mode",
+    "switchToProvider": "Switch to provider mode",
+    "switchToClientSub": "Request a service for yourself",
+    "switchToProviderSub": "Receive requests and send offers"
   }
 }

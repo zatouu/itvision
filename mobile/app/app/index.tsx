@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
 import { getAuthUser, isLoggedIn } from '../src/auth'
-import { isPhoneLike, formatPhone, getInitials } from '../src/user-display'
+import { isPhoneLike, formatPhone } from '../src/user-display'
 import { fetchWithCache } from '../src/storage'
 import { connectSocket, requestOnlineProviders, onOnlineProvidersCount, joinRequestRoom, leaveRequestRoom, onProviderLocation } from '../src/socket'
 import OfflineQueueBadge from '../src/components/OfflineQueueBadge'
@@ -21,9 +21,8 @@ import OffersHero from '../src/components/home/OffersHero'
 import NearbyStrip from '../src/components/home/NearbyStrip'
 import Skeleton from '../src/components/Skeleton'
 import { colors, radius, spacing, typography, fonts } from '../src/design'
-import { BellRing, Check, Menu, LucideIcon, Sparkles } from 'lucide-react-native'
+import { BellRing, Check, LucideIcon, Sparkles } from 'lucide-react-native'
 import { pickOption } from '../src/option-sheet'
-import SideMenu from '../src/components/SideMenu'
 import TabBar from '../src/components/TabBar'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
@@ -105,7 +104,6 @@ function Home() {
     lng: number
     etaMinutes?: number | null
   } | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
   const { t, i18n } = useTranslation()
 
   const applyItems = useCallback((items: any[]) => {
@@ -349,15 +347,6 @@ function Home() {
         {/* Header */}
         <View style={s.header}>
           <View style={s.logoRow}>
-            <TouchableOpacity
-              style={s.headerBtn}
-              onPress={() => setMenuOpen(true)}
-              activeOpacity={0.6}
-              accessibilityRole="button"
-              accessibilityLabel={t('menu.navigation')}
-            >
-              <Menu size={20} color={colors.text} />
-            </TouchableOpacity>
             <Logo size={26} />
             <Text style={s.appName}>Xeuy Bi</Text>
           </View>
@@ -368,9 +357,6 @@ function Home() {
             <TouchableOpacity style={s.headerBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
               <BellRing size={18} color={colors.text} />
               {unread > 0 && <View style={s.notifDot} />}
-            </TouchableOpacity>
-            <TouchableOpacity style={s.avatarBtn} onPress={() => router.push('/profile')} accessibilityLabel="Profil">
-              <Text style={s.avatarText}>{getInitials(displayName)}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -535,7 +521,6 @@ function Home() {
       </ScrollView>
 
       <TabBar active="home" />
-      <SideMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </SafeAreaView>
   )
 }
@@ -551,8 +536,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
   },
   notifDot: { position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.surface },
-  avatarBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.surface },
   greeting: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
   greetTitle: { fontSize: 13, color: colors.textSecondary, fontWeight: typography.weight.medium as any },
   greetName: { fontSize: 22, fontFamily: fonts.display, fontWeight: typography.weight.extrabold as any, color: colors.text, letterSpacing: -0.4, marginTop: 2 },
