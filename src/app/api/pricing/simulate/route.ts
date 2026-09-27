@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { IProduct } from '@/lib/models/Product.validated'
+import Product, { IProduct } from '@/lib/models/Product'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { readPricingDefaults } from '@/lib/pricing/settings'
 

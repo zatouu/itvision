@@ -55,3 +55,29 @@ export async function internalPost<T = any>(
     return null
   }
 }
+
+/**
+ * Variante sans NextRequest — pour les appels internes depuis un worker/agent
+ * (pas de requête HTTP entrante). Base URL : APP_BASE_URL / NEXT_PUBLIC_APP_URL,
+ * sinon localhost:3000.
+ */
+export async function internalPostServer<T = any>(path: string, body: unknown): Promise<T | null> {
+  const secret = process.env.CRON_SECRET
+  if (!secret) {
+    console.warn('[INTERNAL API] CRON_SECRET non configuré — appel interne impossible')
+    return null
+  }
+  try {
+    const res = await fetch(`${resolveBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-cron-secret': secret },
+      body: JSON.stringify(body),
+      cache: 'no-store'
+    })
+    if (!res.ok) return null
+    return (await res.json()) as T
+  } catch (err) {
+    console.error('[INTERNAL API] échec appel', path, err)
+    return null
+  }
+}

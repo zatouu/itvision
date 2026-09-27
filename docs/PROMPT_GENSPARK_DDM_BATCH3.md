@@ -2,7 +2,7 @@
 
 ## Contexte
 
-Les Batch 1 (Home, Catalogue, Compte, Mes commandes, Suivi) et Batch 2 (Fiche produit, Panier, Checkout adresse, Achats groupés, Détail groupe) du marketplace DDM+ sont déjà implémentés dans `src/components/market/batch1/`.
+Les Batch 1 (Home, Catalogue, Compte, Mes commandes, Suivi) et Batch 2 (Fiche produit, Panier, Checkout adresse, Achats groupés, Détail groupe) du marketplace DDM+ sont déjà implémentés dans `src/components/market/storefront/`.
 
 Il reste **5 écrans** à designer pour finaliser le parcours client premium. Ces écrans existent déjà en version fonctionnelle basique dans le code, mais ils ne sont pas encore alignés sur la **Direction 01 · Safe** validée.
 
@@ -46,7 +46,7 @@ Utiliser les mêmes patterns que Batch 1 / Batch 2 :
 - `PriceBreakdown`
 - `Badge` / `Card` / `Section`
 
-Référence de code : `src/components/market/batch1/`.
+Référence de code : `src/components/market/storefront/`.
 
 ---
 
@@ -261,6 +261,6 @@ Dans le README du handoff, indiquer pour chaque écran :
 
 - Handoff Batch 1 : `docs/design_handoff_ddm_plus_batch1/README.md`
 - Prompt complet : `docs/PROMPT_GENSPARK_DDM_MARKETPLACE_V2.md`
-- Implémentation existante : `src/components/market/batch1/`
+- Implémentation existante : `src/components/market/storefront/`
 - Registre de domaines / routes : `src/lib/domains.ts`
 - Middleware : `src/lib/middleware/routes.ts`

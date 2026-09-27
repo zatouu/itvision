@@ -206,7 +206,7 @@ export default function SourcingRequestModal() {
 
   const content = (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={handleClose} />
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" aria-label="Fermer" onClick={handleClose} />
 
       <div className={cn(
         'relative z-10 w-full max-w-full md:max-w-[560px] bg-white dark:bg-slate-900 shadow-2xl overflow-hidden',
@@ -289,7 +289,7 @@ export default function SourcingRequestModal() {
                     )}
                   >
                     {preview ? (
-                      <img src={preview} alt="Aperçu" className="mx-auto h-32 w-auto rounded-xl object-contain" />
+                      <img loading="lazy" decoding="async" src={preview} alt="Aperçu" className="mx-auto h-32 w-auto rounded-xl object-contain" />
                     ) : (
                       <>
                         <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 mb-2">
@@ -502,8 +502,7 @@ export default function SourcingRequestModal() {
               </div>
               <h3 className="text-[16px] font-extrabold text-slate-900 dark:text-white">Produit trouvé dans notre catalogue</h3>
               <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                <img
-                  src={result.catalogMatch.image || '/placeholder.svg'}
+                <img loading="lazy" decoding="async" src={result.catalogMatch.image || '/placeholder.svg'}
                   alt={result.catalogMatch.name}
                   className="h-32 w-auto mx-auto rounded-xl object-cover mb-3 bg-slate-100 dark:bg-slate-800"
                 />

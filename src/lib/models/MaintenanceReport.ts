@@ -70,6 +70,11 @@ export interface IMaintenanceReport extends Document {
   technicianId: mongoose.Types.ObjectId
   clientId: mongoose.Types.ObjectId
   projectId: mongoose.Types.ObjectId
+  /** Devis généré depuis ce rapport (route admin ou agent quote_draft). */
+  quoteGenerated?: boolean
+  quoteGeneratedAt?: Date
+  quoteId?: mongoose.Types.ObjectId
+  quoteNumber?: string
   
   // Informations intervention
   interventionDate: Date
@@ -403,6 +408,14 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
     enum: ['draft', 'pending_validation', 'validated', 'rejected', 'published', 'archived'],
     default: 'draft'
   },
+  // Devis généré depuis ce rapport (route admin historique + agent quote_draft).
+  // Sans ces champs déclarés, Mongoose (strict) ignorait silencieusement les
+  // écritures → le garde-fou anti-doublon ne fonctionnait pas.
+  quoteGenerated: { type: Boolean, default: false },
+  quoteGeneratedAt: { type: Date },
+  quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
+  /** Référence du devis calculé à la volée par la route admin historique. */
+  quoteNumber: { type: String },
   priority: { 
     type: String, 
     enum: ['low', 'medium', 'high', 'urgent'],

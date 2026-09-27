@@ -6,7 +6,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 export async function GET(request: NextRequest) {
   try {
     await connectDB()
-    const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'])
+    const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN'])
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }

@@ -75,6 +75,7 @@ export interface SourcingProposal {
 export interface ISourcingRequest extends Document {
   // ── Identité client ────────────────────────────────────────────────────────
   userId?: string               // si connecté
+  companyClientId?: string      // si demande émise depuis le portail entreprise (B2B)
   contactPhone: string          // toujours requis (E.164 normalisé)
   contactName?: string
   contactEmail?: string
@@ -224,6 +225,8 @@ const ExternalSearchResultSchema = new Schema(
 const SourcingRequestSchema = new Schema<ISourcingRequest>(
   {
     userId: { type: String, index: true, sparse: true },
+    /** Société cliente (portail entreprise) à l'origine de la demande B2B. */
+    companyClientId: { type: String, index: true, sparse: true },
     contactPhone: { type: String, required: true, index: true },
     contactName: { type: String, trim: true, maxlength: 100 },
     contactEmail: { type: String, trim: true, lowercase: true, maxlength: 150 },
@@ -283,6 +286,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
 
 SourcingRequestSchema.index({ status: 1, slaDueAt: 1 })
 SourcingRequestSchema.index({ createdAt: -1 })
+SourcingRequestSchema.index({ companyClientId: 1, createdAt: -1 }, { sparse: true })
 
 /**
  * Calcul du SLA : +24h ouvrées (lun-sam, hors dimanche).

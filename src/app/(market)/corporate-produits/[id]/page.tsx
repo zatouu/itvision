@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { connectDB } from '@/lib/db'
-import ProductValidated from '@/lib/models/Product.validated'
+import ProductValidated from '@/lib/models/Product'
 import CorporateProductDetailClient from '@/components/corporate/CorporateProductDetailClient'
 import type { ProductDetailData } from '@/components/corporate/CorporateProductDetailClient'
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import mongoose from 'mongoose'

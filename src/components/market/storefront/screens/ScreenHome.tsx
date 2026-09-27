@@ -125,7 +125,7 @@ export default function ScreenHome() {
       <Link key={key} href={`/achats-groupes/${g.id}`} className="flex-shrink-0 snap-start block rounded-xl bg-white border border-slate-200 p-3 w-[220px] md:w-[260px] hover:shadow-md transition-shadow md:bg-slate-800 md:border-white/10 md:hover:bg-slate-700">
         <div className="flex items-center gap-2.5">
           <span className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
-            <img src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={g.image || '/placeholder.svg'} alt={g.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold text-slate-900 dark:text-white md:text-white line-clamp-1">{g.name}</p>
@@ -198,6 +198,9 @@ export default function ScreenHome() {
                       <img
                         src={p.img || '/placeholder.svg'}
                         alt={p.name}
+                        loading={i < 3 ? 'eager' : 'lazy'}
+                        fetchPriority={i < 3 ? 'high' : 'auto'}
+                        decoding="async"
                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
                         className="h-full w-full object-cover opacity-90"
                       />
@@ -276,6 +279,34 @@ export default function ScreenHome() {
               </div>
             </Section>
           )}
+
+          {/* Catégories — grille 2 mobile, 3 desktop, cartes partagées */}
+          {popularCategories.length > 0 && (
+            <Section title="Catégories populaires" className="mt-6 md:mt-10" right={<Link href="/produits" className="text-[11px] md:text-[13px] font-bold md:font-semibold text-emerald-600 md:text-slate-600 dark:text-emerald-400 md:dark:text-slate-400 whitespace-nowrap">Voir tout</Link>}>
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4">
+                {popularCategories.slice(0, 6).map((c) => (
+                  <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-28 md:h-44 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-md md:hover:shadow-lg dark:border-slate-800 md:transition-shadow">
+                    {c.image && !String(c.image).includes('placeholder') ? (
+                      <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
+                    ) : (
+                      <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-500"><Icon name={c.icon} size={28}/></span>
+                    )}
+                    <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent"/>
+                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Icon name="arrowRight" size={12}/></span>
+                    <span className="absolute inset-x-0 bottom-0 p-2.5 md:p-4">
+                      <span className="block text-[12px] md:text-[15px] font-extrabold text-white leading-tight">{c.label}</span>
+                      <span className="mt-0.5 block text-[10px] md:text-[11px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Réassurance juste après la sélection : avant les blocs explicatifs */}
+          <div className="mt-6 md:mt-10">
+            <TrustStrip compact/>
+          </div>
 
           {/* 3 façons d'importer — contenu partagé, rangée mobile / carte desktop */}
           <div className="mt-6 md:mt-10">
@@ -360,33 +391,6 @@ export default function ScreenHome() {
             </div>
           </div>
 
-          {/* Catégories — grille 2 mobile, 3 desktop, cartes partagées */}
-          {popularCategories.length > 0 && (
-            <Section title="Catégories populaires" className="mt-6 md:mt-10" right={<Link href="/produits" className="text-[11px] md:text-[13px] font-bold md:font-semibold text-emerald-600 md:text-slate-600 dark:text-emerald-400 md:dark:text-slate-400 whitespace-nowrap">Voir tout</Link>}>
-              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4">
-                {popularCategories.slice(0, 6).map((c) => (
-                  <button key={c.key} onClick={() => router.push(`/produits?cat=${encodeURIComponent(c.key)}`)} className="group relative h-28 md:h-44 overflow-hidden rounded-2xl border border-slate-200 text-left hover:shadow-md md:hover:shadow-lg dark:border-slate-800 md:transition-shadow">
-                    {c.image && !String(c.image).includes('placeholder') ? (
-                      <img src={c.image} alt={c.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"/>
-                    ) : (
-                      <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 dark:from-slate-800 dark:to-slate-900 dark:text-slate-500"><Icon name={c.icon} size={28}/></span>
-                    )}
-                    <span className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent"/>
-                    <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Icon name="arrowRight" size={12}/></span>
-                    <span className="absolute inset-x-0 bottom-0 p-2.5 md:p-4">
-                      <span className="block text-[12px] md:text-[15px] font-extrabold text-white leading-tight">{c.label}</span>
-                      <span className="mt-0.5 block text-[10px] md:text-[11px] font-semibold text-white/75">{c.count > 0 ? `${c.count} produit${c.count > 1 ? 's' : ''}` : 'Explorer'}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Trust */}
-          <div className="mt-6 md:mt-10">
-            <TrustStrip compact/>
-          </div>
         </div>
       </div>
       {quickAddToast}

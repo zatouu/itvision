@@ -89,6 +89,8 @@ type Product = {
   groupBuyEnabled?: boolean
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
+  // Lot minimum par commande standard (MOQ)
+  minOrderQty?: number
   priceTiers?: Array<{
     minQty: number
     maxQty?: number
@@ -482,6 +484,7 @@ export default function AdminProductManager() {
     groupBuyEnabled: false,
     groupBuyMinQty: 10,
     groupBuyTargetQty: 50,
+    minOrderQty: 1,
     priceTiers: [],
     // Informations 1688
     price1688: undefined,
@@ -2728,6 +2731,29 @@ export default function AdminProductManager() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Lot minimum (MOQ) — s'applique à la commande standard */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-700 mb-4">
+            <Package className="h-4 w-4" />
+            Lot minimum (MOQ)
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-500">Quantité minimum par commande</label>
+              <input
+                type="number"
+                min="1"
+                value={editing.minOrderQty ?? 1}
+                onChange={e => setEditing({ ...editing, minOrderQty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                1 = pas de lot. Au-delà, le panier et le checkout exigent cette quantité minimum.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Paliers de prix */}

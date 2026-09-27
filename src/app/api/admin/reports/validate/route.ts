@@ -27,7 +27,7 @@ async function verifyAdminToken(request: NextRequest) {
     const normalizedRole = String(decoded.role || '').toUpperCase()
 
     // Vérification rôle admin (normalisé)
-    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
+    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPER_ADMIN') {
       logSecurityViolation('unauthorized_admin_access', request, {
         userId: decoded.userId,
         role: decoded.role,
@@ -211,6 +211,18 @@ export async function POST(request: NextRequest) {
     // Notification au client si publié
     if (report.status === 'published') {
       await notifyClientReportAvailable(report)
+    }
+
+    // Agent corporate `quote_draft` : prépare un devis brouillon à partir du
+    // rapport validé (matériel + main d'œuvre + prix catalogue ITV) → l'admin
+    // valide dans /admin/copilot, le devis réel est créé à l'approbation.
+    if (action === 'approved' && !report.quoteGenerated) {
+      try {
+        const { enqueueAgentJob } = await import('@/lib/agents/queue')
+        await enqueueAgentJob('quote_draft', String(report._id))
+      } catch (e) {
+        console.warn('[Report] enqueue quote_draft échoué:', e)
+      }
     }
 
     // Mise à jour des statistiques admin (optionnel)

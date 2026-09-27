@@ -355,19 +355,19 @@ export default function ScreenFormRequest({
                 const qty = selectedItems[it.id] || 0;
                 return (
                   <div key={it.id} className="w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition">
-                    <button type="button" onClick={() => toggleItem(it.id)} className={cn('grid h-5 w-5 flex-shrink-0 place-items-center rounded-md border-2', active ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 dark:border-slate-600')}>
+                    <button type="button" aria-label={`Sélectionner ${it.name}`} aria-pressed={active} onClick={() => toggleItem(it.id)} className={cn('grid h-5 w-5 flex-shrink-0 place-items-center rounded-md border-2', active ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 dark:border-slate-600')}>
                       {active && <Check size={12} className="text-white" strokeWidth={3} />}
                     </button>
-                    {it.image && <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />}
+                    {it.image && <img loading="lazy" decoding="async" src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />}
                     <div className="min-w-0 flex-1">
                       <p className="text-[12px] font-bold text-slate-900 dark:text-white line-clamp-1">{it.name}</p>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">{it.qty} pcs · {formatFcfa(it.price * it.qty)}</p>
                     </div>
                     {active && (
                       <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 p-0.5" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" onClick={() => updateQty(it.id, -1)} className="grid h-6 w-6 place-items-center rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Minus size={11} /></button>
+                        <button type="button" aria-label="Diminuer la quantité" onClick={() => updateQty(it.id, -1)} className="grid h-6 w-6 place-items-center rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Minus size={11} /></button>
                         <span className="w-6 text-center text-[11px] font-extrabold tabular-nums">{qty}</span>
-                        <button type="button" onClick={() => updateQty(it.id, 1)} className="grid h-6 w-6 place-items-center rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Plus size={11} /></button>
+                        <button type="button" aria-label="Augmenter la quantité" onClick={() => updateQty(it.id, 1)} className="grid h-6 w-6 place-items-center rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Plus size={11} /></button>
                       </div>
                     )}
                   </div>

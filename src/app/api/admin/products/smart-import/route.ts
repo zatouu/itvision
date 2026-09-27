@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { qwenChat, qwenVision } from '@/lib/ai/qwen'

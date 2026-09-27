@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readPricingDefaults, writePricingDefaults, type PricingDefaults } from '@/lib/pricing/settings'
-import { requireAdminApi } from '@/lib/api-auth'
+import { requireAdminApi, PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN'])
+  // Lecture ouverte au PRODUCT_MANAGER (page /admin/produits/b2b-pricing) ;
+  // l'écriture des réglages globaux (POST) reste réservée aux admins.
+  const auth = await requireAdminApi(request, PRODUCT_STAFF_ROLES)
   if (!auth.ok) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
   }

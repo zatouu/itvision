@@ -2,7 +2,7 @@ import AuditLog from '@/lib/models/AuditLog'
 import mongoose from 'mongoose'
 
 interface AuditOptions {
-  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client'
+  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client' | 'SourcingRequest'
   entityId: string | mongoose.Types.ObjectId
   action: string
   previousState?: Record<string, any>

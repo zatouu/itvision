@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
+
+  const companyClientId = access.profiles.companyClientId
+  if (!companyClientId) {
+    return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
   }
 
   const { id } = await params
@@ -16,8 +20,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = new mongoose.Types.ObjectId(companyClientId)
   const userFilter = { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] }
 
   const quote = await AdminQuote.findOne({

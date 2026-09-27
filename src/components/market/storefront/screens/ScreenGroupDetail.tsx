@@ -50,6 +50,8 @@ export default function ScreenGroupDetail() {
   const [copied, setCopied] = useState(false);
   const [joinStatus, setJoinStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
   const [joinError, setJoinError] = useState('');
+  // Numéro déjà rattaché à un compte : inscription enregistrée en invité
+  const [accountExists, setAccountExists] = useState(false);
   const [chatToken, setChatToken] = useState('');
   const [chatMessages, setChatMessages] = useState<{ id: string; n: string; m: string; t: string; staff: boolean }[]>([]);
   const [chatDraft, setChatDraft] = useState('');
@@ -313,6 +315,7 @@ export default function ScreenGroupDetail() {
         return;
       }
       setJoinStatus('success');
+      setAccountExists(data?.accountExists === true);
       if (data?.chat?.token) {
         try { sessionStorage.setItem(chatStorageKey, data.chat.token); } catch {}
         setChatToken(data.chat.token);
@@ -465,6 +468,18 @@ export default function ScreenGroupDetail() {
       <p className="mt-2 text-[12px] text-slate-600 dark:text-slate-400 leading-relaxed">
         Ton inscription est associée à ton numéro de téléphone. Tu seras notifié à la clôture pour le paiement.
       </p>
+      {accountExists && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <p className="font-bold">Ce numéro a déjà un compte DDM+</p>
+          <p className="mt-0.5 leading-relaxed">Connecte-toi pour retrouver ce groupe dans ton espace et cumuler tes grains de fidélité.</p>
+          <Link
+            href={`/login?redirect=${encodeURIComponent(`/achats-groupes/${groupId}`)}`}
+            className="mt-2 inline-flex h-9 items-center justify-center rounded-lg bg-amber-600 px-3 text-[12px] font-bold text-white hover:bg-amber-700"
+          >
+            Me connecter
+          </Link>
+        </div>
+      )}
       {nextTier ? (
         <div className="mt-3 rounded-xl bg-violet-50 p-2.5 text-[12px] font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
           Encore <b className="tabular-nums">{unitsToNextTier}</b> unité{unitsToNextTier > 1 ? 's' : ''} pour passer à <b className="tabular-nums">{formatFcfa(nextTier.price)}</b>/pc — invite pour accélérer.
@@ -480,28 +495,28 @@ export default function ScreenGroupDetail() {
       </a>
     </Card>
   ) : (
-    <Card className="p-4">
+    <Card id="join-form" className="scroll-mt-24 p-4">
       <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Rejoindre le groupe</h3>
       <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Aucun paiement immédiat — vous serez notifié à la clôture.</p>
 
       <div className="mt-3 space-y-2.5">
         <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nom</span>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Amadou Diallo" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"/>
+          <input id="join-name" value={name} onChange={e=>setName(e.target.value)} autoComplete="name" placeholder="Amadou Diallo" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"/>
         </label>
         <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Téléphone</span>
           <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
             <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">+221</span>
-            <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="77 123 45 67" className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"/>
+            <input value={phone} onChange={e=>setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="77 123 45 67" className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"/>
           </div>
         </label>
         <label className="block">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</span>
           <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
-            <button onClick={()=>setQty(q=>Math.max(1,q-1))} className="grid h-9 w-9 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
+            <button aria-label="Diminuer la quantité" onClick={()=>setQty(q=>Math.max(1,q-1))} className="grid h-9 w-9 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
             <input value={qty} readOnly className="flex-1 bg-transparent text-center text-sm font-extrabold text-slate-900 dark:text-white tabular-nums"/>
-            <button onClick={()=>setQty(q=>q+1)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
+            <button aria-label="Augmenter la quantité" onClick={()=>setQty(q=>q+1)} className="grid h-9 w-9 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
           </div>
         </label>
         {(g.variantGroups || []).map((grp) => (
@@ -797,10 +812,11 @@ export default function ScreenGroupDetail() {
             {/* Rejoindre + partager : flux mobile, colonne droite sticky desktop */}
             <div className="md:col-start-2 md:row-start-1 md:row-span-4">
               <div className="md:sticky md:top-[calc(var(--mkt-header-h,0px)+12px)] md:space-y-4">
-                <Section title="Rejoindre" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-0 md:bg-transparent md:p-0 md:dark:bg-transparent">
+                {/* Paliers AVANT le formulaire : l'info prix/quantité précède la décision */}
+                <div className="mx-4 mt-2 md:mx-0 md:mt-0"><TiersPanel/></div>
+                <Section title="Rejoindre" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-4 md:bg-transparent md:p-0 md:dark:bg-transparent">
                   <JoinForm/>
                 </Section>
-                <div className="mx-4 mt-2 md:mx-0 md:mt-4"><TiersPanel/></div>
                 <Section title="Inviter" className="mt-2 bg-white py-4 dark:bg-slate-900 md:mt-4 md:bg-transparent md:p-0 md:dark:bg-transparent">
                   <ShareCard/>
                 </Section>
@@ -848,7 +864,16 @@ export default function ScreenGroupDetail() {
               size="md"
               className="whitespace-nowrap flex-shrink-0"
               disabled={joinStatus === 'submitting'}
-              onClick={handleJoin}
+              onClick={() => {
+                // Formulaire incomplet : amener l'utilisateur au formulaire
+                // plutôt que d'afficher une erreur hors écran.
+                if (!name.trim() || !phone.replace(/\s/g, '')) {
+                  document.getElementById('join-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setTimeout(() => document.getElementById('join-name')?.focus({ preventScroll: true }), 350);
+                  return;
+                }
+                void handleJoin();
+              }}
             >
               {joinStatus === 'submitting' ? 'Inscription…' : 'Rejoindre'}
             </Button>

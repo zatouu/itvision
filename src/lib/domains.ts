@@ -75,7 +75,17 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/workflows', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
 
   // ── Back-office transversal (à namespacer par domaine) ──
-  { prefix: '/admin', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT'] }, note: 'Console unique des 3 domaines — à éclater en sections namespacées' },
+  // Sections accessibles aux rôles staff non-admin (le middleware honore staffRoles).
+  { prefix: '/admin/produits', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'Catalogue produits + pricing B2B → sous-domaine market' },
+  { prefix: '/admin/prices', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
+  { prefix: '/admin/catalog', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
+  { prefix: '/admin/comptabilite', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/tresorerie', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/devis', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/factures', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/depenses', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/paiements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] }, note: 'Console unique des 3 domaines — à éclater en sections namespacées' },
   { prefix: '/admin-reports', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/admin-prix', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'Édition prix produits → sous-domaine market' },
   { prefix: '/admin-produits', domain: 'deprecated', access: 'public', note: 'Redirect vers /admin/produits — supprimer' },
@@ -138,10 +148,14 @@ export const PAGE_RULES: RouteRule[] = [
 
 export const API_RULES: RouteRule[] = [
   // ── Xeuy (mobile) — futur service séparé api.xeuy.* ──
+  { prefix: '/api/services/price-estimate', domain: 'xeuy', access: 'public', note: 'Estimations de prix par catégorie (agrégats médiane/p25/p75, aucune PII) — rate-limité' },
+  { prefix: '/api/services/providers', domain: 'xeuy', access: 'public', note: 'Listing public de prestataires (sans téléphone ni PII — cf. handler)' },
+  { prefix: '/api/services/route', domain: 'xeuy', access: 'auth', note: 'Proxy Google Directions (clé serveur) — auth requise pour protéger le quota' },
   { prefix: '/api/services', domain: 'xeuy', access: 'auth' },
   { prefix: '/api/provider', domain: 'xeuy', access: { profile: 'provider' } },
   { prefix: '/api/ai', domain: 'xeuy', access: 'auth', note: 'Matching/assistance services' },
-  { prefix: '/api/escrow', domain: 'xeuy', access: 'auth' },
+  { prefix: '/api/escrow', domain: 'xeuy', access: 'public', note: 'Suivi escrow par référence = capacité (données masquées, rate-limité) ; POST dispute = propriétaire ou phoneLast4 — cf. handlers' },
+  { prefix: '/api/wallet/webhook', domain: 'xeuy', access: 'public', note: 'Webhook Mobile Money (wallet Xeuy) — signature vérifiée dans le handler' },
   { prefix: '/api/wallet', domain: 'xeuy', access: 'auth' },
   { prefix: '/api/kyc', domain: 'xeuy', access: 'auth', review: true },
 
@@ -186,29 +200,37 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/payment/paydunya/callback', domain: 'market', access: 'public', note: 'Webhook PayDunya — appelé serveur-à-serveur, vérifié par signature/token' },
   { prefix: '/api/payment', domain: 'market', access: 'auth', note: 'Init/callbacks spécifiques déclarés plus haut ; reste = authentifié' },
   { prefix: '/api/payment/add-ons', domain: 'market', access: 'auth' },
+  { prefix: '/api/shipping/rates-public', domain: 'market', access: 'public', note: 'Tarifs transport publics — simulateur panier/checkout (aucune donnée sensible)' },
   { prefix: '/api/shipping', domain: 'market', access: 'auth' },
   { prefix: '/api/shipping-rates', domain: 'market', access: 'public' },
   { prefix: '/api/exchange-rate', domain: 'market', access: 'public' },
   { prefix: '/api/corporate', domain: 'market', access: 'public', note: 'Catalogue produits B2B (corporate-produits)', review: true },
 
   // ── Back-office transversal ──
+  { prefix: '/api/admin/campaigns/templates', domain: 'admin', access: 'public', note: 'Templates de campagne statiques (aucune donnée) — lus par la console admin' },
   { prefix: '/api/admin', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT'] } },
 
   // ── Partagé / socle ──
   { prefix: '/api/auth', domain: 'shared', access: 'public', note: 'Login web+mobile, OTP, register — point d\'entrée des 3 domaines' },
+  { prefix: '/api/notifications/vapid-public-key', domain: 'shared', access: 'public', note: 'Clé publique VAPID (web push) — publique par nature' },
   { prefix: '/api/notifications', domain: 'shared', access: 'auth' },
   { prefix: '/api/messages', domain: 'shared', access: 'auth' },
   { prefix: '/api/payments/manual-review', domain: 'shared', access: 'public', note: 'Décision admin sur paiement manuel via lien email — session admin requise dans le handler + token HMAC signé mono-objet (7j)' },
+  { prefix: '/api/payments/manual-config', domain: 'shared', access: 'public', note: 'Coordonnées de paiement manuel affichées au checkout (pas de secret)' },
+  { prefix: '/api/payments/webhook', domain: 'shared', access: 'public', note: 'Webhook Mobile Money serveur-à-serveur — signature vérifiée dans le handler' },
   { prefix: '/api/payments', domain: 'shared', access: 'auth', note: 'Gateway transversale : Order (market) + ServiceRequest (xeuy) — candidat module payment séparé', review: true },
   { prefix: '/api/users', domain: 'shared', access: 'auth' },
   { prefix: '/api/feedback', domain: 'shared', access: 'auth' },
   { prefix: '/api/analytics', domain: 'shared', access: 'public' },
   { prefix: '/api/upload', domain: 'shared', access: 'auth' },
   { prefix: '/api/uploads', domain: 'shared', access: 'auth' },
+  { prefix: '/api/booking/ics', domain: 'shared', access: 'public', note: 'Export calendrier ICS — le demandeur fournit lui-même titre/dates, aucune donnée lue en base' },
+  { prefix: '/api/booking/confirm', domain: 'shared', access: 'public', note: 'Formulaire public de réservation (emails/SMS) — rate-limité dans le handler' },
   { prefix: '/api/booking', domain: 'shared', access: 'auth', review: true },
   { prefix: '/api/internal', domain: 'shared', access: 'public', note: 'Gateway serveur-à-serveur inter-domaines — protégée par x-cron-secret dans les handlers (jamais appelée client)' },
   { prefix: '/api/cron', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/api/csrf', domain: 'shared', access: 'public' },
+  { prefix: '/api/diagnostic/submit', domain: 'shared', access: 'public', note: 'Formulaire public de diagnostic (prospection) — rate-limité dans le handler' },
   { prefix: '/api/diagnostic', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/api/health', domain: 'shared', access: 'public' },
   { prefix: '/api/security', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
@@ -249,8 +271,6 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
 
   // Market
   Product: 'market',
-  'Product.validated': 'market',
-  ProductValidated: 'market',
   ProductCategory: 'market',
   ProductQuestion: 'market',
   Order: 'market',

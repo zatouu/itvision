@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 
 // GET /api/market/products?search=&category=&condition=&limit=20&skip=0
 // Catalogue public marketplace (market.itvisionplus.sn)

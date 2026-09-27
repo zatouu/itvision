@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, Wrench, FolderKanban,
   Receipt, LifeBuoy, ChevronLeft, Menu, X, LogOut,
   ChevronRight, Settings, BarChart2, Activity, ClipboardList,
-  User, Search
+  User, Search, PackageSearch
 } from 'lucide-react'
 import NotificationBell from '@/components/portal/NotificationBell'
 import { CommandPalette, type PaletteItem } from '@/components/portal-ui'
@@ -20,6 +20,7 @@ const navItems = [
   { href: '/portail-entreprise/documents', label: 'Devis & Factures', icon: Receipt },
   { href: '/portail-entreprise/finances', label: 'Finances', icon: BarChart2 },
   { href: '/portail-entreprise/rapports', label: 'Rapports', icon: ClipboardList },
+  { href: '/portail-entreprise/sourcing', label: 'Trouvez-moi', icon: PackageSearch },
   { href: '/portail-entreprise/support', label: 'Support', icon: LifeBuoy },
   { href: '/portail-entreprise/activite', label: 'Activité', icon: Activity },
 ]

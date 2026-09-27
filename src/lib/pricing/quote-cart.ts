@@ -229,7 +229,7 @@ const PRODUCT_SELECT =
   '_id name category price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate ' +
   'weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg ' +
   'stockStatus stockQuantity baseCost marginRate requiresQuote ' +
-  'variantGroups priceTiers'
+  'variantGroups priceTiers minOrderQty'
 
 /**
  * Charge les produits du panier depuis MongoDB et valide leur disponibilité.
@@ -281,6 +281,16 @@ export async function loadCartProducts(
     }
     if (productHasVariantGroups(dbProduct) && resolvedVariants.length === 0) {
       return { ok: false, error: `${dbProduct.name}: veuillez sélectionner une variante` }
+    }
+
+    // Lot minimum (MOQ) : appliqué à la quantité commandée, jamais au prix.
+    // Bloque le checkout comme l'affichage du panier (message actionnable).
+    const minOrderQty = Number(dbProduct.minOrderQty) > 0 ? Math.floor(Number(dbProduct.minOrderQty)) : 1
+    if (minOrderQty > 1 && (item.qty || 1) < minOrderQty) {
+      return {
+        ok: false,
+        error: `${dbProduct.name}: lot minimum de ${minOrderQty} unités (quantité actuelle : ${item.qty || 1})`,
+      }
     }
 
     if (opts.checkStock) {

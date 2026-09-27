@@ -26,6 +26,10 @@ const SORT_MAP: Record<string, string> = {
   new: 'default',
 };
 
+// Filtre « lot minimum » : `lot` = vendu par lots (> 1) ; tranches affinées client
+const MOQ_BUCKETS = ['lot', '1-4', '5-9', '10-24', '25+'];
+const MOQ_LOWER_BOUND: Record<string, number> = { '5-9': 5, '10-24': 10, '25+': 25 };
+
 export default function ScreenCatalog() {
   const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
@@ -69,6 +73,13 @@ export default function ScreenCatalog() {
     if (queryDeb) params.set('q', queryDeb);
     if (cat !== 'Tous') params.set('category', cat);
     if (groupOnly) params.set('onlyGroupBuy', '1');
+    // Lot minimum : borne basse appliquée côté serveur (pagination juste),
+    // borne haute des tranches affinée côté client.
+    if (moqFilter === 'lot') params.set('moq', 'lot');
+    else {
+      const lower = MOQ_LOWER_BOUND[moqFilter];
+      if (lower && lower > 1) params.set('minMoq', String(lower));
+    }
 
     const res = await fetch(`/api/catalog/products?${params}`)
       .then(r => (r.ok ? r.json() : null))
@@ -85,7 +96,7 @@ export default function ScreenCatalog() {
     setTotal(t);
     setHasMore(res?.pagination?.hasMore ?? false);
     setPage(p);
-  }, [cat, queryDeb, groupOnly, sort]);
+  }, [cat, queryDeb, groupOnly, sort, moqFilter]);
 
   // (Re)chargement initial + à chaque changement de filtre côté serveur
   useEffect(() => {
@@ -128,16 +139,14 @@ export default function ScreenCatalog() {
   // Abonné à useSearchParams : une recherche depuis le header alors qu'on est
   // déjà sur /produits doit répercuter le nouveau terme.
   const searchParams = useSearchParams();
-  const MOQ_BUCKETS = ['1-4', '5-9', '10-24', '25+'];
   useEffect(() => {
     const catParam = searchParams.get('cat') || searchParams.get('category');
     const qParam = searchParams.get('q');
     const moqParam = searchParams.get('moq');
     if (catParam) setCat(catParam);
     if (qParam !== null) setQuery(qParam);
-    // « lot » = raccourci vitrine vers les produits à lot conséquent
-    if (moqParam === 'lot') setMoqFilter('25+');
-    else if (moqParam && MOQ_BUCKETS.includes(moqParam)) setMoqFilter(moqParam);
+    // « lot » = produits vendus par lots (lot minimum > 1), aligné sur l'API
+    if (moqParam && MOQ_BUCKETS.includes(moqParam)) setMoqFilter(moqParam);
     if (searchParams.get('groupe') === '1') setGroupOnly(true);
   }, [searchParams]);
 
@@ -153,6 +162,7 @@ export default function ScreenCatalog() {
     return CATALOG.filter((p) => {
       if (cat !== "Tous" && !productMatchesCategory(p, cat)) return false;
       if (p.price < effectivePriceRange[0] || p.price > effectivePriceRange[1]) return false;
+      if (moqFilter === "lot" && (p.moq ?? p.minOrderQty ?? 1) <= 1) return false;
       if (moqFilter === "1-4" && (p.moq ?? p.minOrderQty ?? 0) > 4) return false;
       if (moqFilter === "5-9" && ((p.moq ?? p.minOrderQty ?? 0) < 5 || (p.moq ?? p.minOrderQty ?? 0) > 9)) return false;
       if (moqFilter === "10-24" && ((p.moq ?? p.minOrderQty ?? 0) < 10 || (p.moq ?? p.minOrderQty ?? 0) > 24)) return false;
@@ -165,13 +175,14 @@ export default function ScreenCatalog() {
   }, [CATALOG, cat, effectivePriceRange, moqFilter, groupOnly, verifiedOnly, minSave]);
 
   // Filtres uniquement côté client → le total serveur n'est pas fiable pour le compteur
-  const clientOnlyFilters = moqFilter !== "all" || verifiedOnly || minSave > 0 ||
+  // `lot` et `25+` sont entièrement appliqués côté serveur → total fiable
+  const clientOnlyFilters = !["all", "lot", "25+"].includes(moqFilter) || verifiedOnly || minSave > 0 ||
     effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice;
   const displayCount = clientOnlyFilters ? filtered.length : (total || filtered.length);
 
   const activeFilters = [
     cat !== "Tous" && (CATEGORIES.find(c => c.key === cat)?.label || cat),
-    moqFilter !== "all" && `Lot ${moqFilter}`,
+    moqFilter !== "all" && (moqFilter === "lot" ? "Vendu par lot" : `Lot ${moqFilter}`),
     groupOnly && "Groupe actif",
     verifiedOnly && "Vérifiés",
     minSave > 0 && `-${minSave}% min`,
@@ -227,7 +238,7 @@ export default function ScreenCatalog() {
       <div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Lot minimum</p>
         <div className="grid grid-cols-2 gap-1.5">
-          {[["all","Tous"],["1-4","1-4"],["5-9","5-9"],["10-24","10-24"],["25+","25+"]].map(([k,l]) => (
+          {[["all","Tous"],["lot","Par lot (2+)"],["1-4","1-4"],["5-9","5-9"],["10-24","10-24"],["25+","25+"]].map(([k,l]) => (
             <button key={k} onClick={() => setMoqFilter(k)} className={cn("rounded-lg py-1.5 text-[11px] font-semibold", moqFilter === k ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
               {l}
             </button>
@@ -275,8 +286,11 @@ export default function ScreenCatalog() {
     );
   }
 
-  // Catalogue réellement vide : proposer la seule action utile (sourcing).
-  if (CATALOG.length === 0) {
+  // Catalogue réellement vide (aucune recherche ni filtre serveur) : proposer la
+  // seule action utile (sourcing). Avec une recherche/filtre sans résultat, on
+  // garde la vue normale : barre de recherche effaçable + état « aucun résultat ».
+  const hasServerFilter = !!queryDeb || cat !== 'Tous' || groupOnly || moqFilter !== 'all';
+  if (CATALOG.length === 0 && !hasServerFilter) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center px-6 py-20 text-center">
         <span className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
@@ -357,15 +371,21 @@ export default function ScreenCatalog() {
             </aside>
 
             <div>
-              {filtered.length === 0 && !hasMore ? (
+              {filtered.length === 0 && (!hasMore || CATALOG.length >= PAGE_SIZE * 3) ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border-slate-200 px-6 py-16 text-center md:border md:bg-white md:p-16 dark:border-slate-800 dark:md:bg-slate-900">
                   <div className="grid h-20 w-20 md:h-24 md:w-24 place-items-center rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
                     <Icon name="search" size={32} className="text-slate-400"/>
                   </div>
-                  <p className="text-[14px] md:text-[16px] font-extrabold text-slate-900 dark:text-white">Aucun produit trouvé</p>
-                  <p className="mt-1 text-[12px] md:text-sm text-slate-500 dark:text-slate-400 max-w-xs md:max-w-md">Essayez d&apos;ajuster vos filtres ou envoyez une demande de sourcing.</p>
+                  <p className="text-[14px] md:text-[16px] font-extrabold text-slate-900 dark:text-white">
+                    {query ? <>Aucun résultat pour « {query} »</> : 'Aucun produit avec ces filtres'}
+                  </p>
+                  <p className="mt-1 text-[12px] md:text-sm text-slate-500 dark:text-slate-400 max-w-xs md:max-w-md">
+                    {query ? 'Vérifiez l’orthographe, élargissez la recherche ou faites-nous sourcer ce produit.' : 'Essayez d’élargir vos filtres ou envoyez une demande de sourcing.'}
+                  </p>
                   <div className="mt-4 md:mt-6 flex flex-col md:flex-row gap-2 md:gap-3 w-full md:w-auto max-w-xs">
-                    <Button variant="secondary" size="md" onClick={reset}>Réinitialiser les filtres</Button>
+                    <Button variant="secondary" size="md" onClick={() => { reset(); if (query) router.push('/produits'); }}>
+                      {query ? 'Effacer la recherche' : 'Réinitialiser les filtres'}
+                    </Button>
                     <Button variant="violet" size="md" onClick={openSourcing}><Icon name="camera" size={14}/>Demander un sourcing</Button>
                   </div>
                 </div>

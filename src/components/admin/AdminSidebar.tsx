@@ -44,7 +44,8 @@ import {
   Store,
   Bot
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { getPageRule } from '@/lib/domains'
 
 interface MenuItem {
   id: string
@@ -52,6 +53,36 @@ interface MenuItem {
   icon: any
   href?: string
   children?: MenuItem[]
+}
+
+/**
+ * Un lien de menu est visible si le registre domains.ts l'autorise pour ce rôle.
+ * Rôle inconnu (chargement) → tout est visible (comportement historique).
+ */
+function canSeeHref(href: string | undefined, role: string | null): boolean {
+  if (!href || !role) return true
+  const rule = getPageRule(href.split('?')[0])
+  if (!rule) return true
+  const access = rule.access
+  if (access === 'public' || access === 'auth') return true
+  if ('staffRoles' in access) return access.staffRoles.includes(role)
+  if ('profile' in access) return false
+  return true
+}
+
+function filterItemsByRole(items: MenuItem[], role: string | null): MenuItem[] {
+  return items
+    .map(item => item.children
+      ? { ...item, children: filterItemsByRole(item.children, role) }
+      : item)
+    .filter(item => item.children ? item.children.length > 0 : canSeeHref(item.href, role))
+}
+
+function filterSectionsByRole(sections: MenuSection[], role: string | null): MenuSection[] {
+  if (!role) return sections
+  return sections
+    .map(section => ({ ...section, items: filterItemsByRole(section.items, role) }))
+    .filter(section => section.items.length > 0)
 }
 
 interface MenuSection {
@@ -505,6 +536,21 @@ export default function AdminSidebar() {
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [role, setRole] = useState<string | null>(null)
+
+  // Rôle du staff connecté → le menu suit le registre domains.ts
+  // (un ACCOUNTANT ne voit pas les sections marketplace/Xeuy, etc.)
+  useEffect(() => {
+    fetch('/api/auth/login', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setRole(String(d?.user?.role || '').toUpperCase() || null))
+      .catch(() => {})
+  }, [])
+
+  const visibleSections = useMemo(
+    () => filterSectionsByRole(menuSections, role),
+    [role]
+  )
 
   const isActive = (href?: string) => {
     if (!href) return false
@@ -550,7 +596,7 @@ export default function AdminSidebar() {
     }
     // Auto-expand any submenu whose child is active
     const activeParents: string[] = []
-    for (const section of menuSections) {
+    for (const section of visibleSections) {
       for (const item of section.items) {
         if (item.children && hasActiveChild(item)) {
           activeParents.push(item.id)
@@ -729,7 +775,7 @@ export default function AdminSidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
-          {menuSections.map(section => renderSection(section))}
+          {visibleSections.map(section => renderSection(section))}
         </nav>
 
         {/* Footer avec version */}

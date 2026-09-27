@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { ServiceFeeRate } from '../types/product.types'
 
 // Interface pour une variante de produit (avec image et prix 1688)
 export interface IProductVariant {
@@ -50,6 +51,8 @@ export interface IProduct extends Document {
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
+  netWeightKg?: number
+  grossWeightKg?: number
   lengthCm?: number
   widthCm?: number
   heightCm?: number
@@ -69,6 +72,7 @@ export interface IProduct extends Document {
   groupBuyEnabled?: boolean           // Active l'achat groupé pour ce produit
   groupBuyMinQty?: number             // Quantité min totale pour lancer la commande
   groupBuyTargetQty?: number          // Quantité cible idéale
+  minOrderQty?: number                // Lot minimum par commande standard (MOQ, défaut 1)
   priceTiers?: IPriceTier[]           // Paliers de prix dégressifs
   // Espace vendeur / storefront public
   sellerName?: string
@@ -86,7 +90,7 @@ export interface IProduct extends Document {
   price1688?: number // Prix en Yuan (¥)
   price1688Currency?: string // Devise 1688 (par défaut 'CNY')
   exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
-  serviceFeeRate?: number // Frais de service (5%, 10%, 15%)
+  serviceFeeRate?: ServiceFeeRate // Frais de service (5%, 10%, 15%)
   insuranceRate?: number // Frais d'assurance (en %)
   shippingOverrides?: Array<{
     methodId: string
@@ -141,6 +145,8 @@ const ProductSchema = new Schema<IProduct>({
   stockQuantity: { type: Number, default: 0 },
   leadTimeDays: { type: Number, default: 15 },
   weightKg: { type: Number },
+  netWeightKg: { type: Number },
+  grossWeightKg: { type: Number },
   lengthCm: { type: Number },
   widthCm: { type: Number },
   heightCm: { type: Number },
@@ -183,6 +189,8 @@ const ProductSchema = new Schema<IProduct>({
   groupBuyEnabled: { type: Boolean, default: false },
   groupBuyMinQty: { type: Number, default: 10 },
   groupBuyTargetQty: { type: Number, default: 50 },
+  // Lot minimum par commande standard (MOQ) — appliqué au panier/checkout
+  minOrderQty: { type: Number, default: 1, min: 1 },
   // Espace vendeur / storefront public
   sellerName: { type: String, index: true, sparse: true },
   sellerSlug: { type: String, index: true, sparse: true },
@@ -255,8 +263,72 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+/**
+ * Normalisation logistique (fusion de l'ancien schéma Product.validated) :
+ * synchronise poids net/brut, dérive le poids d'emballage et le volume m³.
+ * Comble seulement les champs vides (les rejets sont dans validateLogistics).
+ */
+function normalizeLogistics(doc: IProduct) {
+  if (doc.grossWeightKg && !doc.weightKg) doc.weightKg = doc.grossWeightKg
+  else if (doc.weightKg && !doc.grossWeightKg) doc.grossWeightKg = doc.weightKg
+
+  if (doc.netWeightKg && doc.grossWeightKg && !doc.packagingWeightKg) {
+    const packaging = doc.grossWeightKg - doc.netWeightKg
+    if (packaging >= 0) doc.packagingWeightKg = Math.round(packaging * 1000) / 1000
+  }
+
+  if (doc.lengthCm && doc.widthCm && doc.heightCm) {
+    const volumeM3 = (doc.lengthCm * doc.widthCm * doc.heightCm) / 1_000_000
+    if (!doc.volumeM3 || Math.abs(doc.volumeM3 - volumeM3) > 0.001) {
+      doc.volumeM3 = Math.round(volumeM3 * 1000) / 1000
+    }
+  }
+}
+
+const IMPORT_PLATFORMS = ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish']
+const LOGISTICS_PATHS = [
+  'price1688', 'sourcing.platform', 'requiresQuote',
+  'weightKg', 'grossWeightKg', 'netWeightKg', 'volumeM3', 'lengthCm', 'widthCm', 'heightCm',
+]
+
+/**
+ * Contrôles logistiques (repris de l'ancien schéma Product.validated).
+ * Appliqués à la création ou quand un champ logistique change : une simple
+ * mise à jour de stock sur un produit legacy incomplet n'est jamais bloquée.
+ */
+function validateLogistics(doc: any): string | null {
+  const touched = doc.isNew || LOGISTICS_PATHS.some(p => doc.isModified(p))
+  if (!touched) return null
+
+  const { lengthCm, widthCm, heightCm } = doc
+  const anyDim = [lengthCm, widthCm, heightCm].some(v => v !== undefined && v !== null)
+  if (anyDim) {
+    if (!lengthCm || !widthCm || !heightCm) {
+      return 'Toutes les dimensions (longueur, largeur, hauteur) doivent être renseignées ensemble'
+    }
+    if (lengthCm <= 0 || widthCm <= 0 || heightCm <= 0) return 'Les dimensions doivent être positives'
+  }
+
+  // Produit d'import Chine (hors « sur devis ») : poids + volume indispensables
+  // au calcul du transport, sinon le prix affiché est faux.
+  const platform = doc.sourcing?.platform
+  const isImported = !!(doc.price1688 || (platform && IMPORT_PLATFORMS.includes(platform)))
+  if (isImported && !doc.requiresQuote) {
+    if (!(doc.weightKg || doc.grossWeightKg || doc.netWeightKg)) {
+      return "Les produits d'import doivent avoir un poids (kg) renseigné pour le calcul du transport"
+    }
+    if (!(doc.volumeM3 || (lengthCm && widthCm && heightCm))) {
+      return "Les produits d'import doivent avoir un volume (m³) ou des dimensions (L, l, H) renseignés pour le calcul du transport"
+    }
+  }
+  return null
+}
+
 // Génère un slug SEO-friendly si le nom est modifié ou si le slug est absent
 ProductSchema.pre('save', async function (next) {
+  const logisticsError = validateLogistics(this)
+  if (logisticsError) return next(new Error(logisticsError))
+
   if (this.isModified('name') || !this.slug) {
     const base = slugify(this.name)
     let slug = base
@@ -282,8 +354,21 @@ ProductSchema.pre('save', async function (next) {
     this.imageEmbeddingAttempts = 0
     this.imageEmbeddingVersion = undefined
   }
+  normalizeLogistics(this)
   next()
 })
+
+// Index pour performances (fusion de l'ancien schéma Product.validated)
+ProductSchema.index({ name: 'text', description: 'text', tagline: 'text', tags: 'text', 'sourcing.title': 'text' })
+ProductSchema.index({ category: 1, isPublished: 1 })
+ProductSchema.index({ sellerSlug: 1, isPublished: 1 })
+ProductSchema.index({ shopId: 1, isPublished: 1 })
+ProductSchema.index({ isFeatured: 1, createdAt: -1 })
+ProductSchema.index({ groupBuyEnabled: 1, isPublished: 1 })
+ProductSchema.index({ channels: 1, isPublished: 1 })
+ProductSchema.index({ corporateVisible: 1, isPublished: 1 })
+ProductSchema.index({ price1688: 1 })
+ProductSchema.index({ stockStatus: 1, stockQuantity: 1 })
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
 

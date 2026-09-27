@@ -66,8 +66,7 @@ export function ProductCard({
     >
       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
         {image && !imageError ? (
-          <img
-            src={image}
+          <img loading="lazy" decoding="async" src={image}
             alt={product.name}
             onError={() => setImageError(true)}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"

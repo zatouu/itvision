@@ -3,6 +3,7 @@ import { schedule, ScheduledTask, validate } from 'node-cron'
 import { runPreventiveVisitsJob, JOB_NAME as JOB_PREVENTIVE } from './jobs/preventive-visits'
 import { runRenewalRemindersJob, JOB_NAME as JOB_RENEWAL } from './jobs/renewal-reminders'
 import { runSLAMonitoringJob, JOB_NAME as JOB_SLA } from './jobs/sla-monitoring'
+import { runCorporateAgentsJob, JOB_NAME as JOB_CORPORATE_AGENTS } from './jobs/corporate-agents'
 
 type JobDefinition = {
   name: string
@@ -29,6 +30,13 @@ const jobs: JobDefinition[] = [
     schedule: '*/15 * * * *',
     task: runSLAMonitoringJob,
     enabled: process.env.MAINTENANCE_CRON_SLA !== 'false'
+  },
+  {
+    // Agents corporate : renouvellements + digests clients (lundi 7h)
+    name: JOB_CORPORATE_AGENTS,
+    schedule: '0 7 * * 1',
+    task: runCorporateAgentsJob,
+    enabled: process.env.MAINTENANCE_CRON_CORPORATE_AGENTS !== 'false'
   }
 ]
 

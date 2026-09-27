@@ -235,6 +235,9 @@ export default function NotificationCenter({ className }: NotificationCenterProp
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
         title="Notifications"
+        aria-label={unreadCount > 0 ? `Notifications (${unreadCount} non lues)` : 'Notifications'}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
       >
         <Bell className="h-5 w-5" />
         <AnimatePresence>
@@ -281,6 +284,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     onClick={fetchNotifications}
                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                     title="Actualiser"
+                    aria-label="Actualiser les notifications"
                   >
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   </button>
@@ -290,6 +294,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                       onClick={markAllAsRead}
                       className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                       title="Tout marquer comme lu"
+                      aria-label="Tout marquer comme lu"
                     >
                       <CheckCheck className="h-4 w-4" />
                     </button>
@@ -298,6 +303,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   <button
                     onClick={() => setIsOpen(false)}
                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Fermer les notifications"
                   >
                     <X className="h-4 w-4" />
                   </button>

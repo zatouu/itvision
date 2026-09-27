@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { runPreventiveVisitsJob } from '@/lib/maintenance/jobs/preventive-visits'
 import { runRenewalRemindersJob } from '@/lib/maintenance/jobs/renewal-reminders'
 import { runSLAMonitoringJob } from '@/lib/maintenance/jobs/sla-monitoring'
+import { runCorporateAgentsJob } from '@/lib/maintenance/jobs/corporate-agents'
 import { getMaintenanceCronStatus } from '@/lib/maintenance/cron-runner'
 
-const VALID_JOBS = ['preventive-visits', 'renewal-reminders', 'sla-monitoring']
+const VALID_JOBS = ['preventive-visits', 'renewal-reminders', 'sla-monitoring', 'corporate-agents']
 
 function requireCronSecret(request: NextRequest): boolean {
   const secret = request.headers.get('x-cron-secret') || ''

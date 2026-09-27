@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { type IProduct } from '@/lib/models/Product.validated'
+import Product, { type IProduct } from '@/lib/models/Product'
 import type { ProductVariantGroup, ProductChannel } from '@/lib/types/product.types'
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 async function requireManagerRole(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+    const allowed = PRODUCT_STAFF_ROLES.includes(String(role || '').toUpperCase())
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
@@ -163,6 +164,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     groupBuyEnabled,
     groupBuyMinQty,
     groupBuyTargetQty,
+    minOrderQty,
     priceTiers
   } = payload || {}
 
@@ -270,6 +272,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     ? parsedServiceFeeRate 
     : undefined
   normalized.insuranceRate = parseNumber(insuranceRate)
+
+  // Lot minimum (MOQ) — entier ≥ 1, sinon laissé inchangé (défaut schéma = 1)
+  const parsedMinOrderQty = parseNumber(minOrderQty)
+  normalized.minOrderQty = parsedMinOrderQty !== undefined
+    ? Math.max(1, Math.floor(parsedMinOrderQty))
+    : undefined
   if (typeof price1688Currency === 'string') {
     const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
     normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 

@@ -379,7 +379,7 @@ function Section({ title, hint, open, onToggle, children }: {
 }
 
 export function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '', weightKg: '', tags: '' })
+  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '', weightKg: '', tags: '', minOrderQty: '' })
   const [photos, setPhotos] = useState<string[]>([])
   const [features, setFeatures] = useState<string[]>([''])
   const [variantGroups, setVariantGroups] = useState<VariantGroupRow[]>([])
@@ -476,6 +476,7 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
           features: features.map(f => f.trim()).filter(Boolean).slice(0, 10),
           variantGroups: groups.length ? groups : undefined,
           priceTiers: tiers.length ? tiers : undefined,
+          minOrderQty: form.minOrderQty ? Math.max(1, parseInt(form.minOrderQty, 10) || 1) : 1,
         }),
       })
       const d = await res.json()
@@ -557,6 +558,12 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Stock *</label>
               <input required type="number" min={0} value={form.stockQuantity} onChange={e => setForm({ ...form, stockQuantity: e.target.value })} className={inputCls} placeholder="20" />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Lot minimum (MOQ)</label>
+            <input type="number" min={1} value={form.minOrderQty} onChange={e => setForm({ ...form, minOrderQty: e.target.value })} className={inputCls} placeholder="1 = pas de lot" />
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Quantité minimum par commande. Laissez vide pour vendre à l&apos;unité.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

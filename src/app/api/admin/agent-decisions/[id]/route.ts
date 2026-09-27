@@ -4,6 +4,8 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AgentDecision from '@/lib/models/AgentDecision'
 import { resumeProductModeration } from '@/lib/agents/moderation/run'
 import { resumeSourcingRequest } from '@/lib/agents/sourcing/request-run'
+import { resumeQuoteDraft } from '@/lib/agents/corporate/quote-draft'
+import { resumeContractRenewal } from '@/lib/agents/corporate/contract-renewal'
 
 // Décision humaine → reprend le graphe figé (interrupt) avec Command({resume})
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const resumers: Record<string, (runId: string, d: any) => Promise<void>> = {
       product_moderation: resumeProductModeration,
       sourcing_request: resumeSourcingRequest,
+      quote_draft: resumeQuoteDraft,
+      contract_renewal: resumeContractRenewal,
     }
     const resume = resumers[decision.type]
     if (resume) {

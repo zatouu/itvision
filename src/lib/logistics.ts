@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product.validated'
+import type { IProduct } from './models/Product'
 import { calculateBilledWeight } from './pricing/volumetric-weight'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight'

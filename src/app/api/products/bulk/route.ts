@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
+import { itvOwnProductClause } from '@/lib/market/corporate-catalog'
 
 async function requireManagerRole(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+    const allowed = PRODUCT_STAFF_ROLES.includes(String(role || '').toUpperCase())
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
@@ -102,12 +104,34 @@ export async function PATCH(request: NextRequest) {
     if (Object.keys(updateAddToSet).length) updateDoc.$addToSet = updateAddToSet
     if (Object.keys(updatePull).length) updateDoc.$pull = updatePull
 
-    const result: any = await Product.updateMany({ _id: { $in: cleanIds } }, updateDoc)
+    // Règle B2B : un produit de vendeur tiers (shopId) n'entre jamais dans le
+    // catalogue corporate — l'update est donc restreint aux produits IT Vision
+    // (cf. src/lib/market/corporate-catalog.ts) et les autres sont signalés.
+    const exposesCorporate =
+      updateSet.corporateVisible === true ||
+      (Array.isArray(updateSet.channels) && updateSet.channels.includes('corporate')) ||
+      updateAddToSet.channels === 'corporate'
+
+    const filter: Record<string, unknown> = { _id: { $in: cleanIds } }
+    if (exposesCorporate) {
+      filter.$and = [itvOwnProductClause()]
+    }
+
+    const result: any = await Product.updateMany(filter, updateDoc)
+
+    const matchedCount = Number(result?.matchedCount ?? result?.n ?? 0)
+    const vendorSkipped = exposesCorporate ? cleanIds.length - matchedCount : 0
 
     return NextResponse.json({
       success: true,
-      matchedCount: Number(result?.matchedCount ?? result?.n ?? 0),
-      modifiedCount: Number(result?.modifiedCount ?? result?.nModified ?? 0)
+      matchedCount,
+      modifiedCount: Number(result?.modifiedCount ?? result?.nModified ?? 0),
+      ...(vendorSkipped > 0
+        ? {
+            vendorSkipped,
+            warning: `${vendorSkipped} produit(s) de vendeur tiers ignoré(s) : le catalogue B2B est réservé aux produits IT Vision.`,
+          }
+        : {}),
     })
   } catch (error) {
     console.error('PATCH /api/products/bulk error', error)

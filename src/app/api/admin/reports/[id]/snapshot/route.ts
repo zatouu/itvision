@@ -13,7 +13,7 @@ async function verifyAdminToken(request: NextRequest) {
   if (!token) throw new Error('Token manquant')
   const payload = await verifyJwtPayload(token)
   const normalizedRole = String((payload as any).role || '').toUpperCase()
-  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
+  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPER_ADMIN') {
     throw new Error('Accès non autorisé')
   }
   return payload

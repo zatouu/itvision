@@ -17,7 +17,7 @@ import {
 } from '@/components/portal-ui'
 
 // ─── Quote Detail Modal ────────────────────────────────────────────────────────
-function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => void; onAction: (q: any) => void }) {
+function QuoteModal({ quote, onClose, onAction, canRespond = true }: { quote: any; onClose: () => void; onAction: (q: any) => void; canRespond?: boolean }) {
   const [tab, setTab] = useState<'detail' | 'action' | 'comments'>('detail')
   const [action, setAction] = useState<'accepted' | 'rejected' | 'counter_proposed' | 'comment'>('accepted')
   const [message, setMessage] = useState('')
@@ -31,7 +31,8 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
   const [signatureName, setSignatureName] = useState('')
   const [consent, setConsent] = useState(false)
 
-  const canRespond = quote.status === 'sent' && (!quote.clientResponse || quote.clientResponse === 'pending')
+  // Répondre = devis en attente ET rôle autorisé (capability 'quotes:respond' côté API)
+  const canAnswer = canRespond && quote.status === 'sent' && (!quote.clientResponse || quote.clientResponse === 'pending')
   const comments = quote.clientComments || []
 
   async function handleSubmit(e: React.FormEvent) {
@@ -105,7 +106,7 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
         <div className="flex border-b border-stone-100 px-5 sm:px-6 flex-shrink-0 overflow-x-auto">
           {[
             { id: 'detail', label: 'Détail', icon: FileText },
-            { id: 'action', label: canRespond ? 'Répondre' : 'Réponse', icon: ThumbsUp },
+            { id: 'action', label: canAnswer ? 'Répondre' : 'Réponse', icon: ThumbsUp },
             { id: 'comments', label: `Commentaires${comments.length ? ` (${comments.length})` : ''}`, icon: MessageSquare },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id as any)}
@@ -242,10 +243,11 @@ function QuoteModal({ quote, onClose, onAction }: { quote: any; onClose: () => v
                   message={success}
                   onClose={() => setSuccess('')}
                 />
-              ) : !canRespond ? (
+              ) : !canAnswer ? (
                 <div className="rounded-xl bg-stone-50 border border-stone-100 p-6 text-center">
                   <p className="text-stone-500 text-sm">
-                    {quote.clientResponse === 'accepted' ? 'Vous avez déjà accepté ce devis.' :
+                    {!canRespond ? "Votre rôle dans l'entreprise ne permet pas de répondre à un devis (rôle finance ou direction requis)." :
+                     quote.clientResponse === 'accepted' ? 'Vous avez déjà accepté ce devis.' :
                      quote.clientResponse === 'rejected' ? 'Vous avez déjà refusé ce devis.' :
                      quote.clientResponse === 'counter_proposed' ? 'Votre contre-proposition a été envoyée.' :
                      'Ce devis ne nécessite pas de réponse.'}
@@ -541,12 +543,23 @@ export default function DocumentsPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [quoteFilter, setQuoteFilter] = useState<string>('all')
   const [invoiceFilter, setInvoiceFilter] = useState<string>('all')
+  const [canRespondQuotes, setCanRespondQuotes] = useState(true)
 
   useEffect(() => {
     fetch('/api/client-enterprise/documents')
       .then(r => r.json())
       .then(d => { setQuotes(d.quotes || []); setInvoices(d.invoices || []) })
       .finally(() => setLoading(false))
+  }, [])
+
+  // Capacités du membre : masque l'action « Répondre » si le rôle ne l'autorise pas
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (Array.isArray(d?.capabilities)) setCanRespondQuotes(d.capabilities.includes('quotes:respond'))
+      })
+      .catch(() => {})
   }, [])
 
   const handleQuoteAction = useCallback((updated: any) => {
@@ -845,6 +858,7 @@ export default function DocumentsPage() {
           quote={selectedQuote}
           onClose={() => setSelectedQuote(null)}
           onAction={handleQuoteAction}
+          canRespond={canRespondQuotes}
         />
       )}
       {selectedInvoice && (

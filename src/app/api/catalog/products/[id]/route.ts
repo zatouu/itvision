@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { IProduct } from '@/lib/models/Product.validated'
+import Product, { IProduct } from '@/lib/models/Product'
 import { formatProductDetail, formatSimilarProducts } from '@/lib/catalog-format'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 

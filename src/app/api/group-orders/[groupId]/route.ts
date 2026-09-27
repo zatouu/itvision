@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { requireAdminApi } from '@/lib/api-auth'
+import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
+import { computeEffectivePricing } from '@/lib/pricing/quote-cart'
 import { 
   notifyGroupJoinConfirmation, 
   notifyNewParticipant, 
@@ -24,6 +27,44 @@ import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+/**
+ * Branches `$switch` pour le recalcul de prix dans le pipeline d'update :
+ * chaque combinaison de variantes observée (ids joints par « | ») → facteur
+ * d'échelle appliqué au palier de base. Les combinaisons non listées gardent
+ * leur prix courant (voir `$ifNull` dans l'expression) : un join concurrent
+ * n'est jamais écrasé avec un prix faux.
+ */
+function buildVariantScaleBranches(
+  product: any,
+  combos: (string[] | undefined)[]
+): { case: any; then: number }[] {
+  if (!product) return []
+  const hasGroups = (Array.isArray(product.variantGroups) ? product.variantGroups : [])
+    .some((g: any) => Array.isArray(g?.variants) && g.variants.length > 0)
+  if (!hasGroups) return []
+
+  const base = computeEffectivePricing(product, undefined).displayPrice
+  const seen = new Set<string>()
+  const branches: { case: any; then: number }[] = []
+
+  for (const ids of combos) {
+    const list = (ids || []).filter(Boolean)
+    if (list.length === 0) continue
+    const eff = computeEffectivePricing(product, list).displayPrice
+    const scale = base > 0 ? Math.round((eff / base) * 10000) / 10000 : 1
+    // L'ordre des ids stockés peut différer de l'ordre trié : couvrir les deux.
+    for (const key of new Set([[...list].sort().join('|'), list.join('|')])) {
+      if (seen.has(key)) continue
+      seen.add(key)
+      branches.push({
+        case: { $eq: [{ $join: { input: { $ifNull: ['$$p.variantIds', []] }, on: '|' } }, key] },
+        then: scale,
+      })
+    }
+  }
+  return branches
 }
 
 interface RouteContext {
@@ -91,13 +132,16 @@ export async function POST(
   const { groupId } = await context.params
   
   try {
+    const rateLimitResponse = await applyRateLimit(req, serviceWriteRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     const body = await req.json()
     const qty = Number(body?.qty)
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
     const phone = typeof body?.phone === 'string' ? body.phone.trim() : ''
     const email = typeof body?.email === 'string' ? body.email.trim() : undefined
 
-    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string }
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string; requiresVerification?: boolean }
     try {
       auth = await resolveGuestOrAuthUser(req, { name, phone, email })
     } catch (e) {
@@ -194,151 +238,276 @@ export async function POST(
     }
 
     const normalizedPhone = formatPhone(phone)
+    const now = new Date()
 
-    // Vérifier si déjà participant (par userId)
-    const existingUserParticipant = group.participants.find(
-      (p: any) => p?.userId && String(p.userId) === String(auth.userId)
-    )
-    if (existingUserParticipant) {
-      return NextResponse.json(
-        { success: false, error: 'Vous participez déjà à cet achat groupé' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier si déjà participant (par téléphone, normalisé)
-    const existingParticipant = group.participants.find(
-      (p: any) => formatPhone(p.phone) === normalizedPhone
-    )
-    if (existingParticipant) {
-      return NextResponse.json(
-        { success: false, error: 'Vous participez déjà à cet achat groupé' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier max participants (groupe ou règle globale admin)
+    // ── Claim atomique du slot ─────────────────────────────────────────────
+    // L'ancien read-modify-write (findOne → push → save) perdait des
+    // participants et dépassait maxQty/maxParticipants sous concurrence.
+    // Ici tout est vérifié DANS le filtre et l'écriture est un pipeline Mongo
+    // unique : unicité, capacité, prix et statut sont cohérents ou rien.
     const participantLimit =
       typeof group.maxParticipants === 'number' && group.maxParticipants > 0
         ? group.maxParticipants
         : groupRules.maxParticipantsPerGroup
-    if (participantLimit > 0 && group.participants.length >= participantLimit) {
-      return NextResponse.json(
-        { success: false, error: 'Nombre maximum de participants atteint' },
-        { status: 400 }
-      )
-    }
-    
-    // Vérifier maxQty avant d'ajouter
-    if (group.maxQty && (group.currentQty + qty) > group.maxQty) {
-      const remaining = group.maxQty - group.currentQty
-      return NextResponse.json(
-        { success: false, error: `Quantité max dépassée. Il reste ${remaining} unité(s) disponible(s).` },
-        { status: 400 }
-      )
-    }
 
-    // Calculer nouveau prix avec la quantité ajoutée
-    const previousUnitPrice = group.currentUnitPrice
     const newTotalQty = group.currentQty + qty
-    let newUnitPrice = group.product.basePrice
-
-    if (group.priceTiers && group.priceTiers.length > 0) {
-      const sortedTiers = [...group.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
-      for (const tier of sortedTiers) {
-        if (newTotalQty >= tier.minQty) {
-          newUnitPrice = tier.price
-          break
+    const tierPriceAtNewQty = (() => {
+      if (group.priceTiers && group.priceTiers.length > 0) {
+        const sortedTiers = [...group.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
+        for (const tier of sortedTiers) {
+          if (newTotalQty >= tier.minQty) return tier.price
         }
       }
-    }
-
+      return group.product.basePrice
+    })()
     // Prix de CE participant : paliers du groupe mis à l'échelle de sa variante
     const participantUnitPrice = groupProduct
       ? groupParticipantUnitPrice(groupProduct, group.product.basePrice, group.priceTiers, variantSelection.variantIds, newTotalQty)
-      : newUnitPrice
+      : tierPriceAtNewQty
 
-    // Ajouter le participant (téléphone déjà normalisé)
     const chatToken = crypto.randomBytes(24).toString('hex')
-    const chatTokenHash = hashChatToken(chatToken)
-    const chatTokenCreatedAt = new Date()
-
-    group.participants.push({
-      userId: auth.userId as any,
+    const participantId = new mongoose.Types.ObjectId()
+    // Les clés optionnelles ne sont ajoutées que si elles ont une valeur : un
+    // `undefined` passé à un pipeline d'update est sérialisé en `null` par le
+    // driver (userId: null casserait le rattachement et les checks d'unicité).
+    const participantDoc: any = {
+      _id: participantId,
       name,
       phone: normalizedPhone,
-      email,
       qty,
       unitPrice: participantUnitPrice,
       totalAmount: qty * participantUnitPrice,
-      variantIds: variantSelection.variantIds.length > 0 ? variantSelection.variantIds : undefined,
-      variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined,
       paidAmount: 0,
       paymentStatus: 'pending',
-      chatAccessTokenHash: chatTokenHash,
-      chatAccessTokenCreatedAt: chatTokenCreatedAt,
-      joinedAt: new Date()
-    })
-
-    group.currentQty = newTotalQty
-    group.currentUnitPrice = newUnitPrice
-
-    // Recalculer chaque participant à son propre tarif (variante × palier)
-    if (newUnitPrice !== previousUnitPrice) {
-      group.participants.forEach((p: any) => {
-        p.unitPrice = groupProduct
-          ? groupParticipantUnitPrice(groupProduct, group.product.basePrice, group.priceTiers, p.variantIds, newTotalQty)
-          : newUnitPrice
-        p.totalAmount = p.qty * p.unitPrice
-      })
+      chatAccessTokenHash: hashChatToken(chatToken),
+      chatAccessTokenCreatedAt: now,
+      joinedAt: now
     }
-    
-    // Le groupe passe en "filled" quand l'objectif cible est atteint (ou quantité max)
-    const reachedTarget = group.currentQty >= group.targetQty
-    const reachedMaxQty = typeof group.maxQty === 'number' && group.currentQty >= group.maxQty
-    const objectiveJustReached =
-      groupRules.autoFillOnTargetReached &&
-      group.status === 'open' &&
-      (reachedTarget || reachedMaxQty)
-    if (objectiveJustReached) {
-      group.status = 'filled'
+    if (auth.userId) participantDoc.userId = new mongoose.Types.ObjectId(auth.userId)
+    if (email) participantDoc.email = email
+    if (variantSelection.variantIds.length > 0) {
+      participantDoc.variantIds = variantSelection.variantIds
+      participantDoc.variantLabels = variantSelection.variantLabels
     }
-    
-    await group.save()
+
+    const claimFilter: any = {
+      groupId,
+      status: 'open',
+      deadline: { $gte: now },
+      'participants.phone': { $ne: normalizedPhone },
+    }
+    if (auth.userId) {
+      claimFilter['participants.userId'] = { $ne: new mongoose.Types.ObjectId(auth.userId) }
+    }
+
+    const exprGuards: any[] = []
+    if (typeof group.maxQty === 'number' && group.maxQty > 0) {
+      exprGuards.push({ $lte: [{ $add: ['$currentQty', qty] }, '$maxQty'] })
+    }
+    if (participantLimit > 0) {
+      exprGuards.push({ $lt: [{ $size: '$participants' }, participantLimit] })
+    }
+    if (exprGuards.length > 0) {
+      claimFilter.$expr = exprGuards.length === 1 ? exprGuards[0] : { $and: exprGuards }
+    }
+
+    // Recalcul de tous les participants au nouveau palier (règle « plus on est
+    // nombreux, moins c'est cher ») — échelle par variante pré-calculée.
+    // Le prix de palier est calculé DANS le pipeline à partir du currentQty
+    // réellement écrit : deux joins concurrents ne peuvent pas figer un palier
+    // périmé (lecture pré-claim) sur l'ensemble des participants.
+    const variantScaleBranches = buildVariantScaleBranches(groupProduct, [
+      variantSelection.variantIds,
+      ...group.participants.map((p: any) => p.variantIds),
+    ])
+
+    const tierPriceExpr: any = {
+      $let: {
+        vars: {
+          tiers: { $sortArray: { input: { $ifNull: ['$priceTiers', []] }, sortBy: { minQty: -1 } } },
+        },
+        in: {
+          $ifNull: [
+            {
+              $first: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: '$$tiers',
+                      as: 't',
+                      cond: { $lte: ['$$t.minQty', '$currentQty'] },
+                    },
+                  },
+                  as: 't',
+                  in: '$$t.price',
+                },
+              },
+            },
+            '$product.basePrice',
+          ],
+        },
+      },
+    }
+
+    const unitPriceExpr: any = variantScaleBranches.length > 0
+      ? {
+          $ifNull: [
+            {
+              $round: [
+                { $multiply: [tierPriceExpr, { $switch: { branches: variantScaleBranches, default: null } }] },
+                0,
+              ],
+            },
+            '$$p.unitPrice',
+          ],
+        }
+      : tierPriceExpr
+
+    const updated = await GroupOrder.findOneAndUpdate(
+      claimFilter,
+      [
+        {
+          $set: {
+            participants: { $concatArrays: ['$participants', [participantDoc]] },
+            currentQty: { $add: ['$currentQty', qty] },
+            updatedAt: now,
+          },
+        },
+        {
+          $set: {
+            // currentQty est déjà incrémenté : le palier est celui du volume final
+            currentUnitPrice: tierPriceExpr,
+            participants: {
+              $map: {
+                input: '$participants',
+                as: 'p',
+                in: {
+                  $mergeObjects: [
+                    '$$p',
+                    {
+                      unitPrice: unitPriceExpr,
+                      totalAmount: { $multiply: ['$$p.qty', unitPriceExpr] },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $set: {
+            status: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'open'] },
+                    { $eq: [groupRules.autoFillOnTargetReached, true] },
+                    {
+                      $or: [
+                        { $gte: ['$currentQty', '$targetQty'] },
+                        {
+                          $and: [
+                            { $gt: [{ $ifNull: ['$maxQty', 0] }, 0] },
+                            { $gte: ['$currentQty', '$maxQty'] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                'filled',
+                '$status',
+              ],
+            },
+          },
+        },
+      ],
+      { new: true }
+    )
+
+    // Le claim a échoué : relire l'état pour renvoyer la raison exacte
+    // (course perdue contre un autre join, groupe fermé, capacité atteinte…).
+    if (!updated) {
+      const current = await GroupOrder.findOne({ groupId }).lean() as any
+      if (!current) {
+        return NextResponse.json({ success: false, error: 'Achat groupé non trouvé' }, { status: 404 })
+      }
+      if (current.status !== 'open') {
+        return NextResponse.json({ success: false, error: 'Cet achat groupé n\'est plus ouvert aux inscriptions' }, { status: 400 })
+      }
+      if (new Date(current.deadline) < new Date()) {
+        return NextResponse.json({ success: false, error: 'La date limite est dépassée' }, { status: 400 })
+      }
+      const already = (current.participants || []).some(
+        (p: any) =>
+          formatPhone(p.phone) === normalizedPhone ||
+          (auth.userId && p?.userId && String(p.userId) === String(auth.userId))
+      )
+      if (already) {
+        return NextResponse.json({ success: false, error: 'Vous participez déjà à cet achat groupé' }, { status: 400 })
+      }
+      if (typeof current.maxQty === 'number' && current.maxQty > 0 && current.currentQty + qty > current.maxQty) {
+        const remaining = current.maxQty - current.currentQty
+        return NextResponse.json(
+          { success: false, error: `Quantité max dépassée. Il reste ${remaining} unité(s) disponible(s).` },
+          { status: 400 }
+        )
+      }
+      const currentLimit =
+        typeof current.maxParticipants === 'number' && current.maxParticipants > 0
+          ? current.maxParticipants
+          : groupRules.maxParticipantsPerGroup
+      if (currentLimit > 0 && (current.participants?.length || 0) >= currentLimit) {
+        return NextResponse.json({ success: false, error: 'Nombre maximum de participants atteint' }, { status: 400 })
+      }
+      return NextResponse.json(
+        { success: false, error: 'Inscription impossible pour le moment, réessayez' },
+        { status: 409 }
+      )
+    }
+
+    const objectiveJustReached = updated.status === 'filled' && group.status === 'open'
     void invalidateGroupOrdersCache()
 
-    // Créditer les grains de fidélité (best effort)
+    // Créditer les grains de fidélité (best effort) — uniquement si identifié
     try {
-      await creditGrainsForGroupJoin(auth.userId, groupId)
-      if (objectiveJustReached) {
-        await creditGroupCompleteToParticipants(group)
+      if (auth.userId) {
+        await creditGrainsForGroupJoin(auth.userId, groupId)
+        if (objectiveJustReached) {
+          await creditGroupCompleteToParticipants(updated)
+        }
+        await updateTierFromBalance(auth.userId)
       }
-      await updateTierFromBalance(auth.userId)
     } catch (grainsErr) {
       console.error('[grains] Erreur crédit grains participation groupe:', grainsErr)
     }
 
-    const createdParticipant: any = group.participants[group.participants.length - 1]
+    const createdParticipant: any = (updated.participants as any[])
+      .find((p: any) => String(p._id) === String(participantId))
     const chatParticipantId = createdParticipant?._id ? String(createdParticipant._id) : null
+    // Prix réellement écrit par le pipeline (palier du volume final) — la
+    // valeur JS pré-claim peut être périmée en cas de joins concurrents.
+    const finalUnitPrice = Number(createdParticipant?.unitPrice ?? participantUnitPrice)
+    const finalTotalAmount = Number(createdParticipant?.totalAmount ?? qty * participantUnitPrice)
     
     // Envoyer les notifications
     try {
       const groupData = {
-        groupId: group.groupId,
-        product: group.product,
-        currentQty: group.currentQty,
-        targetQty: group.targetQty,
-        currentUnitPrice: group.currentUnitPrice,
-        deadline: group.deadline
+        groupId: updated.groupId,
+        product: updated.product,
+        currentQty: updated.currentQty,
+        targetQty: updated.targetQty,
+        currentUnitPrice: updated.currentUnitPrice,
+        deadline: updated.deadline
       }
       
-      const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: participantUnitPrice, totalAmount: qty * participantUnitPrice }
+      const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: finalUnitPrice, totalAmount: finalTotalAmount }
       
       // 1. Confirmation au nouveau participant
       await notifyGroupJoinConfirmation(newParticipantData, groupData)
       
       // 2. Notifier les autres participants
-      const otherParticipants = group.participants
+      const otherParticipants = (updated.participants as any[])
         .filter((p: any) => p.phone !== normalizedPhone)
         .map((p: any) => ({ name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount }))
       
@@ -348,14 +517,14 @@ export async function POST(
       
       // 3. Si objectif atteint : générer les refs de paiement + envoyer liens à tous
       if (objectiveJustReached) {
-        await assignPaymentRefsAndNotify(group)
+        await assignPaymentRefsAndNotify(updated)
       }
     } catch (notifError) {
       console.error('Erreur notifications:', notifError)
     }
     
     // Réponse publique : participants masqués, sans montants ni statut paiement
-    const safeGroup = sanitizePublicGroupDetail(group.toObject ? group.toObject() : group)
+    const safeGroup = sanitizePublicGroupDetail(updated.toObject ? updated.toObject() : updated)
 
     const response = NextResponse.json({
       success: true,
@@ -363,8 +532,8 @@ export async function POST(
       group: safeGroup,
       yourParticipation: {
         qty,
-        unitPrice: participantUnitPrice,
-        totalAmount: qty * participantUnitPrice,
+        unitPrice: finalUnitPrice,
+        totalAmount: finalTotalAmount,
         variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined
       },
       chat: {
@@ -372,6 +541,9 @@ export async function POST(
         participantId: chatParticipantId
       },
       isNewAccount: auth.isNew || false,
+      // Contact déjà rattaché à un compte : inscription faite en invité, sans
+      // session — le front invite à se connecter pour la retrouver dans « Mon compte ».
+      accountExists: auth.requiresVerification === true,
     })
 
     if (auth.token) {

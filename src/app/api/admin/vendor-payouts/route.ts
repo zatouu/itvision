@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidObjectId } from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import VendorPayout from '@/lib/models/VendorPayout'
@@ -53,31 +54,55 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json()
     const { payoutId, action, rejectionReason } = body
-    if (!payoutId || !['approve', 'paid', 'reject'].includes(action)) {
+    if (!payoutId || !isValidObjectId(payoutId) || !['approve', 'paid', 'reject'].includes(action)) {
       return NextResponse.json({ success: false, error: 'Action invalide' }, { status: 400 })
     }
 
     await connectMongoose()
-    const payout = await VendorPayout.findById(payoutId)
+
+    // Statuts sources autorisés pour chaque action
+    const fromStatuses: Record<string, string[]> = {
+      approve: ['pending'],
+      paid: ['approved'],
+      reject: ['pending', 'approved'],
+    }
+    const nextStatus = action === 'approve' ? 'approved' : action === 'paid' ? 'paid' : 'rejected'
+
+    // Transition atomique (compare-and-set sur le statut) : deux clics/admins
+    // concurrents ne peuvent pas appliquer deux fois la même transition — donc
+    // la réservation de solde n'est libérée qu'une seule fois en cas de rejet.
+    const update: Record<string, unknown> = {
+      status: nextStatus,
+      processedAt: new Date(),
+      processedBy: adminAuth.user?.email || 'admin',
+    }
+    if (action === 'reject') update.rejectionReason = rejectionReason || 'Non précisé'
+
+    const payout = await VendorPayout.findOneAndUpdate(
+      { _id: payoutId, status: { $in: fromStatuses[action] } },
+      { $set: update },
+      { new: true }
+    )
     if (!payout) {
-      return NextResponse.json({ success: false, error: 'Demande introuvable' }, { status: 404 })
+      const current = await VendorPayout.findById(payoutId).select('status').lean() as any
+      if (!current) {
+        return NextResponse.json({ success: false, error: 'Demande introuvable' }, { status: 404 })
+      }
+      return NextResponse.json({ success: false, error: `Transition impossible depuis '${current.status}'` }, { status: 409 })
     }
 
-    const allowed: Record<string, string[]> = {
-      pending: ['approve', 'reject'],
-      approved: ['paid', 'reject'],
-      paid: [],
-      rejected: [],
+    // Un retrait rejeté libère la réservation de solde du vendeur
+    // (miroir `payoutsCommitted` utilisé pour l'atomicité des demandes).
+    if (action === 'reject') {
+      await VendorProfile.updateOne(
+        { _id: payout.vendorId },
+        { $inc: { payoutsCommitted: -payout.amount } }
+      ).catch(e => console.error('[admin/vendor-payouts] release reservation failed:', e))
+      await VendorProfile.updateOne(
+        { _id: payout.vendorId, payoutsCommitted: { $lt: 0 } },
+        { $set: { payoutsCommitted: 0 } }
+      ).catch(() => {})
     }
-    if (!allowed[payout.status]?.includes(action)) {
-      return NextResponse.json({ success: false, error: `Transition impossible depuis '${payout.status}'` }, { status: 409 })
-    }
-
-    payout.status = action === 'approve' ? 'approved' : action === 'paid' ? 'paid' : 'rejected'
-    payout.processedAt = new Date()
-    payout.processedBy = adminAuth.user?.email || 'admin'
-    if (action === 'reject') payout.rejectionReason = rejectionReason || 'Non précisé'
-    await payout.save()
 
     // Notifier le vendeur du sort de sa demande
     try {

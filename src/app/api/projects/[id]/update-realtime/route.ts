@@ -1,18 +1,27 @@
 /**
- * Exemple d'API route avec Socket.io - Mise à jour temps réel
- * Phase 2B
+ * Outil de test Socket.io — mise à jour temps réel d'un projet (cf. TEST_SOCKET_IO.md).
+ *
+ * Mutait un projet SANS aucune autorisation : désormais réservé au staff
+ * (ADMIN/SUPER_ADMIN). Aucun écran applicatif ne l'appelle — la mise à jour
+ * réelle des projets passe par /api/projects.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Project from '@/lib/models/Project'
 import { emitProjectUpdate, emitUserNotification } from '@/lib/socket-emit'
+import { requireAdminApi } from '@/lib/api-auth'
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     const { id } = await context.params
     const body = await request.json()
     

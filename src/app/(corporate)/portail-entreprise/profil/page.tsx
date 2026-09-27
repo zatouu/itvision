@@ -22,6 +22,8 @@ interface ProfileData {
   companyContactPerson: string | null
   companyNotes: string | null
   companyLogo: string | null
+  companyRole?: string
+  capabilities?: string[]
   preferences: {
     emailNotifications: boolean
     smsNotifications: boolean
@@ -135,6 +137,9 @@ export default function ProfilePage() {
 
   if (!data) return null
 
+  // Édition de la fiche société réservée à owner/admin (capability 'company:manage')
+  const canManageCompany = data.capabilities ? data.capabilities.includes('company:manage') : true
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
       {/* Header */}
@@ -144,11 +149,13 @@ export default function ProfilePage() {
         title="Mon profil"
         subtitle="Gérez vos informations et préférences"
       >
-        <button onClick={handleSave} disabled={saving}
-          className="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50 transition-colors flex-shrink-0">
-          <Save className="w-4 h-4" />
-          {saving ? 'Enregistrement...' : 'Enregistrer'}
-        </button>
+        {(canManageCompany || tab === 'account') && (
+          <button onClick={handleSave} disabled={saving}
+            className="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50 transition-colors flex-shrink-0">
+            <Save className="w-4 h-4" />
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+        )}
       </PageHeader>
 
       {/* Alerts */}
@@ -238,19 +245,23 @@ export default function ProfilePage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${uploadingLogo ? 'bg-stone-100 text-stone-400 pointer-events-none' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
-                    {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    {data.companyLogo ? 'Changer le logo' : 'Choisir un logo'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
-                  </label>
-                  {data.companyLogo && (
-                    <button type="button" onClick={handleLogoRemove} disabled={uploadingLogo}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
-                      <Trash2 className="w-3.5 h-3.5" /> Retirer
-                    </button>
-                  )}
-                </div>
+                {canManageCompany ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${uploadingLogo ? 'bg-stone-100 text-stone-400 pointer-events-none' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
+                      {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      {data.companyLogo ? 'Changer le logo' : 'Choisir un logo'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                    </label>
+                    {data.companyLogo && (
+                      <button type="button" onClick={handleLogoRemove} disabled={uploadingLogo}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                        <Trash2 className="w-3.5 h-3.5" /> Retirer
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-400">Logo géré par le propriétaire ou un administrateur de l'entreprise.</p>
+                )}
                 <p className="mt-1.5 text-xs text-stone-400">PNG, JPG ou WebP, 10 Mo max. Affiché dans la barre latérale du portail.</p>
               </div>
             </div>
@@ -262,14 +273,17 @@ export default function ProfilePage() {
               <h3 className="text-sm font-semibold text-stone-900">Informations société</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nom de l'entreprise" icon={Briefcase} value={data.companyName} onChange={v => update('companyName', v)} />
-              <Field label="Personne de contact" icon={User} value={data.companyContactPerson || ''} onChange={v => update('companyContactPerson', v)} />
-              <Field label="Email société" icon={Mail} value={data.companyEmail || ''} onChange={v => update('companyEmail', v)} />
-              <Field label="Téléphone société" icon={Phone} value={data.companyPhone || ''} onChange={v => update('companyPhone', v)} />
-              <Field label="Adresse" icon={MapPin} value={data.companyAddress || ''} onChange={v => update('companyAddress', v)} className="sm:col-span-2" />
-              <Field label="Ville" icon={MapPin} value={data.companyCity || ''} onChange={v => update('companyCity', v)} />
-              <Field label="Pays" icon={Globe} value={data.companyCountry || ''} onChange={v => update('companyCountry', v)} />
+              <Field label="Nom de l'entreprise" icon={Briefcase} value={data.companyName} onChange={v => update('companyName', v)} disabled={!canManageCompany} />
+              <Field label="Personne de contact" icon={User} value={data.companyContactPerson || ''} onChange={v => update('companyContactPerson', v)} disabled={!canManageCompany} />
+              <Field label="Email société" icon={Mail} value={data.companyEmail || ''} onChange={v => update('companyEmail', v)} disabled={!canManageCompany} />
+              <Field label="Téléphone société" icon={Phone} value={data.companyPhone || ''} onChange={v => update('companyPhone', v)} disabled={!canManageCompany} />
+              <Field label="Adresse" icon={MapPin} value={data.companyAddress || ''} onChange={v => update('companyAddress', v)} disabled={!canManageCompany} className="sm:col-span-2" />
+              <Field label="Ville" icon={MapPin} value={data.companyCity || ''} onChange={v => update('companyCity', v)} disabled={!canManageCompany} />
+              <Field label="Pays" icon={Globe} value={data.companyCountry || ''} onChange={v => update('companyCountry', v)} disabled={!canManageCompany} />
             </div>
+            {!canManageCompany && (
+              <p className="text-xs text-stone-400">Seuls le propriétaire et les administrateurs de l'entreprise peuvent modifier ces informations.</p>
+            )}
           </div>
 
           <div className={`${CARD} p-5`}>
@@ -282,7 +296,8 @@ export default function ProfilePage() {
               value={data.companyNotes || ''}
               onChange={e => update('companyNotes', e.target.value)}
               placeholder="Notes visibles par vous et IT Vision..."
-              className={`${INPUT} resize-none`}
+              disabled={!canManageCompany}
+              className={`${INPUT} resize-none ${!canManageCompany ? 'bg-stone-50 text-stone-400 cursor-not-allowed' : ''}`}
             />
           </div>
 
@@ -317,6 +332,11 @@ export default function ProfilePage() {
       {/* Preferences tab */}
       {tab === 'preferences' && (
         <div className="space-y-4">
+          {!canManageCompany && (
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-stone-400">Les préférences sont partagées par l'entreprise — seuls le propriétaire et les administrateurs peuvent les modifier.</p>
+            </div>
+          )}
           <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
               <Bell className="w-4 h-4 text-emerald-700" />
@@ -327,12 +347,14 @@ export default function ProfilePage() {
               description="Recevoir les alertes et mises à jour par email."
               checked={data.preferences.emailNotifications}
               onChange={v => updatePref('emailNotifications', v)}
+              disabled={!canManageCompany}
             />
             <Toggle
               label="Notifications par SMS"
               description="Recevoir les alertes urgentes par SMS."
               checked={data.preferences.smsNotifications}
               onChange={v => updatePref('smsNotifications', v)}
+              disabled={!canManageCompany}
             />
           </div>
 
@@ -347,6 +369,7 @@ export default function ProfilePage() {
                 <select
                   value={data.preferences.reportFormat}
                   onChange={e => updatePref('reportFormat', e.target.value)}
+                  disabled={!canManageCompany}
                   className={INPUT}
                 >
                   <option value="web">Web (en ligne)</option>
@@ -358,6 +381,7 @@ export default function ProfilePage() {
                 <select
                   value={data.preferences.language}
                   onChange={e => updatePref('language', e.target.value)}
+                  disabled={!canManageCompany}
                   className={INPUT}
                 >
                   <option value="fr">Français</option>
@@ -398,11 +422,12 @@ function Field({ label, icon: I, value, onChange, disabled, placeholder, classNa
   )
 }
 
-function Toggle({ label, description, checked, onChange }: {
+function Toggle({ label, description, checked, onChange, disabled }: {
   label: string
   description: string
   checked: boolean
   onChange: (v: boolean) => void
+  disabled?: boolean
 }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
@@ -413,7 +438,8 @@ function Toggle({ label, description, checked, onChange }: {
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+        disabled={disabled}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
           checked ? 'bg-emerald-600' : 'bg-stone-200'
         }`}>
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

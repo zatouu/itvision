@@ -18,7 +18,7 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' },
 ]
 
-export default function RequestInterventionButton() {
+export default function RequestInterventionButton({ canRequest = true }: { canRequest?: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -64,11 +64,22 @@ export default function RequestInterventionButton() {
     }
   }
 
+  if (!canRequest) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-400"
+        title="Votre rôle dans l'entreprise ne permet pas de demander une intervention"
+      >
+        <Plus className="w-4 h-4" /> Demander une intervention
+      </span>
+    )
+  }
+
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-800 text-white text-sm font-semibold px-4 py-2 hover:bg-emerald-900 transition-colors"
       >
         <Plus className="w-4 h-4" /> Demander une intervention
       </button>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
@@ -182,6 +182,17 @@ export async function GET(request: NextRequest) {
 
     if (onlyQuote) {
       match.requiresQuote = true
+    }
+
+    // Filtre lot minimum (MOQ) — `moq=lot` = produits vendus par lots (> 1),
+    // `minMoq=N` = seuil explicite. Alimente le CTA « Voir les produits en lot ».
+    const moqParam = (searchParams.get('moq') || '').trim().toLowerCase()
+    if (moqParam === 'lot' || moqParam === 'true') {
+      match.minOrderQty = { $gt: 1 }
+    }
+    const minMoq = asNumber(searchParams.get('minMoq'))
+    if (typeof minMoq === 'number' && minMoq > 1) {
+      match.minOrderQty = { $gte: Math.floor(minMoq) }
     }
 
     // Server-side search: $text index quand possible, regex fallback pour tokens courts
@@ -485,6 +496,8 @@ export async function GET(request: NextRequest) {
          priceTiers: product.priceTiers ?? [],
          groupBuyMinQty: product.groupBuyMinQty,
          groupBuyTargetQty: product.groupBuyTargetQty,
+         // Lot minimum par commande standard (MOQ) — pilier « prix par palier »
+         minOrderQty: typeof product.minOrderQty === 'number' && product.minOrderQty > 0 ? product.minOrderQty : 1,
          sellerName: product.sellerName ?? null,
          sellerSlug: product.sellerSlug ?? null,
          sellerVerified: product.sellerVerified ?? false,

@@ -57,6 +57,8 @@ export default function MarketBottomNav() {
             <Link
               key={item.name}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
+              aria-label={isCart && cartCount > 0 ? `${item.name} (${cartCount} article${cartCount > 1 ? 's' : ''})` : undefined}
               className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-colors ${
                 active
                   ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400'

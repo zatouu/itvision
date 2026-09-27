@@ -30,6 +30,14 @@ export default function SupportPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [canWrite, setCanWrite] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.capabilities)) setCanWrite(d.capabilities.includes('tickets:write')) })
+      .catch(() => {})
+  }, [])
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -90,12 +98,21 @@ export default function SupportPage() {
         subtitle="Tickets d'assistance"
       >
         <BackLink href="/portail-entreprise" className="hidden sm:inline-flex" />
-        <button
-          onClick={() => { setShowForm(true); setError('') }}
-          className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Nouveau ticket
-        </button>
+        {canWrite ? (
+          <button
+            onClick={() => { setShowForm(true); setError('') }}
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Nouveau ticket
+          </button>
+        ) : (
+          <span
+            title="Votre rôle dans l'entreprise est en lecture seule"
+            className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-400"
+          >
+            <Plus className="w-4 h-4" /> Nouveau ticket
+          </span>
+        )}
       </PageHeader>
 
       {/* Succès */}
@@ -208,7 +225,7 @@ export default function SupportPage() {
         <EmptyState
           icon={LifeBuoy}
           title={filter === 'open' ? 'Aucun ticket ouvert' : filter === 'closed' ? 'Aucun ticket résolu' : 'Aucun ticket'}
-          action={filter === 'open' ? (
+          action={filter === 'open' && canWrite ? (
             <button onClick={() => setShowForm(true)}
               className="text-sm font-medium text-emerald-700 hover:text-emerald-800">
               Ouvrir un ticket

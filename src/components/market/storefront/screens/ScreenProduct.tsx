@@ -374,9 +374,9 @@ export default function ScreenProduct() {
                     <p className="mb-2 text-[13px] md:text-xs font-bold text-slate-900 dark:text-white">Quantité</p>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-                        <button onClick={dec} disabled={qty<=p.minOrderQty} className="grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={16}/></button>
+                        <button aria-label="Diminuer la quantité" onClick={dec} disabled={qty<=p.minOrderQty} className="grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={16}/></button>
                         <input value={qty} readOnly className="w-12 md:w-14 bg-transparent text-center text-[15px] md:text-base font-extrabold text-slate-900 dark:text-white tabular-nums"/>
-                        <button onClick={inc} className="grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={16}/></button>
+                        <button aria-label="Augmenter la quantité" onClick={inc} className="grid h-9 w-9 md:h-10 md:w-10 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={16}/></button>
                       </div>
                       <div>
                         <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400">Total ({qty} pcs) hors transport</p>

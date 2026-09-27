@@ -166,19 +166,21 @@ export async function middleware(request: NextRequest) {
     // Rôles ayant accès admin
     const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
     
-    // Vérifier le rôle
+    // Vérifier le rôle — les rôles staff non-admin (PRODUCT_MANAGER, ACCOUNTANT)
+    // sont honorés s'ils sont déclarés sur la page dans le registre domains.ts.
     if (requiredRole === 'ADMIN' && !ADMIN_ROLES.includes(role || '')) {
-      // Rediriger les non-admins vers leur portail
-      if (role === 'CLIENT') {
-        return NextResponse.redirect(new URL('/compte', request.url))
-      } else if (role === 'TECHNICIAN') {
-        return NextResponse.redirect(new URL('/tech-interface', request.url))
-      } else if (role === 'PRODUCT_MANAGER') {
-        return NextResponse.redirect(new URL('/admin/products', request.url))
-      } else if (role === 'ACCOUNTANT') {
-        return NextResponse.redirect(new URL('/admin/accounting', request.url))
+      const rule = getPageRule(pathname)
+      const access = rule?.access
+      const staffRoles = access && typeof access === 'object' && 'staffRoles' in access ? access.staffRoles : []
+      if (!staffRoles.includes(role || '')) {
+        // Rediriger les non-admins vers leur portail
+        if (role === 'CLIENT') {
+          return NextResponse.redirect(new URL('/compte', request.url))
+        } else if (role === 'TECHNICIAN') {
+          return NextResponse.redirect(new URL('/tech-interface', request.url))
+        }
+        return NextResponse.redirect(new URL('/login', request.url))
       }
-      return NextResponse.redirect(new URL('/login', request.url))
     }
     
     if (requiredRole === 'CLIENT' && !['CLIENT', ...ADMIN_ROLES].includes(role || '')) {

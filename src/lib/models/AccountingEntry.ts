@@ -139,16 +139,49 @@ AccountingEntrySchema.index({ category: 1, transactionDate: -1 })
 AccountingEntrySchema.index({ status: 1, transactionDate: -1 })
 AccountingEntrySchema.index({ productId: 1, transactionDate: -1 })
 
-// Génération automatique du numéro d'entrée
-AccountingEntrySchema.pre('save', async function(next) {
-  if (!this.entryNumber) {
-    const year = new Date().getFullYear()
-    const count = await mongoose.models.AccountingEntry?.countDocuments({
-      entryNumber: new RegExp(`^ACC-${year}-`)
-    }) || 0
-    this.entryNumber = `ACC-${year}-${String(count + 1).padStart(6, '0')}`
+// Génération automatique du numéro d'entrée.
+// pre('validate') et non pre('save') : `entryNumber` est `required`, or la
+// validation s'exécute AVANT les hooks de save — en pre('save') le champ était
+// donc rejeté avant d'être généré (toutes les écritures vente/marge échouaient).
+//
+// Séquence atomique (`counters`, clé `accounting-entry-<année>`) : l'ancien
+// `countDocuments + 1` attribuait le même numéro à deux écritures concurrentes
+// (E11000 sur l'index unique). À la première utilisation de l'année, la
+// séquence est amorcée au plus grand numéro existant (idempotent via $max).
+async function nextEntrySequence(year: number): Promise<number> {
+  const counters = mongoose.connection.collection<{ _id: string; seq: number }>('counters')
+  const key = `accounting-entry-${year}`
+
+  const existing = await counters.findOne({ _id: key })
+  if (!existing) {
+    const last = await mongoose.models.AccountingEntry
+      ?.findOne({ entryNumber: new RegExp(`^ACC-${year}-\\d{6}$`) })
+      .sort({ entryNumber: -1 })
+      .select('entryNumber')
+      .lean() as { entryNumber?: string } | null
+    const lastSeq = last?.entryNumber ? parseInt(last.entryNumber.slice(-6), 10) || 0 : 0
+    await counters.updateOne({ _id: key }, { $max: { seq: lastSeq } }, { upsert: true })
   }
-  next()
+
+  const res = await counters.findOneAndUpdate(
+    { _id: key },
+    { $inc: { seq: 1 } },
+    { upsert: true, returnDocument: 'after' }
+  )
+  return res?.seq ?? 1
+}
+
+AccountingEntrySchema.pre('validate', async function(next) {
+  try {
+    if (!this.entryNumber) {
+      const year = new Date().getFullYear()
+      const seq = await nextEntrySequence(year)
+      this.entryNumber = `ACC-${year}-${String(seq).padStart(6, '0')}`
+    }
+    next()
+  } catch (err) {
+    next(err as Error)
+  }
 })
 
 const AccountingEntry = mongoose.models.AccountingEntry ||

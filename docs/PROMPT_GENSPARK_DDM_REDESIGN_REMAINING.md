@@ -6,7 +6,7 @@ Le marketplace DDM+ (domaine `market` de la branche `feat/mobile-fusion`) a reç
 
 ## Source de vérité design
 
-- Palettes, tokens et composants existants : `src/components/market/batch1/*`
+- Palettes, tokens et composants existants : `src/components/market/storefront/*`
 - Handoff DDM+ Batch 1 : `docs/design_handoff_ddm_plus_batch1/`
 - Handoff DDM+ Batch 3 : `docs/design_handoff_ddm_plus_batch3/`
 - Référence direction visuelle : Direction 01 · Safe
@@ -30,7 +30,7 @@ Toute nouvelle page doit privilégier les composants déjà existants :
 - `ProductCard`, `GroupCard`, `Badge`, `Card`, `Section`, `TrustStrip`, `ProgressBar`, `CompactSearchBar` (quand recréé)
 - `SourcingRequestModal` et `SourcingModalContext` pour le sourcing
 - `PriceBreakdown` si besoin
-- `formatFcfa` dans `src/components/market/batch1/formatFcfa.ts`
+- `formatFcfa` dans `src/components/market/storefront/formatFcfa.ts`
 - `cn` depuis `@/lib/utils`
 - `lucide-react` pour les icônes (interdit SVG inline et emoji en production)
 
@@ -166,7 +166,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Package, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatFcfa } from '@/components/market/batch1/formatFcfa';
+import { formatFcfa } from '@/components/market/storefront/formatFcfa';
 
 export default function ReturnRequestPage() {
   const { orderId } = useParams<{ orderId: string }>();

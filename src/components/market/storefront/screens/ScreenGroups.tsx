@@ -236,7 +236,7 @@ export default function ScreenGroups() {
                     className="w-[270px] flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900 md:w-auto"
                   >
                     <div className="relative h-32 bg-slate-100 dark:bg-slate-800">
-                      <img src={f.image} alt={f.name} className="h-full w-full object-cover"/>
+                      <img loading="lazy" decoding="async" src={f.image} alt={f.name} className="h-full w-full object-cover"/>
                       <span className="absolute left-2 top-2 rounded-md bg-slate-900/85 px-1.5 py-0.5 text-[9px] font-bold text-white">{meta?.reason}</span>
                       {meta && meta.savingsPercent > 0 && (
                         <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">-{meta.savingsPercent}%</span>
@@ -320,31 +320,8 @@ export default function ScreenGroups() {
           )}
         </div>
 
-        {/* Section sombre — comment ça marche + manifeste */}
-        <div className="mt-10 bg-slate-900 px-5 py-8 text-white md:mt-14 md:rounded-3xl md:p-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">Le principe</p>
-          <h2 className="mt-2 font-[var(--font-brand)] text-[24px] font-black leading-tight tracking-tight md:text-[34px]">
-            Un prix qui se négocie à plusieurs.
-          </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3 md:gap-6">
-            {steps.map((s) => (
-              <div key={s.n} className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400"><Icon name={s.icon} size={16}/></span>
-                  <span className="font-[var(--font-brand)] text-[20px] font-black text-white/25">{s.n}</span>
-                </div>
-                <p className="mt-3 text-[14px] font-extrabold">{s.ttl}</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-white/60">{s.sub}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 border-t border-white/10 pt-6 font-[var(--font-brand)] text-[17px] font-black italic leading-snug text-white/85 md:text-[21px]">
-            « Chaque franc économisé sur le sourcing est un franc de marge pour votre business. »
-          </p>
-        </div>
-
-        {/* Simulateur de paliers — vraies données produit */}
-        <div className="mt-10 px-4 pb-8 md:mt-12 md:px-0">
+        {/* Simulateur de paliers — remonté avant le manifeste : outil de décision avant la narration */}
+        <div className="mt-10 px-4 md:mt-12 md:px-0">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:p-8">
             <div className="md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-8">
               <div>
@@ -393,6 +370,29 @@ export default function ScreenGroups() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Section sombre — comment ça marche + manifeste */}
+        <div className="mt-10 mb-8 bg-slate-900 px-5 py-8 text-white md:mt-14 md:rounded-3xl md:p-10">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">Le principe</p>
+          <h2 className="mt-2 font-[var(--font-brand)] text-[24px] font-black leading-tight tracking-tight md:text-[34px]">
+            Un prix qui se négocie à plusieurs.
+          </h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3 md:gap-6">
+            {steps.map((s) => (
+              <div key={s.n} className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                <div className="flex items-center justify-between">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400"><Icon name={s.icon} size={16}/></span>
+                  <span className="font-[var(--font-brand)] text-[20px] font-black text-white/25">{s.n}</span>
+                </div>
+                <p className="mt-3 text-[14px] font-extrabold">{s.ttl}</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-white/60">{s.sub}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 border-t border-white/10 pt-6 font-[var(--font-brand)] text-[17px] font-black italic leading-snug text-white/85 md:text-[21px]">
+            « Chaque franc économisé sur le sourcing est un franc de marge pour votre business. »
+          </p>
         </div>
       </div>
     </div>

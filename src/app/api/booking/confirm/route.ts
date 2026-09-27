@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import emailService from '@/lib/email-service'
 import { getBrandFromHost } from '@/lib/branding'
+import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
+
+// Formulaire public de réservation : quota anti-spam (emails/SMS partent
+// vers le client ET l'équipe).
+const bookingLimiter = new RateLimiter(15 * 60 * 1000, 5)
 
 interface BookingData {
   service: string
@@ -21,6 +26,9 @@ interface BookingData {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = await applyRateLimit(request, bookingLimiter)
+    if (rateLimited) return rateLimited
+
     const brand = getBrandFromHost(request.nextUrl.host)
     const body = (await request.json()) as BookingData
     if (!body?.service || !body?.date || !body?.time || !body?.clientInfo?.name || !body?.clientInfo?.phone || !body?.address) {

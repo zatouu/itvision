@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IAuditLog extends Document {
-  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client'
+  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client' | 'SourcingRequest'
   entityId: mongoose.Types.ObjectId
   action: string // e.g. 'status_changed', 'created', 'updated', 'deleted', 'validated', 'assigned'
   previousState?: Record<string, any>
@@ -20,7 +20,7 @@ const AuditLogSchema = new Schema<IAuditLog>({
   entityType: {
     type: String,
     required: true,
-    enum: ['Intervention', 'MaintenanceReport', 'MaintenanceContract', 'Technician', 'User', 'AdminQuote', 'Ticket', 'Client']
+    enum: ['Intervention', 'MaintenanceReport', 'MaintenanceContract', 'Technician', 'User', 'AdminQuote', 'Ticket', 'Client', 'SourcingRequest']
   },
   entityId: { type: Schema.Types.ObjectId, required: true, },
   action: { type: String, required: true },

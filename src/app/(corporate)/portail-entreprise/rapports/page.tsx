@@ -14,7 +14,24 @@ import {
 } from '@/components/portal-ui'
 
 export default async function RapportsPage() {
-  const { companyId } = await getEnterpriseSession('/portail-entreprise/rapports')
+  const session = await getEnterpriseSession('/portail-entreprise/rapports')
+  const { companyId } = session
+
+  // Interrupteur admin : Client.permissions.canViewReports
+  if (!session.canViewReports) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
+        <PageHeader icon={ClipboardList} eyebrow="Maintenance" title="Rapports d'intervention">
+          <BackLink />
+        </PageHeader>
+        <EmptyState
+          soft
+          title="Accès aux rapports désactivé"
+          message="La consultation des rapports n'est pas activée pour votre société. Contactez IT Vision pour l'activer."
+        />
+      </div>
+    )
+  }
 
   const reports = await MaintenanceReport.find({
     clientId: companyId,

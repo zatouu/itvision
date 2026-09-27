@@ -28,7 +28,7 @@ function formatCurrency(v: number) {
 
 export default function B2bPricingPage() {
   return (
-    <ProtectedPage requiredRole={['ADMIN', 'SUPER_ADMIN']}>
+    <ProtectedPage requiredRole={['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER']}>
       <B2bPricingContent />
     </ProtectedPage>
   )

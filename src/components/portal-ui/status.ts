@@ -165,6 +165,19 @@ export const ticketActionLabel: Record<string, string> = {
   status_change: 'Changement de statut', assignment: 'Assignation', note: 'Note', message: 'Message',
 }
 
+// ── Sourcing (« Trouvez-moi ») ──
+export const sourcingStatus: Record<string, StatusDef> = {
+  new: S('Reçue', TONE.amber, Clock),
+  searching: S('Recherche en cours', TONE.sky, Clock),
+  proposal_ready: S('Proposition en préparation', TONE.sky, Clock),
+  proposal_sent: S('Proposition envoyée', TONE.emerald, CheckCircle),
+  accepted: S('Acceptée', TONE.emerald, CheckCircle),
+  rejected: S('Refusée', TONE.red, Ban),
+  fulfilled: S('Livrée', TONE.emerald, CheckCircle),
+  cancelled: S('Annulée', TONE.neutral, Ban),
+  expired: S('Expirée', TONE.neutral, History),
+}
+
 // ── Rapports ──
 export const reportType: Record<string, StatusDef> = {
   maintenance: S('Maintenance', TONE.sky),

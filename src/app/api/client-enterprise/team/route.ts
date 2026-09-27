@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import mongoose from 'mongoose'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import User from '@/lib/models/User'
-import Client from '@/lib/models/Client'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import emailService from '@/lib/email-service'
 import { getClientInvitationEmail } from '@/lib/email-templates'
@@ -15,22 +14,11 @@ import { logAuditEvent } from '@/lib/audit'
 export const dynamic = 'force-dynamic'
 
 const COMPANY_ROLES = ['owner', 'admin', 'finance', 'technical', 'viewer'] as const
-const MANAGER_ROLES = ['owner', 'admin'] // seuls ces rôles gèrent l'équipe
 
 async function getAccess(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return { error: result.response }
   return result
-}
-
-async function callerRole(userId: string, companyId: string) {
-  const me = await User.findOne({ _id: userId, companyClientId: companyId }).select('companyRole').lean() as any
-  // Comptes d'origine sans companyRole = owner par défaut
-  return me?.companyRole || 'owner'
-}
-
-function isManager(role: string) {
-  return MANAGER_ROLES.includes(role as any)
 }
 
 /** GET /api/client-enterprise/team — membres + invitations en attente */
@@ -59,7 +47,7 @@ export async function GET(request: NextRequest) {
       isSelf: String(m._id) === access.userId,
       createdAt: m.createdAt,
     })),
-    canManage: isManager(await callerRole(access.userId, String(companyId))),
+    canManage: canCompany(access, 'team:manage'),
   })
 }
 
@@ -75,9 +63,9 @@ export async function POST(request: NextRequest) {
   await connectDB()
   const companyId = access.profiles.companyClientId
   if (!companyId) return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
-  if (!isManager(await callerRole(access.userId, String(companyId)))) {
-    return NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 })
-  }
+
+  const denied = requireCompanyCapability(access, 'team:manage')
+  if (denied) return denied
 
   const body = await request.json()
   const email = String(body.email || '').trim().toLowerCase()
@@ -142,9 +130,9 @@ export async function PATCH(request: NextRequest) {
   await connectDB()
   const companyId = access.profiles.companyClientId
   if (!companyId) return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
-  if (!isManager(await callerRole(access.userId, String(companyId)))) {
-    return NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 })
-  }
+
+  const denied = requireCompanyCapability(access, 'team:manage')
+  if (denied) return denied
 
   const { memberId, companyRole } = await request.json()
   if (!memberId || !mongoose.Types.ObjectId.isValid(memberId) || !COMPANY_ROLES.includes(companyRole)) {
@@ -178,9 +166,9 @@ export async function DELETE(request: NextRequest) {
   await connectDB()
   const companyId = access.profiles.companyClientId
   if (!companyId) return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
-  if (!isManager(await callerRole(access.userId, String(companyId)))) {
-    return NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 })
-  }
+
+  const denied = requireCompanyCapability(access, 'team:manage')
+  if (denied) return denied
 
   const { memberId } = await request.json()
   if (!memberId || !mongoose.Types.ObjectId.isValid(memberId)) {

@@ -190,9 +190,9 @@ export default function ScreenCart() {
             </div>
             <div className="mt-3 flex items-end justify-between gap-2">
               <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
-                <button onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
+                <button aria-label="Diminuer la quantité" onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
                 <span className="w-8 text-center text-sm font-extrabold text-slate-900 dark:text-white tabular-nums">{it.qty}</span>
-                <button onClick={() => updateQty(lineKey(it), 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
+                <button aria-label="Augmenter la quantité" onClick={() => updateQty(lineKey(it), 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
               </div>
               <div className="text-right">
                 <p className="whitespace-nowrap text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(lineUnit(it) * it.qty)}</p>
@@ -324,7 +324,7 @@ export default function ScreenCart() {
             <div className="flex items-start gap-2">
               <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
               <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
-                <b>{belowMOQ.length} article</b> est en dessous du lot minimum. Complétez pour passer à la caisse.
+                <b>{belowMOQ.length} article{belowMOQ.length > 1 ? 's' : ''}</b> {belowMOQ.length > 1 ? 'sont' : 'est'} en dessous du lot minimum. Complétez pour passer à la caisse — c&apos;est un import direct usine.
               </p>
             </div>
           </div>
@@ -374,7 +374,21 @@ export default function ScreenCart() {
   }
 
   if (items.length === 0 && !loading) {
-    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Votre panier est vide</div>;
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-6 py-20 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+          <Icon name="cart" size={26} />
+        </span>
+        <p className="mt-4 text-[15px] font-extrabold text-slate-900 dark:text-white">Votre panier est vide</p>
+        <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
+          Parcourez le catalogue ou rejoignez un achat groupé pour profiter des prix usine.
+        </p>
+        <div className="mt-5 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button variant="primary" size="md" onClick={() => router.push('/produits')}>Voir le catalogue</Button>
+          <Button variant="violet" size="md" onClick={() => router.push('/achats-groupes')}><Icon name="users" size={14}/>Achats groupés</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -392,22 +406,20 @@ export default function ScreenCart() {
             <Link href="/produits" className="hidden text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white md:inline"><Icon name="arrowLeft" size={14} className="inline mr-1"/>Continuer mes achats</Link>
           </div>
 
-          {!canCheckout && (
-            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 md:p-4 dark:border-amber-800 dark:bg-amber-950/40">
-              <div className="flex items-start gap-2 md:gap-3">
-                <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
-                <div>
-                  <p className="text-[12px] md:text-sm font-bold text-amber-900 dark:text-amber-200">Lot minimum non atteint sur {belowMOQ.length} article(s)</p>
-                  <p className="text-[11px] md:text-xs text-amber-800 dark:text-amber-300/80 mt-0.5">Complétez le lot pour débloquer le passage en caisse — c&apos;est un import direct usine.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
-            <div className="space-y-3">
+          {/* Mobile : articles → récap + CTA → suggestions (le CTA précède l'upsell).
+              Desktop : articles + suggestions à gauche, récap sticky à droite.
+              L'alerte lot minimum vit sur chaque ligne et à côté du CTA. */}
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            <div className="space-y-3 md:col-start-1 md:row-start-1">
               {items.map((it)=><CartItemCard key={it.id} it={it}/>)}
+            </div>
 
+            {/* Récap + promo + CTA : sidebar desktop, inline mobile */}
+            <div className="md:col-start-2 md:row-start-1 md:row-span-2">
+              <Summary sticky/>
+            </div>
+
+            <div className="space-y-3 md:col-start-1 md:row-start-2">
               {suggestions.length > 0 && (
                 <Card className="p-4">
                   <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Complétez votre commande</h3>
@@ -453,11 +465,6 @@ export default function ScreenCart() {
                 </Card>
               )}
             </div>
-
-            {/* Récap + promo + CTA : sidebar desktop, inline mobile */}
-            <div className="mt-4 md:mt-0">
-              <Summary sticky/>
-            </div>
           </div>
         </div>
       </div>
@@ -468,7 +475,9 @@ export default function ScreenCart() {
           <div className="min-w-0 flex-shrink">
             <p className="whitespace-nowrap text-[10px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
             <p className="whitespace-nowrap mt-0.5 text-[15px] font-extrabold leading-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</p>
-            {totals.savings>0 && <p className="whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
+            {!canCheckout ? (
+              <p className="whitespace-nowrap text-[10px] font-bold text-amber-700 dark:text-amber-300 leading-none">Lot minimum non atteint</p>
+            ) : totals.savings>0 && <p className="whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
           </div>
           <Button variant="primary" size="md" disabled={!canCheckout} className="whitespace-nowrap flex-shrink-0 !px-3 !text-[13px]" onClick={() => canCheckout && router.push('/checkout/adresse')}>
             Commander

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
@@ -8,6 +7,7 @@ import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 import { applyRateLimit, quoteActionRateLimiter } from '@/lib/rate-limiter'
 import { logAuditEvent } from '@/lib/audit'
+import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-access'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
 
@@ -104,14 +104,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   const brand = getBrandFromHost(request.nextUrl.host)
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const accessResult = await requireDomainAccess(request, 'corporate')
+  if (!accessResult.ok) return accessResult.response
+  const { access } = accessResult
+
+  // Répondre à un devis engage l'entreprise (signature) : rôle finance/owner/admin requis
+  const denied = requireCompanyCapability(access, 'quotes:respond')
+  if (denied) return denied
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = new mongoose.Types.ObjectId(access.profiles.companyClientId!)
 
   const quote = await AdminQuote.findOne({
     _id: id,
@@ -154,7 +157,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (sig) {
         setUpdate.clientSignature = {
           signature: sig,
-          name: sigName || auth.user.name || auth.user.email || 'Client',
+          name: sigName || access.email || 'Client',
           signedAt: now,
           ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '',
           userAgent: (request.headers.get('user-agent') || '').slice(0, 300),
@@ -195,8 +198,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const normalizedQuote = normalizeQuoteForResponse(updatedQuote)
 
   // Emails
-  const clientName = auth.user.name || auth.user.email || 'Client'
-  const clientEmail = auth.user.email || quote.client?.email
+  const clientName = access.email || 'Client'
+  const clientEmail = access.email || quote.client?.email
   const adminEmail = process.env.ADMIN_EMAIL || brand.contactEmail
 
   await Promise.allSettled([
@@ -233,18 +236,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     actorName: clientName,
     message: trimmedMessage,
     counterAmount: Number(counterAmount || 0) || undefined,
-    clientUserId: auth.user.id,
-    clientCompanyId: auth.user.companyClientId
+    clientUserId: access.userId,
+    clientCompanyId: access.profiles.companyClientId
   })
 
   void logAuditEvent({
     entityType: 'AdminQuote',
     entityId: quote._id,
     action: `client_${action}`,
-    userId: auth.user.id,
+    userId: access.userId,
     userRole: 'CLIENT',
-    clientCompanyId: auth.user.companyClientId,
-    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage, signed: !!sig },
+    clientCompanyId: access.profiles.companyClientId,
+    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage, signed: !!sig, companyRole: access.companyRole },
   })
 
   return NextResponse.json({ success: true, action, quote: normalizedQuote })

@@ -15,7 +15,7 @@ async function verifyAdminToken(request: NextRequest) {
   if (!token) throw new Error('Token manquant')
   const payload = await verifyJwtPayload(token)
   const normalizedRole = String((payload as any).role || '').toUpperCase()
-  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
+  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPER_ADMIN') {
     throw new Error('Accès non autorisé')
   }
   logDataAccess('admin_reports', 'generate_quote', request, (payload as any).userId)
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       )
     }
 
-    if (report.quoteGenerated) {
+    if (report.quoteGenerated || report.quoteId) {
       return NextResponse.json(
-        { error: 'Un devis a déjà été généré pour ce rapport', quoteId: report.quoteId },
+        { error: 'Un devis a déjà été généré pour ce rapport', quoteId: report.quoteId || report.quoteNumber },
         { status: 409 }
       )
     }
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       {
         $set: {
           quoteGenerated: true,
-          quoteId: quote.quoteNumber,
+          quoteNumber: quote.quoteNumber,
           quoteGeneratedAt: new Date()
         }
       }

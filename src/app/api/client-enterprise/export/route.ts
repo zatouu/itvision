@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
   const { access } = result
+
+  // Export comptable : réservé aux rôles qui voient les finances (owner/admin/finance/viewer)
+  const denied = requireCompanyCapability(access, 'finance:view')
+  if (denied) return denied
 
   await connectDB()
   const userId = access.userId

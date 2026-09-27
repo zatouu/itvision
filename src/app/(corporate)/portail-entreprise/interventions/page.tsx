@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { getEnterpriseSession, sessionCan } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
 import { Wrench, Calendar, MapPin, CheckCircle, Clock, Shield, ChevronRight } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
@@ -20,7 +20,8 @@ import {
 } from '@/components/portal-ui'
 
 export default async function InterventionsPage() {
-  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/interventions')
+  const session = await getEnterpriseSession('/portail-entreprise/interventions')
+  const { userId, companyId } = session
 
   const interventions = await Intervention.find({ ...companyScope({ userId, companyId }) })
     .sort({ date: -1, createdAt: -1 })
@@ -37,7 +38,7 @@ export default async function InterventionsPage() {
         title="Fiches d'intervention"
         subtitle={`${interventions.length} intervention${interventions.length > 1 ? 's' : ''}${upcoming.length > 0 ? ` · ${upcoming.length} à venir` : ''}`}
       >
-        <RequestInterventionButton />
+        <RequestInterventionButton canRequest={sessionCan(session, 'maintenance:request')} />
         <BackLink />
       </PageHeader>
 

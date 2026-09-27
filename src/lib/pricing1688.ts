@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product.validated'
+import type { IProduct } from './models/Product'
 import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId, type ShippingRate } from './logistics'
 
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_INSURANCE_RATE } from './pricing/constants'

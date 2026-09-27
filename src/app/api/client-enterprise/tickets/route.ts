@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Ticket from '@/lib/models/Ticket'
@@ -29,8 +29,13 @@ export async function POST(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
   const { access } = result
+
+  const denied = requireCompanyCapability(access, 'tickets:write')
+  if (denied) return denied
+
   await connectDB()
   const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = access.profiles.companyClientId
   const body = await request.json()
 
   const { title, category, priority, description } = body
@@ -44,6 +49,9 @@ export async function POST(request: NextRequest) {
 
   const ticket = await Ticket.create({
     clientId: userId,
+    // Scoping entreprise : sans ce champ, le ticket du collègue reste invisible
+    // aux autres membres de la société (cf. companyScope).
+    ...(companyId ? { clientCompanyId: new mongoose.Types.ObjectId(companyId) } : {}),
     title,
     category,
     priority: priority || 'medium',
@@ -63,8 +71,8 @@ export async function POST(request: NextRequest) {
     action: 'created',
     userId: access.userId,
     userRole: 'CLIENT',
-    clientCompanyId: access.profiles.companyClientId,
-    metadata: { title, category },
+    clientCompanyId: companyId,
+    metadata: { title, category, companyRole: access.companyRole },
   })
 
   return NextResponse.json({ ticket }, { status: 201 })

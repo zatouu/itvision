@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
+import { requireAuth } from '@/lib/jwt'
 
 /**
  * Décode une polyline Google encodée en tableau de coordonnées {lat,lng}.
@@ -48,6 +49,15 @@ function parseCoord(value: string | null): { lat: number; lng: number } | null {
 export async function GET(request: NextRequest) {
   const rateLimit = await applyRateLimit(request, apiRateLimiter)
   if (rateLimit) return rateLimit
+
+  // Proxy serveur vers Google Directions (la clé API reste côté serveur) :
+  // réservé aux utilisateurs connectés — sans quoi n'importe qui peut brûler
+  // le quota Google de la plateforme.
+  try {
+    await requireAuth(request)
+  } catch {
+    return NextResponse.json({ error: 'Authentification requise' }, { status: 401 })
+  }
 
   try {
     const { searchParams } = new URL(request.url)

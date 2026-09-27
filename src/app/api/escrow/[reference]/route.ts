@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { EscrowTransaction, IEscrowTransaction } from '@/lib/models/EscrowTransaction'
+import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 
 function maskPhone(phone: string) {
   const digits = String(phone || '').replace(/\D/g, '')
@@ -19,6 +20,10 @@ export async function GET(
   { params }: { params: Promise<{ reference: string }> }
 ) {
   try {
+    // Référence = capacité (GAR-YYMM-XXXXXX) : rate-limit anti-énumération.
+    const rateLimitResponse = await applyRateLimit(request, apiRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     await dbConnect()
     const { reference } = await params
 

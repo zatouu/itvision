@@ -184,7 +184,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       compact ? 'px-4 pt-4 pb-5' : 'px-4 md:px-10 pt-6 md:pt-8 pb-6 md:pb-8 rounded-3xl'
     )}>
       {shop.coverImage && (
-        <img src={shop.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        <img loading="lazy" decoding="async" src={shop.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
       )}
       <div className="absolute inset-0 opacity-15">
         <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
@@ -202,7 +202,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
           compact ? 'h-14 w-14 text-[18px]' : 'h-20 w-20 text-[24px]'
         )}>
           {shop.logo ? (
-            <img src={shop.logo} alt={shop.name} className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={shop.logo} alt={shop.name} className="h-full w-full object-cover" />
           ) : (
             shop.initials
           )}
@@ -260,7 +260,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       className="group rounded-2xl overflow-hidden border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 overflow-hidden">
-        <img src={p.img || p.image || '/placeholder.svg'} alt={p.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        <img loading="lazy" decoding="async" src={p.img || p.image || '/placeholder.svg'} alt={p.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500 text-white px-1.5 py-0.5 text-[10px] font-bold">
             <Package size={10} /> Min. {p.moq ?? p.minOrderQty ?? 1}
@@ -526,7 +526,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 md:pb-12">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24 md:pb-20 lg:pb-12">
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-4 md:py-6">
         <HeaderShop />
 
@@ -716,7 +716,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                 >
                   <div className="relative h-24 bg-gradient-to-br from-emerald-600 to-teal-700 overflow-hidden">
                     {s.coverImage ? (
-                      <img src={s.coverImage} alt="" className="h-full w-full object-cover" />
+                      <img loading="lazy" decoding="async" src={s.coverImage} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="absolute inset-0 grid place-items-center text-white/60"><Store size={26} /></span>
                     )}
@@ -724,7 +724,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                   <div className="p-3">
                     <div className="flex items-center gap-1">
                       {s.logo ? (
-                        <img src={s.logo} alt="" className="h-5 w-5 rounded-md object-cover flex-shrink-0" />
+                        <img loading="lazy" decoding="async" src={s.logo} alt="" className="h-5 w-5 rounded-md object-cover flex-shrink-0" />
                       ) : null}
                       <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{s.name}</p>
                       {s.isVerified && <CheckCircle size={11} className="text-emerald-500 flex-shrink-0" />}
@@ -746,7 +746,8 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
+      {/* Au-dessus du MarketBottomNav (bottom-16, mobile) ; collée en bas entre md et lg (nav masqué) */}
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
         <div className="flex gap-2">
           <a
             href={contactWhatsApp}

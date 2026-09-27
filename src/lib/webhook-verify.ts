@@ -12,16 +12,31 @@ import { createHmac, timingSafeEqual } from 'crypto'
  */
 
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { securityLogger } from '@/lib/security-logger'
 
 // En mode mock (dev local, PAYMENTS_MOCK=true, ou toggle admin), les webhooks sont acceptés
 // sans vérification de signature — cohérent avec les paiements simulés.
+// En production, le bypass exige un opt-in EXPLICITE (PAYMENTS_MOCK=true) en plus
+// du toggle admin : un staging mal configuré ou un toggle oublié ne doit jamais
+// ouvrir les webhooks de paiement.
 function isMockMode(): boolean {
-  if (process.env.NODE_ENV !== 'production') return true
-  try {
-    return readPaymentSettings().providers.mockEnabled
-  } catch {
-    return process.env.PAYMENTS_MOCK === 'true'
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.PAYMENTS_MOCK !== 'true') return false
+    try {
+      const enabled = readPaymentSettings().providers.mockEnabled === true
+      if (enabled) {
+        securityLogger.logEvent(
+          'webhook_signature_bypass',
+          'critical',
+          { reason: 'PAYMENTS_MOCK=true + mockEnabled admin en production', env: process.env.NODE_ENV }
+        )
+      }
+      return enabled
+    } catch {
+      return false
+    }
   }
+  return true
 }
 
 function safeCompare(a: string, b: string): boolean {

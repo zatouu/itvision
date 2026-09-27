@@ -18,7 +18,15 @@ export default function TicketDetailPage() {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const [activeTab, setActiveTab] = useState<'messages' | 'history'>('messages')
+  const [canWrite, setCanWrite] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.capabilities)) setCanWrite(d.capabilities.includes('tickets:write')) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch(`/api/client-enterprise/tickets/${id}`)
@@ -201,7 +209,12 @@ export default function TicketDetailPage() {
           )}
 
           {/* Reply form */}
-          {!isClosed ? (
+          {!canWrite ? (
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-center">
+              <p className="text-sm text-stone-500">Votre rôle dans l'entreprise est en lecture seule.</p>
+              <p className="text-xs text-stone-400 mt-0.5">Demandez à un administrateur de l'entreprise pour répondre aux tickets.</p>
+            </div>
+          ) : !isClosed ? (
             <form onSubmit={handleReply} className={`${CARD} p-4 space-y-3`}>
               <div>
                 <label className="block text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-1.5">Votre réponse</label>

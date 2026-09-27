@@ -23,6 +23,21 @@ interface Proposal {
   }
   llmUnavailable?: boolean
   product?: { name: string; price: number; category?: string; image?: string; sellerName?: string }
+  // Devis brouillon (agent quote_draft)
+  reportRef?: string
+  clientName?: string
+  site?: string
+  lines?: Array<{ description: string; quantity: number; unitPrice: number; total: number; isLabor?: boolean }>
+  pricing?: { subtotal: number; brsAmount: number; taxAmount: number; total: number; catalogResolved?: number; catalogPending?: number }
+  contract?: { contractNumber?: string; name?: string; remaining?: number; interventionsIncluded?: number; interventionsUsed?: number }
+  analysis?: { coherence?: string; reasons?: string[]; clientNote?: string; pitch?: string; riskFlags?: string[]; unavailable?: boolean }
+  // Renouvellement (agent contract_renewal)
+  contractName?: string
+  currentPrice?: number
+  proposedPrice?: number
+  priceChangePct?: number
+  daysLeft?: number
+  usage?: { interventionsRecent?: number; consumptionRate?: number | null; unpaidInvoices?: number; openTickets?: number; slaBreaches?: number }
   sourcingRequest?: {
     reference?: string
     description?: string
@@ -54,6 +69,8 @@ const VERDICT_META: Record<string, { label: string; cls: string; icon: typeof Ch
 const TYPE_LABELS: Record<string, string> = {
   product_moderation: 'Modération produit',
   sourcing_request: 'Trouvez-moi (sourcing)',
+  quote_draft: 'Devis depuis rapport',
+  contract_renewal: 'Renouvellement contrat',
 }
 
 export default function AdminCopilotPage() {
@@ -207,6 +224,76 @@ export default function AdminCopilotPage() {
                     {!!d.proposal?.suggestedFixes?.length && (
                       <p className="text-stone-600"><b className="text-stone-700">Fixes suggérés :</b> {d.proposal.suggestedFixes.join(' · ')}</p>
                     )}
+                    {!!d.proposal?.lines?.length && (
+                      <div className="rounded-lg border border-stone-200 bg-white p-2.5 space-y-1.5">
+                        <p className="font-bold text-stone-700">
+                          {d.proposal.reportRef ? `Rapport ${d.proposal.reportRef}` : 'Devis'} — {d.proposal.clientName}
+                          {d.proposal.site ? ` · ${d.proposal.site}` : ''}
+                        </p>
+                        <div className="space-y-0.5 text-[11px]">
+                          {d.proposal.lines.map((l, i) => (
+                            <div key={i} className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 flex-1 truncate text-stone-600">{l.description}</span>
+                              <span className="flex-shrink-0 tabular-nums text-stone-400">×{l.quantity}</span>
+                              <span className="w-20 flex-shrink-0 text-right tabular-nums text-stone-700">{(l.unitPrice || 0).toLocaleString('fr-FR')} F</span>
+                            </div>
+                          ))}
+                        </div>
+                        {d.proposal.pricing && (
+                          <div className="flex items-center justify-between gap-2 border-t border-stone-100 pt-1.5 text-[11px]">
+                            <span className="text-stone-500">
+                              Sous-total {(d.proposal.pricing.subtotal || 0).toLocaleString('fr-FR')} · BRS −{(d.proposal.pricing.brsAmount || 0).toLocaleString('fr-FR')} · TVA {(d.proposal.pricing.taxAmount || 0).toLocaleString('fr-FR')}
+                            </span>
+                            <b className="tabular-nums text-stone-800">{(d.proposal.pricing.total || 0).toLocaleString('fr-FR')} F</b>
+                          </div>
+                        )}
+                        {d.proposal.contract?.contractNumber && (
+                          <p className="text-[10px] text-stone-400">
+                            Contrat {d.proposal.contract.contractNumber} — {d.proposal.contract.remaining ?? 0} intervention(s) restante(s)
+                            {!!d.proposal.pricing?.catalogPending && ` · ${d.proposal.pricing.catalogPending} ligne(s) sans prix à compléter`}
+                          </p>
+                        )}
+                        {d.proposal.analysis?.clientNote && (
+                          <p className="text-[11px] italic text-stone-600">Note client : {d.proposal.analysis.clientNote}</p>
+                        )}
+                        {!!d.proposal.analysis?.reasons?.length && (
+                          <p className="text-[11px] text-amber-700">Vigilance : {d.proposal.analysis.reasons.join(' · ')}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {d.proposal?.proposedPrice != null && (
+                      <div className="rounded-lg border border-stone-200 bg-white p-2.5 space-y-1.5">
+                        <p className="font-bold text-stone-700">
+                          {d.proposal.clientName} — {d.proposal.contractName || d.proposal.contract?.name}
+                          {d.proposal.daysLeft != null ? ` · ${d.proposal.daysLeft} j restants` : ''}
+                        </p>
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <span className="tabular-nums text-stone-400 line-through">{(d.proposal.currentPrice || 0).toLocaleString('fr-FR')} F</span>
+                          <span className="tabular-nums font-bold text-stone-800">{(d.proposal.proposedPrice || 0).toLocaleString('fr-FR')} F</span>
+                          {!!d.proposal.priceChangePct && (
+                            <span className={d.proposal.priceChangePct > 0 ? 'text-amber-700' : 'text-emerald-700'}>
+                              {d.proposal.priceChangePct > 0 ? '+' : ''}{d.proposal.priceChangePct}%
+                            </span>
+                          )}
+                        </div>
+                        {d.proposal.usage && (
+                          <p className="text-[10px] text-stone-400">
+                            Usage : {d.proposal.usage.consumptionRate ?? '—'}% du forfait
+                            {d.proposal.usage.interventionsRecent != null ? ` · ${d.proposal.usage.interventionsRecent} intervention(s) sur la période` : ''}
+                            {d.proposal.usage.unpaidInvoices ? ` · ${d.proposal.usage.unpaidInvoices} facture(s) en attente` : ''}
+                            {d.proposal.usage.slaBreaches ? ` · ${d.proposal.usage.slaBreaches} SLA dépassé(s)` : ''}
+                          </p>
+                        )}
+                        {d.proposal.analysis?.pitch && (
+                          <p className="text-[11px] italic text-stone-600">{d.proposal.analysis.pitch}</p>
+                        )}
+                        {!!d.proposal.analysis?.riskFlags?.length && (
+                          <p className="text-[11px] text-amber-700">Vigilance : {d.proposal.analysis.riskFlags.join(' · ')}</p>
+                        )}
+                      </div>
+                    )}
+
                     {d.proposal?.sourcingRequest && (
                       <div className="rounded-lg border border-stone-200 bg-white p-2.5 space-y-1.5">
                         <p className="font-bold text-stone-700">

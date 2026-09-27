@@ -33,8 +33,7 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
     >
       <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800">
         {group.image && !imageError ? (
-          <img
-            src={group.image}
+          <img loading="lazy" decoding="async" src={group.image}
             alt={group.name}
             onError={() => setImageError(true)}
             className="h-full w-full object-cover"

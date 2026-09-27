@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
@@ -11,6 +11,9 @@ export async function POST(
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
   const { access } = result
+
+  const denied = requireCompanyCapability(access, 'interventions:ack')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params

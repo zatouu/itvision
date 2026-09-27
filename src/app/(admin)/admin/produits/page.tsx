@@ -4,6 +4,7 @@ import AdminTabs from '@/components/admin/AdminTabs'
 import { cookies } from 'next/headers'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { verifyAuthToken } from '@/lib/jwt'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 
 export default async function AdminProduitsPage() {
   const cookieStore = await cookies()
@@ -13,7 +14,7 @@ export default async function AdminProduitsPage() {
     if (token) {
       const decoded = await verifyAuthToken(token)
       const role = String(decoded.role || '').toUpperCase()
-      allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+      allowed = PRODUCT_STAFF_ROLES.includes(role)
     }
   } catch {}
   if (!allowed) {

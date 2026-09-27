@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 import { readPricingDefaults } from '@/lib/pricing/settings'
 
 /**
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(req)
     const role = auth.role?.toUpperCase()
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    if (!PRODUCT_STAFF_ROLES.includes(role || '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req)
     const role = auth.role?.toUpperCase()
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    if (!PRODUCT_STAFF_ROLES.includes(role || '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 

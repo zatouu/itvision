@@ -22,7 +22,7 @@ Ces écrans sont actuellement legacy (gris `gray-*`, inline SVG/emoji, structura
 
 ### Composant de formulaire partagé
 
-- Créer **`ScreenFormRequest`** dans `src/components/market/batch1/screens/`
+- Créer **`ScreenFormRequest`** dans `src/components/market/storefront/screens/`
 - 3 variantes via prop `variant: 'litige' | 'reclamation' | 'retour'`
 - `retour` a des champs spécifiques (produits à retourner, motif de retour, photos, remboursement/échange).
 - `litige` et `reclamation` partagent la même structure (référence commande, motif, description, pièces jointes, urgence).
@@ -77,7 +77,7 @@ Ces écrans sont actuellement legacy (gris `gray-*`, inline SVG/emoji, structura
 - `PriceBreakdown` (pour commande et checkout)
 - `ProductCard`, `GroupCard`, `Badge`, `Card`, `Section`
 - `SourcingRequestModal` comme modèle de modale formulaire
-- `formatFcfa` depuis `src/components/market/batch1/formatFcfa.ts`
+- `formatFcfa` depuis `src/components/market/storefront/formatFcfa.ts`
 - `cn` depuis `@/lib/utils`
 - `lucide-react` pour toutes les icônes
 

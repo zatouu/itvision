@@ -225,6 +225,9 @@ export default function ProductImageGallery({
           src={imageSrc}
           alt={name}
           draggable={false}
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -261,7 +264,7 @@ export default function ProductImageGallery({
               active === i ? 'border-emerald-600' : 'border-transparent'
             )}
           >
-            <img src={src} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={src} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
           </button>
         ))}
       </div>

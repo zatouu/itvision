@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string }
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string; requiresVerification?: boolean }
     try {
       auth = await resolveGuestOrAuthUser(req, { name: creatorName, phone: creatorPhoneRaw, email: creatorEmail })
     } catch (e) {
@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
       priceTiers,
       currentUnitPrice,
       participants: [{
-        userId: auth.userId as any,
+        userId: auth.userId ? (auth.userId as any) : undefined,
         name: creatorName,
         phone: creatorPhone,
         email: creatorEmail,
@@ -451,7 +451,7 @@ export async function POST(req: NextRequest) {
       shippingMethod: normalizedShippingMethod,
       shippingCostPerUnit: shippingCostPerUnit > 0 ? shippingCostPerUnit : undefined,
       createdBy: {
-        userId: auth.userId as any,
+        userId: auth.userId ? (auth.userId as any) : undefined,
         name: creatorName,
         phone: creatorPhone,
         email: creatorEmail
@@ -462,13 +462,16 @@ export async function POST(req: NextRequest) {
     await groupOrder.save()
     void invalidateGroupOrdersCache()
 
-    // Créditer les grains de fidélité (best effort)
+    // Créditer les grains de fidélité (best effort) — uniquement pour un
+    // utilisateur réellement identifié (jamais pour un invité non vérifié).
     try {
-      await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
-      if (initialStatus === 'filled') {
-        await creditGroupCompleteToParticipants(groupOrder)
+      if (auth.userId) {
+        await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
+        if (initialStatus === 'filled') {
+          await creditGroupCompleteToParticipants(groupOrder)
+        }
+        await updateTierFromBalance(auth.userId)
       }
-      await updateTierFromBalance(auth.userId)
     } catch (grainsErr) {
       console.error('[grains] Erreur crédit grains groupe:', grainsErr)
     }
@@ -527,6 +530,9 @@ export async function POST(req: NextRequest) {
       message: 'Achat groupé créé avec succès',
       group: sanitizePublicGroupDetail(groupOrder.toObject()),
       isNewAccount: auth.isNew || false,
+      // Contact déjà rattaché à un compte : inscription faite en invité, sans
+      // session — le front invite à se connecter pour la retrouver dans « Mon compte ».
+      accountExists: auth.requiresVerification === true,
     }, { status: 201 })
 
     if (auth.token) {

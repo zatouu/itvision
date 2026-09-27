@@ -9,6 +9,9 @@ import AgentJob from '@/lib/models/AgentJob'
 import { runProductModeration } from './moderation/run'
 import { runSourcingScan } from './sourcing/run'
 import { runSourcingRequest } from './sourcing/request-run'
+import { runQuoteDraft } from './corporate/quote-draft'
+import { runContractRenewal } from './corporate/contract-renewal'
+import { runClientDigest } from './corporate/client-digest'
 
 const POLL_MS = parseInt(process.env.AGENT_POLL_MS || '15000', 10)
 const CONCURRENCY = Math.max(1, parseInt(process.env.AGENT_CONCURRENCY || '3', 10))
@@ -36,6 +39,10 @@ const RUNNERS: Record<string, (job: any) => Promise<void>> = {
   product_moderation: (job) => runProductModeration(String(job._id), job.refId),
   sourcing_scan: (job) => runSourcingScan(job),
   sourcing_request: (job) => runSourcingRequest(job),
+  // Agents corporate (IT Vision B2B)
+  quote_draft: (job) => runQuoteDraft(String(job._id), job.refId),
+  contract_renewal: (job) => runContractRenewal(String(job._id), job.refId),
+  client_digest: (job) => runClientDigest(String(job._id), job.refId).then(() => undefined),
 }
 
 let started = false

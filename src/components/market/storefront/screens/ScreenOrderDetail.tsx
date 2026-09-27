@@ -164,7 +164,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
             return (
             <div key={it.id || it._id || i} className="p-4 flex items-center gap-3">
               {it.image ? (
-                <img src={it.image} alt="" className="h-14 w-14 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />
+                <img loading="lazy" decoding="async" src={it.image} alt="" className="h-14 w-14 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />
               ) : (
                 <span className="h-14 w-14 rounded-lg bg-slate-100 dark:bg-slate-800 grid place-items-center"><Package size={20} className="text-slate-400" /></span>
               )}
@@ -465,7 +465,8 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
 
       <button
         onClick={() => setChatOpen(true)}
-        className="fixed bottom-6 right-4 md:bottom-6 md:right-6 z-30 grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-500/40 hover:bg-emerald-700"
+        aria-label="Ouvrir la messagerie de la commande"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-30 grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-500/40 hover:bg-emerald-700"
       >
         <MessageCircle size={22} />
       </button>

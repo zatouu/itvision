@@ -91,28 +91,64 @@ export async function POST(req: NextRequest) {
       }
     }
     const releasedNet = Math.round(releasedGross * (1 - commissionRate / 100))
-    const committed = await VendorPayout.aggregate([
-      { $match: { vendorId: vendor._id, status: { $in: ['pending', 'approved', 'paid'] } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
-    ])
-    const available = Math.max(0, releasedNet - (committed[0]?.total || 0))
-
     const { amount, method, phone, note } = parsed.data
-    if (amount > available) {
+
+    const committedTotal = async (): Promise<number> => {
+      const rows = await VendorPayout.aggregate([
+        { $match: { vendorId: vendor._id, status: { $in: ['pending', 'approved', 'paid'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ])
+      return rows[0]?.total || 0
+    }
+
+    // ── Réservation atomique du solde ───────────────────────────────────────
+    // Un check-then-insert laissait deux demandes concurrentes engager le même
+    // solde. `payoutsCommitted` est le miroir du total engagé : la réservation
+    // est un findOneAndUpdate gardé par $expr, donc atomique (y compris sur
+    // MongoDB standalone, sans dépendre des transactions).
+    const committedAggregate = await committedTotal()
+    await VendorProfile.updateOne(
+      { _id: vendor._id },
+      { $max: { payoutsCommitted: committedAggregate } }
+    )
+
+    const reserved = await VendorProfile.findOneAndUpdate(
+      {
+        _id: vendor._id,
+        $expr: {
+          $lte: [{ $add: [{ $ifNull: ['$payoutsCommitted', 0] }, amount] }, releasedNet],
+        },
+      },
+      { $inc: { payoutsCommitted: amount } },
+      { new: true }
+    ).lean() as any
+
+    if (!reserved) {
+      const committedNow =
+        ((await VendorProfile.findById(vendor._id).select('payoutsCommitted').lean()) as any)?.payoutsCommitted ??
+        committedAggregate
+      const availableNow = Math.max(0, releasedNet - committedNow)
       return NextResponse.json({
         success: false,
-        error: `Solde disponible insuffisant (${available.toLocaleString('fr-FR')} F). Les ventes en cours de livraison sont en escrow.`,
+        error: `Solde disponible insuffisant (${availableNow.toLocaleString('fr-FR')} F). Les ventes en cours de livraison sont en escrow.`,
       }, { status: 400 })
     }
 
-    const payout = await VendorPayout.create({
-      vendorId: vendor._id,
-      shopId: shop._id,
-      amount,
-      method,
-      phone,
-      note,
-    })
+    let payout: any = null
+    try {
+      payout = await VendorPayout.create({
+        vendorId: vendor._id,
+        shopId: shop._id,
+        amount,
+        method,
+        phone,
+        note,
+      })
+    } catch (createErr) {
+      // La demande n'a pas été créée : libérer la réservation
+      await VendorProfile.updateOne({ _id: vendor._id }, { $inc: { payoutsCommitted: -amount } }).catch(() => {})
+      throw createErr
+    }
 
     notifyAdmins({
       type: 'warning',

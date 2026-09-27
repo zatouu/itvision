@@ -106,7 +106,7 @@ async function buildPreviewFromAliExpressUrl(rawUrl: string): Promise<Normalized
 }
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 

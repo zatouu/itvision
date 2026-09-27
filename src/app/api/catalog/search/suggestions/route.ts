@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { accentInsensitiveRegex, stripAccents } from '@/lib/search/accents'

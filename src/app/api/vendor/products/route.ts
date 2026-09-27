@@ -87,6 +87,7 @@ const createSchema = z.object({
     .array(z.object({ minQty: z.number().int().min(2), price: z.number().int().min(1) }))
     .max(8)
     .optional(),
+  minOrderQty: z.number().int().min(1).max(10000).default(1),
 })
 
 // Modération à la création : checks déterministes inline — un produit sain
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }
 
-    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, variantGroups, priceTiers } = parsed.data
+    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, variantGroups, priceTiers, minOrderQty } = parsed.data
 
     // Si des variantes définissent leur propre stock, le stock total = somme des stocks variantes
     const variantStockSum = (variantGroups || [])
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
       weightKg,
       variantGroups: variantGroups || [],
       priceTiers: priceTiers || [],
+      minOrderQty: minOrderQty ?? 1,
       stockQuantity: effectiveStock,
       stockStatus: effectiveStock > 0 ? 'in_stock' : 'out_of_stock',
       sellerName: vendor.name,

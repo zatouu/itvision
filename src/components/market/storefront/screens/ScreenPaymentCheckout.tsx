@@ -328,7 +328,7 @@ export default function ScreenPaymentCheckout({
         {items.map((it, i) => (
           <div key={i} className="flex items-center gap-2.5">
             <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-              {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : <Package size={18} className="m-auto text-slate-400" />}
+              {it.image ? <img loading="lazy" decoding="async" src={it.image} alt="" className="h-full w-full object-cover" /> : <Package size={18} className="m-auto text-slate-400" />}
               <span className="absolute -bottom-0.5 -right-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-1 text-[9px] font-bold text-white tabular-nums">{it.qty}</span>
             </div>
             <div className="min-w-0 flex-1">
@@ -447,13 +447,14 @@ export default function ScreenPaymentCheckout({
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
                     <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">+221</span>
                     <Smartphone size={14} className="text-slate-400" />
-                    <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="77 000 00 00" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums" />
+                    <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="77 000 00 00" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums" />
                   </div>
                 </div>
               )}
             </div>
 
-            <TrustFooter />
+            {/* Réassurance : sous le formulaire en desktop, après le bouton Payer en mobile */}
+            <div className="hidden md:block"><TrustFooter /></div>
           </div>
 
           <div>
@@ -494,6 +495,7 @@ export default function ScreenPaymentCheckout({
               {settings.providers.escrow.enabled && (
                 <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Paiement sécurisé · débité seulement après confirmation</p>
               )}
+              <div className="md:hidden"><TrustFooter /></div>
             </div>
           </div>
         </div>

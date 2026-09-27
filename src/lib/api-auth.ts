@@ -19,6 +19,9 @@ export type RequireAuthFail = {
 
 export type RequireAuthResult = RequireAuthOk | RequireAuthFail
 
+/** Staff autorisé à gérer le catalogue produits / pricing (miroir de domains.ts `/admin/produits`). */
+export const PRODUCT_STAFF_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER']
+
 export async function requireAdminApi(
   request: NextRequest,
   allowedRoles: string[] = ['ADMIN', 'SUPER_ADMIN']
