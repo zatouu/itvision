@@ -25,7 +25,7 @@ import { hapticSuccess, hapticLight, hapticSelect } from '../src/haptics'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { colors, radius, spacing, typography, shadows } from '../src/design'
-import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles, CalendarClock } from 'lucide-react-native'
+import { ArrowLeft, RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Sparkles, CalendarClock, Image as ImageIcon } from 'lucide-react-native'
 import SchedulePicker, { formatSlot } from '../src/components/SchedulePicker'
 
 const RADIUS_KM = 10
@@ -47,7 +47,7 @@ function NearbyRequests() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('map')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   const [selected, setSelected] = useState<any | null>(null)
   const [price, setPrice] = useState('')
@@ -500,12 +500,27 @@ function NearbyRequests() {
                   </View>
                 )}
               </View>
-              {it.media?.some((m: any) => m.type === 'audio') && (
-                <View style={s.audioBadge}>
-                  <Volume2 size={14} color="#0369A1" />
-                  <Text style={s.audioBadgeText}>{t('providerNearby.voiceMessage')}</Text>
-                </View>
-              )}
+              {(() => {
+                const hasAudio = it.media?.some((m: any) => m.type === 'audio')
+                const photoCount = it.media?.filter((m: any) => m.type === 'image' || m.type === 'video').length || 0
+                if (!hasAudio && !photoCount) return null
+                return (
+                  <View style={s.mediaChips}>
+                    {hasAudio && (
+                      <View style={s.audioBadge}>
+                        <Volume2 size={14} color="#0369A1" />
+                        <Text style={s.audioBadgeText}>{t('providerNearby.voiceMessage')}</Text>
+                      </View>
+                    )}
+                    {photoCount > 0 && (
+                      <View style={s.photoBadge}>
+                        <ImageIcon size={13} color={colors.textSecondary} />
+                        <Text style={s.photoBadgeText}>{photoCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                )
+              })()}
               {it.description ? <Text style={s.desc} numberOfLines={2}>{it.description}</Text> : null}
               {it.scheduledFor && new Date(it.scheduledFor).getTime() > Date.now() && (
                 <View style={s.schedChip}>
@@ -515,52 +530,6 @@ function NearbyRequests() {
                   </Text>
                 </View>
               )}
-              {/* AI Analyze button */}
-              <TouchableOpacity
-                style={s.aiAnalyzeBtn}
-                onPress={async () => {
-                  hapticLight()
-                  try {
-                    const res = await apiPost('/api/ai/assist', {
-                      type: 'analyze_request',
-                      category: it.category,
-                      description: it.description,
-                      attributes: it.attributes,
-                    })
-                    if (res.text) {
-                      Alert.alert(
-                        t('nearby.aiAnalysis', { defaultValue: 'Analyse IA' }),
-                        res.text,
-                        [{ text: 'OK' }]
-                      )
-                    }
-                  } catch (e: any) {
-                    toast.error(t('common.error'), humanErrorMessage(e))
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <Sparkles size={14} color={colors.primary} />
-                <Text style={s.aiAnalyzeBtnText}>{t('nearby.aiAnalyze', { defaultValue: 'Analyser' })}</Text>
-              </TouchableOpacity>
-              {it.media?.filter((m: any) => m.type === 'image').length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-                  {it.media.filter((m: any) => m.type === 'image').map((m: any, i: number) => {
-                    const uri = resolveMediaUrl(m.url)
-                    return (
-                      <Image
-                        key={i}
-                        source={{ uri }}
-                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 6, backgroundColor: colors.slate100 }}
-                      />
-                    )
-                  })}
-                </ScrollView>
-              )}
-              {it.media?.some((m: any) => m.type === 'audio') && (() => {
-                const audioUrl = it.media.find((m: any) => m.type === 'audio').url
-                return <VoicePlayer uri={audioUrl} />
-              })()}
               <View style={s.cardFoot}>
                 {it.budget ? <Text style={s.budget}>{t('nearby.budget', { amount: Number(it.budget).toLocaleString('fr-FR') })}</Text> : <Text style={s.budgetNone}>{t('nearby.budgetNone')}</Text>}
                 <TouchableOpacity style={[s.offerChip, it._hasOffered && s.offerChipOffered]} onPress={() => { hapticSelect(); openOfferSheet(it) }}>
@@ -627,6 +596,34 @@ function NearbyRequests() {
                 <Text style={s.modalBudgetLabel}>{t('nearby.clientBudget')}</Text>
                 <Text style={s.modalBudgetValue}>{selected.budget ? `${Number(selected.budget).toLocaleString('fr-FR')} FCFA` : t('nearby.budgetNone')}</Text>
               </View>
+              {/* Analyse IA de la demande */}
+              <TouchableOpacity
+                style={s.aiAnalyzeBtn}
+                onPress={async () => {
+                  hapticLight()
+                  try {
+                    const res = await apiPost('/api/ai/assist', {
+                      type: 'analyze_request',
+                      category: selected.category,
+                      description: selected.description,
+                      attributes: selected.attributes,
+                    })
+                    if (res.text) {
+                      Alert.alert(
+                        t('nearby.aiAnalysis', { defaultValue: 'Analyse IA' }),
+                        res.text,
+                        [{ text: 'OK' }]
+                      )
+                    }
+                  } catch (e: any) {
+                    toast.error(t('common.error'), humanErrorMessage(e))
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Sparkles size={14} color={colors.primary} />
+                <Text style={s.aiAnalyzeBtnText}>{t('nearby.aiAnalyze', { defaultValue: 'Analyser' })}</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -792,6 +789,9 @@ const s = StyleSheet.create({
   distBadge: { backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.border },
   distText: { fontSize: 11, color: colors.textSecondary, fontWeight: typography.weight.extrabold as any },
   desc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  mediaChips: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  photoBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.slate100 },
+  photoBadgeText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
   aiAnalyzeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -808,7 +808,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  audioBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E0F7FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, alignSelf: 'flex-start', marginTop: 6, marginBottom: 4 },
+  audioBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E0F7FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16 },
   audioBadgeText: { fontSize: 11, fontWeight: '700', color: '#0369A1' },
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.bg },
   budget: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },

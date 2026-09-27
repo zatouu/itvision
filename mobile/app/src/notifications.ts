@@ -357,14 +357,16 @@ export function bindNotificationSocket() {
     const status = String(payload?.status || '').toLowerCase()
     if (!status) return
     const clientSide = isClientSide(payload)
+    // Pas de notification pour sa propre action (ex. le client qui annule).
+    if (payload?.actorRole === (clientSide ? 'client' : 'provider')) return
     const map: Record<string, { title: string; body: string }> = clientSide
       ? {
-          provider_arriving: { title: '🚗 Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
+          provider_arriving: { title: 'Prestataire en route', body: 'Votre prestataire est en route vers vous.' },
           completed: { title: 'Mission terminée', body: 'Votre mission a été clôturée.' },
           cancelled: { title: 'Mission annulée', body: 'La mission a été annulée.' },
         }
       : {
-          completed: { title: '✅ Mission terminée', body: 'Le client a validé la fin de la mission.' },
+          completed: { title: 'Mission terminée', body: 'Le client a validé la fin de la mission.' },
           cancelled: { title: 'Mission annulée par le client', body: 'La mission a été annulée.' },
         }
     const meta = map[status]

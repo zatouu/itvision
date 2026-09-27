@@ -37,7 +37,6 @@ import { HorizontalProgressionTimeline } from '../../src/components/mission/Hori
 import { CoachCard } from '../../src/components/mission/CoachCard'
 import { CoachSheet } from '../../src/components/mission/CoachSheet'
 import { MapHero } from '../../src/components/mission/MapHero'
-import { AdminMetricsModal } from '../../src/components/mission/AdminMetricsModal'
 import { MissionDetailsSheet } from '../../src/components/mission/MissionDetailsSheet'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
 import { pickOption } from '../../src/option-sheet'
@@ -83,7 +82,6 @@ function ActiveMissionScreen() {
     reportProblem,
   } = useMissionActive(requestId)
 
-  const [adminModalVisible, setAdminModalVisible] = useState(false)
   const [detailsVisible, setDetailsVisible] = useState(false)
   const [coachVisible, setCoachVisible] = useState(false)
   const [aiHelpVisible, setAiHelpVisible] = useState(false)
@@ -296,19 +294,6 @@ function ActiveMissionScreen() {
                 />
               }
             >
-              {/* Horizontal Progression Timeline */}
-              <HorizontalProgressionTimeline status={status} style={{ marginHorizontal: 0, marginBottom: 0 }} />
-
-              {/* Coach Card */}
-              <CoachCard
-                advice={structuredAdvice}
-                status={status}
-                onPress={() => setCoachVisible(true)}
-                loading={loading && !mission}
-                offline={error !== null}
-                onRetry={() => loadMission(true)}
-              />
-
               {/* Client Card */}
               <ClientCard
                 clientName={clientData.name}
@@ -331,6 +316,16 @@ function ActiveMissionScreen() {
                 address={clientAddress}
                 compact
                 style={{ marginHorizontal: 0, marginBottom: 0 }}
+              />
+
+              {/* Coach Card */}
+              <CoachCard
+                advice={structuredAdvice}
+                status={status}
+                onPress={() => setCoachVisible(true)}
+                loading={loading && !mission}
+                offline={error !== null}
+                onRetry={() => loadMission(true)}
               />
             </ScrollView>
 
@@ -435,7 +430,6 @@ function ActiveMissionScreen() {
             <MissionStatusHeroCard
               status={status}
               elapsedSeconds={elapsedSeconds}
-              onLongPress={() => setAdminModalVisible(true)}
             />
 
             {/* 2. Client Card */}
@@ -648,18 +642,6 @@ function ActiveMissionScreen() {
         onPause={isCurrentProvider && status === 'in_progress' ? handlePause : null}
         onResume={isCurrentProvider && status === 'paused' ? resumeIntervention : null}
         onDispute={isCurrentProvider && ['assigned', 'on_the_way', 'provider_arriving', 'arrived', 'in_progress', 'paused', 'awaiting_validation'].includes(status) ? handleReport : null}
-      />
-
-      {/* Admin Metrics Modal (Long-press on Hero Card) */}
-      <AdminMetricsModal
-        visible={adminModalVisible}
-        onClose={() => setAdminModalVisible(false)}
-        activeSeconds={elapsedSeconds}
-        pausedSeconds={pausedSeconds}
-        pauseCount={pauseCount}
-        lastActivityAt={lastActivityAt}
-        createdAt={mission?.createdAt}
-        requestId={requestId}
       />
 
       {/* AI Help Modal */}

@@ -4,17 +4,14 @@ import { colors, shadows } from '../src/design'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, TextInput } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { apiGet, apiPatch } from '../src/api'
-import { confirm, notify } from '../src/confirm'
+import { apiGet } from '../src/api'
 import { fetchWithCache, cacheClear } from '../src/storage'
 import { connectSocket } from '../src/socket'
-import { humanErrorMessage } from '../src/errorMessages'
 import { SkeletonCard } from '../src/components/Skeleton'
 import { loadCategories, getCategoryLabel } from '../src/categories'
 import { useTranslation } from 'react-i18next'
 import EmptyState from '../src/components/EmptyState'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
-import { hapticWarning } from '../src/haptics'
 import { Plus, AlertTriangle, Inbox, Search, ChevronRight, Menu, CheckCircle2, CalendarClock } from 'lucide-react-native'
 import SideMenu from '../src/components/SideMenu'
 import TabBar from '../src/components/TabBar'
@@ -90,25 +87,6 @@ function MyRequests() {
     }
   }, [])
 
-  const handleCancel = async (id: string) => {
-    const ok = await confirm(t('requests.cancelRequestConfirm'), t('requests.cancelRequestMsg'))
-    if (!ok) return
-    hapticWarning()
-    try {
-      await apiPatch(`/api/services/requests/${id}`, { status: 'cancelled' })
-      notify(t('requests.cancelRequestSuccess'), '')
-      await load(true)
-    } catch (e: any) {
-      const code = e?.code || ''
-      if (code === 'ALREADY_CANCELLED' || code === 'ALREADY_COMPLETED' || code === 'ALREADY_EXPIRED') {
-        notify('Demande déjà clôturée', '')
-        load(true)
-      } else {
-        notify(t('common.error'), humanErrorMessage(e))
-      }
-    }
-  }
-
   useEffect(() => { load() }, [])
 
   useFocusEffect(
@@ -132,8 +110,6 @@ function MyRequests() {
     }
   }, [load])
 
-  const awaitingValidationItems = useMemo(() => items.filter(it => it.status === 'awaiting_validation'), [items])
-
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase()
     return items.filter(it => {
@@ -145,7 +121,7 @@ function MyRequests() {
       const catLabel = catMap[it.category]?.label || it.category || ''
       const haystack = `${catLabel} ${it.category || ''} ${it.description || ''} ${it.budget || ''} ${it.status}`.toLowerCase()
       return matchesStatus && (!q || haystack.includes(q))
-    })
+    }).sort((a, b) => Number(b.status === 'awaiting_validation') - Number(a.status === 'awaiting_validation'))
   }, [items, query, statusFilter])
 
   const activeCount = items.filter(it => ACTIVE_MISSION_STATUSES.includes(it.status)).length
@@ -196,7 +172,7 @@ function MyRequests() {
               autoFocus
             />
           )}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterChips}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.filterChips}>
             {FILTER_DEFS.map(f => {
               const active = statusFilter === f.key
               return (
@@ -212,23 +188,6 @@ function MyRequests() {
             })}
           </ScrollView>
         </View>
-      )}
-
-      {/* Alerte validation en attente */}
-      {awaitingValidationItems.length > 0 && (
-        <TouchableOpacity
-          style={s.validationAlert}
-          activeOpacity={0.8}
-          onPress={() => router.push(`/mission/${awaitingValidationItems[0]._id}`)}
-        >
-          <View style={s.validationAlertIcon}>
-            <CheckCircle2 size={20} color="#92400E" />
-          </View>
-          <Text style={s.validationAlertText}>
-            {t('requests.awaitingValidationAlert', { count: awaitingValidationItems.length })}
-          </Text>
-          <ChevronRight size={18} color="#B45309" />
-        </TouchableOpacity>
       )}
 
       {loading ? (
@@ -303,8 +262,6 @@ function MyRequests() {
                     </View>
                   </View>
                   <Text style={s.meta} numberOfLines={1}>
-                    <Text style={s.metaRef}>#{String(it._id).slice(-6).toUpperCase()}</Text>
-                    {'  ·  '}
                     {it.createdAt ? new Date(it.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''}
                     {it.budget ? ` · ${Number(it.budget).toLocaleString()} FCFA` : ''}
                   </Text>
@@ -345,15 +302,6 @@ function MyRequests() {
                       </TouchableOpacity>
                     </View>
                   )}
-                  {['created', 'pending_offers', 'broadcasted'].includes(it.status) && (
-                    <TouchableOpacity
-                      style={s.cancelBtn}
-                      onPress={() => handleCancel(it._id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={s.cancelBtnText}>{t('requests.cancelRequest')}</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
                 <ChevronRight size={18} color={colors.textDim} />
               </TouchableOpacity>
@@ -390,9 +338,6 @@ const s = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.borderSoft, ...shadows.xs },
   cardDisabled: { opacity: 0.65 },
   cardAwaitingValidation: { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' },
-  validationAlert: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF3C7', borderBottomWidth: 1, borderBottomColor: '#FDE68A', paddingHorizontal: 16, paddingVertical: 12 },
-  validationAlertIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FDE68A', alignItems: 'center', justifyContent: 'center' },
-  validationAlertText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#92400E' },
   validationBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A', padding: 10 },
   validationBannerTitle: { fontSize: 13, fontWeight: '800', color: '#92400E' },
   validationBannerSub: { fontSize: 12, color: '#B45309', marginTop: 1 },
@@ -409,7 +354,6 @@ const s = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10.5, fontWeight: '700' },
   meta: { fontSize: 11, color: colors.textMuted },
-  metaRef: { fontWeight: '700', color: colors.textMuted },
   providerLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
   providerAvatar: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   providerAvatarText: { fontSize: 8, fontWeight: '800', color: '#fff' },
@@ -422,8 +366,6 @@ const s = StyleSheet.create({
   errText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: 14, ...shadows.sm },
   retryText: { color: colors.surface, fontWeight: '600' },
-  cancelBtn: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-  cancelBtnText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
 })
 
 export default withScreenBoundary(MyRequests, 'MyRequests')

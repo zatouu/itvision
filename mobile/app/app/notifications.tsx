@@ -18,7 +18,7 @@ import {
 import { apiPost } from '../src/api'
 import { onNotification } from '../src/socket'
 import { humanErrorMessage } from '../src/errorMessages'
-import { Menu, Bell, Coins, Truck, Info, Trash2 } from 'lucide-react-native'
+import { Menu, Bell, Coins, Truck, Info, Trash2, CheckCheck } from 'lucide-react-native'
 import { getPushTokenStatus, scheduleLocalNotification, registerPushToken, clearSystemNotifications } from '../src/push'
 
 type FilterKey = 'all' | 'offer' | 'mission' | 'info'
@@ -63,6 +63,11 @@ function dayLabel(ts: number, t: any): string {
   if (same(d, yesterday)) return t('common.yesterday', { defaultValue: 'Hier' })
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
 }
+
+// Les anciennes notifications stockées ont un emoji en tête : doublon visuel
+// avec l'icône de la carte. On l'enlève à l'affichage.
+const LEADING_EMOJI = /^(?:[\u2190-\u2BFF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDFFF]|\uFE0F|\u200D|\s)+/
+const stripLeadingEmoji = (title: string) => String(title || '').replace(LEADING_EMOJI, '') || title
 
 function NotificationsScreen() {
   const { t } = useTranslation()
@@ -205,7 +210,7 @@ function NotificationsScreen() {
           <Menu size={18} color={colors.ink} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>{t('notifications.title')}</Text>
+          <Text style={s.title} numberOfLines={1}>{t('notifications.title')}</Text>
           {items.length > 0 && (
             <Text style={s.subtitle}>
               {unreadCount > 0 ? t('notifications.subUnread', { count: unreadCount, defaultValue: `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` }) : t('notifications.subAllRead', { defaultValue: 'Tout est lu' })}
@@ -223,15 +228,15 @@ function NotificationsScreen() {
           </TouchableOpacity>
         )}
         {hasUnread && (
-          <TouchableOpacity onPress={handleMarkAll} style={s.markAllBtn}>
-            <Text style={s.markAllText}>{t('notifications.markAllRead')}</Text>
+          <TouchableOpacity onPress={handleMarkAll} style={s.iconBtn} accessibilityLabel={t('notifications.markAllRead')}>
+            <CheckCheck size={17} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Filtres */}
       {items.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.filters}>
           {FILTERS.map(f => {
             const active = filter === f.key
             return (
@@ -286,7 +291,7 @@ function NotificationsScreen() {
                         <IconC size={18} color={meta.color} />
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={[s.cardTitle, n.read && { fontWeight: '700' }]}>{n.title}</Text>
+                        <Text style={[s.cardTitle, n.read && { fontWeight: '700' }]} numberOfLines={2}>{stripLeadingEmoji(n.title)}</Text>
                         {!!n.body && <Text style={s.cardBody}>{n.body}</Text>}
                         <Text style={s.time}>{formatRelative(n.createdAt, t)}</Text>
                       </View>
@@ -311,8 +316,6 @@ const s = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.5 },
   subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  markAllBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-  markAllText: { fontSize: 12.5, fontWeight: '700', color: colors.primary },
   filters: { gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },

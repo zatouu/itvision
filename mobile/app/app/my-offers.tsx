@@ -207,7 +207,7 @@ function MyOffers() {
             placeholderTextColor={colors.textMuted}
             style={s.searchInput}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterChips}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.filterChips}>
             {[
               ['all', t('offers.all')],
               ['active', t('offers.active')],
