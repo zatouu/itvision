@@ -121,6 +121,22 @@ export interface IProject extends Document {
     satisfactionScore?: number
   }
   clientAccess?: boolean
+  reception?: {
+    requestedAt?: Date
+    requestedBy?: string
+    warrantyMonths?: number
+    signedAt?: Date
+    decision?: 'accepted' | 'reserves'
+    reserves?: string
+    signature?: string
+    signatureName?: string
+    signatureTitle?: string
+    signedByUserId?: mongoose.Types.ObjectId
+    ip?: string
+    userAgent?: string
+    warrantyEnd?: Date
+    reservesLiftedAt?: Date
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -278,6 +294,23 @@ const ProjectSchema = new Schema<IProject>({
       satisfactionScore: Number
     },
   clientAccess: { type: Boolean, default: false },
+  // PV de réception signé par le client depuis le portail ; la garantie court à partir de la signature
+  reception: {
+    requestedAt: Date,
+    requestedBy: String,
+    warrantyMonths: Number,
+    signedAt: Date,
+    decision: { type: String, enum: ['accepted', 'reserves'] },
+    reserves: String,
+    signature: String,
+    signatureName: String,
+    signatureTitle: String,
+    signedByUserId: { type: Schema.Types.ObjectId, ref: 'User' },
+    ip: String,
+    userAgent: String,
+    warrantyEnd: Date,
+    reservesLiftedAt: Date,
+  },
 }, { timestamps: true })
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })

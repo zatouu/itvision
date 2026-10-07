@@ -6,6 +6,7 @@ import Ticket from '@/lib/models/Ticket'
 import Notification from '@/lib/models/Notification'
 import { TicketService } from '@/lib/services/tickets'
 import { requireAuth } from '@/lib/jwt'
+import { notifyCompany, resolveClientCompanyId } from '@/lib/portal/company-notify'
 
 async function verifyToken(request: NextRequest) {
   const decoded = await requireAuth(request)
@@ -229,6 +230,20 @@ export async function PATCH(request: NextRequest) {
     await ticket.save()
 
     const updated = await TicketService.serialize(ticket)
+
+    // Le client est prévenu d'une réponse ou de la résolution par l'équipe IT Vision
+    if (effectiveRole !== 'CLIENT' && ticket.clientId && (addMessage || status === 'resolved')) {
+      const companyId = await resolveClientCompanyId(ticket.clientId)
+      if (companyId) {
+        void notifyCompany({
+          companyId, category: 'ticket', type: status === 'resolved' ? 'success' : 'info',
+          title: status === 'resolved' ? `Ticket résolu : ${ticket.title}` : `Réponse du support : ${ticket.title}`,
+          message: addMessage ? String(addMessage).slice(0, 160) : 'Dites-nous si tout fonctionne : vous pouvez rouvrir le ticket en répondant.',
+          actionUrl: `/portail-entreprise/support/${String(ticket._id)}`,
+          metadata: { ticketId: String(ticket._id) },
+        })
+      }
+    }
 
     const deadlineRaw = ticket.sla?.deadlineAt
     if (deadlineRaw) {

@@ -6,6 +6,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
 import { requireAuth } from '@/lib/jwt'
 import mongoose from 'mongoose'
+import { notifyProjectChange } from '@/lib/portal/project-notify'
 
 async function verifyToken(request: NextRequest) {
   return await requireAuth(request)
@@ -93,6 +94,8 @@ export async function GET(request: NextRequest) {
     const query: any = {}
     if (where.clientId) query.clientId = where.clientId
     if (where.status) query.status = where.status
+    const idParam = searchParams.get('id')
+    if (idParam && mongoose.Types.ObjectId.isValid(idParam)) query._id = new mongoose.Types.ObjectId(idParam)
 
     const [projects, totalCount] = await Promise.all([
       Project.find(query)
@@ -356,7 +359,7 @@ export async function PUT(request: NextRequest) {
       description: updateData.description ?? existingProject.description,
       address: updateData.address ?? existingProject.address,
       status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
-      endDate: updateData.endDate ? new Date(updateData.endDate) : null,
+      endDate: updateData.endDate !== undefined ? (updateData.endDate ? new Date(updateData.endDate) : null) : existingProject.endDate,
       currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
       progress: nextProgress,
       serviceType: nextServiceType,
@@ -409,6 +412,11 @@ export async function PUT(request: NextRequest) {
     }
 
     logDataAccess('projects', 'update', request, userId, { projectId: String(updatedProject._id) })
+
+    void notifyProjectChange(
+      (existingProject as any).toObject(),
+      { ...setData, _id: existingProject._id, clientCompanyId: setData.clientCompanyId === undefined ? (existingProject as any).clientCompanyId : setData.clientCompanyId }
+    ).catch(e => console.error('[projects] notification:', e))
     
     return NextResponse.json({
       success: true,

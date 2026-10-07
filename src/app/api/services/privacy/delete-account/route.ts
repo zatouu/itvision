@@ -6,6 +6,7 @@ import Wallet from '@/lib/models/Wallet'
 import RefreshToken from '@/lib/models/RefreshToken'
 import PushToken from '@/lib/models/PushToken'
 import OtpCode from '@/lib/models/OtpCode'
+import { anonymizeMessageSender } from '@/lib/messaging/thread-messages'
 import { verifyAuthServer } from '@/lib/auth-server'
 
 const ACTIVE_MISSION_STATUSES = [
@@ -101,6 +102,8 @@ export async function POST(request: NextRequest) {
       ),
       PushToken.deleteMany({ userId }),
       OtpCode.deleteMany({ phone: originalPhone }),
+      // Les messages restent visibles par l'autre partie (litiges, suivi), sans le nom de l'auteur
+      anonymizeMessageSender(String(userId)),
     ])
 
     // ── Scrub PII sur les demandes clôturées (adresse + médias) ────

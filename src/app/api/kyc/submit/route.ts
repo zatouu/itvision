@@ -5,13 +5,10 @@ import { emailService } from '@/lib/email-service'
 import KycRequest from '@/lib/models/KycRequest'
 import User from '@/lib/models/User'
 import { getBrandFromHost } from '@/lib/branding'
+import { escapeHtml } from '@/lib/html-escape'
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itvisionplus.sn'
 const MIN_RESUBMIT_MS = 60_000
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
-}
 
 function isValidUrl(value: unknown): value is string {
   if (typeof value !== 'string' || !value.trim()) return false

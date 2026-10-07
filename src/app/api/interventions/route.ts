@@ -6,6 +6,7 @@ import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
 import { requireInterventionAccess } from '@/lib/interventions-access'
 import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
+import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
 import { logAuditEvent } from '@/lib/audit'
 
 function computeEndTime(start: string, durationHours: number) {
@@ -23,6 +24,9 @@ function computeEndTime(start: string, durationHours: number) {
 // GET - Récupérer toutes les interventions
 export async function GET(request: NextRequest) {
   try {
+    const access = await requireInterventionAccess(request)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     await connectMongoose()
     
     const { searchParams } = new URL(request.url)
@@ -156,6 +160,8 @@ export async function POST(request: NextRequest) {
       })
       emitInterventionUpdate(String(created._id), { id: String(created._id), status: created.status })
       if (body.clientId) {
+        void notifyInterventionChange(null, created.toObject ? created.toObject() : created)
+          .catch(e => console.error('[Intervention] notification:', e))
         emitUserNotification(body.clientId, {
           type: 'info',
           title: 'Nouvelle intervention créée',
@@ -333,6 +339,10 @@ export async function PUT(request: NextRequest) {
       })
       const updatedAny = updated as any
       emitInterventionUpdate(interventionId, { id: interventionId, status: updatedAny?.status as string })
+      if (updatedAny) {
+        void notifyInterventionChange(previousState as any, updatedAny.toObject ? updatedAny.toObject() : updatedAny)
+          .catch(e => console.error('[Intervention] notification:', e))
+      }
       if (updatedAny?.clientId) {
         emitUserNotification(String(updatedAny.clientId), {
           type: 'info',

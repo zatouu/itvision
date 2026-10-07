@@ -4,6 +4,7 @@ import { runPreventiveVisitsJob, JOB_NAME as JOB_PREVENTIVE } from './jobs/preve
 import { runRenewalRemindersJob, JOB_NAME as JOB_RENEWAL } from './jobs/renewal-reminders'
 import { runSLAMonitoringJob, JOB_NAME as JOB_SLA } from './jobs/sla-monitoring'
 import { runCorporateAgentsJob, JOB_NAME as JOB_CORPORATE_AGENTS } from './jobs/corporate-agents'
+import { runInvoiceRemindersJob, JOB_NAME as JOB_INVOICE_REMINDERS } from './jobs/invoice-reminders'
 
 type JobDefinition = {
   name: string
@@ -37,6 +38,13 @@ const jobs: JobDefinition[] = [
     schedule: '0 7 * * 1',
     task: runCorporateAgentsJob,
     enabled: process.env.MAINTENANCE_CRON_CORPORATE_AGENTS !== 'false'
+  },
+  {
+    // Relances clients des factures (emails sortants) : activation explicite
+    name: JOB_INVOICE_REMINDERS,
+    schedule: '0 9 * * 1-5',
+    task: runInvoiceRemindersJob,
+    enabled: process.env.INVOICE_REMINDERS_ENABLED === 'true'
   }
 ]
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { LifeBuoy, Plus, X, Send, Clock, Zap, ChevronRight } from 'lucide-react'
 import SoftMessage from '@/components/ui/SoftMessage'
 import { CARD, INPUT, fmtDateTime, ticketStatus, priority, StatusBadge, EmptyState, PageHeader, BackLink } from '@/components/portal-ui'
+import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 const CATEGORIES = [
   { value: 'incident',  label: 'Incident' },
@@ -37,6 +38,23 @@ export default function SupportPage() {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (Array.isArray(d?.capabilities)) setCanWrite(d.capabilities.includes('tickets:write')) })
       .catch(() => {})
+  }, [])
+
+  // Liens du parc et du tableau de bord : ?sujet=panne|contrat|projet&domaine=… ouvre le formulaire pré-rempli
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sujet = params.get('sujet')
+    const domaine = params.get('domaine') as ItvDomain | null
+    const label = domaine && domaine in ITV_DOMAINS ? ITV_DOMAINS[domaine].label : ''
+    const presets: Record<string, { title: string; category: string; description: string }> = {
+      panne: { title: `Problème ${label ? `— ${label}` : 'sur une installation'}`, category: 'incident', description: 'Équipement concerné, site, symptôme constaté depuis :\n' },
+      contrat: { title: `Demande de contrat de maintenance${label ? ` — ${label}` : ''}`, category: 'request', description: 'Nous souhaitons un contrat de maintenance pour nos équipements. Sites concernés :\n' },
+      projet: { title: 'Nouveau projet', category: 'request', description: 'Domaine (vidéosurveillance, contrôle d’accès, incendie, domotique…), site, besoin et délai souhaité :\n' },
+    }
+    if (sujet && presets[sujet]) {
+      setForm(f => ({ ...f, ...presets[sujet] }))
+      setShowForm(true)
+    }
   }, [])
 
   const loadTickets = useCallback(async () => {
@@ -107,7 +125,7 @@ export default function SupportPage() {
           </button>
         ) : (
           <span
-            title="Votre rôle dans l'entreprise est en lecture seule"
+            title="Droit « Ouvrir et suivre des tickets » non accordé : demandez-le à un administrateur de votre espace"
             className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-400"
           >
             <Plus className="w-4 h-4" /> Nouveau ticket

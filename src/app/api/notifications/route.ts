@@ -8,12 +8,12 @@ async function requireAuthUser(request: NextRequest) {
   return await requireAuth(request)
 }
 
-/** Cible visible par l'utilisateur : ses notifs directes + celles de son rôle. */
+/** Cible visible par l'utilisateur : ses notifs directes + les diffusions de son rôle (jamais celles adressées à un autre). */
 function visibilityFilter(user: { userId: string; role?: string }) {
   const uid = String(user.userId)
   const role = String(user.role || '').toUpperCase()
   const or: any[] = [{ userId: uid }]
-  if (role) or.push({ roles: role })
+  if (role) or.push({ roles: role, userId: { $exists: false }, teamId: { $exists: false } })
   // Canal historique « admin » du store mémoire
   if (['ADMIN', 'SUPER_ADMIN'].includes(role)) or.push({ userId: 'admin' })
   return { $or: or, deletedBy: { $ne: uid } }

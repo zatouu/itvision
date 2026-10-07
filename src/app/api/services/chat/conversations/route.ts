@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import mongoose from 'mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
-import ChatMessage from '@/lib/models/ChatMessage'
+import { getThreadsSummary } from '@/lib/messaging/thread-messages'
 import User from '@/lib/models/User'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 import { verifyAuthServer } from '@/lib/auth-server'
@@ -38,23 +38,11 @@ export async function GET(request: NextRequest) {
 
     if (requests.length === 0) return NextResponse.json({ items: [] })
 
-    const requestIds = requests.map(r => r._id)
+    const requestIds = requests.map(r => String(r._id))
 
-    // Dernier message + candidats non lus par conversation (2 aggregations)
-    const [lastMsgs, unreadAgg] = await Promise.all([
-      ChatMessage.aggregate([
-        { $match: { requestId: { $in: requestIds } } },
-        { $sort: { createdAt: -1 } },
-        { $group: { _id: '$requestId', last: { $first: '$$ROOT' } } },
-      ]),
-      ChatMessage.aggregate([
-        { $match: { requestId: { $in: requestIds }, senderId: { $ne: String(userId) } } },
-        { $group: { _id: '$requestId', dates: { $push: '$createdAt' } } },
-      ]),
-    ])
-
-    const lastByReq = new Map(lastMsgs.map((m: any) => [String(m._id), m.last]))
-    const unreadDatesByReq = new Map(unreadAgg.map((u: any) => [String(u._id), u.dates as Date[]]))
+    // Dernier message + messages reçus par conversation
+    const { lastByThread: lastByReq, receivedDatesByThread: unreadDatesByReq } =
+      await getThreadsSummary('mission', requestIds, String(userId))
 
     // Infos de l'autre partie (client ↔ prestataire)
     const otherIds = requests.map(r =>

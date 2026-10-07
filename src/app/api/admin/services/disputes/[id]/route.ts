@@ -5,7 +5,7 @@ import Payment from '@/lib/models/Payment'
 import User from '@/lib/models/User'
 import MissionAuditLog from '@/lib/models/MissionAuditLog'
 import DisputeEvidence from '@/lib/models/DisputeEvidence'
-import DisputeMessage from '@/lib/models/DisputeMessage'
+import { listThreadMessages, toMissionMessageDto } from '@/lib/messaging/thread-messages'
 import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       Payment.find({ requestId: id }).sort({ createdAt: 1 }).lean(),
       MissionAuditLog.find({ requestId: id }).sort({ createdAt: -1 }).lean(),
       DisputeEvidence.find({ requestId: id }).sort({ createdAt: -1 }).lean(),
-      DisputeMessage.find({ requestId: id }).sort({ createdAt: 1 }).lean(),
+      listThreadMessages('mission_dispute', id, { limit: 500 }),
     ])
 
     return NextResponse.json({
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       payments,
       auditLogs,
       evidence,
-      messages,
+      messages: messages.map(toMissionMessageDto),
     })
   } catch (error: any) {
     console.error('[GET /api/admin/services/disputes/:id]', error)

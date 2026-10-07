@@ -19,6 +19,7 @@ export interface IClient extends Document {
   notes?: string
   logo?: string
   brandColor?: string
+  lastMonthlyReportAt?: Date
   tags?: string[]
   category?: string
   rating?: number
@@ -131,6 +132,7 @@ const ClientSchema = new Schema<IClient>({
     type: String,
     trim: true
   },
+  lastMonthlyReportAt: { type: Date },
   tags: [{
     type: String,
     trim: true

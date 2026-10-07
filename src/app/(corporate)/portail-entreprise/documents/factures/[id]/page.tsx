@@ -6,7 +6,7 @@ import {
   CheckCircle, AlertTriangle, Clock, Package, Mail, Phone,
   CreditCard, Paperclip, FileText, Eye, ExternalLink, Download, X
 } from 'lucide-react'
-import { CARD, fmtDate, fmtNum, invoiceStatus, StatusBadge, DetailHeader } from '@/components/portal-ui'
+import { BTN_GHOST, CARD, fmtDate, fmtNum, invoiceStatus, StatusBadge, DetailHeader } from '@/components/portal-ui'
 
 export default function InvoiceDetailPage() {
   const { id } = useParams() as { id: string }
@@ -38,7 +38,16 @@ export default function InvoiceDetailPage() {
         title={<>Facture <span className="font-mono">#{inv.numero}</span></>}
         badges={<StatusBadge status={inv.status} map={invoiceStatus} fallback="draft" />}
         meta={<>{fmtDate(inv.date)} · Échéance {fmtDate(inv.dueDate)}</>}
-      />
+      >
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a href={`/api/client-enterprise/invoices/${id}/pdf`} className={BTN_GHOST}>
+            <Download className="w-4 h-4" /> Télécharger le PDF
+          </a>
+          <a href={`/api/client-enterprise/invoices/${id}/pdf?inline=1`} target="_blank" rel="noopener noreferrer" className={BTN_GHOST}>
+            <Eye className="w-4 h-4" /> Aperçu
+          </a>
+        </div>
+      </DetailHeader>
 
       {/* Alertes */}
       {isOverdue && (
@@ -127,20 +136,66 @@ export default function InvoiceDetailPage() {
             <span>Sous-total</span>
             <span className="text-stone-700 tabular-nums">{fmtNum(inv.subtotal)} FCFA</span>
           </div>
+          {(inv.brsAmount || 0) > 0 && (
+            <div className="flex justify-between text-sm text-stone-500">
+              <span>BRS (5%)</span>
+              <span className="text-red-500 tabular-nums">- {fmtNum(inv.brsAmount || 0)} FCFA</span>
+            </div>
+          )}
           {inv.taxAmount > 0 && (
             <div className="flex justify-between text-sm text-stone-500">
-              <span>TVA ({inv.taxRate || 18}%)</span>
+              <span>TVA ({inv.taxRate}%)</span>
               <span className="text-stone-700 tabular-nums">{fmtNum(inv.taxAmount)} FCFA</span>
             </div>
           )}
           <div className="flex justify-between pt-2 border-t border-stone-200">
-            <span className="text-sm font-bold text-stone-900">TOTAL TTC</span>
+            <span className="text-sm font-bold text-stone-900">{(inv.brsAmount || 0) > 0 ? 'NET À PAYER' : inv.taxAmount > 0 ? 'TOTAL TTC' : 'TOTAL'}</span>
             <span className={`text-lg font-bold tabular-nums ${isOverdue ? 'text-red-600' : 'text-emerald-800'}`}>
               {fmtNum(inv.total)} FCFA
             </span>
           </div>
+          {(inv.payments || []).map((p: any, i: number) => (
+            <div key={i} className="flex justify-between text-sm text-stone-500">
+              <span>Règlement du {fmtDate(p.date)}{p.method ? ` (${p.method})` : ''}</span>
+              <span className="text-emerald-700 tabular-nums">- {fmtNum(p.amount)} FCFA</span>
+            </div>
+          ))}
+          {(inv.creditNotes || []).map((c: any) => (
+            <div key={c._id} className="flex justify-between text-sm text-stone-500">
+              <a href={`/api/client-enterprise/credit-notes/${c._id}/pdf?inline=1`} target="_blank" rel="noopener noreferrer" className="underline hover:text-stone-700">
+                Avoir {c.numero} du {fmtDate(c.date)}
+              </a>
+              <span className="text-stone-700 tabular-nums">- {fmtNum(c.total)} FCFA</span>
+            </div>
+          ))}
+          {((inv.payments || []).length > 0 || (inv.creditNotes || []).length > 0) && (
+            <div className="flex justify-between pt-2 border-t border-stone-200">
+              <span className="text-sm font-bold text-stone-900">RESTE À RÉGLER</span>
+              <span className="text-lg font-bold tabular-nums text-stone-900">{fmtNum(inv.balance || 0)} FCFA</span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Règlement par virement */}
+      {inv.bankDetails && (inv.balance ?? inv.total) > 0 && (
+        <div className={`${CARD} p-5`}>
+          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3 flex items-center gap-2">
+            <CreditCard className="w-3.5 h-3.5" /> Régler par virement bancaire
+          </p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <div><dt className="text-stone-400 text-xs">Titulaire</dt><dd className="text-stone-800 font-medium">{inv.bankDetails.holder}</dd></div>
+            {inv.bankDetails.bank && <div><dt className="text-stone-400 text-xs">Banque</dt><dd className="text-stone-800">{inv.bankDetails.bank}</dd></div>}
+            {inv.bankDetails.rib && <div><dt className="text-stone-400 text-xs">RIB</dt><dd className="text-stone-800 font-mono">{inv.bankDetails.rib}</dd></div>}
+            {inv.bankDetails.iban && <div><dt className="text-stone-400 text-xs">IBAN</dt><dd className="text-stone-800 font-mono">{inv.bankDetails.iban}</dd></div>}
+            {inv.bankDetails.swift && <div><dt className="text-stone-400 text-xs">BIC / SWIFT</dt><dd className="text-stone-800 font-mono">{inv.bankDetails.swift}</dd></div>}
+            <div><dt className="text-stone-400 text-xs">Montant</dt><dd className="text-stone-800 font-semibold">{fmtNum(inv.balance ?? inv.total)} FCFA</dd></div>
+          </dl>
+          <p className="mt-3 text-xs text-stone-500">
+            Indiquez <span className="font-mono font-semibold text-stone-700">{inv.numero}</span> en libellé du virement pour un rapprochement rapide.
+          </p>
+        </div>
+      )}
 
       {/* Notes */}
       {inv.notes && (

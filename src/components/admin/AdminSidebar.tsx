@@ -34,6 +34,7 @@ import {
   Wallet,
   TrendingDown,
   Banknote,
+  Star,
   Mail,
   Send,
   Globe,
@@ -181,6 +182,12 @@ const menuSections: MenuSection[] = [
             href: '/admin/technicians'
           },
           {
+            id: 'satisfaction',
+            label: 'Satisfaction clients',
+            icon: Star,
+            href: '/admin/satisfaction'
+          },
+          {
             id: 'catalogue-services',
             label: 'Catalogue services',
             icon: ListChecks,
@@ -198,6 +205,12 @@ const menuSections: MenuSection[] = [
             label: 'Trésorerie 360°',
             icon: Wallet,
             href: '/admin/tresorerie'
+          },
+          {
+            id: 'rapprochement',
+            label: 'Rapprochement bancaire',
+            icon: Banknote,
+            href: '/admin/tresorerie/rapprochement'
           },
           {
             id: 'devis',

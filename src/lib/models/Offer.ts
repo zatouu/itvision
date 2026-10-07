@@ -11,6 +11,8 @@ const OfferSchema = new Schema({
   comment: { type: String },
   validityMinutes: { type: Number, min: 1, max: 1440, default: 30 }, // durée validité offre (1min..24h)
   validUntil: { type: Date, required: true }, // calculé à la création
+  // Verrou court posé pendant l'initiation d'un paiement (anti double-paiement concurrent)
+  paymentLockUntil: { type: Date },
   status: { type: String, enum: ['submitted','withdrawn','accepted','rejected','expired'], default: 'submitted' },
   // Créneau proposé par le prestataire. Si la demande est programmée
   // (request.scheduledFor), une valeur différente = contre-proposition d'horaire.

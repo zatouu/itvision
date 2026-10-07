@@ -169,6 +169,33 @@ async function getRequestAccess(userId, role, requestId) {
   }
 }
 
+const CORPORATE_STAFF_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'TECHNICIAN'])
+
+/**
+ * Contrôle d'accès aux rooms `ticket-<id>` / `project-<id>` : personnel IT Vision,
+ * client propriétaire, membre de la même entreprise, ou personne assignée/abonnée.
+ * Accès brut aux collections : un modèle minimal enregistré ici masquerait le modèle complet de l'app.
+ */
+async function canAccessCorporateRoom(collection, docId, user) {
+  try {
+    if (CORPORATE_STAFF_ROLES.has(String(user.role || '').toUpperCase())) return true
+    if (!docId || !mongoose.Types.ObjectId.isValid(String(docId))) return false
+    await ensureMongo()
+    const doc = await mongoose.connection.collection(collection).findOne(
+      { _id: new mongoose.Types.ObjectId(String(docId)) },
+      { projection: { clientId: 1, clientCompanyId: 1, assignedTo: 1, watchers: 1 } }
+    )
+    if (!doc) return false
+    const uid = String(user.userId)
+    if (String(doc.clientId) === uid) return true
+    if (user.companyClientId && doc.clientCompanyId && String(doc.clientCompanyId) === String(user.companyClientId)) return true
+    return [...(doc.assignedTo || []), ...(doc.watchers || [])].map(String).includes(uid)
+  } catch (e) {
+    console.error('[WS] canAccessCorporateRoom error:', e.message)
+    return false
+  }
+}
+
 // ── GEOFENCING : présence des providers via Redis GEO ──
 // Redis GEO commands (GEOADD, GEOSEARCH) for O(log N) spatial queries.
 // Fallback: in-memory Map if Redis is unavailable.
@@ -610,7 +637,11 @@ app.prepare().then(() => {
     })
 
     // Événement: Rejoindre un projet
-    socket.on('join-project', (projectId) => {
+    socket.on('join-project', async (projectId) => {
+      if (!(await canAccessCorporateRoom('projects', projectId, socket.user))) {
+        console.warn(`   ⛔ ${userId} join-project refusé: ${projectId}`)
+        return
+      }
       socket.join(`project-${projectId}`)
       console.log(`   📁 ${email} a rejoint le projet: ${projectId}`)
       
@@ -630,7 +661,11 @@ app.prepare().then(() => {
     })
 
     // Événement: Rejoindre un ticket
-    socket.on('join-ticket', (ticketId) => {
+    socket.on('join-ticket', async (ticketId) => {
+      if (!(await canAccessCorporateRoom('tickets', ticketId, socket.user))) {
+        console.warn(`   ⛔ ${userId} join-ticket refusé: ${ticketId}`)
+        return
+      }
       socket.join(`ticket-${ticketId}`)
       console.log(`   🎫 ${email} a rejoint le ticket: ${ticketId}`)
     })

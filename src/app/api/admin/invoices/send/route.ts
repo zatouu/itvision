@@ -2,25 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
-import { generateITVisionInvoicePdf } from '@/lib/pdf'
+import { renderInvoicePdf } from '@/lib/pdf-documents'
 import { emailService } from '@/lib/email-service'
 import { getClientEmailRecipients } from '@/lib/client-contacts'
 import { getBrandFromHost } from '@/lib/branding'
-import fs from 'fs'
-import path from 'path'
-
-// Helper to load image
-const loadImage = (relativePath: string) => {
-  try {
-    const fullPath = path.join(process.cwd(), relativePath)
-    if (fs.existsSync(fullPath)) {
-      return fs.readFileSync(fullPath).toString('base64')
-    }
-  } catch (e) {
-    console.error(`Failed to load image ${relativePath}`, e)
-  }
-  return undefined
-}
+import { notifyCompany } from '@/lib/portal/company-notify'
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +27,9 @@ export async function POST(request: NextRequest) {
 
     const invoice = await AdminInvoice.findById(id).lean() as any
     if (!invoice) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Facture annulée : envoyez plutôt l’avoir correspondant' }, { status: 409 })
+    }
 
     // Résoudre les emails contacts du client
     let recipient = to
@@ -54,45 +43,11 @@ export async function POST(request: NextRequest) {
     }
     if (!recipient) return NextResponse.json({ error: 'Email destinataire manquant' }, { status: 400 })
 
-    const pdfArrayBuffer = generateITVisionInvoicePdf({
-      numero: String(invoice.numero || ''),
-      date: invoice.date ? new Date(invoice.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-      dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().slice(0, 10) : undefined,
-      client: {
-        name: String(invoice.client?.name || ''),
-        company: invoice.client?.company ? String(invoice.client.company) : undefined,
-        address: String(invoice.client?.address || ''),
-        phone: String(invoice.client?.phone || ''),
-        email: String(invoice.client?.email || ''),
-        taxId: invoice.client?.taxId ? String(invoice.client.taxId) : undefined
-      },
-      items: Array.isArray(invoice.items)
-        ? invoice.items.map((it: any) => ({
-            description: String(it.description || ''),
-            quantity: Number(it.quantity || 0),
-            unitPrice: Number(it.unitPrice || 0),
-            totalPrice: Number(it.totalPrice ?? 0)
-          }))
-        : [],
-      subtotal: Number(invoice.subtotal || 0),
-      taxRate: Number(invoice.taxRate ?? 18),
-      taxAmount: Number(invoice.taxAmount || 0),
-      total: Number(invoice.total || 0),
-      notes: invoice.notes,
-      terms: invoice.terms,
-      paymentMethod: invoice.paymentMethod,
-      paymentDate: invoice.paymentDate,
-      images: {
-        logo: loadImage('public/images/logo-it-vision.png'),
-        stamp: loadImage('public/images/cachetitv.png')
-      }
-    })
-
-    const pdfBytes = Buffer.from(new Uint8Array(pdfArrayBuffer))
+    const pdfBytes = renderInvoicePdf(invoice)
 
     const siteUrl = brand.url
 
-    const ok = await emailService.sendEmail({
+    const delivery = await emailService.sendEmailDetailed({
       to: recipient,
       fromName: brand.name,
       brand,
@@ -111,6 +66,7 @@ export async function POST(request: NextRequest) {
         }
       ]
     })
+    const ok = delivery.ok
 
     if (ok) {
       await AdminInvoice.updateOne(
@@ -122,9 +78,20 @@ export async function POST(request: NextRequest) {
           }
         }
       )
+      if (invoice.clientCompanyId) {
+        await notifyCompany({
+          companyId: invoice.clientCompanyId,
+          category: 'invoice',
+          requires: 'finance:view',
+          title: `Nouvelle facture ${invoice.numero}`,
+          message: `${Math.round(Number(invoice.total) || 0).toLocaleString('fr-FR')} FCFA${invoice.dueDate ? `, échéance le ${new Date(invoice.dueDate).toLocaleDateString('fr-FR')}` : ''}.`,
+          actionUrl: `/portail-entreprise/documents/factures/${String(invoice._id)}`,
+          metadata: { invoiceId: String(invoice._id) },
+        })
+      }
     }
 
-    return NextResponse.json({ success: ok })
+    return NextResponse.json({ success: ok, delivery: delivery.status, to: recipient, copyTo: delivery.bcc })
   } catch (error) {
     console.error('Erreur envoi facture:', error)
     return NextResponse.json({ error: 'Erreur lors de l\'envoi de la facture' }, { status: 500 })

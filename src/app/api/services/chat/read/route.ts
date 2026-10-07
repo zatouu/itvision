@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { verifyAuthServer } from '@/lib/auth-server'
+import { markThreadRead } from '@/lib/messaging/thread-messages'
+import { getIO } from '@/lib/socket-emit'
 
 // POST /api/services/chat/read — marque le chat d'une mission comme lu
 export async function POST(request: NextRequest) {
@@ -29,7 +31,13 @@ export async function POST(request: NextRequest) {
       { _id: requestId },
       { $set: isClient ? { clientChatReadAt: new Date() } : { providerChatReadAt: new Date() } }
     )
-    return NextResponse.json({ success: true })
+
+    // Statut « lu » par message, poussé à l'autre partie (double coche)
+    const newlyRead = await markThreadRead('mission', String(requestId), String(userId))
+    if (newlyRead > 0) {
+      getIO()?.to(`mission-${requestId}`).emit('chat:read', { requestId: String(requestId), readerId: String(userId), at: new Date() })
+    }
+    return NextResponse.json({ success: true, newlyRead })
   } catch (e: any) {
     console.error('[POST /api/services/chat/read]', e)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

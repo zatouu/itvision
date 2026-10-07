@@ -211,7 +211,7 @@ export default function TicketDetailPage() {
           {/* Reply form */}
           {!canWrite ? (
             <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-center">
-              <p className="text-sm text-stone-500">Votre rôle dans l'entreprise est en lecture seule.</p>
+              <p className="text-sm text-stone-500">Vous n&apos;avez pas le droit de répondre aux tickets. Un administrateur de votre espace peut vous l&apos;accorder.</p>
               <p className="text-xs text-stone-400 mt-0.5">Demandez à un administrateur de l'entreprise pour répondre aux tickets.</p>
             </div>
           ) : !isClosed ? (

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, companyCapabilities } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import InAppNotification from '@/lib/models/InAppNotification'
 
+// Une notification ciblée (personne ou entreprise) n'est jamais visible via le seul rôle : sinon fuite entre clients
 function visibilityFilterFor(userId: string, role: string, companyClientId?: string) {
   return {
     $or: [
       { userId },
-      { roles: role },
       ...(companyClientId ? [{ teamId: companyClientId }] : []),
+      { roles: role, userId: { $exists: false }, teamId: { $exists: false } },
       { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
     ]
   }
@@ -22,13 +23,19 @@ export async function GET(request: NextRequest) {
   await connectDB()
 
   const userId = access.userId
-  const notifs = await InAppNotification.find({
+  const docs = await InAppNotification.find({
     deletedBy: { $ne: userId },
     ...visibilityFilterFor(userId, access.role, access.profiles.companyClientId)
   })
     .sort({ createdAt: -1 })
-    .limit(30)
-    .lean()
+    .limit(60)
+    .lean() as any[]
+
+  // Droit requis (ex. factures réservées aux membres ayant accès aux finances)
+  const caps = companyCapabilities(access)
+  const notifs = docs
+    .filter(n => access.isAdmin || !n.metadata?.requires || caps.has(n.metadata.requires))
+    .slice(0, 40)
 
   return NextResponse.json(notifs)
 }

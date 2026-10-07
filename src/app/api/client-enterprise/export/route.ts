@@ -3,6 +3,7 @@ import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-acce
 import { connectDB } from '@/lib/db'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE, CLIENT_VISIBLE_INVOICE } from '@/lib/client-documents'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,14 +30,14 @@ export async function GET(request: NextRequest) {
   const type = new URL(request.url).searchParams.get('type') || 'invoices'
 
   if (type === 'quotes') {
-    const quotes = await AdminQuote.find(filter)
+    const quotes = await AdminQuote.find({ ...filter, ...CLIENT_VISIBLE_QUOTE })
       .sort({ date: -1 })
       .select('numero title date status subtotal total client')
       .lean()
     return NextResponse.json({ type, rows: quotes })
   }
 
-  const invoices = await AdminInvoice.find(filter)
+  const invoices = await AdminInvoice.find({ ...filter, ...CLIENT_VISIBLE_INVOICE })
     .sort({ date: -1 })
     .select('numero date dueDate status subtotal total paidAt paymentMethod client')
     .lean()

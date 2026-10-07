@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
-import ChatMessage from '@/lib/models/ChatMessage'
+import { listMessagesBySender } from '@/lib/messaging/thread-messages'
 import ServiceReview from '@/lib/models/ServiceReview'
 import Wallet from '@/lib/models/Wallet'
 import WalletTransaction from '@/lib/models/WalletTransaction'
@@ -37,9 +37,8 @@ export async function GET(request: NextRequest) {
       Offer.find({ providerId: userId })
         .select('requestId price etaMinutes comment status createdAt')
         .sort({ createdAt: -1 }).limit(500).lean(),
-      ChatMessage.find({ senderId: String(userId) })
-        .select('requestId senderRole text createdAt')
-        .sort({ createdAt: -1 }).limit(1000).lean(),
+      // Tous les messages envoyés par l'utilisateur, toutes apps confondues (RGPD)
+      listMessagesBySender(String(userId)),
       ServiceReview.find({ reviewerId: String(userId) })
         .select('requestId providerId rating comment tags createdAt').lean(),
       ServiceReview.find({ providerId: String(userId) })

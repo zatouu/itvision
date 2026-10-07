@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       $unset: { 
         passwordResetToken: 1, 
         passwordResetExpires: 1,
+        companyInvitePending: 1,
         lockedUntil: 1 // Débloquer le compte si il était verrouillé
       }
     })

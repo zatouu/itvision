@@ -9,6 +9,10 @@ import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { restoreProductStock } from '@/lib/inventory'
 import PromoCode from '@/lib/models/PromoCode'
 import { sendWebPushToOrder } from '@/lib/push-web'
+import { isValidOrderStatus, isAllowedOrderStatusTransition, ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/market/order-status'
+
+// Au-delà, la commande est partie : l'adresse n'est plus modifiable par le client
+const ADDRESS_EDITABLE_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing']
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -188,17 +192,33 @@ export async function PATCH(
       updateData.address = body.address
     }
 
-    // Support de mise à jour du statut — enum validé (findOneAndUpdate ne
-    // valide pas le schéma, un statut arbitraire passerait sinon)
-    const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
+    // Statut : enum validé + transitions de la machine à états (pas de retour arrière,
+    // pas de réactivation d'une commande livrée ou annulée)
+    let previousStatus: OrderStatus | null = null
     if (body.status) {
-      if (!ORDER_STATUSES.includes(String(body.status))) {
+      if (!isValidOrderStatus(body.status)) {
         return NextResponse.json(
-          { success: false, error: `Statut invalide — attendu : ${ORDER_STATUSES.join(', ')}` },
+          { success: false, error: `Statut invalide — attendu : ${ORDER_STATUS_VALUES.join(', ')}` },
           { status: 400 }
         )
       }
+      const current = (await Order.findOne({ orderId }).select('status').lean()) as { status?: OrderStatus } | null
+      if (!current) {
+        return NextResponse.json({ success: false, error: 'Commande non trouvée' }, { status: 404 })
+      }
+      previousStatus = (current.status || 'pending') as OrderStatus
+      if (!isAllowedOrderStatusTransition(previousStatus, body.status)) {
+        return NextResponse.json(
+          { success: false, error: `Transition interdite de "${previousStatus}" vers "${body.status}"` },
+          { status: 409 }
+        )
+      }
       updateData.status = body.status
+      if (body.status !== previousStatus) {
+        if (body.status === 'confirmed') updateData.confirmedAt = new Date()
+        if (body.status === 'shipped') updateData.shippedAt = new Date()
+        if (body.status === 'delivered') updateData.deliveredAt = new Date()
+      }
     }
 
     // Paiement marqué comme complété → flux canonique (grains, notifications, escrow)
@@ -262,10 +282,11 @@ export async function PATCH(
     const minCreatedAt = getTrackingTokenMinDate()
 
     const tokenNow = new Date()
-    const query = isAdmin
+    const query: Record<string, unknown> = isAdmin
       ? { orderId }
       : {
           orderId,
+          status: { $in: ADDRESS_EDITABLE_STATUSES },
           trackingAccessTokenHash: tokenHash || '__invalid__',
           $or: [
             { trackingAccessTokenExpiresAt: { $gt: tokenNow } },
@@ -275,20 +296,28 @@ export async function PATCH(
             }
           ]
         }
+    // Mise à jour conditionnelle : échoue si le statut a changé depuis la vérification
+    if (previousStatus) query.status = previousStatus
 
     const order = (await Order.findOneAndUpdate(query, updateData, { new: true }).lean()) as any
 
     if (!order) {
+      if (previousStatus) {
+        return NextResponse.json(
+          { success: false, error: 'Le statut de la commande a changé entre-temps, rechargez la page' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json(
         { success: false, error: 'Commande non trouvée' },
         { status: 404 }
       )
     }
 
-    console.log(`Commande ${orderId} mise à jour:`, updateData)
+    const statusChanged = previousStatus !== null && previousStatus !== order.status
 
-    // Reverse grains and restore stock if order is cancelled/refunded
-    if (['cancelled', 'refunded'].includes(order.status)) {
+    // Effets de l'annulation (stock, promo, grains) : uniquement au passage en "cancelled"
+    if (statusChanged && order.status === 'cancelled') {
       try {
         await restoreOrderStock(order)
       } catch (stockErr) {
@@ -317,7 +346,7 @@ export async function PATCH(
     }
 
     // Envoyer une notification push web si le statut a changé
-    if (body.status && typeof body.status === 'string') {
+    if (statusChanged) {
       const statusLabels: Record<string, string> = {
         pending: 'en attente',
         confirmed: 'confirmée',

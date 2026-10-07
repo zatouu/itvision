@@ -335,6 +335,9 @@ export async function transition(
   }
 
   await notifyStatusChange(updated, prevStatus, actor, metadata)
+  void import('./messaging/mission-system-messages')
+    .then(m => m.postMissionSystemMessage(String(updated._id), to))
+    .catch(() => {})
   // Coach IA : fiche conseils pour la nouvelle étape (fire-and-forget, mise en cache dans aiCoach)
   void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({

@@ -4,7 +4,7 @@ import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
 import Intervention from '@/lib/models/Intervention'
 import { addNotification } from '@/lib/notifications-memory'
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import { emailService } from '@/lib/email-service'
 import { getClientContactEmails } from '@/lib/client-contacts'
  import { logAuditEvent } from '@/lib/audit'
@@ -12,17 +12,8 @@ import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 import { emitGroupNotification, emitInterventionUpdate } from '@/lib/socket-emit'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
-  const token = request.cookies.get('auth-token')?.value ||
-                request.cookies.get('tech-auth-token')?.value ||
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const decoded = payload as any
-  const role = String(decoded.role || '').toUpperCase()
-  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
-  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? userId : undefined)
-  return { ...decoded, role, technicianId, userId }
+  const user = await requireApiUser(request)
+  return { ...user, technicianId: user.technicianId || (user.role === 'TECHNICIAN' ? user.userId : undefined) }
 }
 
 // POST - Soumettre rapport pour validation
@@ -135,7 +126,7 @@ export async function POST(request: NextRequest) {
       emitGroupNotification('admins', {
         type: 'info',
         title: 'Nouveau rapport à valider',
-        message: `Rapport ${report.reportId} soumis par ${tokenData.name || 'technicien'}`,
+        message: `Rapport ${report.reportId} soumis par ${tokenData.username || 'technicien'}`,
         data: { reportId: String(report._id), reportNumber: report.reportId }
       })
       if (report.interventionId) {
@@ -188,6 +179,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur soumission rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la soumission' },

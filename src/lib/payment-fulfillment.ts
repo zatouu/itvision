@@ -113,6 +113,15 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
       : { found: false, changed: false, reference: input.reference }
   }
 
+  // Une commande annulée entre-temps n'est pas réactivée (stock déjà restitué)
+  await Order.updateOne(
+    { _id: standardOrder._id, status: 'pending' },
+    { $set: { status: 'confirmed', confirmedAt: new Date() } }
+  )
+  if (standardOrder.status === 'cancelled') {
+    console.error(`[fulfillment] Paiement reçu pour une commande annulée ${input.reference} — remboursement à traiter`)
+  }
+
   // Sous-paiement : la facture PayDunya ne se complète qu'à montant plein,
   // mais on vérifie — une anomalie doit être visible, pas silencieuse.
   const expectedTotal = Number(standardOrder.total || 0)

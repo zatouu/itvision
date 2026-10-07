@@ -95,9 +95,9 @@ export function generateQuotePdf(quote: {
   const y = (doc as any).lastAutoTable?.finalY || 180
   doc.setFontSize(11)
   doc.text(`Sous-total HT: ${formatPrice(quote.totals.subtotalHT)} FCFA`, 360, y + 30)
-  doc.text(`TVA 18%: ${formatPrice(quote.totals.taxAmount)} FCFA`, 360, y + 48)
+  if (quote.totals.taxAmount > 0) doc.text(`TVA: ${formatPrice(quote.totals.taxAmount)} FCFA`, 360, y + 48)
   doc.setFont('helvetica', 'bold')
-  doc.text(`Total TTC: ${formatPrice(quote.totals.totalTTC)} FCFA`, 360, y + 66)
+  doc.text(`${quote.totals.taxAmount > 0 ? 'Total TTC' : 'Total'}: ${formatPrice(quote.totals.totalTTC)} FCFA`, 360, y + 66)
 
   return doc.output('arraybuffer') as unknown as ArrayBuffer
 }
@@ -309,13 +309,15 @@ export function generateITVisionQuotePdf(quote: {
   // Totaux
   yPos = ((doc as any).lastAutoTable?.finalY || 400) + 10
 
+  // BRS et TVA s'excluent : seule la ligne du régime appliqué figure
   const totalsData = [
     ['Sous-total', `${formatPrice(quote.subtotal)} CFA`],
-    ['BRS (retenue 5% MO)', `-${formatPrice(quote.brsAmount)} CFA`],
-    ['Taxe de vente', `${formatPrice(quote.taxAmount)} CFA`],
-    ['Autres', `${formatPrice(quote.other)} CFA`],
-    ['TOTAL', `${formatPrice(quote.total)} CFA`]
+    ...(quote.brsAmount > 0 ? [['BRS (retenue 5% MO)', `-${formatPrice(quote.brsAmount)} CFA`]] : []),
+    ...(!(quote.brsAmount > 0) && quote.taxAmount > 0 ? [['TVA', `${formatPrice(quote.taxAmount)} CFA`]] : []),
+    ...(quote.other > 0 ? [['Autres', `${formatPrice(quote.other)} CFA`]] : []),
+    [quote.brsAmount > 0 ? 'NET À PAYER' : 'TOTAL', `${formatPrice(quote.total)} CFA`]
   ]
+  const quoteTotalRow = totalsData.length - 1
 
   autoTable(doc, {
     margin: { left: 40, right: 40 },
@@ -328,7 +330,7 @@ export function generateITVisionQuotePdf(quote: {
       1: { halign: 'right', cellWidth: 120, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
-      if (data.row.index === 4) {
+      if (data.row.index === quoteTotalRow) {
         data.cell.styles.fillColor = [54, 69, 79]
         data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
@@ -414,7 +416,12 @@ export function generateITVisionInvoicePdf(invoice: {
   subtotal: number
   taxRate: number
   taxAmount: number
+  brsAmount?: number
   total: number
+  // 'AVOIR' pour un avoir (même gabarit)
+  documentTitle?: string
+  // Coordonnées bancaires pour le règlement par virement
+  bankLines?: string[]
   notes?: string
   terms?: string
   paymentMethod?: string
@@ -434,7 +441,7 @@ export function generateITVisionInvoicePdf(invoice: {
   doc.setTextColor(255, 200, 0)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text('FACTURE', pageWidth - 40, 35, { align: 'right' })
+  doc.text(invoice.documentTitle || 'FACTURE', pageWidth - 40, 35, { align: 'right' })
 
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(12)
@@ -480,7 +487,7 @@ export function generateITVisionInvoicePdf(invoice: {
 
   doc.setTextColor(255, 140, 0)
   doc.setFont('helvetica', 'bold')
-  doc.text('N° facture', pageWidth - 200, yPos)
+  doc.text(invoice.documentTitle === 'AVOIR' ? 'N° avoir' : 'N° facture', pageWidth - 200, yPos)
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
   doc.text(invoice.numero, pageWidth - 100, yPos)
@@ -578,9 +585,11 @@ export function generateITVisionInvoicePdf(invoice: {
 
   const invoiceTotalsData = [
     ['Sous-total HT', `${formatPrice(invoice.subtotal)} CFA`],
-    [`TVA (${invoice.taxRate.toFixed(0)}%)`, `${formatPrice(invoice.taxAmount)} CFA`],
-    ['TOTAL TTC', `${formatPrice(invoice.total)} CFA`]
+    ...((invoice.brsAmount || 0) > 0 ? [['BRS (retenue 5% MO)', `-${formatPrice(invoice.brsAmount || 0)} CFA`]] : []),
+    ...(!((invoice.brsAmount || 0) > 0) && invoice.taxAmount > 0 ? [[`TVA (${invoice.taxRate.toFixed(0)}%)`, `${formatPrice(invoice.taxAmount)} CFA`]] : []),
+    [(invoice.brsAmount || 0) > 0 ? 'NET À PAYER' : invoice.taxAmount > 0 ? 'TOTAL TTC' : 'TOTAL', `${formatPrice(invoice.total)} CFA`]
   ]
+  const invoiceTotalRow = invoiceTotalsData.length - 1
 
   autoTable(doc, {
     margin: { left: 40, right: 40 },
@@ -593,7 +602,7 @@ export function generateITVisionInvoicePdf(invoice: {
       1: { halign: 'right', cellWidth: 120, fontStyle: 'bold' }
     },
     didParseCell: function (data: any) {
-      if (data.row.index === 2) {
+      if (data.row.index === invoiceTotalRow) {
         data.cell.styles.fillColor = [54, 69, 79]
         data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
@@ -625,6 +634,21 @@ export function generateITVisionInvoicePdf(invoice: {
   if (invoice.paymentMethod || invoice.paymentDate) {
     const line = `Paiement: ${invoice.paymentMethod || ''} ${invoice.paymentDate ? ' — Date: ' + invoice.paymentDate : ''}`
     doc.text(line, 40, yPos)
+  }
+
+  if (invoice.bankLines && invoice.bankLines.length > 0) {
+    yPos += 20
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(48, 50, 107)
+    doc.text('Règlement par virement bancaire', 40, yPos)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(9)
+    for (const line of invoice.bankLines) {
+      yPos += 12
+      doc.text(line, 40, yPos, { maxWidth: pageWidth - 260 })
+    }
+    doc.setFontSize(10)
   }
 
   const stampX = pageWidth - 200

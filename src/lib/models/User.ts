@@ -16,6 +16,11 @@ export interface IUser extends Document {
   companyClientId?: mongoose.Types.ObjectId
   // Rôle interne dans l'entreprise cliente (portail B2B) — owner = compte d'origine
   companyRole?: 'owner' | 'admin' | 'finance' | 'technical' | 'viewer'
+  companyCapabilities?: string[]
+  companyInvitePending?: boolean
+  portalSeenAt?: Date
+  portalLastSeenAt?: Date
+  portalNotifyMuted?: string[]
   // Carnet d'adresses marketplace (livraison)
   savedAddresses?: mongoose.Types.DocumentArray<{
     label: string
@@ -91,6 +96,15 @@ const UserSchema = new Schema<IUser>({
   country: { type: String, trim: true },
   companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   companyRole: { type: String, enum: ['owner', 'admin', 'finance', 'technical', 'viewer'] },
+  // Droits personnalisés dans l'espace entreprise ; absent = droits du rôle
+  companyCapabilities: { type: [String], default: undefined },
+  // Invité par son entreprise, compte pas encore activé (levé par /api/auth/reset)
+  companyInvitePending: { type: Boolean },
+  // Visites du portail entreprise : portalLastSeenAt = début de la visite précédente (encart « depuis votre dernière visite »)
+  portalSeenAt: { type: Date },
+  portalLastSeenAt: { type: Date },
+  // Catégories de notifications du portail que le membre ne veut plus recevoir en push
+  portalNotifyMuted: { type: [String], default: undefined },
   marketplaceProfileId: { type: Schema.Types.ObjectId, ref: 'MarketplaceProfile', sparse: true, index: true },
   corporateProfileId: { type: Schema.Types.ObjectId, ref: 'CorporateProfile', sparse: true, index: true },
   providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },

@@ -69,13 +69,17 @@ export async function runCorporateAgentsJob(): Promise<CorporateAgentsResult> {
       }
     }
 
-    // 2. Digests : sociétés avec de l'activité récente
+    // 2. Digests : sociétés avec de l'activité récente (et, la première semaine du mois, celles qui attendent leur rapport mensuel)
     const since = new Date(Date.now() - DIGEST_ACTIVITY_DAYS * 24 * 60 * 60 * 1000)
+    const monthlyDue = new Date().getDate() <= 7
     const companies = await Client.find({
       isActive: { $ne: false },
       'permissions.canAccessPortal': { $ne: false },
-      updatedAt: { $gte: since },
-    }).select('_id').limit(100).lean() as any[]
+      $or: [
+        { updatedAt: { $gte: since } },
+        ...(monthlyDue ? [{ lastMonthlyReportAt: { $exists: false } }, { lastMonthlyReportAt: { $lt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000) } }] : []),
+      ],
+    }).select('_id').limit(monthlyDue ? 300 : 100).lean() as any[]
 
     for (const company of companies) {
       try {

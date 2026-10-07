@@ -26,8 +26,10 @@ function isMockMode(): boolean {
 
 const DEPOSIT_RATE = 0.25
 const MIN_DEPOSIT = 1000
+const PAYMENT_LOCK_MS = 30_000
 
 export async function POST(request: NextRequest) {
+  let lockedOfferId: unknown = null
   try {
     const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'payments:initiate' })
     if (limit && !limit.ok) {
@@ -87,6 +89,17 @@ export async function POST(request: NextRequest) {
     if (sr.expiresAt && new Date(sr.expiresAt).getTime() < Date.now()) {
       return NextResponse.json({ error: 'Cette demande a expiré' }, { status: 410 })
     }
+
+    // Sans verrou, deux requêtes simultanées passent le contrôle ci-dessous et débitent deux fois l'escrow
+    const now = new Date()
+    const locked = await Offer.findOneAndUpdate(
+      { _id: offer._id, $or: [{ paymentLockUntil: null }, { paymentLockUntil: { $lt: now } }] },
+      { $set: { paymentLockUntil: new Date(now.getTime() + PAYMENT_LOCK_MS) } }
+    )
+    if (!locked) {
+      return NextResponse.json({ error: 'Un paiement est déjà en cours d\'initiation pour cette offre' }, { status: 409 })
+    }
+    lockedOfferId = offer._id
 
     // Vérifier pas de double paiement
     const existingPayments = await Payment.find({ offerId, status: { $in: ['pending', 'held'] } }).sort({ createdAt: 1 }).lean()
@@ -248,5 +261,11 @@ export async function POST(request: NextRequest) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/payments/initiate]', e)
     return NextResponse.json({ error: 'Erreur paiement' }, { status: 500 })
+  } finally {
+    if (lockedOfferId) {
+      await Offer.updateOne({ _id: lockedOfferId }, { $unset: { paymentLockUntil: 1 } }).catch((err) => {
+        console.error('[payments/initiate] libération verrou offre', err)
+      })
+    }
   }
 }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import { computeMarketplaceFinance, computeXeuyFinance, consolidateGlobal } from '@/lib/finance/domain-finance'
-import AdminInvoice from '@/lib/models/AdminInvoice'
-import Expense from '@/lib/models/Expense'
+import { computeCorporateFinance, computeMarketplaceFinance, computeXeuyFinance, consolidateGlobal } from '@/lib/finance/domain-finance'
 import { emailService } from '@/lib/email-service'
 import { CORPORATE_BRAND } from '@/lib/branding'
 
@@ -17,27 +15,6 @@ function requireCronSecret(request: NextRequest): boolean {
 }
 
 const fmt = (n: number) => `${Math.round(Number(n) || 0).toLocaleString('fr-FR')} F`
-
-/** Corporate finance pour une période — mêmes sémantiques que /api/admin/treasury. */
-async function computeCorporateFinance(dateFilter: { $gte: Date; $lte: Date }) {
-  const [invoices, expenses] = await Promise.all([
-    AdminInvoice.find({ date: dateFilter }).select('status total dueDate').lean() as any,
-    Expense.find({ expenseDate: dateFilter }).select('paymentStatus amountTTC paidAmount').lean() as any,
-  ])
-  let revenueBilled = 0, revenueCollected = 0, receivablesOpen = 0, expensesPaid = 0
-  for (const inv of invoices as any[]) {
-    const total = Number(inv.total || 0)
-    const status = String(inv.status || 'draft')
-    if (['sent', 'paid', 'overdue'].includes(status)) revenueBilled += total
-    if (status === 'paid') revenueCollected += total
-    if (status === 'sent' || status === 'overdue') receivablesOpen += total
-  }
-  for (const e of expenses as any[]) {
-    if (e.paymentStatus === 'cancelled') continue
-    expensesPaid += Number(e.paidAmount || 0)
-  }
-  return { revenueBilled, revenueCollected, receivablesOpen, expensesPaid }
-}
 
 function section(title: string, rows: Array<[string, number | string]>) {
   return `<h3 style="margin:16px 0 6px;font-size:14px;color:#444">${title}</h3>

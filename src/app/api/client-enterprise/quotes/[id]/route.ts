@@ -3,6 +3,7 @@ import { requireDomainAccess } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE } from '@/lib/client-documents'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const quote = await AdminQuote.findOne({
     _id: new mongoose.Types.ObjectId(id),
     ...userFilter,
+    ...CLIENT_VISIBLE_QUOTE,
   }).lean() as any
 
   if (!quote) {

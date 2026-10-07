@@ -9,6 +9,12 @@ import { checkPaymentStatus } from '@/lib/payment'
 import { acceptOfferForRequest } from '@/lib/service-acceptance'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
+import { claimPendingPayment } from '@/lib/payments/transition'
+
+async function alreadyProcessedResponse(paymentId: unknown) {
+  const current = await Payment.findById(paymentId)
+  return NextResponse.json({ success: true, status: current?.status, payment: current, alreadyConfirmed: true })
+}
 
 /**
  * POST /api/payments/confirm
@@ -58,11 +64,13 @@ export async function POST(request: NextRequest) {
     const checkResult = await checkPaymentStatus(payment.provider, payment.externalId)
 
     if (checkResult.status === 'failed') {
-      payment.status = 'failed'
-      payment.failedAt = new Date()
-      payment.failReason = `Provider check: ${checkResult.status}`
-      payment.confirmedBy = 'client'
-      await payment.save()
+      const failed = await claimPendingPayment(payment._id, {
+        status: 'failed',
+        failedAt: new Date(),
+        failReason: `Provider check: ${checkResult.status}`,
+        confirmedBy: 'client',
+      })
+      if (!failed) return alreadyProcessedResponse(payment._id)
 
       // Refund escrow points
       if (payment.escrowPointsCharged > 0) {
@@ -95,11 +103,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, status: 'pending', payment, message: 'Paiement encore en cours côté provider' })
     }
 
-    // 3. Transition to held
-    payment.status = 'held'
-    payment.heldAt = new Date()
-    payment.confirmedBy = 'client'
-    await payment.save()
+    // 3. Transition to held (le webhook a pu passer entre-temps)
+    const held = await claimPendingPayment(payment._id, { status: 'held', heldAt: new Date(), confirmedBy: 'client' })
+    if (!held) return alreadyProcessedResponse(payment._id)
 
     // 4. Accept offer + start mission (unless balance phase)
     if (payment.phase !== 'balance' && payment.requestId) {
@@ -131,8 +137,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       status: 'held',
-      payment,
-      confirmedBy: payment.confirmedBy,
+      payment: held,
+      confirmedBy: held.confirmedBy,
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

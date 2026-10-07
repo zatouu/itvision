@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
+import { escapeHtml as esc } from '@/lib/html-escape'
 import Payment from '@/lib/models/Payment'
 import TopupPayment from '@/lib/models/TopupPayment'
 import {
@@ -41,8 +42,6 @@ function html(body: string): NextResponse {
     { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   )
 }
-
-const esc = (s: unknown) => String(s ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]!))
 
 function requireAdminOrLogin(request: NextRequest, token: string) {
   return requireAdminApi(request).then((auth) => {

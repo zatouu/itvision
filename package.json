@@ -41,8 +41,8 @@
     "seed:taxonomy": "tsx scripts/seed-taxonomy.ts",
     "create:admin": "tsx scripts/create-admin-user.ts",
     "create:admin:interactive": "tsx scripts/create-admin-user.ts",
-    "reinit:mongodb": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < docker/mongodb/init.js",
-    "reinit:mongodb:safe": "docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/reinit-mongodb-safe.js",
+    "reinit:mongodb": "docker exec -i itvision-mongodb sh -c 'mongosh -u \"$MONGO_INITDB_ROOT_USERNAME\" -p \"$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin' < docker/mongodb/init.js",
+    "reinit:mongodb:safe": "docker exec -i itvision-mongodb sh -c 'mongosh -u \"$MONGO_INITDB_ROOT_USERNAME\" -p \"$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin' < scripts/reinit-mongodb-safe.js",
     "import:aliexpress": "tsx scripts/import-aliexpress.ts",
     "migrate:margin": "tsx scripts/migrate-margin-rate.ts --keep-custom",
     "migrate:margin:dry": "tsx scripts/migrate-margin-rate.ts --dry-run",
@@ -53,7 +53,9 @@
     "migrate:ticket-company": "tsx scripts/backfill-ticket-company.ts",
     "migrate:ticket-company:dry": "tsx scripts/backfill-ticket-company.ts --dry-run",
     "migrate:variant-ids": "tsx scripts/backfill-variant-ids.ts",
-    "migrate:variant-ids:dry": "tsx scripts/backfill-variant-ids.ts --dry-run"
+    "migrate:variant-ids:dry": "tsx scripts/backfill-variant-ids.ts --dry-run",
+    "migrate:chat-messages": "tsx scripts/migrate-chat-messages.ts",
+    "migrate:chat-messages:dry": "tsx scripts/migrate-chat-messages.ts --dry-run"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

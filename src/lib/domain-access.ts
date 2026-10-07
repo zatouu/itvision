@@ -20,46 +20,29 @@ import { verifyAuthToken, type JwtUser } from '@/lib/jwt'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
+import {
+  COMPANY_ROLES,
+  memberCapabilities,
+  type CompanyRole,
+  type CompanyCapability,
+} from '@/lib/company-rights'
+
+export { COMPANY_ROLES }
+export type { CompanyRole, CompanyCapability }
 
 export type AccessDomain = 'corporate' | 'market' | 'xeuy' | 'admin' | 'shared'
 
 const STAFF_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT']
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
 
-/**
- * Rôles internes à l'entreprise cliente (User.companyRole).
- * 'owner' par défaut pour les comptes historiques sans companyRole.
- */
-export const COMPANY_ROLES = ['owner', 'admin', 'finance', 'technical', 'viewer'] as const
-export type CompanyRole = (typeof COMPANY_ROLES)[number]
-
-/**
- * Capacités portail entreprise. Dérivées du companyRole, puis filtrées par les
- * interrupteurs admin (Client.permissions) qui restent autoritaires :
+/*
+ * Rôles internes à l'entreprise cliente (User.companyRole), 'owner' par défaut pour les comptes historiques.
+ * Capacités = droits du membre (profil ou droits personnalisés User.companyCapabilities, cf. company-rights.ts),
+ * puis filtrées par les interrupteurs admin (Client.permissions) qui restent autoritaires :
  * - canAccessPortal=false      → aucune capacité (portail coupé)
  * - canViewReports=false       → pas de 'reports:view'
  * - canRequestMaintenance=false→ pas de 'maintenance:request'
  */
-export type CompanyCapability =
-  | 'portal:access'
-  | 'reports:view'
-  | 'finance:view'
-  | 'quotes:respond'
-  | 'maintenance:request'
-  | 'tickets:write'
-  | 'sourcing:request'
-  | 'interventions:ack'
-  | 'interventions:feedback'
-  | 'company:manage'
-  | 'team:manage'
-
-const ROLE_CAPABILITIES: Record<CompanyRole, CompanyCapability[]> = {
-  owner: ['portal:access', 'reports:view', 'finance:view', 'quotes:respond', 'maintenance:request', 'tickets:write', 'sourcing:request', 'interventions:ack', 'interventions:feedback', 'company:manage', 'team:manage'],
-  admin: ['portal:access', 'reports:view', 'finance:view', 'quotes:respond', 'maintenance:request', 'tickets:write', 'sourcing:request', 'interventions:ack', 'interventions:feedback', 'company:manage', 'team:manage'],
-  finance: ['portal:access', 'reports:view', 'finance:view', 'quotes:respond', 'tickets:write', 'sourcing:request', 'interventions:feedback'],
-  technical: ['portal:access', 'reports:view', 'maintenance:request', 'tickets:write', 'sourcing:request', 'interventions:ack', 'interventions:feedback'],
-  viewer: ['portal:access', 'reports:view', 'finance:view'],
-}
 
 export interface CompanyPermissions {
   canViewReports: boolean
@@ -89,6 +72,8 @@ export interface UserAccess {
   companyName?: string
   /** Rôle interne entreprise (corporate) — 'owner' par défaut. */
   companyRole?: string
+  /** Droits personnalisés du membre (remplacent ceux du rôle), définis par l'administrateur de l'espace. */
+  companyCustomCapabilities?: string[]
   /** Interrupteurs admin sur la société cliente (corporate). */
   companyPermissions?: CompanyPermissions
   isStaff: boolean
@@ -106,7 +91,7 @@ export type DomainAccessResult =
 export async function resolveUserAccess(jwtUser: JwtUser): Promise<UserAccess | null> {
   await connectMongoose()
   const dbUser = await User.findById(jwtUser.userId)
-    .select('companyClientId companyRole corporateProfileId marketplaceProfileId providerProfileId vendorProfileId')
+    .select('companyClientId companyRole companyCapabilities corporateProfileId marketplaceProfileId providerProfileId vendorProfileId')
     .lean() as any
   if (!dbUser) return null
 
@@ -142,6 +127,7 @@ export async function resolveUserAccess(jwtUser: JwtUser): Promise<UserAccess | 
     },
     companyName,
     companyRole: dbUser.companyRole ? String(dbUser.companyRole) : undefined,
+    companyCustomCapabilities: Array.isArray(dbUser.companyCapabilities) ? dbUser.companyCapabilities.map(String) : undefined,
     companyPermissions,
     isStaff: STAFF_ROLES.includes(role),
     isAdmin: ADMIN_ROLES.includes(role),
@@ -239,7 +225,7 @@ export function companyRoleOf(access: UserAccess): CompanyRole {
 export function companyCapabilities(access: UserAccess): Set<CompanyCapability> {
   const perms = companyPermissionsOf(access)
   if (!perms.canAccessPortal) return new Set()
-  const caps = new Set(ROLE_CAPABILITIES[companyRoleOf(access)])
+  const caps = new Set(memberCapabilities(companyRoleOf(access), access.companyCustomCapabilities))
   if (!perms.canViewReports) caps.delete('reports:view')
   if (!perms.canRequestMaintenance) caps.delete('maintenance:request')
   return caps
@@ -257,7 +243,7 @@ export function requireCompanyCapability(access: UserAccess, capability: Company
   if (access.isAdmin) return null // preview admin
   if (canCompany(access, capability)) return null
   return NextResponse.json(
-    { error: "Action non autorisée pour votre rôle dans l'entreprise" },
+    { error: "Vous n'avez pas ce droit dans l'espace de votre entreprise. Un administrateur de votre espace peut vous l'accorder (Paramètres > Équipe et droits)." },
     { status: 403 }
   )
 }

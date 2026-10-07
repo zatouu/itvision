@@ -35,6 +35,19 @@ export async function register() {
       }
     }, 5 * 60 * 1000)
 
+    // Factures envoyées dont l'échéance est dépassée → "overdue" (idempotent, sans risque en multi-instance)
+    scheduleCron('15 6 * * *', async () => {
+      try {
+        const { connectMongoose } = await import('@/lib/mongoose')
+        const { markOverdueInvoices } = await import('@/lib/finance/billing')
+        await connectMongoose()
+        const count = await markOverdueInvoices()
+        if (count > 0) console.log(`[cron] ${count} facture(s) passée(s) en retard`)
+      } catch (err: any) {
+        console.error('[cron] overdue invoices', err)
+      }
+    }, { timezone: 'Africa/Dakar' })
+
     // Payment sweeper — réconciliation des paiements pending (fallback webhook)
     const { startPaymentSweeper } = await import('@/lib/payment-sweeper')
     startPaymentSweeper()

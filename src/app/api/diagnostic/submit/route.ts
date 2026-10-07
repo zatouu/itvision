@@ -3,6 +3,7 @@ import emailService from '@/lib/email-service'
 import { addNotification } from '@/lib/notifications-memory'
 import { getBrandFromHost } from '@/lib/branding'
 import { applyRateLimit, RateLimiter } from '@/lib/rate-limiter'
+import { escapeHtml } from '@/lib/html-escape'
 
 // Formulaire public : quota anti-spam (l'email part vers la boîte admin).
 const diagnosticLimiter = new RateLimiter(15 * 60 * 1000, 5)
@@ -66,11 +67,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function escapeHtml(str: string) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
+

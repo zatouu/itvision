@@ -38,6 +38,8 @@ export const genericStatus: Record<string, StatusDef> = {
   draft: S('Brouillon', TONE.neutral),
   sent: S('Envoyé', TONE.sky),
   overdue: S('En retard', TONE.red),
+  partial: S('Partiellement réglée', TONE.amber),
+  superseded: S('Remplacé', TONE.neutral),
   open: S('Ouvert', TONE.orange),
   urgent: S('Urgent', TONE.red),
   high: S('Haute', TONE.orange),
@@ -125,6 +127,7 @@ export const quoteStatus: Record<string, StatusDef> = {
   sent: S('Envoyé', TONE.sky),
   accepted: S('Accepté', TONE.emerald),
   rejected: S('Refusé', TONE.red),
+  superseded: S('Remplacé par une nouvelle version', TONE.neutral),
 }
 // Réponse client — libellés orientés action (liste documents)
 export const quoteClientResponse: Record<string, StatusDef> = {
@@ -143,6 +146,7 @@ export const quoteClientResponseShort: Record<string, StatusDef> = {
 export const invoiceStatus: Record<string, StatusDef> = {
   draft: S('Brouillon', TONE.neutral, Clock),
   sent: S('À régler', TONE.sky, Clock),
+  partial: S('Partiellement réglée', TONE.amber, Clock),
   paid: S('Payée', TONE.emerald, CheckCircle),
   overdue: S('En retard', TONE.red, AlertTriangle),
   cancelled: S('Annulée', TONE.neutral, Ban),

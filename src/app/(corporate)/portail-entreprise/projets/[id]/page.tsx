@@ -2,8 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FolderKanban, ChevronLeft, Calendar, CheckCircle, Clock, AlertTriangle, Package, FileText, MessageSquare, ShieldAlert, TrendingUp, MapPin, User, Loader2, AlertCircle, Milestone, Activity, Download } from 'lucide-react'
-import { CARD, PILL, TONE, fmtDate, fmtNum, projectStatus, milestoneIcon, StatusBadge, ProgressBar, EmptyState, BackLink, Card, Pill } from '@/components/portal-ui'
+import { FolderKanban, ChevronLeft, Calendar, CheckCircle, Clock, AlertTriangle, Package, FileText, MessageSquare, ShieldAlert, TrendingUp, MapPin, User, Loader2, AlertCircle, Milestone, Activity, Download, Wrench } from 'lucide-react'
+import { CARD, PILL, TONE, fmtDate, fmtNum, projectStatus, milestoneIcon, StatusBadge, ProgressBar, EmptyState, BackLink, Card, Pill, interventionStatus, interventionTypeLabel } from '@/components/portal-ui'
+import { DomainChip, DomainIcon, StageStepper } from '@/components/portal/projects/ProjectCard'
+import { ReceptionCard } from '@/components/portal/projects/Reception'
+import { detectDomain, projectStage } from '@/lib/portal/project-view'
 
 const TI: Record<string, any> = { created:FolderKanban, quoted:FileText, approved:CheckCircle, started:Activity, milestone:Milestone, issue:AlertTriangle, completed:CheckCircle }
 const TC: Record<string, string> = { created:'bg-stone-100 text-stone-600', quoted:'bg-sky-50 text-sky-700', approved:'bg-sky-50 text-sky-700', started:'bg-emerald-50 text-emerald-700', milestone:'bg-teal-50 text-teal-700', issue:'bg-red-50 text-red-700', completed:'bg-emerald-50 text-emerald-700' }
@@ -23,11 +26,16 @@ export default function ProjectDetailPage(){
   const [tab,setTab]=useState<'overview'|'milestones'|'timeline'|'documents'|'notes'|'risks'>('overview')
 
   useEffect(()=>{
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[id])
+
+  function load(){
     fetch(`/api/client-enterprise/projects/${id}`)
       .then(r=>{ if(r.status===401){router.push('/login');return null} if(r.status===404){setError('Projet introuvable');return null} if(!r.ok){setError('Erreur de chargement');return null} return r.json() })
       .then(d=>{ if(d?.success) setProject(d.project); setLoading(false) })
       .catch(()=>{ setError('Erreur de connexion'); setLoading(false) })
-  },[id,router])
+  }
 
   if(loading) return <div className="flex flex-col items-center justify-center h-full gap-3 p-6"><Loader2 className="w-8 h-8 animate-spin text-stone-300"/><p className="text-sm text-stone-400">Chargement du projet...</p></div>
   if(error||!project) return <div className="flex flex-col items-center justify-center h-full gap-3 p-6"><AlertCircle className="w-10 h-10 text-red-300"/><p className="text-sm text-stone-500">{error||'Projet introuvable'}</p><Link href="/portail-entreprise/projets" className="text-sm text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1"><ChevronLeft className="w-4 h-4"/> Retour aux projets</Link></div>
@@ -40,6 +48,15 @@ export default function ProjectDetailPage(){
   const notes=project.sharedNotes||[]
   const risks=project.risks||[]
   const products=project.products||[]
+  const domain=detectDomain(project.serviceType, project.name)
+  const stage=projectStage(project)
+  const photos=[
+    ...documents.filter((d:any)=>d.type==='photo'||/\.(jpe?g|png|webp|gif)(\?|$)/i.test(String(d.url||'')))
+      .map((d:any)=>({key:d.id||d.url,url:d.url,caption:d.name,date:d.uploadDate,moment:''})),
+    ...(project.galleryPhotos||[]).map((p:any)=>({key:p.id,url:p.url,caption:p.caption,date:p.date,moment:''})),
+    ...(project.interventionPhotos||[]).map((p:any,i:number)=>({key:`${p.interventionId}-${i}`,url:p.url,caption:p.caption,date:p.date,moment:p.moment})),
+  ].sort((a,b)=>new Date(b.date||0).getTime()-new Date(a.date||0).getTime())
+  const interventions=project.interventions||[]
 
   const tabs=[
     {id:'overview' as const, label:'Vue d\'ensemble', icon:TrendingUp},
@@ -56,12 +73,12 @@ export default function ProjectDetailPage(){
         <BackLink subtle href="/portail-entreprise/projets" label="Projets" />
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><FolderKanban className="w-5 h-5 text-emerald-700"/></div>
+            <DomainIcon domain={domain} size="lg" />
             <div className="min-w-0">
-              <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-stone-900 truncate">{project.name}</h1>
+              <DomainChip domain={domain} />
+              <h1 className="mt-1 text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-stone-900 line-clamp-2">{project.name}</h1>
               <div className="flex items-center gap-2 text-xs text-stone-400 flex-wrap mt-1">
-                {project.serviceType&&<span>{project.serviceType}</span>}
-                {project.currentPhase&&<span>· Phase : {project.currentPhase}</span>}
+                {project.currentPhase&&<span>Phase : {project.currentPhase}</span>}
                 {project.address&&<span className="flex items-center gap-0.5"><MapPin className="w-3 h-3"/> {project.address}</span>}
               </div>
             </div>
@@ -70,11 +87,20 @@ export default function ProjectDetailPage(){
         </div>
       </header>
 
-      <div className={`${CARD} p-5`}>
-        <div className="flex items-center justify-between text-sm text-stone-500 mb-2"><span>Avancement global</span><span className="font-bold text-stone-900 text-lg tabular-nums">{pct}%</span></div>
-        <ProgressBar value={pct} size="lg" />
-        {milestones.length>0&&<p className="text-xs text-stone-400 mt-2 tabular-nums">{doneMilestones} jalon{doneMilestones>1?'s':''} terminé{doneMilestones>1?'s':''} sur {milestones.length}</p>}
+      <div className={`${CARD} p-4 sm:p-5`}>
+        <div className="flex items-baseline justify-between mb-3">
+          <div>
+            <p className="text-xs text-stone-400">Étape actuelle</p>
+            <p className="text-base font-semibold text-emerald-800">{stage.done ? 'Réception effectuée' : stage.paused ? `${stage.label} (en pause)` : stage.label}</p>
+          </div>
+          <span className="font-bold text-stone-900 text-2xl tabular-nums">{pct}<span className="text-sm text-stone-400"> %</span></span>
+        </div>
+        <StageStepper index={stage.index} done={stage.done} paused={stage.paused} />
+        {milestones.length>0&&<p className="text-xs text-stone-400 mt-3 tabular-nums">{doneMilestones} étape{doneMilestones>1?'s':''} détaillée{doneMilestones>1?'s':''} terminée{doneMilestones>1?'s':''} sur {milestones.length}</p>}
       </div>
+
+      <ReceptionCard projectId={project._id} projectName={project.name} reception={project.reception} canSign={!!project.canSignReception}
+        autoOpen={typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('reception')==='1'} onSigned={load} />
 
       <div className="flex gap-1 border-b border-stone-200 overflow-x-auto">
         {tabs.map(t=>(
@@ -85,7 +111,40 @@ export default function ProjectDetailPage(){
       </div>
 
       {/* OVERVIEW */}
-      {tab==='overview'&&(
+      {tab==='overview'&&(<div className="space-y-4">
+        {photos.length>0&&(
+          <section className={`${CARD} p-4`}>
+            <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">Photos du chantier ({photos.length})</p>
+            <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none]">
+              {photos.map((d:any)=>(
+                <a key={d.key} href={d.url} target="_blank" rel="noopener noreferrer" className="relative snap-start flex-shrink-0 w-40 sm:w-48">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={d.url} alt={d.caption||'Photo du chantier'} loading="lazy" className="h-28 sm:h-32 w-full rounded-xl object-cover bg-stone-100 border border-stone-200"/>
+                  {d.moment&&<span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${d.moment==='Avant'?'bg-stone-900/70 text-white':'bg-emerald-600 text-white'}`}>{d.moment}</span>}
+                  <p className="mt-1 text-[11px] text-stone-500 truncate">{d.caption}{d.date?` · ${fmtDate(d.date)}`:''}</p>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+        {interventions.length>0&&(
+          <section className={`${CARD} p-4`}>
+            <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5"><Wrench className="w-3.5 h-3.5 text-emerald-700"/> Interventions sur ce projet ({interventions.length})</p>
+            <ul className="divide-y divide-stone-100">
+              {interventions.slice(0,6).map((it:any)=>(
+                <li key={it._id}>
+                  <Link href={`/portail-entreprise/interventions/${it._id}`} className="flex items-center gap-3 py-2.5 group">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-stone-900 truncate group-hover:text-emerald-800">{it.title||it.number||'Intervention'}</span>
+                      <span className="block text-[11px] text-stone-400">{[it.type&&interventionTypeLabel[it.type], it.date&&fmtDate(it.date)].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <StatusBadge status={it.status} map={interventionStatus} className="flex-shrink-0" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card title="Dates" icon={Calendar}><Row label="Début" value={fmtDate(project.startDate)}/><Row label="Fin prévue" value={fmtDate(project.endDate)}/>{project.nextMaintenance&&<Row label="Prochaine maintenance" value={fmtDate(project.nextMaintenance)}/>}</Card>
           <Card title="Financier" icon={TrendingUp}>{project.value>0&&<Row label="Valeur du projet" value={`${fmtNum(project.value)} FCFA`} bold/>}{project.quote&&<Row label="Devis approuvé" value={`${fmtNum(project.quote.totalTTC||0)} FCFA`}/>}{project.metrics?.budgetPlanned&&<Row label="Budget utilisé" value={`${fmtNum(project.metrics.budgetUsed||0)} / ${fmtNum(project.metrics.budgetPlanned)} FCFA`}/>}</Card>
@@ -105,7 +164,7 @@ export default function ProjectDetailPage(){
             </div>
           </div>}
         </div>
-      )}
+      </div>)}
 
       {/* MILESTONES */}
       {tab==='milestones'&&(milestones.length===0?<EmptyState icon={Milestone} title="Aucun jalon défini pour ce projet." className="py-16 px-0" />:<div className="space-y-3">{milestones.map((m:any)=>{const I=milestoneIcon[m.status]||Clock;const done=m.status==='completed';return(<div key={m.id} className={`${CARD} p-5 ${done?'border-emerald-200 bg-emerald-50/40':''}`}><div className="flex items-start gap-3"><div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${done?'bg-emerald-50 text-emerald-600':m.status==='delayed'?'bg-orange-50 text-orange-600':m.status==='in_progress'?'bg-sky-50 text-sky-600':'bg-stone-100 text-stone-400'}`}><I className="w-5 h-5"/></div><div className="flex-1 min-w-0"><div className="flex items-start justify-between gap-2"><h3 className={`text-sm font-semibold ${done?'line-through text-stone-400':'text-stone-900'}`}>{m.name}</h3><Pill color={done?TONE.emerald:m.status==='delayed'?TONE.orange:m.status==='in_progress'?TONE.sky:TONE.neutral} className="flex-shrink-0">{done?'Terminé':m.status==='delayed'?'Retard':m.status==='in_progress'?'En cours':'En attente'}</Pill></div>{m.description&&<p className="text-xs text-stone-500 mt-1">{m.description}</p>}<div className="flex items-center gap-3 mt-2 text-[10px] text-stone-400">{m.dueDate&&<span>Échéance : {fmtDate(m.dueDate)}</span>}{m.completedDate&&<span>Terminé le : {fmtDate(m.completedDate)}</span>}{m.deliverables?.length&&<span>{m.deliverables.length} livrable{m.deliverables.length>1?'s':''}</span>}</div></div></div></div>)})}</div>)}

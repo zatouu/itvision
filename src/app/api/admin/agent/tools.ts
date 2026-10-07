@@ -16,7 +16,7 @@ import type { AgentToolDefinition, ToolHandler } from '@/lib/ai/agent'
 const USER_ROLES = ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN', 'VENDOR', 'PROVIDER'] as const
 const KYC_STATUSES = ['pending', 'approved', 'rejected'] as const
 const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected'] as const
-const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const
+const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled'] as const
 const INTERVENTION_STATUSES = ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'] as const
 const CONTRACT_STATUSES = ['active', 'expired', 'suspended', 'cancelled'] as const
 
@@ -547,7 +547,7 @@ export const adminAgentHandlers: Record<string, ToolHandler> = {
     const clientIds = contracts.map(c => c._id).filter(Boolean)
     const [openTickets, unpaid, interventionsRecent] = await Promise.all([
       Ticket.countDocuments({ $or: [{ 'client.name': rx }], status: { $in: ['open', 'in_progress', 'waiting_client', 'waiting'] } }),
-      AdminInvoice.find({ 'client.company': rx, status: { $in: ['sent', 'overdue'] } }).select('numero dueDate total status').limit(20).lean() as Promise<Record<string, any>[]>,
+      AdminInvoice.find({ 'client.company': rx, status: { $in: ['sent', 'overdue', 'partial'] } }).select('numero dueDate total status').limit(20).lean() as Promise<Record<string, any>[]>,
       Intervention.find({ 'client.name': rx, date: { $gte: new Date(Date.now() - 90 * 86400000) } })
         .select('interventionNumber title status date site').sort({ date: -1 }).limit(10).lean() as Promise<Record<string, any>[]>,
     ])

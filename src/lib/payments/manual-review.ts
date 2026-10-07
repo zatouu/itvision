@@ -10,6 +10,7 @@ import { sendPushToUser } from '@/lib/push'
 import { confirmPayment } from '@/lib/payment-fulfillment'
 import { emailService } from '@/lib/email-service'
 import { MARKET_BRAND } from '@/lib/branding'
+import { claimPendingPayment, claimPendingTopup } from '@/lib/payments/transition'
 
 /**
  * Validation manuelle des paiements sans API provider (Wave pay-link, OM, Free).
@@ -146,10 +147,8 @@ export async function reviewManualPayment(params: {
       || payment.orderType === 'marketplace' || payment.orderType === 'group'
 
     if (action === 'confirm') {
-      payment.status = 'held'
-      payment.heldAt = new Date()
-      payment.confirmedBy = 'admin'
-      await payment.save()
+      const claimed = await claimPendingPayment(payment._id, { status: 'held', heldAt: new Date(), confirmedBy: 'admin' })
+      if (!claimed) return { ok: false, error: 'Déjà traité' }
 
       if (isMarketplace) {
         const conf = await confirmPayment({
@@ -181,10 +180,12 @@ export async function reviewManualPayment(params: {
         data: { type: 'payment:held', requestId: String(payment.requestId || '') },
       }).catch(() => {})
     } else {
-      payment.status = 'failed'
-      payment.failedAt = new Date()
-      payment.failReason = note || 'Non reçu sur le compte marchand'
-      await payment.save()
+      const claimed = await claimPendingPayment(payment._id, {
+        status: 'failed',
+        failedAt: new Date(),
+        failReason: note || 'Non reçu sur le compte marchand',
+      })
+      if (!claimed) return { ok: false, error: 'Déjà traité' }
 
       if (payment.orderType === 'group' && payment.orderId) {
         // Refus sur participation groupée : repasser le participant en 'pending'
@@ -219,7 +220,7 @@ export async function reviewManualPayment(params: {
         data: { type: 'payment:failed', requestId: String(payment.requestId || '') },
       }).catch(() => {})
     }
-    return { ok: true, status: payment.status }
+    return { ok: true, status: action === 'confirm' ? 'held' : 'failed' }
   }
 
   // kind === 'topup'
@@ -229,10 +230,16 @@ export async function reviewManualPayment(params: {
     return { ok: false, error: `Déjà traitée (${topup.status})`, status: topup.status }
   }
 
+  // Un double clic (dashboard + lien email) ne doit pas créditer deux fois
+  const claimedTopup = await claimPendingTopup(
+    topup._id,
+    action === 'confirm'
+      ? { status: 'successful', completedAt: new Date() }
+      : { status: 'failed', failReason: note || 'Non reçu sur le compte marchand' }
+  )
+  if (!claimedTopup) return { ok: false, error: 'Déjà traitée' }
+
   if (action === 'confirm') {
-    topup.status = 'successful'
-    topup.completedAt = new Date()
-    await topup.save()
     const totalCredits = topup.points + (topup.bonusCredits || 0)
     await creditPoints(String(topup.userId), totalCredits, 'topup', {
       description: `Recharge ${totalCredits} XC (${topup.amountFcfa} FCFA via Wave QR)`,
@@ -244,14 +251,11 @@ export async function reviewManualPayment(params: {
       data: { type: 'wallet:credited' },
     }).catch(() => {})
   } else {
-    topup.status = 'failed'
-    topup.failReason = note || 'Non reçu sur le compte marchand'
-    await topup.save()
     await sendPushToUser(String(topup.userId), {
       title: 'Recharge non confirmée',
       body: `Votre recharge de ${topup.amountFcfa.toLocaleString('fr-FR')} FCFA n'a pas été retrouvée. Contactez le support.`,
       data: { type: 'wallet:failed' },
     }).catch(() => {})
   }
-  return { ok: true, status: topup.status }
+  return { ok: true, status: claimedTopup.status }
 }

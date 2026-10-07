@@ -27,6 +27,9 @@ interface TreasuryData {
     expensesCount: number
     brsRetained: number
     brsPending: number
+    creditNotesTotal?: number
+    refundsPaid?: number
+    refundsPending?: number
   }
   pipeline: { draft: number; sent: number; accepted: number }
   cashflow: Array<{ period: string; revenue: number; expense: number; net: number }>
@@ -218,6 +221,13 @@ export default function TreasuryDashboard() {
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
               </button>
+              <Link
+                href="/admin/tresorerie/rapprochement"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white/10 border border-white/20 rounded-lg hover:bg-white/20"
+              >
+                <Banknote className="h-3.5 w-3.5" />
+                Rapprochement bancaire
+              </Link>
             </div>
           </div>
         </div>
@@ -248,9 +258,9 @@ export default function TreasuryDashboard() {
           color="orange"
         />
         <KpiCard
-          label="Marge brute"
+          label="Marge brute (HT)"
           value={fmt(k.grossMargin)}
-          sub={`${k.grossMarginPct.toFixed(1)}% du CA`}
+          sub={`${k.grossMarginPct.toFixed(1)}% du CA HT`}
           icon={PieChart}
           color={k.grossMargin >= 0 ? 'blue' : 'red'}
         />
@@ -272,8 +282,11 @@ export default function TreasuryDashboard() {
               </div>
               <div className="space-y-2 text-sm">
                 <DomainRow label="Encaissé" value={fmt(data.domains.corporate.revenueCollected)} bold />
-                <DomainRow label="Facturé" value={fmt(data.domains.corporate.revenueBilled)} />
+                <DomainRow label="Facturé (net des avoirs)" value={fmt(data.domains.corporate.revenueBilled)} />
+                {(k.creditNotesTotal || 0) > 0 && <DomainRow label="Avoirs émis" value={`-${fmt(k.creditNotesTotal || 0)}`} />}
                 <DomainRow label="Créances" value={fmt(data.domains.corporate.receivablesOpen)} />
+                {(k.refundsPending || 0) > 0 && <DomainRow label="Remboursements à faire" value={fmt(k.refundsPending || 0)} />}
+                {(k.refundsPaid || 0) > 0 && <DomainRow label="Remboursés (période)" value={fmt(k.refundsPaid || 0)} />}
                 <DomainRow label="Dépenses payées" value={fmt(data.domains.corporate.expensesPaid)} />
                 <DomainRow label="Marge" value={`${fmt(data.domains.corporate.margin)} (${data.domains.corporate.marginPct.toFixed(1)}%)`} />
               </div>

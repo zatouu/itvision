@@ -3,21 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceBid from '@/lib/models/MaintenanceBid'
 import Intervention from '@/lib/models/Intervention'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase()
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
 /**
  * PATCH /api/maintenance/activities/[id]/assign
@@ -29,7 +15,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const { role } = await verifyToken(request)
+    const { role } = await requireApiUser(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
@@ -152,9 +138,10 @@ export async function PATCH(
       }
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur affectation offre:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

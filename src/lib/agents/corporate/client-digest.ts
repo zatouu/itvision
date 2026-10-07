@@ -19,7 +19,11 @@ import Client from '@/lib/models/Client'
 import User from '@/lib/models/User'
 import AgentRun from '@/lib/models/AgentRun'
 import AgentJob from '@/lib/models/AgentJob'
+import Project from '@/lib/models/Project'
 import { notifyUser } from '@/lib/notify'
+import { emailService } from '@/lib/email-service'
+import { clientProjectFilter } from '@/lib/portal/project-view'
+import { buildMonthlyReport } from '@/lib/portal/monthly-report'
 import { getAgentModel } from '../llm'
 import { getCheckpointer } from '../checkpointer'
 
@@ -44,7 +48,7 @@ function fmt(n: number) { return round(n).toLocaleString('fr-FR') }
 
 async function loadContext(state: typeof DigestState.State) {
   const company = await Client.findById(state.companyId)
-    .select('name company city email')
+    .select('name company city email preferences lastMonthlyReportAt')
     .lean() as any
   if (!company) throw new Error(`Société ${state.companyId} introuvable`)
 
@@ -57,7 +61,7 @@ async function loadContext(state: typeof DigestState.State) {
     MaintenanceReport.countDocuments({ clientId: company._id, publishedToClient: true, publishedAt: { $gte: since } }),
     Ticket.countDocuments({ ...scope, status: { $in: ['open', 'in_progress', 'waiting_client', 'waiting'] } }),
     Ticket.countDocuments({ ...scope, createdAt: { $gte: since } }),
-    AdminInvoice.find({ $or: [{ clientCompanyId: company._id }], status: { $in: ['sent', 'overdue'] } })
+    AdminInvoice.find({ $or: [{ clientCompanyId: company._id }], status: { $in: ['sent', 'overdue', 'partial'] } })
       .select('numero dueDate total status').lean() as any,
     MaintenanceContract.countDocuments({ ...scope, status: 'active' }),
     MaintenanceContract.find({ ...scope, status: 'active', endDate: { $lte: new Date(Date.now() + 60 * 86400000) } })
@@ -67,10 +71,22 @@ async function loadContext(state: typeof DigestState.State) {
   const amountDue = (invoicesDue || []).reduce((s: number, i: any) => s + round(i.total), 0)
   const overdue = (invoicesDue || []).filter((i: any) => i.status === 'overdue').length
 
+  const monthSince = new Date(Date.now() - 30 * 86400000)
+  const [projects, interventionsDoneMonth, reportsMonth] = await Promise.all([
+    Project.find(clientProjectFilter(scope, { status: { $nin: ['completed', 'cancelled'] } }))
+      .select('name progress status quote.status reception.requestedAt reception.signedAt')
+      .sort({ updatedAt: -1 }).limit(10).lean() as Promise<any[]>,
+    Intervention.countDocuments({ ...scope, status: 'completed', updatedAt: { $gte: monthSince } }),
+    MaintenanceReport.countDocuments({ clientId: company._id, publishedToClient: true, publishedAt: { $gte: monthSince } }),
+  ])
+
   return {
     company,
     stats: {
       companyName: company.company || company.name,
+      projects,
+      interventionsDoneMonth,
+      reportsMonth,
       interventionsDone,
       interventionsUpcoming,
       reportsPublished,
@@ -133,7 +149,7 @@ async function deliver(state: typeof DigestState.State) {
     companyClientId: state.companyId,
     isActive: { $ne: false },
     $or: [{ companyRole: { $in: ['owner', 'admin'] } }, { companyRole: { $exists: false } }],
-  }).select('_id').limit(20).lean() as any[]
+  }).select('_id email').limit(20).lean() as any[]
 
   const message = [summary.headline, ...(summary.highlights || []), summary.advice].filter(Boolean).join('\n')
 
@@ -145,6 +161,21 @@ async function deliver(state: typeof DigestState.State) {
       actionUrl: '/portail-entreprise/activite',
     }).catch(() => {})
   ))
+
+  // Rapport mensuel par email : premier digest du mois, une seule fois, si l'entreprise accepte les emails
+  const company = state.company || {}
+  const last = company.lastMonthlyReportAt ? new Date(company.lastMonthlyReportAt) : null
+  const emails = recipients.map(u => u.email).filter(Boolean)
+  if (new Date().getDate() <= 7 && (!last || Date.now() - last.getTime() > 20 * 86400000)
+    && company.preferences?.emailNotifications !== false && emails.length) {
+    const { subject, html } = buildMonthlyReport({
+      companyName: s.companyName, projects: s.projects || [], interventionsDoneMonth: s.interventionsDoneMonth || 0,
+      interventionsUpcoming: s.interventionsUpcoming || 0, reportsMonth: s.reportsMonth || 0, ticketsOpen: s.ticketsOpen || 0,
+      amountDue: s.amountDue || 0, overdue: s.overdue || 0, expiring: s.expiring || [],
+    })
+    const sent = await emailService.sendEmailDetailed({ to: emails, subject, html }).catch(() => null)
+    if (sent?.status === 'sent') await Client.updateOne({ _id: state.companyId }, { $set: { lastMonthlyReportAt: new Date() } })
+  }
 
   return {}
 }

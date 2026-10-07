@@ -14,20 +14,11 @@ import Technician from '@/lib/models/Technician'
 import Project from '@/lib/models/Project'
 import Intervention from '@/lib/models/Intervention'
 import '@/lib/models/Client' // registration nécessaire pour .populate('clientId')
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
-  const token = request.cookies.get('auth-token')?.value || 
-                request.cookies.get('tech-auth-token')?.value ||
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const decoded = payload as any
-  const role = String(decoded.role || '').toUpperCase()
-  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
-  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? userId : undefined)
-  return { ...decoded, role, technicianId, userId }
+  const user = await requireApiUser(request)
+  return { ...user, technicianId: user.technicianId || (user.role === 'TECHNICIAN' ? user.userId : undefined) }
 }
 
 const ISSUE_SEVERITIES = new Set(['low', 'medium', 'high', 'critical'])
@@ -358,10 +349,12 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur récupération rapports:', error)
     return NextResponse.json(
-      { error: 'Accès non autorisé' },
-      { status: 401 }
+      { error: 'Erreur serveur' },
+      { status: 500 }
     )
   }
 }
@@ -602,6 +595,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur création rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la création du rapport' },
@@ -744,6 +739,8 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur mise à jour rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la mise à jour' },

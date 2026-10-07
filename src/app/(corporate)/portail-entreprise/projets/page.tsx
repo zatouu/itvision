@@ -1,161 +1,87 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { FolderKanban } from 'lucide-react'
 import { getEnterpriseSession } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
-import { FolderKanban, Clock, Package, ChevronRight } from 'lucide-react'
 import Project from '@/lib/models/Project'
-import { CARD, fmtDate, fmtNum, projectStatus, milestoneIcon, StatusBadge, ProgressBar, EmptyState, PageHeader, BackLink } from '@/components/portal-ui'
+import { EmptyState, PageHeader, BackLink } from '@/components/portal-ui'
+import { ITV_DOMAINS, clientProjectFilter, detectDomain, projectStage, type ItvDomain } from '@/lib/portal/project-view'
+import { DomainIcon, ProjectCard } from '@/components/portal/projects/ProjectCard'
 
-export default async function ProjetsPage() {
+export default async function ProjetsPage({ searchParams }: { searchParams: Promise<{ domaine?: string }> }) {
   const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/projets')
+  const { domaine } = await searchParams
 
-  const projects = await Project.find({
-    ...companyScope({ userId, companyId })
-  }).sort({ updatedAt: -1 }).lean() as any[]
+  const projects = (await Project.find(clientProjectFilter(companyScope({ userId, companyId })))
+    .sort({ updatedAt: -1 })
+    .select('name status progress currentPhase serviceType address startDate endDate updatedAt quote.status milestones.id milestones.name milestones.status milestones.dueDate reception.requestedAt reception.signedAt reception.decision reception.reservesLiftedAt reception.warrantyEnd')
+    .lean() as any[])
+    .map(p => ({ ...p, domain: detectDomain(p.serviceType, p.name) as ItvDomain, stage: projectStage(p) }))
 
-  const active = projects.filter(p => ['in_progress', 'testing', 'approved', 'negotiation'].includes(p.status))
-  const completed = projects.filter(p => ['completed', 'maintenance'].includes(p.status))
-  const other = projects.filter(p => !active.includes(p) && !completed.includes(p))
+  const counts = projects.reduce<Record<string, number>>((acc, p) => { acc[p.domain] = (acc[p.domain] || 0) + 1; return acc }, {})
+  const domains = (Object.keys(counts) as ItvDomain[]).sort((a, b) => counts[b] - counts[a])
+  const filter = domaine && domaine in ITV_DOMAINS ? (domaine as ItvDomain) : null
+  const shown = filter ? projects.filter(p => p.domain === filter) : projects
+  const running = shown.filter(p => !p.stage.done && !p.stage.paused)
+  const paused = shown.filter(p => p.stage.paused)
+  const done = shown.filter(p => p.stage.done)
+
+  const chip = (active: boolean) =>
+    `flex flex-shrink-0 items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3 text-xs font-semibold transition-colors ${
+      active ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-white text-stone-700 hover:border-emerald-300'
+    }`
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-5 lg:py-10 space-y-6">
       <PageHeader
         icon={FolderKanban}
         eyebrow="Réalisations"
         title="Mes projets"
-        subtitle={`${active.length} actif${active.length > 1 ? 's' : ''} · ${projects.length} total`}
+        subtitle={`${projects.filter(p => !p.stage.done).length} en cours · ${projects.length} au total`}
       >
         <BackLink href="/portail-entreprise" />
       </PageHeader>
 
-      {projects.length === 0 && (
-        <EmptyState icon={FolderKanban} title="Aucun projet" />
+      {domains.length > 1 && (
+        <nav aria-label="Filtrer par domaine" className="-mx-4 px-4 sm:mx-0 sm:px-0 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          <Link href="/portail-entreprise/projets" className={chip(!filter)} aria-current={!filter ? 'page' : undefined}>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-stone-600"><FolderKanban className="h-4 w-4" /></span>
+            Tous <span className="text-stone-400 tabular-nums">{projects.length}</span>
+          </Link>
+          {domains.map(d => (
+            <Link key={d} href={`/portail-entreprise/projets?domaine=${d}`} className={chip(filter === d)} aria-current={filter === d ? 'page' : undefined}>
+              <DomainIcon domain={d} size="sm" />
+              <span className="whitespace-nowrap">{ITV_DOMAINS[d].short}</span>
+              <span className="text-stone-400 tabular-nums">{counts[d]}</span>
+            </Link>
+          ))}
+        </nav>
       )}
 
-      {active.length > 0 && <ProjectGroup title="Projets actifs" projects={active} />}
-      {other.length > 0 && <ProjectGroup title="Autres projets" projects={other} />}
-      {completed.length > 0 && <ProjectGroup title="Projets terminés" projects={completed} />}
+      {shown.length === 0 && (
+        <EmptyState
+          icon={FolderKanban}
+          title={filter ? `Aucun projet ${ITV_DOMAINS[filter].label.toLowerCase()}` : 'Aucun projet partagé pour le moment'}
+          message="Vos projets apparaissent ici dès leur lancement : étapes, photos, documents et prochaines échéances."
+        />
+      )}
+
+      <ProjectGroup title="En cours" projects={running} />
+      <ProjectGroup title="En pause" projects={paused} />
+      <ProjectGroup title="Terminés" projects={done} />
     </div>
   )
 }
 
 function ProjectGroup({ title, projects }: { title: string; projects: any[] }) {
+  if (!projects.length) return null
   return (
     <section>
       <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3">{title} ({projects.length})</h2>
-      <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map(p => <ProjectCard key={String(p._id)} p={p} />)}
       </div>
     </section>
-  )
-}
-
-function ProjectCard({ p }: { p: any }) {
-  const milestones = (p.milestones || []) as any[]
-  const doneMilestones = milestones.filter((m: any) => m.status === 'completed').length
-  const pct = p.progress ?? (milestones.length > 0 ? Math.round((doneMilestones / milestones.length) * 100) : 0)
-  const products = (p.products || []) as any[]
-  const timeline = ((p.timeline || []) as any[]).filter((t: any) => t.clientVisible !== false).slice(-3)
-
-  return (
-    <Link href={`/portail-entreprise/projets/${p._id}`} className={`${CARD} block overflow-hidden hover:border-emerald-300 hover:shadow-sm transition-all group`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 p-4 sm:p-5">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-            <FolderKanban className="w-5 h-5 text-emerald-700" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-stone-900 group-hover:text-emerald-800 transition-colors">{p.name}</h3>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-400 flex-wrap">
-              {p.serviceType && <span>{p.serviceType}</span>}
-              {p.currentPhase && <span>· Phase : {p.currentPhase}</span>}
-              {p.address && <span>· {p.address}</span>}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <StatusBadge status={p.status} map={projectStatus} />
-          <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-        </div>
-      </div>
-
-      {/* Progression */}
-      <div className="px-4 sm:px-5 pb-4">
-        <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
-          <span>Avancement global</span>
-          <span className="font-semibold text-stone-700 tabular-nums">{pct}%</span>
-        </div>
-        <ProgressBar value={pct} size="md" />
-      </div>
-
-      {/* Dates */}
-      <div className="border-t border-stone-100 px-4 sm:px-5 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <div><p className="text-stone-400">Début</p><p className="font-medium text-stone-800 mt-0.5">{fmtDate(p.startDate)}</p></div>
-        <div><p className="text-stone-400">Fin prévue</p><p className="font-medium text-stone-800 mt-0.5">{fmtDate(p.endDate)}</p></div>
-        {p.value > 0 && <div><p className="text-stone-400">Valeur</p><p className="font-semibold text-emerald-800 tabular-nums mt-0.5">{fmtNum(p.value)} F</p></div>}
-        {milestones.length > 0 && (
-          <div><p className="text-stone-400">Jalons</p><p className="font-medium text-stone-800 mt-0.5 tabular-nums">{doneMilestones}/{milestones.length}</p></div>
-        )}
-      </div>
-
-      {/* Jalons */}
-      {milestones.length > 0 && (
-        <div className="border-t border-stone-100 px-4 sm:px-5 py-3">
-          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-2">Jalons</p>
-          <div className="space-y-1.5">
-            {milestones.slice(0, 5).map((m: any) => {
-              const Icon = milestoneIcon[m.status] || Clock
-              return (
-                <div key={m.id} className="flex items-center gap-2">
-                  <Icon className={`w-3 h-3 flex-shrink-0 ${
-                    m.status === 'completed' ? 'text-emerald-600' :
-                    m.status === 'delayed' ? 'text-orange-500' :
-                    m.status === 'in_progress' ? 'text-sky-500' : 'text-stone-300'
-                  }`} />
-                  <span className={`text-xs flex-1 ${m.status === 'completed' ? 'line-through text-stone-400' : 'text-stone-700'}`}>
-                    {m.name}
-                  </span>
-                  {m.dueDate && <span className="text-[10px] text-stone-400">{fmtDate(m.dueDate)}</span>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Équipements installés */}
-      {products.length > 0 && (
-        <div className="border-t border-stone-100 px-4 sm:px-5 py-3">
-          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-2">
-            <Package className="w-3 h-3 inline mr-1" />Équipements ({products.length})
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {products.slice(0, 6).map((pr: any, idx: number) => (
-              <span key={idx} className="rounded-lg bg-stone-50 border border-stone-100 px-2 py-1 text-xs text-stone-600">
-                {pr.quantity}× {pr.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Timeline récente */}
-      {timeline.length > 0 && (
-        <div className="border-t border-stone-100 px-4 sm:px-5 py-3">
-          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-2">Dernières mises à jour</p>
-          <div className="space-y-1.5">
-            {timeline.map((t: any) => (
-              <div key={t.id} className="flex items-start gap-2 text-xs">
-                <span className="text-stone-300 flex-shrink-0 mt-0.5">·</span>
-                <span className="text-stone-600 flex-1">{t.title}</span>
-                <span className="text-stone-400 flex-shrink-0">{fmtDate(t.date)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Link>
   )
 }

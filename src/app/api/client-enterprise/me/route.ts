@@ -7,6 +7,7 @@ import CorporateProfile from '@/lib/models/CorporateProfile'
 import { loadUserWithProfiles } from '@/lib/user-profiles'
 import { requireDomainAccess, requireCompanyCapability, companyCapabilities, companyRoleOf } from '@/lib/domain-access'
 import { logAuditEvent } from '@/lib/audit'
+import { sanitizeBrandColor, sanitizeNotifyMuted } from '@/lib/company-rights'
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,10 +32,12 @@ export async function GET(request: NextRequest) {
     const dbUser = profileData?.user || (await User.findById(access.userId)
       .select('name email phone companyClientId companyRole')
       .lean() as any)
+    const prefsUser = await User.findById(access.userId).select('portalNotifyMuted').lean() as any
 
     return NextResponse.json({
       isEnterprise: true,
       userId: access.userId,
+      notifyMuted: sanitizeNotifyMuted(prefsUser?.portalNotifyMuted),
       userName: dbUser?.name || access.email,
       userEmail: dbUser?.email || access.email,
       userPhone: dbUser?.phone || null,
@@ -78,7 +81,7 @@ export async function PUT(request: NextRequest) {
     // téléphone) restent modifiables par tout membre pour son propre compte.
     const COMPANY_FIELDS = [
       'companyName', 'companyEmail', 'companyPhone', 'companyAddress', 'companyCity',
-      'companyCountry', 'companyContactPerson', 'companyNotes', 'companyLogo', 'preferences',
+      'companyCountry', 'companyContactPerson', 'companyNotes', 'companyLogo', 'companyBrandColor', 'preferences',
     ]
     const touchesCompany = COMPANY_FIELDS.some(f => body[f] !== undefined)
     if (touchesCompany) {
@@ -94,6 +97,10 @@ export async function PUT(request: NextRequest) {
       if (body.userPhone) userUpdates.phone = body.userPhone
       else userUnsets.phone = 1
       auditFields.push('phone')
+    }
+    if (body.notifyMuted !== undefined) {
+      userUpdates.portalNotifyMuted = sanitizeNotifyMuted(body.notifyMuted)
+      auditFields.push('notifyMuted')
     }
     if (Object.keys(userUpdates).length > 0 || Object.keys(userUnsets).length > 0) {
       const update: any = {}
@@ -113,7 +120,15 @@ export async function PUT(request: NextRequest) {
       if (body.companyCountry !== undefined) companyUpdates.country = body.companyCountry
       if (body.companyContactPerson !== undefined) companyUpdates.contactPerson = body.companyContactPerson
       if (body.companyNotes !== undefined) companyUpdates.notes = body.companyNotes
-      if (body.preferences !== undefined) companyUpdates.preferences = body.preferences
+      if (body.preferences && typeof body.preferences === 'object') {
+        const p = body.preferences
+        companyUpdates.preferences = {
+          emailNotifications: p.emailNotifications !== false,
+          smsNotifications: p.smsNotifications === true,
+          reportFormat: p.reportFormat === 'pdf' ? 'pdf' : 'web',
+          language: p.language === 'en' ? 'en' : 'fr',
+        }
+      }
 
       // Logo : n'accepter que des chemins d'upload locaux
       const companyUnsets: Record<string, 1> = {}
@@ -123,6 +138,14 @@ export async function PUT(request: NextRequest) {
         } else if (body.companyLogo === null || body.companyLogo === '') {
           companyUnsets.logo = 1
         }
+      }
+
+      // Couleur de l'espace : hex #RRGGBB uniquement (injectée en variables CSS)
+      if (body.companyBrandColor !== undefined) {
+        const color = sanitizeBrandColor(body.companyBrandColor)
+        if (color) companyUpdates.brandColor = color
+        else if (body.companyBrandColor === null || body.companyBrandColor === '') companyUnsets.brandColor = 1
+        else return NextResponse.json({ error: 'Couleur invalide' }, { status: 400 })
       }
 
       // Ne jamais ecrire de null (validator $jsonSchema eventuel)

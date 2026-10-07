@@ -1,11 +1,6 @@
-import AdminQuote from '@/lib/models/AdminQuote'
+import { nextQuoteNumero } from '@/lib/finance/billing'
 
-/**
- * Génère le prochain numéro de devis DEV-YYYY-NNNN sur AdminQuote.
- * L'index unique sur `numero` reste le garde-fou en cas de course.
- */
+/** Prochain numéro de devis DEV-YYYY-NNNN (compteur atomique, cf. lib/finance/billing). */
 export async function generateQuoteNumero(): Promise<string> {
-  const year = new Date().getFullYear()
-  const count = await AdminQuote.countDocuments({ numero: new RegExp(`^DEV-${year}-`) })
-  return `DEV-${year}-${String(count + 1).padStart(4, '0')}`
+  return nextQuoteNumero()
 }

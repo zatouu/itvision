@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/reviews — Creer un avis (authentifie ou non)
+// POST /api/reviews — Creer un avis (authentification requise)
 export async function POST(req: NextRequest) {
   try {
     // Anti-spam : avis limités par IP (invités acceptés mais bornés)
@@ -105,52 +105,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Le commentaire doit faire au moins 10 caracteres' }, { status: 400 })
     }
 
-    // Verifier les photos (max 5, URLs valides)
+    // Photos : uniquement des fichiers servis par nos uploads (max 5)
     let cleanPhotos: string[] = []
     if (Array.isArray(photos)) {
       cleanPhotos = photos
-        .filter((p: any) => typeof p === 'string' && p.startsWith('http'))
+        .filter((p: any) => typeof p === 'string' && /^\/(api\/)?uploads\/[\w\-/.]+$/.test(p) && !p.includes('..'))
         .slice(0, 5)
     }
 
-    // Tenter d'identifier l'utilisateur connecte
-    let userId: string | undefined
-    let resolvedUserName = userName || 'Client'
-
+    let userId: string
+    let resolvedUserName: string
     try {
       const token = req.cookies.get('auth-token')?.value
-      if (token) {
-        const decoded = await verifyAuthToken(token)
-        userId = decoded.userId
-        resolvedUserName = decoded.username || decoded.email || userName || 'Client'
-      }
-    } catch {}
-
-    // Empecher les doublons (meme user, meme produit)
-    if (userId) {
-      await connectMongoose()
-      const existing = await Review.findOne({ productId, userId })
-      if (existing) {
-        return NextResponse.json(
-          { error: 'Vous avez deja laisse un avis pour ce produit' },
-          { status: 409 }
-        )
-      }
+      if (!token) throw new Error('missing token')
+      const decoded = await verifyAuthToken(token)
+      userId = decoded.userId
+      resolvedUserName = decoded.username || decoded.email || (typeof userName === 'string' && userName.trim()) || 'Client'
+    } catch {
+      return NextResponse.json({ error: 'Connectez-vous pour laisser un avis' }, { status: 401 })
     }
 
     await connectMongoose()
 
-    // « Achat vérifié » uniquement si une commande payée du client contient le produit
-    let verified = false
-    if (userId) {
-      const purchaseQuery: any = {
-        clientId: userId,
-        paymentStatus: { $in: ['paid', 'completed'] },
-        'items.id': productId,
-      }
-      if (orderId && typeof orderId === 'string') purchaseQuery.orderId = orderId
-      verified = !!(await Order.exists(purchaseQuery))
+    // Empecher les doublons (meme user, meme produit)
+    const existing = await Review.findOne({ productId, userId })
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Vous avez deja laisse un avis pour ce produit' },
+        { status: 409 }
+      )
     }
+
+    // « Achat vérifié » uniquement si une commande payée du client contient le produit
+    const purchaseQuery: any = {
+      clientId: userId,
+      paymentStatus: { $in: ['paid', 'completed'] },
+      'items.id': productId,
+    }
+    if (orderId && typeof orderId === 'string') purchaseQuery.orderId = orderId
+    const verified = !!(await Order.exists(purchaseQuery))
 
     const review = await Review.create({
       productId,
@@ -162,7 +155,8 @@ export async function POST(req: NextRequest) {
       photos: cleanPhotos,
       verified,
       orderId: orderId || undefined,
-      status: 'approved',
+      // Les avis sans achat vérifié passent en modération
+      status: verified ? 'approved' : 'pending',
     })
 
     return NextResponse.json({

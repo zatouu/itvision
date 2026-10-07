@@ -7,7 +7,7 @@ import { requireAuth } from '@/lib/jwt'
 export async function requireInterventionAccess(request: NextRequest) {
   try {
     const { role } = await requireAuth(request)
-    const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
+    const allowed = ['ADMIN', 'SUPER_ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
     if (!allowed) return { ok: false as const, status: 403, error: 'Acces refuse' as const }
     return { ok: true as const }
   } catch {

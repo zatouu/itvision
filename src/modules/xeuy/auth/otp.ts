@@ -3,9 +3,11 @@
  * Découplé du module auth web. Réutilise OtpCode model + sms util.
  */
 
+import { createHmac, randomInt, timingSafeEqual } from 'crypto'
 import { connectMongoose } from '@/lib/mongoose'
 import OtpCode from '@/lib/models/OtpCode'
 import { sendSms, normalizePhone } from '@/lib/sms'
+import { getJwtSecretString } from '@/lib/jwt-secret'
 import type { XeuyRole } from '../types'
 
 const OTP_LENGTH = 6
@@ -59,12 +61,17 @@ if (ALLOW_ALL_TEST_PHONES) {
 const isTestPhone = (phone: string) => ALLOW_ALL_TEST_PHONES || TEST_PHONES.has(phone)
 
 function generateOtp(): string {
-  const digits = '0123456789'
-  let otp = ''
-  for (let i = 0; i < OTP_LENGTH; i++) {
-    otp += digits[Math.floor(Math.random() * 10)]
-  }
-  return otp
+  return String(randomInt(0, 10 ** OTP_LENGTH)).padStart(OTP_LENGTH, '0')
+}
+
+function hashOtp(phone: string, code: string): string {
+  return createHmac('sha256', getJwtSecretString()).update(`otp:${phone}:${code}`).digest('hex')
+}
+
+function otpMatches(storedHash: string, phone: string, code: string): boolean {
+  const a = Buffer.from(storedHash, 'utf-8')
+  const b = Buffer.from(hashOtp(phone, code), 'utf-8')
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 
 export interface SendOtpResult {
@@ -117,7 +124,7 @@ export async function sendXeuyOtp(rawPhone: string, role: XeuyRole): Promise<Sen
   const code = isFreeMode || testBypass ? TEST_CODE : generateOtp()
   const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60 * 1000)
 
-  const otpDoc = await OtpCode.create({ phone, code, role, expiresAt })
+  const otpDoc = await OtpCode.create({ phone, code: hashOtp(phone, code), role, expiresAt })
 
   const sent = isFreeMode || testBypass
     ? true
@@ -173,11 +180,22 @@ export async function verifyXeuyOtp(
     }
   }
 
-  otp.attempts += 1
+  // Incrément atomique : des requêtes parallèles ne doivent pas dépasser MAX_ATTEMPTS
+  const counted = await OtpCode.findOneAndUpdate(
+    { _id: otp._id, verified: false, attempts: { $lt: MAX_ATTEMPTS } },
+    { $inc: { attempts: 1 } },
+    { new: true }
+  )
+  if (!counted) {
+    return {
+      success: false,
+      error: 'Trop de tentatives. Demandez un nouveau code.',
+      status: 429,
+    }
+  }
 
-  if (otp.code !== code) {
-    await otp.save()
-    const remaining = MAX_ATTEMPTS - otp.attempts
+  if (!otpMatches(counted.code, counted.phone, code)) {
+    const remaining = MAX_ATTEMPTS - counted.attempts
     return {
       success: false,
       error: `Code incorrect. ${remaining} tentative(s) restante(s).`,
@@ -185,9 +203,15 @@ export async function verifyXeuyOtp(
     }
   }
 
-  // Mark verified
-  otp.verified = true
-  await otp.save()
+  // Usage unique : un même code ne peut valider qu'une seule requête
+  const consumed = await OtpCode.updateOne({ _id: counted._id, verified: false }, { $set: { verified: true } })
+  if (consumed.modifiedCount !== 1) {
+    return {
+      success: false,
+      error: 'Code déjà utilisé. Demandez un nouveau code.',
+      status: 410,
+    }
+  }
 
   return { success: true, otpVerified: true }
 }

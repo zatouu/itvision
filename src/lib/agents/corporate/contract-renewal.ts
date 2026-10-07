@@ -21,6 +21,7 @@ import AgentRun from '@/lib/models/AgentRun'
 import AgentJob from '@/lib/models/AgentJob'
 import { notifyAdmins } from '@/lib/notify'
 import { generateQuoteNumero } from '@/lib/quote-number'
+import { computeQuoteTotals, DEFAULT_BRS_THRESHOLD } from '@/lib/finance/billing'
 import { getAgentModel } from '../llm'
 import { getCheckpointer } from '../checkpointer'
 
@@ -61,7 +62,7 @@ async function loadContext(state: typeof RenewalState.State) {
   const [interventionsTotal, interventionsRecent, unpaidInvoices, openTickets, slaBreaches] = await Promise.all([
     Intervention.countDocuments(scope),
     Intervention.countDocuments({ ...scope, date: { $gte: since } }),
-    AdminInvoice.countDocuments({ $or: [{ clientUserId: contract.clientId?._id }, ...(contract.clientCompanyId ? [{ clientCompanyId: contract.clientCompanyId }] : [])], status: { $in: ['sent', 'overdue'] } }),
+    AdminInvoice.countDocuments({ $or: [{ clientUserId: contract.clientId?._id }, ...(contract.clientCompanyId ? [{ clientCompanyId: contract.clientCompanyId }] : [])], status: { $in: ['sent', 'overdue', 'partial'] } }),
     Ticket.countDocuments({ ...scope, status: { $in: ['open', 'in_progress', 'waiting_client', 'waiting'] } }),
     Ticket.countDocuments({ ...scope, 'sla.breached': true }),
   ])
@@ -184,6 +185,14 @@ async function apply(state: typeof RenewalState.State) {
   const contract = state.contract || {}
   const client = contract.clientId || {}
   const numero = await generateQuoteNumero()
+  // Prestation de service : régime BRS (sans TVA)
+  const priced = computeQuoteTotals([{
+    description: `Contrat de maintenance ${contract.name || ''} — 12 mois (${state.proposal?.services?.join(', ') || 'services inclus'})`,
+    quantity: 1,
+    unitPrice: round(state.proposal?.proposedPrice),
+    taxable: false,
+    isLabor: true,
+  }], { applyBRS: true, brsThreshold: DEFAULT_BRS_THRESHOLD })
 
   const quote = await AdminQuote.create({
     numero,
@@ -197,22 +206,14 @@ async function apply(state: typeof RenewalState.State) {
     },
     clientUserId: contract.clientId?._id,
     clientCompanyId: contract.clientCompanyId,
-    products: [
-      {
-        description: `Contrat de maintenance ${contract.name || ''} — 12 mois (${state.proposal?.services?.join(', ') || 'services inclus'})`,
-        quantity: 1,
-        unitPrice: round(state.proposal?.proposedPrice),
-        taxable: false,
-        total: round(state.proposal?.proposedPrice),
-      },
-    ],
-    subtotal: round(state.proposal?.proposedPrice),
-    applyBRS: false,
-    brsThreshold: 0,
-    brsAmount: 0,
+    products: priced.products,
+    subtotal: priced.subtotal,
+    applyBRS: true,
+    brsThreshold: DEFAULT_BRS_THRESHOLD,
+    brsAmount: priced.brsAmount,
     taxAmount: 0,
     other: 0,
-    total: round(state.proposal?.proposedPrice),
+    total: priced.total,
     status: 'draft',
     notes: state.analysis?.pitch || undefined,
     conditions: 'Renouvellement pour 12 mois. Prend effet à la date d’échéance du contrat en cours.',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, X, AlertTriangle } from 'lucide-react'
 
 const TYPE_OPTIONS = [
@@ -32,6 +32,11 @@ export default function RequestInterventionButton({ canRequest = true }: { canRe
     site: '',
     preferredDate: ''
   })
+
+  // Raccourci du tableau de bord : /portail-entreprise/interventions?nouvelle=1
+  useEffect(() => {
+    if (canRequest && new URLSearchParams(window.location.search).get('nouvelle') === '1') setOpen(true)
+  }, [canRequest])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,7 +73,7 @@ export default function RequestInterventionButton({ canRequest = true }: { canRe
     return (
       <span
         className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-400"
-        title="Votre rôle dans l'entreprise ne permet pas de demander une intervention"
+        title="Droit « Demander une intervention » non accordé : demandez-le à un administrateur de votre espace"
       >
         <Plus className="w-4 h-4" /> Demander une intervention
       </span>

@@ -27,7 +27,7 @@ const ConversationSchema = new Schema<IConversation>(
     lastMessageAt: { type: Date, index: true },
     lastMessageText: { type: String },
     lastMessageSenderId: { type: Schema.Types.ObjectId, ref: 'User' },
-    lastMessageId: { type: Schema.Types.ObjectId, ref: 'Message' }
+    lastMessageId: { type: Schema.Types.ObjectId, ref: 'SharedMessage' }
   },
   { timestamps: true }
 )

@@ -7,9 +7,22 @@ import {
   FileText, Download, Save, Plus, Trash2, Eye, Send,
   Building, User, Phone, Mail, MapPin, Calendar, Hash,
   Package, DollarSign, Calculator, Edit3, X, Search, CheckCircle,
-  Receipt, Upload, FileUp
+  Receipt, Upload, FileUp, CopyPlus, MessageSquare, MoreHorizontal, RefreshCw
 } from 'lucide-react'
 import Image from 'next/image'
+
+const QUOTE_FILTERS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'todo', label: 'À traiter' },
+  { id: 'draft', label: 'Brouillons' },
+  { id: 'sent', label: 'Chez le client' },
+  { id: 'accepted', label: 'Acceptés' },
+  { id: 'rejected', label: 'Refusés' },
+  { id: 'superseded', label: 'Remplacés' },
+]
+
+const unreadCount = (q: { clientComments?: Array<{ authorRole: string; readByOther: boolean }> }) =>
+  (q.clientComments || []).filter(c => c.authorRole === 'CLIENT' && !c.readByOther).length
 
 interface QuoteProduct {
   id: string
@@ -17,6 +30,8 @@ interface QuoteProduct {
   description: string
   quantity: number
   unitPrice: number
+  // Prix saisi ; unitPrice = prix affiché (majoré de la BRS sur la main-d'œuvre)
+  netUnitPrice?: number
   taxable: boolean
   total: number
   isLabor?: boolean
@@ -47,7 +62,7 @@ interface Quote {
   taxAmount: number
   other: number
   total: number
-  status: 'draft' | 'sent' | 'accepted' | 'rejected'
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'superseded'
   notes?: string
   bonCommande?: string
   dateLivraison?: string
@@ -97,6 +112,14 @@ export default function AdminQuoteGenerator() {
   const [clientSearching, setClientSearching] = useState(false)
   const [showClientDrop, setShowClientDrop] = useState(false)
   const [clientEmails, setClientEmails] = useState<string[]>([])
+  const [listSearch, setListSearch] = useState('')
+  const [listFilter, setListFilter] = useState('all')
+  const [loadingList, setLoadingList] = useState(true)
+  const [menu, setMenu] = useState<{ id: string; top: number; right: number } | null>(null)
+  const [invoicedQuoteIds, setInvoicedQuoteIds] = useState<Map<string, string>>(new Map())
+  // État du devis à l'ouverture de l'édition, pour confirmer l'abandon de modifications
+  const editSnapshot = useRef<{ id: string; json: string } | null>(null)
+  const [extraRecipient, setExtraRecipient] = useState('')
   const router = useRouter()
 
   const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
@@ -125,6 +148,7 @@ export default function AdminQuoteGenerator() {
             description: String(p?.description || ''),
             quantity: Number(p?.quantity || 0),
             unitPrice: Number(p?.unitPrice || 0),
+            netUnitPrice: p?.netUnitPrice != null ? Number(p.netUnitPrice) : undefined,
             taxable: Boolean(p?.taxable),
             isLabor: Boolean(p?.isLabor),
             total: Number(p?.total || 0)
@@ -233,6 +257,7 @@ export default function AdminQuoteGenerator() {
   }
 
   const loadQuotes = async () => {
+    setLoadingList(true)
     try {
       const res = await fetch('/api/admin/quotes')
       if (res.ok) {
@@ -240,13 +265,37 @@ export default function AdminQuoteGenerator() {
         const list = Array.isArray(data?.quotes) ? data.quotes : []
         setQuotes(list.map((q: any) => normalizeQuote(q)).filter((q: Quote) => q.id))
       }
+      const inv = await fetch('/api/admin/invoices', { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null)
+      const map = new Map<string, string>()
+      for (const i of (inv?.invoices || [])) if (i.quoteId && i.status !== 'cancelled') map.set(String(i.quoteId), String(i.number || ''))
+      setInvoicedQuoteIds(map)
     } catch (error) {
       console.error('Erreur chargement devis:', error)
-      // Fallback localStorage
-      const stored = localStorage.getItem('itvision-admin-quotes')
-      if (stored) setQuotes(JSON.parse(stored))
+      addToast('Impossible de charger les devis', 'error')
+    } finally {
+      setLoadingList(false)
     }
   }
+
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  }, [menu])
+
+  // La fiche ouverte suit les données rechargées
+  useEffect(() => {
+    setSelectedQuote(prev => prev ? quotes.find(q => q.id === prev.id) || null : prev)
+  }, [quotes])
+
+  useEffect(() => {
+    if (currentQuote && editSnapshot.current?.id !== currentQuote.id) {
+      editSnapshot.current = { id: currentQuote.id, json: JSON.stringify(currentQuote) }
+    }
+    if (!currentQuote) editSnapshot.current = null
+  }, [currentQuote])
 
   const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -267,7 +316,7 @@ export default function AdminQuoteGenerator() {
       const data = json.data
       const importedQuote: Quote = {
         id: `TEMP-${Date.now()}`,
-        numero: data.numero || `2026-${String(quotes.length + 1).padStart(3, '0')}`,
+        numero: data.numero || '',
         title: data.title || '',
         cci: data.cci || '',
         companyAddress: data.companyAddress || '11 Cité Lessine, Nord Foire',
@@ -285,15 +334,16 @@ export default function AdminQuoteGenerator() {
           description: p.description || '',
           quantity: Number(p.quantity) || 1,
           unitPrice: Number(p.unitPrice) || 0,
+          netUnitPrice: p.netUnitPrice != null ? Number(p.netUnitPrice) : undefined,
           taxable: true,
           isLabor: Boolean(p.isLabor),
           total: Number(p.total) || 0
         })),
         subtotal: Number(data.subtotal) || 0,
-        applyBRS: Boolean(data.applyBRS),
+        applyBRS: data.applyBRS === undefined ? true : Boolean(data.applyBRS),
         brsThreshold: Number(data.brsThreshold ?? 25000),
         brsAmount: Number(data.brsAmount) || 0,
-        taxAmount: Number(data.taxAmount) || 0,
+        taxAmount: data.applyBRS === false ? Number(data.taxAmount) || 0 : 0,
         other: Number(data.other) || 0,
         total: Number(data.total) || 0,
         status: 'draft',
@@ -315,7 +365,8 @@ export default function AdminQuoteGenerator() {
   const createNewQuote = () => {
     const newQuote: Quote = {
       id: `TEMP-${Date.now()}`,
-      numero: `2026-${String(quotes.length + 1).padStart(3, '0')}`,
+      // Numéro DEV-AAAA-NNNN attribué par le serveur à l'enregistrement
+      numero: '',
       title: '',
       cci: '',
       companyAddress: '11 Cité Lessine, Nord Foire',
@@ -328,7 +379,8 @@ export default function AdminQuoteGenerator() {
       },
       products: [],
       subtotal: 0,
-      applyBRS: false,
+      // Régime BRS par défaut (exclusif de la TVA)
+      applyBRS: true,
       brsThreshold: 25000,
       brsAmount: 0,
       taxAmount: 0,
@@ -410,9 +462,6 @@ export default function AdminQuoteGenerator() {
     const updatedProducts = currentQuote.products.map(p => {
       if (p.id === productId) {
         const updated = { ...p, [field]: value }
-        if (field === 'quantity' || field === 'unitPrice') {
-          updated.total = updated.quantity * updated.unitPrice
-        }
         if (field === 'description' && typeof value === 'string') {
           updated.isLabor = detectLabor(value)
         }
@@ -441,29 +490,34 @@ export default function AdminQuoteGenerator() {
   }
 
   const calculateTotals = (quote: Quote) => {
-    // Sous-total
-    const subtotal = quote.products.reduce((sum, p) => sum + p.total, 0)
+    // BRS par majoration (même règle que src/lib/finance/billing.ts) : la main-d'œuvre saisie est le net voulu,
+    // elle est portée à net / 0,95 et la différence est retenue ; le total reste égal aux prix saisis.
+    const base = quote.products.map(p => {
+      const net = Math.round(p.netUnitPrice ?? p.unitPrice ?? 0)
+      return { p, net, netTotal: Math.round(p.quantity * net) }
+    })
+    const netLabor = base.filter(b => b.p.isLabor).reduce((sum, b) => sum + b.netTotal, 0)
+    const brsOn = quote.applyBRS && netLabor > (quote.brsThreshold || 25000)
 
-    // BRS (Bordereau de Réduction Sénégalaise) = 5% sur la main-d'œuvre uniquement
-    // S'applique uniquement si case cochée ET main-d'oeuvre > seuil (25 000 FCFA par défaut)
-    const laborTotal = quote.products.filter(p => p.isLabor).reduce((sum, p) => sum + p.total, 0)
-    const applyBRS = quote.applyBRS && laborTotal > (quote.brsThreshold || 25000)
-    const brsAmount = applyBRS ? laborTotal * 0.05 : 0
+    const products = base.map(({ p, net }) => {
+      const unitPrice = brsOn && p.isLabor ? Math.round(net / 0.95) : net
+      return { ...p, netUnitPrice: net, unitPrice, total: Math.round(p.quantity * unitPrice) }
+    })
+    const subtotal = products.reduce((sum, p) => sum + p.total, 0)
+    const grossLabor = products.filter(p => p.isLabor).reduce((sum, p) => sum + p.total, 0)
+    const brsAmount = brsOn ? grossLabor - netLabor : 0
 
-    // Sous-total après BRS
-    const subtotalApresBRS = subtotal - brsAmount
-
-    // Pas de TVA pour l'instant
+    // BRS et TVA s'excluent ; régime BRS en vigueur
     const taxAmount = 0
 
     // Autres frais
     const other = quote.other || 0
 
-    // Total final
-    const total = subtotalApresBRS + taxAmount + other
+    const total = subtotal - brsAmount + taxAmount + other
 
     setCurrentQuote({
       ...quote,
+      products,
       subtotal,
       applyBRS: quote.applyBRS,
       brsThreshold: quote.brsThreshold,
@@ -487,8 +541,8 @@ export default function AdminQuoteGenerator() {
 
   const persistB2bPrices = async (quote: Quote) => {
     const updates = quote.products
-      .filter(p => p.productId && p.unitPrice > 0)
-      .map(p => ({ productId: p.productId!, b2bPrice: p.unitPrice }))
+      .filter(p => p.productId && (p.netUnitPrice ?? p.unitPrice) > 0)
+      .map(p => ({ productId: p.productId!, b2bPrice: p.netUnitPrice ?? p.unitPrice }))
 
     if (updates.length === 0) return
 
@@ -531,10 +585,7 @@ export default function AdminQuoteGenerator() {
           updatedQuotes.push(saved)
         }
         setQuotes(updatedQuotes)
-        
-        // Sauvegarder localement aussi
-        localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
-        
+
         addToast('Devis sauvegardé avec succès', 'success')
         setActiveTab('list')
         setCurrentQuote(null)
@@ -542,23 +593,10 @@ export default function AdminQuoteGenerator() {
         const data = await res.json().catch(() => null)
         throw new Error(data?.error || 'Erreur de sauvegarde')
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Pas de sauvegarde locale silencieuse : un devis non enregistré n'existe pas pour le client
       console.error('Erreur:', error)
-      
-      // Fallback localStorage
-      const updatedQuotes = [...quotes]
-      const index = updatedQuotes.findIndex(q => q.id === currentQuote.id)
-      if (index >= 0) {
-        updatedQuotes[index] = currentQuote
-      } else {
-        updatedQuotes.push(currentQuote)
-      }
-      setQuotes(updatedQuotes)
-      localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
-      
-      addToast('Devis sauvegardé localement (hors ligne)', 'warning')
-      setActiveTab('list')
-      setCurrentQuote(null)
+      addToast(error?.message || 'Le devis n\'a pas pu être enregistré', 'error')
     } finally {
       setIsSaving(false)
     }
@@ -580,28 +618,31 @@ export default function AdminQuoteGenerator() {
     setCurrentQuote(prev => prev ? { ...prev, attachments: (prev.attachments || []).filter(a => a.url !== url) } : prev)
   }
 
-  const exportPDF = async () => {
-    if (!currentQuote) return
+  const exportPDF = async (target?: Quote) => {
+    const quote = target || currentQuote
+    if (!quote) return
 
     try {
       const res = await fetch('/api/admin/quotes/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentQuote)
+        body: JSON.stringify(quote)
       })
 
-      if (res.ok) {
-        const blob = await res.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `Devis-${currentQuote.numero}.pdf`
-        a.click()
-        window.URL.revokeObjectURL(url)
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur lors de la génération du PDF')
       }
-    } catch (error) {
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Devis-${quote.numero || 'brouillon'}.pdf`
+      a.click()
+      setTimeout(() => window.URL.revokeObjectURL(url), 10_000)
+    } catch (error: any) {
       console.error('Erreur génération PDF:', error)
-      addToast('Erreur lors de la génération du PDF', 'error')
+      addToast(error?.message || 'Erreur lors de la génération du PDF', 'error')
     }
   }
 
@@ -611,16 +652,19 @@ export default function AdminQuoteGenerator() {
     setActiveTab('create')
   }
 
-  const deleteQuote = (quoteId: string) => {
-    if (!confirm('Supprimer ce devis ?')) return
-
-    const updatedQuotes = quotes.filter(q => q.id !== quoteId)
-    setQuotes(updatedQuotes)
-    localStorage.setItem('itvision-admin-quotes', JSON.stringify(updatedQuotes))
+  const deleteQuote = async (quoteId: string) => {
+    if (!confirm('Supprimer définitivement ce brouillon de devis ?')) return
 
     if (isObjectId(quoteId)) {
-      fetch(`/api/admin/quotes?id=${encodeURIComponent(quoteId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+      const res = await fetch(`/api/admin/quotes?id=${encodeURIComponent(quoteId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => null)
+      if (!res?.ok) {
+        const data = await res?.json().catch(() => null)
+        addToast(data?.error || 'Suppression refusée', 'error')
+        return
+      }
     }
+    setQuotes(prev => prev.filter(q => q.id !== quoteId))
+    addToast('Devis supprimé', 'success')
   }
 
   const openSendModal = async (quote: Quote) => {
@@ -672,7 +716,11 @@ export default function AdminQuoteGenerator() {
         throw new Error(data?.error || 'Envoi impossible')
       }
       await loadQuotes()
-      addToast('Devis envoyé par email', 'success')
+      if (data.delivery === 'simulated') {
+        addToast(`Devis ${quote.numero} publié sur l'espace client, mais l'email n'est pas parti : serveur d'envoi non configuré.`, 'warning')
+      } else {
+        addToast(`Devis ${quote.numero} envoyé à ${data.to || 'le client'}${data.copyTo ? ` — copie à ${data.copyTo}` : ''}`, 'success')
+      }
       setSendModalOpen(false)
       setSendModalQuote(null)
     } catch (e: any) {
@@ -683,53 +731,27 @@ export default function AdminQuoteGenerator() {
   }
 
   const convertToInvoice = async (quote: Quote) => {
-    if (!confirm('Voulez-vous convertir ce devis en facture ?')) return
+    if (!confirm(`Créer le brouillon de facture du devis ${quote.numero} ?`)) return
     setConvertingId(quote.id)
 
     try {
-      // 1. Calculer les totaux de facture (sans BRS, structure standard)
-      // On reprend les articles tels quels et on ajoute une catégorie par défaut
-      const items = quote.products.map(p => ({
-        description: p.description,
-        quantity: p.quantity,
-        unitPrice: p.unitPrice,
-        totalPrice: p.total,
-        category: 'products' 
-      }))
-
-      const payload = {
-        date: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'draft',
-        quoteId: quote.id,
-        client: {
-          name: quote.client.name,
-          address: quote.client.address,
-          email: quote.client.email,
-          phone: quote.client.phone,
-          taxId: quote.client.ninea
-        },
-        items,
-        subtotal: quote.subtotal,
-        taxAmount: quote.taxAmount,
-        total: quote.total,
-        notes: `Facture générée depuis le devis ${quote.numero}`
-      }
-
-      const res = await fetch('/api/admin/invoices', {
+      // Conversion côté serveur : contrôle du statut "accepté", anti-doublon, liens client/projet conservés
+      const res = await fetch('/api/admin/invoices/from-quote', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: quote.id })
       })
+      const data = await res.json().catch(() => null)
 
       if (res.ok) {
-        addToast('Facture créée avec succès', 'success')
-        router.push('/admin/factures')
+        addToast(`Facture ${data?.numero || ''} créée (brouillon)`, 'success')
+        if (data?.totalMismatch) {
+          addToast(`Attention : total recalculé ${data.totalMismatch.invoice} ≠ devis ${data.totalMismatch.quote}`, 'warning')
+        }
+        router.push(`/admin/factures?search=${encodeURIComponent(data?.numero || quote.numero)}`)
       } else {
-        const error = await res.json()
-        addToast('Erreur lors de la conversion : ' + (error.error || 'Erreur inconnue'), 'error')
+        addToast('Conversion impossible : ' + (data?.error || 'Erreur inconnue'), 'error')
       }
     } catch (e) {
       console.error(e)
@@ -750,6 +772,7 @@ export default function AdminQuoteGenerator() {
       case 'sent': return 'bg-blue-100 text-blue-700'
       case 'accepted': return 'bg-emerald-100 text-emerald-800'
       case 'rejected': return 'bg-red-100 text-red-700'
+      case 'superseded': return 'bg-stone-100 text-stone-500 line-through'
       default: return 'bg-stone-100 text-stone-700'
     }
   }
@@ -760,26 +783,52 @@ export default function AdminQuoteGenerator() {
       case 'sent': return 'Envoyé'
       case 'accepted': return 'Accepté'
       case 'rejected': return 'Rejeté'
+      case 'superseded': return 'Remplacé'
       default: return status
     }
   }
 
+  const createNewVersion = async (quote: Quote) => {
+    if (!confirm(`Créer une nouvelle version de ${quote.numero} ? L'actuelle ne pourra plus être acceptée par le client.`)) return
+    try {
+      const res = await fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/new-version`, { method: 'POST', credentials: 'include' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Création de version refusée')
+      addToast(`Version ${data?.quote?.numero || ''} créée (brouillon)`, 'success')
+      await loadQuotes()
+      if (data?.quote) editQuote(normalizeQuote(data.quote))
+    } catch (e: any) {
+      addToast(e?.message || 'Création de version refusée', 'error')
+    }
+  }
+
+  const isTodo = (q: Quote) =>
+    (q.status === 'sent' && q.clientResponse === 'counter_proposed') || unreadCount(q) > 0 || (q.status === 'accepted' && !invoicedQuoteIds.has(q.id))
+  const matchesFilter = (q: Quote, f: string) => f === 'all' || (f === 'todo' ? isTodo(q) : q.status === f)
+  const term = listSearch.trim().toLowerCase()
+  const visibleQuotes = quotes
+    .filter(q => matchesFilter(q, listFilter))
+    .filter(q => !term || [q.numero, q.title, q.client.name, q.bonCommande].some(v => String(v || '').toLowerCase().includes(term)))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.numero.localeCompare(a.numero))
+  const menuQuote = menu ? quotes.find(q => q.id === menu.id) : null
+
+  const quoteActions = (q: Quote) => [
+    ['draft', 'sent'].includes(q.status) && { label: 'Modifier', icon: Edit3, run: () => editQuote(q) },
+    q.status === 'sent' && { label: 'Renvoyer par email', icon: Send, run: () => openSendModal(q) },
+    ['sent', 'accepted', 'rejected'].includes(q.status) && { label: 'Nouvelle version', icon: CopyPlus, run: () => createNewVersion(q) },
+    q.status === 'accepted' && !invoicedQuoteIds.has(q.id) && { label: 'Créer la facture', icon: Receipt, run: () => convertToInvoice(q) },
+    q.status === 'draft' && { label: 'Supprimer le brouillon', icon: Trash2, run: () => deleteQuote(q.id), danger: true },
+  ].filter(Boolean) as Array<{ label: string; icon: any; run: () => void; danger?: boolean }>
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* En-tête */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">📋 Génération de Devis</h1>
-            <p className="text-blue-100">Créez et gérez vos devis professionnels avec BRS (5%)</p>
-          </div>
-          <button
-            onClick={createNewQuote}
-            className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Nouveau Devis
-          </button>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-stone-900">Devis</h1>
+          <p className="text-stone-600">Création, envoi, suivi des réponses clients et facturation</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -790,10 +839,18 @@ export default function AdminQuoteGenerator() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="px-6 py-3 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2 disabled:opacity-60"
+            title="Reprendre un devis existant depuis un PDF ou un fichier Excel"
+            className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm disabled:opacity-60"
           >
-            <Upload className="h-5 w-5" />
-            {importing ? 'Analyse…' : 'Importer PDF / Excel'}
+            {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {importing ? 'Analyse…' : 'Importer'}
+          </button>
+          <button
+            onClick={createNewQuote}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau devis
           </button>
         </div>
       </div>
@@ -833,8 +890,44 @@ export default function AdminQuoteGenerator() {
 
         {/* Contenu Liste */}
         {activeTab === 'list' && (
-          <div className="p-6">
-            {quotes.length === 0 ? (
+          <div className="p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+              <div className="relative flex-1 min-w-0">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  value={listSearch}
+                  onChange={e => setListSearch(e.target.value)}
+                  placeholder="Numéro, intitulé, client, bon de commande…"
+                  aria-label="Rechercher un devis"
+                  className="w-full pl-10 pr-9 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                {listSearch && (
+                  <button onClick={() => setListSearch('')} aria-label="Effacer la recherche" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUOTE_FILTERS.map(f => {
+                  const n = quotes.filter(q => matchesFilter(q, f.id)).length
+                  const active = listFilter === f.id
+                  return (
+                    <button key={f.id} onClick={() => setListFilter(f.id)} aria-pressed={active}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-blue-600 border-blue-600 text-white' : f.id === 'todo' && n > 0 ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-stone-300 text-stone-600 hover:border-blue-300'}`}>
+                      {f.label} <span className={active ? 'text-blue-100' : 'opacity-60'}>{n}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <button onClick={() => loadQuotes()} disabled={loadingList} aria-label="Actualiser la liste" title="Actualiser"
+                className="p-2 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 self-start lg:self-auto">
+                <RefreshCw className={`h-4 w-4 ${loadingList ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
+            {loadingList && quotes.length === 0 ? (
+              <p className="py-12 text-center text-sm text-stone-500 flex items-center justify-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Chargement des devis…</p>
+            ) : quotes.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-16 w-16 text-stone-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-stone-900 mb-2">Aucun devis</h3>
@@ -847,116 +940,106 @@ export default function AdminQuoteGenerator() {
                   Créer un devis
                 </button>
               </div>
+            ) : visibleQuotes.length === 0 ? (
+              <div className="text-center py-10 text-sm text-stone-500">
+                Aucun devis ne correspond à ces critères.
+                <button onClick={() => { setListSearch(''); setListFilter('all') }} className="ml-2 text-blue-600 hover:underline">Réinitialiser</button>
+              </div>
             ) : (
-              <div className="space-y-4">
-                {quotes.map((quote) => (
-                  <div
-                    key={quote.id}
-                    className="border border-stone-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">Devis #{quote.numero}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quote.status)}`}>
+              <ul className="divide-y divide-stone-100 border border-stone-200 rounded-lg">
+                {visibleQuotes.map((quote) => {
+                  const unread = unreadCount(quote)
+                  const invoicedAs = invoicedQuoteIds.get(quote.id)
+                  const primary = quote.status === 'draft'
+                    ? { label: 'Envoyer', icon: Send, run: () => openSendModal(quote), cls: 'bg-indigo-600 hover:bg-indigo-700' }
+                    : quote.status === 'sent' && quote.clientResponse === 'counter_proposed'
+                      ? { label: 'Nouvelle version', icon: CopyPlus, run: () => createNewVersion(quote), cls: 'bg-violet-600 hover:bg-violet-700' }
+                      : quote.status === 'accepted' && !invoicedAs
+                        ? { label: 'Facturer', icon: Receipt, run: () => convertToInvoice(quote), cls: 'bg-emerald-600 hover:bg-emerald-700' }
+                        : null
+                  return (
+                  <li key={quote.id} className={`p-4 hover:bg-stone-50 ${isTodo(quote) ? 'bg-amber-50/40' : ''}`}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-3">
+                      <button type="button" onClick={() => setSelectedQuote(quote)} className="flex-1 min-w-0 text-left">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-stone-900">{quote.numero || 'Brouillon'}</span>
+                          {quote.title && <span className="text-stone-600 truncate">{quote.title}</span>}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(quote.status)}`}>
                             {getStatusLabel(quote.status)}
                           </span>
-                          {quote.clientResponse && quote.clientResponse !== 'pending' && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              quote.clientResponse === 'accepted' ? 'bg-emerald-100 text-emerald-800' :
-                              quote.clientResponse === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-violet-100 text-violet-700'
-                            }`}>
-                              Client : {quote.clientResponse === 'accepted' ? '✓ Accepté' : quote.clientResponse === 'rejected' ? '✗ Refusé' : '↔ Contre-proposition'}
+                          {quote.status === 'sent' && quote.clientResponse === 'counter_proposed' && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                              Contre-proposition{quote.clientCounterAmount ? ` : ${quote.clientCounterAmount.toLocaleString('fr-FR')} F` : ''}
                             </span>
                           )}
-                          {quote.clientResponse === 'pending' && quote.status === 'sent' && (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">En attente réponse</span>
+                          {quote.status === 'sent' && (!quote.clientResponse || quote.clientResponse === 'pending') && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">En attente de réponse</span>
                           )}
+                          {invoicedAs && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">Facturé {invoicedAs}</span>}
                           {(quote.clientComments?.length ?? 0) > 0 && (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
-                              💬 {quote.clientComments!.length} message{(quote.clientComments!.length ?? 0) > 1 ? 's' : ''}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${unread ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-700'}`}>
+                              <MessageSquare className="h-3 w-3" />{unread ? `${unread} non lu${unread > 1 ? 's' : ''}` : quote.clientComments!.length}
                             </span>
                           )}
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 text-sm text-stone-600">
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4" />
-                            {quote.client.name || 'Client non défini'}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(quote.date).toLocaleDateString('fr-FR')}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4" />
-                            {quote.products.length} article{quote.products.length > 1 ? 's' : ''}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            <span className="font-semibold text-stone-900">
-                              {quote.total.toLocaleString('fr-FR')} CFA
-                            </span>
-                          </div>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-500">
+                          <span className="flex items-center gap-1"><Building className="h-3.5 w-3.5" />{quote.client.name || 'Client non défini'}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(quote.date).toLocaleDateString('fr-FR')}</span>
+                          <span>{quote.products.length} ligne{quote.products.length > 1 ? 's' : ''}</span>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedQuote(quote)}
-                          className="p-2 text-stone-600 hover:bg-stone-50 rounded-lg transition-colors"
-                          title="Voir détail"
-                        >
-                          <Eye className="h-5 w-5" />
+                      </button>
+                      <div className="flex items-center gap-1 md:justify-end">
+                        <span className="font-bold text-stone-900 mr-2 whitespace-nowrap">{quote.total.toLocaleString('fr-FR')} F</span>
+                        {primary && (
+                          <button onClick={primary.run} disabled={convertingId === quote.id || sendingQuoteId === quote.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold disabled:opacity-60 ${primary.cls}`}>
+                            <primary.icon className="h-3.5 w-3.5" />{primary.label}
+                          </button>
+                        )}
+                        <button onClick={() => setSelectedQuote(quote)} className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100" title="Voir le détail et les échanges" aria-label={`Voir ${quote.numero}`}>
+                          <Eye className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => editQuote(quote)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Éditer"
-                        >
-                          <Edit3 className="h-5 w-5" />
+                        <button onClick={() => exportPDF(quote)} className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100" title="Télécharger le PDF" aria-label={`Télécharger le PDF de ${quote.numero}`}>
+                          <Download className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => openSendModal(quote)}
-                          disabled={sendingQuoteId === quote.id}
-                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-60"
-                          title="Envoyer par email"
-                        >
-                          <Send className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setCurrentQuote(quote)
-                            exportPDF()
-                          }}
-                          className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title="Télécharger PDF"
-                        >
-                          <Download className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => convertToInvoice(quote)}
-                          disabled={convertingId === quote.id}
-                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
-                          title="Convertir en facture"
-                        >
-                           <Receipt className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => deleteQuote(quote.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+                        {quoteActions(quote).length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              const r = e.currentTarget.getBoundingClientRect()
+                              setMenu(menu?.id === quote.id ? null : { id: quote.id, top: r.bottom + 4, right: window.innerWidth - r.right })
+                            }}
+                            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100"
+                            title="Plus d'actions"
+                            aria-label={`Plus d'actions pour ${quote.numero}`}
+                            aria-haspopup="menu"
+                            aria-expanded={menu?.id === quote.id}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </li>
+                  )
+                })}
+              </ul>
             )}
           </div>
+        )}
+
+        {menu && menuQuote && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} />
+            <div role="menu" className="fixed z-50 w-56 bg-white rounded-xl border border-stone-200 shadow-xl py-1"
+              style={{ top: Math.max(8, Math.min(menu.top, window.innerHeight - 260)), right: menu.right }}>
+              {quoteActions(menuQuote).map(a => (
+                <button key={a.label} role="menuitem" onClick={() => { setMenu(null); a.run() }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-stone-50 ${a.danger ? 'text-red-600 border-t border-stone-100 mt-1' : 'text-stone-700'}`}>
+                  <a.icon className="h-4 w-4 shrink-0" />{a.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Contenu Création/Édition */}
@@ -971,9 +1054,9 @@ export default function AdminQuoteGenerator() {
                 <input
                   type="text"
                   value={currentQuote.numero}
-                  onChange={(e) => setCurrentQuote({ ...currentQuote, numero: e.target.value })}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="2024-046"
+                  readOnly
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
+                  placeholder="Attribué à l'enregistrement"
                 />
               </div>
               
@@ -1228,12 +1311,17 @@ export default function AdminQuoteGenerator() {
                               <input
                                 type="number"
                                 min="0"
-                                value={product.unitPrice}
-                                onChange={(e) => updateProduct(product.id, 'unitPrice', Number(e.target.value))}
+                                value={product.netUnitPrice ?? product.unitPrice}
+                                onChange={(e) => updateProduct(product.id, 'netUnitPrice', Number(e.target.value))}
                                 className="w-32 px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
                               />
                               <span className="text-sm text-stone-600">CFA</span>
                             </div>
+                            {product.netUnitPrice != null && product.unitPrice !== product.netUnitPrice && (
+                              <div className="text-[11px] text-orange-700 mt-1">
+                                Facturé {product.unitPrice.toLocaleString('fr-FR')} (BRS incluse)
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <input
@@ -1307,9 +1395,9 @@ export default function AdminQuoteGenerator() {
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-stone-600">Taxe de vente</span>
-                  <span className="font-medium text-stone-900">
-                    {currentQuote.taxAmount.toLocaleString('fr-FR')} CFA
+                  <span className="text-stone-600">TVA</span>
+                  <span className="text-xs text-stone-500">
+                    {currentQuote.applyBRS ? 'Non applicable (régime BRS)' : `${currentQuote.taxAmount.toLocaleString('fr-FR')} CFA`}
                   </span>
                 </div>
                 
@@ -1364,10 +1452,11 @@ export default function AdminQuoteGenerator() {
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.url)}
-                      className="text-red-500 hover:text-red-700 text-sm px-2"
-                      title="Supprimer"
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="Retirer le document"
+                      aria-label={`Retirer ${att.name}`}
                     >
-                      ✕
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
@@ -1394,7 +1483,7 @@ export default function AdminQuoteGenerator() {
                         try {
                           await uploadAttachment(file, cat)
                         } catch (err: any) {
-                          alert(err.message || 'Erreur upload')
+                          addToast(err.message || "Échec de l'envoi du fichier", 'error')
                         }
                         e.target.value = ''
                       }}
@@ -1408,9 +1497,16 @@ export default function AdminQuoteGenerator() {
             </div>
 
             {/* Actions */}
+            {(!currentQuote.client.name || currentQuote.products.length === 0) && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Pour enregistrer : {[!currentQuote.client.name && 'indiquez le client', currentQuote.products.length === 0 && 'ajoutez au moins une ligne'].filter(Boolean).join(' et ')}.
+              </p>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => {
+                  if (editSnapshot.current?.id === currentQuote.id && editSnapshot.current.json !== JSON.stringify(currentQuote)
+                    && !confirm('Abandonner les modifications non enregistrées ?')) return
                   setCurrentQuote(null)
                   setActiveTab('list')
                 }}
@@ -1428,7 +1524,7 @@ export default function AdminQuoteGenerator() {
               </button>
               <button
                 onClick={() => openSendModal(currentQuote)}
-                disabled={sendingQuoteId === currentQuote.id || !currentQuote.client.email}
+                disabled={sendingQuoteId === currentQuote.id}
                 className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={!isObjectId(currentQuote.id) ? 'Sauvegardez d\'abord le devis' : ''}
               >
@@ -1436,7 +1532,7 @@ export default function AdminQuoteGenerator() {
                 {sendingQuoteId === currentQuote.id ? 'Envoi...' : 'Envoyer email'}
               </button>
               <button
-                onClick={exportPDF}
+                onClick={() => exportPDF()}
                 disabled={!currentQuote.client.name || currentQuote.products.length === 0}
                 className="flex-1 px-6 py-3 bg-emerald-800 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -1591,6 +1687,26 @@ export default function AdminQuoteGenerator() {
                     </label>
                   ))}
                 </div>
+                <form
+                  className="flex gap-2 mb-3"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const email = extraRecipient.trim().toLowerCase()
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return addToast('Adresse email invalide', 'error')
+                    setSelectedRecipients(prev => prev.includes(email) ? prev : [...prev, email])
+                    setExtraRecipient('')
+                  }}
+                >
+                  <input type="email" value={extraRecipient} onChange={(e) => setExtraRecipient(e.target.value)} placeholder="Ajouter une autre adresse…"
+                    aria-label="Ajouter un destinataire" className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm" />
+                  <button type="submit" disabled={!extraRecipient.trim()} className="px-3 py-2 rounded-lg border border-stone-300 text-sm hover:bg-stone-50 disabled:opacity-50">Ajouter</button>
+                </form>
+                {selectedRecipients.filter(r => r !== sendModalQuote.client?.email && !sendContacts.some(c => c.email === r)).map(r => (
+                  <div key={r} className="flex items-center justify-between text-sm bg-purple-50 text-purple-800 rounded-lg px-3 py-1.5 mb-2">
+                    {r}
+                    <button onClick={() => setSelectedRecipients(prev => prev.filter(x => x !== r))} aria-label={`Retirer ${r}`} className="text-purple-500 hover:text-purple-800"><X className="h-4 w-4" /></button>
+                  </div>
+                ))}
                 <div className="flex gap-3">
                   <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-stone-700 hover:bg-stone-50">Annuler</button>
                   <button
@@ -1613,15 +1729,17 @@ export default function AdminQuoteGenerator() {
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <QuoteDetailView
               quote={selectedQuote}
+              invoicedAs={invoicedQuoteIds.get(selectedQuote.id)}
               onClose={() => setSelectedQuote(null)}
               onEdit={() => {
                 editQuote(selectedQuote)
                 setSelectedQuote(null)
               }}
-              onExport={() => {
-                setCurrentQuote(selectedQuote)
-                exportPDF()
-              }}
+              onExport={() => exportPDF(selectedQuote)}
+              onSend={() => { setSelectedQuote(null); openSendModal(selectedQuote) }}
+              onNewVersion={() => { setSelectedQuote(null); createNewVersion(selectedQuote) }}
+              onInvoice={() => convertToInvoice(selectedQuote)}
+              onCommentsChanged={(comments) => setQuotes(prev => prev.map(q => q.id === selectedQuote.id ? { ...q, clientComments: comments } : q))}
             />
           </div>
         </div>
@@ -1632,15 +1750,68 @@ export default function AdminQuoteGenerator() {
 
 function QuoteDetailView({
   quote,
+  invoicedAs,
   onClose,
   onEdit,
-  onExport
+  onExport,
+  onSend,
+  onNewVersion,
+  onInvoice,
+  onCommentsChanged
 }: {
   quote: Quote
+  invoicedAs?: string
   onClose: () => void
   onEdit: () => void
   onExport: () => void
+  onSend: () => void
+  onNewVersion: () => void
+  onInvoice: () => void
+  onCommentsChanged: (comments: NonNullable<Quote['clientComments']>) => void
 }) {
+  const { addToast } = useToast()
+  const [reply, setReply] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
+  const comments = [...(quote.clientComments || [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const unread = unreadCount(quote)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Ouvrir la fiche vaut lecture des messages du client
+  useEffect(() => {
+    if (!unread) return
+    fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/comments`, { method: 'PATCH', credentials: 'include' })
+      .then(r => { if (r.ok) onCommentsChanged((quote.clientComments || []).map(c => c.authorRole === 'CLIENT' ? { ...c, readByOther: true } : c)) })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote.id])
+
+  const sendReply = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reply.trim()) return
+    setSendingReply(true)
+    try {
+      const res = await fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: reply.trim() })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Réponse non envoyée')
+      onCommentsChanged(data.clientComments || [])
+      setReply('')
+      addToast('Réponse envoyée au client (portail et email)', 'success')
+    } catch (err: any) {
+      addToast(err?.message || 'Réponse non envoyée', 'error')
+    } finally {
+      setSendingReply(false)
+    }
+  }
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
   }
@@ -1651,6 +1822,7 @@ function QuoteDetailView({
       case 'sent': return '#3b82f6'
       case 'accepted': return '#10b981'
       case 'rejected': return '#ef4444'
+      case 'superseded': return '#9ca3af'
       default: return '#6b7280'
     }
   }
@@ -1661,53 +1833,122 @@ function QuoteDetailView({
       case 'sent': return 'Envoyé'
       case 'accepted': return 'Accepté'
       case 'rejected': return 'Rejeté'
+      case 'superseded': return 'Remplacé'
       default: return status
     }
   }
 
   return (
     <div>
-      <div className="sticky top-0 bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between">
-        <h3 className="text-xl font-bold text-stone-900">Devis {quote.numero}</h3>
-        <div className="flex items-center gap-2">
-          <button onClick={onEdit} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-2">
-            <Edit3 className="h-4 w-4" /><span>Modifier</span>
+      <div className="sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-xl font-bold text-stone-900">Devis {quote.numero || '(brouillon)'}</h3>
+          <p className="text-sm text-stone-500 truncate">{quote.title || quote.client.name}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {quote.status === 'draft' && (
+            <button onClick={onSend} className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-1.5 text-sm font-semibold">
+              <Send className="h-4 w-4" />Envoyer
+            </button>
+          )}
+          {quote.status === 'accepted' && !invoicedAs && (
+            <button onClick={onInvoice} className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 text-sm font-semibold">
+              <Receipt className="h-4 w-4" />Facturer
+            </button>
+          )}
+          {['sent', 'accepted', 'rejected'].includes(quote.status) && (
+            <button onClick={onNewVersion} className={`px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm ${quote.clientResponse === 'counter_proposed' && quote.status === 'sent' ? 'bg-violet-600 text-white hover:bg-violet-700 font-semibold' : 'border border-stone-300 text-stone-700 hover:bg-stone-50'}`}>
+              <CopyPlus className="h-4 w-4" />Nouvelle version
+            </button>
+          )}
+          {['draft', 'sent'].includes(quote.status) && (
+            <button onClick={onEdit} className="px-3 py-2 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center gap-1.5 text-sm">
+              <Edit3 className="h-4 w-4" />Modifier
+            </button>
+          )}
+          <button onClick={onExport} title="Télécharger le PDF" aria-label="Télécharger le PDF" className="p-2 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50">
+            <Download className="h-4 w-4" />
           </button>
-          <button onClick={onExport} className="bg-emerald-800 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
-            <Download className="h-4 w-4" /><span>PDF</span>
-          </button>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600">
+          <button onClick={onClose} aria-label="Fermer" className="p-1 text-stone-400 hover:text-stone-600">
             <X className="h-6 w-6" />
           </button>
         </div>
       </div>
 
       <div className="p-6 space-y-6">
-        <div className="bg-gradient-to-r from-emerald-900 to-emerald-950 text-white rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">🔧 IT VISION</h2>
-              <p className="text-blue-100">Spécialiste Sécurité & Digitalisation</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">{quote.numero}</div>
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
-                {getStatusLabel(quote.status)}
-              </div>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Statut</p>
+            <p className="mt-1 font-semibold" style={{ color: getStatusColor(quote.status) }}>{getStatusLabel(quote.status)}</p>
+            {invoicedAs && <p className="text-xs text-stone-500">Facturé : {invoicedAs}</p>}
+          </div>
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Montant</p>
+            <p className="mt-1 font-semibold text-stone-900">{formatCurrency(quote.total)}</p>
+          </div>
+          <div className={`rounded-lg border p-3 ${quote.clientResponse === 'counter_proposed' ? 'border-violet-200 bg-violet-50' : 'border-stone-200'}`}>
+            <p className="text-xs text-stone-500">Réponse du client</p>
+            <p className="mt-1 font-semibold text-stone-900">
+              {quote.status === 'draft' ? 'Non envoyé' : ({ accepted: 'Accepté', rejected: 'Refusé', counter_proposed: 'Contre-proposition' } as Record<string, string>)[quote.clientResponse || ''] || 'En attente'}
+            </p>
+            {quote.clientCounterAmount && quote.clientResponse === 'counter_proposed' && (
+              <p className="text-xs text-violet-700">Propose {formatCurrency(quote.clientCounterAmount)} ({quote.total ? Math.round((quote.clientCounterAmount / quote.total - 1) * 100) : 0} %)</p>
+            )}
+            {quote.clientRespondedAt && <p className="text-xs text-stone-500">le {new Date(quote.clientRespondedAt).toLocaleDateString('fr-FR')}</p>}
+          </div>
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Date</p>
+            <p className="mt-1 font-semibold text-stone-900">{new Date(quote.date).toLocaleDateString('fr-FR')}</p>
           </div>
         </div>
 
+        {/* Échanges avec le client */}
+        {quote.status !== 'draft' && (
+          <div className="rounded-lg border border-stone-200">
+            <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-teal-600" />
+              <h4 className="font-semibold text-stone-900">Échanges avec le client</h4>
+              <span className="text-xs text-stone-500">({comments.length})</span>
+            </div>
+            <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+              {comments.length === 0 ? (
+                <p className="text-sm text-stone-500 text-center py-4">Aucun message. Le client peut poser ses questions depuis son portail.</p>
+              ) : comments.map((c, i) => (
+                <div key={i} className={`flex ${c.authorRole === 'CLIENT' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${c.authorRole === 'CLIENT' ? 'bg-stone-100 text-stone-800 rounded-bl-sm' : 'bg-emerald-700 text-white rounded-br-sm'}`}>
+                    <p className={`text-[10px] font-semibold mb-0.5 ${c.authorRole === 'CLIENT' ? 'text-stone-500' : 'text-emerald-100'}`}>{c.authorRole === 'CLIENT' ? 'Client' : 'IT Vision'}</p>
+                    <p className="whitespace-pre-line">{c.message}</p>
+                    <p className={`text-[10px] mt-1 ${c.authorRole === 'CLIENT' ? 'text-stone-400' : 'text-emerald-100/80'}`}>{new Date(c.createdAt).toLocaleString('fr-FR')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={sendReply} className="border-t border-stone-100 p-3 flex gap-2">
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                rows={2}
+                placeholder="Répondre au client (visible sur son portail, copie par email)…"
+                aria-label="Réponse au client"
+                className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm resize-none"
+              />
+              <button type="submit" disabled={sendingReply || !reply.trim()} className="self-end px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-50 flex items-center gap-1.5">
+                {sendingReply ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Répondre
+              </button>
+            </form>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-stone-50 rounded-lg p-4">
-            <h4 className="font-semibold text-stone-900 mb-3">📅 Dates</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">Dates</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-stone-600">Date:</span><span className="font-medium">{new Date(quote.date).toLocaleDateString('fr-FR')}</span></div>
               {quote.bonCommande && <div className="flex justify-between"><span className="text-stone-600">Bon de commande:</span><span className="font-medium">{quote.bonCommande}</span></div>}
             </div>
           </div>
           <div className="bg-stone-50 rounded-lg p-4">
-            <h4 className="font-semibold text-stone-900 mb-3">👤 Client</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">Client</h4>
             <div className="space-y-1 text-sm">
               <div className="font-medium">{quote.client.name}</div>
               <div className="text-stone-600">{quote.client.address}</div>
@@ -1718,7 +1959,7 @@ function QuoteDetailView({
         </div>
 
         <div>
-          <h4 className="font-semibold text-stone-900 mb-4">📦 Produits</h4>
+          <h4 className="font-semibold text-stone-900 mb-4">Lignes</h4>
           <div className="overflow-x-auto">
             <table className="w-full border border-stone-200 rounded-lg">
               <thead className="bg-stone-50">
@@ -1746,11 +1987,11 @@ function QuoteDetailView({
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
           <div className="space-y-2">
             <div className="flex justify-between"><span className="text-stone-700">Sous-total HT:</span><span className="font-medium">{formatCurrency(quote.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-stone-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>
-            <div className="flex justify-between"><span className="text-stone-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>
+            {quote.applyBRS && <div className="flex justify-between"><span className="text-stone-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>}
+            {!quote.applyBRS && quote.taxAmount > 0 && <div className="flex justify-between"><span className="text-stone-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>}
             {quote.other > 0 && <div className="flex justify-between"><span className="text-stone-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
             <div className="border-t border-emerald-300 pt-2">
-              <div className="flex justify-between text-lg font-bold text-emerald-800"><span>TOTAL TTC:</span><span>{formatCurrency(quote.total)}</span></div>
+              <div className="flex justify-between text-lg font-bold text-emerald-800"><span>{quote.applyBRS ? 'NET À PAYER:' : quote.taxAmount > 0 ? 'TOTAL TTC:' : 'TOTAL:'}</span><span>{formatCurrency(quote.total)}</span></div>
             </div>
           </div>
         </div>
@@ -1758,7 +1999,7 @@ function QuoteDetailView({
         {/* Documents joints */}
         {(quote.attachments && quote.attachments.length > 0) && (
           <div>
-            <h4 className="font-semibold text-stone-900 mb-3">📎 Documents joints</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">Documents joints</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quote.attachments.map((att, i) => (
                 <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
@@ -1778,7 +2019,7 @@ function QuoteDetailView({
         {/* Signature électronique client */}
         {quote.clientSignature && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
-            <h4 className="font-semibold text-stone-900 mb-3">✍️ Signature électronique</h4>
+            <h4 className="font-semibold text-stone-900 mb-3">Signature électronique</h4>
             <div className="flex flex-wrap items-center gap-5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={quote.clientSignature.signature} alt="Signature client"
@@ -1794,8 +2035,8 @@ function QuoteDetailView({
 
         {quote.notes && (
           <div>
-            <h4 className="font-semibold text-stone-900 mb-2">📝 Notes</h4>
-            <p className="text-sm text-stone-700 bg-stone-50 p-4 rounded-lg">{quote.notes}</p>
+            <h4 className="font-semibold text-stone-900 mb-2">Notes</h4>
+            <p className="text-sm text-stone-700 bg-stone-50 p-4 rounded-lg whitespace-pre-line">{quote.notes}</p>
           </div>
         )}
       </div>

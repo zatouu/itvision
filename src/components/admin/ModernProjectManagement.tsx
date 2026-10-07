@@ -11,6 +11,7 @@ import {
   ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
+import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 interface Project {
   _id: string
@@ -626,7 +627,7 @@ export default function ModernProjectManagement() {
               >
                 <option value="all">Tous les services</option>
                 {serviceTypeOptions.map(st => (
-                  <option key={st} value={st}>{st}</option>
+                  <option key={st} value={st}>{ITV_DOMAINS[st as ItvDomain]?.label || st}</option>
                 ))}
               </select>
             )}
@@ -1096,14 +1097,15 @@ export default function ModernProjectManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-stone-700">Type / Service</label>
-                  <input
-                    type="text"
+                  <label className="text-sm font-medium text-stone-700">Domaine</label>
+                  <select
                     value={newProjectData.serviceType}
                     onChange={e => handleNewProjectFieldChange('serviceType', e.target.value)}
-                    placeholder="Fibre, vidéosurveillance..."
                     className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  />
+                  >
+                    <option value="">À choisir</option>
+                    {(Object.keys(ITV_DOMAINS) as ItvDomain[]).map(d => <option key={d} value={d}>{ITV_DOMAINS[d].label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-stone-700">Phase actuelle</label>

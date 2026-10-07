@@ -1,13 +1,19 @@
 'use client'
-import { useState, useEffect, type ChangeEvent } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   User, Building2, Mail, Phone, MapPin, Globe, Shield,
   Loader2, AlertCircle, CheckCircle, Save, Lock, Bell, Users,
-  FileText, Briefcase, StickyNote, Image as ImageIcon, Upload, Trash2
+  FileText, Briefcase, StickyNote, Palette, Settings
 } from 'lucide-react'
 import { CARD, INPUT, TONE, PageHeader, Pill } from '@/components/portal-ui'
 import TeamSection from '@/components/portal/TeamSection'
+import BrandingSection from '@/components/portal/BrandingSection'
+import MyNotificationsSection from '@/components/portal/MyNotificationsSection'
+import { PORTAL_BRANDING_EVENT, ROLE_LABEL, type CompanyRole, type PortalBranding } from '@/lib/company-rights'
+
+type Tab = 'account' | 'company' | 'team' | 'branding' | 'preferences'
+const TABS: Tab[] = ['account', 'company', 'team', 'branding', 'preferences']
 
 interface ProfileData {
   userName: string
@@ -22,8 +28,10 @@ interface ProfileData {
   companyContactPerson: string | null
   companyNotes: string | null
   companyLogo: string | null
+  companyBrandColor?: string | null
   companyRole?: string
   capabilities?: string[]
+  notifyMuted?: string[]
   preferences: {
     emailNotifications: boolean
     smsNotifications: boolean
@@ -43,73 +51,46 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [tab, setTab] = useState<'account' | 'company' | 'team' | 'preferences'>('account')
-  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [tab, setTab] = useState<Tab>('account')
 
   useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab') as Tab
+    if (TABS.includes(t)) setTab(t)
     fetch('/api/client-enterprise/me')
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(d => { setData(d); setLoading(false) })
       .catch(() => { setError('Impossible de charger le profil'); setLoading(false) })
   }, [])
 
+  const selectTab = (t: Tab) => {
+    setTab(t)
+    setError(''); setSuccess('')
+    window.history.replaceState(null, '', `?tab=${t}`)
+  }
+
   const handleSave = async () => {
     if (!data) return
     setSaving(true); setError(''); setSuccess('')
     try {
+      // Sans droit de gestion, seuls les champs personnels sont envoyés (sinon l'API refuse tout)
+      const payload = canManageCompany
+        ? { ...data, companyLogo: undefined, companyBrandColor: undefined }
+        : { userName: data.userName, userPhone: data.userPhone }
       const res = await fetch('/api/client-enterprise/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error()
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j.error || 'Erreur lors de la sauvegarde')
+      if (canManageCompany) window.dispatchEvent(new CustomEvent<PortalBranding>(PORTAL_BRANDING_EVENT, { detail: { companyName: data.companyName } }))
       setSuccess('Modifications enregistrées')
       setTimeout(() => setSuccess(''), 3000)
-    } catch {
-      setError('Erreur lors de la sauvegarde')
+    } catch (e: any) {
+      setError(e?.message || 'Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
-  }
-
-  const saveLogo = async (logo: string | null) => {
-    const res = await fetch('/api/client-enterprise/me', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyLogo: logo })
-    })
-    if (!res.ok) throw new Error()
-    setData(prev => prev ? { ...prev, companyLogo: logo } : prev)
-    setSuccess('Logo mis à jour')
-    setTimeout(() => setSuccess(''), 3000)
-  }
-
-  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file || !data) return
-    setUploadingLogo(true); setError(''); setSuccess('')
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('type', 'logos')
-      const res = await fetch('/api/upload', { method: 'POST', body: fd })
-      if (!res.ok) {
-        const j = await res.json().catch(() => null)
-        throw new Error(j?.error || 'upload')
-      }
-      const j = await res.json()
-      await saveLogo(j.url)
-    } catch (err: any) {
-      setError(err?.message && err.message !== 'upload' ? err.message : "Erreur lors de l'upload du logo")
-    } finally {
-      setUploadingLogo(false)
-    }
-  }
-
-  const handleLogoRemove = async () => {
-    setUploadingLogo(true); setError(''); setSuccess('')
-    try { await saveLogo(null) } catch { setError('Erreur lors de la suppression du logo') } finally { setUploadingLogo(false) }
   }
 
   const update = (field: keyof ProfileData, value: any) => {
@@ -137,22 +118,23 @@ export default function ProfilePage() {
 
   if (!data) return null
 
-  // Édition de la fiche société réservée à owner/admin (capability 'company:manage')
+  // Édition de la fiche société et de la personnalisation : droit 'company:manage' accordé dans l'espace
   const canManageCompany = data.capabilities ? data.capabilities.includes('company:manage') : true
+  const showSave = tab === 'account' || ((tab === 'company' || tab === 'preferences') && canManageCompany)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
       {/* Header */}
       <PageHeader
-        icon={User}
-        eyebrow="Paramètres"
-        title="Mon profil"
-        subtitle="Gérez vos informations et préférences"
+        icon={Settings}
+        eyebrow={data.companyName}
+        title="Paramètres"
+        subtitle={`Votre compte, votre entreprise, votre équipe et l'apparence de votre espace${data.companyRole ? ` · Vous êtes ${(ROLE_LABEL[data.companyRole as CompanyRole] || data.companyRole).toLowerCase()}` : ''}`}
       >
-        {(canManageCompany || tab === 'account') && (
+        {showSave && (
           <button onClick={handleSave} disabled={saving}
             className="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 disabled:opacity-50 transition-colors flex-shrink-0">
-            <Save className="w-4 h-4" />
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         )}
@@ -176,14 +158,15 @@ export default function ProfilePage() {
       <div className="flex gap-1 border-b border-stone-200 overflow-x-auto">
         {[
           { id: 'account', label: 'Mon compte', icon: User },
-          { id: 'company', label: 'Mon entreprise', icon: Building2 },
-          { id: 'team', label: 'Équipe', icon: Users },
+          { id: 'company', label: 'Entreprise', icon: Building2 },
+          { id: 'team', label: 'Équipe et droits', icon: Users },
+          { id: 'branding', label: 'Personnalisation', icon: Palette },
           { id: 'preferences', label: 'Préférences', icon: Bell },
         ].map(t => {
           const I = t.icon
           const active = tab === t.id
           return (
-            <button key={t.id} onClick={() => setTab(t.id as any)}
+            <button key={t.id} onClick={() => selectTab(t.id as Tab)} role="tab" aria-selected={active}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px whitespace-nowrap transition-colors ${
                 active ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-stone-400 hover:text-stone-600'
               }`}>
@@ -230,43 +213,6 @@ export default function ProfilePage() {
       {/* Company tab */}
       {tab === 'company' && (
         <div className="space-y-4">
-          <div className={`${CARD} p-5`}>
-            <div className="flex items-center gap-2 mb-3">
-              <ImageIcon className="w-4 h-4 text-emerald-700" />
-              <h3 className="text-sm font-semibold text-stone-900">Logo de l'entreprise</h3>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 flex-shrink-0 rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-center overflow-hidden">
-                {data.companyLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={data.companyLogo} alt="Logo" className="h-full w-full object-contain" />
-                ) : (
-                  <Building2 className="w-6 h-6 text-stone-300" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                {canManageCompany ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${uploadingLogo ? 'bg-stone-100 text-stone-400 pointer-events-none' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
-                      {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      {data.companyLogo ? 'Changer le logo' : 'Choisir un logo'}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
-                    </label>
-                    {data.companyLogo && (
-                      <button type="button" onClick={handleLogoRemove} disabled={uploadingLogo}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
-                        <Trash2 className="w-3.5 h-3.5" /> Retirer
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-stone-400">Logo géré par le propriétaire ou un administrateur de l'entreprise.</p>
-                )}
-                <p className="mt-1.5 text-xs text-stone-400">PNG, JPG ou WebP, 10 Mo max. Affiché dans la barre latérale du portail.</p>
-              </div>
-            </div>
-          </div>
-
           <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="w-4 h-4 text-emerald-700" />
@@ -282,7 +228,7 @@ export default function ProfilePage() {
               <Field label="Pays" icon={Globe} value={data.companyCountry || ''} onChange={v => update('companyCountry', v)} disabled={!canManageCompany} />
             </div>
             {!canManageCompany && (
-              <p className="text-xs text-stone-400">Seuls le propriétaire et les administrateurs de l'entreprise peuvent modifier ces informations.</p>
+              <p className="text-xs text-stone-400">Modification réservée aux membres disposant du droit « Modifier la fiche de l&apos;entreprise ».</p>
             )}
           </div>
 
@@ -304,24 +250,24 @@ export default function ProfilePage() {
           <div className={`${CARD} p-5`}>
             <div className="flex items-center gap-2 mb-3">
               <Shield className="w-4 h-4 text-emerald-700" />
-              <h3 className="text-sm font-semibold text-stone-900">Permissions portail</h3>
+              <h3 className="text-sm font-semibold text-stone-900">Services activés par IT Vision</h3>
             </div>
             <div className="divide-y divide-stone-100">
               {[
-                { key: 'canViewReports', label: 'Consulter les rapports' },
-                { key: 'canRequestMaintenance', label: 'Demander une intervention' },
-                { key: 'canAccessPortal', label: 'Accéder au portail' },
+                { key: 'canAccessPortal', label: 'Espace client en ligne' },
+                { key: 'canViewReports', label: "Rapports d'intervention" },
+                { key: 'canRequestMaintenance', label: "Demandes d'intervention en ligne" },
               ].map(p => {
                 const on = (data.permissions as any)[p.key]
                 return (
                   <div key={p.key} className="flex items-center justify-between py-2.5">
                     <span className="text-sm text-stone-700">{p.label}</span>
-                    <Pill color={on ? TONE.emerald : TONE.neutral}>{on ? 'Activé' : 'Désactivé'}</Pill>
+                    <Pill color={on ? TONE.emerald : TONE.neutral}>{on ? 'Activé' : 'Non activé'}</Pill>
                   </div>
                 )
               })}
             </div>
-            <p className="text-xs text-stone-400 mt-3">Contactez IT Vision pour modifier vos permissions.</p>
+            <p className="text-xs text-stone-400 mt-3">Ces services dépendent de votre contrat avec IT Vision. Les droits de chaque collègue se règlent dans l&apos;onglet « Équipe et droits ».</p>
           </div>
         </div>
       )}
@@ -329,18 +275,30 @@ export default function ProfilePage() {
       {/* Team tab */}
       {tab === 'team' && <TeamSection />}
 
+      {/* Branding tab */}
+      {tab === 'branding' && (
+        <BrandingSection
+          companyName={data.companyName}
+          logo={data.companyLogo}
+          brandColor={data.companyBrandColor || null}
+          canEdit={canManageCompany}
+          onChange={b => setData(prev => prev ? { ...prev, ...b } as ProfileData : prev)}
+        />
+      )}
+
       {/* Preferences tab */}
       {tab === 'preferences' && (
         <div className="space-y-4">
+          <MyNotificationsSection muted={data.notifyMuted || []} onChange={m => setData(prev => prev ? { ...prev, notifyMuted: m } : prev)} />
           {!canManageCompany && (
             <div className={`${CARD} p-4`}>
-              <p className="text-xs text-stone-400">Les préférences sont partagées par l'entreprise — seuls le propriétaire et les administrateurs peuvent les modifier.</p>
+              <p className="text-xs text-stone-400">Les réglages ci-dessous sont communs à toute l&apos;entreprise ; ils se modifient avec le droit « Modifier la fiche de l&apos;entreprise ».</p>
             </div>
           )}
           <div className={`${CARD} p-5 space-y-4`}>
             <div className="flex items-center gap-2 mb-2">
               <Bell className="w-4 h-4 text-emerald-700" />
-              <h3 className="text-sm font-semibold text-stone-900">Notifications</h3>
+              <h3 className="text-sm font-semibold text-stone-900">Emails et SMS de l&apos;entreprise</h3>
             </div>
             <Toggle
               label="Notifications par email"

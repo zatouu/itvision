@@ -235,7 +235,7 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
   },
   renewalProposalId: {
     type: Schema.Types.ObjectId,
-    ref: 'Quote'
+    ref: 'AdminQuote'
   },
   stats: {
     totalInterventions: {

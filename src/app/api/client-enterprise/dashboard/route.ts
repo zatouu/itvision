@@ -5,6 +5,7 @@ import mongoose from 'mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
 import Project from '@/lib/models/Project'
+import { clientProjectFilter } from '@/lib/portal/project-view'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Ticket from '@/lib/models/Ticket'
@@ -42,10 +43,9 @@ export async function GET(request: NextRequest) {
       .select('interventionNumber title typeIntervention priority status date service site technicienId')
       .lean(),
 
-    Project.find({
-      ...companyScope({ userId, companyId }),
+    Project.find(clientProjectFilter(companyScope({ userId, companyId }), {
       status: { $in: ['in_progress', 'testing', 'approved', 'quoted'] }
-    })
+    }))
       .sort({ updatedAt: -1 })
       .limit(5)
       .select('name status startDate endDate progress currentPhase milestones value serviceType')
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     AdminQuote.find({
       ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }),
-      status: { $in: ['sent', 'draft'] }
+      status: 'sent'
     })
       .sort({ date: -1 })
       .limit(5)
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     AdminInvoice.find({
       ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }),
-      status: { $in: ['sent', 'overdue'] }
+      status: { $in: ['sent', 'overdue', 'partial'] }
     })
       .sort({ dueDate: 1 })
       .limit(5)
@@ -87,10 +87,10 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     MaintenanceContract.countDocuments({ ...companyScope({ userId, companyId }), status: 'active' }),
     Intervention.countDocuments(companyScope({ userId, companyId })),
-    Project.countDocuments(companyScope({ userId, companyId })),
+    Project.countDocuments(clientProjectFilter(companyScope({ userId, companyId }))),
     AdminInvoice.aggregate([
-      { $match: { ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }), status: { $in: ['sent', 'overdue'] } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+      { $match: { ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }), status: { $in: ['sent', 'overdue', 'partial'] } } },
+      { $group: { _id: null, total: { $sum: { $subtract: ['$total', { $add: [{ $ifNull: ['$amountPaid', 0] }, { $ifNull: ['$creditedAmount', 0] }] }] } } } }
     ]),
     Ticket.countDocuments({ ...companyScope({ userId, companyId }), status: { $in: ['open', 'in_progress', 'waiting_client', 'waiting'] } }),
     Intervention.countDocuments({

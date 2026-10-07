@@ -7,6 +7,7 @@ import Client from '@/lib/models/Client'
 import Technician from '@/lib/models/Technician'
 import { internalPost } from '@/lib/internal-auth'
 import { generateQuoteNumero } from '@/lib/quote-number'
+import { computeQuoteTotals, DEFAULT_BRS_THRESHOLD } from '@/lib/finance/billing'
 import { addNotification } from '@/lib/notifications-memory'
 import { requireAuth } from '@/lib/jwt'
 
@@ -145,10 +146,11 @@ export async function POST(request: NextRequest) {
           }
         })
 
-        // Calculer les totaux (HT = marge incluse, TTC = HT + TVA 18%)
-        const totalHT = products.reduce((sum: number, p: any) => sum + p.total, 0)
-        const taxAmount = Math.round(totalHT * 0.18)
-        const totalTTC = totalHT + taxAmount
+        // Régime BRS (sans TVA) : la retenue ne porte que sur la main-d'œuvre, absente ici (matériel recommandé)
+        const totals = computeQuoteTotals(
+          products.map((p: any) => ({ description: p.name, quantity: p.quantity, unitPrice: p.unitPrice, productId: p.productId })),
+          { applyBRS: true, brsThreshold: DEFAULT_BRS_THRESHOLD }
+        )
 
         // Infos client pour le devis
         const clientDoc = await Client.findById(clientId).select('name email phone address company').lean() as any
@@ -175,9 +177,12 @@ export async function POST(request: NextRequest) {
             taxable: true,
             total: p.total
           })),
-          subtotal: totalHT,
-          taxAmount,
-          total: totalTTC,
+          subtotal: totals.subtotal,
+          applyBRS: true,
+          brsThreshold: DEFAULT_BRS_THRESHOLD,
+          brsAmount: totals.brsAmount,
+          taxAmount: 0,
+          total: totals.total,
           status: 'draft',
           notes: `Devis généré automatiquement depuis l'intervention ${intervention.interventionNumber || intervention._id}\n\nObservations: ${observations || 'N/A'}`,
           createdBy: auth.userId ? String(auth.userId) : undefined

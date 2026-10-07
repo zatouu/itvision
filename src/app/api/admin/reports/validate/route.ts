@@ -3,45 +3,16 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Intervention from '@/lib/models/Intervention'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
-import { logFailedAuth, logDataAccess, logSecurityViolation } from '@/lib/security-logger'
+import { logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
 import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
 import { logAuditEvent } from '@/lib/audit'
 
 async function verifyAdminToken(request: NextRequest) {
-  // Supporte à la fois 'auth-token' (standard) et 'admin-auth-token' (legacy)
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.cookies.get('admin-auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-
-  if (!token) {
-    logFailedAuth('missing_token', request)
-    throw new Error('Token manquant')
-  }
-
-  try {
-    const payload = await verifyJwtPayload(token)
-    const decoded = payload as any
-    const normalizedRole = String(decoded.role || '').toUpperCase()
-
-    // Vérification rôle admin (normalisé)
-    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPER_ADMIN') {
-      logSecurityViolation('unauthorized_admin_access', request, {
-        userId: decoded.userId,
-        role: decoded.role,
-      })
-      throw new Error('Accès non autorisé')
-    }
-
-    logDataAccess('admin_reports', 'validate_access', request, decoded.userId)
-    return { ...decoded, role: normalizedRole }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
-    logFailedAuth('invalid_token', request, { error: errorMessage })
-    throw error
-  }
+  const user = await requireApiUser(request, ADMIN_ROLES)
+  logDataAccess('admin_reports', 'validate_access', request, user.userId)
+  return user
 }
 
 // POST - Valider ou rejeter un rapport
@@ -242,6 +213,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur validation rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la validation' },
@@ -310,10 +283,12 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur récupération rapports validation:', error)
     return NextResponse.json(
-      { error: 'Accès non autorisé' },
-      { status: 401 }
+      { error: 'Erreur serveur' },
+      { status: 500 }
     )
   }
 }

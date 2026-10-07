@@ -1,14 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import {
   FileText, Package, Loader2, AlertCircle,
   MessageSquare, Send, CheckCircle, Ban,
   ArrowRight, Tag, MapPin, Building2, Clock,
   Paperclip, Eye, ExternalLink, Download, X
 } from 'lucide-react'
-import { CARD, fmtDate, fmtNum, quoteStatus, quoteClientResponseShort, StatusBadge, DetailHeader } from '@/components/portal-ui'
+import { BTN_GHOST, CARD, fmtDate, fmtNum, quoteStatus, quoteClientResponseShort, StatusBadge, DetailHeader } from '@/components/portal-ui'
+import QuoteResponseModal, { type QuoteModalTab } from '@/components/portal/QuoteResponseModal'
 
 export default function QuoteDetailPage() {
   const { id } = useParams() as { id: string }
@@ -16,13 +16,37 @@ export default function QuoteDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null)
+  const [modalTab, setModalTab] = useState<QuoteModalTab | null>(null)
+  const [canRespondRole, setCanRespondRole] = useState(true)
 
   useEffect(() => {
     fetch(`/api/client-enterprise/quotes/${id}`)
       .then(r => { if (!r.ok) throw new Error('Introuvable'); return r.json() })
-      .then(d => { setQ(d.quote); setLoading(false) })
+      .then(d => {
+        setQ(d.quote)
+        setLoading(false)
+        if (new URLSearchParams(window.location.search).get('repondre') === '1') setModalTab('action')
+      })
       .catch(() => { setError('Impossible de charger le devis.'); setLoading(false) })
   }, [id])
+
+  // Le rôle du membre peut interdire la réponse (capability 'quotes:respond' côté API)
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.capabilities)) setCanRespondRole(d.capabilities.includes('quotes:respond')) })
+      .catch(() => {})
+  }, [])
+
+  const handleAction = useCallback((updated: any) => {
+    setQ((prev: any) => ({
+      ...prev,
+      ...updated,
+      clientComments: Array.isArray(updated?.clientComments)
+        ? [...updated.clientComments].sort((a: any, b: any) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime())
+        : prev?.clientComments,
+    }))
+  }, [])
 
   if (loading) return <div className="p-6 flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-stone-300" /></div>
   if (error) return <div className="p-4 sm:p-6"><div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center"><AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" /><p className="text-sm text-red-700">{error}</p></div></div>
@@ -47,19 +71,36 @@ export default function QuoteDetailPage() {
           </>
         }
         meta={<>{q.numero ? <span className="font-mono">N° {q.numero}</span> : ''} · {fmtDate(q.date)}</>}
-      />
+      >
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a href={`/api/client-enterprise/quotes/${id}/pdf`} className={BTN_GHOST}>
+            <Download className="w-4 h-4" /> Télécharger le PDF
+          </a>
+          <a href={`/api/client-enterprise/quotes/${id}/pdf?inline=1`} target="_blank" rel="noopener noreferrer" className={BTN_GHOST}>
+            <Eye className="w-4 h-4" /> Aperçu
+          </a>
+          <button type="button" onClick={() => setModalTab('comments')} className={BTN_GHOST}>
+            <MessageSquare className="w-4 h-4" /> Poser une question
+          </button>
+        </div>
+      </DetailHeader>
 
       {/* Réponse client */}
       {canRespond && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-800">
             <Clock className="w-4 h-4 flex-shrink-0" />
-            <span>Ce devis attend votre réponse</span>
+            <span>
+              Ce devis attend votre réponse
+              {!canRespondRole && " : il faut le droit « Accepter ou refuser les devis », qu'un administrateur de votre espace peut vous accorder. Vous pouvez poser une question en attendant."}
+            </span>
           </div>
-          <Link href={`/portail-entreprise/documents?quote=${id}`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-800 text-white px-4 py-2 text-xs font-semibold hover:bg-emerald-900 transition-colors flex-shrink-0">
-            <Send className="w-3 h-3" /> Répondre
-          </Link>
+          {canRespondRole && (
+            <button type="button" onClick={() => setModalTab('action')}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-800 text-white px-4 py-2 text-xs font-semibold hover:bg-emerald-900 transition-colors flex-shrink-0">
+              <Send className="w-3 h-3" /> Répondre
+            </button>
+          )}
         </div>
       )}
 
@@ -221,6 +262,15 @@ export default function QuoteDetailPage() {
         </div>
       )}
       {/* Preview modal */}
+      {modalTab && (
+        <QuoteResponseModal
+          quote={q}
+          initialTab={modalTab}
+          canRespond={canRespondRole}
+          onAction={handleAction}
+          onClose={() => setModalTab(null)}
+        />
+      )}
       {preview && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6" onClick={() => setPreview(null)}>
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>

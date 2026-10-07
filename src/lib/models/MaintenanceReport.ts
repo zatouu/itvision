@@ -292,7 +292,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
         estimatedCost: Number,
         estimatedDurationHours: Number,
         requiresQuote: { type: Boolean, default: true },
-        quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+        quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
         status: {
           type: String,
           enum: ['pending', 'quoted', 'approved', 'rejected', 'completed'],
@@ -328,7 +328,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
 
     billing: {
       needsQuote: { type: Boolean, default: false },
-      quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+      quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
       quoteStatus: {
         type: String,
         enum: ['not_started', 'draft', 'sent', 'approved', 'rejected'],

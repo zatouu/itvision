@@ -124,11 +124,11 @@ export async function POST(request: NextRequest) {
       try {
         const notif = await InAppNotification.create({
           teamId: clientId,
-          roles: ['CLIENT'],
           type: 'info',
           title: 'Rapport d\u2019intervention mis à jour',
           message: intervention.title,
           actionUrl: `/portail-entreprise/interventions/${intervention._id}`,
+          metadata: { category: 'report', interventionId: String(intervention._id) },
         })
         emitCompanyNotification(clientId, {
           _id: String(notif._id),

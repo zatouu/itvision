@@ -26,9 +26,9 @@ import { generateQuoteNumero } from '@/lib/quote-number'
 import { internalPostServer } from '@/lib/internal-auth'
 import { getAgentModel } from '../llm'
 import { getCheckpointer } from '../checkpointer'
+import { buildReportQuoteLines, priceReportQuote } from '@/lib/finance/report-quote'
+import { DEFAULT_BRS_THRESHOLD } from '@/lib/finance/billing'
 
-const HOURLY_RATE = 35000 // FCFA/h — même barème que la route admin existante
-const TVA_RATE = 0.18
 const MAX_ANALYSIS_LINES = 40
 
 const QuoteDraftState = Annotation.Root({
@@ -99,43 +99,9 @@ async function loadContext(state: typeof QuoteDraftState.State) {
   }
 }
 
-/** Lignes de devis : matériel du rapport + main d'œuvre + frais annexes. */
+/** Lignes de devis : matériel du rapport + main d'œuvre + frais annexes (barème partagé avec la route admin). */
 async function buildLines(state: typeof QuoteDraftState.State) {
-  const report = state.report || {}
-  const lines: any[] = []
-
-  for (const eq of report.equipmentInstalled || []) {
-    const qty = Number(eq.quantity) || 1
-    const unit = Number(eq.unitPrice) || 0
-    lines.push({ description: `Matériel : ${eq.name || eq.type || 'Équipement'}`, quantity: qty, unitPrice: unit, total: qty * unit })
-  }
-
-  for (const m of report.materialsUsed || []) {
-    const qty = Number(m.quantity) || 1
-    const unit = Number(m.unitPrice) || 0
-    lines.push({
-      description: `Matériel : ${m.name}${m.sku ? ` (${m.sku})` : ''}`,
-      quantity: qty,
-      unitPrice: unit,
-      total: qty * unit,
-      catalogLookup: !unit, // prix manquant → à résoudre via le catalogue ITV
-    })
-  }
-
-  const duration = Number(report.totalDuration) || Number(report.interventionDuration) || 2
-  lines.push({
-    description: "Main d'œuvre technique",
-    quantity: duration,
-    unitPrice: HOURLY_RATE,
-    total: duration * HOURLY_RATE,
-    isLabor: true,
-  })
-
-  for (const exp of report.additionalExpenses || []) {
-    lines.push({ description: exp.description || 'Frais annexes', quantity: 1, unitPrice: Number(exp.amount) || 0, total: Number(exp.amount) || 0 })
-  }
-
-  return { lines }
+  return { lines: buildReportQuoteLines(state.report || {}) }
 }
 
 /** Prix catalogue ITV (inter-domaines : /api/internal/market/product-lookup). */
@@ -160,20 +126,15 @@ async function priceFromCatalog(state: typeof QuoteDraftState.State) {
     }
   }
 
-  const subtotal = lines.reduce((s, l) => s + round(l.total), 0)
-  const laborTotal = lines.filter(l => l.isLabor).reduce((s, l) => s + round(l.total), 0)
-  const brsAmount = round(laborTotal * 0.05) // BRS 5% main d'œuvre (barème admin)
-  const taxableBase = subtotal - brsAmount
-  const taxAmount = round(taxableBase * TVA_RATE)
-  const total = taxableBase + taxAmount
+  const priced = priceReportQuote(lines)
 
   return {
     lines,
     pricing: {
-      subtotal,
-      brsAmount,
-      taxAmount,
-      total,
+      subtotal: priced.subtotal,
+      brsAmount: priced.brsAmount,
+      taxAmount: priced.taxAmount,
+      total: priced.total,
       catalogResolved: resolved,
       catalogPending: lines.filter(l => l.unitPrice === 0).length,
     },
@@ -278,6 +239,8 @@ async function apply(state: typeof QuoteDraftState.State) {
   const report = state.report || {}
   const client = report.clientId || {}
   const numero = await generateQuoteNumero()
+  // Lignes éventuellement retouchées par l'admin : totaux recalculés avec le barème commun
+  const priced = priceReportQuote(state.lines || [])
 
   const quote = await AdminQuote.create({
     numero,
@@ -289,22 +252,25 @@ async function apply(state: typeof QuoteDraftState.State) {
       phone: client?.phone || '',
       email: client?.email || '',
     },
-    clientUserId: state.context?.clientUserId ? new mongoose.Types.ObjectId(String(state.context.clientUserId)) : undefined,
-    clientCompanyId: state.context?.clientCompanyId ? new mongoose.Types.ObjectId(String(state.context.clientCompanyId)) : undefined,
-    products: (state.lines || []).map(l => ({
+    // report.clientId référence le modèle Client (entreprise) : lien portail entreprise
+    clientCompanyId: client?._id ? new mongoose.Types.ObjectId(String(client._id)) : undefined,
+    projectId: report.projectId || undefined,
+    products: priced.products.map(l => ({
       description: String(l.description),
-      quantity: Math.max(1, round(l.quantity)),
-      unitPrice: round(l.unitPrice),
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      netUnitPrice: l.netUnitPrice,
       taxable: !l.isLabor,
-      total: round(l.total),
+      isLabor: !!l.isLabor,
+      total: l.total,
     })),
-    subtotal: round(state.pricing?.subtotal),
+    subtotal: priced.subtotal,
     applyBRS: true,
-    brsThreshold: 0,
-    brsAmount: round(state.pricing?.brsAmount),
-    taxAmount: round(state.pricing?.taxAmount),
+    brsThreshold: DEFAULT_BRS_THRESHOLD,
+    brsAmount: priced.brsAmount,
+    taxAmount: priced.taxAmount,
     other: 0,
-    total: round(state.pricing?.total),
+    total: priced.total,
     status: 'draft',
     notes: state.analysis?.clientNote || undefined,
     conditions: 'Devis valable 30 jours. Intervention sur site à Dakar et environs.',
@@ -317,6 +283,7 @@ async function apply(state: typeof QuoteDraftState.State) {
       $set: {
         quoteGenerated: true,
         quoteId: quote._id,
+        quoteNumber: numero,
         quoteGeneratedAt: new Date(),
         'billing.needsQuote': false,
         'billing.quoteId': quote._id,

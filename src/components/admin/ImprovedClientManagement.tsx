@@ -9,6 +9,7 @@ import {
   Star, TrendingUp, MessageSquare, Settings, Archive, UserX
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
+import PortalActivityPanel from '@/components/admin/PortalActivityPanel'
 
 interface Client {
   _id: string
@@ -851,6 +852,8 @@ export default function ImprovedClientManagement() {
                       )}
                     </div>
                   </div>
+
+                  {selectedClient.permissions?.canAccessPortal && <PortalActivityPanel clientId={String(selectedClient._id)} />}
 
                   {selectedClient.tags && selectedClient.tags.length > 0 && (
                     <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">

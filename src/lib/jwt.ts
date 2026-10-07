@@ -12,6 +12,7 @@ export type JwtUser = {
   marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
   companyClientId?: string
   userCategory?: 'MARKETPLACE_CLIENT' | 'ENTERPRISE_CLIENT' | 'PLATFORM_USER'
+  technicianId?: string
 }
 
 export function extractAuthToken(request: NextRequest): string | null {
@@ -77,6 +78,7 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
         ? (rawClaims.marketplaceTier as JwtUser['marketplaceTier'])
         : 'standard',
     companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
+    technicianId: typeof rawClaims.technicianId === 'string' ? rawClaims.technicianId : undefined,
     userCategory:
       typeof rawClaims.userCategory === 'string' &&
       ['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(rawClaims.userCategory)

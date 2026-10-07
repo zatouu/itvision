@@ -6,7 +6,7 @@ import { requireAuth } from '@/lib/jwt'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import User from '@/lib/models/User'
 import DisputeEvidence from '@/lib/models/DisputeEvidence'
-import DisputeMessage from '@/lib/models/DisputeMessage'
+import { listThreadMessages, postMessage, toMissionMessageDto } from '@/lib/messaging/thread-messages'
 import MissionAuditLog from '@/lib/models/MissionAuditLog'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [disputeEvidence, disputeMessages, disputeAudit] = hasDispute
       ? await Promise.all([
           DisputeEvidence.find({ requestId: id }).sort({ createdAt: -1 }).lean(),
-          DisputeMessage.find({ requestId: id }).sort({ createdAt: 1 }).lean(),
+          listThreadMessages('mission_dispute', id, { limit: 500 }).then((msgs) => msgs.map(toMissionMessageDto)),
           MissionAuditLog.find({ requestId: id, action: { $in: ['dispute_opened', 'dispute_resolved', 'payment_released', 'payment_refunded'] } }).sort({ createdAt: -1 }).lean(),
         ])
       : [[], [], []]
@@ -281,11 +281,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.action === 'dispute-message') {
       if (!body.text) return NextResponse.json({ error: 'Le message est obligatoire' }, { status: 400 })
       if (!['dispute'].includes(sr.status)) return NextResponse.json({ error: 'La mission n\'est pas en litige' }, { status: 409 })
-      await DisputeMessage.create({
-        requestId: id,
-        senderId: userId,
+      await postMessage({
+        threadType: 'mission_dispute',
+        threadId: id,
+        senderId: String(userId),
         senderRole: missionRole,
-        text: String(body.text).slice(0, 2000),
+        text: String(body.text),
       })
       await (await import('@/lib/mission-lifecycle')).touch(id, 'dispute-message', userId)
     }
