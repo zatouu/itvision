@@ -1,0 +1,71 @@
+import { pgTable, varchar, integer, boolean, jsonb, decimal, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+
+export const categories = pgTable('categories', {
+  id: varchar('id', { length: 80 }).primaryKey(),
+  parentId: varchar('parent_id', { length: 80 }),
+  level: integer('level').notNull(),
+  slug: varchar('slug', { length: 120 }).notNull().unique(),
+  icon: varchar('icon', { length: 60 }).notNull(),
+  image: varchar('image', { length: 255 }).notNull(),
+  orderIndex: integer('order_index').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  isLeaf: boolean('is_leaf').notNull().default(false),
+  name: jsonb('name').notNull(),
+  seoTitle: jsonb('seo_title'),
+  seoDescription: jsonb('seo_description'),
+  keywords: jsonb('keywords'),
+  synonyms: jsonb('synonyms'),
+  typos: jsonb('typos').default(sql("'[]'")),
+  closeCategories: jsonb('close_categories').default(sql("'[]'")),
+  allowedUnits: jsonb('allowed_units').notNull(),
+  requiredAttributes: jsonb('required_attributes').notNull(),
+  optionalAttributes: jsonb('optional_attributes').notNull(),
+  searchFilters: jsonb('search_filters').notNull(),
+  supportsWholesale: boolean('supports_wholesale').notNull().default(true),
+  supportsDropshipping: boolean('supports_dropshipping').notNull().default(true),
+  supportsGroupBuying: boolean('supports_group_buying').notNull().default(true),
+  commissionRate: decimal('commission_rate', { precision: 5, scale: 4 }).notNull().default('0.0800'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  parentIdx: index('idx_categories_parent_id').on(t.parentId),
+  levelIdx: index('idx_categories_level').on(t.level),
+  slugIdx: index('idx_categories_slug').on(t.slug),
+  activeIdx: index('idx_categories_active').on(t.isActive),
+  leafIdx: index('idx_categories_leaf').on(t.isLeaf),
+  slugUnique: uniqueIndex('unique_slug').on(t.slug),
+}))
+
+export async function seedCategories(db: any) {
+  const taxonomy = await import('../src/lib/taxonomy/taxonomy.json')
+  await db.insert(categories).values(taxonomy.categories.map((c: any) => ({
+    id: c.id,
+    parentId: c.parent_id,
+    level: c.level,
+    slug: c.slug,
+    icon: c.icon,
+    image: c.image,
+    orderIndex: c.order,
+    isActive: c.isActive,
+    isLeaf: c.isLeaf,
+    name: c.name,
+    seoTitle: c.seoTitle,
+    seoDescription: c.seoDescription,
+    keywords: c.keywords,
+    synonyms: c.synonyms ?? {},
+    typos: c.typos ?? [],
+    closeCategories: c.closeCategories ?? [],
+    allowedUnits: c.allowedUnits,
+    requiredAttributes: c.requiredAttributes,
+    optionalAttributes: c.optionalAttributes,
+    searchFilters: c.searchFilters,
+    supportsWholesale: c.supportsWholesale,
+    supportsDropshipping: c.supportsDropshipping,
+    supportsGroupBuying: c.supportsGroupBuying,
+    commissionRate: c.commissionRate.toString(),
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  })))
+  console.log('Seeded', taxonomy.categories.length, 'categories')
+}
