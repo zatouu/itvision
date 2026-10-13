@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Xeuy Bi",
+    "slug": "xeuy-consumer",
+    "scheme": "xeuyconsumer",
+    "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.xeuy.xeuy",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Xeuy Bi utilise votre position pour trouver les prestataires proches et pour le suivi de mission.",
+        "NSCameraUsageDescription": "Xeuy Bi utilise l'appareil photo pour prendre des photos de la mission ou des documents.",
+        "NSMicrophoneUsageDescription": "Xeuy Bi utilise le microphone pour les messages vocaux.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.xeuy.xeuy",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Xeuy utilise le microphone pour enregistrer des messages vocaux."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0F172A",
+          "sounds": [],
+          "defaultChannel": "default"
+        }
+      ],
+      "./plugins/withGoogleMapsApiKey",
+      "./plugins/withGoogleServicesJson"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c735fe72-f764-4847-9e1d-2342ff1cbfc8"
+      }
+    },
+    "owner": "xeuy"
+  }
+}
