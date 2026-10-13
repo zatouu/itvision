@@ -1,0 +1,26 @@
+'use client'
+
+import { ReactNode, useEffect } from 'react'
+import ToastProvider from '@/components/ToastProvider'
+import AdminHeader from '@/components/admin/AdminHeader'
+import AdminSidebar from '@/components/admin/AdminSidebar'
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    // Garantit un fond cohérent pour l'admin
+    document.body.classList.add('bg-stone-50')
+    return () => document.body.classList.remove('bg-stone-50')
+  }, [])
+
+  return (
+    <ToastProvider>
+      <div className="min-h-screen bg-stone-50 flex">
+        <AdminSidebar />
+        <main className="flex-1 overflow-y-auto min-w-0">
+          <AdminHeader />
+          {children}
+        </main>
+      </div>
+    </ToastProvider>
+  )
+}
