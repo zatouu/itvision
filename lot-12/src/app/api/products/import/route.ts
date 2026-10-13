@@ -1,0 +1,1126 @@
+function isAliExpressUrl(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('aliexpress.com')
+}
+
+async function buildPreviewFromAliExpressUrl(rawUrl: string): Promise<NormalizedAliExpressItem> {
+  const url = safeUrl(rawUrl)
+  if (!url) throw new Error('URL invalide')
+  if (!url.hostname.toLowerCase().endsWith('aliexpress.com')) {
+    throw new Error('URL non supportée (attendu: aliexpress.com)')
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; ITVisionBot/1.0; +https://example.local)',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+    },
+    cache: 'no-store'
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Impossible de charger la page AliExpress (${res.status}). ${body ? body.slice(0, 120) : ''}`)
+  }
+  const html = await res.text()
+
+  // Extraction titre
+  let title = extractTitle(html)
+  if (!title) {
+    const m = html.match(/window.runParams = ([^;]+);/)
+    if (m?.[1]) {
+      try {
+        const params = JSON.parse(m[1])
+        title = params?.data?.titleModule?.subject || null
+      } catch {}
+    }
+  }
+  if (!title) title = 'Produit AliExpress'
+
+  // Extraction images
+  let images: string[] = []
+  // 1. Essayer JSON-LD
+  const jsonLd = extractJsonLdProduct(html)
+  if (jsonLd.images?.length) images = jsonLd.images
+  // 2. Regex sur les images
+  if (!images.length) {
+    const re = /(https?:\/\/ae\d+\.alicdn\.com\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp))/gi
+    let m: RegExpExecArray | null
+    while ((m = re.exec(html))) {
+      if (m[1]) images.push(m[1])
+      if (images.length >= 10) break
+    }
+  }
+  // 3. Fallback: og:image
+  if (!images.length) {
+    const og = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+    if (og?.[1]) images.push(og[1])
+  }
+  images = [...new Set(images)].slice(0, 10)
+  const image = images[0]
+
+  // Extraction prix (très basique)
+  let price: number | undefined
+  const priceMatch = html.match(/"priceAmount":\s*([0-9.]+)/)
+  if (priceMatch?.[1]) {
+    const v = toFcfa(Number(priceMatch[1]))
+    if (typeof v === 'number' && !isNaN(v)) price = v
+  }
+  if (typeof price !== 'number') {
+    const m = html.match(/"salePrice":\s*\{[^}]*"value":\s*([0-9.]+)/)
+    if (m?.[1]) {
+      const v = toFcfa(Number(m[1]))
+      if (typeof v === 'number' && !isNaN(v)) price = v
+    }
+  }
+
+  // Extraction shop
+  let shopName: string | undefined
+  const shopMatch = html.match(/"storeName":\s*"([^"]+)"/)
+  if (shopMatch?.[1]) shopName = shopMatch[1]
+
+  // Features (vide par défaut)
+  const features: string[] = []
+
+  return {
+    productId: undefined,
+    name: title,
+    productUrl: url.toString(),
+    image,
+    gallery: images,
+    baseCost: price,
+    price,
+    currency: 'FCFA',
+    weightKg: 1,
+    features,
+    category: 'Catalogue import Chine',
+    tagline: 'Import AliExpress',
+    availabilityNote: 'Import AliExpress — à vérifier: poids/dimensions avant calcul transport',
+    shopName,
+    orders: undefined,
+    totalRated: undefined,
+    sourcingNotes: 'Import auto AliExpress (HTML) — parsing sans API.'
+  }
+}
+import { NextRequest, NextResponse } from 'next/server'
+import { connectMongoose } from '@/lib/mongoose'
+import Product from '@/lib/models/Product'
+import { randomUUID } from 'crypto'
+import { requireAuth } from '@/lib/jwt'
+import { canonicalSource, estimateWeightKg } from '@/lib/market/catalog-import'
+
+/** Import = brouillon à relire ; poids et dimensions de remplissage (1 kg, 10×10×10) remplacés par une estimation signalée. */
+function asImportDraft<T extends Record<string, any>>(payload: T): T {
+  const p: any = payload
+  const placeholderDims = p.lengthCm === 10 && p.widthCm === 10 && p.heightCm === 10
+  const hasDims = !placeholderDims && p.lengthCm > 0 && p.widthCm > 0 && p.heightCm > 0
+  const hasWeight = p.weightKg > 0 && !(p.weightKg === 1 && placeholderDims)
+  if (!hasDims) { delete p.lengthCm; delete p.widthCm; delete p.heightCm }
+  if (!hasWeight) p.weightKg = estimateWeightKg(`${p.name || ''} ${p.category || ''}`)
+  p.weightEstimated = !hasWeight || !hasDims
+  p.isPublished = false
+  const src = canonicalSource(p.sourcing?.productUrl, p.sourcing?.platform)
+  if (src.externalId) p.sourcing = { ...p.sourcing, externalId: src.externalId }
+  return payload
+}
+
+interface AliExpressItemProperty {
+  attr_name?: string
+  attr_value?: string
+}
+
+interface AliExpressItem {
+  product_id?: string
+  product_title?: string
+  product_detail_url?: string
+  image_url?: string
+  original_price?: string
+  sale_price?: string
+  evaluation_score?: string
+  shop_name?: string
+  store?: {
+    store_name?: string
+  }
+  product_properties?: AliExpressItemProperty[]
+  first_level_category_name?: string
+  second_level_category_name?: string
+  total_rated?: number
+  orders?: number
+  item_weight?: number
+}
+
+interface AliExpressApiResponse {
+  result?: {
+    items?: AliExpressItem[]
+  }
+}
+
+interface NormalizedAliExpressItem {
+  productId?: string
+  name: string
+  productUrl: string
+  image?: string
+  gallery: string[]
+  baseCost?: number
+  price?: number
+  currency: string
+  weightKg?: number
+  features: string[]
+  category: string
+  tagline: string
+  availabilityNote: string
+  shopName?: string
+  orders?: number
+  totalRated?: number
+  sourcingNotes?: string
+}
+
+// Formater les spécifications en markdown compatible avec parseMarkdown
+// Produit un bloc `- **Key**: Value` qui sera rendu en tableau propre
+const formatSpecsAsMarkdown = (specs?: Record<string, string>, rawDescription?: string): string => {
+  const parts: string[] = []
+
+  // Tableau de spécifications
+  if (specs && typeof specs === 'object') {
+    const entries = Object.entries(specs).filter(([k, v]) => k && v && k.length < 60 && v.length < 200)
+    if (entries.length > 0) {
+      parts.push('**Spécifications**')
+      parts.push(entries.map(([k, v]) => `- **${k}**: ${v}`).join('\n'))
+    }
+  }
+
+  // Texte de description brut (nettoyé)
+  if (rawDescription && rawDescription.length > 20) {
+    // Éviter de re-dupliquer les specs déjà formatées
+    const cleanDesc = rawDescription
+      .replace(/^\s*spécifications?\s*$/gim, '')
+      .replace(/^\s*specifications?\s*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    if (cleanDesc.length > 20) {
+      parts.push(cleanDesc)
+    }
+  }
+
+  return parts.join('\n\n').slice(0, 4900) || ''
+}
+
+type Import1688Preview = {
+  offerId?: string
+  name: string
+  productUrl: string
+  image?: string
+  gallery: string[]
+  price1688?: number
+  price1688Currency?: 'CNY'
+  exchangeRate?: number
+  currency?: 'FCFA'
+  category: string
+  tagline: string
+  availabilityNote: string
+  features: string[]
+  // Minimal logistics to satisfy Product.validated rules for imported items
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  variantGroups?: Array<{
+    name: string
+    variants: Array<{
+      id: string
+      name: string
+      image?: string
+      price1688?: number
+      stock?: number
+      isDefault?: boolean
+    }>
+  }>
+}
+
+const API_HOST = 'aliexpress-datahub.p.rapidapi.com'
+const API_ENDPOINT = `https://${API_HOST}/item_search`
+
+const FX_RATE = Number(process.env.ALIEXPRESS_USD_TO_XOF || 620)
+const DEFAULT_MARGIN = Number(process.env.ALIEXPRESS_DEFAULT_MARGIN || 0)  // Marge par défaut à 0%
+
+async function requireManagerRole(request: NextRequest) {
+  try {
+    const { role } = await requireAuth(request)
+    const allowed = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'PRODUCT_MANAGER'
+    if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
+    return { ok: true as const }
+  } catch {
+    return { ok: false as const, status: 401, error: 'Non authentifié' as const }
+  }
+}
+
+const parsePriceUSD = (input?: string): number | null => {
+  if (!input) return null
+  const numericValue = Number(input.replace(/[^0-9.,]/g, '').replace(',', '.'))
+  if (Number.isNaN(numericValue) || !Number.isFinite(numericValue)) return null
+  return numericValue
+}
+
+const toFcfa = (usdPrice: number | null) => {
+  if (usdPrice === null) return null
+  return Math.round(usdPrice * FX_RATE)
+}
+
+const ensureMinimumWeight = (weight?: number | null) => {
+  if (typeof weight === 'number' && weight > 0) return Number(weight.toFixed(2))
+  return 1
+}
+
+function isTaobaoUrl(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('taobao.com') || host.endsWith('tmall.com')
+}
+
+function safeUrl(raw: string) {
+  try {
+    return new URL(raw)
+  } catch {
+    return null
+  }
+}
+
+function is1688Url(rawUrl: string): boolean {
+  const url = safeUrl(rawUrl)
+  if (!url) return false
+  const host = url.hostname.toLowerCase()
+  return host.endsWith('1688.com')
+}
+
+function decodeHtml(input: string) {
+  return input
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function extractOfferId(url: URL): string | undefined {
+  const fromQuery = url.searchParams.get('offerId') || url.searchParams.get('offerid')
+  if (fromQuery && /^\d{6,}$/.test(fromQuery)) return fromQuery
+  const m = url.pathname.match(/offer\/(\d{6,})\.html/i)
+  if (m?.[1]) return m[1]
+  return undefined
+}
+
+function extractTitle(html: string): string | null {
+  const og = html.match(/property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
+  if (og?.[1]) return decodeHtml(og[1]).trim()
+  const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+  if (title?.[1]) {
+    const cleaned = decodeHtml(title[1]).replace(/\s*[-|].*$/, '').trim()
+    return cleaned || null
+  }
+  return null
+}
+
+function extractJsonLdProduct(html: string): { name?: string; images?: string[]; price?: number } {
+  const blocks: string[] = []
+  const re = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html))) {
+    if (m?.[1]) blocks.push(m[1])
+    if (blocks.length >= 5) break
+  }
+
+  const findProduct = (value: any): any => {
+    if (!value) return null
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        const found = findProduct(v)
+        if (found) return found
+      }
+      return null
+    }
+    if (typeof value === 'object') {
+      const type = value['@type']
+      const types = Array.isArray(type) ? type.map(String) : type ? [String(type)] : []
+      if (types.some(t => t.toLowerCase() === 'product')) return value
+      if (value['@graph']) {
+        const found = findProduct(value['@graph'])
+        if (found) return found
+      }
+      return null
+    }
+    return null
+  }
+
+  for (const raw of blocks) {
+    try {
+      const parsed = JSON.parse(raw.trim())
+      const product = findProduct(parsed)
+      if (!product) continue
+
+      const name = typeof product.name === 'string' ? product.name.trim() : undefined
+
+      const imageRaw = product.image
+      const images = Array.isArray(imageRaw)
+        ? imageRaw.filter((v: any) => typeof v === 'string')
+        : typeof imageRaw === 'string'
+          ? [imageRaw]
+          : undefined
+
+      const offers = product.offers
+      const priceRaw = offers && typeof offers === 'object' ? (offers.price ?? offers.lowPrice ?? offers.highPrice) : undefined
+      const price = priceRaw !== undefined ? Number(priceRaw) : undefined
+
+      return {
+        name,
+        images,
+        price: Number.isFinite(price) && price && price > 0 ? price : undefined
+      }
+    } catch {
+      // ignore JSON-LD parse errors
+    }
+  }
+
+  return {}
+}
+
+function extractPrice1688(html: string): number | undefined {
+  const patterns = [
+    /价格\s*¥\s*([0-9]+(?:\.[0-9]+)?)/,
+    /¥\s*([0-9]+(?:\.[0-9]+)?)\s*起/,
+    /\bprice\b[^0-9]{0,12}([0-9]+(?:\.[0-9]+)?)/i
+  ]
+
+  for (const re of patterns) {
+    const m = html.match(re)
+    if (m?.[1]) {
+      const v = Number(m[1])
+      if (Number.isFinite(v) && v > 0) return v
+    }
+  }
+  return undefined
+}
+
+function extractImages(html: string): string[] {
+  const urls = new Set<string>()
+  const re = /(https?:\/\/(?:cbu\d{2}\.alicdn\.com|gw\.alicdn\.com|img\.alicdn\.com)\/[\s\S]*?\.(?:jpg|jpeg|png|webp))(?:_[^\s"'<>]+)?/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html))) {
+    const u = m[1]
+    if (!u) continue
+    urls.add(u)
+    if (urls.size >= 20) break
+  }
+  return Array.from(urls)
+}
+
+function extractVariantNamesFromText(html: string): string[] {
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+
+  const names = new Set<string>()
+  const re = /(k\d{1,3}[^\s]{0,18}?)(?:库存|\s*stock)/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    const n = m[1]?.trim()
+    if (!n) continue
+    if (n.length < 3 || n.length > 32) continue
+    names.add(n)
+    if (names.size >= 30) break
+  }
+  return Array.from(names)
+}
+
+async function buildPreviewFrom1688Url(rawUrl: string): Promise<Import1688Preview> {
+  const url = safeUrl(rawUrl)
+  if (!url) throw new Error('URL invalide')
+  if (!url.hostname.toLowerCase().endsWith('1688.com')) {
+    throw new Error('URL non supportée (attendu: 1688.com)')
+  }
+
+  const offerId = extractOfferId(url)
+
+  // Utiliser Playwright pour scraper (contourne le captcha)
+  const { scrape1688WithBrowser } = await import('@/lib/browser-scraper')
+  const scrapeResult = await scrape1688WithBrowser(url.toString())
+
+  if (!scrapeResult.success || !scrapeResult.data) {
+    throw new Error(scrapeResult.error || 'Scraping 1688 échoué via Playwright')
+  }
+
+  const data = scrapeResult.data
+
+  return {
+    offerId,
+    name: data.name,
+    productUrl: url.toString(),
+    image: data.image,
+    gallery: data.gallery || [],
+    price1688: data.price1688,
+    price1688Currency: 'CNY',
+    exchangeRate: data.exchangeRate || 100,
+    currency: 'FCFA',
+    category: data.category || 'Catalogue import Chine',
+    tagline: data.tagline || 'Import 1688',
+    availabilityNote: data.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
+    features: data.features || [],
+    weightKg: data.weightKg || 1,
+    lengthCm: data.lengthCm || 10,
+    widthCm: data.widthCm || 10,
+    heightCm: data.heightCm || 10,
+    variantGroups: data.variantGroups?.map(g => ({
+      ...g,
+      variants: g.variants.map(v => ({
+        ...v,
+        stock: v.stock ?? undefined,
+      }))
+    }))
+  }
+}
+
+const extractFeatures = (item: AliExpressItem): string[] => {
+  const features = new Set<string>()
+  if (item.shop_name) features.add(`Boutique: ${item.shop_name}`)
+  if (item.orders) features.add(`${item.orders} commandes`)
+  if (item.total_rated) features.add(`${item.total_rated} avis`)
+  if (Array.isArray(item.product_properties)) {
+    item.product_properties
+      .filter((prop): prop is AliExpressItemProperty => Boolean(prop?.attr_name && prop?.attr_value))
+      .slice(0, 5)
+      .forEach((prop) => {
+        features.add(`${prop.attr_name}: ${prop.attr_value}`)
+      })
+  }
+  return [...features].slice(0, 6)
+}
+
+const fetchAliExpress = async (keyword: string, limit: number) => {
+  const rapidApiKey = process.env.ALIEXPRESS_RAPIDAPI_KEY
+
+  if (!rapidApiKey) {
+    throw new Error('ALIEXPRESS_RAPIDAPI_KEY est requis pour la recherche AliExpress. Utilisez l\'extension Chrome pour l\'import par URL.')
+  }
+
+  const pageSize = Math.min(Math.max(limit, 1), 20)
+  const query = new URLSearchParams({
+    q: keyword,
+    page: '1',
+    page_size: String(pageSize),
+    sort: 'orignalPriceDown'
+  })
+
+  const response = await fetch(`${API_ENDPOINT}?${query.toString()}`, {
+    method: 'GET',
+    headers: {
+      'X-RapidAPI-Key': rapidApiKey,
+      'X-RapidAPI-Host': API_HOST
+    }
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(`AliExpress API error ${response.status}: ${body}`)
+  }
+
+  const json = (await response.json()) as AliExpressApiResponse
+  return json.result?.items ?? []
+}
+
+const normalizeAliExpressItem = (item: AliExpressItem): NormalizedAliExpressItem | null => {
+  const productUrl = item.product_detail_url || ''
+  const title = item.product_title?.trim()
+  if (!title || !productUrl) return null
+
+  const priceUSD = parsePriceUSD(item.sale_price || item.original_price || '')
+  const baseCost = toFcfa(priceUSD) ?? undefined
+  const price = typeof baseCost === 'number' ? Math.round(baseCost * (1 + DEFAULT_MARGIN / 100)) : undefined
+  const primaryImage = item.image_url || ''
+  const weightKg = ensureMinimumWeight(item.item_weight)
+  const features = extractFeatures(item)
+
+  const availabilityNote = 'Commande import Chine (freight 3j / 15j / 60j)'
+
+  return {
+    productId: item.product_id,
+    name: title,
+    productUrl,
+    image: primaryImage || undefined,
+    gallery: primaryImage ? [primaryImage] : [],
+    baseCost,
+    price,
+    currency: 'FCFA',
+    weightKg,
+    features,
+    category: item.first_level_category_name || 'Catalogue import Chine',
+    tagline: item.second_level_category_name || 'Solutions import Chine',
+    availabilityNote,
+    shopName: item.shop_name || item.store?.store_name,
+    orders: item.orders,
+    totalRated: item.total_rated,
+    sourcingNotes: `Produit importé via API AliExpress.
+ID: ${item.product_id || 'N/A'}
+Commandes: ${item.orders ?? 'n/a'}
+Avis: ${item.total_rated ?? 'n/a'}`
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await requireManagerRole(request)
+  if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+
+  const { searchParams } = new URL(request.url)
+  const rawUrl = (searchParams.get('url') || '').trim()
+  if (rawUrl) {
+    try {
+      // Détection Taobao/Tmall - import non supporté automatiquement
+      if (isTaobaoUrl(rawUrl)) {
+        return NextResponse.json({
+          success: false,
+          code: 'TAOBAO_NOT_SUPPORTED',
+          error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+          message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+          alternatives: [
+            { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(rawUrl.split('/').pop() || '')}` },
+            { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+          ]
+        }, { status: 400 })
+      }
+      
+      if (is1688Url(rawUrl)) {
+        const preview = await buildPreviewFrom1688Url(rawUrl)
+        return NextResponse.json({ success: true, item: preview })
+      } else if (isAliExpressUrl(rawUrl)) {
+        const preview = await buildPreviewFromAliExpressUrl(rawUrl)
+        return NextResponse.json({ success: true, item: preview })
+      } else {
+        return NextResponse.json({ success: false, error: 'URL non supportée' }, { status: 400 })
+      }
+    } catch (error: any) {
+      console.error('Preview error:', error)
+      const message = String(error?.message || 'Import impossible')
+      const isCaptcha = /CAPTCHA_1688|captcha|robot|verify/i.test(message)
+      const code = isCaptcha ? 'CAPTCHA' : 'PREVIEW_FAILED'
+      const status = isCaptcha ? 502 : 500
+      return NextResponse.json({ success: false, error: message.replace(/^CAPTCHA_1688:\s*/i, ''), code }, { status })
+    }
+  }
+
+  const keyword = (searchParams.get('keyword') || '').trim()
+  const limit = Math.min(parseInt(searchParams.get('limit') || '6', 10), 12)
+  if (!keyword) {
+    return NextResponse.json({ success: false, error: 'Mot-clé requis' }, { status: 400 })
+  }
+
+  try {
+    const items = await fetchAliExpress(keyword, limit)
+    const normalized = items
+      .map(normalizeAliExpressItem)
+      .filter((item): item is NormalizedAliExpressItem => Boolean(item))
+
+    return NextResponse.json({ success: true, items: normalized })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Import impossible'
+    console.error('AliExpress search error:', message)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await requireManagerRole(request)
+  if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+
+  try {
+    await connectMongoose()
+    const body = await request.json()
+
+    // Bulk import: body.urls = string[]
+    const rawUrls = Array.isArray(body?.urls) ? (body.urls as unknown[]) : null
+    const dryRun = Boolean(body?.dryRun)
+    if (rawUrls) {
+      const urls = Array.from(
+        new Set(
+          rawUrls
+            .filter((v): v is string => typeof v === 'string')
+            .map(u => u.trim())
+            .filter(u => u.length > 0)
+        )
+      ).slice(0, 20)
+
+      if (urls.length === 0) {
+        return NextResponse.json({ success: false, error: 'Aucune URL valide fournie' }, { status: 400 })
+      }
+
+      type BulkImportResult = {
+        url: string
+        ok: boolean
+        action?: 'created' | 'updated' | 'preview'
+        productId?: string
+        error?: string
+      }
+
+      const results: BulkImportResult[] = []
+      let createdCount = 0
+      let updatedCount = 0
+      let failedCount = 0
+
+      for (const url of urls) {
+        try {
+          // Détection Taobao/Tmail dans le bulk import
+          if (isTaobaoUrl(url)) {
+            results.push({
+              url,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+          
+          let preview: NormalizedAliExpressItem | Import1688Preview
+          if (is1688Url(url)) {
+            preview = await buildPreviewFrom1688Url(url)
+          } else if (isAliExpressUrl(url)) {
+            preview = await buildPreviewFromAliExpressUrl(url)
+          } else {
+            throw new Error('URL non supportée (sources: aliexpress.com, 1688.com)')
+          }
+
+          if (dryRun) {
+            results.push({ url, ok: true, action: 'preview' })
+            continue
+          }
+
+          if (is1688Url(preview.productUrl)) {
+            const item1688 = preview as Import1688Preview & { description?: string; supplier?: { name?: string } }
+            const payload: any = {
+              name: item1688.name,
+              category: item1688.category || 'Catalogue import Chine',
+              tagline: item1688.tagline || 'Import 1688',
+              description: item1688.description || (item1688.offerId
+                ? `Import depuis 1688 • offerId ${item1688.offerId}`
+                : 'Import depuis 1688'),
+              currency: 'FCFA',
+              image: item1688.image,
+              gallery: Array.isArray(item1688.gallery) ? item1688.gallery : [],
+              features: Array.isArray(item1688.features) ? item1688.features : [],
+              requiresQuote: false,
+              stockStatus: 'preorder' as const,
+              stockQuantity: 50,
+              leadTimeDays: 15,
+              availabilityNote: item1688.availabilityNote,
+              // 1688
+              price1688: typeof item1688.price1688 === 'number' ? item1688.price1688 : undefined,
+              price1688Currency: 'CNY',
+              exchangeRate: typeof item1688.exchangeRate === 'number' && item1688.exchangeRate > 0 ? item1688.exchangeRate : 100,
+              serviceFeeRate: 10,
+              insuranceRate: 2.5,
+              // Logistics (réelles si extraites par Playwright)
+              weightKg: Number(item1688.weightKg) || 1,
+              lengthCm: Number(item1688.lengthCm) || 10,
+              widthCm: Number(item1688.widthCm) || 10,
+              heightCm: Number(item1688.heightCm) || 10,
+              // Variants
+              variantGroups: Array.isArray(item1688.variantGroups) ? item1688.variantGroups : [],
+              // Sourcing
+              sourcing: {
+                platform: '1688',
+                supplierName: item1688.supplier?.name || undefined,
+                supplierContact: undefined,
+                productUrl: item1688.productUrl,
+                notes: `Import Playwright 1688${item1688.offerId ? ` (offerId ${item1688.offerId})` : ''}.`
+              },
+              shippingOverrides: []
+            }
+
+            const existing = await Product.findOne({ 'sourcing.productUrl': item1688.productUrl })
+            if (existing) {
+              await Product.updateOne({ _id: existing._id }, { $set: payload })
+              updatedCount++
+              results.push({ url, ok: true, action: 'updated', productId: String(existing._id) })
+              continue
+            }
+
+            const created = await Product.create(asImportDraft(payload))
+            createdCount++
+            results.push({ url, ok: true, action: 'created', productId: String(created._id) })
+            continue
+          }
+
+          const ali = preview as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
+          const payload = {
+            name: ali.name,
+            category: ali.category,
+            description: aliDesc,
+            tagline: ali.tagline,
+            baseCost: ali.baseCost,
+            marginRate: DEFAULT_MARGIN,
+            price: ali.price,
+            currency: ali.currency,
+            image: ali.image,
+            gallery: ali.gallery,
+            features: ali.features,
+            requiresQuote: typeof ali.price === 'number' ? false : true,
+            stockStatus: 'preorder' as const,
+            stockQuantity: 50,
+            leadTimeDays: 15,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
+            availabilityNote: ali.availabilityNote,
+            sourcing: {
+              platform: 'aliexpress',
+              supplierName: ali.shopName,
+              supplierContact: undefined,
+              productUrl: ali.productUrl,
+              notes: ali.sourcingNotes
+            },
+            shippingOverrides: []
+          }
+
+          const existing = await Product.findOne({ 'sourcing.productUrl': ali.productUrl })
+          if (existing) {
+            await Product.updateOne({ _id: existing._id }, { $set: payload })
+            updatedCount++
+            results.push({ url, ok: true, action: 'updated', productId: String(existing._id) })
+            continue
+          }
+
+          const created = await Product.create(asImportDraft(payload))
+          createdCount++
+          results.push({ url, ok: true, action: 'created', productId: String(created._id) })
+        } catch (error: any) {
+          failedCount++
+          results.push({ url, ok: false, error: error?.message || 'Import impossible' })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        results,
+        summary: {
+          total: urls.length,
+          created: createdCount,
+          updated: updatedCount,
+          failed: failedCount,
+          dryRun
+        }
+      })
+    }
+
+    // Bulk import from already-normalized items: body.items = Array<{ name, productUrl, ... }>
+    const rawItems = Array.isArray(body?.items) ? (body.items as unknown[]) : null
+    if (rawItems) {
+      const items = Array.from(
+        new Set(
+          rawItems
+            .filter((v): v is NormalizedAliExpressItem | Import1688Preview =>
+              typeof v === 'object' && v !== null && 'productUrl' in v
+            )
+            .map(v => v as NormalizedAliExpressItem | Import1688Preview)
+            .filter(v => typeof v.productUrl === 'string')
+            .map(v => ({ ...v, productUrl: String(v.productUrl).trim() }))
+            .filter(v => v.productUrl.length > 0)
+            .map(v => v.productUrl)
+        )
+      )
+
+      const uniqueByUrl = new Map<string, NormalizedAliExpressItem | Import1688Preview>()
+      for (const v of rawItems) {
+        if (typeof v !== 'object' || v === null) continue
+        const candidate = v as NormalizedAliExpressItem | Import1688Preview
+        const url = typeof candidate.productUrl === 'string' ? candidate.productUrl.trim() : ''
+        if (!url) continue
+        uniqueByUrl.set(url, { ...candidate, productUrl: url })
+      }
+
+      const normalizedItems = Array.from(uniqueByUrl.values()).slice(0, 20)
+      if (normalizedItems.length === 0) {
+        return NextResponse.json({ success: false, error: 'Aucun item valide fourni' }, { status: 400 })
+      }
+
+      type BulkItemResult = {
+        productUrl: string
+        ok: boolean
+        action?: 'created' | 'updated' | 'preview'
+        productId?: string
+        error?: string
+      }
+
+      const dryRun = Boolean(body?.dryRun)
+      const results: BulkItemResult[] = []
+      let createdCount = 0
+      let updatedCount = 0
+      let failedCount = 0
+
+      for (const it of normalizedItems) {
+        const productUrl = it.productUrl
+        try {
+          if (!it.name || !productUrl) {
+            throw new Error('Données import invalides')
+          }
+
+          if (dryRun) {
+            results.push({ productUrl, ok: true, action: 'preview' })
+            continue
+          }
+
+          if (isTaobaoUrl(productUrl)) {
+            results.push({
+              productUrl,
+              ok: false,
+              error: 'Import Taobao/Tmall non supporté automatiquement. Utilisez 1688.com ou import manuel.'
+            })
+            failedCount++
+            continue
+          }
+
+          if (is1688Url(productUrl)) {
+            const preview = it as Import1688Preview & { description?: string; supplier?: { name?: string }; specifications?: Record<string, string> }
+            const rawDesc = preview.description || (preview.offerId
+              ? `Import depuis 1688 • offerId ${preview.offerId}`
+              : 'Import depuis 1688')
+            const payload: Record<string, unknown> = {
+              name: preview.name?.slice(0, 200),
+              category: preview.category || 'Catalogue import Chine',
+              tagline: (preview.tagline || 'Import 1688').slice(0, 200),
+              description: rawDesc.slice(0, 4900),
+              currency: 'FCFA',
+              image: preview.image,
+              gallery: Array.isArray(preview.gallery) ? preview.gallery : [],
+              features: Array.isArray(preview.features) ? preview.features : [],
+              requiresQuote: false,
+              stockStatus: 'preorder',
+              stockQuantity: 50,
+              leadTimeDays: 15,
+              availabilityNote: preview.availabilityNote,
+              // 1688
+              price1688: typeof preview.price1688 === 'number' ? preview.price1688 : undefined,
+              price1688Currency: 'CNY',
+              exchangeRate: typeof preview.exchangeRate === 'number' && preview.exchangeRate > 0 ? preview.exchangeRate : 100,
+              serviceFeeRate: 10,
+              insuranceRate: 2.5,
+              // Logistics (réelles si extraites)
+              weightKg: Number(preview.weightKg) || 1,
+              lengthCm: Number(preview.lengthCm) || 10,
+              widthCm: Number(preview.widthCm) || 10,
+              heightCm: Number(preview.heightCm) || 10,
+              // Variants
+              variantGroups: Array.isArray(preview.variantGroups) ? preview.variantGroups : [],
+              descriptionImages: Array.isArray((preview as any).descriptionImages) ? (preview as any).descriptionImages : [],
+              // Sourcing
+              sourcing: {
+                platform: '1688',
+                supplierName: preview.supplier?.name || undefined,
+                supplierContact: undefined,
+                productUrl: preview.productUrl,
+                notes: `Import extension 1688${preview.offerId ? ` (offerId ${preview.offerId})` : ''}.`
+              },
+              shippingOverrides: []
+            }
+
+            const existing = await Product.findOne({ 'sourcing.productUrl': preview.productUrl })
+            if (existing) {
+              await Product.updateOne({ _id: existing._id }, { $set: payload })
+              updatedCount++
+              results.push({ productUrl, ok: true, action: 'updated', productId: String(existing._id) })
+              continue
+            }
+
+            const created = await Product.create(asImportDraft(payload))
+            createdCount++
+            results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
+            continue
+          }
+
+          const ali = it as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string>; lengthCm?: number; widthCm?: number; heightCm?: number }
+          const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
+          const payload = {
+            name: (ali.name || 'Produit AliExpress').slice(0, 200),
+            category: ali.category,
+            description: aliDesc,
+            tagline: (ali.tagline || 'Import AliExpress').slice(0, 200),
+            baseCost: ali.baseCost,
+            marginRate: DEFAULT_MARGIN,
+            price: ali.price,
+            currency: ali.currency,
+            image: ali.image,
+            gallery: ali.gallery,
+            descriptionImages: Array.isArray((ali as any).descriptionImages) ? (ali as any).descriptionImages : [],
+            features: ali.features,
+            requiresQuote: typeof ali.price === 'number' ? false : true,
+            stockStatus: 'preorder' as const,
+            stockQuantity: 50,
+            leadTimeDays: 15,
+            weightKg: ali.weightKg || undefined,
+            lengthCm: ali.lengthCm || undefined,
+            widthCm: ali.widthCm || undefined,
+            heightCm: ali.heightCm || undefined,
+            variantGroups: Array.isArray((ali as any).variantGroups) ? (ali as any).variantGroups : [],
+            availabilityNote: ali.availabilityNote,
+            sourcing: {
+              platform: 'aliexpress',
+              supplierName: ali.shopName,
+              supplierContact: undefined,
+              productUrl: ali.productUrl,
+              notes: ali.sourcingNotes
+            },
+            shippingOverrides: []
+          }
+
+          const existing = await Product.findOne({ 'sourcing.productUrl': ali.productUrl })
+          if (existing) {
+            await Product.updateOne({ _id: existing._id }, { $set: payload })
+            updatedCount++
+            results.push({ productUrl, ok: true, action: 'updated', productId: String(existing._id) })
+            continue
+          }
+
+          const created = await Product.create(asImportDraft(payload))
+          createdCount++
+          results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
+        } catch (error) {
+          failedCount++
+          const message = error instanceof Error ? error.message : 'Import impossible'
+          console.error(`[import] Échec pour ${productUrl}:`, message)
+          results.push({ productUrl, ok: false, error: message })
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        results,
+        summary: {
+          total: normalizedItems.length,
+          created: createdCount,
+          updated: updatedCount,
+          failed: failedCount,
+          dryRun
+        }
+      })
+    }
+
+    const item = body?.item as (NormalizedAliExpressItem | Import1688Preview) | undefined
+    if (!item || !item.name || !item.productUrl) {
+      return NextResponse.json({ success: false, error: 'Données import invalides' }, { status: 400 })
+    }
+
+    // Détection Taobao pour import unique
+    if (isTaobaoUrl(item.productUrl)) {
+      return NextResponse.json({
+        success: false,
+        code: 'TAOBAO_NOT_SUPPORTED',
+        error: 'Import automatique depuis Taobao/Tmall temporairement indisponible.',
+        message: 'Solutions alternatives : 1) Utilisez 1688.com (mêmes fournisseurs, prix B2B meilleurs), 2) Import manuel via l\'admin (coller nom, prix et images)',
+        alternatives: [
+          { platform: '1688', url: `https://s.1688.com/search/offer_search.htm?keywords=${encodeURIComponent(item.name)}` },
+          { platform: 'manual', description: 'Import manuel via /admin/import-produits' }
+        ]
+      }, { status: 400 })
+    }
+
+    if (is1688Url(item.productUrl)) {
+      const preview = item as Import1688Preview
+      const payload: any = {
+        name: preview.name,
+        category: preview.category || 'Catalogue import Chine',
+        tagline: preview.tagline || 'Import 1688',
+        description: preview.offerId
+          ? `Import depuis 1688 • offerId ${preview.offerId}`
+          : 'Import depuis 1688',
+        currency: 'FCFA',
+        image: preview.image,
+        gallery: Array.isArray(preview.gallery) ? preview.gallery : [],
+        features: Array.isArray(preview.features) ? preview.features : [],
+        requiresQuote: false,
+        stockStatus: 'preorder' as const,
+        stockQuantity: 50,
+        leadTimeDays: 15,
+        availabilityNote: preview.availabilityNote,
+        // 1688
+        price1688: typeof preview.price1688 === 'number' ? preview.price1688 : undefined,
+        price1688Currency: 'CNY',
+        exchangeRate: typeof preview.exchangeRate === 'number' && preview.exchangeRate > 0 ? preview.exchangeRate : 100,
+        serviceFeeRate: 10,
+        insuranceRate: 2.5,
+        // Logistics placeholders (required for imported items)
+        weightKg: Number(preview.weightKg) || 1,
+        lengthCm: Number(preview.lengthCm) || 10,
+        widthCm: Number(preview.widthCm) || 10,
+        heightCm: Number(preview.heightCm) || 10,
+        // Variants
+        variantGroups: Array.isArray(preview.variantGroups) ? preview.variantGroups : [],
+        // Sourcing
+        sourcing: {
+          platform: '1688',
+          supplierName: undefined,
+          supplierContact: undefined,
+          productUrl: preview.productUrl,
+          notes: `Import auto 1688${preview.offerId ? ` (offerId ${preview.offerId})` : ''}. Vérifier poids/dimensions.`
+        },
+        shippingOverrides: []
+      }
+
+      const existing = await Product.findOne({ 'sourcing.productUrl': preview.productUrl })
+      if (existing) {
+        await Product.updateOne({ _id: existing._id }, { $set: payload })
+        const updated = await Product.findById(existing._id).lean()
+        return NextResponse.json({ success: true, product: updated, action: 'updated' })
+      }
+
+      const created = await Product.create(asImportDraft(payload))
+      return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
+    }
+
+    const ali = item as NormalizedAliExpressItem & { description?: string; specifications?: Record<string, string> }
+    const aliDesc = formatSpecsAsMarkdown((ali as any).specifications, ali.description) || `Import direct AliExpress • ${ali.shopName || 'Fournisseur partenaire'}`
+    const payload = {
+      name: ali.name,
+      category: ali.category,
+      description: aliDesc,
+      tagline: ali.tagline,
+      baseCost: ali.baseCost,
+      marginRate: DEFAULT_MARGIN,
+      price: ali.price,
+      currency: ali.currency,
+      image: ali.image,
+      gallery: ali.gallery,
+      features: ali.features,
+      requiresQuote: typeof ali.price === 'number' ? false : true,
+      stockStatus: 'preorder' as const,
+      stockQuantity: 50,
+      leadTimeDays: 15,
+      weightKg: ali.weightKg,
+      availabilityNote: ali.availabilityNote,
+      sourcing: {
+        platform: 'aliexpress',
+        supplierName: ali.shopName,
+        supplierContact: undefined,
+        productUrl: ali.productUrl,
+        notes: ali.sourcingNotes
+      },
+      shippingOverrides: []
+    }
+
+    const existing = await Product.findOne({ 'sourcing.productUrl': ali.productUrl })
+    if (existing) {
+      await Product.updateOne({ _id: existing._id }, { $set: payload })
+      const updated = await Product.findById(existing._id).lean()
+      return NextResponse.json({ success: true, product: updated, action: 'updated' })
+    }
+
+    const created = await Product.create(asImportDraft(payload))
+    return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
+  } catch (error: any) {
+    console.error('AliExpress import error:', error)
+    return NextResponse.json({ success: false, error: error?.message || 'Import impossible' }, { status: 500 })
+  }
+}
+

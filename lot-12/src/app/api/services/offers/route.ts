@@ -1,0 +1,324 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { connectMongoose } from '@/lib/mongoose'
+import Offer from '@/lib/models/Offer'
+import ServiceRequest from '@/lib/models/ServiceRequest'
+import { requireAuth } from '@/lib/jwt'
+import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
+import { sendPushToUser } from '@/lib/push'
+import { onOffer } from '@/lib/visibility'
+import { getAppConfig, releaseMissionReservation, reserveMissionCredits } from '@/lib/wallet'
+import MissionUnlock from '@/lib/models/MissionUnlock'
+import { computeUnlockCost } from '@/lib/credit-cost'
+import { internalPost } from '@/lib/internal-auth'
+
+const MAX_PRICE = 50_000_000
+const MAX_ETA_MINUTES = 10080 // 7 jours
+const MAX_COMMENT_LENGTH = 1000
+const MAX_MATERIALS = 10
+
+/**
+ * Lignes matériel de l'offre. Le produit DDM+ associé vient uniquement de la fiche IA de la demande
+ * (jamais d'un lien envoyé par l'application) ; le lien porte le code ambassadeur du prestataire.
+ */
+async function buildOfferMaterials(raw: unknown, sr: any, providerId: string, request: NextRequest) {
+  if (!Array.isArray(raw)) return undefined
+  const suggestions: any[] = Array.isArray(sr.aiBrief?.materialProducts) ? sr.aiBrief.materialProducts : []
+  const byId = new Map<string, any>()
+  const byTerm = new Map<string, any>()
+  for (const s of suggestions) {
+    const products = Array.isArray(s?.products) ? s.products : []
+    for (const p of products) if (p?.id) byId.set(String(p.id), p)
+    if (s?.term && products[0]) byTerm.set(String(s.term).trim().toLowerCase(), products[0])
+  }
+
+  const lines = raw.slice(0, MAX_MATERIALS).flatMap((m: any) => {
+    const name = typeof m?.name === 'string' ? m.name.trim().slice(0, 80) : ''
+    if (!name) return []
+    const product = (m?.productId && byId.get(String(m.productId))) || byTerm.get(name.toLowerCase())
+    return [{ name, qty: Math.min(99, Math.max(1, Math.round(Number(m?.qty) || 1))), byClient: m?.byClient !== false, product }]
+  })
+
+  let refCode: string | undefined
+  if (lines.some(l => l.byClient && l.product)) {
+    const res = await internalPost<{ code?: string }>(request, '/api/internal/market/ambassador-code', { userId: providerId })
+    refCode = res?.code
+  }
+  const campaign = encodeURIComponent(String(sr._id))
+  return lines.map(l => ({
+    name: l.name,
+    qty: l.qty,
+    byClient: l.byClient,
+    ...(l.product && typeof l.product.path === 'string' && l.product.path.startsWith('/') ? {
+      product: {
+        id: String(l.product.id),
+        name: String(l.product.name || '').slice(0, 120),
+        image: l.product.image || undefined,
+        priceFcfa: typeof l.product.priceFcfa === 'number' ? l.product.priceFcfa : undefined,
+        local: l.product.local === true,
+        link: `${l.product.path}?utm_source=xeuy&utm_medium=offre&utm_campaign=${campaign}${refCode ? `&ref=${refCode}` : ''}`,
+      },
+    } : {}),
+  }))
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    await connectMongoose()
+    // Authentification obligatoire — les offres ne sont plus listables publiquement
+    const { userId, role } = await requireAuth(request)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
+    const { searchParams } = new URL(request.url)
+    const requestId = searchParams.get('requestId')
+    const mine = searchParams.get('mine')
+    const q: any = {}
+    if (requestId) q.requestId = requestId
+    if (mine === '1') {
+      q.providerId = userId
+    }
+
+    // Sans scope explicite : interdit. Avec requestId : client propriétaire,
+    // provider ayant offert, ou staff uniquement.
+    if (!isStaff) {
+      if (mine === '1') {
+        // déjà scopé providerId = userId
+      } else if (requestId) {
+        const sr = await ServiceRequest.findById(requestId).select('clientId').lean() as any
+        const isOwner = sr && String(sr.clientId) === String(userId)
+        if (!isOwner) {
+          const ownOffer = await Offer.exists({ requestId, providerId: String(userId) })
+          if (!ownOffer) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+          }
+          q.providerId = userId
+        }
+      } else {
+        return NextResponse.json({ error: 'Paramètre mine=1 ou requestId requis' }, { status: 400 })
+      }
+    }
+
+    // Exclure les offres "submitted" dont la validité est dépassée sans faire d'écriture en GET
+    const now = new Date()
+    q.$or = [
+      { status: { $ne: 'submitted' } },
+      { status: 'submitted', validUntil: { $gte: now } },
+    ]
+
+    const items = await Offer.find(q).sort({ updatedAt: -1 }).limit(100).lean()
+
+    // Si c'est la vue "mes offres" du provider, enrichir avec le statut de la mission
+    if (mine === '1' && items.length > 0) {
+      const requestIds = [...new Set(items.map((o: any) => String(o.requestId)))]
+      const requests = await ServiceRequest.find({ _id: { $in: requestIds } }, 'status category').lean()
+      const reqMap = new Map(requests.map((r: any) => [String(r._id), r]))
+      for (const item of items as any[]) {
+        const req = reqMap.get(String(item.requestId))
+        if (req) {
+          item.requestStatus = req.status
+          item.requestCategory = req.category
+        }
+      }
+    }
+
+    return NextResponse.json({ items })
+  } catch (e: any) {
+    if (e.message === 'Non authentifié') {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    console.error('[GET /api/services/offers]', e)
+    return NextResponse.json({ error: 'Erreur liste offres' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  // Rate limit
+  const rateLimitResponse = await applyRateLimit(request, serviceWriteRateLimiter)
+  if (rateLimitResponse) return rateLimitResponse
+
+  try {
+    await connectMongoose()
+    const { userId } = await requireAuth(request) as any
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Payload invalide' }, { status: 400 })
+    }
+    const { requestId, price, etaMinutes, comment, providerName, validityMinutes, proposedTime } = body as any
+
+    // Validation requestId
+    if (!requestId || typeof requestId !== 'string' || requestId.length > 50) {
+      return NextResponse.json({ error: 'requestId invalide' }, { status: 400 })
+    }
+    // Validation price
+    if (typeof price !== 'number' || price <= 0 || price > MAX_PRICE || !Number.isFinite(price)) {
+      return NextResponse.json({ error: 'Prix invalide (doit être > 0 et ≤ 50 000 000)' }, { status: 400 })
+    }
+    // Validation etaMinutes
+    if (etaMinutes !== undefined && (typeof etaMinutes !== 'number' || etaMinutes < 0 || etaMinutes > MAX_ETA_MINUTES)) {
+      return NextResponse.json({ error: 'ETA invalide (max 7 jours)' }, { status: 400 })
+    }
+    // Validation comment
+    if (comment && (typeof comment !== 'string' || comment.length > MAX_COMMENT_LENGTH)) {
+      return NextResponse.json({ error: `Commentaire trop long (max ${MAX_COMMENT_LENGTH} car.)` }, { status: 400 })
+    }
+    // Validation proposedTime (créneau proposé / contre-proposition horaire)
+    let safeProposedTime: Date | undefined
+    if (proposedTime !== undefined && proposedTime !== null && proposedTime !== '') {
+      const pt = new Date(proposedTime)
+      const maxFuture = Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 jours
+      // Tolérance 10 min dans le passé (décalage horloge client)
+      if (isNaN(pt.getTime()) || pt.getTime() < Date.now() - 10 * 60 * 1000 || pt.getTime() > maxFuture) {
+        return NextResponse.json({ error: 'Créneau proposé invalide (futur, max 30 jours)' }, { status: 400 })
+      }
+      safeProposedTime = pt
+    }
+
+    const sr = await ServiceRequest.findById(requestId)
+    if (!sr) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
+    // Prevent client from offering on own request
+    if (String(sr.clientId) === String(userId)) {
+      return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+    }
+    // Refuse offers on missions that are no longer open
+    if (!['created', 'broadcasted', 'pending_offers'].includes(sr.status)) {
+      const code = sr.status === 'cancelled' ? 'ALREADY_CANCELLED' : sr.status === 'completed' ? 'ALREADY_COMPLETED' : sr.status === 'expired' ? 'ALREADY_EXPIRED' : 'REQUEST_NOT_AVAILABLE'
+      return NextResponse.json({ error: 'Cette demande n\'est plus ouverte aux offres', code }, { status: 409 })
+    }
+
+    const cfg = await getAppConfig()
+    const existing = await Offer.findOne({ requestId, providerId: userId })
+    let reservedForOffer = false
+
+    if (cfg.credits?.unlockEnabled === true && (!existing || existing.status === 'expired')) {
+      const currentReservation = await MissionUnlock.findOne({ requestId, providerId: userId }).lean()
+      if (currentReservation?.status !== 'reserved') {
+        const cost = await computeUnlockCost({
+          requestId,
+          category: sr.category,
+          budget: sr.budget,
+          urgency: sr.attributes?.urgency || 'normal',
+          media: sr.media,
+        })
+        const reservation = await reserveMissionCredits(String(userId), requestId, cost.cost)
+        if (!reservation.ok) {
+          const error = reservation.reason === 'insufficient'
+            ? `Crédits insuffisants (${reservation.balance ?? 0}/${cost.cost} requis pour proposer cette mission)`
+            : 'Réservation de crédits impossible pour cette mission'
+          return NextResponse.json({ error, code: reservation.reason }, { status: 402 })
+        }
+        reservedForOffer = true
+      }
+    }
+
+    // Validité : 5..1440 min, défaut 30
+    const vm = Math.max(5, Math.min(1440, Number(validityMinutes) || 30))
+    const validUntil = new Date(Date.now() + vm * 60_000)
+    const offerData: any = {
+      requestId, providerId: userId, price,
+      etaMinutes: etaMinutes ? Math.round(etaMinutes) : undefined,
+      comment: comment ? comment.slice(0, MAX_COMMENT_LENGTH) : undefined,
+      validityMinutes: vm, validUntil,
+      proposedTime: safeProposedTime,
+    }
+    if (providerName && typeof providerName === 'string') offerData.providerName = providerName.slice(0, 60)
+    const materials = await buildOfferMaterials((body as any).materials, sr, String(userId), request)
+    if (materials) offerData.materials = materials
+    if (typeof (body as any).materialIncluded === 'boolean') offerData.materialIncluded = (body as any).materialIncluded
+
+    // Upsert: si le provider a déjà une offre sur cette demande, on la met à jour
+    // au lieu d'en créer une nouvelle (évite les doublons).
+    let offer: any
+    let isUpdate = false
+    if (existing) {
+      // Une offre déjà acceptée/refusée/retirée ne peut pas être modifiée
+      if (['accepted', 'rejected', 'withdrawn'].includes(existing.status)) {
+        return NextResponse.json(
+          { error: `Vous avez déjà une offre ${existing.status === 'accepted' ? 'acceptée' : existing.status === 'rejected' ? 'refusée' : 'retirée'} sur cette demande` },
+          { status: 409 }
+        )
+      }
+      isUpdate = true
+      existing.price = offerData.price
+      existing.etaMinutes = offerData.etaMinutes
+      existing.comment = offerData.comment
+      existing.validityMinutes = offerData.validityMinutes
+      existing.validUntil = offerData.validUntil
+      existing.proposedTime = offerData.proposedTime
+      if (materials) existing.materials = materials
+      if (typeof offerData.materialIncluded === 'boolean') existing.materialIncluded = offerData.materialIncluded
+      if (offerData.providerName) existing.providerName = offerData.providerName
+      // Remettre le statut à submitted si l'offre avait expiré
+      if (existing.status === 'expired') existing.status = 'submitted'
+      await existing.save()
+      offer = existing
+    } else {
+      try {
+        offer = await Offer.create(offerData)
+      } catch (offerError) {
+        if (reservedForOffer) {
+          await releaseMissionReservation(String(userId), requestId, 'Échec de création de l’offre')
+        }
+        throw offerError
+      }
+    }
+    const created = offer
+    if (sr.status === 'created') {
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      await lifecycle.transition(String(sr._id), 'broadcasted', {
+        actor: { userId, role: 'provider' },
+        metadata: { source: 'first-offer' },
+      })
+    } else {
+      const lifecycle = await import('@/lib/mission-lifecycle')
+      lifecycle.touch(String(sr._id), 'offer', userId).catch(() => {})
+    }
+
+    if (cfg.credits?.unlockEnabled === true) {
+      await MissionUnlock.updateOne(
+        { requestId, providerId: userId, status: 'reserved' },
+        { $set: { offerSentAt: new Date() } }
+      )
+    }
+
+    // Notifier le consumer en temps réel
+    const io = (global as any).io
+    if (io) {
+      io.to(`request-${requestId}`).emit(isUpdate ? 'offer:updated' : 'offer:new', {
+        offerId: String(created._id),
+        requestId,
+        price,
+        etaMinutes,
+        comment,
+        validityMinutes: vm,
+        validUntil,
+        proposedTime: safeProposedTime,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      })
+      // Notifier le client dans sa room user-{clientId} pour rafraîchir my-requests / home
+      io.to(`user-${sr.clientId}`).emit('user:offer-received', {
+        requestId,
+        offerId: String(created._id),
+      })
+    }
+
+    // Push notification au consumer (fire-and-forget, ne pas bloquer la réponse HTTP)
+    void sendPushToUser(String(sr.clientId), {
+      title: isUpdate ? '💰 Offre mise à jour' : '💰 Nouvelle offre reçue',
+      body: `${price.toLocaleString('fr-FR')} FCFA — ${comment ? comment.slice(0, 60) : 'Voir l\'offre'}`,
+      data: { type: 'offer:new', requestId, offerId: String(created._id) },
+      appType: 'consumer',
+    })
+
+    // Notifier le Visibility Engine qu'une offre a été reçue (arrête l'escalade)
+    if (!isUpdate) {
+      void onOffer(requestId)
+    }
+
+    return NextResponse.json({ success: true, item: created })
+  } catch (e: any) {
+    if (e.message === 'Non authentifié') {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+    console.error('[POST /api/services/offers]', e)
+    return NextResponse.json({ error: 'Erreur création offre' }, { status: 500 })
+  }
+}
