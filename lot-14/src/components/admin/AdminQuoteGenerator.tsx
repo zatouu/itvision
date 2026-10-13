@@ -1,0 +1,2046 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/Toaster'
+import { 
+  FileText, Download, Save, Plus, Trash2, Eye, Send,
+  Building, User, Phone, Mail, MapPin, Calendar, Hash,
+  Package, DollarSign, Calculator, Edit3, X, Search, CheckCircle,
+  Receipt, Upload, FileUp, CopyPlus, MessageSquare, MoreHorizontal, RefreshCw
+} from 'lucide-react'
+import Image from 'next/image'
+
+const QUOTE_FILTERS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'todo', label: 'À traiter' },
+  { id: 'draft', label: 'Brouillons' },
+  { id: 'sent', label: 'Chez le client' },
+  { id: 'accepted', label: 'Acceptés' },
+  { id: 'rejected', label: 'Refusés' },
+  { id: 'superseded', label: 'Remplacés' },
+]
+
+const unreadCount = (q: { clientComments?: Array<{ authorRole: string; readByOther: boolean }> }) =>
+  (q.clientComments || []).filter(c => c.authorRole === 'CLIENT' && !c.readByOther).length
+
+interface QuoteProduct {
+  id: string
+  productId?: string
+  description: string
+  quantity: number
+  unitPrice: number
+  // Prix saisi ; unitPrice = prix affiché (majoré de la BRS sur la main-d'œuvre)
+  netUnitPrice?: number
+  taxable: boolean
+  total: number
+  isLabor?: boolean
+}
+
+interface QuoteClient {
+  name: string
+  address: string
+  phone: string
+  email: string
+  rcn?: string
+  ninea?: string
+}
+
+interface Quote {
+  id: string
+  numero: string
+  title?: string
+  date: string
+  client: QuoteClient
+  cci?: string
+  companyAddress?: string
+  products: QuoteProduct[]
+  subtotal: number
+  applyBRS: boolean
+  brsThreshold: number
+  brsAmount: number // 5% de déduction sur main-d'oeuvre
+  taxAmount: number
+  other: number
+  total: number
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'superseded'
+  notes?: string
+  bonCommande?: string
+  dateLivraison?: string
+  pointExpedition?: string
+  conditions?: string
+  clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
+  clientRespondedAt?: string
+  clientCounterAmount?: number
+  clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
+  clientCompanyId?: string
+  clientSignature?: { signature: string; name: string; signedAt: string; ip?: string; userAgent?: string }
+  attachments?: Array<{ name: string; url: string; type: string; size: number; uploadedAt?: string; category?: string }>
+}
+
+interface Product {
+  _id: string
+  name: string
+  price?: number
+  b2bPrice?: number | null
+  category: string
+  inStock: boolean
+  image?: string
+  availability?: { status: string }
+}
+
+export default function AdminQuoteGenerator() {
+  const { addToast } = useToast()
+  const [quotes, setQuotes] = useState<Quote[]>([])
+  const [currentQuote, setCurrentQuote] = useState<Quote | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [searchProduct, setSearchProduct] = useState('')
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'create' | 'list'>('list')
+  const [isSaving, setIsSaving] = useState(false)
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
+  const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null)
+  const [sendModalOpen, setSendModalOpen] = useState(false)
+  const [sendModalQuote, setSendModalQuote] = useState<Quote | null>(null)
+  const [sendContacts, setSendContacts] = useState<Array<{ id: string; nom: string; email: string; isPrimary: boolean }>>([])
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
+  const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<any[]>([])
+  const [clientSearching, setClientSearching] = useState(false)
+  const [showClientDrop, setShowClientDrop] = useState(false)
+  const [clientEmails, setClientEmails] = useState<string[]>([])
+  const [listSearch, setListSearch] = useState('')
+  const [listFilter, setListFilter] = useState('all')
+  const [loadingList, setLoadingList] = useState(true)
+  const [menu, setMenu] = useState<{ id: string; top: number; right: number } | null>(null)
+  const [invoicedQuoteIds, setInvoicedQuoteIds] = useState<Map<string, string>>(new Map())
+  // État du devis à l'ouverture de l'édition, pour confirmer l'abandon de modifications
+  const editSnapshot = useRef<{ id: string; json: string } | null>(null)
+  const [extraRecipient, setExtraRecipient] = useState('')
+  const router = useRouter()
+
+  const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
+
+  const normalizeQuote = (q: any): Quote => {
+    const id = String(q?._id || q?.id || '')
+    return {
+      id,
+      numero: String(q?.numero || ''),
+      title: String(q?.title || ''),
+      cci: String(q?.cci || ''),
+      companyAddress: String(q?.companyAddress || '11 Cité Lessine, Nord Foire'),
+      date: q?.date ? new Date(q.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      client: {
+        name: String(q?.client?.name || ''),
+        address: String(q?.client?.address || ''),
+        phone: String(q?.client?.phone || ''),
+        email: String(q?.client?.email || ''),
+        rcn: q?.client?.rcn,
+        ninea: q?.client?.ninea
+      },
+      products: Array.isArray(q?.products)
+        ? q.products.map((p: any) => ({
+            id: String(p?.id || p?._id || `item-${Math.random()}`),
+            productId: p?.productId ? String(p.productId) : undefined,
+            description: String(p?.description || ''),
+            quantity: Number(p?.quantity || 0),
+            unitPrice: Number(p?.unitPrice || 0),
+            netUnitPrice: p?.netUnitPrice != null ? Number(p.netUnitPrice) : undefined,
+            taxable: Boolean(p?.taxable),
+            isLabor: Boolean(p?.isLabor),
+            total: Number(p?.total || 0)
+          }))
+        : [],
+      subtotal: Number(q?.subtotal || 0),
+      applyBRS: Boolean(q?.applyBRS),
+      brsThreshold: Number(q?.brsThreshold ?? 25000),
+      brsAmount: Number(q?.brsAmount || 0),
+      taxAmount: Number(q?.taxAmount || 0),
+      other: Number(q?.other || 0),
+      total: Number(q?.total || 0),
+      status: (q?.status as Quote['status']) || 'draft',
+      notes: q?.notes,
+      bonCommande: q?.bonCommande,
+      dateLivraison: q?.dateLivraison,
+      pointExpedition: q?.pointExpedition,
+      conditions: q?.conditions,
+      clientResponse: q?.clientResponse,
+      clientRespondedAt: q?.clientRespondedAt,
+      clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
+      clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined,
+      clientCompanyId: q?.clientCompanyId ? String(q.clientCompanyId) : undefined,
+      clientSignature: q?.clientSignature?.signature ? {
+        signature: q.clientSignature.signature,
+        name: q.clientSignature.name,
+        signedAt: q.clientSignature.signedAt,
+        ip: q.clientSignature.ip,
+        userAgent: q.clientSignature.userAgent,
+      } : undefined,
+      attachments: Array.isArray(q?.attachments) ? q.attachments : undefined,
+    }
+  }
+
+  const searchClients = async (q: string) => {
+    if (!q.trim()) { setClientResults([]); setShowClientDrop(false); return }
+    setClientSearching(true)
+    try {
+      const res = await fetch(`/api/admin/clients?q=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setClientResults(data.clients || [])
+        setShowClientDrop(true)
+      }
+    } catch { setClientResults([]) }
+    finally { setClientSearching(false) }
+  }
+
+  const selectClient = async (c: any) => {
+    if (!currentQuote) return
+    const companyId = String(c._id || c.id || '')
+    const emails: string[] = [c.email || ''].filter(Boolean)
+    if (companyId) {
+      try {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(companyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        contacts.forEach((contact: any) => {
+          if (contact.email && !emails.includes(contact.email)) emails.push(contact.email)
+        })
+      } catch { /* ignore */ }
+    }
+    setClientEmails(emails)
+    setCurrentQuote({
+      ...currentQuote,
+      clientCompanyId: companyId,
+      client: {
+        name: c.company || c.name || '',
+        address: c.address || '',
+        phone: c.phone || '',
+        email: emails[0] || c.email || '',
+        rcn: c.rcn,
+        ninea: c.ninea,
+      }
+    })
+    setClientQuery(c.company || c.name || '')
+    setShowClientDrop(false)
+    setClientResults([])
+  }
+
+  useEffect(() => {
+    loadProducts()
+    loadQuotes()
+  }, [])
+
+  const loadProducts = async () => {
+    try {
+      const res = await fetch('/api/catalog/products?limit=200&compact=1')
+      if (res.ok) {
+        const data = await res.json()
+        const mapped = (data.products || []).map((p: any) => ({
+          _id: String(p._id || p.id),
+          name: p.name || '',
+          price: p.price ?? null,
+          b2bPrice: p.b2bPrice ?? null,
+          category: p.category || '',
+          inStock: p.availability?.status === 'in_stock',
+          image: p.image || null,
+          availability: p.availability
+        }))
+        setProducts(mapped)
+      }
+    } catch (error) {
+      console.error('Erreur chargement produits:', error)
+    }
+  }
+
+  const loadQuotes = async () => {
+    setLoadingList(true)
+    try {
+      const res = await fetch('/api/admin/quotes')
+      if (res.ok) {
+        const data = await res.json()
+        const list = Array.isArray(data?.quotes) ? data.quotes : []
+        setQuotes(list.map((q: any) => normalizeQuote(q)).filter((q: Quote) => q.id))
+      }
+      const inv = await fetch('/api/admin/invoices', { credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null)
+      const map = new Map<string, string>()
+      for (const i of (inv?.invoices || [])) if (i.quoteId && i.status !== 'cancelled') map.set(String(i.quoteId), String(i.number || ''))
+      setInvoicedQuoteIds(map)
+    } catch (error) {
+      console.error('Erreur chargement devis:', error)
+      addToast('Impossible de charger les devis', 'error')
+    } finally {
+      setLoadingList(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  }, [menu])
+
+  // La fiche ouverte suit les données rechargées
+  useEffect(() => {
+    setSelectedQuote(prev => prev ? quotes.find(q => q.id === prev.id) || null : prev)
+  }, [quotes])
+
+  useEffect(() => {
+    if (currentQuote && editSnapshot.current?.id !== currentQuote.id) {
+      editSnapshot.current = { id: currentQuote.id, json: JSON.stringify(currentQuote) }
+    }
+    if (!currentQuote) editSnapshot.current = null
+  }, [currentQuote])
+
+  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/admin/quotes/extract', {
+        method: 'POST',
+        body: form,
+        credentials: 'include'
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Échec de l\'extraction')
+      }
+      const data = json.data
+      const importedQuote: Quote = {
+        id: `TEMP-${Date.now()}`,
+        numero: data.numero || '',
+        title: data.title || '',
+        cci: data.cci || '',
+        companyAddress: data.companyAddress || '11 Cité Lessine, Nord Foire',
+        date: data.date || new Date().toISOString().split('T')[0],
+        client: {
+          name: data.client?.name || '',
+          address: data.client?.address || '',
+          phone: data.client?.phone || '',
+          email: data.client?.email || '',
+          rcn: data.client?.rcn,
+          ninea: data.client?.ninea
+        },
+        products: (data.products || []).map((p: any, idx: number) => ({
+          id: `item-${Date.now()}-${idx}`,
+          description: p.description || '',
+          quantity: Number(p.quantity) || 1,
+          unitPrice: Number(p.unitPrice) || 0,
+          netUnitPrice: p.netUnitPrice != null ? Number(p.netUnitPrice) : undefined,
+          taxable: true,
+          isLabor: Boolean(p.isLabor),
+          total: Number(p.total) || 0
+        })),
+        subtotal: Number(data.subtotal) || 0,
+        applyBRS: data.applyBRS === undefined ? true : Boolean(data.applyBRS),
+        brsThreshold: Number(data.brsThreshold ?? 25000),
+        brsAmount: Number(data.brsAmount) || 0,
+        taxAmount: data.applyBRS === false ? Number(data.taxAmount) || 0 : 0,
+        other: Number(data.other) || 0,
+        total: Number(data.total) || 0,
+        status: 'draft',
+        notes: data.notes || '',
+        clientCompanyId: undefined
+      }
+      setCurrentQuote(importedQuote)
+      setClientQuery(importedQuote.client.name)
+      setActiveTab('create')
+      addToast(`Devis importé : ${importedQuote.products.length} article(s)`, 'success')
+    } catch (err: any) {
+      addToast(err?.message || 'Erreur lors de l\'import', 'error')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const createNewQuote = () => {
+    const newQuote: Quote = {
+      id: `TEMP-${Date.now()}`,
+      // Numéro DEV-AAAA-NNNN attribué par le serveur à l'enregistrement
+      numero: '',
+      title: '',
+      cci: '',
+      companyAddress: '11 Cité Lessine, Nord Foire',
+      date: new Date().toISOString().split('T')[0],
+      client: {
+        name: '',
+        address: '',
+        phone: '',
+        email: ''
+      },
+      products: [],
+      subtotal: 0,
+      // Régime BRS par défaut (exclusif de la TVA)
+      applyBRS: true,
+      brsThreshold: 25000,
+      brsAmount: 0,
+      taxAmount: 0,
+      other: 0,
+      total: 0,
+      status: 'draft'
+    }
+    setCurrentQuote(newQuote)
+    setClientQuery('')
+    setActiveTab('create')
+  }
+
+  const addProductToQuote = (product: Product) => {
+    if (!currentQuote) return
+
+    const effectivePrice = product.b2bPrice || product.price || 0
+
+    const newProduct: QuoteProduct = {
+      id: `item-${Date.now()}`,
+      productId: product._id,
+      description: product.name,
+      quantity: 1,
+      unitPrice: effectivePrice,
+      taxable: true,
+      isLabor: false,
+      total: effectivePrice
+    }
+
+    const updatedQuote = {
+      ...currentQuote,
+      products: [...currentQuote.products, newProduct]
+    }
+
+    calculateTotals(updatedQuote)
+    setShowProductModal(false)
+    setSearchProduct('')
+  }
+
+  const LABOR_KEYWORDS = [
+    'installation', 'main-d\u0153uvre', 'main-d\u2019\u0153uvre', 'main d\u0153uvre', 'main d\u2019\u0153uvre',
+    'main-doeuvre', 'main-d\u2019oeuvre', 'main doeuvre', 'main d\u2019oeuvre',
+    'pose', 'c\u00e2blage', 'cablage', 'montage', 'configuration', 'mise en place',
+    'raccordement', 'maintenance', 'd\u00e9pannage', 'depannage', 'intervention',
+    'forfait', 'service', 'prestation', 'heure', 'heures', 'journ\u00e9e', 'jour',
+    'technicien', 'ing\u00e9nieur', '\u00e9tude', 'etude', 'visite', 'd\u00e9placement',
+    'deplacement', 'd\u00e9montage', 'demontage', 'r\u00e9glage', 'reglage',
+    'programmation', 'formation', 'support', 'assistance', 'audit', 'conseil'
+  ]
+
+  const detectLabor = (text: string): boolean => {
+    const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    return LABOR_KEYWORDS.some(k => t.includes(k))
+  }
+
+  const addCustomProduct = () => {
+    if (!currentQuote) return
+
+    const newProduct: QuoteProduct = {
+      id: `item-${Date.now()}`,
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      taxable: true,
+      isLabor: true,
+      total: 0
+    }
+
+    const updatedQuote = {
+      ...currentQuote,
+      products: [...currentQuote.products, newProduct]
+    }
+
+    setCurrentQuote(updatedQuote)
+  }
+
+  const updateProduct = (productId: string, field: keyof QuoteProduct, value: any) => {
+    if (!currentQuote) return
+
+    const updatedProducts = currentQuote.products.map(p => {
+      if (p.id === productId) {
+        const updated = { ...p, [field]: value }
+        if (field === 'description' && typeof value === 'string') {
+          updated.isLabor = detectLabor(value)
+        }
+        return updated
+      }
+      return p
+    })
+
+    const updatedQuote = {
+      ...currentQuote,
+      products: updatedProducts
+    }
+
+    calculateTotals(updatedQuote)
+  }
+
+  const removeProduct = (productId: string) => {
+    if (!currentQuote) return
+
+    const updatedQuote = {
+      ...currentQuote,
+      products: currentQuote.products.filter(p => p.id !== productId)
+    }
+
+    calculateTotals(updatedQuote)
+  }
+
+  const calculateTotals = (quote: Quote) => {
+    // BRS par majoration (même règle que src/lib/finance/billing.ts) : la main-d'œuvre saisie est le net voulu,
+    // elle est portée à net / 0,95 et la différence est retenue ; le total reste égal aux prix saisis.
+    const base = quote.products.map(p => {
+      const net = Math.round(p.netUnitPrice ?? p.unitPrice ?? 0)
+      return { p, net, netTotal: Math.round(p.quantity * net) }
+    })
+    const netLabor = base.filter(b => b.p.isLabor).reduce((sum, b) => sum + b.netTotal, 0)
+    const brsOn = quote.applyBRS && netLabor > (quote.brsThreshold || 25000)
+
+    const products = base.map(({ p, net }) => {
+      const unitPrice = brsOn && p.isLabor ? Math.round(net / 0.95) : net
+      return { ...p, netUnitPrice: net, unitPrice, total: Math.round(p.quantity * unitPrice) }
+    })
+    const subtotal = products.reduce((sum, p) => sum + p.total, 0)
+    const grossLabor = products.filter(p => p.isLabor).reduce((sum, p) => sum + p.total, 0)
+    const brsAmount = brsOn ? grossLabor - netLabor : 0
+
+    // BRS et TVA s'excluent ; régime BRS en vigueur
+    const taxAmount = 0
+
+    // Autres frais
+    const other = quote.other || 0
+
+    const total = subtotal - brsAmount + taxAmount + other
+
+    setCurrentQuote({
+      ...quote,
+      products,
+      subtotal,
+      applyBRS: quote.applyBRS,
+      brsThreshold: quote.brsThreshold,
+      brsAmount,
+      taxAmount,
+      total
+    })
+  }
+
+  const updateClientInfo = (field: keyof QuoteClient, value: string) => {
+    if (!currentQuote) return
+
+    setCurrentQuote({
+      ...currentQuote,
+      client: {
+        ...currentQuote.client,
+        [field]: value
+      }
+    })
+  }
+
+  const persistB2bPrices = async (quote: Quote) => {
+    const updates = quote.products
+      .filter(p => p.productId && (p.netUnitPrice ?? p.unitPrice) > 0)
+      .map(p => ({ productId: p.productId!, b2bPrice: p.netUnitPrice ?? p.unitPrice }))
+
+    if (updates.length === 0) return
+
+    try {
+      await fetch('/api/products/b2b-price', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates })
+      })
+    } catch (err) {
+      console.error('Erreur sauvegarde prix B2B:', err)
+    }
+  }
+
+  const saveQuote = async () => {
+    if (!currentQuote) return
+
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentQuote)
+      })
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        const saved = data?.quote ? normalizeQuote(data.quote) : currentQuote
+
+        // Persister les prix B2B modifiés
+        await persistB2bPrices(currentQuote)
+
+        // Mettre à jour la liste
+        const updatedQuotes = [...quotes]
+        const index = updatedQuotes.findIndex(q => q.id === currentQuote.id || q.id === saved.id)
+        if (index >= 0) {
+          updatedQuotes[index] = saved
+        } else {
+          updatedQuotes.push(saved)
+        }
+        setQuotes(updatedQuotes)
+
+        addToast('Devis sauvegardé avec succès', 'success')
+        setActiveTab('list')
+        setCurrentQuote(null)
+      } else {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur de sauvegarde')
+      }
+    } catch (error: any) {
+      // Pas de sauvegarde locale silencieuse : un devis non enregistré n'existe pas pour le client
+      console.error('Erreur:', error)
+      addToast(error?.message || 'Le devis n\'a pas pu être enregistré', 'error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const uploadAttachment = async (file: File, category: string = 'autre') => {
+    if (!currentQuote) return
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', category)
+    const res = await fetch('/api/admin/documents/upload', { method: 'POST', body: formData, credentials: 'include' })
+    if (!res.ok) throw new Error('Upload échoué')
+    const data = await res.json()
+    const att = { name: data.name, url: data.url || data.staticUrl, type: file.type || 'application/octet-stream', size: file.size, category: data.category }
+    setCurrentQuote(prev => prev ? { ...prev, attachments: [...(prev.attachments || []), att] } : prev)
+  }
+
+  const removeAttachment = (url: string) => {
+    setCurrentQuote(prev => prev ? { ...prev, attachments: (prev.attachments || []).filter(a => a.url !== url) } : prev)
+  }
+
+  const exportPDF = async (target?: Quote) => {
+    const quote = target || currentQuote
+    if (!quote) return
+
+    try {
+      const res = await fetch('/api/admin/quotes/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quote)
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Erreur lors de la génération du PDF')
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Devis-${quote.numero || 'brouillon'}.pdf`
+      a.click()
+      setTimeout(() => window.URL.revokeObjectURL(url), 10_000)
+    } catch (error: any) {
+      console.error('Erreur génération PDF:', error)
+      addToast(error?.message || 'Erreur lors de la génération du PDF', 'error')
+    }
+  }
+
+  const editQuote = (quote: Quote) => {
+    setCurrentQuote(quote)
+    setClientQuery(quote.client?.name || '')
+    setActiveTab('create')
+  }
+
+  const deleteQuote = async (quoteId: string) => {
+    if (!confirm('Supprimer définitivement ce brouillon de devis ?')) return
+
+    if (isObjectId(quoteId)) {
+      const res = await fetch(`/api/admin/quotes?id=${encodeURIComponent(quoteId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => null)
+      if (!res?.ok) {
+        const data = await res?.json().catch(() => null)
+        addToast(data?.error || 'Suppression refusée', 'error')
+        return
+      }
+    }
+    setQuotes(prev => prev.filter(q => q.id !== quoteId))
+    addToast('Devis supprimé', 'success')
+  }
+
+  const openSendModal = async (quote: Quote) => {
+    if (!quote?.id || !isObjectId(quote.id)) {
+      addToast('Veuillez d\'abord sauvegarder le devis avant envoi', 'warning')
+      return
+    }
+    setSendModalQuote(quote)
+    setSendModalOpen(true)
+    setLoadingContacts(true)
+    setSelectedRecipients([])
+    try {
+      if (quote.clientCompanyId) {
+        const res = await fetch(`/api/admin/clients/contacts?clientId=${encodeURIComponent(quote.clientCompanyId)}`, { credentials: 'include' })
+        const data = await res.json().catch(() => null)
+        const contacts = Array.isArray(data?.contacts) ? data.contacts : []
+        setSendContacts(contacts.map((c: any) => ({ id: String(c._id || c.id), nom: c.nom || '', email: c.email || '', isPrimary: Boolean(c.isPrimary) })))
+        // Pré-sélectionner le contact principal + l'email du client
+        const primary = contacts.find((c: any) => c.isPrimary && c.email)
+        const preselected: string[] = []
+        if (primary?.email) preselected.push(primary.email)
+        else if (quote.client?.email) preselected.push(quote.client.email)
+        setSelectedRecipients(preselected)
+      } else {
+        setSendContacts([])
+        if (quote.client?.email) setSelectedRecipients([quote.client.email])
+      }
+    } catch {
+      setSendContacts([])
+      if (quote.client?.email) setSelectedRecipients([quote.client.email])
+    } finally {
+      setLoadingContacts(false)
+    }
+  }
+
+  const confirmSendQuote = async () => {
+    if (!sendModalQuote) return
+    const quote = sendModalQuote
+    try {
+      setSendingQuoteId(quote.id)
+      const res = await fetch('/api/admin/quotes/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: quote.id, recipients: selectedRecipients })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Envoi impossible')
+      }
+      await loadQuotes()
+      if (data.delivery === 'simulated') {
+        addToast(`Devis ${quote.numero} publié sur l'espace client, mais l'email n'est pas parti : serveur d'envoi non configuré.`, 'warning')
+      } else {
+        addToast(`Devis ${quote.numero} envoyé à ${data.to || 'le client'}${data.copyTo ? ` — copie à ${data.copyTo}` : ''}`, 'success')
+      }
+      setSendModalOpen(false)
+      setSendModalQuote(null)
+    } catch (e: any) {
+      addToast(e?.message || 'Erreur lors de l\'envoi du devis', 'error')
+    } finally {
+      setSendingQuoteId(null)
+    }
+  }
+
+  const convertToInvoice = async (quote: Quote) => {
+    if (!confirm(`Créer le brouillon de facture du devis ${quote.numero} ?`)) return
+    setConvertingId(quote.id)
+
+    try {
+      // Conversion côté serveur : contrôle du statut "accepté", anti-doublon, liens client/projet conservés
+      const res = await fetch('/api/admin/invoices/from-quote', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: quote.id })
+      })
+      const data = await res.json().catch(() => null)
+
+      if (res.ok) {
+        addToast(`Facture ${data?.numero || ''} créée (brouillon)`, 'success')
+        if (data?.totalMismatch) {
+          addToast(`Attention : total recalculé ${data.totalMismatch.invoice} ≠ devis ${data.totalMismatch.quote}`, 'warning')
+        }
+        router.push(`/admin/factures?search=${encodeURIComponent(data?.numero || quote.numero)}`)
+      } else {
+        addToast('Conversion impossible : ' + (data?.error || 'Erreur inconnue'), 'error')
+      }
+    } catch (e) {
+      console.error(e)
+      addToast('Erreur lors de la conversion en facture', 'error')
+    } finally {
+      setConvertingId(null)
+    }
+  }
+
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
+    p.category.toLowerCase().includes(searchProduct.toLowerCase())
+  )
+
+  const getStatusColor = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return 'bg-stone-100 text-stone-700'
+      case 'sent': return 'bg-blue-100 text-blue-700'
+      case 'accepted': return 'bg-emerald-100 text-emerald-800'
+      case 'rejected': return 'bg-red-100 text-red-700'
+      case 'superseded': return 'bg-stone-100 text-stone-500 line-through'
+      default: return 'bg-stone-100 text-stone-700'
+    }
+  }
+
+  const getStatusLabel = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return 'Brouillon'
+      case 'sent': return 'Envoyé'
+      case 'accepted': return 'Accepté'
+      case 'rejected': return 'Rejeté'
+      case 'superseded': return 'Remplacé'
+      default: return status
+    }
+  }
+
+  const createNewVersion = async (quote: Quote) => {
+    if (!confirm(`Créer une nouvelle version de ${quote.numero} ? L'actuelle ne pourra plus être acceptée par le client.`)) return
+    try {
+      const res = await fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/new-version`, { method: 'POST', credentials: 'include' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Création de version refusée')
+      addToast(`Version ${data?.quote?.numero || ''} créée (brouillon)`, 'success')
+      await loadQuotes()
+      if (data?.quote) editQuote(normalizeQuote(data.quote))
+    } catch (e: any) {
+      addToast(e?.message || 'Création de version refusée', 'error')
+    }
+  }
+
+  const isTodo = (q: Quote) =>
+    (q.status === 'sent' && q.clientResponse === 'counter_proposed') || unreadCount(q) > 0 || (q.status === 'accepted' && !invoicedQuoteIds.has(q.id))
+  const matchesFilter = (q: Quote, f: string) => f === 'all' || (f === 'todo' ? isTodo(q) : q.status === f)
+  const term = listSearch.trim().toLowerCase()
+  const visibleQuotes = quotes
+    .filter(q => matchesFilter(q, listFilter))
+    .filter(q => !term || [q.numero, q.title, q.client.name, q.bonCommande].some(v => String(v || '').toLowerCase().includes(term)))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.numero.localeCompare(a.numero))
+  const menuQuote = menu ? quotes.find(q => q.id === menu.id) : null
+
+  const quoteActions = (q: Quote) => [
+    ['draft', 'sent'].includes(q.status) && { label: 'Modifier', icon: Edit3, run: () => editQuote(q) },
+    q.status === 'sent' && { label: 'Renvoyer par email', icon: Send, run: () => openSendModal(q) },
+    ['sent', 'accepted', 'rejected'].includes(q.status) && { label: 'Nouvelle version', icon: CopyPlus, run: () => createNewVersion(q) },
+    q.status === 'accepted' && !invoicedQuoteIds.has(q.id) && { label: 'Créer la facture', icon: Receipt, run: () => convertToInvoice(q) },
+    q.status === 'draft' && { label: 'Supprimer le brouillon', icon: Trash2, run: () => deleteQuote(q.id), danger: true },
+  ].filter(Boolean) as Array<{ label: string; icon: any; run: () => void; danger?: boolean }>
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* En-tête */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-stone-900">Devis</h1>
+          <p className="text-stone-600">Création, envoi, suivi des réponses clients et facturation</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.xlsx,.xls,.csv"
+            onChange={importFromFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            title="Reprendre un devis existant depuis un PDF ou un fichier Excel"
+            className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm disabled:opacity-60"
+          >
+            {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {importing ? 'Analyse…' : 'Importer'}
+          </button>
+          <button
+            onClick={createNewQuote}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau devis
+          </button>
+        </div>
+      </div>
+
+      {/* Onglets */}
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+        <div className="flex border-b border-stone-200">
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex-1 px-6 py-4 font-medium transition-colors ${
+              activeTab === 'list'
+                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                : 'text-stone-600 hover:bg-stone-50'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <FileText className="h-5 w-5" />
+              Liste des Devis ({quotes.length})
+            </div>
+          </button>
+          {currentQuote && (
+            <button
+              onClick={() => setActiveTab('create')}
+              className={`flex-1 px-6 py-4 font-medium transition-colors ${
+                activeTab === 'create'
+                  ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                  : 'text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Edit3 className="h-5 w-5" />
+                {currentQuote.numero ? `Éditer ${currentQuote.numero}` : 'Nouveau Devis'}
+              </div>
+            </button>
+          )}
+        </div>
+
+        {/* Contenu Liste */}
+        {activeTab === 'list' && (
+          <div className="p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+              <div className="relative flex-1 min-w-0">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  value={listSearch}
+                  onChange={e => setListSearch(e.target.value)}
+                  placeholder="Numéro, intitulé, client, bon de commande…"
+                  aria-label="Rechercher un devis"
+                  className="w-full pl-10 pr-9 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                {listSearch && (
+                  <button onClick={() => setListSearch('')} aria-label="Effacer la recherche" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUOTE_FILTERS.map(f => {
+                  const n = quotes.filter(q => matchesFilter(q, f.id)).length
+                  const active = listFilter === f.id
+                  return (
+                    <button key={f.id} onClick={() => setListFilter(f.id)} aria-pressed={active}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-blue-600 border-blue-600 text-white' : f.id === 'todo' && n > 0 ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-stone-300 text-stone-600 hover:border-blue-300'}`}>
+                      {f.label} <span className={active ? 'text-blue-100' : 'opacity-60'}>{n}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <button onClick={() => loadQuotes()} disabled={loadingList} aria-label="Actualiser la liste" title="Actualiser"
+                className="p-2 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 self-start lg:self-auto">
+                <RefreshCw className={`h-4 w-4 ${loadingList ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
+            {loadingList && quotes.length === 0 ? (
+              <p className="py-12 text-center text-sm text-stone-500 flex items-center justify-center gap-2"><RefreshCw className="h-4 w-4 animate-spin" />Chargement des devis…</p>
+            ) : quotes.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-16 w-16 text-stone-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-stone-900 mb-2">Aucun devis</h3>
+                <p className="text-stone-500 mb-6">Commencez par créer votre premier devis</p>
+                <button
+                  onClick={createNewQuote}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <Plus className="h-5 w-5" />
+                  Créer un devis
+                </button>
+              </div>
+            ) : visibleQuotes.length === 0 ? (
+              <div className="text-center py-10 text-sm text-stone-500">
+                Aucun devis ne correspond à ces critères.
+                <button onClick={() => { setListSearch(''); setListFilter('all') }} className="ml-2 text-blue-600 hover:underline">Réinitialiser</button>
+              </div>
+            ) : (
+              <ul className="divide-y divide-stone-100 border border-stone-200 rounded-lg">
+                {visibleQuotes.map((quote) => {
+                  const unread = unreadCount(quote)
+                  const invoicedAs = invoicedQuoteIds.get(quote.id)
+                  const primary = quote.status === 'draft'
+                    ? { label: 'Envoyer', icon: Send, run: () => openSendModal(quote), cls: 'bg-indigo-600 hover:bg-indigo-700' }
+                    : quote.status === 'sent' && quote.clientResponse === 'counter_proposed'
+                      ? { label: 'Nouvelle version', icon: CopyPlus, run: () => createNewVersion(quote), cls: 'bg-violet-600 hover:bg-violet-700' }
+                      : quote.status === 'accepted' && !invoicedAs
+                        ? { label: 'Facturer', icon: Receipt, run: () => convertToInvoice(quote), cls: 'bg-emerald-600 hover:bg-emerald-700' }
+                        : null
+                  return (
+                  <li key={quote.id} className={`p-4 hover:bg-stone-50 ${isTodo(quote) ? 'bg-amber-50/40' : ''}`}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-3">
+                      <button type="button" onClick={() => setSelectedQuote(quote)} className="flex-1 min-w-0 text-left">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-stone-900">{quote.numero || 'Brouillon'}</span>
+                          {quote.title && <span className="text-stone-600 truncate">{quote.title}</span>}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(quote.status)}`}>
+                            {getStatusLabel(quote.status)}
+                          </span>
+                          {quote.status === 'sent' && quote.clientResponse === 'counter_proposed' && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                              Contre-proposition{quote.clientCounterAmount ? ` : ${quote.clientCounterAmount.toLocaleString('fr-FR')} F` : ''}
+                            </span>
+                          )}
+                          {quote.status === 'sent' && (!quote.clientResponse || quote.clientResponse === 'pending') && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">En attente de réponse</span>
+                          )}
+                          {invoicedAs && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">Facturé {invoicedAs}</span>}
+                          {(quote.clientComments?.length ?? 0) > 0 && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${unread ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-700'}`}>
+                              <MessageSquare className="h-3 w-3" />{unread ? `${unread} non lu${unread > 1 ? 's' : ''}` : quote.clientComments!.length}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-500">
+                          <span className="flex items-center gap-1"><Building className="h-3.5 w-3.5" />{quote.client.name || 'Client non défini'}</span>
+                          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(quote.date).toLocaleDateString('fr-FR')}</span>
+                          <span>{quote.products.length} ligne{quote.products.length > 1 ? 's' : ''}</span>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-1 md:justify-end">
+                        <span className="font-bold text-stone-900 mr-2 whitespace-nowrap">{quote.total.toLocaleString('fr-FR')} F</span>
+                        {primary && (
+                          <button onClick={primary.run} disabled={convertingId === quote.id || sendingQuoteId === quote.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold disabled:opacity-60 ${primary.cls}`}>
+                            <primary.icon className="h-3.5 w-3.5" />{primary.label}
+                          </button>
+                        )}
+                        <button onClick={() => setSelectedQuote(quote)} className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100" title="Voir le détail et les échanges" aria-label={`Voir ${quote.numero}`}>
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => exportPDF(quote)} className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100" title="Télécharger le PDF" aria-label={`Télécharger le PDF de ${quote.numero}`}>
+                          <Download className="h-4 w-4" />
+                        </button>
+                        {quoteActions(quote).length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              const r = e.currentTarget.getBoundingClientRect()
+                              setMenu(menu?.id === quote.id ? null : { id: quote.id, top: r.bottom + 4, right: window.innerWidth - r.right })
+                            }}
+                            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100"
+                            title="Plus d'actions"
+                            aria-label={`Plus d'actions pour ${quote.numero}`}
+                            aria-haspopup="menu"
+                            aria-expanded={menu?.id === quote.id}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {menu && menuQuote && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} />
+            <div role="menu" className="fixed z-50 w-56 bg-white rounded-xl border border-stone-200 shadow-xl py-1"
+              style={{ top: Math.max(8, Math.min(menu.top, window.innerHeight - 260)), right: menu.right }}>
+              {quoteActions(menuQuote).map(a => (
+                <button key={a.label} role="menuitem" onClick={() => { setMenu(null); a.run() }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-stone-50 ${a.danger ? 'text-red-600 border-t border-stone-100 mt-1' : 'text-stone-700'}`}>
+                  <a.icon className="h-4 w-4 shrink-0" />{a.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Contenu Création/Édition */}
+        {activeTab === 'create' && currentQuote && (
+          <div className="p-6 space-y-6">
+            {/* Informations devis */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Numéro de devis
+                </label>
+                <input
+                  type="text"
+                  value={currentQuote.numero}
+                  readOnly
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg bg-stone-50 text-stone-600"
+                  placeholder="Attribué à l'enregistrement"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={currentQuote.date}
+                  onChange={(e) => setCurrentQuote({ ...currentQuote, date: e.target.value })}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Statut
+                </label>
+                <select
+                  value={currentQuote.status}
+                  onChange={(e) => setCurrentQuote({ ...currentQuote, status: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="draft">Brouillon</option>
+                  <option value="sent">Envoyé</option>
+                  <option value="accepted">Accepté</option>
+                  <option value="rejected">Rejeté</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Recherche client portail */}
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-2 mb-3">
+                <Search className="h-4 w-4" />
+                Lier un client portail (optionnel)
+              </h3>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={clientQuery}
+                  onChange={(e) => { setClientQuery(e.target.value); searchClients(e.target.value) }}
+                  onBlur={() => setTimeout(() => setShowClientDrop(false), 200)}
+                  placeholder="Rechercher : TEYLIOMS, Coralia…"
+                  className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 bg-white"
+                />
+                {clientSearching && <span className="absolute right-3 top-2.5 text-xs text-stone-400">…</span>}
+                {currentQuote?.clientCompanyId && !showClientDrop && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-blue-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-blue-600" />
+                    Lié au portail <span className="font-mono text-[10px] text-stone-400 ml-1">{currentQuote.clientCompanyId.slice(-6)}</span>
+                    <button onClick={() => setCurrentQuote({ ...currentQuote, clientCompanyId: undefined })} className="ml-auto text-stone-400 hover:text-red-500"><X className="h-3 w-3" /></button>
+                  </div>
+                )}
+                {showClientDrop && clientResults.length > 0 && (
+                  <ul className="absolute z-20 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {clientResults.map((c) => (
+                      <li key={String(c._id || c.id)}
+                        onMouseDown={() => selectClient(c)}
+                        className="flex items-start gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer">
+                        <Building className="h-4 w-4 text-stone-400 flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-stone-900 truncate">{c.company || c.name}</div>
+                          <div className="text-xs text-stone-400 truncate">{c.email} · {c.phone}</div>
+                        </div>
+                        {c.isActive && <span className="ml-auto text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">Actif</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Informations client */}
+            <div className="bg-stone-50 rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold text-stone-900 flex items-center gap-2">
+                <Building className="h-5 w-5 text-blue-600" />
+                Devis pour
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Nom du client *
+                  </label>
+                  <input
+                    type="text"
+                    value={currentQuote.client.name}
+                    onChange={(e) => updateClientInfo('name', e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Coralia"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Téléphone
+                  </label>
+                  <input
+                    type="tel"
+                    value={currentQuote.client.phone}
+                    onChange={(e) => updateClientInfo('phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="+221 77 413 34 40"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    value={currentQuote.client.address}
+                    onChange={(e) => updateClientInfo('address', e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="11 Cité Lessine, Nord Foire"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Email
+                  </label>
+                  {clientEmails.length > 1 ? (
+                    <select
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {clientEmails.map(email => (
+                        <option key={email} value={email}>{email}</option>
+                      ))}
+                      <option value="">Autre email...</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="email"
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="contact@client.sn"
+                    />
+                  )}
+                  {clientEmails.length > 1 && !clientEmails.includes(currentQuote.client.email) && (
+                    <input
+                      type="email"
+                      value={currentQuote.client.email}
+                      onChange={(e) => updateClientInfo('email', e.target.value)}
+                      className="w-full mt-2 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Saisir un autre email"
+                    />
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    RC N° / SN DDER
+                  </label>
+                  <input
+                    type="text"
+                    value={currentQuote.client.rcn || ''}
+                    onChange={(e) => updateClientInfo('rcn', e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="SN DDER 2019 A 10739"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    NINEA
+                  </label>
+                  <input
+                    type="text"
+                    value={currentQuote.client.ninea || ''}
+                    onChange={(e) => updateClientInfo('ninea', e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="007305734"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Produits */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-stone-900 flex items-center gap-2">
+                  <Package className="h-5 w-5 text-blue-600" />
+                  Articles du devis
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowProductModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
+                  >
+                    <Search className="h-4 w-4" />
+                    Catalogue
+                  </button>
+                  <button
+                    onClick={addCustomProduct}
+                    className="px-4 py-2 bg-emerald-800 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Article personnalisé
+                  </button>
+                </div>
+              </div>
+
+              {currentQuote.products.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-stone-300 rounded-lg">
+                  <Package className="h-12 w-12 text-stone-400 mx-auto mb-3" />
+                  <p className="text-stone-500">Aucun article ajouté</p>
+                </div>
+              ) : (
+                <div className="border border-stone-200 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-stone-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Quantité</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Description</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Prix unitaire</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Imposable?</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Main-d'œuvre?</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-stone-700 uppercase">Montant</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-200">
+                      {currentQuote.products.map((product) => (
+                        <tr key={product.id} className="hover:bg-stone-50">
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="1"
+                              value={product.quantity}
+                              onChange={(e) => updateProduct(product.id, 'quantity', Number(e.target.value))}
+                              className="w-20 px-2 py-1 border border-stone-300 rounded text-center focus:ring-2 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={product.description}
+                              onChange={(e) => updateProduct(product.id, 'description', e.target.value)}
+                              className="w-full px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
+                              placeholder="Description de l'article"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                value={product.netUnitPrice ?? product.unitPrice}
+                                onChange={(e) => updateProduct(product.id, 'netUnitPrice', Number(e.target.value))}
+                                className="w-32 px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-stone-600">CFA</span>
+                            </div>
+                            {product.netUnitPrice != null && product.unitPrice !== product.netUnitPrice && (
+                              <div className="text-[11px] text-orange-700 mt-1">
+                                Facturé {product.unitPrice.toLocaleString('fr-FR')} (BRS incluse)
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={product.taxable}
+                              onChange={(e) => updateProduct(product.id, 'taxable', e.target.checked)}
+                              className="rounded border-stone-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={product.isLabor}
+                              onChange={(e) => updateProduct(product.id, 'isLabor', e.target.checked)}
+                              className="rounded border-stone-300 text-emerald-700 focus:ring-emerald-600"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-stone-900">
+                            {product.total.toLocaleString('fr-FR')} CFA
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => removeProduct(product.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Supprimer"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Totaux */}
+            <div className="bg-stone-50 rounded-lg p-6">
+              <div className="max-w-md ml-auto space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-600">Sous-total</span>
+                  <span className="font-medium text-stone-900">
+                    {currentQuote.subtotal.toLocaleString('fr-FR')} CFA
+                  </span>
+                </div>
+                
+                <div className="flex justify-between text-sm items-center">
+                  <label className="flex items-center gap-2 text-stone-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentQuote.applyBRS}
+                      onChange={(e) => {
+                        const updatedQuote = { ...currentQuote, applyBRS: e.target.checked }
+                        calculateTotals(updatedQuote)
+                      }}
+                      className="rounded border-stone-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    BRS (main-d'œuvre)
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">5.00%</span>
+                    <span className="text-[10px] text-stone-400">(si MO &gt; {currentQuote.brsThreshold.toLocaleString('fr-FR')} FCFA)</span>
+                  </label>
+                  <span className="font-medium text-orange-700">
+                    -{currentQuote.brsAmount.toLocaleString('fr-FR')} CFA
+                  </span>
+                </div>
+                <div className="text-[11px] text-stone-400 ml-6">
+                  {currentQuote.applyBRS
+                    ? `Main-d'œuvre détectée : ${currentQuote.products.filter(p => p.isLabor).reduce((s, p) => s + p.total, 0).toLocaleString('fr-FR')} FCFA`
+                    : "Cochez pour appliquer la retenue BRS (entreprises uniquement)"}
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-600">TVA</span>
+                  <span className="text-xs text-stone-500">
+                    {currentQuote.applyBRS ? 'Non applicable (régime BRS)' : `${currentQuote.taxAmount.toLocaleString('fr-FR')} CFA`}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-stone-600">Autres</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={currentQuote.other}
+                    onChange={(e) => {
+                      const updatedQuote = { ...currentQuote, other: Number(e.target.value) }
+                      calculateTotals(updatedQuote)
+                    }}
+                    className="w-32 px-2 py-1 border border-stone-300 rounded text-right focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+                
+                <div className="pt-3 border-t-2 border-stone-300">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-lg text-stone-900">TOTAL</span>
+                    <span className="font-bold text-2xl text-blue-600">
+                      {currentQuote.total.toLocaleString('fr-FR')} CFA
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-2">
+                Notes additionnelles
+              </label>
+              <textarea
+                value={currentQuote.notes || ''}
+                onChange={(e) => setCurrentQuote({ ...currentQuote, notes: e.target.value })}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Conditions de paiement: 80%"
+              />
+            </div>
+
+            {/* Documents joints */}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Documents joints</label>
+              <div className="space-y-2">
+                {(currentQuote.attachments || []).map(att => (
+                  <div key={att.url} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg border border-stone-200">
+                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate max-w-[70%]">
+                      {att.name} {att.category ? `(${att.category})` : ''}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.url)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="Retirer le document"
+                      aria-label={`Retirer ${att.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <select
+                    id="quote-doc-category"
+                    className="px-2 py-1 border border-stone-300 rounded text-sm"
+                    defaultValue="autre"
+                  >
+                    <option value="bon_commande">Bon de commande</option>
+                    <option value="recu">Reçu de versement</option>
+                    <option value="contrat">Contrat</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                  <label className="flex-1 cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const cat = (document.getElementById('quote-doc-category') as HTMLSelectElement)?.value || 'autre'
+                        try {
+                          await uploadAttachment(file, cat)
+                        } catch (err: any) {
+                          addToast(err.message || "Échec de l'envoi du fichier", 'error')
+                        }
+                        e.target.value = ''
+                      }}
+                    />
+                    <span className="block w-full text-center px-4 py-2 border border-dashed border-stone-400 rounded-lg text-sm text-stone-600 hover:bg-stone-50">
+                      + Ajouter un document
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            {(!currentQuote.client.name || currentQuote.products.length === 0) && (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Pour enregistrer : {[!currentQuote.client.name && 'indiquez le client', currentQuote.products.length === 0 && 'ajoutez au moins une ligne'].filter(Boolean).join(' et ')}.
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (editSnapshot.current?.id === currentQuote.id && editSnapshot.current.json !== JSON.stringify(currentQuote)
+                    && !confirm('Abandonner les modifications non enregistrées ?')) return
+                  setCurrentQuote(null)
+                  setActiveTab('list')
+                }}
+                className="flex-1 px-6 py-3 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition-colors font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={saveQuote}
+                disabled={isSaving || !currentQuote.client.name || currentQuote.products.length === 0}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="h-5 w-5" />
+                {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+              <button
+                onClick={() => openSendModal(currentQuote)}
+                disabled={sendingQuoteId === currentQuote.id}
+                className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!isObjectId(currentQuote.id) ? 'Sauvegardez d\'abord le devis' : ''}
+              >
+                <Send className="h-5 w-5" />
+                {sendingQuoteId === currentQuote.id ? 'Envoi...' : 'Envoyer email'}
+              </button>
+              <button
+                onClick={() => exportPDF()}
+                disabled={!currentQuote.client.name || currentQuote.products.length === 0}
+                className="flex-1 px-6 py-3 bg-emerald-800 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="h-5 w-5" />
+                Exporter PDF
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Catalogue produits */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-stone-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-stone-900">Catalogue de produits</h3>
+                <button
+                  onClick={() => {
+                    setShowProductModal(false)
+                    setSearchProduct('')
+                  }}
+                  className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                <input
+                  type="text"
+                  value={searchProduct}
+                  onChange={(e) => setSearchProduct(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Rechercher un produit..."
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {filteredProducts.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-stone-300 mx-auto mb-4" />
+                  <p className="text-stone-500">Aucun produit trouvé</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredProducts.map((product) => (
+                    <div
+                      key={product._id}
+                      className="border border-stone-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-stone-900 truncate">{product.name}</h4>
+                          <p className="text-sm text-stone-500">{product.category}</p>
+                        </div>
+                        <div className="flex gap-1 ml-2 flex-shrink-0">
+                          {product.inStock && (
+                            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full">
+                              En stock
+                            </span>
+                          )}
+                          {product.b2bPrice ? (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                              Prix B2B
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-end justify-between mt-4">
+                        <div>
+                          {product.b2bPrice ? (
+                            <>
+                              <span className="text-lg font-bold text-purple-600">
+                                {product.b2bPrice.toLocaleString('fr-FR')} CFA
+                              </span>
+                              <span className="text-xs text-stone-400 ml-2 line-through">
+                                {(product.price || 0).toLocaleString('fr-FR')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-lg font-bold text-blue-600">
+                              {(product.price || 0).toLocaleString('fr-FR')} CFA
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => addProductToQuote(product)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale sélection destinataires */}
+      {sendModalOpen && sendModalQuote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-stone-900">Envoyer le devis {sendModalQuote.numero}</h3>
+              <button onClick={() => setSendModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {loadingContacts ? (
+              <p className="text-stone-500 text-sm">Chargement des contacts…</p>
+            ) : (
+              <>
+                <p className="text-sm text-stone-600 mb-3">Sélectionnez les destinataires :</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                  {sendContacts.length === 0 && sendModalQuote.client?.email && (
+                    <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(sendModalQuote.client.email)}
+                        onChange={(e) => {
+                          const email = sendModalQuote.client.email
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, email] : prev.filter(r => r !== email))
+                        }}
+                        className="h-4 w-4 text-purple-600 rounded"
+                      />
+                      <span className="text-sm">{sendModalQuote.client.email} (client)</span>
+                    </label>
+                  )}
+                  {sendContacts.map(contact => (
+                    <label key={contact.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipients.includes(contact.email)}
+                        onChange={(e) => {
+                          setSelectedRecipients(prev => e.target.checked ? [...prev, contact.email] : prev.filter(r => r !== contact.email))
+                        }}
+                        className="h-4 w-4 text-purple-600 rounded"
+                      />
+                      <div className="text-sm">
+                        <div className="font-medium">{contact.nom} {contact.isPrimary && <span className="text-xs text-purple-600">(principal)</span>}</div>
+                        <div className="text-stone-500">{contact.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <form
+                  className="flex gap-2 mb-3"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const email = extraRecipient.trim().toLowerCase()
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return addToast('Adresse email invalide', 'error')
+                    setSelectedRecipients(prev => prev.includes(email) ? prev : [...prev, email])
+                    setExtraRecipient('')
+                  }}
+                >
+                  <input type="email" value={extraRecipient} onChange={(e) => setExtraRecipient(e.target.value)} placeholder="Ajouter une autre adresse…"
+                    aria-label="Ajouter un destinataire" className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm" />
+                  <button type="submit" disabled={!extraRecipient.trim()} className="px-3 py-2 rounded-lg border border-stone-300 text-sm hover:bg-stone-50 disabled:opacity-50">Ajouter</button>
+                </form>
+                {selectedRecipients.filter(r => r !== sendModalQuote.client?.email && !sendContacts.some(c => c.email === r)).map(r => (
+                  <div key={r} className="flex items-center justify-between text-sm bg-purple-50 text-purple-800 rounded-lg px-3 py-1.5 mb-2">
+                    {r}
+                    <button onClick={() => setSelectedRecipients(prev => prev.filter(x => x !== r))} aria-label={`Retirer ${r}`} className="text-purple-500 hover:text-purple-800"><X className="h-4 w-4" /></button>
+                  </div>
+                ))}
+                <div className="flex gap-3">
+                  <button onClick={() => setSendModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg text-stone-700 hover:bg-stone-50">Annuler</button>
+                  <button
+                    onClick={confirmSendQuote}
+                    disabled={selectedRecipients.length === 0 || sendingQuoteId === sendModalQuote.id}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {sendingQuoteId === sendModalQuote.id ? 'Envoi…' : 'Envoyer'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal détail devis */}
+      {selectedQuote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <QuoteDetailView
+              quote={selectedQuote}
+              invoicedAs={invoicedQuoteIds.get(selectedQuote.id)}
+              onClose={() => setSelectedQuote(null)}
+              onEdit={() => {
+                editQuote(selectedQuote)
+                setSelectedQuote(null)
+              }}
+              onExport={() => exportPDF(selectedQuote)}
+              onSend={() => { setSelectedQuote(null); openSendModal(selectedQuote) }}
+              onNewVersion={() => { setSelectedQuote(null); createNewVersion(selectedQuote) }}
+              onInvoice={() => convertToInvoice(selectedQuote)}
+              onCommentsChanged={(comments) => setQuotes(prev => prev.map(q => q.id === selectedQuote.id ? { ...q, clientComments: comments } : q))}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuoteDetailView({
+  quote,
+  invoicedAs,
+  onClose,
+  onEdit,
+  onExport,
+  onSend,
+  onNewVersion,
+  onInvoice,
+  onCommentsChanged
+}: {
+  quote: Quote
+  invoicedAs?: string
+  onClose: () => void
+  onEdit: () => void
+  onExport: () => void
+  onSend: () => void
+  onNewVersion: () => void
+  onInvoice: () => void
+  onCommentsChanged: (comments: NonNullable<Quote['clientComments']>) => void
+}) {
+  const { addToast } = useToast()
+  const [reply, setReply] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
+  const comments = [...(quote.clientComments || [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const unread = unreadCount(quote)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Ouvrir la fiche vaut lecture des messages du client
+  useEffect(() => {
+    if (!unread) return
+    fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/comments`, { method: 'PATCH', credentials: 'include' })
+      .then(r => { if (r.ok) onCommentsChanged((quote.clientComments || []).map(c => c.authorRole === 'CLIENT' ? { ...c, readByOther: true } : c)) })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote.id])
+
+  const sendReply = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reply.trim()) return
+    setSendingReply(true)
+    try {
+      const res = await fetch(`/api/admin/quotes/${encodeURIComponent(quote.id)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: reply.trim() })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'Réponse non envoyée')
+      onCommentsChanged(data.clientComments || [])
+      setReply('')
+      addToast('Réponse envoyée au client (portail et email)', 'success')
+    } catch (err: any) {
+      addToast(err?.message || 'Réponse non envoyée', 'error')
+    } finally {
+      setSendingReply(false)
+    }
+  }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+  }
+
+  const getStatusColor = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return '#6b7280'
+      case 'sent': return '#3b82f6'
+      case 'accepted': return '#10b981'
+      case 'rejected': return '#ef4444'
+      case 'superseded': return '#9ca3af'
+      default: return '#6b7280'
+    }
+  }
+
+  const getStatusLabel = (status: Quote['status']) => {
+    switch (status) {
+      case 'draft': return 'Brouillon'
+      case 'sent': return 'Envoyé'
+      case 'accepted': return 'Accepté'
+      case 'rejected': return 'Rejeté'
+      case 'superseded': return 'Remplacé'
+      default: return status
+    }
+  }
+
+  return (
+    <div>
+      <div className="sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-xl font-bold text-stone-900">Devis {quote.numero || '(brouillon)'}</h3>
+          <p className="text-sm text-stone-500 truncate">{quote.title || quote.client.name}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {quote.status === 'draft' && (
+            <button onClick={onSend} className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-1.5 text-sm font-semibold">
+              <Send className="h-4 w-4" />Envoyer
+            </button>
+          )}
+          {quote.status === 'accepted' && !invoicedAs && (
+            <button onClick={onInvoice} className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-1.5 text-sm font-semibold">
+              <Receipt className="h-4 w-4" />Facturer
+            </button>
+          )}
+          {['sent', 'accepted', 'rejected'].includes(quote.status) && (
+            <button onClick={onNewVersion} className={`px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm ${quote.clientResponse === 'counter_proposed' && quote.status === 'sent' ? 'bg-violet-600 text-white hover:bg-violet-700 font-semibold' : 'border border-stone-300 text-stone-700 hover:bg-stone-50'}`}>
+              <CopyPlus className="h-4 w-4" />Nouvelle version
+            </button>
+          )}
+          {['draft', 'sent'].includes(quote.status) && (
+            <button onClick={onEdit} className="px-3 py-2 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-50 flex items-center gap-1.5 text-sm">
+              <Edit3 className="h-4 w-4" />Modifier
+            </button>
+          )}
+          <button onClick={onExport} title="Télécharger le PDF" aria-label="Télécharger le PDF" className="p-2 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-50">
+            <Download className="h-4 w-4" />
+          </button>
+          <button onClick={onClose} aria-label="Fermer" className="p-1 text-stone-400 hover:text-stone-600">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Statut</p>
+            <p className="mt-1 font-semibold" style={{ color: getStatusColor(quote.status) }}>{getStatusLabel(quote.status)}</p>
+            {invoicedAs && <p className="text-xs text-stone-500">Facturé : {invoicedAs}</p>}
+          </div>
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Montant</p>
+            <p className="mt-1 font-semibold text-stone-900">{formatCurrency(quote.total)}</p>
+          </div>
+          <div className={`rounded-lg border p-3 ${quote.clientResponse === 'counter_proposed' ? 'border-violet-200 bg-violet-50' : 'border-stone-200'}`}>
+            <p className="text-xs text-stone-500">Réponse du client</p>
+            <p className="mt-1 font-semibold text-stone-900">
+              {quote.status === 'draft' ? 'Non envoyé' : ({ accepted: 'Accepté', rejected: 'Refusé', counter_proposed: 'Contre-proposition' } as Record<string, string>)[quote.clientResponse || ''] || 'En attente'}
+            </p>
+            {quote.clientCounterAmount && quote.clientResponse === 'counter_proposed' && (
+              <p className="text-xs text-violet-700">Propose {formatCurrency(quote.clientCounterAmount)} ({quote.total ? Math.round((quote.clientCounterAmount / quote.total - 1) * 100) : 0} %)</p>
+            )}
+            {quote.clientRespondedAt && <p className="text-xs text-stone-500">le {new Date(quote.clientRespondedAt).toLocaleDateString('fr-FR')}</p>}
+          </div>
+          <div className="rounded-lg border border-stone-200 p-3">
+            <p className="text-xs text-stone-500">Date</p>
+            <p className="mt-1 font-semibold text-stone-900">{new Date(quote.date).toLocaleDateString('fr-FR')}</p>
+          </div>
+        </div>
+
+        {/* Échanges avec le client */}
+        {quote.status !== 'draft' && (
+          <div className="rounded-lg border border-stone-200">
+            <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-teal-600" />
+              <h4 className="font-semibold text-stone-900">Échanges avec le client</h4>
+              <span className="text-xs text-stone-500">({comments.length})</span>
+            </div>
+            <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+              {comments.length === 0 ? (
+                <p className="text-sm text-stone-500 text-center py-4">Aucun message. Le client peut poser ses questions depuis son portail.</p>
+              ) : comments.map((c, i) => (
+                <div key={i} className={`flex ${c.authorRole === 'CLIENT' ? 'justify-start' : 'justify-end'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${c.authorRole === 'CLIENT' ? 'bg-stone-100 text-stone-800 rounded-bl-sm' : 'bg-emerald-700 text-white rounded-br-sm'}`}>
+                    <p className={`text-[10px] font-semibold mb-0.5 ${c.authorRole === 'CLIENT' ? 'text-stone-500' : 'text-emerald-100'}`}>{c.authorRole === 'CLIENT' ? 'Client' : 'IT Vision'}</p>
+                    <p className="whitespace-pre-line">{c.message}</p>
+                    <p className={`text-[10px] mt-1 ${c.authorRole === 'CLIENT' ? 'text-stone-400' : 'text-emerald-100/80'}`}>{new Date(c.createdAt).toLocaleString('fr-FR')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={sendReply} className="border-t border-stone-100 p-3 flex gap-2">
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                rows={2}
+                placeholder="Répondre au client (visible sur son portail, copie par email)…"
+                aria-label="Réponse au client"
+                className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm resize-none"
+              />
+              <button type="submit" disabled={sendingReply || !reply.trim()} className="self-end px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 disabled:opacity-50 flex items-center gap-1.5">
+                {sendingReply ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Répondre
+              </button>
+            </form>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-stone-50 rounded-lg p-4">
+            <h4 className="font-semibold text-stone-900 mb-3">Dates</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-stone-600">Date:</span><span className="font-medium">{new Date(quote.date).toLocaleDateString('fr-FR')}</span></div>
+              {quote.bonCommande && <div className="flex justify-between"><span className="text-stone-600">Bon de commande:</span><span className="font-medium">{quote.bonCommande}</span></div>}
+            </div>
+          </div>
+          <div className="bg-stone-50 rounded-lg p-4">
+            <h4 className="font-semibold text-stone-900 mb-3">Client</h4>
+            <div className="space-y-1 text-sm">
+              <div className="font-medium">{quote.client.name}</div>
+              <div className="text-stone-600">{quote.client.address}</div>
+              <div className="text-stone-600">{quote.client.phone}</div>
+              <div className="text-stone-600">{quote.client.email}</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-stone-900 mb-4">Lignes</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full border border-stone-200 rounded-lg">
+              <thead className="bg-stone-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-stone-500">Description</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-stone-500">Qté</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-stone-500">Prix Unit.</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-stone-500">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200">
+                {quote.products.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-3 text-sm text-stone-900">{item.description}</td>
+                    <td className="px-4 py-3 text-sm text-stone-900 text-center">{item.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-stone-900 text-right">{formatCurrency(item.unitPrice)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-stone-900 text-right">{formatCurrency(item.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+          <div className="space-y-2">
+            <div className="flex justify-between"><span className="text-stone-700">Sous-total HT:</span><span className="font-medium">{formatCurrency(quote.subtotal)}</span></div>
+            {quote.applyBRS && <div className="flex justify-between"><span className="text-stone-700">BRS (5%):</span><span className="font-medium text-red-600">-{formatCurrency(quote.brsAmount)}</span></div>}
+            {!quote.applyBRS && quote.taxAmount > 0 && <div className="flex justify-between"><span className="text-stone-700">TVA:</span><span className="font-medium">{formatCurrency(quote.taxAmount)}</span></div>}
+            {quote.other > 0 && <div className="flex justify-between"><span className="text-stone-700">Autres:</span><span className="font-medium">{formatCurrency(quote.other)}</span></div>}
+            <div className="border-t border-emerald-300 pt-2">
+              <div className="flex justify-between text-lg font-bold text-emerald-800"><span>{quote.applyBRS ? 'NET À PAYER:' : quote.taxAmount > 0 ? 'TOTAL TTC:' : 'TOTAL:'}</span><span>{formatCurrency(quote.total)}</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Documents joints */}
+        {(quote.attachments && quote.attachments.length > 0) && (
+          <div>
+            <h4 className="font-semibold text-stone-900 mb-3">Documents joints</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {quote.attachments.map((att, i) => (
+                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg border border-stone-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-stone-900 truncate">{att.name}</div>
+                    <div className="text-xs text-stone-500">{att.category || 'Document'} — {(att.size / 1024).toFixed(1)} Ko</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Signature électronique client */}
+        {quote.clientSignature && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
+            <h4 className="font-semibold text-stone-900 mb-3">Signature électronique</h4>
+            <div className="flex flex-wrap items-center gap-5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={quote.clientSignature.signature} alt="Signature client"
+                className="h-16 rounded-lg bg-white border border-emerald-200 object-contain px-3" />
+              <div className="text-sm space-y-0.5">
+                <p className="font-medium text-stone-900">{quote.clientSignature.name}</p>
+                <p className="text-stone-600">Signé le {quote.clientSignature.signedAt ? new Date(quote.clientSignature.signedAt).toLocaleString('fr-FR') : '—'}</p>
+                {quote.clientSignature.ip && <p className="text-xs text-stone-400">IP : {quote.clientSignature.ip}</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {quote.notes && (
+          <div>
+            <h4 className="font-semibold text-stone-900 mb-2">Notes</h4>
+            <p className="text-sm text-stone-700 bg-stone-50 p-4 rounded-lg whitespace-pre-line">{quote.notes}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
