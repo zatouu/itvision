@@ -1,0 +1,337 @@
+import mongoose, { Schema, Document } from 'mongoose'
+import type { SharedPricingSnapshot } from '@/lib/pricing/shared-settings'
+import { validatePhone, formatPhone } from '../payment-service'
+
+// Participant à un achat groupé
+export interface IGroupOrderParticipant {
+  userId?: mongoose.Types.ObjectId
+  name: string
+  email?: string
+  phone: string
+  qty: number
+  unitPrice: number        // Prix unitaire au moment de l'inscription
+  totalAmount: number      // Montant total pour ce participant
+  variantIds?: string[]    // Variantes choisies (ids des variantGroups produit)
+  variantLabels?: string[] // Libellés dérivés serveur (« Groupe: Nom »)
+  paidAmount: number       // Montant déjà payé
+  paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded'
+  paymentReference?: string
+  paymentMethod?: string
+  transactionId?: string
+  adminNote?: string
+  paymentUpdatedAt?: Date
+  chatAccessTokenHash?: string
+  chatAccessTokenCreatedAt?: Date
+  joinedAt: Date
+  notes?: string
+  addOns?: { id: string; name: string; price: number }[]
+  addOnsTotal?: number
+  /** Produit boutique créé par ce participant pour revendre son lot (« Mettre en vente ») */
+  resaleProductId?: mongoose.Types.ObjectId
+  /** Ambassadeur à l'origine de l'inscription (lien ?ref=) */
+  referral?: { code: string; ambassadorUserId: mongoose.Types.ObjectId }
+  /** Point de retrait choisi pour récupérer le lot (sinon remise selon l'adresse) */
+  pickupPoint?: { id: string; name: string; neighborhood?: string }
+  /** Colis disponible au point de retrait (participant prévenu) */
+  readyForPickupAt?: Date
+  /** Transport facturé après pesée réelle du lot à Guangzhou (quote-part du participant) */
+  transport?: {
+    amount: number
+    paymentReference: string
+    paymentStatus: 'pending' | 'paid'
+    paidAmount?: number
+    paidAt?: Date
+    paymentMethod?: string
+    transactionId?: string
+  }
+}
+
+export interface IGroupOrder extends Document {
+  pricingSnapshot?: SharedPricingSnapshot
+  groupId: string              // Format: GRP-TIMESTAMP-RANDOM
+  status: 'draft' | 'open' | 'filled' | 'ordering' | 'ordered' | 'shipped' | 'delivered' | 'cancelled'
+  
+  // Produit concerné
+  product: {
+    productId: mongoose.Types.ObjectId
+    name: string
+    image?: string
+    basePrice: number          // Prix de base (sans dégressif)
+    currency: string
+  }
+  
+  // Configuration quantités
+  minQty: number               // Quantité min pour valider le groupe
+  targetQty: number            // Quantité cible optimale
+  currentQty: number           // Quantité actuelle réservée
+  maxQty?: number              // Quantité max autorisée
+  
+  // Prix dégressifs (copie du produit au moment de création)
+  priceTiers: Array<{
+    minQty: number
+    maxQty?: number
+    price: number
+    discount?: number
+  }>
+  currentUnitPrice: number     // Prix unitaire actuel basé sur currentQty
+  
+  // Participants
+  participants: IGroupOrderParticipant[]
+  maxParticipants?: number     // Nombre max de participants
+  
+  // Dates
+  deadline: Date               // Date limite pour rejoindre
+  deadlineExtended?: boolean   // Prolongation unique déjà consommée (créateur)
+  estimatedDelivery?: Date     // Date estimée de livraison
+  
+  // Transport
+  shippingMethod?: 'maritime_60j' | 'air_15j' | 'express_3j'
+  shippingCostPerUnit?: number
+  
+  // Créateur et admin
+  createdBy: {
+    userId?: mongoose.Types.ObjectId
+    name: string
+    phone: string
+    email?: string
+  }
+  
+  // Commande finale liée
+  linkedOrderId?: string
+  /** Lien d'invitation du groupe WhatsApp de discussion (https://chat.whatsapp.com/…) */
+  whatsappInviteUrl?: string
+  /** Pesée réelle du lot à Guangzhou : base du transport facturé aux participants */
+  freight?: {
+    realWeightKg: number
+    realVolumeM3?: number
+    totalCost: number
+    measuredAt: Date
+    measuredBy?: string
+  }
+  chinaPurchase?: {
+    purchaseId: string
+    status: 'to_purchase' | 'purchased_1688' | 'paid_alipay' | 'seller_shipped' | 'received_guangzhou' | 'quality_check_pending' | 'quality_check_passed' | 'quality_check_failed' | 'quality_check_partial' | 'handed_to_freight' | 'cancelled'
+    platform: '1688' | 'taobao' | 'alibaba' | 'manual'
+    expectedAmount: number
+    collectedAmount: number
+    outstandingAmount: number
+    paymentCoverageRatio: number
+    updatedAt?: Date
+  }
+  
+  // Métadonnées
+  description?: string
+  internalNotes?: string
+  tags?: string[]
+  
+  createdAt: Date
+  updatedAt: Date
+}
+
+const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
+  userId: { type: mongoose.Schema.Types.ObjectId, sparse: true },
+  name: { type: String, required: true },
+  email: { type: String },
+  phone: { type: String, required: true },
+  qty: { type: Number, required: true, min: 1 },
+  unitPrice: { type: Number, required: true },
+  totalAmount: { type: Number, required: true },
+  variantIds: { type: [String], default: undefined },
+  variantLabels: { type: [String], default: undefined },
+  paidAmount: { type: Number, default: 0 },
+  paymentStatus: { 
+    type: String, 
+    enum: ['pending', 'partial', 'paid', 'refunded'], 
+    default: 'pending' 
+  },
+  paymentReference: { type: String },
+  paymentMethod: { type: String },
+  transactionId: { type: String },
+  adminNote: { type: String },
+  paymentUpdatedAt: { type: Date },
+  chatAccessTokenHash: { type: String, index: true },
+  chatAccessTokenCreatedAt: { type: Date },
+  joinedAt: { type: Date, default: () => new Date() },
+  notes: { type: String },
+  addOns: {
+    type: [new Schema({
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      price: { type: Number, required: true, min: 0 },
+    }, { _id: false })],
+    default: []
+  },
+  addOnsTotal: { type: Number, default: 0 },
+  resaleProductId: { type: mongoose.Schema.Types.ObjectId },
+  referral: {
+    type: new Schema({
+      code: { type: String, required: true },
+      ambassadorUserId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    }, { _id: false }),
+    required: false,
+  },
+  pickupPoint: {
+    type: new Schema({
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      neighborhood: { type: String },
+    }, { _id: false }),
+    required: false,
+  },
+  readyForPickupAt: { type: Date },
+  transport: {
+    type: new Schema({
+      amount: { type: Number, required: true, min: 0 },
+      paymentReference: { type: String, required: true },
+      paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+      paidAmount: { type: Number },
+      paidAt: { type: Date },
+      paymentMethod: { type: String },
+      transactionId: { type: String },
+    }, { _id: false }),
+    required: false,
+  }
+}, { _id: true })
+
+const GroupOrderSchema = new Schema<IGroupOrder>({
+  pricingSnapshot: { type: Schema.Types.Mixed },
+  groupId: { type: String, required: true, unique: true, index: true },
+  status: { 
+    type: String, 
+    enum: ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled'],
+    default: 'draft',
+
+  },
+  
+  product: {
+    productId: { type: mongoose.Schema.Types.ObjectId, required: true, },
+    name: { type: String, required: true },
+    image: { type: String },
+    basePrice: { type: Number, required: true },
+    currency: { type: String, default: 'FCFA' }
+  },
+  
+  minQty: { type: Number, required: true, min: 1 },
+  targetQty: { type: Number, required: true },
+  currentQty: { type: Number, default: 0 },
+  maxQty: { type: Number },
+  
+  priceTiers: {
+    type: [new Schema({
+      minQty: { type: Number, required: true },
+      maxQty: { type: Number },
+      price: { type: Number, required: true },
+      discount: { type: Number }
+    }, { _id: false })],
+    default: []
+  },
+  currentUnitPrice: { type: Number, required: true },
+  
+  participants: { type: [GroupOrderParticipantSchema], default: [] },
+  maxParticipants: { type: Number },
+  
+  deadline: { type: Date, required: true, },
+  deadlineExtended: { type: Boolean, default: false },
+  estimatedDelivery: { type: Date },
+  
+  shippingMethod: { 
+    type: String, 
+    enum: ['maritime_60j', 'air_15j', 'express_3j'],
+    default: 'maritime_60j'
+  },
+  shippingCostPerUnit: { type: Number },
+  
+  createdBy: {
+    userId: { type: mongoose.Schema.Types.ObjectId, sparse: true },
+    name: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: { type: String }
+  },
+  
+  linkedOrderId: { type: String, sparse: true },
+  whatsappInviteUrl: { type: String },
+  freight: {
+    realWeightKg: { type: Number, min: 0 },
+    realVolumeM3: { type: Number, min: 0 },
+    totalCost: { type: Number, min: 0 },
+    measuredAt: { type: Date },
+    measuredBy: { type: String },
+  },
+  chinaPurchase: {
+    purchaseId: { type: String, sparse: true, index: true },
+    status: {
+      type: String,
+      enum: ['to_purchase', 'purchased_1688', 'paid_alipay', 'seller_shipped', 'received_guangzhou', 'quality_check_pending', 'quality_check_passed', 'quality_check_failed', 'quality_check_partial', 'handed_to_freight', 'cancelled']
+    },
+    platform: { type: String, enum: ['1688', 'taobao', 'alibaba', 'manual'] },
+    expectedAmount: { type: Number, default: 0 },
+    collectedAmount: { type: Number, default: 0 },
+    outstandingAmount: { type: Number, default: 0 },
+    paymentCoverageRatio: { type: Number, default: 0 },
+    updatedAt: { type: Date }
+  },
+  
+  description: { type: String },
+  internalNotes: { type: String },
+  tags: [{ type: String }]
+}, { timestamps: true })
+
+// Index composites
+GroupOrderSchema.index({ status: 1, deadline: 1 })
+GroupOrderSchema.index({ 'product.productId': 1, status: 1 })
+GroupOrderSchema.index({ 'participants.phone': 1 })
+GroupOrderSchema.index({ 'participants.transport.paymentReference': 1 }, { sparse: true })
+
+// Méthode pour calculer le prix unitaire basé sur la quantité
+// Logique : on prend le palier le plus élevé dont le minQty est atteint.
+// maxQty n'est utilisé que pour les paliers intermédiaires, pas le dernier.
+GroupOrderSchema.methods.calculateUnitPrice = function(qty: number): number {
+  if (!this.priceTiers || this.priceTiers.length === 0) return this.product.basePrice
+  const tiers = [...this.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
+  for (const tier of tiers) {
+    if (qty >= tier.minQty) {
+      return tier.price
+    }
+  }
+  return this.product.basePrice
+}
+
+// Hooks pour normaliser les téléphones et mettre à jour currentUnitPrice avant save
+GroupOrderSchema.pre('save', function(next) {
+  // Normaliser les téléphones des participants (format international) si valides
+  if (Array.isArray(this.participants)) {
+    this.participants.forEach((p: any) => {
+      if (p.phone && validatePhone(p.phone)) {
+        p.phone = formatPhone(p.phone)
+      }
+    })
+  }
+
+  // Normaliser le téléphone du créateur si valide
+  if (this.createdBy && this.createdBy.phone && validatePhone(this.createdBy.phone)) {
+    this.createdBy.phone = formatPhone(this.createdBy.phone)
+  }
+
+  // Mettre à jour currentUnitPrice en fonction de currentQty et des paliers
+  // Prend le meilleur palier atteint (le plus haut minQty <= currentQty)
+  if (this.priceTiers && this.priceTiers.length > 0) {
+    const sortedTiers = [...this.priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
+    let matched = false
+    for (const tier of sortedTiers) {
+      if (this.currentQty >= tier.minQty) {
+        this.currentUnitPrice = tier.price
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      this.currentUnitPrice = this.product.basePrice
+    }
+  }
+
+  next()
+})
+
+export const GroupOrder =
+  (mongoose.models.GroupOrder as mongoose.Model<IGroupOrder>) ||
+  mongoose.model<IGroupOrder>('GroupOrder', GroupOrderSchema)
