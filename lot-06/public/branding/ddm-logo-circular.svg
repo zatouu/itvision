@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <pattern id="wax" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="#FFF8E7"/>
+      <path d="M0 10 Q5 0 10 10 T20 10" fill="none" stroke="#10B981" stroke-width="1.5"/>
+      <path d="M10 0 Q15 10 20 0 T30 0" fill="none" stroke="#F59E0B" stroke-width="1.5"/>
+      <circle cx="10" cy="10" r="2" fill="#7C3AED"/>
+    </pattern>
+  </defs>
+
+  <circle cx="60" cy="60" r="58" fill="url(#wax)" stroke="#10B981" stroke-width="3"/>
+  <circle cx="60" cy="60" r="48" fill="#0F172A"/>
+
+  <text x="60" y="58" text-anchor="middle" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="26" font-weight="800" fill="#F8FAFC">DDM</text>
+
+  <g transform="translate(78, 38)" fill="#10B981">
+    <rect x="0" y="5" width="18" height="6" rx="2"/>
+    <rect x="6" y="-1" width="6" height="18" rx="2"/>
+  </g>
+
+  <text x="60" y="80" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="9" fill="#CBD5E1" letter-spacing="1">Dieund Dal Ma</text>
+</svg>

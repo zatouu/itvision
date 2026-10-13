@@ -1,0 +1,84 @@
+[
+  {
+    "id": 1,
+    "title": "Installation Vidéosurveillance Centre Commercial",
+    "location": "Dakar, Plateau",
+    "description": "Système complet de vidéosurveillance avec 24 caméras 4K, contrôle d'accès et surveillance 24h/7j.",
+    "image": "/images/placeholder-surveillance.jpg",
+    "category": "project",
+    "services": ["Vidéosurveillance", "Contrôle d'accès", "Monitoring"]
+  },
+  {
+    "id": 2,
+    "title": "Équipe Technique en Action",
+    "location": "Installation sur site",
+    "description": "Nos techniciens en action lors de l'installation d'un système de sécurité complexe.",
+    "image": "/images/placeholder-team-1.jpg",
+    "category": "team",
+    "services": ["Installation", "Configuration", "Formation"]
+  },
+  {
+    "id": 3,
+    "title": "Domotique Résidentielle ",
+    "location": "Mermoz, Résidence",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/placeholder-domotique.jpg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 4,
+    "title": "Domotique Résidentielle Antalya",
+    "location": "Mermoz, Résidence",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/domo1.jpeg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 5,
+    "title": "Domotique Résidentielle Antalya",
+    "location": "Mermoz, Résidence",
+    "description": "Maison intelligente complète avec automatisation éclairage, sécurité et confort.",
+    "image": "/images/domo2.jpeg",
+    "category": "project",
+    "services": ["Domotique", "Automatisation", "Smart Home"]
+  },
+  {
+    "id": 6,
+    "title": "Équipe Technique en Action",
+    "location": "Installation sur site",
+    "description": "Nos techniciens en action lors de l'installation de la fibre optique",
+    "image": "/images/fibre.jpeg",
+    "category": "team",
+    "services": ["Installation", "Configuration", "Fibre Optique"]
+  },
+  {
+    "id": 7,
+    "title": "Visiophonie Résidentielle",
+    "location": "Mermoz, Résidence",
+    "description": "Platine de rue multi appartements.",
+    "image": "/images/visiophonie.jpeg",
+    "category": "project",
+    "services": ["Visiophonie", "Contrôle d'accès", "Monitoring"]
+  },
+  {
+    "id": 8,
+    "title": "Extincteur",
+    "location": "Almadies, Résidence",
+    "description": "Installation Extincteur Immeuble THEA.",
+    "image": "/images/securite.jpeg",
+    "category": "project",
+    "services": ["Extincteur", "Sécurité", "Incendie"]
+  },
+  {
+    "id": 9,
+    "title": "Résidence Shiramba",
+    "location": "Diamniadio",
+    "description": "Installation complète pour l'entreprise Teyliom - Résidence Shiramba: 26 Combinés interphone audio RL, 1 Platine de Rue 16 Postes RL, 1 Platine de Rue 12 Postes RL.",
+    "image": "/images/Shiramba.png",
+    "category": "project",
+    "services": ["Interphonie", "Contrôle d'accès", "Installation résidentielle"]
+  }
+]
+
