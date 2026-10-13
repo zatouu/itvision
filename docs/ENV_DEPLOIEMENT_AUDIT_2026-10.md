@@ -147,8 +147,8 @@ pour exercer les parcours de recette correspondants.
 | `QWEN_CLOUD_API_KEY`, `QWEN_CLOUD_BASE_URL`, `QWEN_MODEL` | GitHub Secrets | QwenCloud, notamment les capacites vision selon la configuration du gateway |
 | `ALIEXPRESS_RAPIDAPI_KEY` | GitHub Secret | Integration AliExpress RapidAPI lorsqu'elle est utilisee |
 | `OPENAI_API_KEY` | GitHub Secret | Integrations existantes qui l'utilisent ; pas un remplacement de la configuration du gateway principal |
-| `SENTRY_DSN` | GitHub Secret | Remontee des erreurs serveur, facultatif pour demarrer mais recommande pour la recette |
-| `NEXT_PUBLIC_SENTRY_DSN` | GitHub Variable | DSN public du navigateur, injecte lors du build Docker ; changer seulement l'env du conteneur ne modifie pas le bundle existant |
+| `SENTRY_DSN` | GitHub Secret | Remontee des erreurs serveur, facultatif pour demarrer mais recommande pour la recette. Valeur : `https://f39e6309eb9fdfc73435b6f7dc157e78@o4512249265782784.ingest.de.sentry.io/4512249303924816` |
+| `NEXT_PUBLIC_SENTRY_DSN` | GitHub Variable | DSN public du navigateur, injecte lors du build Docker ; changer seulement l'env du conteneur ne modifie pas le bundle existant. Valeur : `https://f39e6309eb9fdfc73435b6f7dc157e78@o4512249265782784.ingest.de.sentry.io/4512249303924816` |
 
 Valeurs de repli observees dans le gateway :
 

@@ -2,7 +2,7 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ main, cursor/*, deploy/*, rel/ui-refresh, feat/mobile-fusion, feature/corporate-evolutions ]
+    branches: [ main, cursor/*, deploy/*, rel/ui-refresh, feat/mobile-fusion, feature/corporate-evolutions, feature/barakalah ]
   workflow_dispatch:
 
 concurrency:
@@ -216,6 +216,8 @@ jobs:
             echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ec2
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.ec2
             echo "MAINTENANCE_CRON_DISABLED=${{ secrets.MAINTENANCE_CRON_DISABLED }}" >> .env.ec2
+            echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env.ec2
+            echo "NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" >> .env.ec2
             
 
             # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)

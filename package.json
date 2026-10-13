@@ -76,7 +76,7 @@
     "@langchain/langgraph-checkpoint-mongodb": "^1.4.1",
     "@langchain/openai": "^1.5.13",
     "@prisma/client": "^6.15.0",
-    "@sentry/nextjs": "^10.0.0",
+    "@sentry/nextjs": "^11.7.0",
     "@tiptap/extension-placeholder": "^3.14.0",
     "@tiptap/extension-underline": "^3.14.0",
     "@tiptap/pm": "^3.14.0",
