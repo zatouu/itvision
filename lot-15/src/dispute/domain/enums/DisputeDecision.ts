@@ -1,0 +1,8 @@
+export enum DisputeDecision {
+  RELEASE_ESCROW = 'RELEASE_ESCROW',
+  REFUND = 'REFUND',
+  PARTIAL_REFUND = 'PARTIAL_REFUND',
+  REJECT = 'REJECT',
+  CANCEL = 'CANCEL',
+  OTHER = 'OTHER',
+}

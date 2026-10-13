@@ -1,0 +1,499 @@
+'use client';
+
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { formatFcfa } from '../formatFcfa';
+import { Icon } from '../Icon';
+import { Badge } from '../Badge';
+import { Button } from '../Button';
+import { Card } from '../Card';
+
+import { CountdownChip } from '../CountdownChip';
+import { mapCartItem, mapCatalogItem, mapGroupOrder, saveCart, cartLineKey } from '../data-mappers';
+import type { CartItem, Group, Product } from '../types';
+
+interface CartQuoteData {
+  items?: { id: string; unitPrice: number; variantIds?: string[] }[];
+  pricing: {
+    sourcingCost: number;
+    usingRetailPricing: boolean;
+    serviceFee: { rate: number; amount: number };
+    insurance: { rate: number; amount: number };
+    quantityDiscount: { percent: number; amount: number; label: string } | null;
+    subtotal: number;
+  };
+  shipping: { label: string; cost: number } | null;
+  discounts: { promo: { code: string; discount: number } | null; promoError?: string };
+  total: number;
+}
+
+export default function ScreenCart() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [GROUPS, setGROUPS] = useState<Group[]>([]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [quote, setQuote] = useState<CartQuoteData | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState('');
+  // Mode de transport choisi à l'étape Livraison (mémorisé) — aérien standard par défaut
+  const [shipMethod, setShipMethod] = useState('air_15j');
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('cart:ship') : null;
+    const map: Record<string, string> = { express: 'express_3j', aerien: 'air_15j', maritime: 'maritime_60j', local: 'local_24h' };
+    if (saved && map[saved]) setShipMethod(map[saved]);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setLoading(true);
+    try {
+      const raw = localStorage.getItem('cart:items');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const mapped = parsed.map(mapCartItem) as CartItem[];
+          setItems(mapped);
+        }
+      }
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    fetch('/api/group-orders?limit=2')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data?.groups)) setGROUPS(data.groups.map(mapGroupOrder));
+      })
+      .catch(() => {});
+    fetch('/api/catalog/products?limit=4&compact=1')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const list = data?.products || data?.items || [];
+        if (Array.isArray(list)) setSuggestions(list.slice(0, 4).map(mapCatalogItem));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Devis serveur — même calcul que la facturation (sourcing + service + assurance + transport)
+  useEffect(() => {
+    if (items.length === 0) { setQuote(null); return; }
+    const ctrl = new AbortController();
+    setQuoteLoading(true);
+    fetch('/api/pricing/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        cart: items.map(it => ({ id: it.id, qty: it.qty, variantIds: it.variantIds })),
+        shippingMethod: shipMethod,
+        ...(appliedPromo ? { promo: { code: appliedPromo } } : {}),
+      }),
+      signal: ctrl.signal,
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.quote) setQuote(d.quote); })
+      .catch(() => {})
+      .finally(() => setQuoteLoading(false));
+    return () => ctrl.abort();
+  }, [items, appliedPromo, shipMethod]);
+
+  // Persister le code promo pour le checkout
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (appliedPromo) localStorage.setItem('cart:promo', appliedPromo);
+    else localStorage.removeItem('cart:promo');
+  }, [appliedPromo]);
+
+  // Recharger le promo mémorisé
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('cart:promo');
+    if (saved) { setAppliedPromo(saved); setPromoInput(saved); }
+  }, []);
+
+  // Identité d'une ligne = produit + variante (deux variantes d'un même produit
+  // partagent le même id produit — sans la variante, +/−/suppr toucherait les deux).
+  const lineKey = cartLineKey;
+
+  const updateQty = (key: string, delta: number) => {
+    setItems((cur) => {
+      const next = cur.map((it) =>
+        lineKey(it) === key
+          ? { ...it, qty: Math.max(it.minOrderQty ?? 1, it.qty + delta) }
+          : it
+      );
+      saveCart(next);
+      return next;
+    });
+  };
+
+  const removeItem = (key: string) => {
+    setItems((cur) => {
+      const next = cur.filter((it) => lineKey(it) !== key);
+      saveCart(next);
+      return next;
+    });
+  };
+
+  // Prix unitaire facturé : celui du devis serveur quand la ligne matche
+  // (produit + variantes), sinon le palier local calculé à l'ajout.
+  const serverUnitFor = (it: CartItem): number | null => {
+    if (!quote?.items) return null;
+    const want = (it.variantIds ?? (it.variantId ? [it.variantId] : [])).slice().sort().join('+');
+    const hit = quote.items.find((qi: any) =>
+      qi.id === it.id &&
+      (Array.isArray(qi.variantIds) ? qi.variantIds.slice().sort().join('+') : '') === want
+    );
+    return typeof hit?.unitPrice === 'number' ? hit.unitPrice : null;
+  };
+  const lineUnit = (it: CartItem) => serverUnitFor(it) ?? it.tierUnit;
+
+  const totalQty = items.reduce((s, it) => s + it.qty, 0);
+
+  const totals = useMemo(() => {
+    const sub = items.reduce((s, it) => s + lineUnit(it) * it.qty, 0);
+    const savings = items.reduce((s, it) => s + (it.unit - lineUnit(it)) * it.qty, 0);
+    const groupItemsCount = items.filter(it => it.hasActiveGroup && it.groupUnit).length;
+    const groupSavingsPotential = items.reduce((s, it) => it.hasActiveGroup && it.groupUnit ? s + (lineUnit(it) - it.groupUnit) * it.qty : s, 0);
+    // Montants facturés : devis serveur (sourcing + service + assurance + transport)
+    const service = quote?.pricing.serviceFee.amount ?? 0;
+    const insurance = quote?.pricing.insurance.amount ?? 0;
+    const shipping = quote?.shipping?.cost ?? 0;
+    const promoDiscount = quote?.discounts.promo?.discount ?? 0;
+    const total = quote?.total ?? (sub + service + insurance + shipping);
+    return { sub, savings, service, insurance, shipping, promoDiscount, total, groupSavingsPotential, groupItemsCount };
+  }, [items, quote, totalQty]);
+
+  const belowMOQ = items.filter((it) => it.qty < it.minOrderQty);
+  const canCheckout = belowMOQ.length === 0;
+
+  const CartItemCard = ({ it }: { it: CartItem }) => {
+    const isBelow = it.qty < it.minOrderQty;
+    const nextTierDelta = it.nextTier ? it.nextTier.at - it.qty : 0;
+    return (
+      <Card className={cn("overflow-hidden", isBelow && "border-amber-400 dark:border-amber-700")}>
+        <div className="flex gap-3 p-3">
+          <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 md:h-24 md:w-24">
+            <Image src={it.image} alt={it.name} fill sizes="96px" className="object-cover"/>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight">{it.name}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{it.variant}</p>
+              </div>
+              <button onClick={() => removeItem(lineKey(it))} className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600 dark:hover:bg-slate-800" aria-label="Supprimer"><Icon name="trash" size={15}/></button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Badge tone={isBelow?"red":"amber"}><Icon name="package" size={10}/> Lot min. {it.minOrderQty}</Badge>
+              {it.hasActiveGroup && <Badge tone="violet"><Icon name="users" size={10}/> Groupe actif</Badge>}
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-2">
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
+                <button aria-label="Diminuer la quantité" onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
+                <span className="w-8 text-center text-sm font-extrabold text-slate-900 dark:text-white tabular-nums">{it.qty}</span>
+                <button aria-label="Augmenter la quantité" onClick={() => updateQty(lineKey(it), 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
+              </div>
+              <div className="text-right">
+                <p className="whitespace-nowrap text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(lineUnit(it) * it.qty)}</p>
+                <p className="whitespace-nowrap text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(lineUnit(it))} × {it.qty}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Alert MOQ */}
+        {isBelow && (
+          <div className="border-t border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+            <div className="flex items-start gap-2">
+              <Icon name="info" size={14} className="mt-0.5 flex-shrink-0 text-amber-700 dark:text-amber-300"/>
+              <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+                Ajoutez <b className="tabular-nums">{it.minOrderQty - it.qty}</b> unités pour atteindre le lot minimum de {it.minOrderQty}
+              </p>
+              <button onClick={() => updateQty(lineKey(it), it.minOrderQty - it.qty)} className="ml-auto rounded-md bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700 flex-shrink-0">
+                Ajouter
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Suggestion palier */}
+        {!isBelow && it.nextTier && nextTierDelta > 0 && nextTierDelta <= 5 && (
+          <div className="border-t border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
+            <div className="flex items-start gap-2">
+              <Icon name="sparkles" size={14} className="mt-0.5 flex-shrink-0 text-emerald-700 dark:text-emerald-300"/>
+              <p className="text-[12px] font-semibold text-emerald-900 dark:text-emerald-200">
+                Ajoutez <b className="tabular-nums">{nextTierDelta}</b> unités pour débloquer <b>−{it.nextTier.save}%</b>
+              </p>
+              <button onClick={() => updateQty(lineKey(it), nextTierDelta)} className="ml-auto rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 flex-shrink-0">
+                Compléter
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Group buy opportunity */}
+        {it.hasActiveGroup && it.groupUnit && !isBelow && (
+          <div className="border-t border-violet-200 bg-gradient-to-r from-violet-50 to-emerald-50 px-3 py-2.5 dark:border-violet-900 dark:from-violet-950/40 dark:to-emerald-950/40">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-violet-600 text-white"><Icon name="users" size={14}/></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">Rejoindre le groupe : <span className="text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(it.groupUnit)}/pc</span></p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">Économisez <b className="tabular-nums">{formatFcfa((lineUnit(it) - it.groupUnit) * it.qty)}</b> sur ce lot</p>
+              </div>
+              <Link
+                href={it.groupId ? `/achats-groupes/${it.groupId}` : '/achats-groupes'}
+                className="whitespace-nowrap rounded-md bg-violet-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-violet-700 flex-shrink-0"
+              >
+                Voir
+              </Link>
+            </div>
+          </div>
+        )}
+      </Card>
+    );
+  };
+
+  const Summary = ({ sticky = false }) => (
+    <div className={cn("space-y-3", sticky && "sticky top-[calc(var(--mkt-header-h,0px)+12px)]")}>
+      <Card className="p-4">
+        <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Récapitulatif</h3>
+        <dl className="space-y-2 text-[13px]">
+          <div className="flex justify-between">
+            <dt className="text-slate-600 dark:text-slate-400">Prix produits ({totalQty} pcs)</dt>
+            <dd className="font-semibold text-slate-900 dark:text-white tabular-nums">
+              {quote ? formatFcfa(quote.pricing.sourcingCost) : formatFcfa(totals.sub)}
+            </dd>
+          </div>
+          {!quote?.pricing.usingRetailPricing && (
+            <>
+              <div className="flex justify-between">
+                <dt className="text-slate-600 dark:text-slate-400">Frais de service{quote ? ` (${quote.pricing.serviceFee.rate}%)` : ''}</dt>
+                <dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(totals.service) : '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-slate-600 dark:text-slate-400">Assurance import{quote ? ` (${quote.pricing.insurance.rate}%)` : ''}</dt>
+                <dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(totals.insurance) : '—'}</dd>
+              </div>
+            </>
+          )}
+          {quote?.pricing.quantityDiscount && quote.pricing.quantityDiscount.amount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-emerald-700 dark:text-emerald-300 font-semibold">{quote.pricing.quantityDiscount.label}</dt>
+              <dd className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">-{formatFcfa(quote.pricing.quantityDiscount.amount)}</dd>
+            </div>
+          )}
+          {totals.promoDiscount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-emerald-700 dark:text-emerald-300 font-semibold">Promo {quote?.discounts.promo?.code}</dt>
+              <dd className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">-{formatFcfa(totals.promoDiscount)}</dd>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <dt className="flex items-center gap-1 text-slate-600 dark:text-slate-400"><Icon name="truck" size={13}/> Transport estimé{quote?.shipping?.label ? ` (${quote.shipping.label})` : ''}</dt>
+            <dd className="font-semibold text-slate-900 dark:text-white tabular-nums">{quote ? formatFcfa(totals.shipping) : '—'}</dd>
+          </div>
+          {totals.savings > 0 && (
+            <div className="flex justify-between rounded-lg bg-emerald-50 px-2 py-1.5 -mx-1 dark:bg-emerald-950/40">
+              <dt className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-semibold"><Icon name="sparkles" size={13}/> Économie paliers</dt>
+              <dd className="font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">-{formatFcfa(totals.savings)}</dd>
+            </div>
+          )}
+        </dl>
+        {quoteLoading && <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">Calcul du devis en cours…</p>}
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Mode de transport modifiable à l&apos;étape Livraison (express, aérien, maritime) : le total sera recalculé.</p>
+        <div className="my-3 h-px bg-slate-200 dark:bg-slate-800"/>
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm font-bold text-slate-900 dark:text-white">Total</span>
+          <span className="text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</span>
+        </div>
+
+        {totals.groupSavingsPotential > 0 && (
+          <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-900 dark:bg-violet-950/40">
+            <div className="flex items-start gap-2">
+              <Icon name="users" size={16} className="mt-0.5 text-violet-700 dark:text-violet-300"/>
+              <div>
+                <p className="text-[12px] font-bold text-violet-900 dark:text-violet-200">Économisez jusqu&apos;à {formatFcfa(totals.groupSavingsPotential)} en achat groupé</p>
+                <p className="text-[11px] text-violet-800 dark:text-violet-300/80 mt-0.5">{totals.groupItemsCount} article{totals.groupItemsCount > 1 ? 's ont' : ' a'} un groupe actif compatible</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!canCheckout && (
+          <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+            <div className="flex items-start gap-2">
+              <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
+              <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+                <b>{belowMOQ.length} article{belowMOQ.length > 1 ? 's' : ''}</b> {belowMOQ.length > 1 ? 'sont' : 'est'} en dessous du lot minimum. Complétez pour passer à la caisse — c&apos;est un import direct usine.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <Button variant="primary" size="lg" className="mt-4 w-full" disabled={!canCheckout} onClick={() => canCheckout && router.push('/checkout/adresse')}>
+          Passer à la caisse
+          <Icon name="arrowRight" size={16}/>
+        </Button>
+        <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1"><Icon name="shield" size={12}/> Paiement garanti</span>
+          <span className="inline-flex items-center gap-1"><Icon name="wallet" size={12}/> Mobile Money</span>
+          <span className="inline-flex items-center gap-1"><Icon name="whatsapp" size={12}/> Support 7j/7</span>
+        </div>
+      </Card>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Code promo</p>
+        {appliedPromo && quote?.discounts.promo ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+              <Icon name="check" size={14}/> {appliedPromo}
+              <span className="tabular-nums">(−{formatFcfa(totals.promoDiscount)})</span>
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => { setAppliedPromo(''); setPromoInput(''); }}>Retirer</Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              value={promoInput}
+              onChange={e => setPromoInput(e.target.value.toUpperCase())}
+              placeholder="Entrer un code"
+              className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+            <Button variant="secondary" size="sm" disabled={!promoInput.trim()} onClick={() => setAppliedPromo(promoInput.trim())}>Appliquer</Button>
+          </div>
+        )}
+        {appliedPromo && quote?.discounts.promoError && (
+          <p className="mt-2 text-[11px] font-semibold text-red-600 dark:text-red-400">{quote.discounts.promoError}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
+  }
+
+  if (items.length === 0 && !loading) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-6 py-20 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+          <Icon name="cart" size={26} />
+        </span>
+        <p className="mt-4 text-[15px] font-extrabold text-slate-900 dark:text-white">Votre panier est vide</p>
+        <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">
+          Parcourez le catalogue ou rejoignez un achat groupé pour profiter des prix usine.
+        </p>
+        <div className="mt-5 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button variant="primary" size="md" onClick={() => router.push('/produits')}>Voir le catalogue</Button>
+          <Button variant="violet" size="md" onClick={() => router.push('/achats-groupes')}><Icon name="users" size={14}/>Achats groupés</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
+          <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
+            <Link href="/market">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mon panier</span>
+          </div>
+          <div className="mb-4 flex items-baseline justify-between md:mb-6">
+            <div>
+              <h1 className="text-lg md:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Mon panier</h1>
+              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">{items.length} articles · {items.reduce((s,i)=>s+i.qty,0)} pièces au total</p>
+            </div>
+            <Link href="/produits" className="hidden text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white md:inline"><Icon name="arrowLeft" size={14} className="inline mr-1"/>Continuer mes achats</Link>
+          </div>
+
+          {/* Mobile : articles → récap + CTA → suggestions (le CTA précède l'upsell).
+              Desktop : articles + suggestions à gauche, récap sticky à droite.
+              L'alerte lot minimum vit sur chaque ligne et à côté du CTA. */}
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_400px] md:gap-6">
+            <div className="space-y-3 md:col-start-1 md:row-start-1">
+              {items.map((it)=><Fragment key={lineKey(it)}>{CartItemCard({ it })}</Fragment>)}
+            </div>
+
+            {/* Récap + promo + CTA : sidebar desktop, inline mobile */}
+            <div className="md:col-start-2 md:row-start-1 md:row-span-2">
+              {Summary({ sticky: true })}
+            </div>
+
+            <div className="space-y-3 md:col-start-1 md:row-start-2">
+              {suggestions.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">Complétez votre commande</h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {suggestions.map((p, i)=>(
+                      <Link key={p.id} href={`/produits/${p.id}`} className={cn("rounded-xl border border-slate-200 p-2 transition-colors hover:border-emerald-400 dark:border-slate-800 dark:hover:border-emerald-700", i >= 2 && "hidden md:block")}>
+                        <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+                          <Image src={p.img || p.image || '/placeholder.svg'} alt={p.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover"/>
+                          {p.minOrderQty > 1 && <span className="absolute left-1.5 top-1.5"><Badge tone="amber">Min. {p.minOrderQty}</Badge></span>}
+                        </div>
+                        <p className="text-[11px] font-semibold text-slate-900 dark:text-white line-clamp-2 min-h-[28px] leading-tight">{p.name}</p>
+                        <p className="mt-1 text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(p.price)}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {GROUPS.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Icon name="users" size={16} className="text-violet-600 dark:text-violet-400"/>
+                    Achats groupés en cours
+                  </h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {GROUPS.slice(0,2).map((g)=>(
+                      <div key={g.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <span className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg">
+                          <Image src={g.image} alt={g.name} fill sizes="56px" className="object-cover" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{g.name}</p>
+                          <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                            <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
+                            {g.save > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">-{g.save}%</span>}
+                            <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[11px] !px-1.5 !py-0.5"/>
+                          </div>
+                        </div>
+                        <Button variant="violet" size="sm" onClick={() => router.push(`/achats-groupes/${g.id}`)}>Rejoindre</Button>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Barre de commande sticky — mobile uniquement */}
+      <div className="sticky bottom-[var(--mkt-bottom-nav-h,calc(6rem+env(safe-area-inset-bottom)))] left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-shrink">
+            <p className="whitespace-nowrap text-[11px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
+            <p className="whitespace-nowrap mt-0.5 text-[15px] font-extrabold leading-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</p>
+            {!canCheckout ? (
+              <p className="whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-none">Lot minimum non atteint</p>
+            ) : totals.savings>0 && <p className="whitespace-nowrap text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
+          </div>
+          <Button variant="primary" size="md" disabled={!canCheckout} className="whitespace-nowrap flex-shrink-0 !px-3 !text-[13px]" onClick={() => canCheckout && router.push('/checkout/adresse')}>
+            Commander
+            <Icon name="arrowRight" size={14}/>
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
