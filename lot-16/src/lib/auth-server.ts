@@ -1,0 +1,193 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { verifyJwtPayload } from '@/lib/jwt'
+import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
+import { SessionStoreUnavailableError } from '@/lib/auth-session'
+import { verifyDevToken } from '@/lib/auth-dev'
+
+function getAuthCookieDomain(): string | undefined {
+  // En production, partager le cookie entre itvisionplus.sn et *.itvisionplus.sn
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.AUTH_COOKIE_DOMAIN || '.itvisionplus.sn'
+  }
+  return undefined
+}
+
+export function setAuthCookie(response: NextResponse, token: string) {
+  response.cookies.set('auth-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30, // 30 jours
+    domain: getAuthCookieDomain(),
+  })
+}
+
+export function clearAuthCookie(response: NextResponse) {
+  response.cookies.set('auth-token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+    domain: getAuthCookieDomain(),
+  })
+  return response
+}
+
+export interface AuthResult {
+  isAuthenticated: boolean
+  user?: {
+    id: string
+    role: string
+    email?: string
+    name?: string
+    marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
+    companyClientId?: string
+    sessionVersion?: number
+  }
+  error?: string
+  unavailable?: boolean
+}
+
+/**
+ * Vérifie l'authentification côté serveur
+ * Utilisable dans les Server Components et le middleware
+ * 
+ * @param request - NextRequest (obligatoire pour le middleware, optionnel pour Server Components)
+ */
+export async function verifyAuthServer(request?: NextRequest): Promise<AuthResult> {
+  try {
+    // Récupérer le token depuis les cookies
+    let token: string | undefined
+    
+    if (request) {
+      // Depuis le middleware (NextRequest) - accès direct aux cookies
+      token = request.cookies.get('auth-token')?.value || 
+              request.cookies.get('admin-auth-token')?.value ||
+              request.headers.get('authorization')?.replace('Bearer ', '')
+    } else {
+      // Depuis un Server Component (cookies()) - nécessite await
+      try {
+        const cookieStore = await cookies()
+        token = cookieStore.get('auth-token')?.value || cookieStore.get('admin-auth-token')?.value
+      } catch {
+        // Si on est dans le middleware, cookies() ne fonctionne pas
+        return { isAuthenticated: false, error: 'Contexte invalide' }
+      }
+    }
+
+    if (!token) {
+      return { isAuthenticated: false, error: 'Token manquant' }
+    }
+
+    // Dev mobile tokens statiques — acceptés uniquement en développement
+    const dev = verifyDevToken(token)
+    if (dev) {
+      return {
+        isAuthenticated: true,
+        user: {
+          id: dev.id,
+          role: dev.role,
+          email: dev.email,
+          name: dev.name,
+          marketplaceTier: dev.marketplaceTier,
+        },
+      }
+    }
+
+    // If Keycloak is enabled, verify via JWKS; otherwise fallback to internal secret
+    if (keycloakEnabled()) {
+      const kc = await verifyKeycloakToken(token)
+      return {
+        isAuthenticated: true,
+        user: {
+          id: kc.sub,
+          role: mapKeycloakRolesToAppRole(kc.roles),
+          email: kc.email,
+          name: kc.name,
+          marketplaceTier: 'standard',
+          companyClientId: undefined
+        }
+      }
+    }
+
+    const payload = await verifyJwtPayload(token)
+    const rawClaims = payload as Record<string, unknown>
+    const allowedTiers = ['standard', 'pro', 'reseller', 'partner'] as const
+
+    return {
+      isAuthenticated: true,
+      user: {
+        id: String(payload.userId || payload.id || payload.sub || ''),
+        role: String(payload.role || '').toUpperCase(),
+        email: typeof payload.email === 'string' ? payload.email : undefined,
+        name: typeof payload.name === 'string' ? payload.name : undefined,
+        marketplaceTier:
+          typeof rawClaims.marketplaceTier === 'string' &&
+          (allowedTiers as readonly string[]).includes(rawClaims.marketplaceTier)
+            ? (rawClaims.marketplaceTier as (typeof allowedTiers)[number])
+            : 'standard',
+        companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
+        sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
+      },
+    }
+  } catch (error) {
+    if (error instanceof SessionStoreUnavailableError) {
+      return { isAuthenticated: false, unavailable: true, error: error.message }
+    }
+    return { isAuthenticated: false, error: 'Token invalide' }
+  }
+}
+
+/**
+ * Vérifie que l'utilisateur a un rôle spécifique
+ */
+export async function requireRole(
+  roles: string[],
+  request?: NextRequest
+): Promise<AuthResult | null> {
+  try {
+    const auth = await verifyAuthServer(request)
+    
+    if (!auth.isAuthenticated || !auth.user) {
+      return null
+    }
+
+    const userRole = auth.user.role.toUpperCase()
+    const allowedRoles = roles.map(r => r.toUpperCase())
+
+    if (!allowedRoles.includes(userRole)) {
+      // L'utilisateur est authentifié mais n'a pas le bon rôle
+      return null
+    }
+
+    return auth
+  } catch (error) {
+    console.error('Error in requireRole:', error)
+    return null
+  }
+}
+
+/**
+ * Redirige vers la page d'accueil si non authentifié
+ */
+export function redirectToHome(request: NextRequest): NextResponse {
+  const url = request.nextUrl.clone()
+  url.pathname = '/'
+  return NextResponse.redirect(url)
+}
+
+/**
+ * Redirige vers la page de login avec un retour après connexion
+ */
+export function redirectToLogin(request: NextRequest, returnUrl?: string): NextResponse {
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  if (returnUrl) {
+    url.searchParams.set('return', returnUrl)
+  }
+  return NextResponse.redirect(url)
+}
+
