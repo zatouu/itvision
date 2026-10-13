@@ -1,0 +1,458 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { log, logError } from './log'
+import { Platform, AppState } from 'react-native'
+import { router } from 'expo-router'
+import Constants from 'expo-constants'
+import * as Notifications from 'expo-notifications'
+import * as TaskManager from 'expo-task-manager'
+import * as Device from 'expo-device'
+import { apiPost, apiDelete } from './api'
+import { pushNotification, NotificationKind } from './notifications'
+
+/** Mappe le type de push serveur vers un kind + lien de navigation pour le store in-app. */
+function mapPushToStore(title: string, body: string, data: any) {
+  // Ne jamais re-stocker une notification locale émise par l'app elle-même (sinon boucle infinie)
+  if (data?.localEcho) return
+  const type = String(data?.type || '')
+  const requestId = data?.requestId ? String(data.requestId) : ''
+  const isProviderAudience = data?.audience === 'provider'
+  let kind: NotificationKind = 'mission-update'
+  let link: { pathname: string; params?: Record<string, string> } | undefined
+
+  if (type === 'request:new') {
+    kind = 'request-new'
+    // Broadcast geofencé vers les prestataires ; côté client = confirmation de publication
+    link = { pathname: isProviderAudience ? '/nearby-requests' : '/my-requests' }
+  } else if (type === 'offer:new') {
+    kind = 'offer-received'
+    if (requestId) link = { pathname: `/offers/${requestId}` }
+  } else if (type === 'offer:accepted') {
+    kind = isProviderAudience ? 'offer-accepted' : 'request-assigned'
+    link = isProviderAudience
+      ? (requestId ? { pathname: `/active-mission/${requestId}` } : { pathname: '/my-offers' })
+      : (requestId ? { pathname: `/mission/${requestId}` } : undefined)
+  } else if (type === 'payment:held') {
+    kind = 'request-assigned'
+    if (requestId) link = { pathname: `/mission/${requestId}` }
+  } else if (type === 'offer:rejected') {
+    kind = 'offer-rejected'
+    link = { pathname: '/my-offers' }
+  } else if (type === 'offer:counter') {
+    kind = 'offer-counter'
+    link = { pathname: '/my-offers', params: { filter: 'counter' } }
+  } else if (type === 'payment:released') {
+    if (requestId) link = { pathname: `/active-mission/${requestId}` }
+  } else if (type === 'offer:counter-accepted' || type === 'offer:counter-rejected') {
+    // La contre-offre ne crée pas la mission : le client doit encore accepter l'offre.
+    kind = 'offer-counter'
+    link = isProviderAudience ? { pathname: '/my-offers' } : (requestId ? { pathname: `/offers/${requestId}` } : undefined)
+  } else if (type === 'mission:validation-reminder') {
+    kind = 'mission-update'
+    if (requestId) link = { pathname: `/mission/${requestId}` }
+  } else if (type === 'request:status-changed') {
+    kind = 'request-status-changed'
+    if (requestId) link = { pathname: isProviderAudience ? `/active-mission/${requestId}` : `/mission/${requestId}` }
+  } else if (type === 'chat:message') {
+    kind = 'mission-update'
+    if (requestId) link = { pathname: '/mission-chat', params: { id: requestId } }
+  } else if (type === 'stock:low') {
+    link = { pathname: '/pro-stock' }
+  } else {
+    if (requestId) link = { pathname: isProviderAudience ? `/active-mission/${requestId}` : `/mission/${requestId}` }
+  }
+
+  void pushNotification({ kind, title: title || 'Notification', body: body || '', link })
+}
+
+const isNative = Platform.OS === 'ios' || Platform.OS === 'android'
+
+function getProjectId(): string | undefined {
+  return (
+    process.env.EXPO_PUBLIC_PROJECT_ID
+    || (Constants?.expoConfig as any)?.extra?.eas?.projectId
+    || (Constants as any)?.easConfig?.projectId
+  )
+}
+
+export interface PushTokenStatus {
+  token: string | null
+  projectId?: string
+  platform: 'ios' | 'android' | 'web'
+  permission: boolean
+  error?: string
+}
+
+/**
+ * Configure le handler de notification foreground — à appeler au démarrage (avant login).
+ * Doit être appelé le plus tôt possible pour que les push reçus au premier plan affichent une alerte.
+ */
+export function setupNotificationHandler(): void {
+  if (!isNative) return
+  Notifications.setNotificationHandler({
+    handleNotification: async () => {
+      const active = AppState?.currentState === 'active'
+      return {
+        shouldShowAlert: !active,
+        shouldPlaySound: !active,
+        shouldSetBadge: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      }
+    },
+  })
+}
+
+/**
+ * Récupère le statut du token push (permission + token + projectId) sans l'envoyer au serveur.
+ * Utile pour l'écran de diagnostics.
+ */
+async function requestPushPermission(): Promise<boolean> {
+  if (!isNative) return false
+  const { status: existing } = await Notifications.getPermissionsAsync()
+  if (existing === 'granted') return true
+  const { status } = await Notifications.requestPermissionsAsync()
+  return status === 'granted'
+}
+
+export async function getPushTokenStatus(): Promise<PushTokenStatus> {
+  if (!isNative) {
+    return { token: null, platform: 'web', permission: false, error: 'Push non disponible sur web' }
+  }
+
+  if (!Device.isDevice) {
+    return { token: null, platform: 'web', permission: false, error: 'Simulateur — push désactivé' }
+  }
+
+  const platform = Platform.OS === 'ios' ? 'ios' : 'android'
+  const { status: existing } = await Notifications.getPermissionsAsync()
+  if (existing !== 'granted') {
+    return { token: null, platform, permission: false, error: 'Permission notifications refusée' }
+  }
+
+  try {
+    const projectId = getProjectId()
+    if (!projectId) {
+      return { token: null, platform, permission: true, error: 'projectId EAS introuvable' }
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
+    return { token: tokenData.data, projectId, platform, permission: true }
+  } catch (err: any) {
+    // Fallback : token natif FCM/apns si Expo Push Service échoue (bare build custom)
+    try {
+      const native = await Notifications.getDevicePushTokenAsync()
+      if (native?.data) {
+        return { token: String(native.data), projectId: getProjectId(), platform, permission: true }
+      }
+    } catch (nativeErr: any) {
+      log('[Push] Fallback native token failed:', nativeErr.message)
+    }
+    return { token: null, platform, permission: true, error: err?.message || 'Erreur récupération token' }
+  }
+}
+
+let _registering: Promise<string | null> | null = null
+
+/**
+ * Enregistre le token push auprès du serveur.
+ * Doit être appelé au démarrage de l'app.
+ * appType 'unified' = app fusionnée client+provider : le serveur la diffuse
+ * pour les deux audiences.
+ */
+export async function registerPushToken(): Promise<string | null> {
+  if (!isNative) return null
+  if (_registering) return _registering
+  _registering = _doRegister().finally(() => { _registering = null })
+  return _registering
+}
+
+const LAST_TOKEN_KEY = 'push:lastRegisteredToken'
+
+async function _doRegister(): Promise<string | null> {
+  const permitted = await requestPushPermission()
+  if (!permitted) {
+    log('[Push] Permission refusée — token non enregistré')
+    return null
+  }
+
+  const status = await getPushTokenStatus()
+  if (!status.token) {
+    log('[Push] Impossible d\'obtenir un token:', status.error)
+    return null
+  }
+
+  // Dédup : un POST par token par device — évite un enregistrement à
+  // chaque retour au premier plan (AppState 'active' → registerPushToken).
+  const last = await AsyncStorage.getItem(LAST_TOKEN_KEY).catch(() => null)
+  if (last === status.token) return status.token
+
+  try {
+    await apiPost('/api/notifications/push-token', {
+      token: status.token,
+      platform: status.platform,
+      appType: 'unified',
+    })
+    await AsyncStorage.setItem(LAST_TOKEN_KEY, status.token).catch(() => {})
+    log('[Push] Token enregistré côté serveur ✓', status.token.slice(0, 30))
+    return status.token
+  } catch (err: any) {
+    log('[Push] Erreur envoi token:', err?.message || err)
+    return null
+  }
+}
+
+/**
+ * Désenregistre le token push du serveur — à appeler au logout.
+ * Évite que le nouvel utilisateur reçoive les push de l'ancien.
+ */
+export async function unregisterPushToken(): Promise<void> {
+  if (!isNative) return
+  try {
+    const status = await getPushTokenStatus()
+    await AsyncStorage.removeItem(LAST_TOKEN_KEY).catch(() => {})
+    if (!status.token) return
+    await apiDelete(`/api/notifications/push-token?token=${encodeURIComponent(status.token)}`)
+    log('[Push] Token désenregistré côté serveur ✓')
+  } catch (err: any) {
+    log('[Push] Erreur désenregistrement token:', err?.message || err)
+  }
+}
+
+/**
+ * Programme une notification locale immédiatement pour vérifier que le plumbing
+ * d'affichage (channel, handler, permission) fonctionne sur le device.
+ */
+export async function scheduleLocalNotification(title = 'Test local', body = 'Si tu vois cette notification, le canal et les permissions fonctionnent.', data: any = { type: 'test:local' }): Promise<string | null> {
+  if (!isNative) return null
+
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { ...data, localEcho: true },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        seconds: 1,
+        channelId: 'services',
+      },
+    })
+    log('[Push] Notification locale programmée:', id)
+    return id
+  } catch (err: any) {
+    logError('Push.localNotification', err)
+    return null
+  }
+}
+
+/**
+ * Programme un rappel local à une date précise (ex. T-1h avant une mission planifiée).
+ * Retourne l'id de la notification planifiée, ou null si hors délai / non supporté.
+ */
+export async function scheduleReminderAt(title: string, body: string, date: Date, data: any = {}): Promise<string | null> {
+  if (!isNative) return null
+  const fireInSec = Math.floor((date.getTime() - Date.now()) / 1000)
+  if (fireInSec < 60) return null
+  try {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { ...data, localEcho: true },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: {
+        date,
+        channelId: 'services',
+      } as any,
+    })
+    log('[Push] Rappel programmé:', id, date.toISOString())
+    return id
+  } catch (err: any) {
+    logError('Push.scheduledReminder', err)
+    return null
+  }
+}
+
+/**
+ * Efface toutes les notifications affichées dans le centre système et remet le badge à 0.
+ */
+export async function clearSystemNotifications(): Promise<void> {
+  if (!isNative) return
+  try {
+    await Notifications.dismissAllNotificationsAsync()
+    await Notifications.setBadgeCountAsync(0)
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Met à jour le badge d'icône avec le nombre de non-lues.
+ */
+export async function setBadgeCount(count: number): Promise<void> {
+  if (!isNative) return
+  try {
+    await Notifications.setBadgeCountAsync(Math.max(0, count))
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Configure les channels Android (requis Android 8+).
+ */
+export async function setupNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return
+
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Général',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#2563EB',
+  })
+  await Notifications.setNotificationChannelAsync('services', {
+    name: 'Demandes & Missions',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 250, 500],
+    lightColor: '#0F7B4F',
+  })
+}
+
+/**
+ * Écoute les notifications reçues quand l'app est au premier plan,
+ * et les ajoute au centre de notifications in-app.
+ */
+export function setupForegroundNotificationListener(): () => void {
+  if (!isNative) return () => {}
+
+  const subscription = Notifications.addNotificationReceivedListener(notification => {
+    const content = notification.request.content
+    const data = content.data as any
+    mapPushToStore(content.title || '', content.body || '', data)
+  })
+
+  return () => subscription.remove()
+}
+
+let pendingNav: string | null = null
+
+export function setPendingNavigation(target: string): void {
+  pendingNav = target
+}
+
+export function flushPendingNavigation(): void {
+  if (pendingNav) {
+    const target = pendingNav
+    pendingNav = null
+    router.push(target as any)
+  }
+}
+
+export function navigateFromPushData(data: any): void {
+  const target = resolveNavTarget(data)
+  if (target) {
+    setPendingNavigation(target)
+    flushPendingNavigation()
+  }
+}
+
+/**
+ * Gère le tap sur une notification (background / app fermée).
+ */
+export function setupNotificationResponseListener(): () => void {
+  if (!isNative) return () => {}
+
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    const data = response.notification.request.content.data as any
+    if (!data?.type) return
+    navigateFromPushData(data)
+  })
+
+  return () => subscription.remove()
+}
+
+export function resolveNavTarget(data: any): string | null {
+  const isProviderAudience = data?.audience === 'provider'
+  // Litiges : écran dédié par côté
+  if (String(data?.type || '').startsWith('dispute:')) {
+    return data.requestId
+      ? (isProviderAudience ? `/pro-dispute/${data.requestId}` : `/dispute?requestId=${data.requestId}`)
+      : null
+  }
+  switch (data.type) {
+    case 'request:new':
+      return isProviderAudience ? '/nearby-requests' : '/my-requests'
+    case 'offer:new':
+      return data.requestId ? `/offers/${data.requestId}` : null
+    case 'offer:accepted':
+      return isProviderAudience
+        ? (data.requestId ? `/active-mission/${data.requestId}` : '/my-offers')
+        : (data.requestId ? `/mission/${data.requestId}` : null)
+    case 'offer:rejected':
+      return '/my-offers'
+    case 'offer:counter':
+      return '/my-offers?filter=counter'
+    case 'payment:held':
+      return data.requestId ? `/mission/${data.requestId}` : null
+    case 'payment:released':
+      return data.requestId ? `/active-mission/${data.requestId}` : null
+    case 'offer:counter-accepted':
+    case 'offer:counter-rejected':
+      if (isProviderAudience) return '/my-offers'
+      return data.requestId ? `/offers/${data.requestId}` : null
+    case 'mission:validation-reminder':
+      return data.requestId ? `/mission/${data.requestId}` : null
+    case 'request:status-changed':
+      return data.requestId
+        ? (isProviderAudience ? `/active-mission/${data.requestId}` : `/mission/${data.requestId}`)
+        : null
+    case 'chat:message':
+      return data.requestId ? `/mission-chat?id=${data.requestId}` : null
+    case 'stock:low':
+      return '/pro-stock'
+    default:
+      if (data.requestId) return isProviderAudience ? `/active-mission/${data.requestId}` : `/mission/${data.requestId}`
+      return '/notifications'
+  }
+}
+
+const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK'
+
+/**
+ * Tâche de fond : enregistrer les notifications push dans le store in-app
+ * même quand l'application est tuée (Android/iOS).
+ */
+if (isNative) {
+  TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, (body: any) => {
+    try {
+      const notification = body?.data?.notification ?? body?.notification ?? body?.data ?? body
+      const requestContent = notification?.request?.content ?? notification?.content ?? notification
+      const title = String(requestContent?.title || '')
+      const bodyText = String(requestContent?.body || '')
+      const data = requestContent?.data ?? notification?.data ?? {}
+      if (title || bodyText) {
+        mapPushToStore(title, bodyText, data)
+      }
+    } catch (err) {
+      logError('Push.backgroundTask', err)
+    }
+  })
+}
+
+/**
+ * Enregistre la tâche de fond pour les push (doit être appelé au démarrage).
+ * Utilise l'API expo-notifications dédiée (Notifications.registerTaskAsync).
+ */
+export async function registerBackgroundPushTask(): Promise<void> {
+  if (!isNative) return
+  try {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_NOTIFICATION_TASK)
+    if (isRegistered) return
+    await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK)
+    log('[Push] Background task registered ✓')
+  } catch (err: any) {
+    logError('Push.backgroundRegistration', err)
+  }
+}
