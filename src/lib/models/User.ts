@@ -4,6 +4,7 @@ export interface IUser extends Document {
   username: string
   email: string
   passwordHash: string
+  sessionVersion?: number
   name: string
   avatarUrl?: string
   phone?: string
@@ -74,6 +75,7 @@ export interface IUser extends Document {
     profilePublic?: boolean
     preciseLocation?: boolean
     smsNotifications?: boolean
+    whatsappNotifications?: boolean
   }
   // Suppression de compte (RGPD) : le user est anonymisé et désactivé,
   // jamais supprimé physiquement (intégrité financière/escrow/audit)
@@ -87,6 +89,7 @@ const UserSchema = new Schema<IUser>({
   username: { type: String, required: true, unique: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
+  sessionVersion: { type: Number, default: 0, min: 0 },
   name: { type: String, required: true },
   avatarUrl: { type: String },
   phone: { type: String },
@@ -157,6 +160,7 @@ const UserSchema = new Schema<IUser>({
     profilePublic: { type: Boolean, default: true },
     preciseLocation: { type: Boolean, default: true },
     smsNotifications: { type: Boolean, default: false },
+    whatsappNotifications: { type: Boolean, default: false },
   },
   deletedAt: { type: Date },
   anonymizedAt: { type: Date },

@@ -1,5 +1,6 @@
 import type { IProduct } from './models/Product'
 import { calculateBilledWeight } from './pricing/volumetric-weight'
+import { getImportServiceFeeRate } from './pricing/tiered-service-fees'
 
 export type ShippingMethodId = 'air_15' | 'air_express' | 'sea_freight' | 'local_24h'
 
@@ -33,6 +34,8 @@ export interface ShippingOptionPricing {
 
 // Taux par défaut pour les frais additionnels (centralisés)
 import { DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE, DEFAULT_EXCHANGE_RATE } from './pricing/constants'
+import { getPlatformExchangeRate, getPlatformSingleImportServiceFeeRate } from './pricing/platform-rate'
+import type { PricingDefaults } from './pricing/settings'
 
 export interface PricingFees {
   serviceFeeRate: number // Pourcentage
@@ -55,18 +58,20 @@ export interface ProductPricingSummary {
 }
 
 // Taux de transport réels (coûts internes - pour calcul marge)
-export const REAL_SHIPPING_COSTS: Record<ShippingMethodId, { rate: number; minimumCharge?: number }> = {
+export type ShippingCosts = Record<ShippingMethodId, { rate: number; minimumCharge?: number }>
+
+export const REAL_SHIPPING_COSTS: ShippingCosts = {
   air_express: {
     rate: 11000, // 11 000 CFA/kg (coût réel interne)
-    minimumCharge: 20000
+    minimumCharge: 0
   },
   air_15: {
-    rate: 7000, // 7 000 CFA/kg (coût réel interne)
-    minimumCharge: 15000
+    rate: 8000,
+    minimumCharge: 0
   },
   sea_freight: {
-    rate: 130000, // 130 000 CFA/m³ (coût réel interne)
-    minimumCharge: 130000
+    rate: 180000,
+    minimumCharge: 0
   },
   local_24h: {
     rate: 1000, // ~1 000 CFA forfait coursier local (coût réel interne)
@@ -143,7 +148,10 @@ const resolveOverrideRate = (
 
 export const computeProductPricing = (
   product: Partial<IProduct>,
-  shippingRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
+  shippingRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES,
+  orderQuantity = Math.max(1, product.minOrderQty || 1),
+  singleImportServiceFeeRate = getPlatformSingleImportServiceFeeRate(),
+  defaults?: PricingDefaults
 ): ProductPricingSummary => {
   const currency = product.currency || DEFAULT_CURRENCY
   const baseCost = typeof product.baseCost === 'number' ? product.baseCost : null
@@ -154,9 +162,9 @@ export const computeProductPricing = (
   // dans la réponse API; ici on évite tout import serveur-only pour que ce module
   // reste sûr côté client.
   const globalDefaults = {
-    defaultExchangeRate: DEFAULT_EXCHANGE_RATE,
-    defaultServiceFeeRate: DEFAULT_SERVICE_FEE_RATE,
-    defaultInsuranceRate: DEFAULT_INSURANCE_RATE
+    defaultExchangeRate: defaults?.defaultExchangeRate ?? getPlatformExchangeRate(),
+    defaultServiceFeeRate: defaults?.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE,
+    defaultInsuranceRate: defaults?.defaultInsuranceRate ?? DEFAULT_INSURANCE_RATE
   }
 
   // Calculer le coût fournisseur en FCFA : priorité `baseCost`, sinon convertir
@@ -178,14 +186,15 @@ export const computeProductPricing = (
   const isInStock = product.stockStatus === 'in_stock'
   
   // Déterminer si le produit est importé
-  const isImported = !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress'].includes(product.sourcing.platform)))
+  const isImported = !product.shopId && !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress'].includes(product.sourcing.platform)))
 
   // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
   let fees: PricingFees | undefined
   let totalWithFees: number | null = null
   
   if (isImported && salePrice !== null && salePrice > 0 && productCostFCFA !== null) {
-    const serviceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : (globalDefaults.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE)
+    const standardServiceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : (globalDefaults.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE)
+    const serviceFeeRate = getImportServiceFeeRate(orderQuantity, standardServiceFeeRate, singleImportServiceFeeRate)
     const insuranceRate = typeof product.insuranceRate === 'number' ? product.insuranceRate : (globalDefaults.defaultInsuranceRate ?? DEFAULT_INSURANCE_RATE)
 
     // Frais calculés sur le prix fournisseur (isoler supplier price)

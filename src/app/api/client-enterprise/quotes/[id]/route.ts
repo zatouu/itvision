@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
@@ -9,6 +9,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
   const { access } = result
+  // Un membre qui doit répondre au devis peut le lire, même sans accès aux finances
+  const denied = requireCompanyCapability(access, canCompany(access, 'quotes:respond') ? 'quotes:respond' : 'finance:view')
+  if (denied) return denied
 
   const companyClientId = access.profiles.companyClientId
   if (!companyClientId) {

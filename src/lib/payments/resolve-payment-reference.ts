@@ -70,6 +70,9 @@ export interface ResolvedGroupPayment {
     status: string
     deadline?: Date
   }
+  /** Transport au poids réel (TR-…) : libellé de paiement et page de retour */
+  description?: string
+  backHref?: string
 }
 
 export interface ResolvedOrderPayment {
@@ -80,6 +83,7 @@ export interface ResolvedOrderPayment {
   paymentStatus: string
   order: {
     orderId: string
+    status?: string
     clientId?: string
     clientName: string
     clientPhone: string
@@ -98,6 +102,9 @@ export async function resolvePaymentReference(reference: string): Promise<Resolv
   if (!reference || typeof reference !== 'string') return null
 
   await connectDB()
+
+  // 0. Transport facturé au poids réel (pay-by-link, comme les achats groupés)
+  if (reference.startsWith('TR-')) return resolveTransportReference(reference)
 
   // 1. Participant d'achat groupé
   const groupOrder = await GroupOrder.findOne({
@@ -157,6 +164,7 @@ export async function resolvePaymentReference(reference: string): Promise<Resolv
     paymentStatus: (order as any).paymentStatus || 'pending',
     order: {
       orderId: order.orderId,
+      status: (order as any).status,
       clientId: (order as any).clientId ? String((order as any).clientId) : undefined,
       clientName: (order as any).clientName || 'Client',
       clientPhone: (order as any).clientPhone || '',
@@ -166,6 +174,50 @@ export async function resolvePaymentReference(reference: string): Promise<Resolv
       trackingAccessTokenHash: (order as any).trackingAccessTokenHash,
       trackingAccessTokenExpiresAt: (order as any).trackingAccessTokenExpiresAt,
     },
+  }
+}
+
+async function resolveTransportReference(reference: string): Promise<ResolvedGroupPayment | null> {
+  const group = await GroupOrder.findOne({ 'participants.transport.paymentReference': reference }).lean() as any
+  if (group) {
+    const p = (group.participants || []).find((x: any) => x.transport?.paymentReference === reference)
+    if (!p) return null
+    return {
+      type: 'group',
+      reference,
+      amount: Math.round(p.transport.amount || 0),
+      currency: 'FCFA',
+      paymentStatus: p.transport.paymentStatus === 'paid' ? 'paid' : 'pending',
+      participant: { name: p.name, phone: p.phone, email: p.email, qty: 1, unitPrice: Math.round(p.transport.amount || 0), userId: p.userId ? String(p.userId) : undefined },
+      group: {
+        groupId: group.groupId,
+        productName: `Transport au poids réel · ${group.product?.name || 'achat groupé'} (${p.qty} pcs)`,
+        productImage: group.product?.image,
+        status: group.status === 'cancelled' ? 'cancelled' : 'ordered',
+        deadline: group.deadline,
+      },
+      description: `Transport achat groupé #${group.groupId} (${p.qty} pcs)`,
+      backHref: `/achats-groupes/${encodeURIComponent(group.groupId)}`,
+    }
+  }
+
+  const order = await Order.findOne({ 'shippingAdjustment.paymentReference': reference }).lean() as any
+  const adj = order?.shippingAdjustment
+  if (!order || !adj) return null
+  return {
+    type: 'group',
+    reference,
+    amount: Math.round(adj.amount || 0),
+    currency: 'FCFA',
+    paymentStatus: adj.status === 'paid' ? 'paid' : 'pending',
+    participant: { name: order.clientName, phone: order.clientPhone, email: order.clientEmail, qty: 1, unitPrice: Math.round(adj.amount || 0), userId: order.clientId ? String(order.clientId) : undefined },
+    group: {
+      groupId: order.orderId,
+      productName: `Complément transport au poids réel · commande ${order.orderId}`,
+      status: order.status === 'cancelled' ? 'cancelled' : 'ordered',
+    },
+    description: `Complément transport commande #${order.orderId}`,
+    backHref: `/commandes/${encodeURIComponent(order.orderId)}`,
   }
 }
 

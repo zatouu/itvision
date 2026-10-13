@@ -46,14 +46,27 @@ export default function OrderConfirmationPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const orderId = params?.orderId as string;
-  const token = searchParams?.get('token') || searchParams?.get('t') || null;
+  const urlToken = searchParams?.get('token') || searchParams?.get('t') || null;
+  const [token, setToken] = useState<string | null>(urlToken);
+  const [tokenReady, setTokenReady] = useState(false);
 
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Invité : jeton mémorisé sur l'appareil au checkout (ou lors d'une visite avec le lien email)
   useEffect(() => {
     if (!orderId) return;
+    try {
+      const key = `order-token:${orderId}`;
+      if (urlToken) localStorage.setItem(key, urlToken);
+      else setToken(localStorage.getItem(key));
+    } catch {}
+    setTokenReady(true);
+  }, [orderId, urlToken]);
+
+  useEffect(() => {
+    if (!orderId || !tokenReady) return;
     const fetchOrder = async () => {
       try {
         const url = token
@@ -70,7 +83,7 @@ export default function OrderConfirmationPage() {
       }
     };
     fetchOrder();
-  }, [orderId, token]);
+  }, [orderId, token, tokenReady]);
 
   if (loading) {
     return (
@@ -87,7 +100,10 @@ export default function OrderConfirmationPage() {
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2 dark:text-white">Commande introuvable</h1>
           <p className="text-slate-600 dark:text-slate-400">{error || 'Impossible de charger la commande.'}</p>
-          <Link href="/compte/commandes" className="mt-4 inline-flex items-center gap-1 text-emerald-600 font-medium">
+          <Link href="/retrouver-ma-commande" className="mt-4 block w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700">
+            Retrouver ma commande
+          </Link>
+          <Link href="/compte/commandes" className="mt-3 inline-flex items-center gap-1 text-emerald-600 font-medium">
             <ArrowLeft size={16} /> Mes commandes
           </Link>
         </div>

@@ -10,6 +10,7 @@ const { Server } = require('socket.io')
 const { jwtVerify } = require('jose')
 const mongoose = require('mongoose')
 const geo = require('./lib/redis-geo')
+const { isSessionCurrent, guardSocketSession } = require('./lib/auth-session')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || 'localhost'
@@ -71,14 +72,22 @@ async function verifyToken(token) {
     const secret = new TextEncoder().encode(jwtSecret || 'dev-insecure-jwt-secret')
     const { payload } = await jwtVerify(token, secret)
 
-    if (!payload.userId) {
+    if (!payload.userId || !mongoose.Types.ObjectId.isValid(String(payload.userId))) {
       return null
     }
+
+    await ensureMongo()
+    const user = await mongoose.connection.collection('users').findOne(
+      { _id: new mongoose.Types.ObjectId(String(payload.userId)) },
+      { projection: { sessionVersion: 1, isActive: 1, deletedAt: 1 } }
+    )
+    if (!isSessionCurrent(payload, user)) return null
 
     return {
       userId: payload.userId,
       role: payload.role || 'USER',
       email: payload.email || '',
+      authDomain: payload.domain === 'xeuy' ? 'xeuy' : 'web',
       companyClientId: payload.companyClientId || null
     }
   } catch (error) {
@@ -293,6 +302,7 @@ app.prepare().then(() => {
 
     // Attacher les infos utilisateur au socket
     socket.user = user
+    socket.authToken = token
     console.log(`✅ Authentification réussie: ${user.email} (${user.role})`)
     next()
   })
@@ -300,6 +310,7 @@ app.prepare().then(() => {
   // Gestion des connexions
   io.on('connection', (socket) => {
     const { userId, email, role } = socket.user
+    guardSocketSession(socket, async () => Boolean(await verifyToken(socket.authToken)))
 
     console.log(`\n🔌 Client connecté: ${email}`)
     console.log(`   Role: ${role}`)
@@ -307,6 +318,7 @@ app.prepare().then(() => {
 
     // Rejoindre les rooms personnelles
     socket.join(`user-${userId}`)
+    if (socket.user.authDomain === 'web') socket.join(`web-session-${userId}`)
 
     // Room entreprise (portail corporate) — tous les utilisateurs de la société
     if (socket.user.companyClientId) {
@@ -786,7 +798,7 @@ app.prepare().then(() => {
     const { requestId } = requestData
     if (!requestId) return 0
     try {
-      const { enqueueDispatch } = require('./src/lib/visibility/dispatch')
+      const { enqueueDispatch } = require(dev ? './src/lib/visibility/dispatch' : './.ops/dispatch.cjs')
       await enqueueDispatch(String(requestId))
       return 1
     } catch (err) {

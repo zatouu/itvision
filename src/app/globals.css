@@ -39,7 +39,7 @@
   --input-bg: #ffffff;
   --input-text: #1f2937;
   --input-border: #d1d5db;
-  --input-placeholder: #9ca3af;
+  --input-placeholder: #6b7280;
   --input-disabled-bg: #f9fafb;
   --input-disabled-text: #6b7280;
   --input-focus-border: #3b82f6;
@@ -235,7 +235,7 @@ body {
   --input-bg: #1f2937;
   --input-text: #f3f4f6;
   --input-border: #4b5563;
-  --input-placeholder: #6b7280;
+  --input-placeholder: #9ca3af;
   --input-disabled-bg: #374151;
   --input-disabled-text: #9ca3af;
   --input-focus-border: #60a5fa;
@@ -709,17 +709,6 @@ select.error:focus {
 
 .focus\:border-blue-500:focus {
   border-color: #3b82f6 !important;
-}
-
-/* Force la visibilité pour tous les inputs, même avec des classes personnalisées */
-input[type="email"],
-input[type="password"],
-input[type="text"],
-input[type="number"],
-input[type="tel"],
-textarea {
-  color: #1f2937 !important;
-  background-color: #ffffff !important;
 }
 
 /* Correction pour les checkboxes */

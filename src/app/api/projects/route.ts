@@ -4,13 +4,11 @@ import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
-import { requireAuth } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import mongoose from 'mongoose'
 import { notifyProjectChange } from '@/lib/portal/project-notify'
 
-async function verifyToken(request: NextRequest) {
-  return await requireAuth(request)
-}
+const verifyToken = (request: NextRequest) => requireApiUser(request)
 
 function isAdminRole(role: any) {
   return ['ADMIN', 'SUPER_ADMIN'].includes(String(role || '').toUpperCase())
@@ -286,6 +284,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error: any) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur création projet:', error)
     console.error('errInfo details:', JSON.stringify(error?.errInfo || {}, null, 2))
     console.error('errorResponse:', JSON.stringify(error?.errorResponse || {}, null, 2))
@@ -425,6 +425,8 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error: any) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur mise à jour projet:', error)
     console.error('errInfo details:', JSON.stringify(error?.errInfo || {}, null, 2))
     console.error('errorResponse:', JSON.stringify(error?.errorResponse || {}, null, 2))
@@ -485,6 +487,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Projet supprimé avec succès'
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur suppression projet:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la suppression du projet' },

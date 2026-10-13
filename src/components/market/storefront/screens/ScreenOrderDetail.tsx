@@ -58,6 +58,9 @@ interface OrderDetails {
     country?: string
     notes?: string
   }
+  pickupPoint?: { id: string; name: string; neighborhood?: string; address?: string }
+  readyForPickupAt?: string
+  shippingAdjustment?: { realWeightKg: number; estimatedCost: number; realCost: number; amount: number; status: string; paymentReference?: string }
   delivery?: {
     carrier?: string
     trackingNumber?: string
@@ -68,6 +71,16 @@ interface OrderDetails {
   }
   createdAt: string
   currency: string
+  deliveredAt?: string
+  paymentMethod?: string
+  promoDiscount?: number
+  promoCode?: string
+  grainsDiscount?: number
+  refundStatus?: 'none' | 'pending' | 'done'
+  refundAmount?: number
+  refundReference?: string
+  refundedAt?: string
+  guaranteeReference?: string
   fees?: {
     supplierCost: number
     serviceFeeRate: number
@@ -115,18 +128,24 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   slate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
+const RETURN_WINDOW_HOURS = 48;
+const PAYMENT_LABELS: Record<string, string> = { wave: 'Wave', orange_money: 'Orange Money', free_money: 'Free Money', paydunya: 'PayDunya', cash: 'Espèces' };
+
 export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailProps) {
   const router = useRouter();
   const [tab, setTab] = useState<'recap' | 'suivi' | 'delivery' | 'actions'>('recap');
   const [chatOpen, setChatOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedTracking, setCopiedTracking] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const isCancelled = orderStatusMeta(order.status).ui === 'cancelled';
   const paid = isPaymentSettled(order.paymentStatus);
   const currentStep = statusIndex(order.status);
-  const tracking = order.delivery?.trackingNumber || order.orderId;
+  const tracking = order.delivery?.trackingNumber || null;
   const totalPcs = useMemo(() => order.items.reduce((s, it) => s + (it.qty || 0), 0), [order.items]);
+  const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt).getTime() : null;
+  const canReturn = order.status === 'delivered' && paid && (!deliveredAt || Date.now() - deliveredAt <= RETURN_WINDOW_HOURS * 60 * 60 * 1000);
 
   // Remet les articles de la commande dans le panier (le devis serveur
   // revalide prix, variantes et MOQ au checkout).
@@ -146,10 +165,24 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
     router.push('/panier');
   };
 
-  const copy = (text: string, field: 'order' | 'tracking') => {
-    navigator.clipboard.writeText(text).catch(() => {});
-    if (field === 'order') { setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    else { setCopiedTracking(true); setTimeout(() => setCopiedTracking(false), 1500); }
+  const copy = async (text: string, field: 'order' | 'tracking') => {
+    setActionMessage(null); setCopied(false); setCopiedTracking(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      if (field === 'order') { setCopied(true); setTimeout(() => setCopied(false), 1500); }
+      else { setCopiedTracking(true); setTimeout(() => setCopiedTracking(false), 1500); }
+    } catch { setActionMessage('Copie impossible. Vous pouvez sélectionner la référence affichée.'); }
+  };
+
+  const shareTracking = async () => {
+    setActionMessage(null);
+    const url = `${window.location.origin}/suivi/${encodeURIComponent(order.orderId)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: 'Suivi commande', url });
+      else { await navigator.clipboard.writeText(url); setActionMessage('Lien de suivi public copié.'); }
+    } catch (failure) {
+      if (!(failure instanceof Error && failure.name === 'AbortError')) setActionMessage('Le partage est indisponible sur cet appareil.');
+    }
   };
 
   const tabs = [
@@ -169,7 +202,8 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
   };
 
   const shippingCost = order.shipping?.totalCost || 0;
-  const discountAmount = breakdown.quantityDiscount?.amount || breakdown.serviceFeeSavings || 0;
+  const qtyDiscount = breakdown.quantityDiscount?.amount || 0;
+  const productCost = order.fees?.supplierCost ?? order.subtotal;
 
   const TabRecap = () => (
     <div className="space-y-4">
@@ -205,15 +239,18 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
       <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Décomposition prix</p>
         <div className="space-y-2 text-[12px]">
-          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Sous-total ({totalPcs} pcs)</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatFcfa(order.subtotal)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Produits ({totalPcs} pcs)</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatFcfa(productCost)}</span></div>
           <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Frais de service</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatFcfa(breakdown.serviceFeeAmount || 0)}</span></div>
           <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Assurance import</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatFcfa(breakdown.insuranceAmount || 0)}</span></div>
+          {qtyDiscount > 0 && (
+            <div className="flex justify-between"><span className="text-emerald-700 dark:text-emerald-300 font-semibold">{breakdown.quantityDiscount?.label || 'Réduction quantité'}</span><span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">-{formatFcfa(qtyDiscount)}</span></div>
+          )}
           <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400 inline-flex items-center gap-1"><Truck size={11} />Transport</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatFcfa(shippingCost)}</span></div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between rounded-md bg-emerald-50 dark:bg-emerald-950/40 -mx-1 px-1.5 py-1">
-              <span className="text-emerald-700 dark:text-emerald-300 font-bold inline-flex items-center gap-1">Économie</span>
-              <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-300">-{formatFcfa(discountAmount)}</span>
-            </div>
+          {(order.promoDiscount || 0) > 0 && (
+            <div className="flex justify-between"><span className="text-emerald-700 dark:text-emerald-300 font-semibold">Code promo {order.promoCode}</span><span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">-{formatFcfa(order.promoDiscount || 0)}</span></div>
+          )}
+          {(order.grainsDiscount || 0) > 0 && (
+            <div className="flex justify-between"><span className="text-emerald-700 dark:text-emerald-300 font-semibold">Grains utilisés</span><span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">-{formatFcfa(order.grainsDiscount || 0)}</span></div>
           )}
         </div>
         <div className="my-3 h-px bg-slate-200 dark:bg-slate-800" />
@@ -221,7 +258,23 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
           <span className="text-[14px] font-extrabold text-slate-900 dark:text-white">{paid ? 'Total payé' : 'Total à payer'}</span>
           <span className="text-[24px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(order.total)}</span>
         </div>
-        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{paid ? 'Payé' : 'Paiement en attente'} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}</p>
+        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{paid ? `Payé${order.paymentMethod ? ` par ${PAYMENT_LABELS[order.paymentMethod] || order.paymentMethod}` : ''}` : 'Paiement en attente'} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}</p>
+        {order.refundStatus === 'pending' && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <b>Remboursement en cours</b> — {formatFcfa(order.refundAmount || order.total)} vous seront renvoyés sur votre moyen de paiement. Nous vous prévenons dès que c&apos;est fait.
+          </div>
+        )}
+        {order.refundStatus === 'done' && (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <b>Remboursé</b> — {formatFcfa(order.refundAmount || 0)}{order.refundedAt ? ` le ${new Date(order.refundedAt).toLocaleDateString('fr-FR')}` : ''}{order.refundReference ? ` (réf. ${order.refundReference})` : ''}.
+          </div>
+        )}
+        {order.guaranteeReference && (
+          <Link href={`/suivi/${order.guaranteeReference}`} className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] text-emerald-900 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <span><b>Paiement garanti</b> · réf. <span className="font-mono">{order.guaranteeReference}</span><span className="block text-[11px] opacity-80">Remboursement si non livré, 48 h pour vérifier à la livraison</span></span>
+            <span className="font-bold whitespace-nowrap">Suivre ›</span>
+          </Link>
+        )}
         {!paid && !isCancelled && (
           <Link
             href={`/paiement/checkout/${order.orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`}
@@ -251,11 +304,11 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
         <div className="flex items-center gap-2 mb-2">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15 backdrop-blur"><Truck size={16} /></span>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/5</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/5</p>
             <p className="text-[15px] font-extrabold">{ORDER_STEPS[currentStep - 1]?.label || statusLabel(order.status)}</p>
           </div>
         </div>
-        <p className="text-[11px] text-white/85">ETA <b>{order.delivery?.estimatedDeliveryDate || '—'}</b> · N° suivi <b className="font-mono">{tracking}</b></p>
+        <p className="text-[11px] text-white/85">Livraison prévue <b>{order.delivery?.estimatedDeliveryDate ? new Date(order.delivery.estimatedDeliveryDate).toLocaleDateString('fr-FR') : 'communiquée à l’expédition'}</b>{tracking ? <> · N° suivi <b className="font-mono">{tracking}</b></> : null}</p>
       </div>
       )}
 
@@ -295,10 +348,39 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
 
   const TabDelivery = () => (
     <div className="space-y-4">
+      {order.shippingAdjustment && (
+        <div className={`rounded-2xl border p-4 ${order.shippingAdjustment.status === 'awaiting_payment' ? 'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'}`}>
+          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Colis pesé en Chine : {order.shippingAdjustment.realWeightKg} kg</p>
+          <p className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
+            Transport payé {formatFcfa(order.shippingAdjustment.estimatedCost)} · transport réel {formatFcfa(order.shippingAdjustment.realCost)}.{' '}
+            {order.shippingAdjustment.status === 'absorbed' && 'Écart dans la tolérance : rien à ajouter.'}
+            {order.shippingAdjustment.status === 'refund' && `${formatFcfa(-order.shippingAdjustment.amount)} vous sont remboursés.`}
+            {order.shippingAdjustment.status === 'paid' && 'Complément réglé, merci.'}
+            {order.shippingAdjustment.status === 'awaiting_payment' && `Seul le dépassement au-delà de la tolérance est facturé : ${formatFcfa(order.shippingAdjustment.amount)} à régler avant la livraison.`}
+          </p>
+          {order.shippingAdjustment.status === 'awaiting_payment' && order.shippingAdjustment.paymentReference && (
+            <Link href={`/paiement/checkout/${order.shippingAdjustment.paymentReference}`} className="mt-3 flex h-10 items-center justify-center rounded-xl bg-amber-600 text-[13px] font-bold text-white hover:bg-amber-700">
+              Régler {formatFcfa(order.shippingAdjustment.amount)}
+            </Link>
+          )}
+        </div>
+      )}
+      {order.pickupPoint && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <div className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-white"><MapPin size={16} /></span>
+            <div>
+              <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Retrait : {order.pickupPoint.name}</p>
+              <p className="text-[12px] text-slate-600 dark:text-slate-300">{[order.pickupPoint.address, order.pickupPoint.neighborhood].filter(Boolean).join(', ')}</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-400">{order.readyForPickupAt ? `Disponible depuis le ${new Date(order.readyForPickupAt).toLocaleDateString('fr-FR')}. ` : ''}Présentez le numéro de commande {order.orderId} au retrait.</p>
+        </div>
+      )}
       <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><MapPin size={16} /></span>
-          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Adresse de livraison</p>
+          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">{order.pickupPoint ? 'Coordonnées' : 'Adresse de livraison'}</p>
         </div>
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-3 space-y-1">
           <p className="text-[13px] font-bold text-slate-900 dark:text-white">{order.clientName}</p>
@@ -317,19 +399,23 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
         <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-3 space-y-2">
           <div className="flex items-baseline justify-between">
             <span className="text-[11px] text-slate-500 dark:text-slate-400">Transporteur</span>
-            <span className="text-[13px] font-extrabold text-slate-900 dark:text-white">{order.delivery?.carrier || 'DDM+ Express'}</span>
+            <span className="text-[13px] font-extrabold text-slate-900 dark:text-white">{order.delivery?.carrier || 'Attribué à l’expédition'}</span>
           </div>
           <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">N° de suivi</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">N° de suivi</p>
+            {tracking ? (
             <div className="mt-1 flex items-center gap-2">
               <span className="font-mono text-[13px] font-extrabold text-slate-900 dark:text-white flex-1">{tracking}</span>
               <button
                 onClick={() => copy(tracking, 'tracking')}
-                className={cn('rounded-md px-2 py-1 text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1', copiedTracking ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300')}
+                className={cn('rounded-md px-2 py-1 text-[11px] font-bold whitespace-nowrap inline-flex items-center gap-1', copiedTracking ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300')}
               >
                 {copiedTracking ? <Check size={11} /> : <Copy size={11} />}{copiedTracking ? 'Copié' : 'Copier'}
               </button>
             </div>
+            ) : (
+              <p className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">Communiqué dès l&apos;expédition de votre colis.</p>
+            )}
           </div>
         </div>
       </div>
@@ -342,8 +428,8 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
             <p className="text-[11px] text-slate-500 dark:text-slate-400">Fenêtre estimée</p>
           </div>
         </div>
-        <p className="text-[24px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{order.delivery?.estimatedDeliveryDate || '—'}</p>
-        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Vous serez notifié par SMS 1h avant la livraison.</p>
+        <p className="text-[24px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{order.delivery?.estimatedDeliveryDate ? new Date(order.delivery.estimatedDeliveryDate).toLocaleDateString('fr-FR') : '—'}</p>
+        <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Date précisée à l&apos;expédition ; vous êtes prévenu à chaque étape de la commande.</p>
       </div>
     </div>
   );
@@ -352,10 +438,10 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
     const actions = [
       { i: MessageCircle, ttl: 'Contacter le support', sub: `${MARKET_BRAND.whatsapp} — WhatsApp`, primary: true, href: brandWhatsAppUrl(MARKET_BRAND, `Commande ${order.orderId}`) },
       { i: RefreshCw, ttl: 'Répéter la commande', sub: 'Recommander les mêmes articles', onClick: reorderItems },
-      { i: Package, ttl: 'Demander un retour', sub: 'Sous 7 jours après livraison', href: `/commandes/${order.orderId}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}` },
-      { i: HelpCircle, ttl: 'Ouvrir un litige', sub: 'En cas de problème de livraison', href: `/suivi/${order.orderId}/litige` },
+      ...(canReturn ? [{ i: Package, ttl: 'Demander un retour', sub: `Sous ${RETURN_WINDOW_HOURS} h après livraison`, href: `/commandes/${order.orderId}/retour${token ? `?token=${encodeURIComponent(token)}` : ''}` }] : []),
+      ...(order.guaranteeReference ? [{ i: HelpCircle, ttl: 'Signaler un problème à la livraison', sub: 'Garantie : 48 h après réception', href: `/suivi/${order.guaranteeReference}/litige` }] : []),
       { i: FileText, ttl: 'Télécharger la facture', sub: `PDF · ${order.orderId}.pdf`, href: `/api/order/${order.orderId}/invoice${token ? `?token=${encodeURIComponent(token)}` : ''}` },
-      { i: Share2, ttl: 'Partager la commande', sub: 'Envoyer le suivi par lien', onClick: () => { navigator.share?.({ title: 'Suivi commande', text: `Suivez ma commande ${order.orderId}`, url: window.location.href }).catch(() => {}); } },
+      { i: Share2, ttl: 'Partager le suivi', sub: 'Lien sans vos coordonnées', onClick: shareTracking },
     ];
     return (
       <div className="space-y-2">
@@ -419,14 +505,14 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[18px] font-extrabold text-slate-900 dark:text-white">Commande {order.orderId}</h1>
-                <button onClick={() => copy(order.orderId, 'order')} className={cn('rounded-md px-2 py-0.5 text-[10px] font-bold inline-flex items-center gap-1', copied ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300')}>
+                <button onClick={() => copy(order.orderId, 'order')} className={cn('min-h-11 rounded-md px-2 py-0.5 text-[11px] font-bold inline-flex items-center gap-1', copied ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300')}>
                   {copied ? <Check size={11} /> : <Copy size={11} />}{copied ? 'Copié' : 'Copier'}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Commandée le {new Date(order.createdAt).toLocaleDateString('fr-FR')} · Livraison prévue {order.delivery?.estimatedDeliveryDate || '—'}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Commandée le {new Date(order.createdAt).toLocaleDateString('fr-FR')}{order.delivery?.estimatedDeliveryDate ? ` · Livraison prévue le ${new Date(order.delivery.estimatedDeliveryDate).toLocaleDateString('fr-FR')}` : ''}</p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{paid ? 'Total payé' : 'Total à payer'}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{paid ? 'Total payé' : 'Total à payer'}</p>
               <p className="text-[22px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(order.total)}</p>
             </div>
           </div>
@@ -434,6 +520,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-4 space-y-4">
+        {actionMessage && <p role="status" className="text-sm">{actionMessage}</p>}
         {!paid && !isCancelled && (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-4">
             <div className="flex items-center gap-3">
@@ -456,7 +543,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
           <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold', STATUS_BADGE_CLASSES[statusTone(order.status)] || STATUS_BADGE_CLASSES.slate)}>
             {statusLabel(order.status)}
           </span>
-          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">N° suivi {tracking}</p>
+          {tracking && <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">N° suivi {tracking}</p>}
         </div>
 
         <div className={cn('rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex', 'overflow-x-auto')}> 
@@ -506,7 +593,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
                   <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><MessageCircle size={16} /></span>
                   <div>
                     <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Chat support</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />En ligne</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Réponse de l&apos;équipe DDM+ ici et par notification</p>
                   </div>
                 </div>
                 <button onClick={() => setChatOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={16} /></button>

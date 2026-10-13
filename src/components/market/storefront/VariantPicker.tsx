@@ -13,6 +13,8 @@ export interface VariantPickerProps {
   productPrice: number;
   className?: string;
   size?: 'sm' | 'md';
+  trackStock?: boolean;
+  minQuantity?: number;
 }
 
 /**
@@ -29,6 +31,8 @@ export function VariantPicker({
   productPrice,
   className,
   size = 'sm',
+  trackStock = true,
+  minQuantity = 1,
 }: VariantPickerProps) {
   if (variants.length === 0) return null;
   const md = size === 'md';
@@ -36,7 +40,7 @@ export function VariantPicker({
   return (
     <div className={cn('flex flex-wrap gap-2', className)}>
       {variants.map((v) => {
-        const soldOut = typeof v.stock === 'number' && v.stock <= 0;
+        const soldOut = trackStock && typeof v.stock === 'number' && v.stock < minQuantity;
         const showPrice = typeof v.price === 'number' && v.price > 0 && v.price !== productPrice;
         const selected = value === v.id;
         return (
@@ -44,9 +48,10 @@ export function VariantPicker({
             key={v.id}
             type="button"
             onClick={() => onChange(v.id)}
+            disabled={soldOut}
             aria-pressed={selected}
             className={cn(
-              'flex items-center gap-2 rounded-xl border px-3 py-2 font-semibold transition-colors',
+              'flex min-h-11 max-w-full items-center gap-2 rounded-lg border px-3 py-2 font-semibold transition-colors [overflow-wrap:anywhere]',
               md ? 'text-[13px]' : 'text-[12px]',
               selected
                 ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -59,13 +64,13 @@ export function VariantPicker({
             )}
             <span className="text-left">
               {v.label}
-              {(showPrice || typeof v.stock === 'number') && (
-                <span className="block text-[10px] font-normal text-slate-500 dark:text-slate-400">
+              {(showPrice || (trackStock && typeof v.stock === 'number')) && (
+                <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400">
                   {showPrice ? formatFcfa(v.price!) : ''}
-                  {showPrice && typeof v.stock === 'number' ? ' · ' : ''}
-                  {typeof v.stock === 'number'
+                  {showPrice && trackStock && typeof v.stock === 'number' ? ' · ' : ''}
+                  {trackStock && typeof v.stock === 'number'
                     ? v.stock > 0
-                      ? `${v.stock} en stock`
+                      ? `${v.stock} en stock${soldOut ? ' · lot minimum indisponible' : ''}`
                       : 'épuisé'
                     : ''}
                 </span>

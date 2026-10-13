@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     let customerEmail = ''
 
     if (resolved.type === 'group') {
-      description = `Paiement Achat Groupé #${resolved.group.groupId} - ${resolved.group.productName} (${resolved.participant.qty}x)`
+      description = resolved.description || `Paiement Achat Groupé #${resolved.group.groupId} - ${resolved.group.productName} (${resolved.participant.qty}x)`
       customerName = resolved.participant.name
       customerPhone = resolved.participant.phone
       customerEmail = resolved.participant.email || ''

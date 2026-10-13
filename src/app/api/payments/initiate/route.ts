@@ -5,8 +5,8 @@ import Payment from '@/lib/models/Payment'
 import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { initiatePayment, InitiateResult, PaymentProvider } from '@/lib/payment'
-import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wallet'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { getAppConfig, chargeEscrowPoints, refundEscrowPoints, isOnlinePaymentsEnabled } from '@/lib/wallet'
+import { fulfillServicePayment } from '@/modules/xeuy/payments/mission-payment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { offerPaymentInitSchema, validate } from '@/lib/validation'
 import { readPaymentSettings } from '@/lib/payments/settings'
@@ -44,6 +44,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validated.error }, { status: 400 })
     }
     const { offerId, provider, clientPhone, phase } = validated.data
+
+    if (provider !== 'cash' && !(await isOnlinePaymentsEnabled())) {
+      return NextResponse.json({ error: 'Paiement en espèces uniquement pour le moment', code: 'ONLINE_PAYMENTS_DISABLED' }, { status: 409 })
+    }
 
     // Vérifier l'offre et la demande
     const offer = await Offer.findById(offerId)
@@ -100,6 +104,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Un paiement est déjà en cours d\'initiation pour cette offre' }, { status: 409 })
     }
     lockedOfferId = offer._id
+
+    // Un client qui paie deux offres de la même demande serait débité pour une mission qu'il n'aura pas
+    if (!isBalancePhase) {
+      const otherOfferPaid = await Payment.exists({
+        requestId: sr._id,
+        offerId: { $ne: offer._id },
+        status: { $in: ['pending', 'held'] },
+        phase: { $ne: 'balance' },
+      })
+      if (otherOfferPaid) {
+        return NextResponse.json({ error: 'Un paiement est déjà en cours pour une autre offre de cette demande' }, { status: 409 })
+      }
+    }
 
     // Vérifier pas de double paiement
     const existingPayments = await Payment.find({ offerId, status: { $in: ['pending', 'held'] } }).sort({ createdAt: 1 }).lean()
@@ -235,13 +252,10 @@ export async function POST(request: NextRequest) {
       payment.heldAt = new Date()
       await payment.save()
       if (phase !== 'balance') {
-        await acceptOfferForRequest({
-          serviceRequest: sr,
-          offer,
-          securePayment: useEscrow,
-          notifyClientPaymentHeld: useEscrow,
-          amount: amountToPayNow,
-        })
+        const fulfilled = await fulfillServicePayment(payment._id)
+        if (!fulfilled.accepted) {
+          return NextResponse.json({ error: 'Cette offre n’est plus disponible' }, { status: 409 })
+        }
       }
     }
 

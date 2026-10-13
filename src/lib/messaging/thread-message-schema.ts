@@ -89,15 +89,14 @@ export function createThreadMessageModel(modelName: string, domain: MessageDomai
       },
       attachments: {
         type: [
-          {
-            _id: false,
+          new Schema<MessageAttachment>({
             type: { type: String, enum: ATTACHMENT_TYPES, required: true },
             url: { type: String, required: true },
             name: { type: String },
             mimeType: { type: String },
             size: { type: Number },
             durationSec: { type: Number },
-          },
+          }, { _id: false }),
         ],
         default: [],
       },

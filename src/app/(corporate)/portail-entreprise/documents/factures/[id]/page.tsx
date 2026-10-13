@@ -17,9 +17,13 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     fetch(`/api/client-enterprise/invoices/${id}`)
-      .then(r => { if (!r.ok) throw new Error('Introuvable'); return r.json() })
+      .then(async r => {
+        if (r.status === 403) throw new Error((await r.json().catch(() => null))?.error || 'Accès refusé.')
+        if (!r.ok) throw new Error('Impossible de charger la facture.')
+        return r.json()
+      })
       .then(d => { setInv(d.invoice); setLoading(false) })
-      .catch(() => { setError('Impossible de charger la facture.'); setLoading(false) })
+      .catch((e: Error) => { setError(e.message); setLoading(false) })
   }, [id])
 
   if (loading) return <div className="p-6 flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-stone-300" /></div>

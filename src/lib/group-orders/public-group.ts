@@ -27,6 +27,7 @@ export function sanitizePublicGroup(group: any) {
     shippingMethod: group.shippingMethod,
     shippingCostPerUnit: group.shippingCostPerUnit,
     participantCount: Array.isArray(group.participants) ? group.participants.length : 0,
+    whatsappInviteUrl: group.whatsappInviteUrl || undefined,
   }
 }
 

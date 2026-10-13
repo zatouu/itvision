@@ -6,6 +6,7 @@ import type {
   User,
   Product,
   ProductVariant,
+  ProductVariantGroup,
   ShippingMode,
   OrderStatus,
   PriceTier,
@@ -111,6 +112,10 @@ export function mapCatalogItem(p: any): Product {
     save,
     createdAt: p?.createdAt,
     availabilityStatus: p?.availability?.status,
+    stockQuantity: p?.availability?.stockQuantity,
+    requiresQuote: !!p?.requiresQuote,
+    availabilityNote: p?.availability?.note || undefined,
+    leadTimeDays: p?.availability?.leadTimeDays || undefined,
     hasVariants: !!p?.hasVariants,
     includedFees: describeIncludedFees(p?.pricing) ?? undefined,
   };
@@ -158,11 +163,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     pricing
   );
 
-  const groupBuy = p?.groupBuyEnabled
+  const groupBuy = p?.groupBuyEnabled && groupBest?.status === 'open' && new Date(groupBest?.deadline).getTime() > Date.now()
     ? {
         id: groupBest?.groupId || groupBest?.id,
         active: true,
-        targetQty: groupBuyTarget,
+        targetQty: groupBest?.targetQty ?? groupBuyTarget,
         currentQty: groupBest?.currentQty ?? 0,
         participants:
           typeof groupBest?.participantCount === 'number'
@@ -180,12 +185,14 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     : undefined;
 
   const variants: ProductVariant[] = [];
+  const variantGroups: ProductVariantGroup[] = [];
   if (Array.isArray(p?.variantGroups)) {
-    for (const g of p.variantGroups) {
+    for (const [groupIndex, g] of p.variantGroups.entries()) {
       if (Array.isArray(g.variants)) {
-        for (const v of g.variants) {
-          variants.push({
-            id: v.id || String(variants.length + 1),
+        const groupVariants: ProductVariant[] = [];
+        for (const [variantIndex, v] of g.variants.entries()) {
+          groupVariants.push({
+            id: v.id || `var_${groupIndex}_${variantIndex}`,
             label: v.label || v.name || `${g.name}: ${v.value}`,
             // Stock réel uniquement — les variantes legacy sans stock ne sont pas
             // contraintes côté serveur, afficher « 100 en stock » était faux.
@@ -195,6 +202,10 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
             price: typeof v.price === 'number' && v.price > 0 ? toAllIn(v.price, pricing) : undefined,
             image: typeof v.image === 'string' && v.image ? v.image : undefined,
           });
+        }
+        if (groupVariants.length > 0) {
+          variantGroups.push({ name: g.name || 'Option', variants: groupVariants });
+          variants.push(...groupVariants);
         }
       }
     }
@@ -279,6 +290,7 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     priceTiers,
     groupBuy,
     variants: variants.length > 0 ? variants : [],
+    variantGroups,
     specs: specs.length > 0 ? filterSpecEntries(specs) : [],
     descriptionImages: Array.isArray(p?.descriptionImages)
       ? p.descriptionImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
@@ -294,6 +306,11 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     image: p?.image,
     img: p?.image,
     availabilityStatus: p?.availability?.status,
+    stockQuantity: p?.availability?.stockQuantity,
+    requiresQuote: !!p?.requiresQuote,
+    availabilityNote: p?.availability?.note || undefined,
+    leadTimeDays: p?.availability?.leadTimeDays || undefined,
+    weightEstimated: !!p?.logistics?.weightEstimated,
     hasVariants: Array.isArray(p?.variantGroups) && p.variantGroups.length > 0,
     includedFees: describeIncludedFees(pricing) ?? undefined,
   };
@@ -352,6 +369,7 @@ export function mapGroupOrder(g: any): Group {
       : [],
     deadline: fmtDeadline(g?.deadline),
     deadlineAt: Number.isFinite(deadlineDate) ? deadlineDate : 0,
+    whatsappInviteUrl: typeof g?.whatsappInviteUrl === 'string' && g.whatsappInviteUrl.startsWith('https://chat.whatsapp.com/') ? g.whatsappInviteUrl : undefined,
     unit,
     base,
     save:
@@ -368,6 +386,16 @@ export function mapGroupOrder(g: any): Group {
     createdAt: g?.createdAt ? new Date(g.createdAt).getTime() : undefined,
     variantGroups: Array.isArray(g?.variantGroups) ? g.variantGroups : undefined,
     requiresVariant: !!g?.requiresVariant,
+    shippingMethod: typeof g?.shippingMethod === 'string' ? g.shippingMethod : undefined,
+    shippingCostPerUnit: typeof g?.shippingCostPerUnit === 'number' && g.shippingCostPerUnit > 0 ? g.shippingCostPerUnit : undefined,
+    qualityCheck: g?.qualityCheck && Array.isArray(g.qualityCheck.photos)
+      ? {
+          result: String(g.qualityCheck.result || ''),
+          checkedAt: g.qualityCheck.checkedAt ? String(g.qualityCheck.checkedAt) : undefined,
+          photos: g.qualityCheck.photos.filter((u: unknown) => typeof u === 'string'),
+          videos: Array.isArray(g.qualityCheck.videos) ? g.qualityCheck.videos.filter((u: unknown) => typeof u === 'string') : [],
+        }
+      : undefined,
   };
 }
 
@@ -650,9 +678,38 @@ export function quickAddToCart(product: Product): boolean {
   return true;
 }
 
+export function cartLineKey(item: Pick<CartItem, 'id' | 'variantId' | 'variantIds'>) {
+  const ids = item.variantIds?.length ? item.variantIds : item.variantId ? [item.variantId] : [];
+  return JSON.stringify([item.id, [...new Set(ids)].sort()]);
+}
+
+export function productSelection(product: Product, selectedIds: string[], cart: CartItem[] = []) {
+  const groups = product.variantGroups ?? [];
+  const selected = groups.flatMap(group => group.variants
+    .filter(option => selectedIds.includes(option.id))
+    .map(option => ({ ...option, groupName: group.name })));
+  const complete = groups.every(group => group.variants.filter(option => selectedIds.includes(option.id)).length === 1)
+    && selected.length === selectedIds.length;
+  const prices = selected.map(option => option.price).filter((price): price is number => typeof price === 'number' && price > 0);
+  const unit = prices.length ? Math.max(...prices) : product.price;
+  const existing = cart.filter(item => item.id === product.id);
+  let maxQuantity = 10000;
+  if (product.availabilityStatus === 'out_of_stock') maxQuantity = 0;
+  if (product.availabilityStatus === 'in_stock') {
+    maxQuantity = Math.max(0, Math.min(10000, (product.stockQuantity ?? 0) - existing.reduce((sum, item) => sum + item.qty, 0)));
+    for (const option of selected) {
+      if (typeof option.stock !== 'number') continue;
+      const reserved = existing.filter(item => (item.variantIds ?? (item.variantId ? [item.variantId] : [])).includes(option.id))
+        .reduce((sum, item) => sum + item.qty, 0);
+      maxQuantity = Math.min(maxQuantity, Math.max(0, option.stock - reserved));
+    }
+  }
+  return { selected, complete, unit, maxQuantity };
+}
+
 export function addToCart(item: CartItem) {
   const cart = loadCart();
-  const idx = cart.findIndex((i) => i.id === item.id && i.variantId === item.variantId);
+  const idx = cart.findIndex(existing => cartLineKey(existing) === cartLineKey(item));
   if (idx >= 0) {
     cart[idx].qty += item.qty;
     if (cart[idx].priceTiers?.length) {

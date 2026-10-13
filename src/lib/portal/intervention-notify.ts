@@ -9,6 +9,7 @@ type InterventionLike = {
   clientId?: unknown
   clientCompanyId?: unknown
   site?: string
+  signatures?: { client?: { signature?: string } }
 }
 
 const dayLabel = (d?: Date | string, time?: string) => {
@@ -24,7 +25,7 @@ const dayLabel = (d?: Date | string, time?: string) => {
  * planification ou report, arrivée du technicien, fin (bon à valider), annulation.
  */
 export async function notifyInterventionChange(before: InterventionLike | null, after: InterventionLike) {
-  const companyId = (after.clientCompanyId && String(after.clientCompanyId)) || await resolveClientCompanyId(after.clientId)
+  const companyId = after.clientCompanyId ? String(after.clientCompanyId) : await resolveClientCompanyId(after.clientId)
   if (!companyId) return
 
   const id = String(after._id || '')
@@ -53,7 +54,10 @@ export async function notifyInterventionChange(before: InterventionLike | null, 
   if (after.status === 'completed') {
     return notifyCompany({
       companyId, category: 'intervention', type: 'success', actionUrl: `${actionUrl}#avis`, metadata: { interventionId: id },
-      title: `Intervention terminée : ${title}`, message: 'Consultez le compte rendu, validez le bon de fin de travaux et donnez votre avis en un geste.',
+      title: `Intervention terminée : ${title}`,
+      message: after.signatures?.client?.signature
+        ? 'Le bon a été signé sur place. Consultez le compte rendu et donnez votre avis en un geste.'
+        : 'Consultez le compte rendu, validez le bon de fin de travaux et donnez votre avis en un geste.',
     })
   }
   if (after.status === 'cancelled') {

@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
     // Si client, filtrer par son ID
     if (role === 'CLIENT') {
       query.clientId = userId
-    } else if (clientId && role === 'ADMIN') {
+    } else if (!['ADMIN', 'SUPER_ADMIN'].includes(String(role))) {
+      // Sans ce garde, tout compte connecté (technicien, acheteur DDM+, prestataire) listait tous les contrats
+      return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
+    } else if (clientId) {
       query.clientId = clientId
     }
     

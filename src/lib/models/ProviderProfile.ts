@@ -26,6 +26,9 @@ export interface IProviderProfile extends Document {
   visible?: boolean
   scoreXeuy?: number
   preferences?: any
+  /** Consommables suivis par le prestataire (« Mon stock ») ; minQty = seuil de rachat */
+  stock?: Array<{ name: string; qty: number; minQty: number; unit?: string; updatedAt?: Date }>
+  stockReminderAt?: Date
   currentLoad: number
   createdAt: Date
   updatedAt: Date
@@ -63,7 +66,18 @@ const ProviderProfileSchema = new Schema<IProviderProfile>({
   availabilityStatus: { type: String, default: 'Disponible' },
   visible: { type: Boolean, default: true, index: true },
   scoreXeuy: { type: Number, default: 0, min: 0, max: 100 },
-  preferences: { type: Schema.Types.Mixed, default: {} }
+  preferences: { type: Schema.Types.Mixed, default: {} },
+  stock: {
+    type: [new Schema({
+      name: { type: String, required: true, trim: true, maxlength: 60 },
+      qty: { type: Number, default: 0, min: 0, max: 9999 },
+      minQty: { type: Number, default: 0, min: 0, max: 9999 },
+      unit: { type: String, trim: true, maxlength: 12 },
+      updatedAt: { type: Date },
+    }, { _id: false })],
+    default: [],
+  },
+  stockReminderAt: { type: Date },
 }, { timestamps: true })
 
 export default (mongoose.models.ProviderProfile as mongoose.Model<IProviderProfile>) ||

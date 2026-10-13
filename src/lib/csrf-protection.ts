@@ -2,14 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logSecurityViolation } from './security-logger'
 
 /**
- * Protection CSRF utilisant le pattern "Double-Submit Cookie"
- * 
- * Fonctionnement :
- * 1. GET /api/csrf génère un token, le stocke dans un cookie httpOnly et le retourne en JSON
- * 2. Le client envoie ce token dans le header X-CSRF-Token pour les requêtes POST/PUT/DELETE/PATCH
- * 3. Le middleware vérifie que le header correspond au cookie
- * 
- * Ce pattern fonctionne en environnement serverless car il n'y a pas d'état en mémoire.
+ * Protection CSRF : origine HTTPS identique pour les requêtes navigateur.
+ * En absence d'origine/référent, GET /api/csrf fournit un jeton à renvoyer
+ * dans X-CSRF-Token avec son cookie. Un Bearer seul n'utilise pas de session
+ * ambiante. Les exceptions serveur gardent leur authentification propre.
  */
 
 const CSRF_COOKIE_NAME = 'csrf-token'
@@ -45,39 +41,44 @@ export function csrfMiddleware(request: NextRequest): Response | null {
   }
 
   const pathname = request.nextUrl.pathname
+  const hasSessionCookie = request.cookies.getAll().some(cookie =>
+    /^(?:auth-token|admin-auth-token|(?:__Secure-)?next-auth\.session-token)(?:\.\d+)?$/.test(cookie.name))
 
-  // Exclure les routes qui n'ont pas besoin de CSRF :
-  // - Routes d'authentification (elles ont leur propre protection)
-  // - Routes analytics (tracking public)
-  // - Routes webhook
   const excludedPaths = [
-    '/api/auth/',
-    '/api/login/',
     '/api/analytics/track',
-    '/api/webhook',
     '/api/csrf',
-    '/api/upload', // Upload de fichiers (FormData, pas JSON)
-    '/api/internal/', // Serveur-à-serveur — protégé par x-cron-secret dans les handlers
-    '/api/payments/manual-review', // Lien email admin — protégé par token HMAC signé dans le handler
+    '/api/payments/manual-review',
+    '/api/payment/paydunya/callback',
+    '/api/payments/webhook',
+    '/api/wallet/webhook',
   ]
 
-  if (excludedPaths.some(path => pathname.includes(path) || pathname.startsWith(path))) {
+  if (excludedPaths.includes(pathname) || pathname.startsWith('/api/internal/') || pathname.startsWith('/api/auth/callback/')) {
     return null
   }
 
-  // Pour toutes les routes API protégées par JWT, on fait confiance à l'authentification
-  // Le JWT est déjà une protection contre CSRF car il est envoyé via cookie httpOnly
-  // et ne peut pas être lu par un site malveillant
-  const authToken = request.cookies.get('auth-token')?.value
-  if (authToken) {
+  if (pathname.startsWith('/api/auth/') && !hasSessionCookie &&
+      !request.headers.has('origin') && !request.headers.has('referer') && !request.headers.has('sec-fetch-site')) {
     return null
   }
 
-  // Les requêtes avec Authorization: Bearer sont CSRF-safe par nature
-  // (les apps mobiles ne peuvent pas recevoir de cookies cross-origin)
   const authHeader = request.headers.get('authorization') || ''
-  if (authHeader.startsWith('Bearer ')) {
+  if (!hasSessionCookie && /^Bearer\s+\S+$/i.test(authHeader)) {
     return null
+  }
+
+  const source = request.headers.get('origin') ?? request.headers.get('referer')
+  const fetchSite = request.headers.get('sec-fetch-site')
+  if (source || fetchSite === 'cross-site' || fetchSite === 'same-site') {
+    let sameOrigin = false
+    try {
+      const host = request.headers.get('host') || request.nextUrl.host
+      const targetOrigin = new URL(`https://${host}`).origin
+      sameOrigin = !!source && new URL(source).origin === targetOrigin
+    } catch {}
+    if (sameOrigin && fetchSite !== 'cross-site' && fetchSite !== 'same-site') return null
+    logSecurityViolation('csrf_origin', request, { pathname })
+    return NextResponse.json({ error: 'Origine de la requête non autorisée' }, { status: 403 })
   }
 
   // Pour les autres routes, vérifier le token CSRF
@@ -139,6 +140,7 @@ export function generateCSRFResponse(request: NextRequest): NextResponse {
   
   // Aussi dans le header pour faciliter le debug
   response.headers.set('X-CSRF-Token', token)
+  response.headers.set('Cache-Control', 'no-store')
   
   return response
 }

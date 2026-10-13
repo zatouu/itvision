@@ -109,6 +109,22 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { randomUUID } from 'crypto'
 import { requireAuth } from '@/lib/jwt'
+import { canonicalSource, estimateWeightKg } from '@/lib/market/catalog-import'
+
+/** Import = brouillon à relire ; poids et dimensions de remplissage (1 kg, 10×10×10) remplacés par une estimation signalée. */
+function asImportDraft<T extends Record<string, any>>(payload: T): T {
+  const p: any = payload
+  const placeholderDims = p.lengthCm === 10 && p.widthCm === 10 && p.heightCm === 10
+  const hasDims = !placeholderDims && p.lengthCm > 0 && p.widthCm > 0 && p.heightCm > 0
+  const hasWeight = p.weightKg > 0 && !(p.weightKg === 1 && placeholderDims)
+  if (!hasDims) { delete p.lengthCm; delete p.widthCm; delete p.heightCm }
+  if (!hasWeight) p.weightKg = estimateWeightKg(`${p.name || ''} ${p.category || ''}`)
+  p.weightEstimated = !hasWeight || !hasDims
+  p.isPublished = false
+  const src = canonicalSource(p.sourcing?.productUrl, p.sourcing?.platform)
+  if (src.externalId) p.sourcing = { ...p.sourcing, externalId: src.externalId }
+  return payload
+}
 
 interface AliExpressItemProperty {
   attr_name?: string
@@ -729,7 +745,7 @@ export async function POST(request: NextRequest) {
               continue
             }
 
-            const created = await Product.create(payload)
+            const created = await Product.create(asImportDraft(payload))
             createdCount++
             results.push({ url, ok: true, action: 'created', productId: String(created._id) })
             continue
@@ -777,7 +793,7 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const created = await Product.create(payload)
+          const created = await Product.create(asImportDraft(payload))
           createdCount++
           results.push({ url, ok: true, action: 'created', productId: String(created._id) })
         } catch (error: any) {
@@ -918,7 +934,7 @@ export async function POST(request: NextRequest) {
               continue
             }
 
-            const created = await Product.create(payload)
+            const created = await Product.create(asImportDraft(payload))
             createdCount++
             results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
             continue
@@ -967,7 +983,7 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          const created = await Product.create(payload)
+          const created = await Product.create(asImportDraft(payload))
           createdCount++
           results.push({ productUrl, ok: true, action: 'created', productId: String(created._id) })
         } catch (error) {
@@ -1059,7 +1075,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, product: updated, action: 'updated' })
       }
 
-      const created = await Product.create(payload)
+      const created = await Product.create(asImportDraft(payload))
       return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
     }
 
@@ -1100,7 +1116,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, product: updated, action: 'updated' })
     }
 
-    const created = await Product.create(payload)
+    const created = await Product.create(asImportDraft(payload))
     return NextResponse.json({ success: true, product: created.toObject(), action: 'created' }, { status: 201 })
   } catch (error: any) {
     console.error('AliExpress import error:', error)

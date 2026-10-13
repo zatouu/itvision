@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
+import { verifyJwtPayload } from '@/lib/jwt'
 import { csrfProtection } from '@/lib/csrf-protection'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { SessionStoreUnavailableError } from '@/lib/auth-session'
 import { isMarketDomain, getHost } from '@/lib/middleware/domain'
 import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole, isSharedPublicRoute } from '@/lib/middleware/routes'
 import { getPageRule } from '@/lib/domains'
 import { handleCorsPreflight, getMobileCorsHeaders, injectCorsHeaders } from '@/lib/middleware/cors'
 import { applySecurityHeaders, applyApiSecurityHeaders } from '@/lib/middleware/security'
 
-async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string; companyClientId?: string }> {
+async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; unavailable?: boolean; role?: string; companyClientId?: string }> {
   const token = request.cookies.get('auth-token')?.value
 
   if (!token) {
@@ -16,13 +16,12 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 
   try {
-    const secret = getJwtSecretKey()
-    const { payload } = await jwtVerify(token, secret)
+    const payload = await verifyJwtPayload(token)
     const role = String(payload.role || '').toUpperCase()
     const companyClientId = typeof (payload as any).companyClientId === 'string' ? (payload as any).companyClientId : undefined
     return { authenticated: true, role, companyClientId }
-  } catch {
-    return { authenticated: false }
+  } catch (error) {
+    return { authenticated: false, unavailable: error instanceof SessionStoreUnavailableError }
   }
 }
 
@@ -123,7 +122,13 @@ export async function middleware(request: NextRequest) {
   const requiredRole = getRequiredRole(pathname)
   
   if (requiredRole) {
-    const { authenticated, role, companyClientId } = await verifyAuth(request)
+    const { authenticated, unavailable, role, companyClientId } = await verifyAuth(request)
+
+    if (unavailable) {
+      return new NextResponse('Service temporairement indisponible. Veuillez reessayer.', {
+        status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' },
+      })
+    }
     
     if (!authenticated) {
       // Rediriger vers la page de login appropriée
@@ -208,6 +213,7 @@ export async function middleware(request: NextRequest) {
 
 // Configuration des routes où appliquer le middleware
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     /*
      * Match all request paths except for the ones starting with:

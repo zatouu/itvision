@@ -85,7 +85,7 @@ export function vendorShopQuery(vendor: any, userId: string) {
 
 /** Réémet le JWT après promotion VENDOR pour que le middleware laisse passer
  *  sans forcer une reconnexion (inutile sous Keycloak : rôles dans les claims). */
-export async function reissueAuthCookie(response: NextResponse, user: any, role = 'VENDOR') {
+export async function reissueAuthCookie(response: NextResponse, user: any, role = 'VENDOR', sessionVersion = 0) {
   if (keycloakEnabled()) return
   try {
     const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
@@ -93,6 +93,7 @@ export async function reissueAuthCookie(response: NextResponse, user: any, role 
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
+        sessionVersion,
         email: user.email,
         role,
         username: user.username,

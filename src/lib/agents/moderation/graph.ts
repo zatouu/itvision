@@ -61,7 +61,7 @@ async function loadContext(state: typeof ModerationState.State) {
     const ids = productIds.map(p => String(p._id))
     catalogSize = ids.length
     ;[salesCount, disputeCount] = await Promise.all([
-      Order.countDocuments({ 'items.productId': { $in: ids }, paymentStatus: 'completed' }),
+      Order.countDocuments({ 'items.id': { $in: ids }, paymentStatus: 'completed' }),
       ReturnRequest.countDocuments({ productId: { $in: ids } }),
     ])
   }

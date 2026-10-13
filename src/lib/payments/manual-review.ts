@@ -1,10 +1,8 @@
 import crypto from 'crypto'
 import Payment from '@/lib/models/Payment'
 import TopupPayment from '@/lib/models/TopupPayment'
-import ServiceRequest from '@/lib/models/ServiceRequest'
-import Offer from '@/lib/models/Offer'
 import { Order } from '@/lib/models/Order'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { fulfillServicePayment } from '@/modules/xeuy/payments/mission-payment'
 import { creditPoints, refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
 import { confirmPayment } from '@/lib/payment-fulfillment'
@@ -161,17 +159,8 @@ export async function reviewManualPayment(params: {
           console.error(`[manual-review] Commande introuvable pour payment ${payment._id} (orderId=${payment.orderId})`)
         }
       } else if (payment.requestId && payment.offerId) {
-        const sr = await ServiceRequest.findById(payment.requestId)
-        const offer = await Offer.findById(payment.offerId)
-        if (sr && offer) {
-          await acceptOfferForRequest({
-            serviceRequest: sr,
-            offer,
-            securePayment: payment.useEscrow !== false,
-            notifyClientPaymentHeld: payment.useEscrow !== false,
-            amount: payment.amount,
-          })
-        }
+        const fulfilled = await fulfillServicePayment(payment._id)
+        if (!fulfilled.accepted) return { ok: true, status: 'refunded' }
       }
 
       await sendPushToUser(String(payment.clientId), {

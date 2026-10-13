@@ -103,10 +103,10 @@ interface ScreenShopProps {
 }
 
 const CONDITIONS = [
-  { icon: RefreshCcw, ttl: 'Politique de retour', txt: 'Retour possible sous 7 jours pour tout produit défectueux ou non conforme. Contact via WhatsApp ou centre d\'aide.' },
-  { icon: Truck, ttl: 'Livraison', txt: 'Express aérien 4-7j, Standard aérien 8-12j, Maritime 35-45j. Suivi en temps réel via DDM+.' },
-  { icon: Wallet, ttl: 'Paiement', txt: 'Wave, Orange Money, Free Money, virement. Escrow inclus : le vendeur est payé uniquement après réception validée.' },
-  { icon: Shield, ttl: 'Garantie', txt: 'Garantie fabricant 12 mois sur l\'électronique. Support DDM+ pour toute réclamation.' },
+  { icon: RefreshCcw, ttl: 'Politique de retour', txt: 'Retour possible sous 48 h après réception pour tout produit défectueux ou non conforme. Contact via WhatsApp ou centre d\'aide.' },
+  { icon: Truck, ttl: 'Livraison', txt: 'Le mode de transport, les frais et le délai estimé sont précisés lors de la commande.' },
+  { icon: Wallet, ttl: 'Paiement', txt: 'Les moyens de paiement disponibles sont indiqués au moment de régler la commande.' },
+  { icon: Shield, ttl: 'Garantie', txt: 'Les garanties applicables dépendent du produit et sont précisées sur sa fiche ou dans votre commande. Le support DDM+ reçoit vos réclamations.' },
 ]
 
 export default function ScreenShop({ shop, products, reviews = [], isLoading, error, contactWhatsApp = brandWhatsAppUrl(), shopSlug, shopId, followers = 0, similarShops = [] }: ScreenShopProps) {
@@ -210,16 +210,16 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
             {shop.type === 'factory' ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap">
                 <Factory size={10} /> Inspecté par DDM+
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 border border-white/25 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap">
                 <MapPin size={10} /> Partenaire local
               </span>
             )}
             {shop.verified && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/25 border border-emerald-300/40 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/25 border border-emerald-300/40 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap">
                 <CheckCircle size={10} /> Vérifié
               </span>
             )}
@@ -262,30 +262,30 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 overflow-hidden">
         <img loading="lazy" decoding="async" src={p.img || p.image || '/placeholder.svg'} alt={p.name} onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute left-2 top-2 flex flex-col gap-1">
-          <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500 text-white px-1.5 py-0.5 text-[10px] font-bold">
+          <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500 text-white px-1.5 py-0.5 text-[11px] font-bold">
             <Package size={10} /> Min. {p.moq ?? p.minOrderQty ?? 1}
           </span>
           {p.hasGroup && (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-violet-600 text-white px-1.5 py-0.5 text-[10px] font-bold">
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-violet-600 text-white px-1.5 py-0.5 text-[11px] font-bold">
               <LayoutGrid size={10} /> Groupe
             </span>
           )}
         </div>
         {(p.save ?? 0) > 0 && (
           <div className="absolute right-2 top-2">
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-md bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
               -{p.save}%
             </span>
           </div>
         )}
       </div>
       <div className="p-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.cat || p.category || 'Produit'}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.cat || p.category || 'Produit'}</p>
         <p className="mt-0.5 text-[12px] font-semibold text-slate-900 dark:text-white line-clamp-2 leading-tight min-h-[30px]">{p.name}</p>
         <div className="mt-1.5 flex items-baseline gap-1.5 whitespace-nowrap">
           <span className="text-[14px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatFcfa(p.price)}</span>
           {(p.base ?? p.basePrice) ? (
-            <span className="text-[10px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(p.base ?? p.basePrice ?? 0)}</span>
+            <span className="text-[11px] font-semibold text-slate-400 line-through tabular-nums">{formatFcfa(p.base ?? p.basePrice ?? 0)}</span>
           ) : null}
         </div>
       </div>
@@ -311,7 +311,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-bold text-slate-900 dark:text-white">{r.handle}</p>
-                <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                   <div className="flex">
                     {Array.from({ length: 5 }).map((_, ii) => (
                       <Star
@@ -343,37 +343,37 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Produits</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Produits</p>
           <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.productCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Note</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Note</p>
           <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.rating.toFixed(1)}<span className="text-[11px] text-slate-500 dark:text-slate-400">/5</span></p>
         </div>
         {shop.responseTime && (
           <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Réponse</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Réponse</p>
             <p className="mt-1 text-[18px] font-extrabold text-emerald-600 dark:text-emerald-400">{shop.responseTime}</p>
           </div>
         )}
         {shop.onTimeRate != null && (
           <div className="rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">À l&apos;heure</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">À l&apos;heure</p>
             <p className="mt-1 text-[18px] font-extrabold tabular-nums text-slate-900 dark:text-white">{shop.onTimeRate}%</p>
           </div>
         )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4 md:p-6">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Certifications</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Statut de la boutique</p>
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[12px] text-slate-700 dark:text-slate-300">
             <Shield size={14} className="text-emerald-600 dark:text-emerald-400" />
-            {shop.type === 'factory' ? 'Inspection trimestrielle DDM+' : 'Adresse et pièces vérifiées par DDM+'}
+            {shop.verified ? 'Boutique vérifiée par DDM+' : 'Vérification non confirmée'}
           </div>
           <div className="flex items-center gap-2 text-[12px] text-slate-700 dark:text-slate-300">
             <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" />
-            Escrow paiement inclus
+            Protection selon les conditions de la commande
           </div>
           {shop.type === 'factory' && (
             <div className="flex items-center gap-2 text-[12px] text-slate-700 dark:text-slate-300">
@@ -539,15 +539,15 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
               </span>
               <div className="min-w-0">
                 <p className="text-[12px] font-bold text-slate-900 dark:text-white leading-tight">{b.ttl}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{b.txt}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{b.txt}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-          <div>
-            <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 w-fit mb-4 overflow-x-auto">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
+          <div className="min-w-0">
+            <div className="flex max-w-full gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 w-fit mb-4 overflow-x-auto">
               {tabs.map((t) => (
                 <button
                   key={t.k}
@@ -557,7 +557,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                     tab === t.k ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-950 dark:text-white' : 'text-slate-600 dark:text-slate-400'
                   )}
                 >
-                  {t.l}{t.count !== undefined && <span className="ml-1 tabular-nums text-[10px] md:text-[11px] opacity-70">({t.count})</span>}
+                  {t.l}{t.count !== undefined && <span className="ml-1 tabular-nums text-[11px] md:text-[11px] opacity-70">({t.count})</span>}
                 </button>
               ))}
             </div>
@@ -690,7 +690,7 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                 <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400/80 leading-relaxed">
                   Vos transactions sont sécurisées. Les fonds ne sont débloqués qu&apos;après confirmation de réception.
                 </p>
-                <p className="mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-900/40 flex items-center gap-1.5 text-[10px] text-emerald-700/80 dark:text-emerald-500/80">
+                <p className="mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-900/40 flex items-center gap-1.5 text-[11px] text-emerald-700/80 dark:text-emerald-500/80">
                   <Lock size={11} /> Vos données sont protégées
                 </p>
               </div>
@@ -729,12 +729,12 @@ export default function ScreenShop({ shop, products, reviews = [], isLoading, er
                       <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{s.name}</p>
                       {s.isVerified && <CheckCircle size={11} className="text-emerald-500 flex-shrink-0" />}
                     </div>
-                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
                       <b className="tabular-nums text-slate-700 dark:text-slate-300">{s.productCount}</b> produits
                       {s.categories[0] ? ` · ${s.categories[0]}` : ''}
                     </p>
                     {s.city && (
-                      <p className="mt-0.5 text-[10px] text-slate-400 flex items-center gap-0.5 truncate">
+                      <p className="mt-0.5 text-[11px] text-slate-400 flex items-center gap-0.5 truncate">
                         <MapPin size={9} /> {s.city}{s.country ? `, ${s.country}` : ''}
                       </p>
                     )}

@@ -5,7 +5,7 @@ import path from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
-import { requireAuth } from '@/lib/jwt'
+import { requireApiUser } from '@/lib/api-auth'
 
 export const maxDuration = 120
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 // Vérification d'authentification requise pour l'upload
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
   try {
-    const { userId, role } = await requireAuth(request)
+    const { userId, role } = await requireApiUser(request)
     return { authenticated: true, userId, role }
   } catch {
     return { authenticated: false }

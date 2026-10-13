@@ -58,6 +58,30 @@ export async function GET(
       )
     }
 
+    // Transport facturé au poids réel après pesée du lot : lien dédié, quel que soit le statut du groupe
+    const self = group.participants.find((p: any) => formatPhone(p.phone) === formattedPhone) as any
+    if (self?.transport && group.status !== 'cancelled') {
+      const due = self.transport.paymentStatus !== 'paid'
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: self.paymentStatus === 'paid',
+        transport: {
+          amount: self.transport.amount,
+          paid: !due,
+          checkoutUrl: due ? `/paiement/checkout/${self.transport.paymentReference}` : null,
+          weightKg: (group as any).freight?.realWeightKg,
+        },
+        participant: {
+          name: maskName(self.name),
+          qty: self.qty,
+          totalAmount: self.totalAmount,
+          paymentStatus: self.paymentStatus,
+          isCreator: formatPhone((group as any).createdBy?.phone || '') === formattedPhone,
+        },
+        group: { groupId: (group as any).groupId, productName: (group as any).product?.name, status: group.status },
+      })
+    }
+
     // Vérifier que le groupe permet les paiements (statut éligible)
     const eligibleStatuses = ['open', 'filled', 'ordering', 'ordered']
     if (!eligibleStatuses.includes(group.status)) {
@@ -100,6 +124,32 @@ export async function GET(
           groupId: (group as any).groupId,
           productName: (group as any).product?.name,
           status: group.status
+        }
+      })
+    }
+
+    // Prix final connu à la validation du groupe : pas de paiement tant qu'il est ouvert
+    if (group.status === 'open') {
+      const qty = (participant as any).qty || 1
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: false,
+        paymentOpensAtClose: true,
+        message: 'Le paiement s\'ouvre dès que le groupe est validé : vous paierez le prix final, au meilleur palier atteint.',
+        participant: {
+          name: maskName(participant.name),
+          qty,
+          unitPrice: (participant as any).unitPrice,
+          totalAmount: (participant as any).totalAmount,
+          paymentStatus: (participant as any).paymentStatus || 'pending',
+          isCreator
+        },
+        checkoutUrl: null,
+        group: {
+          groupId: (group as any).groupId,
+          productName: (group as any).product?.name,
+          status: group.status,
+          deadline: group.deadline
         }
       })
     }

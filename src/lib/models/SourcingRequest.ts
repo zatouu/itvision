@@ -90,6 +90,7 @@ export interface ISourcingRequest extends Document {
   description: string           // description longue
   qty: number                   // quantité souhaitée
   budgetMaxFCFA?: number        // budget cible côté client (optionnel)
+  budgetScope?: 'unit' | 'total'
   deliveryNeededBy?: Date       // deadline livraison (optionnelle)
   categoryHint?: string         // catégorie suggérée par client
 
@@ -99,6 +100,10 @@ export interface ISourcingRequest extends Document {
   assignedToUserId?: string     // sourcer humain
   assignedAt?: Date
   adminNotes?: string
+  // Recherche autonome (agent sourcing_request)
+  aiQuery?: string              // mots-clés déduits de la photo
+  autoSearchAttempts?: number   // tentatives après blocage des sites sources
+  slaAlertAt?: Date             // alerte admin délai dépassé (une seule fois)
 
   // ── Auto-match catalogue (rempli à la création) ───────────────────────────
   catalogMatches: Array<{
@@ -125,6 +130,13 @@ export interface ISourcingRequest extends Document {
   proposal?: SourcingProposal
   proposalSentAt?: Date
   proposalSmsMessageId?: string // id SMS pour debug
+  proposalNotification?: {
+    status: 'pending' | 'sending' | 'submitted' | 'failed'
+    attempts: number
+    nextAttemptAt?: Date
+    leaseId?: string
+    submittedAt?: Date
+  }
 
   // ── Décision client ────────────────────────────────────────────────────────
   clientDecision?: 'accepted' | 'rejected'
@@ -134,6 +146,7 @@ export interface ISourcingRequest extends Document {
   // ── Suivi commande ─────────────────────────────────────────────────────────
   productId?: string            // Product créé après acceptation
   orderId?: string              // commande déclenchée
+  orderAccessToken?: string     // jeton de suivi/paiement de la commande (exposé uniquement via publicToken)
 
   // ── Sécurité / tracking ────────────────────────────────────────────────────
   publicToken: string           // pour lien SMS public (non devinable)
@@ -240,6 +253,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     description: { type: String, trim: true, maxlength: 4000 },
     qty: { type: Number, required: true, min: 1, max: 100000, default: 1 },
     budgetMaxFCFA: { type: Number, min: 0 },
+    budgetScope: { type: String, enum: ['unit', 'total'] },
     deliveryNeededBy: { type: Date },
     categoryHint: { type: String, trim: true, maxlength: 100 },
 
@@ -263,6 +277,9 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     assignedToUserId: { type: String, index: true, sparse: true },
     assignedAt: { type: Date },
     adminNotes: { type: String, trim: true, maxlength: 5000 },
+    aiQuery: { type: String, trim: true, maxlength: 300 },
+    autoSearchAttempts: { type: Number, default: 0 },
+    slaAlertAt: { type: Date },
 
     catalogMatches: { type: [CatalogMatchSchema], default: [] },
     externalSearchResults: { type: [ExternalSearchResultSchema], default: undefined },
@@ -270,6 +287,16 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     proposal: { type: ProposalSchema, default: undefined },
     proposalSentAt: { type: Date },
     proposalSmsMessageId: { type: String },
+    proposalNotification: {
+      type: new Schema({
+        status: { type: String, enum: ['pending', 'sending', 'submitted', 'failed'], required: true },
+        attempts: { type: Number, required: true, min: 0 },
+        nextAttemptAt: Date,
+        leaseId: String,
+        submittedAt: Date,
+      }, { _id: false }),
+      default: undefined,
+    },
 
     clientDecision: { type: String, enum: ['accepted', 'rejected'] },
     clientDecisionAt: { type: Date },
@@ -277,6 +304,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
 
     productId: { type: String, sparse: true },
     orderId: { type: String, sparse: true },
+    orderAccessToken: { type: String, select: false },
 
     publicToken: { type: String, required: true, unique: true, index: true },
     reference: { type: String, required: true, unique: true, index: true }
@@ -285,6 +313,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
 )
 
 SourcingRequestSchema.index({ status: 1, slaDueAt: 1 })
+SourcingRequestSchema.index({ 'proposalNotification.status': 1, 'proposalNotification.nextAttemptAt': 1 })
 SourcingRequestSchema.index({ createdAt: -1 })
 SourcingRequestSchema.index({ companyClientId: 1, createdAt: -1 }, { sparse: true })
 

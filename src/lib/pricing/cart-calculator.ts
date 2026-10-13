@@ -3,11 +3,19 @@
  * Intègre : poids volumétrique, réduction B2B, réduction quantité, décomposition prix
  */
 
-import { calculateBilledWeight } from './volumetric-weight'
+import { calculateVolumetricWeight, VOLUMETRIC_DIVISOR } from './volumetric-weight'
 import { calculateCompleteFees, getServiceFeeTier, type ServiceFeeTier } from './tiered-service-fees'
 import { applyTierDiscount, type TierPricing } from './tiered-pricing'
-import { getCNYToXOFRate, DEFAULT_EXCHANGE_RATE } from './exchange-rate'
+import { DEFAULT_EXCHANGE_RATE } from './exchange-rate'
 import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
+
+/**
+ * Poids retenu pour un article importé sans poids ni dimensions renseignés.
+ * Sans cette valeur, l'article voyageait gratuitement (0 kg / 0 m³).
+ */
+const DEFAULT_ITEM_WEIGHT_KG = Number(process.env.DEFAULT_ITEM_WEIGHT_KG) > 0 ? Number(process.env.DEFAULT_ITEM_WEIGHT_KG) : 0.5
+/** Règle maritime « poids ou volume » : 1 tonne = 1 m³ payant */
+const SEA_KG_PER_M3 = 1000
 
 export interface CartItem {
   id: string
@@ -48,6 +56,10 @@ export interface ShippingCalculation {
   minimumCharge?: number
   /** Forfait coursier local inclus dans `cost` (panier mixte : produits boutique + import) */
   localFee?: number
+  /** Volume facturé (maritime) en m³ */
+  billedVolumeM3?: number
+  /** Nombre d'unités dont le poids est estimé (fiche produit sans poids ni dimensions) */
+  estimatedWeightUnits?: number
   /** Détail par boutique — un forfait par boutique, réglable par le vendeur */
   localShipments?: { shopId: string; shopName?: string; feeFcfa: number; subtotal: number }[]
 }
@@ -117,14 +129,14 @@ export async function calculateCartTotal(
   options: {
     insuranceRate?: number
     serviceFeeTiers?: ServiceFeeTier[]
+    singleImportServiceFeeRate?: number
     /** Forfait livraison locale (≤24h) par défaut — appliqué par boutique */
     localDeliveryFlatFee?: number
     /** Config livraison par boutique : forfait propre + seuil « offerte dès » */
     localDeliveryShops?: { shopId: string; shopName?: string; feeFcfa?: number; freeAboveFcfa?: number }[]
   } = {}
 ): Promise<CompleteCartCalculation> {
-  // 1. Récupérer le taux de change actuel
-  const exchangeRate = await getCNYToXOFRate()
+  // 1. Les prix unitaires arrivent déjà convertis en FCFA (buildCalculatorItems)
   
   // 2. Calculer le coût fournisseur total
   let supplierCost = 0
@@ -133,6 +145,8 @@ export async function calculateCartTotal(
   let totalWeight = 0
   let totalVolumetricWeight = 0
   let totalVolume = 0
+  let importQuantity = 0
+  let estimatedWeightUnits = 0
   let wholesaleItemCount = 0
   let retailItemCount = 0
   // Sous-total marchandise par boutique (produits locaux) — base du seuil « offerte dès »
@@ -163,7 +177,7 @@ export async function calculateCartTotal(
     const hasSourcingCost =
       (typeof item.baseCostFcfa === 'number' && item.baseCostFcfa > 0) ||
       (typeof item.price1688 === 'number' && item.price1688 > 0)
-    if (hasSourcingCost) {
+    if (hasSourcingCost && !item.localDelivery) {
       supplierCost += resolved.appliedPrice * qty
     } else {
       retailOnlyItemsTotal += resolved.appliedPrice * qty
@@ -176,18 +190,23 @@ export async function calculateCartTotal(
 
     // Poids — les produits en stock local ne passent pas par le fret import :
     // leur poids/volume est exclu de la facturation transport aérien/maritime.
-    if (!item.localDelivery && item.weightKg) {
-      totalWeight += item.weightKg * qty
-      
-      // Calcul volumétrique si dimensions disponibles
-      if (item.lengthCm && item.widthCm && item.heightCm) {
-        const itemVolumetric = calculateBilledWeight({
-          actualWeightKg: item.weightKg,
-          lengthCm: item.lengthCm,
-          widthCm: item.widthCm,
-          heightCm: item.heightCm
-        })
-        totalVolumetricWeight += itemVolumetric.volumetricWeight * qty
+    if (!item.localDelivery) {
+      importQuantity += qty
+      const hasDims = !!(item.lengthCm && item.widthCm && item.heightCm)
+      const hasVolume = typeof item.volumeM3 === 'number' && item.volumeM3 > 0
+
+      // Poids volumétrique dès que les dimensions (ou le volume) sont connues, même sans poids réel
+      if (hasDims) {
+        totalVolumetricWeight += calculateVolumetricWeight(item.lengthCm!, item.widthCm!, item.heightCm!) * qty
+      } else if (hasVolume) {
+        totalVolumetricWeight += (item.volumeM3! * 1_000_000 / VOLUMETRIC_DIVISOR) * qty
+      }
+
+      if (item.weightKg && item.weightKg > 0) {
+        totalWeight += item.weightKg * qty
+      } else if (!hasDims && !hasVolume) {
+        totalWeight += DEFAULT_ITEM_WEIGHT_KG * qty
+        estimatedWeightUnits += qty
       }
     }
     
@@ -231,7 +250,9 @@ export async function calculateCartTotal(
     : (() => {
         const f = calculateCompleteFees(supplierCost, merchandiseBase, {
           insuranceRate,
-          serviceFeeTiers: options.serviceFeeTiers
+          serviceFeeTiers: options.serviceFeeTiers,
+          singleImportServiceFeeRate: options.singleImportServiceFeeRate,
+          importQuantity
         })
         return { ...f, finalPrice: f.finalPrice + retailOnlyItemsTotal }
       })()
@@ -275,10 +296,12 @@ export async function calculateCartTotal(
       localShipments: localShipments.length > 0 ? localShipments : undefined
     }
   } else if (shippingMethodId === 'sea_freight') {
-    // Maritime: par volume
-    if (totalVolume > 0) {
+    // Maritime : volume ou poids (1 t = 1 m³), le plus élevé — avec minimum de perception.
+    // Un panier importé sans volume renseigné n'est plus expédié gratuitement.
+    if (importQuantity > 0) {
+      const billedVolumeM3 = Math.max(totalVolume, totalWeight / SEA_KG_PER_M3)
       const cost = Math.max(
-        totalVolume * shippingRate.rate,
+        billedVolumeM3 * shippingRate.rate,
         shippingRate.minimumCharge || 0
       )
       shipping = {
@@ -287,12 +310,14 @@ export async function calculateCartTotal(
         actualWeight: totalWeight,
         volumetricWeight: 0,
         billedWeight: 0,
-        billingMethod: 'actual',
+        billingMethod: totalVolume >= totalWeight / SEA_KG_PER_M3 ? 'volumetric' : 'actual',
         ratePerKg: shippingRate.rate,
         cost: Math.round(cost) + localFee,
         minimumCharge: shippingRate.minimumCharge,
         localFee: localFee || undefined,
-        localShipments: localShipments.length > 0 ? localShipments : undefined
+        localShipments: localShipments.length > 0 ? localShipments : undefined,
+        billedVolumeM3: Number(billedVolumeM3.toFixed(4)),
+        estimatedWeightUnits: estimatedWeightUnits || undefined
       }
     }
   } else {
@@ -314,7 +339,8 @@ export async function calculateCartTotal(
       cost: Math.round(cost) + localFee,
       minimumCharge: shippingRate.minimumCharge,
       localFee: localFee || undefined,
-      localShipments: localShipments.length > 0 ? localShipments : undefined
+      localShipments: localShipments.length > 0 ? localShipments : undefined,
+      estimatedWeightUnits: estimatedWeightUnits || undefined
     }
   }
   

@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Review from '@/lib/models/Review'
 import { Order } from '@/lib/models/Order'
+import { GroupOrder } from '@/lib/models/GroupOrder'
+import User from '@/lib/models/User'
 import { verifyAuthToken } from '@/lib/jwt'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+
+/** « Awa Diop » → « Awa D. » : jamais d'email ni de nom complet sur une page publique. */
+function publicName(name?: string): string {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0 || parts[0].includes('@')) return 'Client DDM+'
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0]
+}
 
 // GET /api/reviews?productId=xxx&page=1&limit=10
 export async function GET(req: NextRequest) {
@@ -96,6 +106,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+    // Un objet JSON ici deviendrait un opérateur Mongo dans les requêtes
+    if (typeof productId !== 'string' || productId.length > 64 || (orderId !== undefined && typeof orderId !== 'string')) {
+      return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
+    }
 
     if (typeof rating !== 'number' || rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Rating doit etre entre 1 et 5' }, { status: 400 })
@@ -114,18 +128,18 @@ export async function POST(req: NextRequest) {
     }
 
     let userId: string
-    let resolvedUserName: string
     try {
       const token = req.cookies.get('auth-token')?.value
       if (!token) throw new Error('missing token')
       const decoded = await verifyAuthToken(token)
       userId = decoded.userId
-      resolvedUserName = decoded.username || decoded.email || (typeof userName === 'string' && userName.trim()) || 'Client'
     } catch {
       return NextResponse.json({ error: 'Connectez-vous pour laisser un avis' }, { status: 401 })
     }
 
     await connectMongoose()
+    const author = await User.findById(userId).select('name').lean() as any
+    const resolvedUserName = publicName(author?.name || (typeof userName === 'string' ? userName : ''))
 
     // Empecher les doublons (meme user, meme produit)
     const existing = await Review.findOne({ productId, userId })
@@ -143,15 +157,21 @@ export async function POST(req: NextRequest) {
       'items.id': productId,
     }
     if (orderId && typeof orderId === 'string') purchaseQuery.orderId = orderId
-    const verified = !!(await Order.exists(purchaseQuery))
+    const boughtInGroup = () => mongoose.isValidObjectId(productId) && mongoose.isValidObjectId(userId)
+      ? GroupOrder.exists({
+          'product.productId': new mongoose.Types.ObjectId(productId),
+          participants: { $elemMatch: { userId: new mongoose.Types.ObjectId(userId), paymentStatus: { $in: ['paid', 'partial'] } } },
+        })
+      : null
+    const verified = !!(await Order.exists(purchaseQuery)) || !!(await boughtInGroup())
 
     const review = await Review.create({
       productId,
       userId,
       userName: resolvedUserName,
       rating: Math.round(rating),
-      title: title?.trim() || undefined,
-      comment: comment.trim(),
+      title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 80) : undefined,
+      comment: comment.trim().slice(0, 1500),
       photos: cleanPhotos,
       verified,
       orderId: orderId || undefined,

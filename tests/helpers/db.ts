@@ -23,6 +23,7 @@ import ProviderProfile from '@/lib/models/ProviderProfile'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
 import Payment from '@/lib/models/Payment'
+import AdminInvoice from '@/lib/models/AdminInvoice'
 import mongoose from 'mongoose'
 
 const DEFAULT_PASSWORD = 'test123'
@@ -245,6 +246,36 @@ export async function getTestCompanyId(): Promise<string> {
   const company = await Client.findOne({ email: 'e2e-client@itvision.sn' }).select('_id').lean() as any
   if (!company) throw new Error('Société E2E introuvable')
   return String(company._id)
+}
+
+/** Facture émise (non brouillon) rattachée à la société E2E, pour les contrôles finance:view. */
+export async function createCompanyInvoiceFixture(companyClientId: string): Promise<string> {
+  await connectMongoose()
+  const numero = 'FAC-E2E-FINANCE'
+  const invoice = await AdminInvoice.findOneAndUpdate(
+    { numero },
+    {
+      $set: {
+        numero,
+        date: new Date(),
+        dueDate: new Date(Date.now() + 15 * 86400000),
+        status: 'sent',
+        clientCompanyId: new mongoose.Types.ObjectId(companyClientId),
+        client: { name: 'E2E Company' },
+        items: [{ description: 'E2E prestation', quantity: 1, unitPrice: 100000, totalPrice: 100000 }],
+        subtotal: 100000,
+        total: 100000,
+        amountPaid: 0,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  ).lean() as any
+  return String(invoice._id)
+}
+
+export async function cleanupCompanyInvoiceFixture(): Promise<void> {
+  await connectMongoose()
+  await AdminInvoice.deleteMany({ numero: 'FAC-E2E-FINANCE' })
 }
 
 /** Demande de sourcing créée par le portail entreprise (inter-domaines). */

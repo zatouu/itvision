@@ -116,6 +116,7 @@ export async function resolveGuestOrAuthUser(
   const token = await signAuthTokenWithExpiry(
     {
       userId: String(user._id),
+      sessionVersion: user.sessionVersion ?? 0,
       email: user.email,
       role: user.role,
       username: user.username,

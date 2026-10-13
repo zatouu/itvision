@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
-import Intervention from '@/lib/models/Intervention'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
 import { logDataAccess, logSecurityViolation } from '@/lib/security-logger'
 import { InputValidator } from '@/lib/input-validation'
 import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
-import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
 import { logAuditEvent } from '@/lib/audit'
+import { advanceIntervention } from '@/lib/interventions/lifecycle'
+import { notifyTechnician } from '@/lib/tech/notify-technician'
+import { notifyCompany, resolveClientCompanyId } from '@/lib/portal/company-notify'
+import { getClientContactEmails } from '@/lib/client-contacts'
+import { emailService } from '@/lib/email-service'
+import { getBrandFromHost, type BrandConfig } from '@/lib/branding'
+import { escapeHtml } from '@/lib/html-escape'
+
+// Un rapport validé est publié au client sauf désactivation explicite (relecture manuelle)
+const AUTO_PUBLISH = process.env.AUTO_PUBLISH_VALIDATED_REPORTS !== 'false'
 
 async function verifyAdminToken(request: NextRequest) {
   const user = await requireApiUser(request, ADMIN_ROLES)
@@ -99,11 +107,12 @@ export async function POST(request: NextRequest) {
         adminSignature
       }
       
-      // Auto-publication vers le client (configurable)
-      if (process.env.AUTO_PUBLISH_VALIDATED_REPORTS === 'true') {
+      // Publication vers le client
+      if (AUTO_PUBLISH) {
         report.status = 'published'
         report.publishedToClient = true
         report.publishedAt = new Date()
+        report.set('clientAcknowledgement.status', 'pending')
       }
       
     } else {
@@ -127,23 +136,16 @@ export async function POST(request: NextRequest) {
       {
         comments,
         validationTime,
-        autoPublished: action === 'approved' && process.env.AUTO_PUBLISH_VALIDATED_REPORTS === 'true'
+        autoPublished: action === 'approved' && AUTO_PUBLISH
       }
     )
     
     await report.save()
 
-    // Clôturer l'intervention liée : un rapport validé marque la fin du terrain.
-    // Sans ce passage, les endpoints client (feedback, accusé de réception) restent bloqués.
+    // Un rapport validé clôture l'intervention liée (sans quoi avis et accusé de réception restent bloqués côté client)
     if (action === 'approved' && report.interventionId) {
-      try {
-        await Intervention.updateOne(
-          { _id: report.interventionId },
-          { $set: { status: 'completed' } }
-        )
-      } catch (e) {
-        console.error('[Report] Clôture intervention impossible:', e)
-      }
+      await advanceIntervention(report.interventionId, 'completed', userId)
+        .catch(e => console.error('[Report] Clôture intervention impossible:', e))
     }
 
     // Temps réel + audit
@@ -157,31 +159,14 @@ export async function POST(request: NextRequest) {
         userId,
         userRole: 'ADMIN',
         ip: request.headers.get('x-forwarded-for') || undefined,
-        metadata: { validationTime, autoPublished: action === 'approved' && process.env.AUTO_PUBLISH_VALIDATED_REPORTS === 'true' }
+        metadata: { validationTime, autoPublished: action === 'approved' && AUTO_PUBLISH }
       })
-      if (report.interventionId) {
-        emitInterventionUpdate(String(report.interventionId), {
-          id: String(report.interventionId),
-          status: 'completed',
-          reportValidated: action === 'approved'
-        })
-      }
-      if (report.clientId && action === 'approved') {
-        emitUserNotification(String(report.clientId), {
-          type: 'success',
-          title: 'Rapport validé',
-          message: `Votre fiche d'intervention ${report.reportId} est disponible.`,
-          data: { reportId: String(report._id) }
-        })
-      }
-    } catch (e) { console.error('[Report] Realtime/audit error:', e) }
+    } catch (e) { console.error('[Report] Audit error:', e) }
 
-    // Notification au technicien
     await notifyTechnicianValidation(report, action, comments)
 
-    // Notification au client si publié
     if (report.status === 'published') {
-      await notifyClientReportAvailable(report)
+      await notifyClientReportAvailable(report, getBrandFromHost(request.nextUrl.host))
     }
 
     // Agent corporate `quote_draft` : prépare un devis brouillon à partir du
@@ -295,42 +280,62 @@ export async function GET(request: NextRequest) {
 
 // Fonction de notification technicien
 async function notifyTechnicianValidation(report: any, action: string, comments: string) {
-  console.log(`🔔 Notification technicien ${report.technicianId.name}: Rapport ${report.reportId} ${action}`)
-  
-  // Ici vous implémenterez l'envoi de notifications :
-  // - Email
-  // - Push notification
-  // - SMS si urgent
-  
-  if (process.env.NODE_ENV === 'production') {
-    // await sendNotification({
-    //   to: report.technicianId.email,
-    //   type: action === 'approved' ? 'report_approved' : 'report_rejected',
-    //   data: {
-    //     reportId: report.reportId,
-    //     clientName: report.clientId.name,
-    //     comments,
-    //     actionRequired: action === 'rejected'
-    //   }
-    // })
-  }
+  const technicianId = report.technicianId?._id || report.technicianId
+  const approved = action === 'approved'
+  await notifyTechnician(technicianId, approved
+    ? {
+        type: 'success',
+        title: `Rapport validé : ${report.reportId}`,
+        message: report.status === 'published' ? 'Il est publié dans l\u2019espace du client.' : 'Il sera publié au client après relecture.',
+        actionUrl: '/tech-interface?tab=rapports',
+        metadata: { reportId: String(report._id) },
+      }
+    : {
+        type: 'warning',
+        title: `Rapport à corriger : ${report.reportId}`,
+        message: String(comments || '').slice(0, 300),
+        actionUrl: `/tech-interface?tab=rapports&rapport=${report._id}`,
+        metadata: { reportId: String(report._id) },
+      })
 }
 
-// Fonction de notification client
-async function notifyClientReportAvailable(report: any) {
-  console.log(`🔔 Notification client ${report.clientId.name}: Nouveau rapport disponible ${report.reportId}`)
-  
-  if (process.env.NODE_ENV === 'production') {
-    // await sendClientNotification({
-    //   to: report.clientId.email,
-    //   type: 'new_report_available',
-    //   data: {
-    //     reportId: report.reportId,
-    //     interventionDate: report.interventionDate,
-    //     technicianName: report.technicianId.name,
-    //     portalUrl: `https://itvision.sn/client-portal`
-    //   }
-    // })
+async function notifyClientReportAvailable(report: any, brand: BrandConfig) {
+  const companyId = await resolveClientCompanyId(report.clientId?._id || report.clientId)
+  if (!companyId) return
+  const dateStr = report.interventionDate ? new Date(report.interventionDate).toLocaleDateString('fr-FR') : ''
+  const actionUrl = `/portail-entreprise/rapports?rapport=${report._id}`
+  await notifyCompany({
+    companyId,
+    category: 'report',
+    requires: 'reports:view',
+    title: `Rapport d\u2019intervention disponible : ${report.reportId}`,
+    message: `${report.site || 'Votre site'}${dateStr ? ` · ${dateStr}` : ''}. Merci d\u2019en accuser réception.`,
+    actionUrl,
+    metadata: { reportId: String(report._id) },
+  })
+
+  try {
+    const emails = await getClientContactEmails(companyId)
+    if (!emails.length) return
+    const link = `${brand.url}${actionUrl}`
+    await emailService.sendEmail({
+      to: emails.join(', '),
+      fromName: brand.name,
+      brand,
+      subject: `Rapport d'intervention ${report.reportId} - ${brand.name}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <h2 style="color:#065f46;margin:0 0 12px">Votre rapport d'intervention est disponible</h2>
+          <p>Référence : <strong>${escapeHtml(report.reportId)}</strong></p>
+          <p>Site : ${escapeHtml(report.site || '')}${dateStr ? ` · ${dateStr}` : ''}</p>
+          <p>Il a été relu et validé par nos équipes. Vous pouvez le consulter et en accuser réception dans votre espace.</p>
+          <p style="margin:20px 0"><a href="${link}" style="background:#065f46;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Consulter le rapport</a></p>
+          <p style="color:#6b7280;font-size:13px">L'équipe ${escapeHtml(brand.name)}</p>
+        </div>`,
+      text: `Rapport d'intervention ${report.reportId} disponible.\nSite : ${report.site || ''} ${dateStr}\nConsulter : ${link}`,
+    })
+  } catch (e) {
+    console.error('[Report] Email client:', e)
   }
 }
 

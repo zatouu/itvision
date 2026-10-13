@@ -1,6 +1,7 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
-import { DEFAULT_EXCHANGE_RATE } from './pricing/exchange-rate'
+import { getPlatformExchangeRate } from './pricing/platform-rate'
 import { resolveDisplayPrice } from './pricing/display-price'
+import type { PricingDefaults } from './pricing/settings'
 
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
@@ -29,7 +30,7 @@ const normalizeGallery = (product: any): string[] => {
   }
 
 // Normalise les variantes avec prix (style 1688)
-export const normalizeVariantGroups = (product: any) => {
+export const normalizeVariantGroups = (product: any, defaultExchangeRate = getPlatformExchangeRate()) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
     return []
   }
@@ -37,7 +38,7 @@ export const normalizeVariantGroups = (product: any) => {
   // Prix client affiché par variante = coût sourcing variante × (1 + marge) —
   // même formule que le salePrice produit, mêmes règles que le devis serveur.
   const marginRate = typeof product.marginRate === 'number' && product.marginRate > 0 ? product.marginRate : 0
-  const exchangeRate = typeof product.exchangeRate === 'number' && product.exchangeRate > 0 ? product.exchangeRate : DEFAULT_EXCHANGE_RATE
+  const exchangeRate = typeof product.exchangeRate === 'number' && product.exchangeRate > 0 ? product.exchangeRate : defaultExchangeRate
   const variantSourcingFcfa = (v: any): number | null =>
     typeof v?.priceFCFA === 'number' && v.priceFCFA > 0 ? v.priceFCFA
       : typeof v?.price1688 === 'number' && v.price1688 > 0 ? Math.round(v.price1688 * exchangeRate)
@@ -56,7 +57,7 @@ export const normalizeVariantGroups = (product: any) => {
         priceFCFA: v.priceFCFA ?? undefined,
         // Prix unitaire client de la variante (marge incluse) — undefined = prix produit
         price: sourcing !== null ? Math.round(sourcing * (1 + marginRate / 100)) : undefined,
-        stock: v.stock ?? 0,
+        stock: typeof v.stock === 'number' ? v.stock : undefined,
         isDefault: v.isDefault ?? false
       }
     }) : []
@@ -65,9 +66,10 @@ export const normalizeVariantGroups = (product: any) => {
 
 export const formatProductDetail = (
   product: any,
-  shippingRates?: Record<ShippingMethodId, ShippingRate>
+  shippingRates?: Record<ShippingMethodId, ShippingRate>,
+  defaults?: PricingDefaults
 ) => {
-  const pricing = computeProductPricing(product, shippingRates)
+  const pricing = computeProductPricing(product, shippingRates, undefined, defaults?.singleImportServiceFeeRate, defaults)
 
   // Les produits à variantes chiffrées sont éligibles : le join porte la
   // sélection de variante et les paliers sont mis à l'échelle du prix variante.
@@ -100,7 +102,7 @@ export const formatProductDetail = (
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
     // Variantes avec prix et images (style 1688)
-    variantGroups: normalizeVariantGroups(product),
+    variantGroups: normalizeVariantGroups(product, defaults?.defaultExchangeRate),
     requiresQuote: product.requiresQuote ?? false,
     currency: pricing.currency,
     pricing,
@@ -113,6 +115,7 @@ export const formatProductDetail = (
     },
     logistics: {
       weightKg: product.weightKg ?? product.grossWeightKg ?? null,
+      weightEstimated: !!product.weightEstimated,
       packagingWeightKg: product.packagingWeightKg ?? null,
       volumeM3: product.volumeM3 ?? null,
       dimensions: product.lengthCm && product.widthCm && product.heightCm
@@ -155,10 +158,11 @@ export const formatProductDetail = (
 
 export const formatSimilarProducts = (
   products: any[],
-  shippingRates?: Record<ShippingMethodId, ShippingRate>
+  shippingRates?: Record<ShippingMethodId, ShippingRate>,
+  defaults?: PricingDefaults
 ) => {
   return products.map((item) => {
-    const pricing = computeProductPricing(item, shippingRates)
+    const pricing = computeProductPricing(item, shippingRates, undefined, defaults?.singleImportServiceFeeRate, defaults)
     const bestShipping = pricing.shippingOptions.length > 0
       ? pricing.shippingOptions.reduce((prev, current) => (prev.total <= current.total ? prev : current))
       : null

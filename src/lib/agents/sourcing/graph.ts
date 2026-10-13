@@ -23,10 +23,11 @@ import {
   search1688ViaEngines, searchAliExpressViaEngines, searchAlibabaViaEngines,
   searchAliExpressNative, searchAlibabaNative,
 } from '@/lib/browser-scraper'
-import { toChineseQuery } from './query-translate'
-import { computeProductPricing } from '@/lib/logistics'
+import { toChineseQuery, toEnglishQuery } from './query-translate'
 import { sourceCurrencyRate, minSourcePrice, DEFAULT_SERVICE_FEE_RATE, DEFAULT_INSURANCE_RATE } from '@/lib/pricing/constants'
 import { localizeProductImages } from './localize-images'
+import { canonicalSource, estimateWeightKg, findImportedProduct, importPricing, translateTitleFr } from '@/lib/market/catalog-import'
+import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 const PLATFORM_LABEL: Record<SourcePlatform, string> = {
   '1688': '1688',
@@ -50,7 +51,7 @@ const SourcingState = Annotation.Root({
   extracted: Annotation<Product1688[]>,
   failed: Annotation<string[]>,
   blockedReason: Annotation<string | undefined>,
-  scored: Annotation<Array<{ product: Product1688; baseCost: number; exchangeRate: number; suggestedPrice: number }>>,
+  scored: Annotation<Array<{ product: Product1688; baseCost: number; exchangeRate: number; suggestedPrice: number; serviceFeeRate?: number; insuranceRate?: number }>>,
   imported: Annotation<Array<{ productId: string; name: string; price: number }>>,
   summary: Annotation<Record<string, unknown>>,
 })
@@ -117,16 +118,17 @@ export async function discoverSourceUrls(
   // Chemin primaire : pages de recherche natives (SSR, fiables) ;
   // moteurs en complément si la recherche native est vide.
   const intlLimit = Math.max(3, Math.ceil(maxItems / 3))
+  const enQuery = await toEnglishQuery(query)
   let [aeUrls, alibabaUrls] = await Promise.all([
-    searchAliExpressNative(query, intlLimit),
-    searchAlibabaNative(query, intlLimit),
+    searchAliExpressNative(enQuery, intlLimit),
+    searchAlibabaNative(enQuery, intlLimit),
   ])
   if (aeUrls.length < intlLimit) {
-    const extra = await searchAliExpressViaEngines(query, intlLimit - aeUrls.length)
+    const extra = await searchAliExpressViaEngines(enQuery, intlLimit - aeUrls.length)
     aeUrls = [...aeUrls, ...extra.filter((u) => !aeUrls.includes(u))]
   }
   if (alibabaUrls.length < intlLimit) {
-    const extra = await searchAlibabaViaEngines(query, intlLimit - alibabaUrls.length)
+    const extra = await searchAlibabaViaEngines(enQuery, intlLimit - alibabaUrls.length)
     alibabaUrls = [...alibabaUrls, ...extra.filter((u) => !alibabaUrls.includes(u))]
   }
   // Alibaba sert une « punish page » au fetch nu dès quelques requêtes —
@@ -135,7 +137,7 @@ export async function discoverSourceUrls(
   if (alibabaUrls.length === 0) {
     try {
       const s = await getScraper()
-      const r = await s.searchAlibaba(query, intlLimit)
+      const r = await s.searchAlibaba(enQuery, intlLimit)
       if (r.success && r.data?.length) {
         alibabaUrls = r.data
         console.log(`[sourcing] Alibaba via navigateur → ${alibabaUrls.length} URLs`)
@@ -204,10 +206,11 @@ function normalizeInternational(d: ProductAliExpress, platform: SourcePlatform, 
     tagline: d.tagline || `Import ${PLATFORM_LABEL[platform]}`,
     availabilityNote: d.availabilityNote || `Import ${PLATFORM_LABEL[platform]} — délai à confirmer`,
     features: d.features || [],
-    weightKg: d.weightKg || 1,
-    lengthCm: 10,
-    widthCm: 10,
-    heightCm: 10,
+    weightKg: d.weightKg || 0,
+    logisticsExtracted: false,
+    lengthCm: 0,
+    widthCm: 0,
+    heightCm: 0,
     specifications: {},
     // Alibaba B2B : orders porte le MOQ. AliExpress : orders = ventes réelles.
     moq: platform === 'alibaba' ? d.orders : undefined,
@@ -319,27 +322,15 @@ async function extract(state: typeof SourcingState.State) {
 }
 
 /** Prix suggéré = sourcing (CNY→FCFA) + marge + frais de service + assurance.
- *  Délègue à computeProductPricing — la même formule que le reste de la plateforme. */
-function score(state: typeof SourcingState.State) {
+ *  Même règle que tous les imports (importPricing : taux plateforme, transport exclu). */
+async function score(state: typeof SourcingState.State) {
+  const pricingSettings = await readSharedPricing()
   const scored = state.extracted.map((p) => {
     const platform = p.platform || '1688'
-    const exchangeRate = p.exchangeRate > 0 ? p.exchangeRate : sourceCurrencyRate(p.price1688Currency)
+    const priced = importPricing({ sourcePrice: p.price1688 || 0, currency: p.price1688Currency, platform, marginRate: MARGIN_RATE }, pricingSettings.config)
+    const exchangeRate = priced.exchangeRate
     const baseCost = Math.round((p.price1688 || 0) * exchangeRate)
-    const pricing = computeProductPricing({
-      baseCost,
-      marginRate: MARGIN_RATE,
-      serviceFeeRate: DEFAULT_SERVICE_FEE_RATE,
-      insuranceRate: DEFAULT_INSURANCE_RATE,
-      price1688: p.price1688,
-      exchangeRate,
-      currency: 'FCFA',
-      sourcing: { platform, supplierName: p.supplier?.name || '', supplierContact: '', productUrl: p.productUrl, notes: '' },
-      stockStatus: 'preorder',
-    })
-    // Prix affiché arrondi au 500 F supérieur (convention marketplace)
-    const raw = pricing.totalWithFees ?? baseCost
-    const suggestedPrice = Math.ceil(raw / 500) * 500
-    return { product: p, baseCost, exchangeRate, suggestedPrice }
+    return { product: p, baseCost, exchangeRate, suggestedPrice: priced.price, serviceFeeRate: priced.serviceFeeRate, insuranceRate: priced.insuranceRate }
   })
   return { scored }
 }
@@ -351,8 +342,9 @@ async function importDrafts(state: typeof SourcingState.State) {
     const p = item.product
     const platform = p.platform || '1688'
     const platformLabel = PLATFORM_LABEL[platform]
-    // Dédup par URL source — la convention existante (api/products/import)
-    const exists = await Product.findOne({ 'sourcing.productUrl': p.productUrl }).select('_id').lean()
+    // Dédoublonnage par offre (identifiant externe) ou URL source
+    const source = canonicalSource(p.productUrl, platform)
+    const exists = await findImportedProduct(source, p.productUrl)
     if (exists) continue
 
     // Rapatrie les images dans uploads/products — les CDN chinois servent
@@ -370,8 +362,10 @@ async function importDrafts(state: typeof SourcingState.State) {
       p.moq ? `\n\nQuantité min. fournisseur : ${p.moq} pcs` : '',
     ].filter(Boolean).join('\n').slice(0, 4000)
 
+    const name = await translateTitleFr(p.name)
+    const hasDims = !!(p.lengthCm && p.widthCm && p.heightCm)
     const created = await Product.create({
-      name: p.name.slice(0, 200),
+      name: name.slice(0, 200),
       description,
       category: state.category || 'Import Chine',
       tagline: p.tagline || `Sourcé ${platformLabel}${p.supplier?.name ? ` • ${p.supplier.name}` : ''}`,
@@ -391,17 +385,18 @@ async function importDrafts(state: typeof SourcingState.State) {
       price1688: p.price1688,
       price1688Currency: p.price1688Currency || 'CNY',
       exchangeRate: item.exchangeRate,
-      serviceFeeRate: DEFAULT_SERVICE_FEE_RATE,
-      insuranceRate: DEFAULT_INSURANCE_RATE,
-      weightKg: p.weightKg || 1,
-      lengthCm: p.lengthCm || 10,
-      widthCm: p.widthCm || 10,
-      heightCm: p.heightCm || 10,
+      serviceFeeRate: item.serviceFeeRate ?? DEFAULT_SERVICE_FEE_RATE,
+      insuranceRate: item.insuranceRate ?? DEFAULT_INSURANCE_RATE,
+      // Logistique inconnue : estimée, transport ajusté à la pesée (plus de 1 kg / 10×10×10 inventés)
+      weightKg: p.weightKg || estimateWeightKg(`${name} ${state.category || ''}`),
+      weightEstimated: !p.weightKg || !hasDims,
+      ...(hasDims ? { lengthCm: p.lengthCm, widthCm: p.widthCm, heightCm: p.heightCm } : {}),
       variantGroups: p.variantGroups || [],
       sourcing: {
         platform,
         supplierName: p.supplier?.name,
-        productUrl: p.productUrl,
+        productUrl: source.url || p.productUrl,
+        externalId: source.externalId || p.offerId,
         notes: `Veille agent « ${state.query} »${p.offerId ? ` — offerId ${p.offerId}` : ''}${p.moq ? ` — MOQ ${p.moq}` : ''}`,
       },
       ...(state.groupBuyEligible

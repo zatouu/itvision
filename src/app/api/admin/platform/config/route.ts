@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import AppConfig from '@/lib/models/AppConfig'
 import { invalidateAppConfigCache } from '@/lib/wallet'
+import { WHATSAPP_RELAY_EVENTS } from '@/lib/whatsapp-relay-events'
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,12 +39,25 @@ export async function POST(request: NextRequest) {
       monetization,
       escrow,
       ai,
+      integrations,
     } = body
 
     const update: Record<string, any> = {}
     if (monetization) update['monetization'] = monetization
     if (escrow) update['escrow'] = escrow
     if (ai) update['ai'] = ai
+    if (typeof integrations?.ddmBridge?.enabled === 'boolean') update['integrations.ddmBridge.enabled'] = integrations.ddmBridge.enabled
+    if (typeof integrations?.onlinePayments?.enabled === 'boolean') update['integrations.onlinePayments.enabled'] = integrations.onlinePayments.enabled
+    if (typeof integrations?.whatsappRelay?.enabled === 'boolean') update['integrations.whatsappRelay.enabled'] = integrations.whatsappRelay.enabled
+    if (typeof integrations?.sourcingAutoSend?.enabled === 'boolean') update['integrations.sourcingAutoSend.enabled'] = integrations.sourcingAutoSend.enabled
+    const minRel = Number(integrations?.sourcingAutoSend?.minRelevance)
+    if (Number.isFinite(minRel) && minRel >= 0.5 && minRel <= 1) update['integrations.sourcingAutoSend.minRelevance'] = minRel
+    if (integrations?.whatsappRelay?.events && typeof integrations.whatsappRelay.events === 'object') {
+      for (const ev of WHATSAPP_RELAY_EVENTS) {
+        const v = integrations.whatsappRelay.events[ev.key]
+        if (typeof v === 'boolean') update[`integrations.whatsappRelay.events.${ev.key}`] = v
+      }
+    }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Aucune donnée à mettre à jour' }, { status: 400 })

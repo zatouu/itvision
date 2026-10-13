@@ -56,6 +56,35 @@ export type PaymentSettings = {
   }
 }
 
+export type CheckoutPaymentSettings = {
+  providers: {
+    manual: PaymentSettings['providers']['manual']
+    gateway: Pick<PaymentSettings['providers']['gateway'], 'active' | 'provider'>
+    escrow: PaymentSettings['providers']['escrow']
+  }
+}
+
+export function toCheckoutPaymentSettings(settings: PaymentSettings): CheckoutPaymentSettings {
+  const { manual, gateway, escrow } = settings.providers
+  return {
+    providers: {
+      manual: {
+        waveMerchantPhone: manual.waveMerchantPhone,
+        waveQrUrl: manual.waveQrUrl,
+        wavePayUrl: manual.wavePayUrl,
+        orangeMerchantPhone: manual.orangeMerchantPhone,
+        freeMoneyMerchantPhone: manual.freeMoneyMerchantPhone,
+        instructions: manual.instructions,
+        bankName: manual.bankName,
+        bankAccountName: manual.bankAccountName,
+        bankIban: manual.bankIban,
+      },
+      gateway: { active: gateway.active, provider: gateway.provider },
+      escrow: { enabled: escrow.enabled, holdPercentage: escrow.holdPercentage },
+    },
+  }
+}
+
 const DEFAULT_GROUP_ORDER_RULES: GroupOrderRules = {
   defaultMinQty: 10,
   defaultTargetQty: 50,

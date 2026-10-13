@@ -24,6 +24,23 @@ import { sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
 import { normalizeVariantGroups } from '@/lib/catalog-format'
 import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
 import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/group-orders/pricing'
+import { notifyAdmins, notifyUser } from '@/lib/notify'
+import { announceNewGroup } from '@/lib/group-orders/announce'
+import { resolveReferral, syncGroupCommissions } from '@/lib/market/ambassador'
+import PickupPoint from '@/lib/models/PickupPoint'
+import { ChinaPurchase } from '@/lib/models/ChinaPurchase'
+
+// « filled → open » reste possible pour rouvrir un groupe (prolongation décidée par l'admin)
+const GROUP_STATUS_TRANSITIONS: Record<string, string[]> = {
+  draft: ['open', 'cancelled'],
+  open: ['filled', 'cancelled'],
+  filled: ['open', 'ordering', 'cancelled'],
+  ordering: ['ordered', 'cancelled'],
+  ordered: ['shipped', 'cancelled'],
+  shipped: ['delivered'],
+  delivered: [],
+  cancelled: [],
+}
 
 function hashChatToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -59,7 +76,19 @@ function buildVariantScaleBranches(
       if (seen.has(key)) continue
       seen.add(key)
       branches.push({
-        case: { $eq: [{ $join: { input: { $ifNull: ['$$p.variantIds', []] }, on: '|' } }, key] },
+        // MongoDB n'a pas d'opérateur $join : concaténation des ids via $reduce
+        case: {
+          $eq: [
+            {
+              $reduce: {
+                input: { $ifNull: ['$$p.variantIds', []] },
+                initialValue: '',
+                in: { $cond: [{ $eq: ['$$value', ''] }, '$$this', { $concat: ['$$value', '|', '$$this'] }] },
+              },
+            },
+            key,
+          ],
+        },
         then: scale,
       })
     }
@@ -106,12 +135,29 @@ export async function GET(
       if (groupProduct) variantGroups = normalizeVariantGroups(groupProduct)
     }
 
+    // Preuve de sérieux : photos du contrôle qualité à Guangzhou (pas de notes internes ni d'identité du contrôleur)
+    let qualityCheck: { result: string; checkedAt?: Date; photos: string[]; videos: string[] } | undefined
+    const purchaseId = (group as any).chinaPurchase?.purchaseId
+    if (purchaseId) {
+      const cp = await ChinaPurchase.findOne({ purchaseId }).select('qualityCheck').lean() as any
+      const qc = cp?.qualityCheck
+      if (qc && ['passed', 'partial'].includes(qc.result) && ((qc.photos?.length || 0) + (qc.videos?.length || 0)) > 0) {
+        qualityCheck = {
+          result: qc.result,
+          checkedAt: qc.checkedAt,
+          photos: (qc.photos || []).slice(0, 8),
+          videos: (qc.videos || []).slice(0, 2),
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       group: {
         ...sanitizePublicGroupDetail(group),
         variantGroups,
         requiresVariant: variantGroups.length > 0,
+        qualityCheck,
       }
     })
     
@@ -290,6 +336,20 @@ export async function POST(
       participantDoc.variantLabels = variantSelection.variantLabels
     }
 
+    const pickupPointId = typeof body?.pickupPointId === 'string' ? body.pickupPointId.trim() : ''
+    if (pickupPointId) {
+      const point = mongoose.isValidObjectId(pickupPointId)
+        ? await PickupPoint.findOne({ _id: pickupPointId, active: true }).select('name neighborhood').lean() as any
+        : null
+      if (!point) {
+        return NextResponse.json({ success: false, error: 'Ce point de retrait n\'est plus disponible, choisissez-en un autre' }, { status: 400 })
+      }
+      participantDoc.pickupPoint = { id: String(point._id), name: point.name, neighborhood: point.neighborhood }
+    }
+
+    const referral = await resolveReferral(req, { userId: auth.userId, phone: normalizedPhone }, body?.ref)
+    if (referral) participantDoc.referral = referral
+
     const claimFilter: any = {
       groupId,
       status: 'open',
@@ -368,7 +428,8 @@ export async function POST(
       [
         {
           $set: {
-            participants: { $concatArrays: ['$participants', [participantDoc]] },
+            // $literal : un nom saisi commençant par « $ » ne doit pas être lu comme un chemin de champ
+            participants: { $concatArrays: ['$participants', { $literal: [participantDoc] }] },
             currentQty: { $add: ['$currentQty', qty] },
             updatedAt: now,
           },
@@ -596,6 +657,13 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = body.description
     if (body.internalNotes !== undefined) updateData.internalNotes = body.internalNotes
     if (body.linkedOrderId) updateData.linkedOrderId = body.linkedOrderId
+    if (body.whatsappInviteUrl !== undefined) {
+      const wa = String(body.whatsappInviteUrl || '').trim()
+      if (wa && !/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{10,40}$/.test(wa)) {
+        return NextResponse.json({ success: false, error: 'Lien WhatsApp invalide (attendu : https://chat.whatsapp.com/…)' }, { status: 400 })
+      }
+      updateData.whatsappInviteUrl = wa || undefined
+    }
     if (body.estimatedDelivery) updateData.estimatedDelivery = new Date(body.estimatedDelivery)
     
     // Mise à jour paiement d'un participant
@@ -658,6 +726,20 @@ export async function PATCH(
     }
     const previousStatus = previousGroup?.status
 
+    if (body.status && body.status !== previousStatus && !(GROUP_STATUS_TRANSITIONS[previousStatus] || []).includes(body.status)) {
+      return NextResponse.json(
+        { success: false, error: `Transition interdite de "${previousStatus}" vers "${body.status}"` },
+        { status: 409 }
+      )
+    }
+    // Rouvrir après des paiements ferait baisser le prix sous ce qui a déjà été versé
+    if (body.status === 'open' && previousStatus === 'filled' && (previousGroup.participants || []).some((p: any) => (p.paidAmount || 0) > 0)) {
+      return NextResponse.json(
+        { success: false, error: 'Des participants ont déjà payé : le groupe ne peut plus être rouvert' },
+        { status: 409 }
+      )
+    }
+
     if (
       ['ordering', 'ordered'].includes(body.status) &&
       previousStatus !== body.status
@@ -696,7 +778,7 @@ export async function PATCH(
     }
     
     const group = await GroupOrder.findOneAndUpdate(
-      { groupId },
+      body.status ? { groupId, status: previousStatus } : { groupId },
       updateData,
       { new: true }
     ).lean() as any
@@ -704,12 +786,46 @@ export async function PATCH(
     
     if (!group) {
       return NextResponse.json(
-        { success: false, error: 'Achat groupé non trouvé' },
-        { status: 404 }
+        { success: false, error: body.status ? 'Le statut a changé entre-temps, rechargez la page' : 'Achat groupé non trouvé' },
+        { status: body.status ? 409 : 404 }
       )
+    }
+
+    if (body.status === 'cancelled' && previousStatus !== 'cancelled') {
+      const paid = (group.participants || []).filter((p: any) => (p.paidAmount || 0) > 0 && p.paymentStatus !== 'refunded')
+      if (paid.length > 0) {
+        const amount = paid.reduce((s: number, p: any) => s + (p.paidAmount || 0), 0)
+        void notifyAdmins({
+          type: 'warning',
+          title: 'Achat groupé annulé : remboursements à effectuer',
+          message: `${groupId} : ${paid.length} participant(s), ${Math.round(amount).toLocaleString('fr-FR')} FCFA à rembourser.`,
+          actionUrl: '/admin/marketplace/remboursements',
+          metadata: { groupId, amount },
+        })
+      }
     }
     
     // Envoyer notification si le statut a changé
+    if (body.status === 'open' && previousStatus === 'draft') {
+      void announceNewGroup(groupId).catch((err) => console.error('Erreur annonce nouveau groupe:', err))
+    }
+    if (body.status === 'delivered' && previousStatus !== 'delivered') {
+      void syncGroupCommissions(groupId, 'delivered').catch((err) => console.error('Erreur commissions groupe:', err))
+      // Lot reçu : proposer la revente en boutique (fiche pré-remplie) aux participants multi-pièces
+      for (const p of (group.participants || []) as any[]) {
+        if (!p.userId || (p.qty || 0) < 2 || p.paymentStatus !== 'paid') continue
+        void notifyUser(String(p.userId), {
+          type: 'success',
+          title: `Lot livré : ${group.product?.name || 'votre achat groupé'}`,
+          message: `Vos ${p.qty} pièces sont arrivées. Revendez-les dans votre boutique DDM+ avec le tag « En stock » : fiche pré-remplie, prix d'achat et marge calculés.`,
+          actionUrl: `/compte/achats-groupes`,
+          metadata: { groupId },
+        })
+      }
+    }
+    if (body.status === 'cancelled' && previousStatus !== 'cancelled') {
+      void syncGroupCommissions(groupId, 'cancelled').catch((err) => console.error('Erreur commissions groupe:', err))
+    }
     if (body.status && body.status !== previousStatus) {
       try {
         const participants = group.participants.map((p: any) => ({

@@ -59,35 +59,35 @@ export function ProductCard({
     <Card
       onClick={onClick}
       className={cn(
-        'group flex flex-col overflow-hidden transition-shadow hover:shadow-md',
+        'group flex min-w-0 flex-col overflow-hidden transition-shadow hover:shadow-md',
         onClick ? 'cursor-pointer' : 'cursor-default',
         className
       )}
     >
-      <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
+      <div className="relative aspect-square shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
         {image && !imageError ? (
           <img loading="lazy" decoding="async" src={image}
             alt={product.name}
             onError={() => setImageError(true)}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
             <Icon name="package" size={28} />
-            <span className="text-[10px] mt-1">Image indisponible</span>
+            <span className="text-[11px] mt-1">Image indisponible</span>
           </div>
         )}
 
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           {/* Le MOQ n'est une information que s'il contraint réellement l'achat */}
           {moq > 1 && (
-            <Badge tone="amber" className="text-[10px]">
+            <Badge tone="amber" className="text-[11px]">
               <Icon name="package" size={10} />
               Min. {moq}
             </Badge>
           )}
           {product.hasGroup && (
-            <Badge tone="violet" className="text-[10px]">
+            <Badge tone="violet" className="text-[11px]">
               <Icon name="users" size={10} />
               Groupe
             </Badge>
@@ -96,7 +96,7 @@ export function ProductCard({
 
         <div className="absolute right-2 top-2 flex flex-col items-end gap-1">
           {savePct > 0 && (
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-md bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
               -{savePct}%
             </span>
           )}
@@ -152,14 +152,14 @@ export function ProductCard({
         </div>
 
         {compareFull && (
-          <span className="absolute inset-x-2 bottom-11 rounded-lg bg-slate-900/90 px-2 py-1 text-center text-[10px] font-semibold text-white">
+          <span className="absolute inset-x-2 bottom-11 rounded-lg bg-slate-900/90 px-2 py-1 text-center text-[11px] font-semibold text-white">
             Comparateur plein ({compareMax} max)
           </span>
         )}
       </div>
 
-      <div className={cn('flex flex-1 flex-col p-2.5', isLg && 'md:p-3')}>
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className={cn('flex min-w-0 flex-1 flex-col p-2.5 [overflow-wrap:anywhere]', isLg && 'md:p-3')}>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {category}
         </p>
         <p
@@ -173,7 +173,7 @@ export function ProductCard({
 
         {/* Étoiles uniquement si des avis existent réellement */}
         {product.rating > 0 && (product.reviewCount ?? 0) > 0 ? (
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
             <Icon
               name="star"
               size={10}
@@ -187,27 +187,27 @@ export function ProductCard({
             <span className="tabular-nums">({product.reviewCount})</span>
           </div>
         ) : availability ? (
-          <p className={cn('mt-1 text-[10px] font-semibold', availability.tone)}>{availability.label}</p>
+          <p className={cn('mt-1 text-[11px] font-semibold', availability.tone)}>{availability.label}</p>
         ) : null}
 
-        <div className="mt-1.5 flex items-baseline gap-1.5 whitespace-nowrap">
+        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
           <span
             className={cn(
-              'font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400',
+              'min-w-0 max-w-full font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400',
               isLg ? 'text-[15px]' : 'text-[14px]'
             )}
           >
             {formatFcfa(product.price)}
           </span>
           {bestPrice > 0 && (
-            <span className="text-[10px] font-semibold text-slate-400 line-through tabular-nums">
+            <span className="min-w-0 max-w-full text-[11px] font-semibold text-slate-400 line-through tabular-nums">
               {formatFcfa(bestPrice)}
             </span>
           )}
         </div>
         {/* Le prix unitaire inclut les frais d'import mais pas le transport :
             l'annoncer ici évite la surprise au panier. */}
-        <p className="mt-0.5 text-[9px] leading-tight text-slate-400 dark:text-slate-500">
+        <p className="mt-0.5 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
           {product.includedFees ? 'Frais inclus' : 'Prix unitaire'} · transport en sus
         </p>
 

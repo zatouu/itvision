@@ -12,6 +12,8 @@ import { Badge } from '../Badge';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import { mapOrder } from '../data-mappers';
+import RetryNotice from '../RetryNotice';
+import { isPaymentSettled } from '@/lib/order-status';
 import type { Order, OrderStep, OrderStatus } from '../types';
 
 
@@ -35,6 +37,8 @@ export default function ScreenTracking() {
   const [ORDER_STEPS, setORDER_STEPS] = useState<OrderStep[]>([]);
   const [publicInfo, setPublicInfo] = useState<PublicTracking | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const params = useParams();
   const searchParams = useSearchParams();
@@ -43,15 +47,26 @@ export default function ScreenTracking() {
 
   useEffect(() => {
     if (!reference) return;
+    const controller = new AbortController();
     setLoading(true);
+    setError(null);
+    setORDERS([]);
+    setORDER_STEPS([]);
+    setPublicInfo(null);
+    setUnauthorized(false);
     const orderUrl = `/api/order/${encodeURIComponent(reference)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-    fetch(orderUrl, { credentials: 'include' })
+    fetch(orderUrl, { credentials: 'include', signal: controller.signal })
       .then(async r => {
         if (r.ok) return r.json();
+        if (![401, 403, 404].includes(r.status)) throw new Error('Le suivi est temporairement indisponible.');
         // Pas de session ni de token : vue publique masquée si la commande existe
-        const pub = await fetch(`/api/order/track-public?ref=${encodeURIComponent(reference)}`)
-          .then(pr => (pr.ok ? pr.json() : null))
-          .catch(() => null);
+        const pub = await fetch(`/api/order/track-public?ref=${encodeURIComponent(reference)}`, { signal: controller.signal })
+          .then(response => {
+            if (response.status === 404) return null;
+            if (!response.ok) throw new Error('Impossible de charger le suivi public.');
+            return response.json();
+          });
+        if (controller.signal.aborted) return null;
         if (pub?.order) {
           setPublicInfo(pub.order as PublicTracking);
           setUnauthorized(true);
@@ -59,16 +74,18 @@ export default function ScreenTracking() {
         return null;
       })
       .then(data => {
+        if (controller.signal.aborted) return;
         if (data?.order) {
-          setORDERS([mapOrder(data.order) as Order]);
+          setORDERS([{ ...mapOrder(data.order), date: data.order.createdAt ? mapOrder(data.order).date : '' } as Order]);
         }
         if (data?.orderSteps) {
           setORDER_STEPS(data.orderSteps as OrderStep[]);
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [reference, token]);
+      .catch(failure => { if (!controller.signal.aborted) setError(failure.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [reference, token, attempt]);
 
 
   const order = ORDERS[0];
@@ -87,6 +104,8 @@ export default function ScreenTracking() {
     return <div className="flex h-screen items-center justify-center text-slate-500 dark:text-slate-400">Chargement…</div>;
   }
 
+  if (error) return <section className="mx-auto max-w-5xl px-4 py-8"><h1 className="text-2xl font-bold">Suivi de commande</h1><RetryNotice message={error} onRetry={() => setAttempt(value => value + 1)}/></section>;
+
   // Vue publique masquée : la commande existe mais le détail exige le lien de suivi
   if (unauthorized && publicInfo) {
     return (
@@ -95,7 +114,7 @@ export default function ScreenTracking() {
           <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
             <Icon name="truck" size={26}/>
           </span>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{publicInfo.orderId}</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{publicInfo.orderId}</p>
           <h1 className="mt-1 text-[20px] font-extrabold text-slate-900 dark:text-white">{publicInfo.statusLabel}</h1>
           {publicInfo.step > 0 && (
             <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400">Étape {publicInfo.step}/5 · {publicInfo.itemCount} article{publicInfo.itemCount > 1 ? 's' : ''}</p>
@@ -142,18 +161,14 @@ export default function ScreenTracking() {
 
   const stepDates = steps.length
     ? steps.map((_, i) => {
-        const orderDate = order.date ? new Date(order.date) : new Date();
-        const eta = order.eta && order.eta !== '—' ? new Date(order.eta) : null;
+        const orderDate = order.date ? new Date(order.date) : null;
         if (i === 0) {
-          return { date: orderDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), desc: 'Paiement confirmé' };
+          return { date: orderDate ? orderDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Date non communiquée', desc: isPaymentSettled(order.paymentStatus) ? 'Paiement confirmé' : 'En attente de paiement' };
         }
         if (i === steps.length - 1) {
-          return { date: eta ? eta.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—', desc: 'Livraison prévue' };
+          return { date: order.status === 'delivered' ? 'Date non communiquée' : order.eta || 'Date non communiquée', desc: order.status === 'delivered' ? 'Livraison confirmée' : 'Livraison estimée' };
         }
-        const offsetDays = [0, 1, 2, 4, 7][i] ?? i;
-        const d = new Date(orderDate);
-        d.setDate(d.getDate() + offsetDays);
-        return { date: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), desc: steps[i]?.desc || 'Mise à jour' };
+        return { date: 'Date non communiquée', desc: steps[i]?.desc || 'Mise à jour' };
       })
     : [];
 
@@ -168,7 +183,7 @@ export default function ScreenTracking() {
   };
 
   
-  const Timeline = () => (
+  const Timeline = () => order.status === 'cancelled' ? <p className="py-4 text-sm text-red-700 dark:text-red-300">Cette commande a été annulée.</p> : !isPaymentSettled(order.paymentStatus) ? <p className="py-4 text-sm">En attente de paiement.</p> : (
     <div className="relative">
       {steps.map((step, i) => {
         const isDone = i + 1 < currentStep;
@@ -189,11 +204,11 @@ export default function ScreenTracking() {
               {isDone ? <Icon name="check" size={14}/> : i + 1}
             </span>
             <div className={cn(isCurrent && "bg-emerald-50 border border-emerald-200 -mx-2 px-2 py-2 rounded-lg dark:bg-emerald-950/40 dark:border-emerald-900")}>
-              <div className="flex items-baseline justify-between gap-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className={cn("text-[13px] font-extrabold", isDone || isCurrent ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400")}>
                   {step.label}
                 </p>
-                <p className={cn("text-[10px] font-semibold whitespace-nowrap flex-shrink-0", isDone || isCurrent ? "text-slate-500 dark:text-slate-400" : "text-slate-400")}>
+                <p className={cn("text-[11px] font-semibold whitespace-nowrap flex-shrink-0", isDone || isCurrent ? "text-slate-500 dark:text-slate-400" : "text-slate-400")}>
                   {stepDates[i]?.date}
                 </p>
               </div>
@@ -253,7 +268,7 @@ export default function ScreenTracking() {
           ))}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-1">{order.items[0].name}</p>
+          <p className="text-[13px] font-bold text-slate-900 dark:text-white line-clamp-1">{order.items[0]?.name || 'Articles non communiqués'}</p>
           {order.items.length > 1 && <p className="text-[11px] text-slate-500 dark:text-slate-400">+ {order.items.length - 1} article{order.items.length > 2 ? "s" : ""}</p>}
           <p className="text-[11px] text-slate-500 dark:text-slate-400">{totalPcs} pcs · {order.shipping}</p>
         </div>
@@ -261,15 +276,15 @@ export default function ScreenTracking() {
 
       <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 space-y-2">
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">N° de suivi</span>
+          <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">N° de suivi</span>
           <span className="font-mono text-[12px] font-bold text-slate-900 dark:text-white">{order.tracking}</span>
         </div>
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Livraison prévue</span>
+          <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Livraison prévue</span>
           <span className="text-[12px] font-extrabold text-emerald-600 dark:text-emerald-400">{order.eta}</span>
         </div>
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Total payé</span>
+          <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">{isPaymentSettled(order.paymentStatus) ? 'Total payé' : 'Total de la commande'}</span>
           <span className="text-[12px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(order.total)}</span>
         </div>
       </div>
@@ -296,7 +311,7 @@ export default function ScreenTracking() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Une question ?</p>
-          <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe suit votre commande 7j/7</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">Contacter le support DDM+</p>
         </div>
         <Button
           variant="primary"
@@ -346,9 +361,9 @@ export default function ScreenTracking() {
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 backdrop-blur"><Icon name={cfg.icon} size={16}/></span>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Étape {currentStep}/{steps.length || 5}</p>
-            <p className="text-[15px] font-extrabold">{steps[currentStep - 1]?.label ?? ""}</p>
+            <p className="text-[15px] font-extrabold">{order.status === 'cancelled' ? cfg.label : !isPaymentSettled(order.paymentStatus) ? 'En attente de paiement' : steps[currentStep - 1]?.label ?? ''}</p>
           </div>
-          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold">
+          <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-1 text-[11px] font-bold">
             <span className={cn("h-1.5 w-1.5 rounded-full animate-ping-slow", cfg.tone === 'red' ? "bg-red-300" : "bg-emerald-300")}/>{cfg.label}
           </span>
         </div>
@@ -360,15 +375,15 @@ export default function ScreenTracking() {
           <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
             <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte/commandes" className="cursor-pointer">Mes commandes</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{order.id}</span>
           </div>
-          <div className="mb-6 hidden items-start justify-between gap-4 md:flex">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-4 px-4 pt-4 md:px-0 md:pt-0">
             <div>
               <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">Suivi de commande</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Commande <b className="text-slate-900 dark:text-white">{order.id}</b> · Passée le {new Date(order.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Commande <b className="text-slate-900 dark:text-white">{order.id}</b>{order.date ? ` · Passée le ${new Date(order.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}</p>
             </div>
             <Badge tone={cfg.tone}><Icon name={cfg.icon} size={12}/>{cfg.label} · Étape {currentStep}/{steps.length || 5}</Badge>
           </div>
 
-          <div className="flex flex-col gap-4 p-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:p-0">
+          <div className="flex flex-col gap-4 p-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_380px] md:gap-6 md:p-0">
             {/* Ordre mobile : livraison → infos → historique → contact → actions.
                 Ordre desktop : colonne gauche (livraison+historique), colonne droite (infos+contact+actions). */}
             <DeliveryCard/>

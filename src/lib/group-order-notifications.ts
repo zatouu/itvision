@@ -5,6 +5,7 @@
 
 import { emailService } from './email-service'
 import { MARKET_BRAND, BrandConfig } from './branding'
+import { escapeHtml } from './html-escape'
 
 interface GroupOrderData {
   groupId: string
@@ -48,6 +49,16 @@ const formatDate = (date: Date | string) =>
 
 const defaultBrand = MARKET_BRAND
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || defaultBrand.url
+
+// Noms saisis par les participants : échappés avant toute insertion HTML
+const safeP = <T extends { name: string }>(p: T): T => ({ ...p, name: escapeHtml(p.name) })
+const safeG = <T extends GroupOrderData>(g: T): T => ({
+  ...g,
+  product: { ...g.product, name: escapeHtml(g.product.name), image: g.product.image ? escapeHtml(g.product.image) : undefined },
+})
+const firstName = (name: string) => escapeHtml(String(name || '').trim().split(/\s+/)[0] || 'Un participant')
+// Sujet d'email = texte brut : on retire l'échappement HTML appliqué aux noms
+const plain = (s: string) => s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Templates d'emails
@@ -122,6 +133,9 @@ export async function notifyGroupJoinConfirmation(
     console.log(`[NOTIF] Pas d'email pour ${participant.name}, notification ignorée`)
     return false
   }
+  const recipientEmail = participant.email
+  participant = safeP(participant)
+  group = safeG(group)
 
   const progress = Math.min(100, Math.round((group.currentQty / group.targetQty) * 100))
   const savings = group.product.basePrice - group.currentUnitPrice
@@ -188,8 +202,8 @@ export async function notifyGroupJoinConfirmation(
 
   return emailService.sendEmail({
     fromName: defaultBrand.name,
-    to: participant.email,
-    subject: `✅ Inscription confirmée - Achat Groupé ${group.product.name}`,
+    to: recipientEmail,
+    subject: plain(`✅ Inscription confirmée - Achat Groupé ${group.product.name}`),
     html: wrapEmailTemplate(content, 'Inscription confirmée')
   })
 }
@@ -202,9 +216,12 @@ export async function notifyNewParticipant(
   newParticipant: ParticipantData,
   group: GroupOrderData
 ): Promise<void> {
+  group = safeG(group)
+  const newcomer = firstName(newParticipant.name)
   const progress = Math.min(100, Math.round((group.currentQty / group.targetQty) * 100))
 
-  for (const participant of participants) {
+  for (const rawParticipant of participants) {
+    const participant = safeP(rawParticipant)
     if (!participant.email || participant.phone === newParticipant.phone) continue
 
     const content = `
@@ -214,7 +231,7 @@ export async function notifyNewParticipant(
       </div>
       <div class="content">
         <p>Bonjour <strong>${participant.name}</strong>,</p>
-        <p>Bonne nouvelle ! <strong>${newParticipant.name}</strong> vient de rejoindre l'achat groupé pour <strong>${newParticipant.qty} unité(s)</strong>.</p>
+        <p>Bonne nouvelle ! <strong>${newcomer}</strong> vient de rejoindre l'achat groupé pour <strong>${newParticipant.qty} unité(s)</strong>.</p>
         
         <div class="product-card">
           <div class="product-info">
@@ -252,7 +269,7 @@ export async function notifyNewParticipant(
     await emailService.sendEmail({
     fromName: defaultBrand.name,
       to: participant.email,
-      subject: `👥 ${newParticipant.name} a rejoint l'achat groupé - ${group.product.name}`,
+      subject: plain(`👥 ${newcomer} a rejoint l'achat groupé - ${group.product.name}`),
       html: wrapEmailTemplate(content, 'Nouveau participant')
     })
   }
@@ -265,10 +282,12 @@ export async function notifyObjectiveReached(
   participants: ParticipantData[],
   group: GroupOrderData
 ): Promise<void> {
+  group = safeG(group)
   const savings = group.product.basePrice - group.currentUnitPrice
   const savingsPercent = Math.round((savings / group.product.basePrice) * 100)
 
-  for (const participant of participants) {
+  for (const rawParticipant of participants) {
+    const participant = safeP(rawParticipant)
     if (!participant.email) continue
 
     const content = `
@@ -319,7 +338,7 @@ export async function notifyObjectiveReached(
     await emailService.sendEmail({
     fromName: defaultBrand.name,
       to: participant.email,
-      subject: `🎯 Objectif atteint ! Achat Groupé ${group.product.name}`,
+      subject: plain(`🎯 Objectif atteint ! Achat Groupé ${group.product.name}`),
       html: wrapEmailTemplate(content, 'Objectif atteint')
     })
   }
@@ -364,8 +383,10 @@ export async function notifyStatusUpdate(
 
   const statusInfo = statusMessages[newStatus]
   if (!statusInfo) return
+  group = safeG(group)
 
-  for (const participant of participants) {
+  for (const rawParticipant of participants) {
+    const participant = safeP(rawParticipant)
     if (!participant.email) continue
 
     const content = `
@@ -396,7 +417,7 @@ export async function notifyStatusUpdate(
         </div>
 
         <p style="font-size: 14px; color: #64748b; text-align: center;">
-          Des questions ? Répondez à cet email ou appelez-nous au +221 33 800 00 00
+          Des questions ? Répondez à cet email ou écrivez-nous au ${defaultBrand.whatsapp}
         </p>
       </div>
     `
@@ -404,7 +425,7 @@ export async function notifyStatusUpdate(
     await emailService.sendEmail({
     fromName: defaultBrand.name,
       to: participant.email,
-      subject: `${statusInfo.emoji} ${statusInfo.title} - Achat Groupé ${group.product.name}`,
+      subject: plain(`${statusInfo.emoji} ${statusInfo.title} - Achat Groupé ${group.product.name}`),
       html: wrapEmailTemplate(content, statusInfo.title)
     })
   }
@@ -418,10 +439,12 @@ export async function notifyDeadlineReminder(
   group: GroupOrderData,
   daysLeft: number
 ): Promise<void> {
+  group = safeG(group)
   const progress = Math.min(100, Math.round((group.currentQty / group.targetQty) * 100))
   const remaining = group.targetQty - group.currentQty
 
-  for (const participant of participants) {
+  for (const rawParticipant of participants) {
+    const participant = safeP(rawParticipant)
     if (!participant.email) continue
 
     const content = `
@@ -465,7 +488,7 @@ export async function notifyDeadlineReminder(
     await emailService.sendEmail({
     fromName: defaultBrand.name,
       to: participant.email,
-      subject: `⏰ Plus que ${daysLeft} jour${daysLeft > 1 ? 's' : ''} - Achat Groupé ${group.product.name}`,
+      subject: plain(`⏰ Plus que ${daysLeft} jour${daysLeft > 1 ? 's' : ''} - Achat Groupé ${group.product.name}`),
       html: wrapEmailTemplate(content, 'Rappel deadline')
     })
   }
@@ -487,6 +510,9 @@ export async function notifyPaymentRequest(
     console.log(`[NOTIF] Pas d'email pour ${participant.name}, notification de paiement ignorée`)
     return false
   }
+  const recipientEmail = participant.email
+  participant = safeP(participant)
+  group = safeG(group)
 
   const content = `
     <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
@@ -551,8 +577,8 @@ export async function notifyPaymentRequest(
   try {
     await emailService.sendEmail({
     fromName: defaultBrand.name,
-      to: participant.email,
-      subject: `💰 Paiement requis - Achat Groupé ${group.product.name}`,
+      to: recipientEmail,
+      subject: plain(`💰 Paiement requis - Achat Groupé ${group.product.name}`),
       html: wrapEmailTemplate(content, 'Demande de paiement')
     })
     console.log(`[NOTIF] Demande de paiement envoyée à ${participant.email}`)
@@ -575,6 +601,9 @@ export async function notifyPaymentWithCheckoutLink(
     console.log(`[NOTIF] Pas d'email pour ${participant.name}, lien paiement ignoré`)
     return false
   }
+  const recipientEmail = participant.email
+  participant = safeP(participant)
+  group = safeG(group)
 
   const checkoutUrl = `${siteUrl}/paiement/checkout/${participant.paymentReference}`
   const savings = group.product.basePrice - group.currentUnitPrice
@@ -655,8 +684,8 @@ export async function notifyPaymentWithCheckoutLink(
   try {
     await emailService.sendEmail({
     fromName: defaultBrand.name,
-      to: participant.email,
-      subject: `💰 Paiement requis — Achat Groupé ${group.product.name} (${formatCurrency(participant.totalAmount, group.product.currency)})`,
+      to: recipientEmail,
+      subject: plain(`💰 Paiement requis — Achat Groupé ${group.product.name} (${formatCurrency(participant.totalAmount, group.product.currency)})`),
       html: wrapEmailTemplate(content, 'Demande de paiement')
     })
     console.log(`[NOTIF] Lien paiement envoyé à ${participant.email} (ref: ${participant.paymentReference})`)
@@ -676,6 +705,9 @@ export async function notifyGroupPaymentConfirmed(
     console.log(`[NOTIF] Pas d'email pour ${participant.name}, confirmation paiement ignorée`)
     return false
   }
+  const recipientEmail = participant.email
+  participant = safeP(participant)
+  group = safeG(group)
 
   const content = `
     <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
@@ -712,8 +744,8 @@ export async function notifyGroupPaymentConfirmed(
   try {
     await emailService.sendEmail({
     fromName: defaultBrand.name,
-      to: participant.email,
-      subject: `✅ Paiement confirmé — Achat Groupé ${group.product.name}`,
+      to: recipientEmail,
+      subject: plain(`✅ Paiement confirmé — Achat Groupé ${group.product.name}`),
       html: wrapEmailTemplate(content, 'Paiement confirmé')
     })
     console.log(`[NOTIF] Confirmation paiement groupe envoyée à ${participant.email}`)
@@ -736,7 +768,7 @@ export async function notifyStandardOrderPaymentConfirmed(
   const currency = order.currency || 'FCFA'
   const itemsHtml = (order.items || []).map((item) => `
     <tr>
-      <td>${item.name}</td>
+      <td>${escapeHtml(item.name)}</td>
       <td>${item.qty}</td>
       <td>${formatCurrency(item.price * item.qty, item.currency || currency)}</td>
     </tr>
@@ -748,7 +780,7 @@ export async function notifyStandardOrderPaymentConfirmed(
       <p>Commande #${order.orderId}</p>
     </div>
     <div class="content">
-      <p>Bonjour <strong>${order.clientName}</strong>,</p>
+      <p>Bonjour <strong>${escapeHtml(order.clientName)}</strong>,</p>
       <p>Votre paiement a bien été confirmé. Votre commande est maintenant prise en charge par notre équipe.</p>
 
       <div class="success-box">

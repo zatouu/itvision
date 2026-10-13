@@ -22,6 +22,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { formatFcfa } from '@/components/market/storefront/formatFcfa'
+import { useSourcingModal } from '@/components/market/storefront/SourcingModalContext'
 import { brandWhatsAppUrl } from '@/lib/branding'
 
 type Proposal = {
@@ -74,6 +75,7 @@ type SourcingRequest = {
   externalUrl?: string
   qty: number
   budgetMaxFCFA?: number
+  budgetScope?: 'unit' | 'total'
   deliveryNeededBy?: string
   contactName?: string
   contactPhone?: string
@@ -84,13 +86,17 @@ type SourcingRequest = {
   proposalSentAt?: string
   clientDecision?: 'accepted' | 'rejected'
   clientDecisionAt?: string
+  orderId?: string
+  paymentUrl?: string | null
+  orderStatus?: string | null
+  paymentStatus?: string | null
 }
 
 const STATUS_MAP: Record<string, { tone: string; label: string; icon: any }> = {
   new: { tone: 'blue', label: 'Demande reçue', icon: Package },
   searching: { tone: 'violet', label: 'Recherche en cours', icon: Search },
-  proposal_ready: { tone: 'emerald', label: 'Proposition disponible', icon: CheckCircle2 },
-  proposal_sent: { tone: 'emerald', label: 'Proposition envoyée', icon: Sparkles },
+  proposal_ready: { tone: 'violet', label: 'Proposition en vérification', icon: Clock },
+  proposal_sent: { tone: 'emerald', label: 'Proposition disponible', icon: Sparkles },
   accepted: { tone: 'emerald', label: 'Acceptée', icon: Check },
   rejected: { tone: 'red', label: 'Refusée', icon: AlertCircle },
   fulfilled: { tone: 'emerald', label: 'Livrée', icon: Package },
@@ -195,26 +201,48 @@ export default function SourcingTrackingPage() {
   const [error, setError] = useState<string | null>(null)
   const [acting, setActing] = useState<'accepted' | 'rejected' | null>(null)
   const [decisionError, setDecisionError] = useState<string | null>(null)
+  const { open: openSourcing } = useSourcingModal()
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!token) return
-    setLoading(true)
-    setError(null)
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const res = await fetch(`/api/market/sourcing/track/${token}`, { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok || !json?.success) throw new Error(json?.error || 'Demande introuvable')
       setData(json.request)
     } catch (err: any) {
-      setError(err?.message || 'Impossible de charger la demande')
+      if (!silent) setError(err?.message || 'Impossible de charger la demande')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [token])
 
   useEffect(() => {
     load()
   }, [load])
+
+  // Tant que la proposition n'est pas arrivée : rafraîchissement discret
+  // (retour sur l'onglet + toutes les 60 s) pour l'afficher sans recharger.
+  const waiting = !!data && !data.proposal && !['cancelled', 'rejected', 'expired'].includes(data.status)
+  useEffect(() => {
+    if (!waiting) return
+    const onVisible = () => { if (document.visibilityState === 'visible') load(true) }
+    const id = window.setInterval(() => { if (document.visibilityState === 'visible') load(true) }, 60_000)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [waiting, load])
+
+  const relaunch = () => {
+    if (!data) return
+    openSourcing({ source: 'text', title: data.title, description: data.description, qty: data.qty })
+  }
 
   const submitDecision = useCallback(
     async (decision: 'accepted' | 'rejected') => {
@@ -237,6 +265,9 @@ export default function SourcingTrackingPage() {
         const json = await res.json()
         if (!res.ok || !json?.success) throw new Error(json?.error || 'Échec de l\'envoi')
         setData(json.request)
+        if (decision === 'accepted' && json.request?.paymentUrl) {
+          window.location.href = json.request.paymentUrl
+        }
       } catch (err: any) {
         setDecisionError(err?.message || 'Erreur')
       } finally {
@@ -268,9 +299,8 @@ export default function SourcingTrackingPage() {
   }
 
   const proposalExpired = data.proposal && new Date(data.proposal.expiresAt).getTime() < Date.now()
-  const marketPrice = data.proposal ? Math.round(data.proposal.totalClientPrice * 1.3) : 0
-  const savingPct = data.proposal && marketPrice > 0 ? Math.round((1 - data.proposal.totalClientPrice / marketPrice) * 100) : 0
   const unitPrice = data.proposal ? Math.round(data.proposal.totalClientPrice / data.proposal.qty) : 0
+  const SHIPPING_LABELS: Record<string, string> = { air_express: 'Express', air_economy: 'Aérien', sea_freight: 'Maritime' }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -314,18 +344,18 @@ export default function SourcingTrackingPage() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</p>
+                    <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</p>
                     <p className="mt-0.5 text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white">{data.qty} pcs</p>
                   </div>
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Budget max</p>
-                    <p className="mt-0.5 text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white whitespace-nowrap">
+                    <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">{data.budgetScope === 'unit' ? 'Budget / pièce' : data.budgetScope === 'total' ? 'Budget total' : 'Budget à préciser'}</p>
+                    <p className="mt-0.5 break-words text-[13px] font-extrabold tabular-nums text-slate-900 dark:text-white">
                       {data.budgetMaxFCFA ? formatFcfa(data.budgetMaxFCFA) : '—'}
                     </p>
                   </div>
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                    <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</p>
-                    <p className="mt-0.5 text-[10px] font-extrabold text-slate-900 dark:text-white leading-tight">
+                    <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</p>
+                    <p className="mt-0.5 text-[12px] font-extrabold text-slate-900 dark:text-white leading-tight">
                       {data.deliveryNeededBy ? fmtDate(data.deliveryNeededBy) : 'Flexible'}
                     </p>
                   </div>
@@ -350,17 +380,17 @@ export default function SourcingTrackingPage() {
             </div>
           </div>
 
-          {/* Right: Proposal or searching */}
-          <div className="space-y-4">
+          {/* Right: Proposal or searching — en premier sur mobile (l'information attendue) */}
+          <div className="space-y-4 order-first lg:order-none">
             {!data.proposal && data.status !== 'cancelled' && data.status !== 'rejected' && (
               <div className="rounded-2xl border border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-900 p-6 text-center">
                 <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-violet-100 dark:bg-violet-900/60 mb-3">
                   <Search size={28} className="text-violet-600 dark:text-violet-300" />
                 </div>
                 <h3 className="text-[16px] font-extrabold text-slate-900 dark:text-white">Notre équipe travaille sur votre demande</h3>
-                <p className="mt-1 text-[13px] text-slate-600 dark:text-slate-400">Nous comparons les fournisseurs et calculons le meilleur prix livré.</p>
-                <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-violet-200 dark:bg-violet-900/60 px-2.5 py-1 text-[10px] font-bold text-violet-800 dark:text-violet-200">
-                  <Clock size={10} /> 24h
+                <p className="mt-1 text-[13px] text-slate-600 dark:text-slate-400">Nous vérifions le produit, le transport et le prix livré avant de vous soumettre une proposition.</p>
+                <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-violet-200 dark:bg-violet-900/60 px-2.5 py-1 text-[11px] font-bold text-violet-800 dark:text-violet-200">
+                  <Clock size={11} /> Réponse sous 24h ouvrées
                 </span>
                 <a
                   href={brandWhatsAppUrl(undefined, 'Bonjour DDM+, je souhaite suivre ma demande de sourcing.')}
@@ -382,12 +412,9 @@ export default function SourcingTrackingPage() {
                     </span>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Proposition trouvée</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">Envoyée le {fmtDate(data.proposal.proposedAt)}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">Établie le {fmtDate(data.proposal.proposedAt)}</p>
                     </div>
                   </div>
-                  {savingPct > 0 && (
-                    <span className="rounded-md bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5">-{savingPct}%</span>
-                  )}
                 </div>
 
                 <div className="p-4">
@@ -401,7 +428,7 @@ export default function SourcingTrackingPage() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight">{data.proposal.productName}</p>
-                      <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                         <Factory size={11} />
                         <span>{data.proposal.supplierName || 'Fournisseur DDM+'}</span>
                         {data.proposal.supplierVerified && <CheckCircle2 size={11} className="text-emerald-500" />}
@@ -410,32 +437,36 @@ export default function SourcingTrackingPage() {
                   </div>
 
                   <div className="rounded-xl bg-white/70 dark:bg-slate-900/70 p-3 space-y-2 mb-4">
-                    <div className="flex justify-between items-baseline text-[12px]">
-                      <span className="text-slate-500 dark:text-slate-400">Prix unitaire livré</span>
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(unitPrice)}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline text-[12px]">
-                      <span className="text-slate-500 dark:text-slate-400">Prix marché estimé</span>
-                      <span className="font-semibold text-slate-400 line-through tabular-nums whitespace-nowrap">{formatFcfa(marketPrice)}</span>
-                    </div>
+                    {[
+                      ['Produit (prix fournisseur converti)', data.proposal.productCostFCFA],
+                      [`Frais de service (${data.proposal.serviceFeeRate} %)`, data.proposal.serviceFeeAmount],
+                      [`Assurance (${data.proposal.insuranceRate} %)`, data.proposal.insuranceAmount],
+                      [`Transport ${SHIPPING_LABELS[data.proposal.shippingMethod] || ''}`.trim(), data.proposal.shippingCost],
+                    ].map(([label, amount]) => (
+                      <div key={label as string} className="flex justify-between items-baseline text-[12px]">
+                        <span className="text-slate-500 dark:text-slate-400">{label}</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums whitespace-nowrap">{formatFcfa(amount as number)}</span>
+                      </div>
+                    ))}
                     <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-baseline">
-                      <span className="text-[13px] font-bold text-slate-900 dark:text-white">Total ({data.proposal.qty} pcs)</span>
+                      <span className="text-[13px] font-bold text-slate-900 dark:text-white">Total livré à Dakar ({data.proposal.qty} pcs)</span>
                       <span className="text-[18px] font-extrabold text-slate-900 dark:text-white tabular-nums whitespace-nowrap">{formatFcfa(data.proposal.totalClientPrice)}</span>
                     </div>
+                    <p className="text-right text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums">soit {formatFcfa(unitPrice)} par pièce</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</p>
+                      <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</p>
                       <p className="mt-0.5 text-[13px] font-extrabold text-slate-900 dark:text-white">{data.proposal.deliveryDays}j</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Garantie</p>
-                      <p className="mt-0.5 text-[13px] font-extrabold text-slate-900 dark:text-white">2 ans</p>
+                      <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Assurance</p>
+                      <p className="mt-0.5 text-[13px] font-extrabold text-slate-900 dark:text-white">Incluse</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2 text-center">
-                      <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">MOQ</p>
-                      <p className="mt-0.5 text-[13px] font-extrabold text-slate-900 dark:text-white">{data.qty} pcs</p>
+                      <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantité</p>
+                      <p className="mt-0.5 text-[13px] font-extrabold text-slate-900 dark:text-white">{data.proposal.qty} pcs</p>
                     </div>
                   </div>
 
@@ -447,24 +478,33 @@ export default function SourcingTrackingPage() {
                   )}
 
                   {data.status === 'proposal_sent' && !proposalExpired && (
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() => submitDecision('accepted')}
+                          disabled={!!acting}
+                          className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                        >
+                          {acting === 'accepted' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                          Accepter et payer · {formatFcfa(data.proposal.totalClientPrice)}
+                        </button>
+                        <a
+                          href={brandWhatsAppUrl(undefined, `Bonjour DDM+, j'ai une question sur la proposition ${data.reference}.`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl border border-violet-200 bg-white text-violet-700 font-semibold hover:bg-violet-50 dark:bg-slate-900 dark:border-violet-800 dark:text-violet-300 transition"
+                        >
+                          <Phone size={16} /> Discuter avec un conseiller
+                        </a>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => submitDecision('accepted')}
+                        onClick={() => { if (window.confirm('Refuser cette proposition ?')) submitDecision('rejected') }}
                         disabled={!!acting}
-                        className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                        className="w-full text-[12px] text-slate-500 hover:text-red-600 underline-offset-2 hover:underline disabled:opacity-50"
                       >
-                        {acting === 'accepted' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                        Accepter et payer · {formatFcfa(data.proposal.totalClientPrice)}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => submitDecision('rejected')}
-                        disabled={!!acting}
-                        className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl border border-violet-200 bg-white text-violet-700 font-semibold hover:bg-violet-50 dark:bg-slate-900 dark:border-violet-800 dark:text-violet-300 transition disabled:opacity-50"
-                      >
-                        {acting === 'rejected' ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
-                        Discuter avec un conseiller
+                        {acting === 'rejected' ? 'Envoi…' : 'Refuser la proposition'}
                       </button>
                     </div>
                   )}
@@ -472,19 +512,47 @@ export default function SourcingTrackingPage() {
                   {data.status === 'accepted' && (
                     <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-900 p-4 text-[13px]">
                       <p className="font-semibold text-emerald-700 dark:text-emerald-300">Proposition acceptée le {fmtDate(data.clientDecisionAt)}</p>
-                      <p className="text-emerald-600 dark:text-emerald-400 mt-1">Notre équipe vous contacte pour finaliser le paiement et la livraison.</p>
+                      {data.paymentUrl ? (
+                        <>
+                          <p className="text-emerald-600 dark:text-emerald-400 mt-1">Commande {data.orderId} créée. Réglez-la pour lancer l&apos;achat chez le fournisseur.</p>
+                          <a
+                            href={data.paymentUrl}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 h-11 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition"
+                          >
+                            <Shield size={16} /> Payer {formatFcfa(data.proposal.totalClientPrice)}
+                          </a>
+                        </>
+                      ) : data.paymentStatus === 'completed' ? (
+                        <p className="text-emerald-600 dark:text-emerald-400 mt-1">Paiement reçu pour la commande {data.orderId}. Nous lançons l&apos;achat et vous tenons informé.</p>
+                      ) : (
+                        <p className="text-emerald-600 dark:text-emerald-400 mt-1">Notre équipe vous contacte pour finaliser le paiement et la livraison.</p>
+                      )}
                     </div>
                   )}
 
                   {data.status === 'rejected' && (
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 text-[13px] text-slate-700 dark:text-slate-300">
                       Proposition refusée le {fmtDate(data.clientDecisionAt)}. Merci de votre retour.
+                      <button
+                        type="button"
+                        onClick={relaunch}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 h-11 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition"
+                      >
+                        <Search size={16} /> Relancer une recherche
+                      </button>
                     </div>
                   )}
 
                   {(data.status === 'expired' || proposalExpired) && (
                     <div className="rounded-xl bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-900 p-4 text-[13px] text-red-700 dark:text-red-300">
-                      Cette proposition a expiré. Recontactez-nous pour relancer une nouvelle estimation.
+                      Cette proposition a expiré : les prix fournisseurs et le transport ont pu changer.
+                      <button
+                        type="button"
+                        onClick={relaunch}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 h-11 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition"
+                      >
+                        <Search size={16} /> Demander une nouvelle estimation
+                      </button>
                     </div>
                   )}
 

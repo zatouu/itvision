@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { SharedPricingSnapshot } from '@/lib/pricing/shared-settings'
 import { validatePhone, formatPhone } from '../payment-service'
 
 // Participant à un achat groupé
@@ -25,9 +26,28 @@ export interface IGroupOrderParticipant {
   notes?: string
   addOns?: { id: string; name: string; price: number }[]
   addOnsTotal?: number
+  /** Produit boutique créé par ce participant pour revendre son lot (« Mettre en vente ») */
+  resaleProductId?: mongoose.Types.ObjectId
+  /** Ambassadeur à l'origine de l'inscription (lien ?ref=) */
+  referral?: { code: string; ambassadorUserId: mongoose.Types.ObjectId }
+  /** Point de retrait choisi pour récupérer le lot (sinon remise selon l'adresse) */
+  pickupPoint?: { id: string; name: string; neighborhood?: string }
+  /** Colis disponible au point de retrait (participant prévenu) */
+  readyForPickupAt?: Date
+  /** Transport facturé après pesée réelle du lot à Guangzhou (quote-part du participant) */
+  transport?: {
+    amount: number
+    paymentReference: string
+    paymentStatus: 'pending' | 'paid'
+    paidAmount?: number
+    paidAt?: Date
+    paymentMethod?: string
+    transactionId?: string
+  }
 }
 
 export interface IGroupOrder extends Document {
+  pricingSnapshot?: SharedPricingSnapshot
   groupId: string              // Format: GRP-TIMESTAMP-RANDOM
   status: 'draft' | 'open' | 'filled' | 'ordering' | 'ordered' | 'shipped' | 'delivered' | 'cancelled'
   
@@ -78,6 +98,16 @@ export interface IGroupOrder extends Document {
   
   // Commande finale liée
   linkedOrderId?: string
+  /** Lien d'invitation du groupe WhatsApp de discussion (https://chat.whatsapp.com/…) */
+  whatsappInviteUrl?: string
+  /** Pesée réelle du lot à Guangzhou : base du transport facturé aux participants */
+  freight?: {
+    realWeightKg: number
+    realVolumeM3?: number
+    totalCost: number
+    measuredAt: Date
+    measuredBy?: string
+  }
   chinaPurchase?: {
     purchaseId: string
     status: 'to_purchase' | 'purchased_1688' | 'paid_alipay' | 'seller_shipped' | 'received_guangzhou' | 'quality_check_pending' | 'quality_check_passed' | 'quality_check_failed' | 'quality_check_partial' | 'handed_to_freight' | 'cancelled'
@@ -131,10 +161,40 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
     }, { _id: false })],
     default: []
   },
-  addOnsTotal: { type: Number, default: 0 }
+  addOnsTotal: { type: Number, default: 0 },
+  resaleProductId: { type: mongoose.Schema.Types.ObjectId },
+  referral: {
+    type: new Schema({
+      code: { type: String, required: true },
+      ambassadorUserId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    }, { _id: false }),
+    required: false,
+  },
+  pickupPoint: {
+    type: new Schema({
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      neighborhood: { type: String },
+    }, { _id: false }),
+    required: false,
+  },
+  readyForPickupAt: { type: Date },
+  transport: {
+    type: new Schema({
+      amount: { type: Number, required: true, min: 0 },
+      paymentReference: { type: String, required: true },
+      paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+      paidAmount: { type: Number },
+      paidAt: { type: Date },
+      paymentMethod: { type: String },
+      transactionId: { type: String },
+    }, { _id: false }),
+    required: false,
+  }
 }, { _id: true })
 
 const GroupOrderSchema = new Schema<IGroupOrder>({
+  pricingSnapshot: { type: Schema.Types.Mixed },
   groupId: { type: String, required: true, unique: true, index: true },
   status: { 
     type: String, 
@@ -189,6 +249,14 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
   },
   
   linkedOrderId: { type: String, sparse: true },
+  whatsappInviteUrl: { type: String },
+  freight: {
+    realWeightKg: { type: Number, min: 0 },
+    realVolumeM3: { type: Number, min: 0 },
+    totalCost: { type: Number, min: 0 },
+    measuredAt: { type: Date },
+    measuredBy: { type: String },
+  },
   chinaPurchase: {
     purchaseId: { type: String, sparse: true, index: true },
     status: {
@@ -212,6 +280,7 @@ const GroupOrderSchema = new Schema<IGroupOrder>({
 GroupOrderSchema.index({ status: 1, deadline: 1 })
 GroupOrderSchema.index({ 'product.productId': 1, status: 1 })
 GroupOrderSchema.index({ 'participants.phone': 1 })
+GroupOrderSchema.index({ 'participants.transport.paymentReference': 1 }, { sparse: true })
 
 // Méthode pour calculer le prix unitaire basé sur la quantité
 // Logique : on prend le palier le plus élevé dont le minQty est atteint.

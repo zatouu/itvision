@@ -106,6 +106,7 @@ services:
       APP_BASE_URL: ${NEXT_PUBLIC_SITE_URL}
       # ── Appels internes (worker sourcing, cron, media/localize) ──
       CRON_SECRET: ${CRON_SECRET:-}
+      MAINTENANCE_CRON_DISABLED: ${MAINTENANCE_CRON_DISABLED:-false}
       # ── OTP test : numéros whitelistés — code fixe 000000, aucun SMS envoyé ──
       OTP_TEST_PHONES: ${OTP_TEST_PHONES:-}
       # ── SMS / OTP ─────────────────────────────────────────
@@ -121,12 +122,23 @@ services:
       DEV_PROVIDER_TOKEN: ${DEV_PROVIDER_TOKEN:-}
       # ── Sentry ────────────────────────────────────────────
       SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       # ── Qwen AI (hybrid: QwenCloud + Ollama fallback) ──────
       QWEN_CLOUD_API_KEY: ${QWEN_CLOUD_API_KEY:-}
       QWEN_CLOUD_BASE_URL: ${QWEN_CLOUD_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
       QWEN_MODEL: ${QWEN_MODEL:-qwen-turbo}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      # ── Gateway IA (DeepSeek prioritaire) et import catalogue ──
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-}
+      LLM_TEXT_PROVIDER: ${LLM_TEXT_PROVIDER:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ALIEXPRESS_RAPIDAPI_KEY: ${ALIEXPRESS_RAPIDAPI_KEY:-}
+      SOURCING_MARGIN_RATE: ${SOURCING_MARGIN_RATE:-15}
+      # Worker agents (Chromium) : désactivé tant que la mémoire de l'EC2 n'est pas confirmée
+      AGENT_WORKER_ENABLED: ${AGENT_WORKER_ENABLED:-false}
       # ── Mobile route refresh throttling (provider app) ─────
       ROUTE_REFRESH_MIN_MS: ${ROUTE_REFRESH_MIN_MS:-60000}
       ROUTE_REFETCH_MIN_MOVE_M: ${ROUTE_REFETCH_MIN_MOVE_M:-250}

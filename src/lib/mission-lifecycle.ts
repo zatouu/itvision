@@ -6,7 +6,6 @@ import Payment from './models/Payment'
 import { refreshMissionAnomalies } from './mission-anomalies'
 import {
   getAppConfig,
-  creditCashBalance,
   refundEscrowPoints,
   releaseMissionReservation,
 } from './wallet'
@@ -187,6 +186,10 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
     // Le prestataire ne peut pas annuler une mission démarrée.
     if (role === 'provider' && to === 'cancelled' && missionStarted(from)) {
       return { ok: false, reason: 'Vous ne pouvez plus annuler une mission démarrée' }
+    }
+    // Travaux commencés : le client conteste par un litige, il n'annule pas (sinon remboursement d'un travail fait)
+    if (role === 'client' && to === 'cancelled' && ['in_progress', 'paused', 'awaiting_validation'].includes(from)) {
+      return { ok: false, reason: 'Les travaux ont commencé : ouvrez un litige si un problème survient' }
     }
     // Archivage et expiration : admin/system uniquement.
     if (role !== 'admin' && role !== 'system') {
@@ -537,6 +540,12 @@ export async function resolveDispute(
     toStatus = 'completed'
   }
 
+  // Deux administrateurs ne peuvent pas résoudre le même litige (double remboursement ou double reversement)
+  const claimed = await ServiceRequest.updateOne({ _id: sr._id, status: 'dispute' }, { $set: { status: toStatus } })
+  if (claimed.modifiedCount === 0) {
+    throw new Error('Ce litige vient d’être résolu par un autre administrateur')
+  }
+
   // Appliquer la résolution
   sr.status = toStatus
   sr.escrowLocked = false
@@ -814,11 +823,9 @@ async function releaseHeldPayments(sr: any, validatedByUserId: string) {
       const net = rawAmount - commission
 
       if (net > 0) {
-        await creditCashBalance(String(payment.providerId), net, {
-          relatedMissionId: String(sr._id),
-          paymentRef: String(payment._id),
-          description: `Reversement mission validée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
-        })
+        const { payProvider } = await import('./payment-reconcile')
+        await payProvider(payment, net, String(sr._id),
+          `Reversement mission validée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`)
       }
       releasedCount++
       totalNet += net
@@ -857,48 +864,61 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
     const clientLateCancellation = isClient && ['on_the_way', 'arrived'].includes(prevStatus)
 
     while (true) {
-      const heldPayment = await Payment.findOneAndUpdate(
-        { requestId: sr._id, status: 'held' },
-        {
-          $set: clientLateCancellation
-            ? { status: 'released', releasedAt: now, releasedBy: actor.userId }
-            : { status: 'refunded', refundedAt: now, refundedBy: actor.userId },
-        },
-        { sort: { createdAt: 1 } }
-      )
-      if (!heldPayment) break
+      const held: any = await Payment.findOne({ requestId: sr._id, status: 'held' }).sort({ createdAt: 1 }).lean()
+      if (!held) break
 
       const cfg = await getAppConfig()
       const commissionRate = Number(cfg.monetization?.commissionRate) || 0
-      const rawAmount = heldPayment.depositAmount > 0 ? heldPayment.depositAmount : heldPayment.amount
+      const rawAmount = held.depositAmount > 0 ? held.depositAmount : held.amount
+      // Annulation tardive : le prestataire touche des frais de déplacement plafonnés, le reste revient au client
+      const travelFee = clientLateCancellation ? Math.min(cancellationTravelFee(), rawAmount) : 0
+      const clientRefund = held.amount - travelFee
 
-      if (clientLateCancellation) {
-        const commission = Math.round((rawAmount * commissionRate) / 100)
-        const net = rawAmount - commission
+      const heldPayment: any = await Payment.findOneAndUpdate(
+        { _id: held._id, status: 'held' },
+        {
+          $set: clientRefund > 0
+            ? { status: 'refunded', refundedAt: now, refundedBy: actor.userId, refundAmount: clientRefund }
+            : { status: 'released', releasedAt: now, releasedBy: actor.userId },
+        },
+        { new: true }
+      ).lean()
+      if (!heldPayment) continue
+
+      if (travelFee > 0) {
+        const commission = Math.round((travelFee * commissionRate) / 100)
+        const net = travelFee - commission
         if (heldPayment.provider !== 'cash' && net > 0) {
-          await creditCashBalance(String(heldPayment.providerId), net, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(heldPayment._id),
-            description: 'Dépôt de garantie suite à annulation tardive client',
-          })
+          const { payProvider } = await import('./payment-reconcile')
+          await payProvider(heldPayment, net, String(sr._id), 'Frais de déplacement suite à annulation tardive client')
         }
         if (sr.assignedProviderId) {
           void sendPushToUser(String(sr.assignedProviderId), {
-            title: 'Dépôt de garantie reçu',
+            title: 'Frais de déplacement reçus',
             body: `${net.toLocaleString('fr-FR')} FCFA crédités suite à l'annulation tardive du client.`,
             data: { type: 'payment:released', requestId: String(sr._id) },
             appType: 'provider',
           })
         }
-      } else {
+      }
+
+      if (clientRefund > 0) {
         const escrowCost = heldPayment.escrowPointsCharged || 0
-        if (escrowCost > 0) {
+        if (escrowCost > 0 && !clientLateCancellation) {
           await refundEscrowPoints(String(heldPayment.clientId), String(sr._id), escrowCost)
         }
+        const { queueClientRefund } = await import('@/modules/xeuy/payments/mission-payment')
+        const queued = await queueClientRefund(
+          heldPayment._id,
+          clientRefund,
+          travelFee > 0 ? `Mission annulée (frais de déplacement retenus : ${travelFee} FCFA)` : 'Mission annulée'
+        )
         void sendPushToUser(String(heldPayment.clientId), {
-          title: 'Paiement remboursé',
-          body: `${rawAmount.toLocaleString('fr-FR')} FCFA remboursés suite à l'annulation.`,
-          data: { type: 'payment:refunded', requestId: String(sr._id) },
+          title: queued ? 'Remboursement en cours' : 'Mission annulée',
+          body: queued
+            ? `${clientRefund.toLocaleString('fr-FR')} FCFA vont vous être remboursés suite à l'annulation${travelFee > 0 ? ` (${travelFee.toLocaleString('fr-FR')} FCFA de frais de déplacement retenus)` : ''}.`
+            : 'Aucun montant n’a été prélevé pour cette mission.',
+          data: { type: queued ? 'payment:refund_pending' : 'payment:refunded', requestId: String(sr._id) },
           appType: 'consumer',
         })
       }
@@ -906,6 +926,12 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
   } catch (e) {
     console.error('[lifecycle] cancellation payment side effect', e)
   }
+}
+
+/** Frais de déplacement retenus quand le client annule alors que le prestataire est en route ou arrivé. */
+export function cancellationTravelFee(): number {
+  const fee = Number(process.env.XEUY_CANCEL_TRAVEL_FEE)
+  return Number.isFinite(fee) && fee >= 0 ? Math.round(fee) : 2000
 }
 
 /**
@@ -952,85 +978,59 @@ async function executeDisputePayments(
     let totalRefunded = 0
     let totalReleased = 0
 
+    // Sans décision financière, les fonds restent en séquestre (à traiter par l'administration) : jamais libérés sans bénéficiaire
+    if (decision === 'cancel' || decision === 'other') return
+
+    const { payProvider } = await import('./payment-reconcile')
+    const { queueClientRefund } = await import('@/modules/xeuy/payments/mission-payment')
+
     while (true) {
-      const payment: any = await Payment.findOne({ requestId: sr._id, status: 'held' })
+      const held: any = await Payment.findOne({ requestId: sr._id, status: 'held' })
         .sort({ createdAt: 1 })
         .lean()
-      if (!payment) break
+      if (!held) break
 
-      const rawAmount = payment.phase === 'deposit' ? (payment.depositAmount || 0)
-        : payment.phase === 'balance' ? (payment.balanceAmount || 0)
-        : (payment.amount || 0)
-      if (rawAmount <= 0) {
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: 0 } }
-        )
-        continue
+      const rawAmount = held.phase === 'deposit' ? (held.depositAmount || 0)
+        : held.phase === 'balance' ? (held.balanceAmount || 0)
+        : (held.amount || 0)
+
+      // Part remboursée au client pour ce paiement
+      const paymentRefund = decision === 'refund' ? rawAmount
+        : decision === 'partial_refund' ? Math.min(remainingRefund, rawAmount)
+        : 0
+      const toProvider = paymentRefund === 0
+
+      // Réservation du paiement AVANT tout mouvement d'argent : un second passage ne le retrouve plus
+      const payment: any = await Payment.findOneAndUpdate(
+        { _id: held._id, status: 'held' },
+        {
+          $set: toProvider
+            ? { status: 'released', releasedAt: now, releasedBy: adminId }
+            : { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: paymentRefund },
+        },
+        { new: true }
+      ).lean()
+      if (!payment) continue
+      if (rawAmount <= 0) continue
+
+      if (paymentRefund > 0) {
+        if (decision === 'refund' && (payment.escrowPointsCharged || 0) > 0) {
+          await refundEscrowPoints(String(payment.clientId), String(sr._id), payment.escrowPointsCharged)
+        }
+        await queueClientRefund(payment._id, paymentRefund, decision === 'refund' ? 'Litige : remboursement intégral' : 'Litige : remboursement partiel')
+        totalRefunded += paymentRefund
+        remainingRefund -= paymentRefund
       }
 
-      if (decision === 'refund') {
-        // Remboursement intégral au client
-        const escrowCost = payment.escrowPointsCharged || 0
-        if (escrowCost > 0) {
-          await refundEscrowPoints(String(payment.clientId), String(sr._id), escrowCost)
-        }
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: rawAmount } }
-        )
-        totalRefunded += rawAmount
-      } else if (decision === 'release_escrow' || decision === 'reject') {
-        // Libération intégrale au prestataire
-        const commission = Math.round((rawAmount * commissionRate) / 100)
-        const net = rawAmount - commission
-        if (payment.provider !== 'cash' && net > 0) {
-          await creditCashBalance(String(payment.providerId), net, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(payment._id),
-            description: `Reversement mission validée (litige résolu)`,
-          })
-        }
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
-        )
-        totalReleased += net
-      } else if (decision === 'partial_refund') {
-        // Remboursement partiel au client, le solde au prestataire
-        const paymentRefund = Math.min(remainingRefund, rawAmount)
-        const providerGross = rawAmount - paymentRefund
+      const providerGross = rawAmount - paymentRefund
+      if (providerGross > 0 && payment.provider !== 'cash') {
         const commission = Math.round((providerGross * commissionRate) / 100)
         const providerNet = providerGross - commission
-
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          {
-            $set: {
-              status: 'refunded',
-              refundedAt: now,
-              refundedBy: adminId,
-              refundAmount: paymentRefund,
-            },
-          }
-        )
-        if (paymentRefund > 0) totalRefunded += paymentRefund
-        remainingRefund -= paymentRefund
-
-        if (providerNet > 0 && payment.provider !== 'cash') {
-          await creditCashBalance(String(payment.providerId), providerNet, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(payment._id),
-            description: `Reversement litige résolu (remboursement partiel client de ${paymentRefund} FCFA)`,
-          })
-          totalReleased += providerNet
-        }
-      } else {
-        // cancel / other : aucun effet financier, on libère juste le statut
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
-        )
+        await payProvider(payment, providerNet, String(sr._id),
+          paymentRefund > 0
+            ? `Reversement litige résolu (remboursement partiel client de ${paymentRefund} FCFA)`
+            : 'Reversement mission validée (litige résolu)')
+        totalReleased += providerNet
       }
     }
 

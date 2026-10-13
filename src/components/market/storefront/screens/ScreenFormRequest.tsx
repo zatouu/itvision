@@ -104,7 +104,7 @@ const VARIANTS = {
     icon: RefreshCw,
     tone: 'violet' as const,
     hero: 'Demander un retour ou un échange',
-    sub: 'Sous 7 jours après réception. On vous rembourse via le mode de paiement d\'origine.',
+    sub: 'Sous 48 h après réception. On vous rembourse via le mode de paiement d\'origine.',
     referencePrefilled: true,
     showItems: true,
     showRefundChoice: true,
@@ -266,11 +266,11 @@ export default function ScreenFormRequest({
             <Check size={44} strokeWidth={3.5} />
           </div>
         </div>
-        <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Envoyé avec succès</p>
+        <p className="mt-6 text-[11px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Envoyé avec succès</p>
         <h2 className="mt-1 text-[22px] font-extrabold tracking-tight text-slate-900 dark:text-white">{successTitleProp || v.successTitle}</h2>
         <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400 max-w-md text-center">{customSuccessMsg || successMsgProp || v.successMsg}</p>
         {successRef && (
-          <p className="mt-3 font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2.5 py-1">Réf. {successRef}</p>
+          <p className="mt-3 font-mono text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-2.5 py-1">Réf. {successRef}</p>
         )}
 
         <div className="mt-6 w-full max-w-sm flex gap-2 flex-col sm:flex-row">
@@ -301,7 +301,7 @@ export default function ScreenFormRequest({
             <Icon size={20} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{v.label}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{v.label}</p>
             <p className="mt-0.5 font-extrabold text-slate-900 dark:text-white leading-tight text-[17px] md:text-[22px]">{v.hero}</p>
             <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-400 leading-snug">{v.sub}</p>
           </div>
@@ -327,7 +327,7 @@ export default function ScreenFormRequest({
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">Total payé : <b className="text-slate-900 dark:text-white tabular-nums">{formatFcfa(totalPaid)}</b></p>
                 )}
               </div>
-              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Pré-rempli</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Pré-rempli</span>
             </div>
           ) : (
             <>
@@ -337,7 +337,7 @@ export default function ScreenFormRequest({
                 placeholder="CMD-1700000000-ABC123"
                 className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white font-mono uppercase"
               />
-              <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Le numéro figure dans votre email de confirmation ou par SMS.</p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Le numéro figure dans votre email de confirmation ou par SMS.</p>
             </>
           )}
         </div>
@@ -347,7 +347,7 @@ export default function ScreenFormRequest({
           <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
             <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3">
               <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Article(s) à retourner</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Sélectionnez les articles concernés</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Sélectionnez les articles concernés</p>
             </div>
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {items.map((it) => {
@@ -361,7 +361,7 @@ export default function ScreenFormRequest({
                     {it.image && <img loading="lazy" decoding="async" src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-800" />}
                     <div className="min-w-0 flex-1">
                       <p className="text-[12px] font-bold text-slate-900 dark:text-white line-clamp-1">{it.name}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">{it.qty} pcs · {formatFcfa(it.price * it.qty)}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{it.qty} pcs · {formatFcfa(it.price * it.qty)}</p>
                     </div>
                     {active && (
                       <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 p-0.5" onClick={(e) => e.stopPropagation()}>
@@ -433,7 +433,7 @@ export default function ScreenFormRequest({
                       </span>
                       <span className="text-[13px] font-extrabold text-slate-900 dark:text-white">{o.l}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{o.sub}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{o.sub}</p>
                   </button>
                 );
               })}
@@ -477,7 +477,7 @@ export default function ScreenFormRequest({
             placeholder="Décrivez le problème avec un maximum de détails…"
             className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white resize-none"
           />
-          <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Plus votre description est précise, plus notre équipe traite votre demande rapidement.</p>
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Plus votre description est précise, plus notre équipe traite votre demande rapidement.</p>
         </div>
 
         {/* Photos */}
@@ -489,7 +489,7 @@ export default function ScreenFormRequest({
                 <Upload size={18} />
               </div>
               <p className="text-[12px] font-bold text-slate-900 dark:text-white">Ajouter des photos ou vidéos</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Jusqu&apos;à 5 fichiers · JPG, PNG, MP4 · max 10 Mo chacun</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Jusqu&apos;à 5 fichiers · JPG, PNG, MP4 · max 10 Mo chacun</p>
             </div>
           </div>
         )}

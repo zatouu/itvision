@@ -24,6 +24,12 @@ export default function MediaLightbox({
 }) {
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    return () => previous?.focus()
+  }, [])
   const drag = useRef<{ x: number; y: number; panX: number; panY: number; moved: boolean; lastTap: number } | null>(null)
 
   const count = images.length
@@ -116,7 +122,17 @@ export default function MediaLightbox({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[100] flex flex-col bg-black/95"
+      aria-label={`Photos de ${name}`}
+      onKeyDown={event => {
+        if (event.key !== 'Tab') return
+        const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -183,6 +199,8 @@ export default function MediaLightbox({
           {images.map((s, i) => (
             <button
               key={i}
+              aria-label={`Photo ${i + 1}`}
+              aria-pressed={i === index}
               onClick={() => onIndexChange(i)}
               className={cn(
                 'h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition',

@@ -22,6 +22,20 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
+    // 0. Transport au poids réel
+    if (reference.startsWith('TR-')) {
+      const g = await GroupOrder.findOne({ 'participants.transport.paymentReference': reference }).select('groupId participants').lean() as any
+      const p = g?.participants?.find((x: any) => x.transport?.paymentReference === reference)
+      if (p) {
+        return NextResponse.json({ status: p.transport.paymentStatus === 'paid' ? 'paid' : 'pending', reference, type: 'group', groupId: g.groupId, paymentMethod: p.transport.paymentMethod || undefined })
+      }
+      const o = await Order.findOne({ 'shippingAdjustment.paymentReference': reference }).select('orderId shippingAdjustment').lean() as any
+      if (o?.shippingAdjustment) {
+        return NextResponse.json({ status: o.shippingAdjustment.status === 'paid' ? 'paid' : 'pending', reference, type: 'order', orderId: o.orderId, paymentMethod: o.shippingAdjustment.paymentMethod || undefined })
+      }
+      return NextResponse.json({ status: 'not_found', reference }, { status: 404 })
+    }
+
     // 1. Chercher dans les commandes groupées
     const groupOrder = await GroupOrder.findOne({
       'participants.paymentReference': reference

@@ -67,7 +67,7 @@ function assertValidTransition(transaction: any, previousStatus: EscrowStatus, n
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CreateEscrowParams {
-  userId: string
+  userId?: string
   client: { name: string; phone: string; email?: string }
   amount: number
   groupOrderId?: string

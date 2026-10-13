@@ -81,6 +81,8 @@ export interface IMaintenanceContract extends Document {
   
   // Renouvellement
   autoRenewal: boolean
+  /** Facture brouillon créée automatiquement à chaque échéance (paymentFrequency) */
+  autoBilling?: boolean
   renewalNotificationSent: boolean
   renewalNotifications?: number[] // Seuils déjà notifiés (60, 30, 7)
   renewalProposalId?: Types.ObjectId
@@ -225,6 +227,7 @@ const MaintenanceContractSchema = new Schema<IMaintenanceContract>({
     type: Boolean,
     default: false
   },
+  autoBilling: { type: Boolean, default: false },
   renewalNotificationSent: {
     type: Boolean,
     default: false

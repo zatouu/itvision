@@ -3,9 +3,10 @@ import { runPreventiveVisitsJob } from '@/lib/maintenance/jobs/preventive-visits
 import { runRenewalRemindersJob } from '@/lib/maintenance/jobs/renewal-reminders'
 import { runSLAMonitoringJob } from '@/lib/maintenance/jobs/sla-monitoring'
 import { runCorporateAgentsJob } from '@/lib/maintenance/jobs/corporate-agents'
+import { runContractBillingJob } from '@/lib/maintenance/jobs/contract-billing'
 import { getMaintenanceCronStatus } from '@/lib/maintenance/cron-runner'
 
-const VALID_JOBS = ['preventive-visits', 'renewal-reminders', 'sla-monitoring', 'corporate-agents']
+const VALID_JOBS = ['preventive-visits', 'renewal-reminders', 'sla-monitoring', 'corporate-agents', 'contract-billing']
 
 function requireCronSecret(request: NextRequest): boolean {
   const secret = request.headers.get('x-cron-secret') || ''
@@ -69,6 +70,12 @@ export async function POST(request: NextRequest) {
         break
       case 'sla-monitoring':
         result = await runSLAMonitoringJob()
+        break
+      case 'corporate-agents':
+        result = await runCorporateAgentsJob()
+        break
+      case 'contract-billing':
+        result = await runContractBillingJob()
         break
     }
 

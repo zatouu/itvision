@@ -192,7 +192,7 @@ export function TreasuryTab({ data, loading, onRequested }: { data: any; loading
 }
 
 // ─── Approvisionnement ───────────────────────────────────────
-export function PurchasesTab({ data, loading }: { data: any; loading: boolean }) {
+export function PurchasesTab({ data, loading, onResell }: { data: any; loading: boolean; onResell?: (groupId: string) => void }) {
   if (loading || !data) return <Loading />
   const groups = data.groupBuys || []
   const orders = data.purchases || []
@@ -225,6 +225,20 @@ export function PurchasesTab({ data, loading }: { data: any; loading: boolean })
                 <div className="h-full bg-violet-500 rounded-full" style={{ width: `${g.progress}%` }} />
               </div>
               <p className="mt-1 text-[10px] text-slate-400">{g.currentQty}/{g.targetQty} · deadline {new Date(g.deadline).toLocaleDateString('fr-FR')}</p>
+              {g.canResell && onResell && (
+                <button
+                  type="button"
+                  onClick={() => onResell(g.groupId)}
+                  className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-violet-600 text-[12px] font-bold text-white hover:bg-violet-700"
+                >
+                  <Plus size={13} /> Mettre en vente dans ma boutique
+                </button>
+              )}
+              {g.resaleProductId && (
+                <a href={`/produits/${g.resaleProductId}`} className="mt-2 block text-center text-[11px] font-bold text-emerald-700 hover:underline dark:text-emerald-400">
+                  Lot en vente dans votre boutique →
+                </a>
+              )}
             </div>
           )
         })}
@@ -378,10 +392,36 @@ function Section({ title, hint, open, onToggle, children }: {
   )
 }
 
-export function NewProductModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', description: '', category: '', price: '', stockQuantity: '', condition: 'new', deliveryDays: '1', weightKg: '', tags: '', colorOptions: '', minOrderQty: '' })
-  const [photos, setPhotos] = useState<string[]>([])
-  const [features, setFeatures] = useState<string[]>([''])
+export type ResalePrefill = {
+  groupId: string
+  name: string
+  description?: string
+  category?: string
+  photos: string[]
+  features?: string[]
+  weightKg?: number
+  stockQuantity: number
+  unitCost: number
+  importUnitPrice?: number
+  suggestedPrice: number
+}
+
+export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () => void; onCreated: () => void; prefill?: ResalePrefill }) {
+  const [form, setForm] = useState({
+    name: prefill?.name || '',
+    description: prefill?.description || '',
+    category: prefill?.category || '',
+    price: prefill ? String(prefill.suggestedPrice) : '',
+    stockQuantity: prefill ? String(prefill.stockQuantity) : '',
+    condition: 'new',
+    deliveryDays: '1',
+    weightKg: prefill?.weightKg ? String(prefill.weightKg) : '',
+    tags: '',
+    colorOptions: '',
+    minOrderQty: '',
+  })
+  const [photos, setPhotos] = useState<string[]>(prefill?.photos || [])
+  const [features, setFeatures] = useState<string[]>(prefill?.features?.length ? prefill.features : [''])
   const [variantGroups, setVariantGroups] = useState<VariantGroupRow[]>([])
   const [priceTiers, setPriceTiers] = useState<TierRow[]>([])
   const [categories, setCategories] = useState<{ slug: string; name: string }[]>([])
@@ -478,6 +518,7 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
           variantGroups: groups.length ? groups : undefined,
           priceTiers: tiers.length ? tiers : undefined,
           minOrderQty: form.minOrderQty ? Math.max(1, parseInt(form.minOrderQty, 10) || 1) : 1,
+          ...(prefill ? { sourceGroupId: prefill.groupId } : {}),
         }),
       })
       const d = await res.json()
@@ -498,11 +539,30 @@ export function NewProductModal({ onClose, onCreated }: { onClose: () => void; o
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">Nouveau produit</h2>
+          <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white">{prefill ? 'Mettre mon lot en vente' : 'Nouveau produit'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
             <span className="text-slate-400 text-lg leading-none">×</span>
           </button>
         </div>
+
+        {prefill && (() => {
+          const price = parseInt(form.price, 10) || 0
+          const unitMargin = price - prefill.unitCost
+          const qty = parseInt(form.stockQuantity, 10) || 0
+          return (
+            <div className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-[12px] text-slate-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-slate-300">
+              <p className="font-bold text-slate-900 dark:text-white">Lot {prefill.groupId} · {prefill.stockQuantity} pièces reçues</p>
+              <p className="mt-1">Prix de revient : <b>{formatFcfa(prefill.unitCost)}</b> / pièce (transport compris).</p>
+              {prefill.importUnitPrice ? (
+                <p className="mt-0.5">Un client qui commande seul à l&apos;import paie {formatFcfa(prefill.importUnitPrice)} hors transport et attend plusieurs semaines : votre stock immédiat vaut plus.</p>
+              ) : null}
+              <p className={`mt-2 font-bold ${unitMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600'}`}>
+                Marge : {formatFcfa(unitMargin)} / pièce{prefill.unitCost > 0 && price > 0 ? ` (${Math.round((unitMargin / price) * 100)} %)` : ''} · {formatFcfa(unitMargin * qty)} sur le lot
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Fiche, photos et description reprises du produit : ajustez-les librement. Le produit est publié avec le tag « En stock à Dakar », livré sous 24 h.</p>
+            </div>
+          )
+        })()}
 
         <form onSubmit={submit} className="space-y-4">
           {/* Photos — multi-upload, première = principale */}

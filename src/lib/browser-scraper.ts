@@ -47,6 +47,7 @@ interface Product1688 {
   availabilityNote: string
   features: string[]
   weightKg: number
+  logisticsExtracted?: boolean
   lengthCm: number
   widthCm: number
   heightCm: number
@@ -850,6 +851,7 @@ export class BrowserScraper {
         result.price1688Currency = 'CNY'
         result.platform = '1688'
         result.exchangeRate = 100
+        result.logisticsExtracted = weightKg > 0 && lengthCm > 0 && widthCm > 0 && heightCm > 0
         result.weightKg = weightKg > 0 ? Number(weightKg.toFixed(2)) : 1
         result.lengthCm = lengthCm > 0 ? Math.round(lengthCm) : 10
         result.widthCm = widthCm > 0 ? Math.round(widthCm) : 10

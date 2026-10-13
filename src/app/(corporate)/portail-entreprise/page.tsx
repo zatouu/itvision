@@ -33,6 +33,11 @@ export default async function EnterprisePortalDashboard() {
   const session = await getEnterpriseSession('/portail-entreprise')
   const { userId, companyId, companyName, companyCity, userName, email } = session
 
+  // Aperçu admin : pas de capacités d'entreprise, on montre tout
+  const can = (c: Parameters<typeof sessionCan>[1]) => session.capabilities.length === 0 || sessionCan(session, c)
+  const canFinance = can('finance:view')
+  const canQuotes = canFinance || can('quotes:respond')
+
   const [
     contractsData,
     interventionsData,
@@ -48,17 +53,17 @@ export default async function EnterprisePortalDashboard() {
   ] = await Promise.all([
     MaintenanceContract.find({ ...companyScope({ userId, companyId }) })
       .sort({ endDate: 1 }).limit(3)
-      .select('contractNumber name type status endDate annualPrice coverage stats').lean(),
+      .select(`contractNumber name type status endDate coverage stats${canFinance ? ' annualPrice' : ''}`).lean(),
     Intervention.find({ ...companyScope({ userId, companyId }) })
       .sort({ date: -1 }).limit(4)
       .select('interventionNumber title typeIntervention priority status date service site').lean(),
     Project.find(clientProjectFilter(companyScope({ userId, companyId })))
       .sort({ updatedAt: -1 }).limit(200)
       .select('name status progress currentPhase serviceType address startDate endDate updatedAt quote.status milestones.id milestones.name milestones.status milestones.dueDate reception.requestedAt reception.signedAt reception.decision reception.reservesLiftedAt reception.warrantyEnd').lean(),
-    AdminQuote.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], status: 'sent' })
+    !canQuotes ? [] : AdminQuote.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], status: 'sent' })
       .sort({ date: -1 }).limit(3)
       .select('numero title date status total').lean(),
-    AdminInvoice.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], status: { $in: ['sent', 'overdue', 'partial'] } })
+    !canFinance ? [] : AdminInvoice.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], status: { $in: ['sent', 'overdue', 'partial'] } })
       .sort({ dueDate: 1 }).limit(3)
       .select('numero date dueDate status total').lean(),
     Ticket.find({ ...companyScope({ userId, companyId }), status: { $in: ['open', 'in_progress', 'waiting_client', 'waiting'] } })
@@ -67,7 +72,7 @@ export default async function EnterprisePortalDashboard() {
     MaintenanceContract.countDocuments({ ...companyScope({ userId, companyId }), status: 'active' }),
     Intervention.countDocuments({ ...companyScope({ userId, companyId }) }),
     Project.countDocuments(clientProjectFilter(companyScope({ userId, companyId }))),
-    AdminInvoice.aggregate([
+    !canFinance ? [] : AdminInvoice.aggregate([
       { $match: { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], status: { $in: ['sent', 'overdue', 'partial'] } } },
       { $group: { _id: null, total: { $sum: { $subtract: ['$total', { $add: [{ $ifNull: ['$amountPaid', 0] }, { $ifNull: ['$creditedAmount', 0] }] }] } } } }
     ]),
@@ -77,8 +82,6 @@ export default async function EnterprisePortalDashboard() {
   const amountDue = (kpiInvoiceAgg as any[])[0]?.total ?? 0
   const city = companyCity || ''
 
-  // Aperçu admin : pas de capacités d'entreprise, on montre tout
-  const can = (c: Parameters<typeof sessionCan>[1]) => session.capabilities.length === 0 || sessionCan(session, c)
   const now = new Date()
   const [actionCounts, expiringContract, news] = await Promise.all([
     getPortalActionCounts({ userId, companyId, can }),
@@ -126,7 +129,7 @@ export default async function EnterprisePortalDashboard() {
   const quickActions = [
     can('maintenance:request') && { href: '/portail-entreprise/interventions?nouvelle=1', label: 'Intervention', icon: Wrench },
     { href: '/portail-entreprise/support', label: 'Ticket', icon: LifeBuoy },
-    { href: '/portail-entreprise/documents', label: 'Documents', icon: Receipt },
+    canQuotes && { href: '/portail-entreprise/documents', label: 'Documents', icon: Receipt },
     can('sourcing:request') && { href: '/portail-entreprise/sourcing', label: 'Équipement', icon: PackageSearch },
   ].filter(Boolean) as Array<{ href: string; label: string; icon: typeof Wrench }>
 
@@ -134,9 +137,9 @@ export default async function EnterprisePortalDashboard() {
     { label: 'Contrats actifs', value: String(kpiContracts), href: '/portail-entreprise/contrats', icon: FileText, tone: 'emerald' },
     { label: 'Interventions', value: String(kpiInterventions), href: '/portail-entreprise/interventions', icon: Wrench, tone: 'emerald' },
     { label: 'Projets', value: String(kpiProjects), href: '/portail-entreprise/projets', icon: FolderKanban, tone: 'emerald' },
-    { label: 'À régler', value: `${fmtNum(amountDue)} F`, href: '/portail-entreprise/documents', icon: Receipt, tone: amountDue > 0 ? 'amber' : 'stone' },
+    canFinance && { label: 'À régler', value: `${fmtNum(amountDue)} F`, href: '/portail-entreprise/documents', icon: Receipt, tone: amountDue > 0 ? 'amber' : 'stone' },
     { label: 'Tickets ouverts', value: String(kpiTickets), href: '/portail-entreprise/support', icon: LifeBuoy, tone: kpiTickets > 0 ? 'orange' : 'stone' },
-  ]
+  ].filter(Boolean) as Array<{ label: string; value: string; href: string; icon: typeof Wrench; tone: string }>
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 lg:py-10 space-y-6 lg:space-y-8">
@@ -322,7 +325,7 @@ export default async function EnterprisePortalDashboard() {
       </section>
 
       {/* ── KPI strip ── */}
-      <KpiStrip items={kpis} cols={5} />
+      <KpiStrip items={kpis} cols={kpis.length === 5 ? 5 : 4} />
 
       {/* ── Grille principale ── */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -396,6 +399,7 @@ export default async function EnterprisePortalDashboard() {
             </ul>
           </SectionCard>
 
+          {canFinance && (
           <SectionCard title="Factures à régler" icon={<Receipt className="w-4 h-4" />} href="/portail-entreprise/documents?tab=invoices&filtre=due"
             empty={(invoicesData as any[]).length === 0} emptyText="Aucune facture en attente" compact>
             <ul className="divide-y divide-stone-100">
@@ -416,6 +420,7 @@ export default async function EnterprisePortalDashboard() {
               ))}
             </ul>
           </SectionCard>
+          )}
         </div>
       </div>
 

@@ -34,9 +34,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     await sendPushToUser(String(sr.clientId), {
-      title: 'Validation en attente',
-      body: 'Votre prestataire vous rappelle de valider la fin de mission pour libérer le paiement.',
-      data: { type: 'request:status-changed', requestId: id, status: sr.status },
+      title: 'Votre prestataire attend votre validation',
+      body: 'Le travail est terminé. Ouvrez la mission pour le vérifier et le valider.',
+      data: { type: 'mission:validation-reminder', requestId: id, status: sr.status },
       appType: 'consumer',
     })
 

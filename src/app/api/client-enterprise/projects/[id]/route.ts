@@ -19,6 +19,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const result = await requireDomainAccess(request, 'corporate')
     if (!result.ok) return result.response
     const { access } = result
+    const caps = companyCapabilities(access)
+    // Sans finance:view : ni montants ni factures ; devis visibles pour qui doit y répondre
+    const canFinance = access.isAdmin || caps.has('finance:view')
+    const canQuotes = canFinance || caps.has('quotes:respond')
 
     const { id } = await params
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       address: project.address,
       startDate: project.startDate,
       endDate: project.endDate,
-      value: project.value ?? 0,
+      value: canFinance ? (project.value ?? 0) : null,
       clientSnapshot: project.clientSnapshot,
       site: project.site,
       milestones: (project.milestones || []).map((m: any) => ({
@@ -123,8 +127,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         brand: p.brand,
         model: p.model,
         quantity: p.quantity,
-        unitPrice: p.unitPrice,
-        totalPrice: p.totalPrice,
+        unitPrice: canFinance ? p.unitPrice : undefined,
+        totalPrice: canFinance ? p.totalPrice : undefined,
         status: p.status,
         supplier: p.supplier,
         leadTime: p.leadTime,
@@ -154,12 +158,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         mitigation: r.mitigation,
         status: r.status
       })),
-      metrics: project.metrics || {},
+      metrics: canFinance ? (project.metrics || {}) : { ...(project.metrics || {}), budgetPlanned: undefined, budgetUsed: undefined },
       quote: project.quote ? {
         id: project.quote.id,
         version: project.quote.version,
-        totalHT: project.quote.totalHT,
-        totalTTC: project.quote.totalTTC,
+        totalHT: canQuotes ? project.quote.totalHT : undefined,
+        totalTTC: canQuotes ? project.quote.totalTTC : undefined,
         validUntil: project.quote.validUntil,
         status: project.quote.status
       } : null,
@@ -169,8 +173,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         author: s.author,
         note: s.note
       })),
-      quotes: linkedQuotes,
-      invoices: linkedInvoices,
+      quotes: canQuotes ? linkedQuotes : [],
+      invoices: canFinance ? linkedInvoices : [],
       interventions,
       interventionPhotos,
       galleryPhotos: sharedImages.map((img: any) => ({ id: String(img._id), url: img.url, caption: img.title || img.filename, date: img.createdAt })),
@@ -186,7 +190,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         warrantyEnd: project.reception.warrantyEnd,
         reservesLiftedAt: project.reception.reservesLiftedAt,
       } : null,
-      canSignReception: companyCapabilities(access).has('interventions:ack'),
+      canSignReception: caps.has('interventions:ack'),
       nextMaintenance: project.nextMaintenance,
       maintenanceWindow: project.maintenanceWindow,
       createdAt: project.createdAt,

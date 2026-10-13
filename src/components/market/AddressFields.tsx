@@ -88,12 +88,12 @@ export default function AddressFields({
         </label>
         <label className="block">
           <span className={labelCls}>Quartier</span>
-          {customHood ? (
+          {customHood || (!!value.neighborhood && !neighborhoods.includes(value.neighborhood)) ? (
             <input
               value={value.neighborhood}
               onChange={(e) => set({ neighborhood: e.target.value })}
               placeholder="Précisez le quartier"
-              autoFocus
+              maxLength={120}
               className={fieldCls}
             />
           ) : (
@@ -123,6 +123,8 @@ export default function AddressFields({
         <span className={labelCls}>Adresse (rue, N°, point de repère)</span>
         <input
           value={value.street}
+          autoComplete="shipping address-line1"
+          maxLength={300}
           onChange={(e) => set({ street: e.target.value })}
           placeholder="Ex : Rue 10, N° 42, en face de la pharmacie"
           className={fieldCls}
@@ -132,6 +134,7 @@ export default function AddressFields({
         <span className={labelCls}>Instructions de livraison (optionnel)</span>
         <input
           value={value.additionalInfo ?? ''}
+          maxLength={500}
           onChange={(e) => set({ additionalInfo: e.target.value })}
           placeholder="Ex : Appeler à l'arrivée, 2e étage…"
           className={fieldCls}

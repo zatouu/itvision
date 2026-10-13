@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
-import { requireAuth } from '@/lib/jwt'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { productConfigurationError } from '@/lib/pricing/variants'
+import { invalidateCatalogCache } from '@/lib/catalog-cache'
 import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 import { itvOwnProductClause } from '@/lib/market/corporate-catalog'
 
 async function requireManagerRole(request: NextRequest) {
   try {
-    const { role } = await requireAuth(request)
-    const allowed = PRODUCT_STAFF_ROLES.includes(String(role || '').toUpperCase())
+    const auth = await verifyAuthServer(request)
+    if (!auth.isAuthenticated) return { ok: false as const, status: auth.unavailable ? 503 : 401, error: auth.unavailable ? 'Authentification temporairement indisponible' : 'Non authentifié' }
+    const allowed = PRODUCT_STAFF_ROLES.includes(String(auth.user?.role || '').toUpperCase())
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
@@ -117,7 +120,16 @@ export async function PATCH(request: NextRequest) {
       filter.$and = [itvOwnProductClause()]
     }
 
+    if (updateSet.isPublished === true) {
+      const products = await Product.find(filter).lean()
+      for (const product of products) {
+        const error = productConfigurationError({ ...product, isPublished: true })
+        if (error) return NextResponse.json({ success: false, error: `${product.name} : ${error}` }, { status: 400 })
+      }
+    }
+
     const result: any = await Product.updateMany(filter, updateDoc)
+    void invalidateCatalogCache()
 
     const matchedCount = Number(result?.matchedCount ?? result?.n ?? 0)
     const vendorSkipped = exposesCorporate ? cleanIds.length - matchedCount : 0

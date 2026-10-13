@@ -10,13 +10,15 @@ import { generateQuoteNumero } from '@/lib/quote-number'
 import { computeQuoteTotals, DEFAULT_BRS_THRESHOLD } from '@/lib/finance/billing'
 import { addNotification } from '@/lib/notifications-memory'
 import { requireAuth } from '@/lib/jwt'
+import { resolveTechnicianId } from '@/lib/interventions-access'
+import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
 
 async function requireInterventionSubmitAccess(request: NextRequest) {
   try {
-    const { role, userId } = await requireAuth(request)
-    const allowed = ['ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
+    const { role, userId, email } = await requireAuth(request) as { role: string; userId: string; email?: string }
+    const allowed = ['ADMIN', 'SUPER_ADMIN', 'TECHNICIAN', 'PRODUCT_MANAGER'].includes(role)
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const, userId: null }
-    return { ok: true as const, userId }
+    return { ok: true as const, userId, role, email: email || '' }
   } catch {
     return { ok: false as const, status: 401, error: 'Non authentifié' as const, userId: null }
   }
@@ -36,11 +38,10 @@ export async function POST(request: NextRequest) {
       site, signatures, gpsLocation, status, priority
     } = body || {}
 
-    // Résoudre le technicien connecté si non précisé
+    // Un technicien soumet toujours en son nom
     let technicienId = bodyTechnicienId
-    if (!technicienId && auth.userId) {
-      const tech = await Technician.findOne({ userId: auth.userId }).lean() as any
-      if (tech?._id) technicienId = String(tech._id)
+    if (auth.role === 'TECHNICIAN') {
+      technicienId = await resolveTechnicianId(auth.email)
     }
 
     if (!clientId || !date || !technicienId || !typeIntervention) {
@@ -112,6 +113,9 @@ export async function POST(request: NextRequest) {
       intervention.addHistoryEntry('created', technicienId, { status: intervention.status, submitted })
       await intervention.save()
     }
+
+    void notifyInterventionChange(null, intervention.toObject())
+      .catch(e => console.error('[Intervention submit] notification:', e))
 
     // Génération automatique de devis si recommandations et soumission effective (status = 'soumis')
     let generatedQuote = null

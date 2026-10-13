@@ -49,7 +49,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://pay.wave.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.alicdn.com https://*.aliexpress.com https://*.alibaba.com https://*.1688.com https://api.wave.com https://api.orange.com https://api.free.sn; frame-src 'self' https://js.stripe.com https://pay.wave.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://pay.wave.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.alicdn.com https://*.aliexpress.com https://*.alibaba.com https://*.1688.com https://api.wave.com https://api.orange.com https://api.free.sn https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io; frame-src 'self' https://js.stripe.com https://pay.wave.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
           },
           {
             key: 'Strict-Transport-Security',
@@ -122,7 +122,6 @@ const nextConfig = {
   
   // Configuration stricte pour la production
   ...(process.env.NODE_ENV === 'production' && {
-    output: 'standalone',
     compress: true,
     trailingSlash: false
   })

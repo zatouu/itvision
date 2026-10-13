@@ -9,6 +9,10 @@ import {
 import { syncChinaPurchaseFromGroupOrder } from '@/lib/china-purchase'
 import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance } from '@/lib/grains'
 import { syncUserToProfiles } from '@/lib/user-profiles'
+import { notifyAdmins, notifyUser } from '@/lib/notify'
+import { onMarketOrderPaid } from '@/lib/market/order-paid-effects'
+import { recordGroupCommission } from '@/lib/market/ambassador'
+import { confirmTransportPayment } from '@/lib/market/freight-billing'
 
 export interface ConfirmPaymentInput {
   reference: string
@@ -26,6 +30,8 @@ export interface ConfirmPaymentResult {
 
 export async function confirmPayment(input: ConfirmPaymentInput): Promise<ConfirmPaymentResult> {
   await connectDB()
+
+  if (input.reference.startsWith('TR-')) return confirmTransportPayment(input)
 
   // ── Paiement participant d'un achat groupé ──────────────────────────────
   // Claim atomique : un seul callback passe le filtre paymentStatus ≠ 'paid',
@@ -80,7 +86,25 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
     }
 
     await groupClaim.save()
+
+    if (groupClaim.status === 'cancelled') {
+      void notifyAdmins({
+        type: 'warning',
+        title: 'Paiement reçu sur un achat groupé annulé',
+        message: `${groupClaim.groupId} : ${Math.round(input.amount).toLocaleString('fr-FR')} FCFA reçus (${input.provider}, réf. ${input.reference}) — à rembourser.`,
+        actionUrl: '/admin/marketplace/remboursements',
+        metadata: { groupId: groupClaim.groupId, reference: input.reference, amount: input.amount },
+      })
+      return { found: true, changed: true, type: 'group', reference: input.reference }
+    }
+
     await notifyGroupPaymentConfirmed(participant, groupClaim, input.transactionId)
+
+    if (participant.paymentStatus === 'paid') {
+      await recordGroupCommission(groupClaim, participant).catch((err) =>
+        console.error('[fulfillment] commission ambassadeur groupe:', err)
+      )
+    }
 
     return { found: true, changed: true, type: 'group', reference: input.reference }
   }
@@ -113,13 +137,34 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
       : { found: false, changed: false, reference: input.reference }
   }
 
-  // Une commande annulée entre-temps n'est pas réactivée (stock déjà restitué)
+  // Une commande annulée entre-temps n'est pas réactivée (stock déjà restitué) : l'argent reçu est à rembourser,
+  // sans email « prise en charge » ni grains
   await Order.updateOne(
     { _id: standardOrder._id, status: 'pending' },
     { $set: { status: 'confirmed', confirmedAt: new Date() } }
   )
   if (standardOrder.status === 'cancelled') {
     console.error(`[fulfillment] Paiement reçu pour une commande annulée ${input.reference} — remboursement à traiter`)
+    await Order.updateOne(
+      { _id: standardOrder._id, refundStatus: { $nin: ['pending', 'done'] } },
+      { $set: { refundStatus: 'pending', refundAmount: input.amount } }
+    )
+    void notifyAdmins({
+      type: 'warning',
+      title: 'Paiement reçu sur une commande annulée',
+      message: `Commande ${input.reference} : ${Math.round(input.amount).toLocaleString('fr-FR')} FCFA reçus (${input.provider}) — à rembourser.`,
+      actionUrl: '/admin/marketplace/remboursements',
+      metadata: { orderId: input.reference, amount: input.amount },
+    })
+    if (standardOrder.clientId) {
+      void notifyUser(String(standardOrder.clientId), {
+        type: 'warning',
+        title: `Commande ${input.reference} annulée`,
+        message: 'Votre paiement est arrivé après l\'annulation de la commande. Il vous sera remboursé, notre équipe vous contacte.',
+        actionUrl: `/commandes/${input.reference}`,
+      })
+    }
+    return { found: true, changed: true, type: 'order', reference: input.reference }
   }
 
   // Sous-paiement : la facture PayDunya ne se complète qu'à montant plein,
@@ -148,6 +193,8 @@ export async function confirmPayment(input: ConfirmPaymentInput): Promise<Confir
       console.error('[fulfillment] Erreur crédit grains commande payée:', grainsErr)
     }
   }
+
+  await onMarketOrderPaid(standardOrder)
 
   return { found: true, changed: true, type: 'order', reference: input.reference }
 }

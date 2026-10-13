@@ -5,11 +5,11 @@ import { connectMongoose } from '@/lib/mongoose'
 import Ticket from '@/lib/models/Ticket'
 import Notification from '@/lib/models/Notification'
 import { TicketService } from '@/lib/services/tickets'
-import { requireAuth } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import { notifyCompany, resolveClientCompanyId } from '@/lib/portal/company-notify'
 
 async function verifyToken(request: NextRequest) {
-  const decoded = await requireAuth(request)
+  const decoded = await requireApiUser(request)
   return {
     userId: decoded.userId,
     role: decoded.role as 'CLIENT' | 'TECHNICIAN' | 'ADMIN'
@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
     const serialized = await Promise.all(tickets.map((ticket) => TicketService.serialize(ticket as any)))
     return NextApiResponse.json({ success: true, tickets: serialized, total })
   } catch (e) {
+    const authRes = authErrorResponse(e)
+    if (authRes) return authRes
     console.error('Erreur liste tickets:', e)
     return NextApiResponse.json({ error: 'Erreur liste tickets' }, { status: 500 })
   }
@@ -130,6 +132,8 @@ export async function POST(request: NextRequest) {
 
     return NextApiResponse.json({ success: true, ticket: await TicketService.serialize(ticket) })
   } catch (e) {
+    const authRes = authErrorResponse(e)
+    if (authRes) return authRes
     console.error('Erreur création ticket:', e)
     return NextApiResponse.json({ error: 'Erreur création ticket' }, { status: 500 })
   }
@@ -260,6 +264,8 @@ export async function PATCH(request: NextRequest) {
 
     return NextApiResponse.json({ success: true, ticket: updated })
   } catch (e) {
+    const authRes = authErrorResponse(e)
+    if (authRes) return authRes
     console.error('Erreur mise à jour ticket:', e)
     return NextApiResponse.json({ error: 'Erreur mise à jour ticket' }, { status: 500 })
   }

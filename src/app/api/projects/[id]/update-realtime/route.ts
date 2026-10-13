@@ -1,5 +1,5 @@
 /**
- * Outil de test Socket.io — mise à jour temps réel d'un projet (cf. TEST_SOCKET_IO.md).
+ * Outil de test Socket.io — mise à jour temps réel d'un projet (cf. docs/TEST_SOCKET_IO.md).
  *
  * Mutait un projet SANS aucune autorisation : désormais réservé au staff
  * (ADMIN/SUPER_ADMIN). Aucun écran applicatif ne l'appelle — la mise à jour

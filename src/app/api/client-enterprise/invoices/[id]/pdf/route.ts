@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import { CLIENT_VISIBLE_INVOICE } from '@/lib/client-documents'
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
   const { access } = result
+  const denied = requireCompanyCapability(access, 'finance:view')
+  if (denied) return denied
   const companyClientId = access.profiles.companyClientId
   if (!companyClientId) return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
 

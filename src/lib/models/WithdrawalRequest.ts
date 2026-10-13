@@ -12,6 +12,7 @@ export interface IWithdrawalRequest extends Document {
   processedAt?: Date
   processedBy?: mongoose.Types.ObjectId
   rejectionReason?: string
+  payoutReference?: string
   createdAt: Date
 }
 
@@ -24,6 +25,7 @@ const WithdrawalRequestSchema = new Schema<IWithdrawalRequest>({
   processedAt: { type: Date },
   processedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   rejectionReason: { type: String },
+  payoutReference: { type: String },
   createdAt: { type: Date, default: Date.now },
 }, { timestamps: { createdAt: 'createdAt', updatedAt: false } })
 

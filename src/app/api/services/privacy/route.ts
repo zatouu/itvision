@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import { verifyAuthServer } from '@/lib/auth-server'
 
-const DEFAULTS = { profilePublic: true, preciseLocation: true, smsNotifications: false }
+const DEFAULTS = { profilePublic: true, preciseLocation: true, smsNotifications: false, whatsappNotifications: false }
 
 // GET /api/services/privacy — préférences de confidentialité du compte
 export async function GET(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest) {
     let body: any
     try { body = await request.json() } catch { body = {} }
 
-    const allowed = ['profilePublic', 'preciseLocation', 'smsNotifications'] as const
+    const allowed = ['profilePublic', 'preciseLocation', 'smsNotifications', 'whatsappNotifications'] as const
     const $set: Record<string, boolean> = {}
     for (const key of allowed) {
       if (typeof body[key] === 'boolean') $set[`privacy.${key}`] = body[key]

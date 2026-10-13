@@ -1,0 +1,56 @@
+consumer\app\all-categories.tsx:    router.push({ pathname: '/create-request', params: { category: slug } })
+consumer\app\all-categories.tsx:                        onPress={() => router.push({ pathname: '/create-request', params: { category: cat.slug, subcategory: sub.slug } })}
+consumer\app\create-request.tsx:        <TouchableOpacity style={s.btn} onPress={() => router.replace('/my-requests')} activeOpacity={0.8}>
+consumer\app\index.tsx:            <TouchableOpacity style={s.iconBtn} onPress={() => router.push('/notifications')} accessibilityLabel="Notifications">
+consumer\app\index.tsx:            <TouchableOpacity style={s.avatarBtn} onPress={() => router.push('/profile')} accessibilityLabel="Profil">
+consumer\app\index.tsx:                  onPress={() => router.push(`/offers/${it._id}`)}
+consumer\app\index.tsx:                  onPress={() => router.push(`/mission/${it._id}`)}
+consumer\app\index.tsx:          <TouchableOpacity style={s.ctaMain} onPress={() => router.push('/create-request')} activeOpacity={0.88}>
+consumer\app\index.tsx:          <TouchableOpacity style={s.ctaEmergency} onPress={() => router.push({ pathname: '/create-request', params: { category: 'electricite' } })} activeOpacity={0.85}>
+consumer\app\index.tsx:            onPress={() => router.push('/create-request')}
+consumer\app\index.tsx:              onPress={() => router.push({ pathname: '/create-request', params: { category: c.id } })}
+consumer\app\index.tsx:            onPress={() => router.push('/all-categories')}
+consumer\app\index.tsx:              <TouchableOpacity onPress={() => router.push('/my-requests')}>
+consumer\app\index.tsx:                        router.push(`/mission/${it._id}`)
+consumer\app\index.tsx:                        router.push(`/offers/${it._id}`)
+consumer\app\login.tsx:      router.push({ pathname: '/verify-otp', params: { phone: data.phone, _devCode: data._devCode || '' } })
+consumer\app\mission\[id].tsx:    router.push(`/payment?offerId=${offer._id}&amount=${balanceAmount}&requestId=${requestId}&phase=balance`)
+consumer\app\mission\[id].tsx:                <TouchableOpacity style={s.actionIconBtn} activeOpacity={0.6} onPress={() => router.push(`/mission-chat?id=${requestId}&providerName=${encodeURIComponent(offer.providerName || '')}${offer.providerPhone ? `&providerPhone=${encodeURIComponent(offer.providerPhone)}` : ''}`)}>
+consumer\app\mission\[id].tsx:                onPress={() => router.push(`/dispute/${requestId}`)}
+consumer\app\mission\[id].tsx:            <TouchableOpacity style={s.rateBtn} onPress={() => router.push(`/rate-mission?id=${requestId}&providerName=${encodeURIComponent(offer?.providerName || '')}`)} activeOpacity={0.8}>
+consumer\app\my-requests.tsx:        <TouchableOpacity onPress={() => router.push('/create-request')} style={s.iconBtn} accessibilityLabel={t('requests.createRequest')}>
+consumer\app\my-requests.tsx:          onPress={() => router.push(`/mission/${awaitingValidationItems[0]._id}`)}
+consumer\app\my-requests.tsx:              onAction={() => router.push('/create-request')}
+consumer\app\my-requests.tsx:                    router.push(`/offers/${it._id}`)
+consumer\app\my-requests.tsx:                    router.push(`/mission/${it._id}`)
+consumer\app\my-requests.tsx:                    router.push(`/offers/${it._id}`)
+consumer\app\my-requests.tsx:                          onPress={() => router.push(`/mission/${it._id}`)}
+consumer\app\notifications.tsx:        router.push({ pathname: n.link.pathname as any, params: n.link.params })
+consumer\app\notifications.tsx:        router.push(n.link.pathname as any)
+consumer\app\offers\[requestId].tsx:      router.replace(`/mission/${requestId}`)
+consumer\app\offers\[requestId].tsx:      router.push(`/payment?offerId=${offer._id}&amount=${offer.price}&requestId=${requestId}`)
+consumer\app\offers\[requestId].tsx:                  onPress={() => router.push(`/create-request?editId=${requestId}`)}
+consumer\app\payment.tsx:      setTimeout(() => router.push('/wallet'), 800)
+consumer\app\payment.tsx:          router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:          router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:                router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:                router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:          router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:                    router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:                router.replace(`/mission/${requestId}`)
+consumer\app\payment.tsx:        setTimeout(() => router.push('/wallet'), 800)
+consumer\app\payment.tsx:                  <TouchableOpacity onPress={() => router.push('/wallet')} style={s.topupBtn}>
+consumer\app\payment.tsx:                    router.replace(`/mission/${requestId}`)
+consumer\app\profile.tsx:        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/wallet')}>
+consumer\app\profile.tsx:        <TouchableOpacity style={s.menuItem} onPress={() => router.push('/my-requests')}>
+consumer\app\profile.tsx:          router.replace('/login')
+consumer\app\requests\location.tsx:          onPress={() => router.push('/requests/published')}
+consumer\app\requests\published.tsx:            onPress={() => requestId ? router.push(`/offers/${requestId}`) : router.push('/my-requests')}
+consumer\app\requests\published.tsx:          <TouchableOpacity style={s.homeBtn} onPress={() => router.replace('/')} activeOpacity={0.85}>
+consumer\app\setup-profile.tsx:      router.replace('/')
+consumer\app\verify-otp.tsx:      router.replace(data.user?.isNew ? '/setup-profile' : '/')
+consumer\app\verify-otp.tsx:    router.replace({ pathname: '/login' })
+consumer\app\_layout.tsx:      router.replace('/login')
+consumer\app\_layout.tsx:      router.replace('/login')
+consumer\app\_layout.tsx:      router.replace('/')
+consumer\app\_layout.tsx:        router.replace('/setup-profile')

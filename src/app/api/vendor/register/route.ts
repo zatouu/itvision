@@ -22,6 +22,7 @@ const registerSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuthServer(req)
+    if (auth.unavailable) return NextResponse.json({ success: false, error: 'Service temporairement indisponible' }, { status: 503 })
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ success: false, error: 'Authentification requise' }, { status: 401 })
     }
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         vendor: { id: String(rec.vendor._id), name: rec.vendor.name, slug: rec.vendor.slug },
         message: 'Votre boutique existante a été rattachée à votre compte.',
       })
-      await reissueAuthCookie(response, user)
+      await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
       return response
     }
 
@@ -174,6 +175,7 @@ export async function POST(req: NextRequest) {
         const token = await signAuthTokenWithExpiry(
           {
             userId: String(user._id),
+            sessionVersion: auth.user.sessionVersion ?? 0,
             email: user.email,
             role: normalizedRole,
             username: user.username,

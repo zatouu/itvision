@@ -42,6 +42,18 @@ function toObjectId(userId: string | mongoose.Types.ObjectId): mongoose.Types.Ob
   return typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId
 }
 
+// sourceId est Mixed : ObjectId (commande, avis…) ou chaîne (GRP-…) — jamais de conversion forcée
+function toSourceId(id: string | mongoose.Types.ObjectId): string | mongoose.Types.ObjectId {
+  return typeof id === 'string' && /^[a-f0-9]{24}$/i.test(id) ? new mongoose.Types.ObjectId(id) : id
+}
+
+function sourceIdFilter(id: string | mongoose.Types.ObjectId) {
+  const asString = String(id)
+  return /^[a-f0-9]{24}$/i.test(asString)
+    ? { $in: [asString, new mongoose.Types.ObjectId(asString)] }
+    : asString
+}
+
 function startOfDay() {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -131,7 +143,7 @@ export async function createGrainsEvent({
       amount,
       type,
       source,
-      sourceId: sourceId ? (typeof sourceId === 'string' ? new mongoose.Types.ObjectId(sourceId) : sourceId) : undefined,
+      sourceId: sourceId ? toSourceId(sourceId) : undefined,
       description,
     })
 
@@ -159,7 +171,8 @@ export async function creditGrainsForOrder(userId: string | mongoose.Types.Objec
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'order',
-    sourceId: orderId,
+    sourceId: sourceIdFilter(orderId),
+    type: 'earned',
     amount: { $gt: 0 },
   })
   if (alreadyGranted) return null
@@ -195,7 +208,7 @@ export async function creditGrainsForGroupJoin(userId: string | mongoose.Types.O
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'group_join',
-    sourceId: groupId,
+    sourceId: sourceIdFilter(groupId),
     amount: { $gt: 0 },
   })
   if (alreadyGranted) return null
@@ -221,7 +234,7 @@ export async function creditGrainsForGroupComplete(userId: string | mongoose.Typ
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'group_complete',
-    sourceId: groupId,
+    sourceId: sourceIdFilter(groupId),
     amount: { $gt: 0 },
   })
   if (alreadyGranted) return null
@@ -259,7 +272,7 @@ export async function creditGrainsForReview(userId: string | mongoose.Types.Obje
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'review',
-    sourceId: reviewId,
+    sourceId: sourceIdFilter(reviewId),
     amount: { $gt: 0 },
   })
   if (alreadyGranted) return null
@@ -280,7 +293,7 @@ export async function creditGrainsForFavorite(userId: string | mongoose.Types.Ob
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'favorite',
-    sourceId: productId,
+    sourceId: sourceIdFilter(productId),
     amount: GRAINS_RULES.FAVORITE.amount,
   })
   if (alreadyGranted) return null
@@ -302,7 +315,7 @@ export async function creditGrainsForReferralSignup(referrerUserId: string | mon
   const alreadyGranted = await GrainsTransaction.exists({
     userId: uid,
     source: 'referral',
-    sourceId: newUserId,
+    sourceId: sourceIdFilter(newUserId),
     amount: GRAINS_RULES.REFERRAL_SIGNUP.amount,
   })
   if (alreadyGranted) return null
@@ -377,34 +390,79 @@ export async function creditBirthdayGrains(userId: string | mongoose.Types.Objec
   })
 }
 
-export async function reverseGrainsForOrder(userId: string | mongoose.Types.ObjectId, orderId: string, reason: string) {
+/**
+ * Retire les grains gagnés sur une commande (annulation : totalité ; retour partiel : `ratio`
+ * du montant initial). Jamais plus que le montant gagné, cumul des retraits compris.
+ */
+export async function reverseGrainsForOrder(
+  userId: string | mongoose.Types.ObjectId,
+  orderId: string | mongoose.Types.ObjectId,
+  reason: string,
+  opts: { ratio?: number } = {}
+) {
   const uid = toObjectId(userId)
+  const sid = sourceIdFilter(orderId)
   const existing = await GrainsTransaction.findOne({
     userId: uid,
     source: 'order',
-    sourceId: orderId,
+    sourceId: sid,
+    type: 'earned',
     amount: { $gt: 0 },
   }).lean() as any
   if (!existing) return null
 
-  // Prevent duplicate reversal
-  const alreadyReversed = await GrainsTransaction.exists({
-    userId: uid,
-    source: 'order',
-    sourceId: orderId,
-    amount: { $lt: 0 },
-  })
-  if (alreadyReversed) return null
+  const reversedAgg = await GrainsTransaction.aggregate([
+    { $match: { userId: uid, source: 'order', sourceId: sid, type: 'expired', amount: { $lt: 0 } } },
+    { $group: { _id: null, total: { $sum: '$amount' } } },
+  ])
+  const alreadyReversed = Math.abs(reversedAgg[0]?.total || 0)
+  const ratio = typeof opts.ratio === 'number' ? Math.min(1, Math.max(0, opts.ratio)) : 1
+  const amount = Math.min(Math.round(existing.amount * ratio), existing.amount - alreadyReversed)
+  if (amount <= 0) return null
 
-  return createGrainsEvent({
-    userId: uid,
-    amount: -existing.amount,
-    type: 'expired',
-    source: 'order',
-    sourceId: orderId,
-    description: `Grains annulés suite à ${reason}`,
-    metadata: { orderId, originalAmount: existing.amount, reason },
-  })
+  // Écriture directe : createGrainsEvent refuse les montants négatifs (le retrait n'était jamais enregistré)
+  try {
+    return await GrainsTransaction.create({
+      userId: uid,
+      amount: -amount,
+      type: 'expired',
+      source: 'order',
+      sourceId: existing.sourceId,
+      description: `Grains annulés suite à ${reason}`,
+    })
+  } catch (err) {
+    console.error('[grains] reverseGrainsForOrder error:', err)
+    return null
+  }
+}
+
+/** Rend les grains utilisés comme remise sur une commande annulée (une seule fois). */
+export async function refundSpentGrainsForOrder(userId: string | mongoose.Types.ObjectId, orderId: string | mongoose.Types.ObjectId, orderRef: string) {
+  const uid = toObjectId(userId)
+  const sid = sourceIdFilter(orderId)
+  const spent = await GrainsTransaction.aggregate([
+    { $match: { userId: uid, source: 'order', sourceId: sid, type: 'spent' } },
+    { $group: { _id: null, total: { $sum: '$amount' } } },
+  ])
+  const refunded = await GrainsTransaction.aggregate([
+    { $match: { userId: uid, source: 'order', sourceId: sid, type: 'bonus' } },
+    { $group: { _id: null, total: { $sum: '$amount' } } },
+  ])
+  const amount = Math.abs(spent[0]?.total || 0) - (refunded[0]?.total || 0)
+  if (amount <= 0) return null
+  try {
+    return await GrainsTransaction.create({
+      userId: uid,
+      amount,
+      type: 'bonus',
+      source: 'order',
+      sourceId: toSourceId(String(orderId)),
+      description: `Grains rendus suite à l'annulation de la commande ${orderRef}`,
+    })
+  } catch (err) {
+    console.error('[grains] refundSpentGrainsForOrder error:', err)
+    return null
+  }
 }
 
 // Paliers du programme Grains — source unique de vérité

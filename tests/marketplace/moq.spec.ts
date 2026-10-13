@@ -16,6 +16,7 @@ const PREFIX = 'E2E-MOQ'
 let anon: APIRequestContext
 let moqProductId: string
 let unitProductId: string
+let importedProductId: string
 
 function baseProduct(name: string, extra: Record<string, unknown> = {}) {
   return {
@@ -55,6 +56,10 @@ test.describe('MOQ — lot minimum appliqué au catalogue et au devis', () => {
     const unitProduct = await Product.create(baseProduct(`${PREFIX}-Unite-${stamp}`, { minOrderQty: 1 }))
     moqProductId = String(moqProduct._id)
     unitProductId = String(unitProduct._id)
+    const importedProduct = await Product.create(baseProduct(`${PREFIX}-Import-${stamp}`, {
+      minOrderQty: 1, baseCost: 10000, price1688: 10000, marginRate: 0, serviceFeeRate: 10,
+    }))
+    importedProductId = String(importedProduct._id)
 
     anon = await pwRequest.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
   })
@@ -110,5 +115,29 @@ test.describe('MOQ — lot minimum appliqué au catalogue et au devis', () => {
       data: { cart: [{ id: unitProductId, qty: 1 }], shippingMethod: 'air_15j' },
     })
     expect(res.ok(), await res.text()).toBeTruthy()
+  })
+
+  test('une pièce importée applique 15 % malgré un taux envoyé par le client', async () => {
+    const res = await anon.post('/api/pricing/quote', {
+      data: {
+        cart: [{ id: importedProductId, qty: 1, serviceFeeRate: 0 }],
+        shippingMethod: 'air_15j',
+        serviceFeeRate: 0,
+      },
+    })
+    expect(res.ok(), await res.text()).toBeTruthy()
+    const { quote } = await res.json()
+    expect(quote.pricing.serviceFee.rate).toBe(15)
+    expect(quote.pricing.serviceFee.amount).toBe(1500)
+  })
+
+  test('deux pièces importées retrouvent le taux standard de 10 %', async () => {
+    const res = await anon.post('/api/pricing/quote', {
+      data: { cart: [{ id: importedProductId, qty: 2 }], shippingMethod: 'air_15j' },
+    })
+    expect(res.ok(), await res.text()).toBeTruthy()
+    const { quote } = await res.json()
+    expect(quote.pricing.serviceFee.rate).toBe(10)
+    expect(quote.pricing.serviceFee.amount).toBe(2000)
   })
 })

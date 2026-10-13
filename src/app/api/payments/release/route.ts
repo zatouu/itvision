@@ -5,8 +5,8 @@ import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { sendPushToUser } from '@/lib/push'
-import { getAppConfig, creditCashBalance } from '@/lib/wallet'
-import { schedulePaymentReconcile } from '@/lib/payment-reconcile'
+import { getAppConfig } from '@/lib/wallet'
+import { payProvider } from '@/lib/payment-reconcile'
 
 /**
  * Release escrow payment to provider when mission is completed.
@@ -68,23 +68,8 @@ export async function POST(request: NextRequest) {
       totalCommission += commission
 
       if (payment.provider !== 'cash' && net > 0) {
-        try {
-          await creditCashBalance(String(payment.providerId), net, {
-            relatedMissionId: String(requestId),
-            paymentRef: String(payment._id),
-            description: `Reversement mission ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
-          })
-        } catch (creditErr) {
-          // Le paiement est déjà 'released' mais le crédit wallet a échoué.
-          // Planifier une réconciliation automatique.
-          console.error(`[release] creditCashBalance échoué pour payment=${payment._id}, planification retry`, creditErr)
-          await schedulePaymentReconcile(
-            String(payment._id),
-            String(payment.providerId),
-            net,
-            String(requestId),
-          )
-        }
+        await payProvider(payment, net, String(requestId),
+          `Reversement mission ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`)
       }
 
       totalReleased += net

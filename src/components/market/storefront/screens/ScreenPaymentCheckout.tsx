@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { formatFcfa } from '../formatFcfa';
 import { MARKET_BRAND, brandWhatsAppUrl } from '@/lib/branding';
 import { buildWavePayLink } from '@/lib/payments/wave';
-import type { PaymentSettings } from '@/lib/payments/settings';
+import type { CheckoutPaymentSettings } from '@/lib/payments/settings';
 
 type ProviderKey = 'wave' | 'om' | 'free' | 'wire' | 'gateway';
 
@@ -34,7 +34,7 @@ interface ScreenPaymentCheckoutProps {
   orderType: 'order' | 'group'
   amount: number
   items: PaymentItem[]
-  settings: PaymentSettings
+  settings: CheckoutPaymentSettings
   phone?: string
   customerName?: string
   /** Tracking token invité — propagé aux APIs de paiement */
@@ -73,6 +73,7 @@ export default function ScreenPaymentCheckout({
   const [toast, setToast] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const [awaitingReview, setAwaitingReview] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const totalPcs = items.reduce((s, i) => s + i.qty, 0);
   const manual = settings.providers.manual;
@@ -107,7 +108,7 @@ export default function ScreenPaymentCheckout({
         initials: 'W',
         payUrl: waveLink ?? undefined,
         instructions: waveLink
-          ? ['Cliquez sur le bouton « Payer avec Wave » — le montant est déjà rempli.', 'Confirmez le paiement dans l\'application Wave.', 'La confirmation est automatique.']
+          ? ['Ouvrez le lien Wave pour régler le montant indiqué.', 'Confirmez le paiement dans l\'application Wave.', 'Le paiement reste en attente jusqu’à sa vérification.']
           : ['Ouvrez votre application Wave.', `Envoyez ${formatFcfa(amount)} au numéro marchand ci-dessous.`, 'Renseignez votre numéro Wave pour la confirmation.'],
       });
     }
@@ -155,18 +156,26 @@ export default function ScreenPaymentCheckout({
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const copyMerchant = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const copyMerchant = async (text: string) => {
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { showToast('Copie impossible. Vous pouvez sélectionner les coordonnées affichées.'); }
   };
 
   useEffect(() => {
     if (paymentStatus === 'paid') return;
+    const controller = new AbortController();
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/payment/status?reference=${encodeURIComponent(reference)}`);
+        const res = await fetch(`/api/payment/status?reference=${encodeURIComponent(reference)}`, { signal: controller.signal, cache: 'no-store' });
+        if (!res.ok) throw new Error('Vérification indisponible');
         const data = await res.json();
+        if (controller.signal.aborted) return;
+        if (typeof data?.status !== 'string') throw new Error('Statut incomplet');
+        setStatusError(null);
         if (data?.status === 'paid' || data?.status === 'completed') {
           setPaymentStatus('paid');
           showToast('Paiement confirmé ! Redirection...');
@@ -175,14 +184,15 @@ export default function ScreenPaymentCheckout({
           setPaymentStatus('failed');
           setAwaitingReview(false);
         }
-      } catch {}
+      } catch { if (!controller.signal.aborted) setStatusError('La vérification du paiement est indisponible. Ne payez pas à nouveau : une nouvelle vérification sera effectuée automatiquement.'); }
     }, 8000);
-    return () => clearInterval(interval);
+    return () => { controller.abort(); clearInterval(interval); };
   }, [reference, paymentStatus, router, showToast, successUrl]);
 
   const handlePay = async () => {
-    if (loading || !method) return;
+    if (loading || !method || awaitingReview || paymentStatus === 'paid' || statusError) return;
     setLoading(true);
+    if (paymentStatus === 'failed') setPaymentStatus('pending');
     try {
       if (method.key === 'gateway') {
         const response = await fetch('/api/payment/checkout/init', {
@@ -191,7 +201,12 @@ export default function ScreenPaymentCheckout({
           body: JSON.stringify({ reference, token }),
         });
         const data = await response.json();
-        if (data?.url) window.location.href = data.url;
+        if (!response.ok) { showToast(data?.error || 'Impossible de démarrer le paiement.'); return; }
+        if (data?.url) {
+          const url = new URL(data.url, window.location.origin);
+          if (url.protocol !== 'https:' && url.origin !== window.location.origin) throw new Error('Lien de paiement invalide');
+          window.location.assign(url.href);
+        }
         else if (data?.error) showToast(data.error);
         else showToast('Erreur lors du lancement du paiement');
         return;
@@ -219,8 +234,7 @@ export default function ScreenPaymentCheckout({
         return;
       }
       if (method.payUrl) {
-        window.open(method.payUrl, '_blank', 'noopener,noreferrer');
-        showToast('Lien Wave ouvert — confirmez le paiement dans l\'application.');
+        window.location.assign(method.payUrl);
       } else {
         showToast(data.message || 'Paiement initié. Confirmez depuis votre téléphone.');
       }
@@ -235,7 +249,7 @@ export default function ScreenPaymentCheckout({
   };
 
   const MethodTile = ({ m, active, onClick }: { m: MethodDef; active: boolean; onClick: () => void }) => (
-    <button onClick={onClick} className={cn(
+    <button onClick={onClick} aria-pressed={active} disabled={loading || awaitingReview || paymentStatus === 'paid'} className={cn(
       'flex w-full items-center gap-3 rounded-2xl border-2 p-3 md:p-4 text-left transition-all',
       active ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700'
     )}>
@@ -260,18 +274,18 @@ export default function ScreenPaymentCheckout({
           <div className="rounded-lg bg-white dark:bg-slate-900 p-3 border border-blue-100 dark:border-blue-950 space-y-2">
             {manual.bankName && (
               <div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Banque</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Banque</p>
                 <p className="mt-0.5 text-[12px] font-bold text-slate-900 dark:text-white">{manual.bankName}</p>
               </div>
             )}
             {manual.bankAccountName && (
               <div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Titulaire</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Titulaire</p>
                 <p className="mt-0.5 text-[12px] font-bold text-slate-900 dark:text-white">{manual.bankAccountName}</p>
               </div>
             )}
             <div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">IBAN / RIB</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">IBAN / RIB</p>
               <p className="mt-0.5 font-mono text-[12px] font-bold text-slate-900 dark:text-white break-all">{manual.bankIban}</p>
             </div>
           </div>
@@ -287,27 +301,15 @@ export default function ScreenPaymentCheckout({
         <ol className="space-y-2.5 text-[12px] text-slate-700 dark:text-slate-300">
           {method?.instructions.map((step, i) => (
             <li key={i} className="flex gap-2.5">
-              <span className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-[10px] font-extrabold">{i + 1}</span>
+              <span className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-[11px] font-extrabold">{i + 1}</span>
               <span>{step}</span>
             </li>
           ))}
-          {method?.payUrl && (
-            <li className="pl-7">
-              <a
-                href={method.payUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-lg bg-[#00B0F0] px-3 py-2.5 text-[12px] font-extrabold text-white hover:bg-[#0090cc] transition-colors"
-              >
-                Payer {formatFcfa(amount)} avec Wave
-              </a>
-            </li>
-          )}
           {method?.key !== 'gateway' && method?.merchantPhone && (
             <li className="pl-7">
-              <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 flex items-center justify-between gap-2">
+              <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-[13px] font-extrabold text-slate-900 dark:text-white">{method.merchantPhone}</span>
-                <button onClick={() => copyMerchant(method.merchantPhone)} className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap inline-flex items-center gap-1">
+                <button onClick={() => copyMerchant(method.merchantPhone)} className="min-h-11 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap inline-flex items-center gap-1">
                   {copied ? <Check size={11} /> : <Copy size={11} />}{copied ? 'Copié' : 'Copier'}
                 </button>
               </div>
@@ -322,18 +324,18 @@ export default function ScreenPaymentCheckout({
     <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
       <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
         <p className="text-[13px] font-extrabold text-slate-900 dark:text-white">Récapitulatif</p>
-        <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{reference}</p>
+        <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{reference}</p>
       </div>
       <div className="max-h-56 overflow-y-auto p-3 space-y-2">
         {items.map((it, i) => (
           <div key={i} className="flex items-center gap-2.5">
             <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
               {it.image ? <img loading="lazy" decoding="async" src={it.image} alt="" className="h-full w-full object-cover" /> : <Package size={18} className="m-auto text-slate-400" />}
-              <span className="absolute -bottom-0.5 -right-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-1 text-[9px] font-bold text-white tabular-nums">{it.qty}</span>
+              <span className="absolute -bottom-0.5 -right-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 px-1 text-[11px] font-bold text-white tabular-nums">{it.qty}</span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-slate-900 dark:text-white line-clamp-1">{it.name}</p>
-              <p className="text-[9px] text-slate-500 dark:text-slate-400">{it.variant}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{it.variant}</p>
             </div>
             <p className="text-[11px] font-extrabold tabular-nums whitespace-nowrap text-slate-900 dark:text-white flex-shrink-0">{formatFcfa(it.price * it.qty)}</p>
           </div>
@@ -345,12 +347,12 @@ export default function ScreenPaymentCheckout({
         )}
         <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Sous-total</span><span className="font-semibold tabular-nums text-slate-900 dark:text-white whitespace-nowrap">{formatFcfa(amount)}</span></div>
         <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <span className="text-[13px] font-bold text-slate-900 dark:text-white">Total à payer</span>
           <span className="text-[22px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">{formatFcfa(amount)}</span>
         </div>
         {settings.providers.escrow.enabled && (
-          <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><Shield size={10} />Paiement sécurisé · débité seulement après confirmation</p>
+          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><Shield size={10} />Protection du paiement selon les conditions de la commande</p>
         )}
       </div>
     </div>
@@ -362,9 +364,9 @@ export default function ScreenPaymentCheckout({
         <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-emerald-600 text-white"><MessageCircle size={16} /></span>
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-extrabold text-slate-900 dark:text-white">Un problème avec le paiement ?</p>
-          <p className="text-[10px] text-slate-600 dark:text-slate-400">Notre équipe est disponible 7j/7 sur WhatsApp</p>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">Contacter le support DDM+</p>
         </div>
-        <a href={brandWhatsAppUrl(MARKET_BRAND, `Problème paiement ${reference}`)} target="_blank" rel="noopener noreferrer" className="rounded-md bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 flex-shrink-0 inline-flex items-center gap-1">
+        <a href={brandWhatsAppUrl(MARKET_BRAND, `Problème paiement ${reference}`)} target="_blank" rel="noopener noreferrer" className="rounded-md bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-700 flex-shrink-0 inline-flex items-center gap-1">
           <MessageCircle size={12} />Contact
         </a>
       </div>
@@ -393,12 +395,14 @@ export default function ScreenPaymentCheckout({
       </header>
 
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-900 text-white px-4 py-2 text-[12px] font-semibold shadow-lg dark:bg-white dark:text-slate-900">
+        <div role="status" className="fixed inset-x-4 top-4 z-50 mx-auto max-w-lg rounded-lg bg-slate-900 text-white px-4 py-2 text-[12px] font-semibold shadow-lg dark:bg-white dark:text-slate-900">
           {toast}
         </div>
       )}
 
       <main className="mx-auto max-w-6xl px-4 py-4 md:py-6">
+        <h1 className="mb-4 text-2xl font-bold">Paiement</h1>
+        {statusError && <p role="alert" className="mb-4 text-sm text-red-700 dark:text-red-300">{statusError}</p>}
         <div className="mb-4 md:mb-6 flex items-center gap-2 text-[12px]">
           <Link href="/produits" className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400">Catalogue</Link>
           <span className="text-slate-400">›</span>
@@ -416,17 +420,17 @@ export default function ScreenPaymentCheckout({
             </a>
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_400px] gap-4 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4 md:gap-6">
           <div className="space-y-4">
             <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-900 text-white p-4 md:p-6">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">Montant à payer</p>
-                  <p className="mt-1 text-[32px] md:text-[42px] font-extrabold tabular-nums whitespace-nowrap leading-none">{formatFcfa(amount)}</p>
+                  <p className="mt-1 text-2xl sm:text-3xl font-extrabold tabular-nums leading-tight">{formatFcfa(amount)}</p>
                   <p className="mt-2 text-[12px] text-white/85 flex items-center gap-1"><Package size={12} />{totalPcs} pcs · {items.length} articles</p>
                 </div>
                 <div className="md:text-right">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">Référence</p>
+                  <p className="text-[11px] uppercase tracking-widest text-white/70">Référence</p>
                   <p className="text-[13px] font-mono font-bold">{reference}</p>
                 </div>
               </div>
@@ -443,11 +447,11 @@ export default function ScreenPaymentCheckout({
 
               {method && method.key !== 'wire' && method.key !== 'gateway' && (
                 <div className="mt-4">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Votre numéro {method.label}</label>
+                  <label htmlFor="payment-phone" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Votre numéro {method.label}</label>
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-slate-200 bg-white pl-3 dark:border-slate-700 dark:bg-slate-900">
                     <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">+221</span>
                     <Smartphone size={14} className="text-slate-400" />
-                    <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="77 000 00 00" className="h-11 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums" />
+                    <input id="payment-phone" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel-national" placeholder="77 000 00 00" className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white tabular-nums" />
                   </div>
                 </div>
               )}
@@ -462,11 +466,11 @@ export default function ScreenPaymentCheckout({
               <OrderRecap />
               <button
                 onClick={handlePay}
-                disabled={loading}
+                disabled={loading || awaitingReview || paymentStatus === 'paid' || !!statusError}
                 className="w-full h-12 rounded-xl bg-emerald-600 text-white font-extrabold hover:bg-emerald-700 disabled:opacity-60 transition flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
-                Payer {formatFcfa(amount)}
+                {paymentStatus === 'paid' ? 'Paiement confirmé' : awaitingReview ? 'Vérification en cours' : `Payer ${formatFcfa(amount)}`}
               </button>
               {awaitingReview && paymentStatus !== 'failed' && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3.5">
@@ -485,7 +489,7 @@ export default function ScreenPaymentCheckout({
                 <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 p-3.5">
                   <p className="text-[12px] font-extrabold text-red-800 dark:text-red-300">Paiement non confirmé</p>
                   <p className="mt-0.5 text-[11px] leading-snug text-red-700 dark:text-red-400">
-                    Le paiement n&apos;a pas été retrouvé sur le compte marchand. Si vous avez été débité, contactez-nous sur WhatsApp avec votre reçu.
+                    Le paiement n&apos;a pas été retrouvé sur le compte marchand. Vous pouvez réessayer avec le bouton « Payer » (éventuellement avec un autre moyen). Si vous avez été débité, contactez-nous sur WhatsApp avec votre reçu.
                   </p>
                   <a href={brandWhatsAppUrl(MARKET_BRAND, `Paiement ${reference} non confirmé`)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-red-700">
                     <MessageCircle size={12} /> Contacter le support
@@ -493,7 +497,7 @@ export default function ScreenPaymentCheckout({
                 </div>
               )}
               {settings.providers.escrow.enabled && (
-                <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Paiement sécurisé · débité seulement après confirmation</p>
+                <p className="text-center text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1"><Shield size={11} />Un paiement initié n’est pas encore un paiement confirmé</p>
               )}
               <div className="md:hidden"><TrustFooter /></div>
             </div>

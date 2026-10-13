@@ -17,6 +17,23 @@ const REQUEST_TTL_HOURS = 2 // demande standard
 const REQUEST_TTL_URGENT_MIN = 45 // demande urgente
 
 const OPEN_LIST_STATUSES = ['created', 'pending_offers', 'broadcasted']
+const MEDIA_TYPES = ['image', 'video', 'audio', 'file']
+const UPLOAD_PATH = /^\/(api\/)?uploads\/[\w./-]+$/
+
+/** Média accepté : fichier téléversé sur la plateforme (chemin relatif, ou URL absolue de nos hôtes). */
+function isPlatformMediaUrl(url: string, request: NextRequest): boolean {
+  if (url.length > 500 || url.includes('..')) return false
+  if (url.startsWith('/')) return UPLOAD_PATH.test(url)
+  try {
+    const u = new URL(url)
+    const hosts = [request.headers.get('host'), process.env.APP_BASE_URL, process.env.NEXT_PUBLIC_APP_URL]
+      .filter((h): h is string => !!h)
+      .map(h => h.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase())
+    return ['http:', 'https:'].includes(u.protocol) && hosts.includes(u.host.toLowerCase()) && UPLOAD_PATH.test(u.pathname)
+  } catch {
+    return false
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -178,7 +195,16 @@ export async function POST(request: NextRequest) {
     // Validation budget
     const safeBudget = Number.isFinite(Number(budget)) && Number(budget) >= 0 ? Math.min(Number(budget), MAX_BUDGET) : undefined
     // Validation media
-    const safeMedia = Array.isArray(media) ? media.filter((m: any) => m && typeof m.url === 'string').slice(0, 10) : []
+    const safeMedia = Array.isArray(media)
+      ? media
+          .filter((m: any) => m && typeof m.url === 'string' && isPlatformMediaUrl(m.url, request))
+          .slice(0, 10)
+          .map((m: any) => ({
+            url: m.url,
+            type: MEDIA_TYPES.includes(m.type) ? m.type : 'image',
+            ...(typeof m.title === 'string' ? { title: m.title.slice(0, 120) } : {}),
+          }))
+      : []
     // Validation channel
     const safeChannel = ['web', 'mobile', 'callcenter'].includes(channel) ? channel : 'mobile'
     // Validation attributes

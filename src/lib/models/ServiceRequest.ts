@@ -92,6 +92,9 @@ const ServiceRequestSchema = new Schema({
   pauseLog: { type: [PauseLogSchema], default: [] },
   // Coach IA prestataire : contenu généré une fois par étape (clé = statut), pour ne pas re-facturer ni re-générer
   aiCoach: { type: Schema.Types.Mixed, default: {} },
+  // Fiche d'analyse IA de la demande (analyze_request) : générée une seule fois, partagée par
+  // tous les prestataires qui consultent la demande. { advice, materials, model, generatedAt, descriptionHash }
+  aiBrief: { type: Schema.Types.Mixed },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
   // Quand chaque partie a lu le chat de mission (badges inbox "Messages")

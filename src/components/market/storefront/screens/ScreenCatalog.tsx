@@ -10,6 +10,7 @@ import { Icon } from '../Icon';
 import { Button } from '../Button';
 import { ProductCard } from '../ProductCard';
 import { ProductGridSkeleton } from '../Skeleton';
+import RetryNotice from '../RetryNotice';
 import { useQuickAdd } from '../useQuickAdd';
 import { mapCatalogItem, mapCategory } from '../data-mappers';
 import { productMatchesCategory } from '@/lib/catalog/category-match';
@@ -41,6 +42,8 @@ export default function ScreenCatalog() {
   const [page, setPage] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const loadGen = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,10 +84,12 @@ export default function ScreenCatalog() {
       if (lower && lower > 1) params.set('minMoq', String(lower));
     }
 
-    const res = await fetch(`/api/catalog/products?${params}`)
-      .then(r => (r.ok ? r.json() : null))
-      .catch(() => null);
+    const response = await fetch(`/api/catalog/products?${params}`);
+    if (!response.ok) throw new Error('Le catalogue est temporairement indisponible. Vos filtres sont conservés.');
+    const res = await response.json();
     if (gen !== loadGen.current) return; // réponse périmée (filtres changés entre-temps)
+
+    if (!Array.isArray(res?.products ?? res?.items)) throw new Error('Les produits n’ont pas pu être chargés.');
 
     const items = ((res?.products || res?.items || []) as unknown[]).map(mapCatalogItem) as Product[];
     setCATALOG(prev => {
@@ -102,12 +107,15 @@ export default function ScreenCatalog() {
   useEffect(() => {
     const gen = ++loadGen.current;
     setLoading(true);
+    setLoadingMore(false);
+    setError(null);
     setCATALOG([]);
     setHasMore(true);
     loadPage(1, gen, true)
-      .catch(() => {})
+      .catch(failure => { if (gen === loadGen.current) setError(failure.message); })
       .finally(() => { if (gen === loadGen.current) setLoading(false); });
-  }, [loadPage]);
+    return () => { loadGen.current++; };
+  }, [loadPage, attempt]);
 
   // Catégories : une seule fois (elles ne dépendent pas des filtres)
   useEffect(() => {
@@ -121,19 +129,21 @@ export default function ScreenCatalog() {
   // Infinite scroll : le sentinelle charge la page suivante en approchant du bas
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasMore || loading || loadingMore) return;
+    if (!el || !hasMore || loading || loadingMore || error) return;
     const gen = loadGen.current;
     const obs = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
         setLoadingMore(true);
-        loadPage(page + 1, gen, false).finally(() => {
+        loadPage(page + 1, gen, false).catch(failure => {
+          if (gen === loadGen.current) setError(failure.message);
+        }).finally(() => {
           if (gen === loadGen.current) setLoadingMore(false);
         });
       }
     }, { rootMargin: '600px' });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loading, loadingMore, page, loadPage]);
+  }, [hasMore, loading, loadingMore, page, loadPage, error]);
 
   // Paramètres d'entrée : ?cat=<slug>, ?q=<recherche>, ?moq=<bucket>, ?groupe=1
   // Abonné à useSearchParams : une recherche depuis le header alors qu'on est
@@ -143,11 +153,11 @@ export default function ScreenCatalog() {
     const catParam = searchParams.get('cat') || searchParams.get('category');
     const qParam = searchParams.get('q');
     const moqParam = searchParams.get('moq');
-    if (catParam) setCat(catParam);
-    if (qParam !== null) setQuery(qParam);
+    setCat(catParam || 'Tous');
+    setQuery(qParam || '');
     // « lot » = produits vendus par lots (lot minimum > 1), aligné sur l'API
-    if (moqParam && MOQ_BUCKETS.includes(moqParam)) setMoqFilter(moqParam);
-    if (searchParams.get('groupe') === '1') setGroupOnly(true);
+    setMoqFilter(moqParam && MOQ_BUCKETS.includes(moqParam) ? moqParam : 'all');
+    setGroupOnly(searchParams.get('groupe') === '1');
   }, [searchParams]);
 
   // Plage de prix réelle du catalogue (le slider suit le max observé)
@@ -195,9 +205,22 @@ export default function ScreenCatalog() {
     setGroupOnly(false); setVerifiedOnly(false); setMinSave(0); setQuery("");
   };
 
+  const retry = () => {
+    if (!CATALOG.length) { setAttempt(value => value + 1); return; }
+    const generation = loadGen.current;
+    setError(null);
+    setLoadingMore(true);
+    loadPage(page + 1, generation, false)
+      .catch(failure => { if (generation === loadGen.current) setError(failure.message); })
+      .finally(() => { if (generation === loadGen.current) setLoadingMore(false); });
+  };
+
+  if (error && CATALOG.length === 0) return <section className="mx-auto max-w-6xl px-4 py-8"><h1 className="text-2xl font-bold">Catalogue</h1><RetryNotice message={error} onRetry={retry}/></section>;
+
   // Sentinelle de scroll infini — partagée mobile/desktop
   const LoadMore = () => (
-    <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-6">
+    <div ref={sentinelRef} className="flex flex-wrap items-center justify-center gap-2 py-6">
+      {error && <RetryNotice message={error} onRetry={retry}/>}
       {loadingMore && (
         <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600"/>
@@ -216,12 +239,12 @@ export default function ScreenCatalog() {
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Catégorie</p>
         <div className="space-y-1">
           <button onClick={() => setCat("Tous")} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === "Tous" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
-            <span>Toutes</span><span className="text-[10px] tabular-nums text-slate-400">{total || CATALOG.length}</span>
+            <span>Toutes</span><span className="text-[11px] tabular-nums text-slate-400">{total || CATALOG.length}</span>
           </button>
           {CATEGORIES.map((c) => (
             <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === c.key ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
               <span className="flex items-center gap-1.5"><Icon name={c.icon} size={12}/>{c.label}</span>
-              <span className="text-[10px] tabular-nums text-slate-400">{c.count}</span>
+              <span className="text-[11px] tabular-nums text-slate-400">{c.count}</span>
             </button>
           ))}
         </div>
@@ -325,11 +348,11 @@ export default function ScreenCatalog() {
                 </div>
               )}
               <div className="flex w-full items-center gap-2 md:w-auto">
-                <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:hidden">
+                <button onClick={() => setFiltersOpen(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 lg:hidden">
                   <Icon name="filter" size={12}/>Filtres
-                  {activeFilters.length > 0 && <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-[9px] text-white tabular-nums">{activeFilters.length}</span>}
+                  {activeFilters.length > 0 && <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-[11px] text-white tabular-nums">{activeFilters.length}</span>}
                 </button>
-                <select value={sort} onChange={e => setSort(e.target.value)} className="flex-1 rounded-lg bg-slate-100 border-0 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:h-11 md:flex-none md:rounded-xl md:border md:border-slate-200 md:bg-white md:text-sm md:font-semibold md:outline-none md:dark:border-slate-700 md:dark:bg-slate-900 md:dark:text-white">
+                <select aria-label="Trier les produits" value={sort} onChange={e => setSort(e.target.value)} className="min-h-11 min-w-0 flex-1 rounded-lg bg-slate-100 border-0 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300 md:flex-none md:border md:border-slate-200 md:bg-white md:font-semibold md:outline-none md:dark:border-slate-700 md:dark:bg-slate-900 md:dark:text-white">
                   <option value="popular">Populaires</option>
                   <option value="price_asc">Prix croissant</option>
                   <option value="price_desc">Prix décroissant</option>
@@ -341,7 +364,7 @@ export default function ScreenCatalog() {
             {activeFilters.length > 0 && (
               <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:flex-wrap md:gap-2 md:px-0">
                 {activeFilters.map(f => (
-                  <button key={f.key} onClick={f.clear} aria-label={`Retirer le filtre ${f.label}`} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
+                  <button key={f.key} onClick={f.clear} aria-label={`Retirer le filtre ${f.label}`} className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] md:text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
                     {f.label}<Icon name="x" size={10}/>
                   </button>
                 ))}
@@ -353,21 +376,21 @@ export default function ScreenCatalog() {
 
         <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
           {/* Fil d'ariane + titre : desktop uniquement */}
-          <div className="mb-4 hidden items-baseline justify-between md:flex">
+          <div className="mb-4 flex items-baseline justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
                 <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
               </div>
-              <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-2xl font-extrabold tracking-normal text-slate-900 dark:text-white">
                 {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""} trouvé{displayCount > 1 ? "s" : ""}</p>
             </div>
           </div>
 
-          <div className="md:grid md:grid-cols-[240px_1fr] md:gap-6">
+          <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
             {/* Sidebar filtres : desktop uniquement (mobile = bottom sheet) */}
-            <aside className="sticky top-[calc(var(--mkt-header-h,0px)+12px)] hidden self-start rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 md:block">
+            <aside className="sticky top-[calc(var(--mkt-header-h,0px)+12px)] hidden self-start dark:border-slate-800 lg:block">
               {FiltersPanel()}
             </aside>
 
@@ -387,7 +410,7 @@ export default function ScreenCatalog() {
                     <Button variant="secondary" size="md" onClick={() => { reset(); if (query) router.push('/produits'); }}>
                       {query ? 'Effacer la recherche' : 'Réinitialiser les filtres'}
                     </Button>
-                    <Button variant="violet" size="md" onClick={openSourcing}><Icon name="camera" size={14}/>Demander un sourcing</Button>
+                    <Button variant="violet" size="md" onClick={() => openSourcing(query ? { source: 'text', title: query, description: query } : undefined)}><Icon name="camera" size={14}/>Trouvez-moi ce produit</Button>
                   </div>
                 </div>
               ) : filtered.length === 0 ? (
@@ -396,7 +419,7 @@ export default function ScreenCatalog() {
               ) : (
                 <Fragment>
                   <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 md:hidden"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""}</p>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
                     {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
                   </div>
                   <div className="mt-4 hidden items-center justify-center md:flex">
@@ -411,11 +434,11 @@ export default function ScreenCatalog() {
 
         {/* Bottom sheet filtres — mobile uniquement */}
         {filtersOpen && (
-          <div className="fixed inset-0 z-40 bg-slate-900/40 md:hidden" onClick={() => setFiltersOpen(false)}>
+          <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={() => setFiltersOpen(false)}>
             <div className="absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-2xl bg-white dark:bg-slate-950 overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-3">
                 <p className="text-[14px] font-extrabold text-slate-900 dark:text-white">Filtres</p>
-                <button onClick={() => setFiltersOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Icon name="x" size={16}/></button>
+                <button aria-label="Fermer les filtres" onClick={() => setFiltersOpen(false)} className="grid h-11 w-11 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><Icon name="x" size={18}/></button>
               </div>
               <div className="overflow-y-auto max-h-[calc(85vh-56px-64px)]">
                 {FiltersPanel()}

@@ -12,7 +12,7 @@ import { classifySourceUrl } from '@/lib/browser-scraper'
 
 const MAX_ITEMS_CAP = 30
 
-export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'payload'>) {
+export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'payload'> & Partial<Pick<IAgentJob, 'attempts'>>, signal?: AbortSignal) {
   const jobId = String(job._id)
   const payload = (job.payload || {}) as {
     query?: string
@@ -53,10 +53,14 @@ export async function runSourcingScan(job: Pick<IAgentJob, '_id' | 'refId' | 'pa
         failed: [],
         imported: [],
       },
-      { configurable: { thread_id: jobId } }
+      { configurable: { thread_id: jobId }, signal }
     )
+    signal?.throwIfAborted()
     await AgentRun.updateOne({ _id: run._id }, { status: 'done', durationMs: Date.now() - t0 })
-    await AgentJob.updateOne({ _id: jobId }, { status: 'done', result: result.summary })
+    await AgentJob.updateOne(
+      { _id: jobId, ...(job.attempts !== undefined ? { status: 'running', attempts: job.attempts } : {}) },
+      { status: 'done', result: result.summary }
+    )
   } catch (e: any) {
     await closeSourcingBrowser()
     await AgentRun.updateOne({ _id: run._id }, { status: 'failed', error: e?.message, durationMs: Date.now() - t0 })

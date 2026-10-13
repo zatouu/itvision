@@ -51,6 +51,8 @@ export interface IProduct extends Document {
   stockQuantity?: number
   leadTimeDays?: number
   weightKg?: number
+  /** Poids ou volume non fournis par la source (estimés à l'import) : le transport est ajusté à la pesée */
+  weightEstimated?: boolean
   netWeightKg?: number
   grossWeightKg?: number
   lengthCm?: number
@@ -84,13 +86,14 @@ export interface IProduct extends Document {
     supplierName?: string
     supplierContact?: string
     productUrl?: string
+    externalId?: string
     notes?: string
   }
   // Informations 1688
   price1688?: number // Prix en Yuan (¥)
   price1688Currency?: string // Devise 1688 (par défaut 'CNY')
   exchangeRate?: number // Taux de change (par défaut 1 ¥ = 100 FCFA)
-  serviceFeeRate?: ServiceFeeRate // Frais de service (5%, 10%, 15%)
+  serviceFeeRate?: ServiceFeeRate
   insuranceRate?: number // Frais d'assurance (en %)
   shippingOverrides?: Array<{
     methodId: string
@@ -145,6 +148,7 @@ const ProductSchema = new Schema<IProduct>({
   stockQuantity: { type: Number, default: 0 },
   leadTimeDays: { type: Number, default: 15 },
   weightKg: { type: Number },
+  weightEstimated: { type: Boolean, default: false },
   netWeightKg: { type: Number },
   grossWeightKg: { type: Number },
   lengthCm: { type: Number },
@@ -164,8 +168,10 @@ const ProductSchema = new Schema<IProduct>({
           name: { type: String, required: true },
           sku: { type: String },
           image: { type: String },
-          price1688: { type: Number },
-          stock: { type: Number }
+          price1688: { type: Number, min: 0 },
+          priceFCFA: { type: Number, min: 0 },
+          stock: { type: Number, min: 0 },
+          isDefault: { type: Boolean, default: false }
         }, { _id: false })]
       }
     }, { _id: false })],
@@ -210,13 +216,14 @@ const ProductSchema = new Schema<IProduct>({
     supplierName: { type: String },
     supplierContact: { type: String },
     productUrl: { type: String },
+    externalId: { type: String },
     notes: { type: String }
   },
   // Informations 1688
   price1688: { type: Number },
   price1688Currency: { type: String, default: 'CNY' },
   exchangeRate: { type: Number, default: 100 }, // 1 ¥ = 100 FCFA
-  serviceFeeRate: { type: Number }, // 5, 10, ou 15
+  serviceFeeRate: { type: Number, min: 0, max: 100 },
   insuranceRate: { type: Number }, // Pourcentage d'assurance
   shippingOverrides: {
     type: [new Schema({
@@ -287,7 +294,7 @@ function normalizeLogistics(doc: IProduct) {
 
 const IMPORT_PLATFORMS = ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish']
 const LOGISTICS_PATHS = [
-  'price1688', 'sourcing.platform', 'requiresQuote',
+  'price1688', 'sourcing.platform', 'requiresQuote', 'weightEstimated',
   'weightKg', 'grossWeightKg', 'netWeightKg', 'volumeM3', 'lengthCm', 'widthCm', 'heightCm',
 ]
 
@@ -317,7 +324,8 @@ function validateLogistics(doc: any): string | null {
     if (!(doc.weightKg || doc.grossWeightKg || doc.netWeightKg)) {
       return "Les produits d'import doivent avoir un poids (kg) renseigné pour le calcul du transport"
     }
-    if (!(doc.volumeM3 || (lengthCm && widthCm && heightCm))) {
+    // Logistique estimée : transport facturé au poids réel après pesée, le volume n'est pas exigé
+    if (!doc.weightEstimated && !(doc.volumeM3 || (lengthCm && widthCm && heightCm))) {
       return "Les produits d'import doivent avoir un volume (m³) ou des dimensions (L, l, H) renseignés pour le calcul du transport"
     }
   }
@@ -368,6 +376,9 @@ ProductSchema.index({ groupBuyEnabled: 1, isPublished: 1 })
 ProductSchema.index({ channels: 1, isPublished: 1 })
 ProductSchema.index({ corporateVisible: 1, isPublished: 1 })
 ProductSchema.index({ price1688: 1 })
+// Dédoublonnage des imports (extension, agents, API fournisseurs)
+ProductSchema.index({ 'sourcing.productUrl': 1 }, { sparse: true })
+ProductSchema.index({ 'sourcing.platform': 1, 'sourcing.externalId': 1 }, { sparse: true })
 ProductSchema.index({ stockStatus: 1, stockQuantity: 1 })
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)

@@ -7,6 +7,7 @@ import SkipLink from '@/components/a11y/SkipLink'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import { buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/structured-data'
 
 // Fontes self-hostées (fontes variables Google téléchargées dans
@@ -65,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className={`${fraunces.variable} ${jakarta.variable} ${caveat.variable}`}>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Préconnexion aux CDN d'images pour réduire le TTFB des images produits */}
         <link rel="dns-prefetch" href="https://img.alicdn.com" />
         <link rel="preconnect" href="https://img.alicdn.com" crossOrigin="anonymous" />
@@ -75,25 +77,6 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.className} antialiased`}>
         <SkipLink />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  const theme = localStorage.getItem('theme')
-                  const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-                  if (isDark) {
-                    document.documentElement.classList.add('dark')
-                    document.documentElement.style.colorScheme = 'dark'
-                  } else {
-                    document.documentElement.classList.remove('dark')
-                    document.documentElement.style.colorScheme = 'light'
-                  }
-                } catch (e) {}
-              })()
-            `,
-          }}
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

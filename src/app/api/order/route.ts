@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import User from '@/lib/models/User'
-import { readSeaFreightEligibilitySettings, getConfiguredShippingRates } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
-import { readPricingDefaults } from '@/lib/pricing/settings'
-import { getCNYToXOFRate } from '@/lib/pricing/exchange-rate'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import { buildSeaFreightMetrics, evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
@@ -30,6 +28,9 @@ import {
   validatePromoCode,
 } from '@/lib/pricing/quote-cart'
 import { internalPost } from '@/lib/internal-auth'
+import mongoose from 'mongoose'
+import PickupPoint from '@/lib/models/PickupPoint'
+import { resolveReferral } from '@/lib/market/ambassador'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -85,12 +86,14 @@ export async function POST(req: NextRequest) {
     const trackingAccessTokenExpiresAt = new Date(Date.now() + trackingTokenTtlDays * 24 * 60 * 60 * 1000)
 
     // Résolution de la méthode de livraison (module partagé)
-    const resolvedMethod = resolveShippingMethod(shippingMethod)
+    const pricingSnapshot = await readSharedPricing()
+    const shippingRates = configuredShippingRates(pricingSnapshot.config)
+    const resolvedMethod = resolveShippingMethod(shippingMethod, shippingRates)
     if ('error' in resolvedMethod) {
       return NextResponse.json({ success: false, error: resolvedMethod.error }, { status: 400 })
     }
     let { clientMethod: method, internalMethod, rate } = resolvedMethod
-    const pricingDefaults = readPricingDefaults()
+    const pricingDefaults = pricingSnapshot.config.defaults
 
     // Récupérer le tier marketplace de l'utilisateur authentifié
     const userMarketplaceTier = authResult?.user?.marketplaceTier || 'standard'
@@ -123,8 +126,22 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Point de retrait : uniquement pour les articles importés (les boutiques livrent elles-mêmes)
+    let pickupPoint: { id: string; name: string; neighborhood?: string; address?: string } | undefined
+    const pickupPointId = typeof rawBody?.pickupPointId === 'string' ? rawBody.pickupPointId.trim() : ''
+    if (pickupPointId && !allLocal) {
+      const point = mongoose.isValidObjectId(pickupPointId)
+        ? await PickupPoint.findOne({ _id: pickupPointId, active: true }).select('name neighborhood address').lean() as any
+        : null
+      if (!point) {
+        return NextResponse.json({ success: false, error: 'Ce point de retrait n\'est plus disponible, choisissez-en un autre' }, { status: 400 })
+      }
+      pickupPoint = { id: String(point._id), name: point.name, neighborhood: point.neighborhood, address: point.address }
+    }
+    const referral = await resolveReferral(req, { userId, phone }, rawBody?.ref)
     if (allLocal && internalMethod !== 'local_24h') {
-      const local = resolveShippingMethod('local_24h')
+      const local = resolveShippingMethod('local_24h', shippingRates)
       if ('error' in local) {
         return NextResponse.json({ success: false, error: local.error }, { status: 400 })
       }
@@ -133,12 +150,13 @@ export async function POST(req: NextRequest) {
       rate = local.rate
     }
 
-    // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
-    const exchangeRate = await getCNYToXOFRate()
+    // Préparer les items pour le calculateur (prix issus de la DB, jamais du client).
+    // Même taux que l'affichage catalogue : le montant facturé = le prix affiché.
+    const exchangeRate = pricingDefaults.defaultExchangeRate
     const calculatorItems = buildCalculatorItems(cart, loaded.ctx, userMarketplaceTier, exchangeRate)
 
     // Forfait livraison locale PAR boutique (réglé par chaque vendeur).
-    const localDeliveryFlatFee = hasLocal ? getConfiguredShippingRates().local_24h.rate : 0
+    const localDeliveryFlatFee = hasLocal ? shippingRates.local_24h.rate : 0
     const localDeliveryShops = hasLocal
       ? await loadLocalDeliveryShops(loaded.ctx, localDeliveryFlatFee)
       : []
@@ -153,7 +171,9 @@ export async function POST(req: NextRequest) {
         label: rate.label
       },
       {
+        insuranceRate: pricingDefaults.defaultInsuranceRate,
         serviceFeeTiers: pricingDefaults.serviceFeeTiers,
+        singleImportServiceFeeRate: pricingDefaults.singleImportServiceFeeRate,
         localDeliveryFlatFee,
         localDeliveryShops
       }
@@ -222,7 +242,7 @@ export async function POST(req: NextRequest) {
     const total = Math.max(0, calculatedTotal - grainsDiscount - validatedPromoDiscount)
 
     if (internalMethod === 'sea_freight') {
-      const seaFreightEligibility = readSeaFreightEligibilitySettings()
+      const seaFreightEligibility = pricingSnapshot.config.seaFreightEligibility
       const seaMetrics = buildSeaFreightMetrics(calculatorItems.filter(i => !i.localDelivery), subtotal)
       const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
 
@@ -256,6 +276,7 @@ export async function POST(req: NextRequest) {
 
     const orderDoc = new Order({
       orderId,
+      pricingSnapshot,
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
@@ -304,6 +325,7 @@ export async function POST(req: NextRequest) {
         insuranceRate: fees.insuranceRate,
         insuranceAmount: fees.insuranceAmount,
         totalFees: fees.totalFees,
+        exchangeRate,
         quantityDiscount: quantityDiscount && quantityDiscount.amount > 0 ? {
           percent: quantityDiscount.percent,
           amount: quantityDiscount.amount,
@@ -317,7 +339,7 @@ export async function POST(req: NextRequest) {
         totalCost: shipping?.cost || 0,
         currency: 'FCFA',
         totalWeight: shipping?.actualWeight || 0,
-        totalVolume: cart.reduce((sum: number, item: any) => sum + ((item.unitVolumeM3 || item.volumeM3 || 0) * (item.qty || 1)), 0),
+        totalVolume: shipping?.billedVolumeM3 ?? cart.reduce((sum: number, item: any) => sum + ((item.unitVolumeM3 || item.volumeM3 || 0) * (item.qty || 1)), 0),
         weightDetails: shipping ? {
           actualWeight: shipping.actualWeight,
           volumetricWeight: shipping.volumetricWeight,
@@ -332,6 +354,8 @@ export async function POST(req: NextRequest) {
       promoCode: promo?.code || undefined,
       grainsUsed: validatedGrainsAmount,
       total,
+      referral,
+      pickupPoint,
       
       address: {
         street: address.street,
@@ -402,86 +426,7 @@ export async function POST(req: NextRequest) {
       await orderDoc.save()
     }
 
-    // Notifier chaque vendeur concerné (boutiques marketplace) — best effort
-    try {
-      const sellerTotals = new Map<string, { sellerName: string; total: number; qty: number }>()
-      for (const item of cart) {
-        const productId = itemProductIdMap.get(String(item.id || ''))
-        const db = productId ? dbProductMap.get(productId) : null
-        const slug = db?.sellerSlug
-        if (!slug) continue
-        const qty = item.qty || 1
-        const variantIds = itemVariantIds(item)
-        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate, variantIds)
-        const cur = sellerTotals.get(slug) || { sellerName: db.sellerName || 'Boutique', total: 0, qty: 0 }
-        cur.total += resolved.appliedPrice * qty
-        cur.qty += qty
-        sellerTotals.set(slug, cur)
-      }
-      if (sellerTotals.size > 0) {
-        const VendorProfile = (await import('@/lib/models/VendorProfile')).default
-        const { notifyUser } = await import('@/lib/notify')
-        for (const [slug, info] of sellerTotals) {
-          const vp = await VendorProfile.findOne({ slug }).select('userId').lean() as any
-          if (!vp?.userId) continue
-          await notifyUser(String(vp.userId), {
-            type: 'success',
-            title: 'Nouvelle vente',
-            message: `${info.qty} article${info.qty > 1 ? 's' : ''} vendu${info.qty > 1 ? 's' : ''} — ${Math.round(info.total).toLocaleString('fr-FR')} F (commande ${orderId})`,
-            actionUrl: '/espace-vendeur',
-            metadata: { orderId, amount: info.total, qty: info.qty },
-          })
-        }
-      }
-    } catch (e) {
-      console.error('[order] vendor sale notification failed:', e)
-    }
-
-    // Incrémenter les stats marketplace de l'utilisateur authentifié
-    if (userId) {
-      try {
-        const updatedUser = await User.findByIdAndUpdate(
-          userId,
-          {
-            $inc: {
-              totalMarketplacePurchases: total,
-              marketplaceOrderCount: 1
-            }
-          },
-          { new: true }
-        ).lean() as any
-
-        // NB : les grains de fidélité et le parrainage sont crédités à la
-        // confirmation de paiement (payment-fulfillment), pas à la création —
-        // une commande non payée ne doit pas rapporter de grains.
-
-        // Synchroniser les stats vers le profil marketplace découplé
-        await syncUserToProfiles(userId)
-
-        // Vérifier éligibilité Pro si encore standard
-        if (updatedUser && updatedUser.marketplaceTier === 'standard') {
-          const isEligible =
-            (updatedUser.totalMarketplacePurchases || 0) >= 150_000 ||
-            (updatedUser.marketplaceOrderCount || 0) >= 3
-          if (isEligible && !updatedUser.proRequestedAt) {
-            // Créer une notification in-app (best effort)
-            try {
-              const InAppNotification = (await import('@/lib/models/InAppNotification')).default
-              await InAppNotification.create({
-                userId,
-                type: 'info',
-                title: 'Compte Pro disponible',
-                message: 'Vous êtes éligible au compte Pro ! Accédez aux prix wholesale dès 1 pièce.',
-                actionUrl: '/compte/profil',
-                metadata: { proEligible: true }
-              })
-            } catch {}
-          }
-        }
-      } catch (err) {
-        console.error('Erreur mise à jour stats marketplace user:', err)
-      }
-    }
+    // Ventes vendeurs, statistiques client et garantie : uniquement au paiement (onMarketOrderPaid)
 
     // Envoyer le lien de suivi par email si fourni (best effort)
     if (email && typeof email === 'string' && email.includes('@')) {
@@ -601,6 +546,7 @@ export async function POST(req: NextRequest) {
             shippingCost: transportCost,
             transactionDate: new Date().toISOString(),
             // Snapshot produit 1688 — le domaine compta n'importe pas Product
+            pricingSnapshot,
             pricingSource: {
               price1688: dbItem.price1688,
               exchangeRate: dbItem.exchangeRate,
@@ -665,7 +611,9 @@ export async function POST(req: NextRequest) {
           percent: quantityDiscount.percent,
           amount: quantityDiscount.amount
         } : null,
-        confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`
+        confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`,
+        paymentUrl: `/paiement/checkout/${encodeURIComponent(orderId)}?token=${encodeURIComponent(trackingToken)}`,
+        trackingToken
       },
       { status: 201 }
     )

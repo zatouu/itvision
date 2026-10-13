@@ -7,7 +7,7 @@ import { sendPushToUser } from '@/lib/push'
 import { contactMaskingEnabled, maskContactInfo } from '@/lib/messaging/contact-masking'
 import { getMissionQuickReplies } from '@/lib/messaging/quick-replies'
 
-// GET /api/services/chat?requestId=xxx — historique des messages
+// GET /api/services/chat?requestId=xxx[&limit=50&before=ISO] — historique des messages (les plus récents d'abord chargés)
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
@@ -23,9 +23,14 @@ export async function GET(request: NextRequest) {
     const isParticipant = isClientViewer || String(sr.assignedProviderId) === String(userId)
     if (!isParticipant) return NextResponse.json({ error: 'Interdit' }, { status: 403 })
 
-    const messages = await listThreadMessages('mission', requestId, { limit: 200 })
+    // Sans `limit`, les anciennes versions de l'application gardent les 200 derniers messages
+    const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 200, 1), 200)
+    const beforeRaw = searchParams.get('before')
+    const before = beforeRaw ? new Date(beforeRaw) : null
+    const messages = await listThreadMessages('mission', requestId, { limit, before })
     return NextResponse.json({
       messages: messages.map(toMissionMessageDto),
+      hasMore: messages.length === limit,
       quickReplies: getMissionQuickReplies(String(sr.status), isClientViewer ? 'client' : 'provider'),
     })
   } catch (e: any) {

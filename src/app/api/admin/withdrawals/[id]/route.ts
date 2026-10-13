@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import WithdrawalRequest from '@/lib/models/WithdrawalRequest'
-import Wallet from '@/lib/models/Wallet'
+import { creditCashBalance } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
 
 /**
@@ -29,11 +29,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const nextStatus = action === 'process' ? 'processed' : 'rejected'
+    const payoutReference = String(body?.payoutReference || '').trim().slice(0, 120)
+    if (action === 'process' && payoutReference.length < 4) {
+      return NextResponse.json({ success: false, error: 'Référence de la transaction opérateur requise' }, { status: 400 })
+    }
     const $set: any = {
       status: nextStatus,
       processedAt: new Date(),
       processedBy: auth.user.id,
     }
+    if (action === 'process') $set.payoutReference = payoutReference
     if (action === 'reject') {
       $set.rejectionReason = String(rejectionReason || 'Rejeté par l\'administration').slice(0, 300)
     }
@@ -51,14 +56,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (action === 'reject') {
-      // Rembourser la réservation prélevée à la création
-      await Wallet.findOneAndUpdate(
-        { userId: wr.userId },
-        {
-          $inc: { balance: wr.amount },
-          $push: { txns: { type: 'refund', amount: wr.amount, ref: String(wr._id), meta: { description: 'Remboursement retrait rejeté' }, createdAt: new Date() } },
-        }
-      )
+      // Restitution idempotente du montant réservé à la création (réessai sans double crédit)
+      await creditCashBalance(String(wr.userId), wr.amount, {
+        idempotencyKey: `withdrawal-reject:${wr._id}`,
+        paymentRef: String(wr._id),
+        txnType: 'refund',
+        description: 'Remboursement retrait rejeté',
+      })
       void sendPushToUser(String(wr.userId), {
         title: '❌ Retrait refusé',
         body: `${wr.amount.toLocaleString('fr-FR')} FCFA recrédités sur votre portefeuille. ${$set.rejectionReason}`,
@@ -67,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     } else {
       void sendPushToUser(String(wr.userId), {
         title: '✅ Retrait effectué',
-        body: `${wr.amount.toLocaleString('fr-FR')} FCFA envoyés via ${wr.method} au ${wr.phone}.`,
+        body: `${wr.amount.toLocaleString('fr-FR')} FCFA envoyés via ${wr.method} au ${wr.phone} (réf. ${payoutReference}).`,
         data: { type: 'withdrawal:processed', withdrawalId: String(wr._id) },
       })
     }

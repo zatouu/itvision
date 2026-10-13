@@ -127,3 +127,29 @@ export async function toChineseQuery(query: string): Promise<string> {
   const translated = (await tryMyMemory(cleaned)) || (await tryGoogleGtx(cleaned)) || localTranslate(cleaned)
   return translated || cleaned
 }
+
+/** Mots-clés anglais pour AliExpress/Alibaba (listings en anglais) ; requête nettoyée si la traduction échoue. */
+export async function toEnglishQuery(query: string): Promise<string> {
+  const cleaned = query.replace(FILLER, ' ').replace(/[\s\-–—:;,]+/g, ' ').trim().slice(0, 120)
+  if (!cleaned) return query.slice(0, 120)
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(cleaned)}`,
+      { signal: AbortSignal.timeout(8000) }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const t = Array.isArray(data?.[0]) ? data[0].map((s: unknown[]) => s?.[0] || '').join('').trim() : ''
+      if (t) return t.slice(0, 120)
+    }
+  } catch { /* repli ci-dessous */ }
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleaned)}&langpair=fr|en`,
+      { signal: AbortSignal.timeout(8000) }
+    )
+    const t = res.ok ? (await res.json())?.responseData?.translatedText : null
+    if (typeof t === 'string' && t.trim()) return t.trim().slice(0, 120)
+  } catch { /* requête d'origine */ }
+  return cleaned
+}

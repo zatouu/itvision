@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { SharedPricingSnapshot } from '@/lib/pricing/shared-settings'
 
 export type OrderDomain = 'marketplace' | 'corporate' | 'services'
 
@@ -80,6 +81,8 @@ export interface IOrderFees {
   insuranceRate: number     // Taux assurance (2.5%)
   insuranceAmount: number   // Montant assurance
   totalFees: number          // Total frais
+  /** Taux CNY→FCFA plateforme au moment de la commande (produits sans taux propre) */
+  exchangeRate?: number
   // Réduction par quantité (existante)
   quantityDiscount?: {
     percent: number
@@ -90,6 +93,7 @@ export interface IOrderFees {
 
 export interface IOrder extends Document {
   orderId: string // Format: CMD-TIMESTAMP-RANDOM
+  pricingSnapshot?: SharedPricingSnapshot
   clientName: string
   clientEmail?: string
   clientPhone: string
@@ -132,6 +136,36 @@ export interface IOrder extends Document {
   paymentStatus: 'pending' | 'completed' | 'failed'
   paymentMethod?: string
   transactionId?: string
+  /** Remboursement dû au client (commande payée annulée, retour accepté) */
+  refundStatus?: 'none' | 'pending' | 'done'
+  refundAmount?: number
+  refundReference?: string
+  refundedAt?: Date
+  refundedBy?: string
+  /** Garantie GAR-… créée au paiement (suivi public /suivi/[reference]) */
+  guaranteeReference?: string
+  /** Ambassadeur à l'origine de la vente (lien ?ref=) */
+  referral?: { code: string; ambassadorUserId: mongoose.Types.ObjectId }
+  /** Retrait en point relais au lieu d'une remise à l'adresse */
+  pickupPoint?: { id: string; name: string; neighborhood?: string; address?: string }
+  /** Colis disponible au point de retrait (client prévenu) */
+  readyForPickupAt?: Date
+  /** Régularisation du transport après pesée réelle à Guangzhou (amount > 0 : complément dû, < 0 : remboursé) */
+  shippingAdjustment?: {
+    realWeightKg: number
+    realVolumeM3?: number
+    estimatedCost: number
+    realCost: number
+    amount: number
+    status: 'absorbed' | 'awaiting_payment' | 'paid' | 'refund'
+    paymentReference?: string
+    paidAmount?: number
+    paidAt?: Date
+    paymentMethod?: string
+    transactionId?: string
+    measuredAt: Date
+    measuredBy?: string
+  }
   
   notes?: string
   internalNotes?: string
@@ -142,6 +176,13 @@ export interface IOrder extends Document {
   shippedAt?: Date
   deliveredAt?: Date
   updatedBy?: string
+  /** Alertes envoyées par l'agent order_sla_watchdog (une seule fois chacune) */
+  slaAlerts?: {
+    unpaidReminderAt?: Date
+    vendorNudgeAt?: Date
+    adminEscalationAt?: Date
+    deliveryOverdueAt?: Date
+  }
 
   // Suivi transporteur
   delivery?: {
@@ -237,6 +278,7 @@ const OrderFeesSchema = new Schema<IOrderFees>({
   insuranceRate: { type: Number, required: true },
   insuranceAmount: { type: Number, required: true },
   totalFees: { type: Number, required: true },
+  exchangeRate: { type: Number },
   quantityDiscount: {
     type: new Schema({
       percent: { type: Number, required: true },
@@ -249,6 +291,7 @@ const OrderFeesSchema = new Schema<IOrderFees>({
 
 const OrderSchema = new Schema<IOrder>({
   orderId: { type: String, required: true, unique: true, index: true },
+  pricingSnapshot: { type: Schema.Types.Mixed },
   clientName: { type: String, required: true },
   clientEmail: { type: String, sparse: true },
   clientPhone: { type: String, required: true },
@@ -304,6 +347,47 @@ const OrderSchema = new Schema<IOrder>({
   },
   paymentMethod: { type: String },
   transactionId: { type: String },
+  refundStatus: { type: String, enum: ['none', 'pending', 'done'], default: 'none', index: true },
+  refundAmount: { type: Number, min: 0 },
+  refundReference: { type: String },
+  refundedAt: { type: Date },
+  refundedBy: { type: String },
+  guaranteeReference: { type: String, sparse: true },
+  referral: {
+    type: new Schema({
+      code: { type: String, required: true },
+      ambassadorUserId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    }, { _id: false }),
+    required: false,
+  },
+  pickupPoint: {
+    type: new Schema({
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      neighborhood: { type: String },
+      address: { type: String },
+    }, { _id: false }),
+    required: false,
+  },
+  readyForPickupAt: { type: Date },
+  shippingAdjustment: {
+    type: new Schema({
+      realWeightKg: { type: Number, required: true, min: 0 },
+      realVolumeM3: { type: Number, min: 0 },
+      estimatedCost: { type: Number, required: true },
+      realCost: { type: Number, required: true },
+      amount: { type: Number, required: true },
+      status: { type: String, enum: ['absorbed', 'awaiting_payment', 'paid', 'refund'], required: true },
+      paymentReference: { type: String, index: true, sparse: true },
+      paidAmount: { type: Number },
+      paidAt: { type: Date },
+      paymentMethod: { type: String },
+      transactionId: { type: String },
+      measuredAt: { type: Date, required: true },
+      measuredBy: { type: String },
+    }, { _id: false }),
+    required: false,
+  },
   
   notes: { type: String },
   internalNotes: { type: String },
@@ -314,6 +398,12 @@ const OrderSchema = new Schema<IOrder>({
   shippedAt: { type: Date, sparse: true },
   deliveredAt: { type: Date, sparse: true },
   updatedBy: { type: String },
+  slaAlerts: {
+    unpaidReminderAt: { type: Date },
+    vendorNudgeAt: { type: Date },
+    adminEscalationAt: { type: Date },
+    deliveryOverdueAt: { type: Date },
+  },
 
   delivery: {
     carrier: { type: String },

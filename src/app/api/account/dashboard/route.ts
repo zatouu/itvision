@@ -28,6 +28,7 @@ function initials(name?: string): string {
 export async function GET() {
   try {
     const auth = await verifyAuthServer()
+    if (auth.unavailable) return NextResponse.json({ success: false, error: 'Service temporairement indisponible' }, { status: 503 })
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     }
@@ -250,7 +251,7 @@ export async function GET() {
     }
 
     const response = NextResponse.json({ success: true, dashboard })
-    if (healedVendor) await reissueAuthCookie(response, user)
+    if (healedVendor) await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
     return response
   } catch (err) {
     console.error('Dashboard error:', err)

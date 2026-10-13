@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * REGISTRE DES DOMAINES — source unique de vérité (cf. AUDIT_GLOBAL_SORTIE_MONOLITHE.md)
+ * REGISTRE DES DOMAINES — source unique de vérité (cf. docs/AUDIT_GLOBAL_SORTIE_MONOLITHE.md)
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * Le dépôt héberge 3 produits distincts :
@@ -85,6 +85,12 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/admin/factures', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/depenses', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/paiements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/platform/remboursements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] }, note: 'Xeuy : remboursements clients et retraits prestataires' },
+  { prefix: '/admin/marketplace/remboursements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] }, note: 'DDM+ : commandes annulées payées, achats groupés annulés, retours reçus' },
+  { prefix: '/admin/marketplace/ambassadeurs', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] }, note: 'DDM+ : commissions ambassadeurs et versements' },
+  { prefix: '/admin/marketplace/points-retrait', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] }, note: 'DDM+ : points de retrait par quartier' },
+  { prefix: '/admin/marketplace/tunnel', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] }, note: 'DDM+ : tunnel visites → groupes → paiements, ambassadeurs, revendeurs' },
+  { prefix: '/admin/marketplace/avis', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'DDM+ : modération des avis produits (avis sans achat vérifié)' },
   { prefix: '/admin', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] }, note: 'Console unique des 3 domaines — à éclater en sections namespacées' },
   { prefix: '/admin-reports', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/admin-prix', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'Édition prix produits → sous-domaine market' },
@@ -111,6 +117,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/corporate-produits', domain: 'market', access: 'public' },
   { prefix: '/boutiques', domain: 'market', access: 'public' },
   { prefix: '/tarification', domain: 'market', access: 'public' },
+  { prefix: '/comment-ca-marche', domain: 'market', access: 'public', note: 'Achat groupé expliqué (paiement à la clôture, poids réel, ambassadeurs, revendeurs) + FAQ structurée' },
   { prefix: '/prix-transparent', domain: 'market', access: 'public' },
   { prefix: '/retrouver-ma-commande', domain: 'market', access: 'public' },
   { prefix: '/suivi', domain: 'market', access: 'public', review: true },
@@ -120,6 +127,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/checkout', domain: 'market', access: 'public', note: 'Checkout invité autorisé — la commande est validée côté API (stock + prix DB)' },
   { prefix: '/commandes', domain: 'market', access: 'public', note: 'Détail commande : session propriétaire OU tracking token invité — contrôle dans /api/order/[orderId]' },
   { prefix: '/achats-groupes', domain: 'market', access: 'public' },
+  { prefix: '/precommande', domain: 'market', access: 'public', note: 'Précommandes d\'un revendeur pour ses clients : réservation sans paiement, aucune PII exposée' },
   { prefix: '/grains', domain: 'market', access: 'auth' },
   { prefix: '/compte', domain: 'market', access: 'auth', note: 'Compte client marketplace. Règle : CLIENT+companyClientId → redirect /portail-entreprise' },
   { prefix: '/espace-vendeur', domain: 'market', access: { profile: 'vendor' } },
@@ -154,7 +162,6 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/services', domain: 'xeuy', access: 'auth' },
   { prefix: '/api/provider', domain: 'xeuy', access: { profile: 'provider' } },
   { prefix: '/api/ai', domain: 'xeuy', access: 'auth', note: 'Matching/assistance services' },
-  { prefix: '/api/escrow', domain: 'xeuy', access: 'public', note: 'Suivi escrow par référence = capacité (données masquées, rate-limité) ; POST dispute = propriétaire ou phoneLast4 — cf. handlers' },
   { prefix: '/api/wallet/webhook', domain: 'xeuy', access: 'public', note: 'Webhook Mobile Money (wallet Xeuy) — signature vérifiée dans le handler' },
   { prefix: '/api/wallet', domain: 'xeuy', access: 'auth' },
   { prefix: '/api/kyc', domain: 'xeuy', access: 'auth', review: true },
@@ -188,7 +195,9 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/order/track-public', domain: 'market', access: 'public', note: 'Suivi masqué par n° de commande — aucune PII ni montant' },
   { prefix: '/api/order', domain: 'market', access: 'public', note: 'POST = checkout invité ; GET [orderId] = session propriétaire ou tracking token — auth interne' },
   { prefix: '/api/order-chat', domain: 'market', access: 'auth' },
+  { prefix: '/api/escrow', domain: 'market', access: 'public', note: 'Garantie GAR-… des commandes et achats groupés (pages /suivi) : référence = capacité, données masquées ; POST litige = propriétaire ou phoneLast4. Sans rapport avec le séquestre des missions Xeuy (Payment)' },
   { prefix: '/api/group-orders', domain: 'market', access: 'public', note: 'GET public (catalogue groupes) ; POST/join = invité ou session via resolveGuestOrAuthUser ; PATCH/DELETE = admin' },
+  { prefix: '/api/og', domain: 'market', access: 'public', note: 'Visuels de partage générés (aperçus de lien, statut WhatsApp, TikTok) — données publiques uniquement' },
   { prefix: '/api/grains', domain: 'market', access: 'auth' },
   { prefix: '/api/favorites', domain: 'market', access: 'auth' },
   { prefix: '/api/returns', domain: 'market', access: 'auth' },
@@ -196,7 +205,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/vendor', domain: 'market', access: { profile: 'vendor' } },
   { prefix: '/api/payment/resolve', domain: 'market', access: 'public', note: 'Résolution référence paiement : groupe = données masquées ; commande = owner/token' },
   { prefix: '/api/payment/status', domain: 'market', access: 'public', note: 'Statut par référence (polling checkout) — pas de PII' },
-  { prefix: '/api/payment/checkout', domain: 'market', access: 'public', note: 'Init paiement : AG-… pay-by-link ; CMD-… owner/token — contrôle dans le handler' },
+  { prefix: '/api/payment/checkout', domain: 'market', access: 'public', note: 'Init paiement : AG-… et TR-… (transport au poids réel) pay-by-link ; CMD-… owner/token — contrôle dans le handler' },
   { prefix: '/api/payment/paydunya/callback', domain: 'market', access: 'public', note: 'Webhook PayDunya — appelé serveur-à-serveur, vérifié par signature/token' },
   { prefix: '/api/payment', domain: 'market', access: 'auth', note: 'Init/callbacks spécifiques déclarés plus haut ; reste = authentifié' },
   { prefix: '/api/payment/add-ons', domain: 'market', access: 'auth' },
@@ -238,6 +247,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/test-email', domain: 'shared', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
 
   // ── Compte client marketplace (les endpoints corporate du client-portal ont été supprimés) ──
+  { prefix: '/api/client/address-from-position', domain: 'market', access: 'auth', note: 'Géocodage inverse sur demande explicite, coordonnées non persistées' },
   { prefix: '/api/client', domain: 'market', access: 'auth', note: 'Reste : profile + request-pro (compte/checkout/panier + mobile CORS)' },
 ]
 
@@ -269,6 +279,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   Expense: 'corporate',
   Realization: 'corporate',
   Workflow: 'corporate',
+  ArchivedDocument: 'corporate',
   Quote: 'deprecated',
   SupportTicket: 'deprecated',
 
@@ -309,6 +320,9 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   ExternalSearchLog: 'market',
   VisibilityDispatch: 'market',
   NewsletterSubscriber: 'market',
+  AmbassadorCommission: 'market',
+  PickupPoint: 'market',
+  ResellerPreorder: 'market',
 
   // Xeuy
   ServiceRequest: 'xeuy',
@@ -322,7 +336,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   Assignment: 'xeuy',
   DisputeEvidence: 'xeuy',
   DisputeMessage: 'deprecated',
-  EscrowTransaction: 'xeuy',
+  EscrowTransaction: 'market',
   MissionAuditLog: 'xeuy',
   MissionUnlock: 'xeuy',
   TopupPayment: 'xeuy',

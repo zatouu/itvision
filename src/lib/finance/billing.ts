@@ -25,7 +25,9 @@ async function nextNumber(model: Model<any>, prefix: string, pad: number): Promi
     // Premier numéro de la série : se caler après les documents créés avant ce compteur
     const existing = await maxExistingNumber(model, prefix)
     if (existing >= 1) {
-      counter = await DocumentCounter.findOneAndUpdate({ _id: prefix }, { $max: { seq: existing + 1 } }, { new: true })
+      const adjustedCounter = await DocumentCounter.findOneAndUpdate({ _id: prefix }, { $max: { seq: existing + 1 } }, { new: true })
+      if (!adjustedCounter) throw new Error('Compteur de facturation introuvable')
+      counter = adjustedCounter
     }
   }
   return `${prefix}${String(counter!.seq).padStart(pad, '0')}`

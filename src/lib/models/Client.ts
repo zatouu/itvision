@@ -27,6 +27,9 @@ export interface IClient extends Document {
   
   // Statut
   isActive: boolean
+  // Archivage : remplace la suppression dès qu'il existe un historique (factures, devis, interventions...)
+  archivedAt?: Date
+  archivedBy?: string
   
   // Permissions
   permissions: {
@@ -156,6 +159,8 @@ const ClientSchema = new Schema<IClient>({
     type: Boolean,
     default: true
   },
+  archivedAt: { type: Date, index: true },
+  archivedBy: { type: String },
   
   // Permissions
   permissions: {

@@ -3,11 +3,12 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import Payment from '@/lib/models/Payment'
 import ServiceRequest from '@/lib/models/ServiceRequest'
+import { refundEscrowPoints } from '@/lib/wallet'
+import { queueClientRefund } from '@/modules/xeuy/payments/mission-payment'
 
 /**
- * Refund an escrow payment (admin override or explicit client refund).
- * En production, ce endpoint ne marque que le statut interne : il faut
- * déclencher le remboursement chez le fournisseur de paiement (à brancher).
+ * Annulation avec remboursement (client avant démarrage, ou administration).
+ * Le remboursement réel au client est effectué depuis la file « Trésorerie Xeuy » de l'administration.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,18 +37,29 @@ export async function POST(request: NextRequest) {
     // Annuler via le lifecycle manager (effets de bord + remboursement atomiques)
     if (sr.status !== 'cancelled') {
       const lifecycle = await import('@/lib/mission-lifecycle')
-      await lifecycle.transition(requestId, 'cancelled', {
-        actor: { userId, role: isAdmin ? 'admin' : 'client' },
-        reason: body.reason || 'refund',
-      })
+      try {
+        await lifecycle.transition(requestId, 'cancelled', {
+          actor: { userId, role: isAdmin ? 'admin' : 'client' },
+          reason: body.reason || 'refund',
+        })
+      } catch (err: any) {
+        return NextResponse.json({ error: err?.message || 'Annulation impossible' }, { status: 409 })
+      }
     }
 
-    // Si un paiement est encore held (admin override ou annulation sans paiement lifecycle), le rembourser
+    // Paiement encore en séquestre (mission déjà annulée sans traitement du paiement) : même file de remboursement
     const payment = await Payment.findOneAndUpdate(
       { requestId, status: 'held' },
       { $set: { status: 'refunded', refundedAt: new Date(), refundedBy: userId } },
       { new: true }
     )
+    if (payment) {
+      await Payment.updateOne({ _id: payment._id }, { $set: { refundAmount: payment.amount } })
+      if (payment.escrowPointsCharged > 0) {
+        await refundEscrowPoints(String(payment.clientId), String(requestId), payment.escrowPointsCharged).catch(() => {})
+      }
+      await queueClientRefund(payment._id, payment.amount, isAdmin ? 'Remboursement décidé par l’administration' : 'Annulation client')
+    }
 
     return NextResponse.json({ success: true, payment })
   } catch (e: any) {

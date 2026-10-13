@@ -1,5 +1,5 @@
 /**
- * Accès par domaine — Étape 2 (cf. AUDIT_GLOBAL_SORTIE_MONOLITHE.md §5)
+ * Accès par domaine — Étape 2 (cf. docs/AUDIT_GLOBAL_SORTIE_MONOLITHE.md §5)
  *
  * Point d'entrée unique pour l'autorisation côté API :
  * - résout le token (JWT interne ou Keycloak) via verifyAuthToken

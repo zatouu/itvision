@@ -3,10 +3,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import Payment from '@/lib/models/Payment'
-import ServiceRequest from '@/lib/models/ServiceRequest'
-import Offer from '@/lib/models/Offer'
 import { checkPaymentStatus } from '@/lib/payment'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { fulfillServicePayment } from '@/modules/xeuy/payments/mission-payment'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
 import { claimPendingPayment } from '@/lib/payments/transition'
@@ -107,24 +105,10 @@ export async function POST(request: NextRequest) {
     const held = await claimPendingPayment(payment._id, { status: 'held', heldAt: new Date(), confirmedBy: 'client' })
     if (!held) return alreadyProcessedResponse(payment._id)
 
-    // 4. Accept offer + start mission (unless balance phase)
-    if (payment.phase !== 'balance' && payment.requestId) {
-      const sr = await ServiceRequest.findById(payment.requestId)
-      const offer = await Offer.findById(payment.offerId)
-      if (sr && offer) {
-        try {
-          await acceptOfferForRequest({
-            serviceRequest: sr,
-            offer,
-            securePayment: payment.useEscrow !== false,
-            notifyClientPaymentHeld: payment.useEscrow !== false,
-            amount: payment.amount,
-          })
-        } catch (acceptErr: any) {
-          console.error('[payments/confirm] acceptOfferForRequest error:', acceptErr)
-          // Payment is held but mission acceptance failed — don't block the client
-        }
-      }
+    // 4. Attribuer l'offre (ou rembourser si elle ne peut plus l'être)
+    const fulfilled = await fulfillServicePayment(payment._id)
+    if (!fulfilled.accepted) {
+      return NextResponse.json({ success: false, status: 'refunded', error: 'Cette offre n’est plus disponible : votre paiement va vous être remboursé.' }, { status: 409 })
     }
 
     // 5. Notify client

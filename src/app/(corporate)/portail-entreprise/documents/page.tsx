@@ -45,6 +45,7 @@ export default function DocumentsPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [restricted, setRestricted] = useState(false)
   const [quoteFilter, setQuoteFilter] = useState('all')
   const [invoiceFilter, setInvoiceFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -66,7 +67,7 @@ export default function DocumentsPage() {
   useEffect(() => {
     fetch('/api/client-enterprise/documents')
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then(d => { setQuotes(d.quotes || []); setInvoices(d.invoices || []) })
+      .then(d => { setQuotes(d.quotes || []); setInvoices(d.invoices || []); setRestricted(!!d.restricted) })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false))
   }, [])
@@ -124,6 +125,13 @@ export default function DocumentsPage() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           Impossible de charger vos documents. Réessayez dans un instant ; si le problème persiste, contactez le support.
+        </div>
+      )}
+
+      {restricted && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Les factures et montants ne sont pas visibles avec vos droits. Un administrateur de votre espace peut vous les ouvrir (Paramètres &gt; Équipe et droits).
         </div>
       )}
 

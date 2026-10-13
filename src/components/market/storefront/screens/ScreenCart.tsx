@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 
 import { CountdownChip } from '../CountdownChip';
-import { mapCartItem, mapCatalogItem, mapGroupOrder, saveCart } from '../data-mappers';
+import { mapCartItem, mapCatalogItem, mapGroupOrder, saveCart, cartLineKey } from '../data-mappers';
 import type { CartItem, Group, Product } from '../types';
 
 interface CartQuoteData {
@@ -40,6 +40,14 @@ export default function ScreenCart() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
+  // Mode de transport choisi à l'étape Livraison (mémorisé) — aérien standard par défaut
+  const [shipMethod, setShipMethod] = useState('air_15j');
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('cart:ship') : null;
+    const map: Record<string, string> = { express: 'express_3j', aerien: 'air_15j', maritime: 'maritime_60j', local: 'local_24h' };
+    if (saved && map[saved]) setShipMethod(map[saved]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -85,7 +93,7 @@ export default function ScreenCart() {
       credentials: 'include',
       body: JSON.stringify({
         cart: items.map(it => ({ id: it.id, qty: it.qty, variantIds: it.variantIds })),
-        shippingMethod: 'air_15j',
+        shippingMethod: shipMethod,
         ...(appliedPromo ? { promo: { code: appliedPromo } } : {}),
       }),
       signal: ctrl.signal,
@@ -95,7 +103,7 @@ export default function ScreenCart() {
       .catch(() => {})
       .finally(() => setQuoteLoading(false));
     return () => ctrl.abort();
-  }, [items, appliedPromo]);
+  }, [items, appliedPromo, shipMethod]);
 
   // Persister le code promo pour le checkout
   useEffect(() => {
@@ -113,7 +121,7 @@ export default function ScreenCart() {
 
   // Identité d'une ligne = produit + variante (deux variantes d'un même produit
   // partagent le même id produit — sans la variante, +/−/suppr toucherait les deux).
-  const lineKey = (it: CartItem) => `${it.id}__${it.variantId ?? it.variantIds?.join('+') ?? ''}`;
+  const lineKey = cartLineKey;
 
   const updateQty = (key: string, delta: number) => {
     setItems((cur) => {
@@ -196,7 +204,7 @@ export default function ScreenCart() {
               </div>
               <div className="text-right">
                 <p className="whitespace-nowrap text-[14px] font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(lineUnit(it) * it.qty)}</p>
-                <p className="whitespace-nowrap text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(lineUnit(it))} × {it.qty}</p>
+                <p className="whitespace-nowrap text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{formatFcfa(lineUnit(it))} × {it.qty}</p>
               </div>
             </div>
           </div>
@@ -301,6 +309,7 @@ export default function ScreenCart() {
           )}
         </dl>
         {quoteLoading && <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">Calcul du devis en cours…</p>}
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Mode de transport modifiable à l&apos;étape Livraison (express, aérien, maritime) : le total sera recalculé.</p>
         <div className="my-3 h-px bg-slate-200 dark:bg-slate-800"/>
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-bold text-slate-900 dark:text-white">Total</span>
@@ -335,7 +344,7 @@ export default function ScreenCart() {
           <Icon name="arrowRight" size={16}/>
         </Button>
         <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="inline-flex items-center gap-1"><Icon name="shield" size={12}/> Escrow</span>
+          <span className="inline-flex items-center gap-1"><Icon name="shield" size={12}/> Paiement garanti</span>
           <span className="inline-flex items-center gap-1"><Icon name="wallet" size={12}/> Mobile Money</span>
           <span className="inline-flex items-center gap-1"><Icon name="whatsapp" size={12}/> Support 7j/7</span>
         </div>
@@ -411,12 +420,12 @@ export default function ScreenCart() {
               L'alerte lot minimum vit sur chaque ligne et à côté du CTA. */}
           <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_400px] md:gap-6">
             <div className="space-y-3 md:col-start-1 md:row-start-1">
-              {items.map((it)=><CartItemCard key={it.id} it={it}/>)}
+              {items.map((it)=><Fragment key={lineKey(it)}>{CartItemCard({ it })}</Fragment>)}
             </div>
 
             {/* Récap + promo + CTA : sidebar desktop, inline mobile */}
             <div className="md:col-start-2 md:row-start-1 md:row-span-2">
-              <Summary sticky/>
+              {Summary({ sticky: true })}
             </div>
 
             <div className="space-y-3 md:col-start-1 md:row-start-2">
@@ -455,7 +464,7 @@ export default function ScreenCart() {
                           <div className="mt-1 flex items-center gap-1.5 text-[11px]">
                             <span className="font-bold text-violet-700 dark:text-violet-300 tabular-nums">{formatFcfa(g.unit)}</span>
                             {g.save > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-bold">-{g.save}%</span>}
-                            <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[10px] !px-1.5 !py-0.5"/>
+                            <CountdownChip time={g.deadline} urgent={g.status==="almost"} className="!text-[11px] !px-1.5 !py-0.5"/>
                           </div>
                         </div>
                         <Button variant="violet" size="sm" onClick={() => router.push(`/achats-groupes/${g.id}`)}>Rejoindre</Button>
@@ -470,14 +479,14 @@ export default function ScreenCart() {
       </div>
 
       {/* Barre de commande sticky — mobile uniquement */}
-      <div className="sticky bottom-16 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+      <div className="sticky bottom-[var(--mkt-bottom-nav-h,calc(6rem+env(safe-area-inset-bottom)))] left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-shrink">
-            <p className="whitespace-nowrap text-[10px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
+            <p className="whitespace-nowrap text-[11px] leading-none text-slate-500 dark:text-slate-400">Total · {items.reduce((s,i)=>s+i.qty,0)} pcs</p>
             <p className="whitespace-nowrap mt-0.5 text-[15px] font-extrabold leading-tight text-slate-900 dark:text-white tabular-nums">{formatFcfa(totals.total)}</p>
             {!canCheckout ? (
-              <p className="whitespace-nowrap text-[10px] font-bold text-amber-700 dark:text-amber-300 leading-none">Lot minimum non atteint</p>
-            ) : totals.savings>0 && <p className="whitespace-nowrap text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
+              <p className="whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-300 leading-none">Lot minimum non atteint</p>
+            ) : totals.savings>0 && <p className="whitespace-nowrap text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">Éco. {formatFcfa(totals.savings)}</p>}
           </div>
           <Button variant="primary" size="md" disabled={!canCheckout} className="whitespace-nowrap flex-shrink-0 !px-3 !text-[13px]" onClick={() => canCheckout && router.push('/checkout/adresse')}>
             Commander

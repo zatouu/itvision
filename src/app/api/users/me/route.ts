@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
+import { verifyAuthServer } from '@/lib/auth-server'
 import User from '@/lib/models/User'
 import { isPhoneLike, normalizePhone } from '@/lib/sms'
 import { verifyXeuyOtp } from '@/modules/xeuy'
@@ -8,8 +9,11 @@ import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await verifyAuthServer(request)
+    if (auth.unavailable) return NextResponse.json({ error: 'Service temporairement indisponible' }, { status: 503 })
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    const userId = auth.user.id
     await connectMongoose()
-    const { userId } = await requireAuth(request)
     const user = await User.findById(userId).lean() as any
     if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
 
@@ -58,7 +62,7 @@ export async function GET(request: NextRequest) {
         createdAt: user.createdAt,
       },
     })
-    if (healedVendor) await reissueAuthCookie(response, user)
+    if (healedVendor) await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
     return response
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

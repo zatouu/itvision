@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { X, Camera, Link as LinkIcon, FileText, Upload, Loader2, CheckCircle, AlertCircle, Clock, Package, Search, ChevronRight, Sparkles } from 'lucide-react';
@@ -48,8 +48,29 @@ function isValidUrl(url: string) {
   }
 }
 
+const CONTACT_KEY = 'ddm_sourcing_contact';
+
+/** Réduit une photo de téléphone (souvent 3-8 Mo) à ~1600 px JPEG avant envoi : upload rapide en 3G/4G. */
+async function compressImage(f: File): Promise<File> {
+  if (f.type === 'image/gif' || f.size < 600 * 1024) return f;
+  try {
+    const bitmap = await createImageBitmap(f);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= f.size) return f;
+    return new File([blob], f.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return f;
+  }
+}
+
 export default function SourcingRequestModal() {
-  const { isOpen, close } = useSourcingModal();
+  const { isOpen, close, prefill } = useSourcingModal();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<'form' | 'success' | 'needsContact' | 'catalogMatch' | 'error'>('form');
   const [source, setSource] = useState<SourceType>('photo');
@@ -68,10 +89,26 @@ export default function SourcingRequestModal() {
   const [result, setResult] = useState<SourcingResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const fieldId = useId();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!mounted || !isOpen || !dialog) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [mounted, isOpen]);
 
   const reset = useCallback(() => {
     setStep('form');
@@ -93,25 +130,42 @@ export default function SourcingRequestModal() {
 
   const handleClose = useCallback(() => {
     close();
-    setTimeout(reset, 200);
+    reset();
   }, [close, reset]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(f.type)) {
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(CONTACT_KEY) || 'null');
+      if (saved?.phone) {
+        setContactPhone((p) => p || saved.phone);
+        setContactName((n) => n || saved.name || '');
+        setContactEmail((e) => e || saved.email || '');
+      }
+    } catch { /* stockage indisponible */ }
+    if (!prefill) return;
+    if (prefill.source) setSource(prefill.source);
+    if (prefill.title) setTitle(prefill.title);
+    if (prefill.description) setDescription(prefill.description);
+    if (prefill.externalUrl) setExternalUrl(prefill.externalUrl);
+    if (prefill.qty) setQty(prefill.qty);
+  }, [isOpen, prefill]);
+
+  const selectFile = (selectedFile: File | undefined) => {
+    if (!selectedFile || submitting) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(selectedFile.type)) {
       setErrorMsg('Format d\'image non supporté (jpg, png, webp, gif)');
       return;
     }
-    if (f.size > 8 * 1024 * 1024) {
-      setErrorMsg('Image trop volumineuse (max 8 Mo)');
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setErrorMsg('Image trop volumineuse (max 20 Mo)');
       return;
     }
-    setFile(f);
+    setFile(selectedFile);
     setErrorMsg(null);
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target?.result as string);
-    reader.readAsDataURL(f);
+    reader.readAsDataURL(selectedFile);
   };
 
   const validate = () => {
@@ -140,6 +194,7 @@ export default function SourcingRequestModal() {
         title: title.trim() || undefined,
         qty: Number(qty) || 1,
         budgetMaxFCFA: budget ? Number(budget) : undefined,
+        budgetScope: 'unit',
         deliveryNeededBy: deadline || undefined,
         contactPhone: normalizePhone(contactPhone),
         contactName: contactName.trim() || undefined,
@@ -151,7 +206,7 @@ export default function SourcingRequestModal() {
       if (source === 'photo' && file) {
         const body = new FormData();
         body.append('payload', JSON.stringify(payload));
-        body.append('image', file);
+        body.append('image', await compressImage(file));
         res = await fetch('/api/market/sourcing', { method: 'POST', body });
       } else {
         res = await fetch('/api/market/sourcing', {
@@ -181,6 +236,11 @@ export default function SourcingRequestModal() {
         return;
       }
 
+      try {
+        localStorage.setItem(CONTACT_KEY, JSON.stringify({
+          phone: contactPhone.trim(), name: contactName.trim(), email: contactEmail.trim(),
+        }));
+      } catch { /* stockage indisponible */ }
       setStep('success');
       setResult({ success: true, request: data.request });
     } catch (err: any) {
@@ -198,20 +258,25 @@ export default function SourcingRequestModal() {
       <span className="grid h-8 w-8 place-items-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
         <Icon size={14} />
       </span>
-      <span className="text-[10px] font-bold text-violet-700 dark:text-violet-300">{label}</span>
+      <span className="text-[11px] font-bold text-violet-700 dark:text-violet-300">{label}</span>
     </div>
   );
 
   const Arrow = () => <ChevronRight size={16} className="text-violet-300 dark:text-violet-700 mt-[-10px]" />;
 
   const content = (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" aria-label="Fermer" onClick={handleClose} />
-
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={`${fieldId}-heading`}
+      aria-modal="true"
+      onCancel={(event) => { event.preventDefault(); handleClose(); }}
+      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-inherit backdrop:bg-slate-950/60 backdrop:backdrop-blur-sm"
+    >
+      <div className="flex h-full items-end justify-center md:items-center md:p-4" onClick={(event) => { if (event.target === event.currentTarget) handleClose(); }}>
       <div className={cn(
         'relative z-10 w-full max-w-full md:max-w-[560px] bg-white dark:bg-slate-900 shadow-2xl overflow-hidden',
         'rounded-t-3xl md:rounded-2xl',
-        'max-h-[92vh] md:max-h-[90vh] flex flex-col'
+        'max-h-[92dvh] md:max-h-[90dvh] flex flex-col'
       )}>
         {/* Header */}
         <div className="flex-shrink-0 flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800 p-4">
@@ -220,19 +285,22 @@ export default function SourcingRequestModal() {
               <Camera size={20} />
             </span>
             <div>
-              <p className="text-[15px] font-extrabold text-slate-900 dark:text-white">Sourcing sur demande</p>
-              <p className="text-[12px] text-slate-500 dark:text-slate-400">Trouvez-moi ce produit</p>
+              <h2 id={`${fieldId}-heading`} className="text-[15px] font-extrabold text-slate-900 dark:text-white">Trouvez-moi ce produit</h2>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400">Votre demande de recherche</p>
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Fermer la demande"
+            title="Fermer la demande"
             onClick={handleClose}
-            className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Step pills */}
           {step === 'form' && (
             <div className="mb-4 flex items-center justify-center gap-2">
@@ -254,9 +322,10 @@ export default function SourcingRequestModal() {
                     <button
                       key={t.key}
                       type="button"
+                      aria-pressed={source === t.key}
                       onClick={() => { setSource(t.key); setErrorMsg(null); }}
                       className={cn(
-                        'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold transition',
+                        'min-h-11 flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold transition',
                         source === t.key
                           ? 'bg-white text-violet-700 shadow-sm dark:bg-slate-950 dark:text-violet-300'
                           : 'text-slate-500 dark:text-slate-400'
@@ -270,13 +339,15 @@ export default function SourcingRequestModal() {
 
               {/* Photo upload */}
               {source === 'photo' && (
-                <div>
+                <div
+                  onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
+                  onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files[0]); }}
+                >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
-                    onChange={handleFileChange}
+                    onChange={(event) => { selectFile(event.target.files?.[0]); event.currentTarget.value = ''; }}
                     className="hidden"
                   />
                   <button
@@ -315,15 +386,17 @@ export default function SourcingRequestModal() {
               {/* Link input */}
               {source === 'link' && (
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Lien du produit</label>
+                  <label htmlFor={`${fieldId}-url`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Lien du produit</label>
                   <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5">
                     <LinkIcon size={16} className="text-slate-400" />
                     <input
+                      id={`${fieldId}-url`}
                       type="url"
                       value={externalUrl}
                       onChange={(e) => setExternalUrl(e.target.value)}
+                      inputMode="url"
                       placeholder="https://..."
-                      className="flex-1 bg-transparent text-[13px] text-slate-900 dark:text-white outline-none"
+                      className="flex-1 bg-transparent text-base sm:text-[13px] text-slate-900 dark:text-white outline-none"
                     />
                   </div>
                 </div>
@@ -331,58 +404,65 @@ export default function SourcingRequestModal() {
 
               {/* Description / title */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Description</label>
+                <label htmlFor={`${fieldId}-description`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Description</label>
                 <textarea
+                  id={`${fieldId}-description`}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Décrivez le produit recherché (marque, modèle, couleur, spécificités…)"
                   rows={3}
-                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Titre court (optionnel)</label>
+                <label htmlFor={`${fieldId}-title`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Titre court (optionnel)</label>
                 <input
+                  id={`${fieldId}-title`}
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: iPhone 15 Pro 256Go"
-                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                 />
               </div>
 
               {/* Grid qty / budget / deadline */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Qté</label>
+                  <label htmlFor={`${fieldId}-quantity`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Qté</label>
                   <input
+                    id={`${fieldId}-quantity`}
                     type="number"
                     min={1}
+                    inputMode="numeric"
                     value={qty}
                     onChange={(e) => setQty(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Budget/pc</label>
+                  <label htmlFor={`${fieldId}-budget`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Budget/pc</label>
                   <input
+                    id={`${fieldId}-budget`}
                     type="number"
                     min={0}
                     step={100}
+                    inputMode="numeric"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="FCFA"
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</label>
+                <div className="col-span-2 min-w-0 sm:col-span-1">
+                  <label htmlFor={`${fieldId}-deadline`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Délai</label>
                   <input
+                    id={`${fieldId}-deadline`}
                     type="date"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
               </div>
@@ -393,33 +473,40 @@ export default function SourcingRequestModal() {
                 <div>
                   <input
                     type="tel"
+                    aria-label="Téléphone pour recevoir la proposition par SMS"
                     required
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="Téléphone *"
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="Téléphone * (proposition par SMS)"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
+                    aria-label="Prénom et nom"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
+                    autoComplete="name"
                     placeholder="Prénom / Nom"
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                   <input
                     type="email"
+                    aria-label="Adresse e-mail"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
+                    autoComplete="email"
                     placeholder="Email"
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
               </div>
 
               {errorMsg && (
-                <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-3 text-[12px] text-red-700 dark:text-red-300">
+                <div role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-3 text-[12px] text-red-700 dark:text-red-300">
                   <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
                   {errorMsg}
                 </div>
@@ -429,18 +516,18 @@ export default function SourcingRequestModal() {
                 <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">24h ouvrées · sans engagement</p>
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-700 dark:hover:bg-slate-800 transition"
+                  className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 font-semibold hover:bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-700 dark:hover:bg-slate-800 transition"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 h-11 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition"
+                  className="min-h-11 flex-1 rounded-xl bg-violet-600 px-3 py-2 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                   Envoyer la demande
@@ -547,7 +634,8 @@ export default function SourcingRequestModal() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </dialog>
   );
 
   return createPortal(content, document.body);

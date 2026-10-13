@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import MediaLightbox from '@/components/market/MediaLightbox';
+import { Icon } from './Icon';
 
 interface ProductImageGalleryProps {
   images: string[]
@@ -233,7 +234,7 @@ export default function ProductImageGallery({
           onTouchEnd={handleTouchEnd}
           onClick={handleMainClick}
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
-          className="h-full w-full object-cover transition-transform duration-200"
+          className="h-full w-full object-contain transition-transform duration-200"
           style={
             hoverZoomed
               ? {
@@ -249,7 +250,10 @@ export default function ProductImageGallery({
           }
         />
         {badges}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
+        <button type="button" onClick={() => setLightbox(true)} aria-label="Agrandir les photos" title="Agrandir les photos" className="absolute bottom-2 right-2 grid h-11 w-11 place-items-center rounded-lg bg-white text-slate-900 shadow focus-visible:outline-2 focus-visible:outline-emerald-700">
+          <Icon name="search" size={20} />
+        </button>
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
           {active + 1} / {images.length}
         </div>
       </div>
@@ -258,6 +262,9 @@ export default function ProductImageGallery({
         {images.map((src, i) => (
           <button
             key={i}
+            type="button"
+            aria-label={`Photo ${i + 1} de ${name}`}
+            aria-pressed={active === i}
             onClick={() => { setActive(i); setScale(1); setPan({ x: 0, y: 0 }); }}
             className={cn(
               'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-slate-100 dark:bg-slate-800',

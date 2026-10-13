@@ -5,6 +5,8 @@ import {
   setCompanyPermissions,
   getTestCompanyId,
   cleanupTestData,
+  createCompanyInvoiceFixture,
+  cleanupCompanyInvoiceFixture,
 } from '../helpers/db'
 
 /**
@@ -21,7 +23,9 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 
 let ownerCtx: APIRequestContext
 let viewerCtx: APIRequestContext
+let technicalCtx: APIRequestContext
 let companyId: string
+let invoiceId: string
 
 async function loginCtx(email: string, password: string): Promise<APIRequestContext> {
   const ctx = await pwRequest.newContext({ baseURL })
@@ -35,15 +39,21 @@ test.beforeAll(async () => {
   companyId = await getTestCompanyId()
   const owner = await ensureCompanyMember({ email: 'e2e-member-owner@itvision.sn', name: 'E2E Owner', companyRole: 'owner' })
   const viewer = await ensureCompanyMember({ email: 'e2e-member-viewer@itvision.sn', name: 'E2E Viewer', companyRole: 'viewer' })
+  // Rôle technique : pas de finance:view
+  const technical = await ensureCompanyMember({ email: 'e2e-member-technical@itvision.sn', name: 'E2E Technique', companyRole: 'technical' })
   ownerCtx = await loginCtx(owner.email, owner.password)
   viewerCtx = await loginCtx(viewer.email, viewer.password)
+  technicalCtx = await loginCtx(technical.email, technical.password)
+  invoiceId = await createCompanyInvoiceFixture(companyId)
 })
 
 test.afterAll(async () => {
   await setCompanyPermissions({ canAccessPortal: true, canViewReports: true, canRequestMaintenance: true })
+  await cleanupCompanyInvoiceFixture()
   await cleanupTestData()
   await ownerCtx?.dispose()
   await viewerCtx?.dispose()
+  await technicalCtx?.dispose()
 })
 
 test.describe('Capacités entreprise — lecture seule', () => {
@@ -103,6 +113,39 @@ test.describe('Capacités entreprise — propriétaire', () => {
     expect(list.status()).toBe(200)
     const { tickets } = await list.json()
     expect(tickets.some((t: any) => t.title === 'E2E ticket owner')).toBeTruthy()
+  })
+})
+
+test.describe('Finances (finance:view)', () => {
+  test('le propriétaire lit la facture et son PDF', async () => {
+    const detail = await ownerCtx.get(`/api/client-enterprise/invoices/${invoiceId}`)
+    expect(detail.status()).toBe(200)
+
+    const pdf = await ownerCtx.get(`/api/client-enterprise/invoices/${invoiceId}/pdf`)
+    expect(pdf.status()).toBe(200)
+  })
+
+  test('sans finance:view, ni détail ni PDF de facture', async () => {
+    const detail = await technicalCtx.get(`/api/client-enterprise/invoices/${invoiceId}`)
+    expect(detail.status()).toBe(403)
+
+    const pdf = await technicalCtx.get(`/api/client-enterprise/invoices/${invoiceId}/pdf`)
+    expect(pdf.status()).toBe(403)
+  })
+
+  test('sans finance:view, les listes ne contiennent ni facture ni montant', async () => {
+    const docs = await technicalCtx.get('/api/client-enterprise/documents')
+    expect(docs.status()).toBe(200)
+    const docsBody = await docs.json()
+    expect(docsBody.restricted).toBe(true)
+    expect(docsBody.invoices).toHaveLength(0)
+
+    const dash = await technicalCtx.get('/api/client-enterprise/dashboard')
+    expect(dash.status()).toBe(200)
+    const dashBody = await dash.json()
+    expect(dashBody.kpis.amountDue).toBeNull()
+    expect(dashBody.recent.invoices).toHaveLength(0)
+    for (const c of dashBody.recent.contracts || []) expect(c.annualPrice).toBeUndefined()
   })
 })
 

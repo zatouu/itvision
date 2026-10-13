@@ -16,7 +16,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'Permissions-Policy': `camera=(), microphone=(), geolocation=${pathname.replace(/\/$/, '') === '/compte/profil' ? '(self)' : '()'}, payment=()`,
     'Content-Security-Policy': [
       "default-src 'self'",
       scriptSrc,

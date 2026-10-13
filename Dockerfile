@@ -1,6 +1,8 @@
-# Dockerfile pour l'application Next.js IT Vision (standalone)
+# Dockerfile pour Next.js et le serveur Socket.io personnalise
 # Utilise node:20-slim (Debian) pour supporter Playwright + Chromium
 FROM node:20-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 # Étape 1: Installation des dépendances
 FROM base AS deps
@@ -31,11 +33,18 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=4096
 # Placeholder uniquement pour permettre le build Next.js (pas utilisé à l'exécution)
 ENV MONGODB_URI=mongodb://localhost:27017/build-placeholder
+ENV DATABASE_URL=file:/tmp/build-only.db
+# DSN Sentry navigateur : public, intégré au bundle client au moment du build (vide = désactivé)
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 
-# Build de l'application (output: standalone dans next.config.mjs)
-RUN npm run build
+# Build de l'application
+RUN npm run build && rm -rf .next/cache
 
-# Étape 3: Image de production (standalone — node_modules minimal tracé par Next.js)
+FROM builder AS production-deps
+RUN npm prune --omit=dev --legacy-peer-deps && npm cache clean --force
+
+# Étape 3: Image de production avec serveur personnalise
 FROM base AS runner
 WORKDIR /app
 
@@ -52,14 +61,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd --system --gid 1001 nodejs
 RUN useradd --system --uid 1001 --gid nodejs nextjs
 
-# Copie du standalone (inclut node_modules minimal + server.js tracé par Next.js)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-# Fichiers statiques non inclus dans standalone
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=production-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/.ops ./.ops
+COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/next.config.mjs /app/server.js ./
 # Assets publics
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-# lib/ requis par server.js (redis-geo) — inclut ioredis via outputFileTracingIncludes
+# Modules locaux requis par le serveur personnalise
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/check-production-runtime.cjs ./scripts/check-production-runtime.cjs
 
 # Copier Playwright + Chromium depuis l'étape deps
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright

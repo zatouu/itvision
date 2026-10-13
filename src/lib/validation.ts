@@ -1,5 +1,25 @@
 import { z } from 'zod'
 
+const pricingPercentageSchema = z.number().finite().min(0).max(100)
+
+export const pricingDefaultsUpdateSchema = z.object({
+  defaultExchangeRate: z.number().finite().min(1).optional(),
+  defaultServiceFeeRate: pricingPercentageSchema.optional(),
+  singleImportServiceFeeRate: pricingPercentageSchema.optional(),
+  defaultInsuranceRate: pricingPercentageSchema.optional(),
+  defaultB2BDiscountPercent: z.number().finite().min(1).max(50).optional(),
+  serviceFeeTiers: z.array(z.object({
+    minAmount: z.number().finite().int().min(0),
+    maxAmount: z.number().finite().int().min(0).optional(),
+    feeRate: pricingPercentageSchema,
+    label: z.string().trim().min(1).max(100),
+    description: z.string().trim().max(500),
+  }).strict()).min(1).max(20)
+    .refine(tiers => tiers.length > 0 && tiers[0].minAmount === 0, 'Le premier palier doit commencer à 0 FCFA.')
+    .refine(tiers => tiers.every((tier, index) => index === 0 || tier.minAmount > tiers[index - 1].minAmount), 'Les seuils des paliers doivent être strictement croissants.')
+    .optional(),
+}).strict().refine(data => Object.values(data).some(value => value !== undefined), 'Aucun réglage fourni.')
+
 export const orderCreateSchema = z.object({
   cart: z.array(
     z.object({

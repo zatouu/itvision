@@ -24,7 +24,7 @@ export function LiveDot({ tone = 'red', className }: LiveDotProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider',
+        'inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider',
         toneMap[toneKey],
         className
       )}

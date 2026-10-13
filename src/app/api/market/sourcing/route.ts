@@ -58,6 +58,7 @@ type CreatePayload = {
   title?: string
   qty?: number
   budgetMaxFCFA?: number
+  budgetScope?: 'unit' | 'total'
   deliveryNeededBy?: string
   categoryHint?: string
   externalUrl?: string
@@ -281,6 +282,7 @@ export async function POST(request: NextRequest) {
     description,
     qty,
     budgetMaxFCFA,
+    budgetScope: ['unit', 'total'].includes(payload.budgetScope || '') ? payload.budgetScope : undefined,
     deliveryNeededBy,
     categoryHint: payload.categoryHint?.toString().trim().slice(0, 100) || undefined,
     externalSearchResults: Array.isArray(payload.externalSearchResults)

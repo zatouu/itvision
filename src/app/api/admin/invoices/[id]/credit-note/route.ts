@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import CreditNote from '@/lib/models/CreditNote'
 import { nextCreditNoteNumero } from '@/lib/finance/billing'
+import { withOptionalTransaction } from '@/lib/mongo-transaction'
 import { logAuditEvent } from '@/lib/audit'
 import { notifyCompany } from '@/lib/portal/company-notify'
 
@@ -59,17 +60,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const invoiceSet: Record<string, unknown> = { status: nextStatus }
     if (nextStatus === 'paid' && !invoice.paidAt) invoiceSet.paidAt = new Date()
 
-    // Verrou optimiste sur la facture avant d'émettre le numéro d'avoir
-    const claimed = await AdminInvoice.updateOne(
-      { _id: invoice._id, updatedAt: invoice.updatedAt },
-      { $inc: { creditedAmount: amount }, $push: { creditNoteIds: creditNoteId }, $set: invoiceSet }
-    )
-    if (claimed.modifiedCount === 0) {
-      return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
-    }
-
-    try {
-      const creditNote = await CreditNote.create({
+    const creditNote = await withOptionalTransaction(async (session) => {
+      // Verrou optimiste : la facture ne doit pas avoir changé depuis la lecture
+      const claimed = await AdminInvoice.updateOne(
+        { _id: invoice._id, updatedAt: invoice.updatedAt },
+        { $inc: { creditedAmount: amount }, $push: { creditNoteIds: creditNoteId }, $set: invoiceSet },
+        { session }
+      )
+      if (claimed.modifiedCount === 0) return null
+      const [created] = await CreditNote.create([{
         _id: creditNoteId,
         numero: await nextCreditNoteNumero(),
         invoiceId: invoice._id,
@@ -97,42 +96,40 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         refundAmount,
         refundStatus: refundAmount > 0 ? 'pending' : 'none',
         createdBy: auth.user.id,
-      })
-
-      void logAuditEvent({
-        entityType: 'CreditNote',
-        entityId: creditNote._id,
-        action: 'created',
-        userId: auth.user.id,
-        userRole: auth.user.role,
-        metadata: { numero: creditNote.numero, invoice: invoice.numero, amount, refundAmount, invoiceStatus: nextStatus },
-      })
-
-      if ((invoice as any).clientCompanyId) {
-        void notifyCompany({
-          companyId: (invoice as any).clientCompanyId,
-          category: 'invoice',
-          requires: 'finance:view',
-          title: `Avoir ${creditNote.numero} sur la facture ${invoice.numero}`,
-          message: `${amount.toLocaleString('fr-FR')} FCFA déduits${refundAmount > 0 ? `, dont ${refundAmount.toLocaleString('fr-FR')} FCFA à vous rembourser` : ''}.`,
-          actionUrl: `/portail-entreprise/documents/factures/${String(invoice._id)}`,
-          metadata: { invoiceId: String(invoice._id), creditNoteId: String(creditNote._id) },
-        })
-      }
-
-      return NextResponse.json({
-        success: true,
-        creditNote: creditNote.toObject(),
-        invoiceStatus: nextStatus,
-        refundAmount,
-      }, { status: 201 })
-    } catch (error) {
-      await AdminInvoice.updateOne(
-        { _id: invoice._id },
-        { $inc: { creditedAmount: -amount }, $pull: { creditNoteIds: creditNoteId }, $set: { status: invoice.status } }
-      ).catch(() => {})
-      throw error
+      }], { session })
+      return created
+    })
+    if (!creditNote) {
+      return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
     }
+
+    void logAuditEvent({
+      entityType: 'CreditNote',
+      entityId: creditNote._id,
+      action: 'created',
+      userId: auth.user.id,
+      userRole: auth.user.role,
+      metadata: { numero: creditNote.numero, invoice: invoice.numero, amount, refundAmount, invoiceStatus: nextStatus },
+    })
+
+    if ((invoice as any).clientCompanyId) {
+      void notifyCompany({
+        companyId: (invoice as any).clientCompanyId,
+        category: 'invoice',
+        requires: 'finance:view',
+        title: `Avoir ${creditNote.numero} sur la facture ${invoice.numero}`,
+        message: `${amount.toLocaleString('fr-FR')} FCFA déduits${refundAmount > 0 ? `, dont ${refundAmount.toLocaleString('fr-FR')} FCFA à vous rembourser` : ''}.`,
+        actionUrl: `/portail-entreprise/documents/factures/${String(invoice._id)}`,
+        metadata: { invoiceId: String(invoice._id), creditNoteId: String(creditNote._id) },
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      creditNote: creditNote.toObject(),
+      invoiceStatus: nextStatus,
+      refundAmount,
+    }, { status: 201 })
   } catch (error) {
     console.error('Erreur POST /api/admin/invoices/[id]/credit-note:', error)
     return NextResponse.json({ error: "Erreur lors de la création de l'avoir" }, { status: 500 })

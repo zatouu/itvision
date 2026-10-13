@@ -43,7 +43,9 @@ import {
   Eye,
   Scale,
   Store,
-  Bot
+  Bot,
+  Gift,
+  MapPin
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { getPageRule } from '@/lib/domains'
@@ -264,12 +266,6 @@ const menuSections: MenuSection[] = [
         ]
       },
       {
-        id: 'garanties',
-        label: 'Garanties',
-        icon: Shield,
-        href: '/admin/garanties'
-      },
-      {
         id: 'prospects',
         label: 'Prospects B2B',
         icon: Mail,
@@ -305,6 +301,12 @@ const menuSections: MenuSection[] = [
         href: '/admin/marketplace'
       },
       {
+        id: 'marketplace-tunnel',
+        label: 'Tunnel & apporteurs',
+        icon: BarChart3,
+        href: '/admin/marketplace/tunnel'
+      },
+      {
         id: 'vendeurs-boutiques',
         label: 'Boutiques & Vendeurs',
         icon: Store,
@@ -326,6 +328,36 @@ const menuSections: MenuSection[] = [
             label: 'Retours & litiges',
             icon: Scale,
             href: '/admin/marketplace/retours'
+          },
+          {
+            id: 'remboursements-ddm',
+            label: 'Remboursements clients',
+            icon: Wallet,
+            href: '/admin/marketplace/remboursements'
+          },
+          {
+            id: 'ambassadeurs-ddm',
+            label: 'Ambassadeurs',
+            icon: Gift,
+            href: '/admin/marketplace/ambassadeurs'
+          },
+          {
+            id: 'avis-produits',
+            label: 'Avis produits',
+            icon: Star,
+            href: '/admin/marketplace/avis'
+          },
+          {
+            id: 'points-retrait',
+            label: 'Points de retrait',
+            icon: MapPin,
+            href: '/admin/marketplace/points-retrait'
+          },
+          {
+            id: 'garanties',
+            label: 'Garanties commandes',
+            icon: Shield,
+            href: '/admin/garanties'
           }
         ]
       },
@@ -448,6 +480,12 @@ const menuSections: MenuSection[] = [
             label: 'Transactions Points',
             icon: CreditCard,
             href: '/admin/platform/transactions'
+          },
+          {
+            id: 'plateforme-remboursements',
+            label: 'Remboursements & retraits',
+            icon: Wallet,
+            href: '/admin/platform/remboursements'
           },
           {
             id: 'plateforme-kyc',

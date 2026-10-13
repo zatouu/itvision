@@ -21,16 +21,15 @@ import mongoose from 'mongoose'
 import Product from '@/lib/models/Product'
 import Shop from '@/lib/models/Shop'
 import PromoCode from '@/lib/models/PromoCode'
-import { connectDB } from '@/lib/db'
+import { connectMongoose } from '@/lib/mongoose'
 import { calculateCartTotal, type CartItem, type CompleteCartCalculation } from './cart-calculator'
-import { DEFAULT_EXCHANGE_RATE, getCNYToXOFRate } from './exchange-rate'
+import { DEFAULT_EXCHANGE_RATE } from './exchange-rate'
 import { resolveProductPrice, type MarketplaceTier } from './resolve-product-price'
-import { readPricingDefaults } from './settings'
-import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates } from './shared-settings'
 import { buildSeaFreightMetrics, evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { checkStockAvailability } from '@/lib/inventory'
 import { productHasVariantGroups } from './variants'
-import type { ShippingMethodId, ShippingRate } from '@/lib/logistics'
+import { BASE_SHIPPING_RATES, type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
 
 // ─── Méthodes de livraison ────────────────────────────────────────────────────
 
@@ -42,7 +41,7 @@ export const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   local_24h: 'local_24h',
 }
 
-export function resolveShippingMethod(method?: string): {
+export function resolveShippingMethod(method?: string, rates = BASE_SHIPPING_RATES): {
   clientMethod: string
   internalMethod: ShippingMethodId
   rate: ShippingRate
@@ -52,7 +51,7 @@ export function resolveShippingMethod(method?: string): {
     SHIPPING_METHOD_MAP[clientMethod] ||
     (['air_express', 'air_15', 'sea_freight', 'local_24h'].includes(clientMethod) ? (clientMethod as ShippingMethodId) : null)
   if (!internalMethod) return { error: `Méthode de livraison inconnue: ${clientMethod}` }
-  const rate = getConfiguredShippingRates()[internalMethod]
+  const rate = rates[internalMethod]
   if (!rate) return { error: 'Méthode de livraison invalide' }
   return { clientMethod, internalMethod, rate }
 }
@@ -247,7 +246,7 @@ export async function loadCartProducts(
   cart: QuoteCartItemInput[],
   opts: { checkStock?: boolean } = {}
 ): Promise<{ ok: true; ctx: CartProductsContext } | { ok: false; error: string }> {
-  await connectDB()
+  await connectMongoose()
 
   const itemProductIdMap = new Map<string, string>()
   const cartProductIds = cart
@@ -526,7 +525,9 @@ export async function quoteCart(params: {
 }): Promise<QuoteResult> {
   const { cart, shippingMethod, marketplaceTier = 'standard', promoCode, checkStock = false, includeAllShipping = false } = params
 
-  const requested = resolveShippingMethod(shippingMethod)
+  const pricing = await readSharedPricing()
+  const rates = configuredShippingRates(pricing.config)
+  const requested = resolveShippingMethod(shippingMethod, rates)
   if ('error' in requested) return { ok: false, status: 400, error: requested.error }
 
   const loaded = await loadCartProducts(cart, { checkStock })
@@ -546,14 +547,15 @@ export async function quoteCart(params: {
   if (!allLocal && requested.internalMethod === 'local_24h') {
     return { ok: false, status: 400, error: 'La livraison locale 24h est réservée aux produits en stock à Dakar.' }
   }
-  const method = allLocal ? resolveShippingMethod('local_24h') : requested
+  const method = allLocal ? resolveShippingMethod('local_24h', rates) : requested
   if ('error' in method) return { ok: false, status: 400, error: method.error }
 
-  const exchangeRate = await getCNYToXOFRate()
+  // Même taux que l'affichage catalogue ; le taux marché live reste indicatif (admin).
+  const exchangeRate = pricing.config.defaults.defaultExchangeRate
   const calculatorItems = buildCalculatorItems(cart, loaded.ctx, marketplaceTier, exchangeRate)
-  const pricingDefaults = readPricingDefaults()
+  const pricingDefaults = pricing.config.defaults
   // Un forfait PAR boutique (livraison séparée), réglable par chaque vendeur.
-  const localDeliveryFlatFee = hasLocal ? getConfiguredShippingRates().local_24h.rate : 0
+  const localDeliveryFlatFee = hasLocal ? rates.local_24h.rate : 0
   const localDeliveryShops = hasLocal
     ? await loadLocalDeliveryShops(loaded.ctx, localDeliveryFlatFee)
     : []
@@ -561,7 +563,7 @@ export async function quoteCart(params: {
     calculatorItems,
     method.internalMethod,
     { rate: method.rate.rate, minimumCharge: method.rate.minimumCharge, label: method.rate.label },
-    { serviceFeeTiers: pricingDefaults.serviceFeeTiers, localDeliveryFlatFee, localDeliveryShops }
+    { insuranceRate: pricingDefaults.defaultInsuranceRate, serviceFeeTiers: pricingDefaults.serviceFeeTiers, singleImportServiceFeeRate: pricingDefaults.singleImportServiceFeeRate, localDeliveryFlatFee, localDeliveryShops }
   )
 
   const { fees, quantityDiscount, subtotal, shipping } = calculation
@@ -572,7 +574,7 @@ export async function quoteCart(params: {
     method.internalMethod === 'sea_freight' || includeAllShipping
       ? evaluateSeaFreightEligibility(
           buildSeaFreightMetrics(calculatorItems.filter(i => !i.localDelivery), subtotal),
-          readSeaFreightEligibilitySettings()
+          pricing.config.seaFreightEligibility
         )
       : null
 
@@ -604,7 +606,6 @@ export async function quoteCart(params: {
   // Panier 100% local : seule la livraison coursier ≤24h est proposée.
   let shippingOptions: CartQuote['shippingOptions']
   if (includeAllShipping) {
-    const rates = getConfiguredShippingRates()
     shippingOptions = []
     if (allLocal) {
       shippingOptions.push({
@@ -631,7 +632,7 @@ export async function quoteCart(params: {
         calculatorItems,
         methodId,
         { rate: r.rate, minimumCharge: r.minimumCharge, label: r.label },
-        { serviceFeeTiers: pricingDefaults.serviceFeeTiers, localDeliveryFlatFee, localDeliveryShops }
+        { insuranceRate: pricingDefaults.defaultInsuranceRate, serviceFeeTiers: pricingDefaults.serviceFeeTiers, singleImportServiceFeeRate: pricingDefaults.singleImportServiceFeeRate, localDeliveryFlatFee, localDeliveryShops }
       )
       if (c.shipping) {
         shippingOptions.push({ methodId, label: r.label, cost: c.shipping.cost, billedWeight: c.shipping.billedWeight, ...seaMeta })

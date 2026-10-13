@@ -10,13 +10,18 @@ import { GroupCard } from '../GroupCard';
 import { GroupNotifyCard } from '../GroupNotifyCard';
 import { QUANTITY_TIERS } from '@/lib/pricing/tiered-pricing';
 import { Skeleton } from '../Skeleton';
+import RetryNotice from '../RetryNotice';
 import { mapProductDetail, mapGroupOrder } from '../data-mappers';
+import { useSourcingModal } from '../SourcingModalContext';
 import type { Product, Group } from '../types';
 
 
 export default function ScreenGroups() {
   const router = useRouter();
+  const { open: openSourcing } = useSourcingModal();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [PRODUCT, setPRODUCT] = useState<Product | null>(null);
   const [GROUPS, setGROUPS] = useState<Group[]>([]);
   const [FEATURED, setFEATURED] = useState<Group[]>([]);
@@ -25,15 +30,22 @@ export default function ScreenGroups() {
   const [STATS, setSTATS] = useState<{ openGroupsCount: number; totalFilled: number; totalParticipants: number; totalSaved: number } | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
+    setError(null);
     Promise.all([
-      fetch('/api/group-orders?limit=50').then(r => r.json()).catch(() => null),
+      fetch('/api/group-orders?status=open&limit=50', { signal: controller.signal }).then(response => {
+        if (!response.ok) throw new Error('Les achats groupés sont temporairement indisponibles.');
+        return response.json();
+      }),
       fetch('/api/catalog/products?limit=1&compact=1').then(r => r.json()).catch(() => null),
       fetch('/api/group-orders/featured').then(r => r.json()).catch(() => null),
       fetch('/api/group-orders/activities').then(r => r.json()).catch(() => null),
       fetch('/api/group-orders/stats').then(r => r.json()).catch(() => null),
     ]).then(([res, prodRes, featRes, actRes, statsRes]) => {
-      if (res?.groups?.length) setGROUPS(res.groups.map(mapGroupOrder));
+      if (controller.signal.aborted) return;
+      if (!Array.isArray(res?.groups)) throw new Error('Impossible de charger les achats groupés.');
+      setGROUPS(res.groups.map(mapGroupOrder));
       if (prodRes?.products?.[0] || prodRes?.items?.[0]) {
         setPRODUCT(mapProductDetail(prodRes.products?.[0] || prodRes.items?.[0]) as Product | null);
       }
@@ -49,8 +61,9 @@ export default function ScreenGroups() {
       }
       if (Array.isArray(actRes?.activities)) setACTIVITIES(actRes.activities);
       if (statsRes?.stats) setSTATS(statsRes.stats);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(failure => { if (!controller.signal.aborted) setError(failure.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [attempt]);
 
 
   const [cat, setCat] = useState("Tous");
@@ -112,6 +125,8 @@ export default function ScreenGroups() {
     );
   }
 
+  if (error) return <section className="mx-auto max-w-6xl px-4 py-8"><h1 className="text-2xl font-bold">Achats groupés</h1><RetryNotice message={error} onRetry={() => setAttempt(value => value + 1)}/></section>;
+
   const hasGroups = GROUPS.length > 0;
   const totalParticipants = GROUPS.reduce((s, g) => s + (g.participants ?? 0), 0);
   const avgSave = GROUPS.length ? Math.round(GROUPS.reduce((s, g) => s + (g.save ?? 0), 0) / GROUPS.length) : 0;
@@ -123,7 +138,7 @@ export default function ScreenGroups() {
   ];
 
   return (
-    <div className="min-h-full bg-[#faf9f5] pb-20 text-slate-900 dark:bg-slate-950 dark:text-white md:pb-0">
+    <div className="min-h-full bg-zinc-50 pb-20 text-slate-900 dark:bg-slate-950 dark:text-white md:pb-0">
       <div className="mx-auto max-w-6xl md:px-6 md:py-8">
 
         {/* Hero éditorial : message + courbe de prix réelle */}
@@ -133,17 +148,21 @@ export default function ScreenGroups() {
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">
                 Marketplace collective · DDM+
               </p>
-              <h1 className="mt-3 font-[var(--font-brand)] text-[34px] font-black leading-[1.02] tracking-tight md:text-[52px]">
-                Plus on est,<br/>
-                <span className="text-emerald-600 dark:text-emerald-400">moins c'est cher.</span>
-              </h1>
+              <h1 className="mt-3 text-2xl font-bold tracking-normal sm:text-3xl">Achats groupés</h1>
               <p className="mt-3 max-w-md text-[13px] leading-relaxed text-slate-600 dark:text-slate-400 md:text-[15px]">
                 Rejoignez un achat groupé ou créez le vôtre. Le prix unitaire baisse
-                à chaque participant — jusqu'à la deadline.
+                selon le palier de quantité atteint à la clôture.
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-2">
-                <button onClick={() => router.push('/achats-groupes/nouveau')} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
+                <button onClick={() => router.push('/achats-groupes/nouveau')} className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
                   <Icon name="plus" size={14}/>Créer un groupe
+                </button>
+                {/* Produit absent du catalogue : la demande part en sourcing avec une quantité de groupe */}
+                <button
+                  onClick={() => openSourcing({ source: 'photo', title: 'Pour un achat groupé', qty: 10, description: 'Produit souhaité en achat groupé : ' })}
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-violet-300 bg-violet-50 px-4 py-2.5 text-[13px] font-bold text-violet-800 transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-200"
+                >
+                  <Icon name="camera" size={14}/>Proposer un produit
                 </button>
                 {hasGroups && (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:text-slate-300">
@@ -156,17 +175,17 @@ export default function ScreenGroups() {
                 <div className="mt-6 grid max-w-sm grid-cols-3 gap-3">
                   <div>
                     <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{STATS?.openGroupsCount ?? GROUPS.length}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Groupes actifs</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Groupes actifs</p>
                   </div>
                   <div>
                     <p className="font-[var(--font-brand)] text-[22px] font-black tabular-nums md:text-[28px]">{STATS?.totalParticipants ?? totalParticipants}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Participants</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Participants</p>
                   </div>
                   <div>
                     <p className="font-[var(--font-brand)] text-[18px] font-black tabular-nums text-emerald-600 dark:text-emerald-400 md:text-[22px]">
                       {STATS && STATS.totalSaved > 0 ? formatFcfa(STATS.totalSaved) : avgSave > 0 ? `-${avgSave}%` : '—'}
                     </p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{STATS && STATS.totalSaved > 0 ? 'Économisés' : 'Éco. moyenne'}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{STATS && STATS.totalSaved > 0 ? 'Économisés' : 'Éco. moyenne'}</p>
                   </div>
                 </div>
               )}
@@ -174,7 +193,7 @@ export default function ScreenGroups() {
 
             {/* Courbe prix × quantité — paliers réels du moteur */}
             <div className="relative border-t border-slate-100 bg-[#f6f4ee] px-5 py-6 dark:border-slate-800 dark:bg-slate-950/60 md:border-l md:border-t-0 md:p-8">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                 Le prix baisse avec la quantité
               </p>
               <svg viewBox="0 0 320 170" className="mt-3 w-full" role="img" aria-label="Courbe du prix unitaire en fonction de la quantité commandée">
@@ -194,7 +213,7 @@ export default function ScreenGroups() {
                   </g>
                 ))}
               </svg>
-              <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-500">
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">
                 Paliers de remise quantité appliqués par le moteur de prix DDM+.
               </p>
             </div>
@@ -237,9 +256,9 @@ export default function ScreenGroups() {
                   >
                     <div className="relative h-32 bg-slate-100 dark:bg-slate-800">
                       <img loading="lazy" decoding="async" src={f.image} alt={f.name} className="h-full w-full object-cover"/>
-                      <span className="absolute left-2 top-2 rounded-md bg-slate-900/85 px-1.5 py-0.5 text-[9px] font-bold text-white">{meta?.reason}</span>
+                      <span className="absolute left-2 top-2 rounded-md bg-slate-900/85 px-1.5 py-0.5 text-[11px] font-bold text-white">{meta?.reason}</span>
                       {meta && meta.savingsPercent > 0 && (
-                        <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">-{meta.savingsPercent}%</span>
+                        <span className="absolute right-2 top-2 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white">-{meta.savingsPercent}%</span>
                       )}
                     </div>
                     <div className="p-3">
@@ -348,17 +367,17 @@ export default function ScreenGroups() {
                 </div>
                 <input type="range" min={PRODUCT?.minOrderQty ?? 1} max={100} value={simQty} onChange={e=>setSimQty(+e.target.value)} className="mt-2 w-full accent-emerald-600"/>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 md:mt-0 md:gap-3">
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800 md:w-32">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix/pc</p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3 md:col-span-2 md:gap-3">
+                <div className="min-w-0 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prix/pc</p>
                   <p className="mt-1 font-[var(--font-brand)] text-[16px] font-black tabular-nums text-emerald-600 dark:text-emerald-400 md:text-lg">{formatFcfa(simTier.unit)}</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800 md:w-32">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</p>
+                <div className="min-w-0 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total</p>
                   <p className="mt-1 font-[var(--font-brand)] text-[16px] font-black tabular-nums md:text-lg">{formatFcfa(simTier.unit*simQty)}</p>
                 </div>
-                <div className="rounded-xl bg-emerald-600 p-3 text-white md:w-32">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-200">Éco.</p>
+                <div className="min-w-0 rounded-lg bg-emerald-600 p-3 text-white">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Éco.</p>
                   <p className="mt-1 font-[var(--font-brand)] text-[16px] font-black tabular-nums md:text-lg">{formatFcfa(simSavings)}</p>
                 </div>
               </div>

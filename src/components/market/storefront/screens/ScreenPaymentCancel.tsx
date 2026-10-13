@@ -50,7 +50,7 @@ export default function ScreenPaymentCancel({ reference, orderId, amount }: Scre
           </div>
         </div>
 
-        <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-red-600 dark:text-red-400">Paiement annulé</p>
+        <p className="mt-6 text-[11px] font-bold uppercase tracking-widest text-red-600 dark:text-red-400">Paiement annulé</p>
         <h1 className="mt-1 text-[24px] md:text-[32px] font-extrabold tracking-tight text-slate-900 dark:text-white text-center">Votre paiement a été annulé</h1>
         <p className="mt-2 text-[13px] md:text-[15px] text-slate-500 dark:text-slate-400 text-center max-w-md">
           <b className="text-slate-900 dark:text-white">Aucune somme n&apos;a été débitée.</b> Vous pouvez réessayer avec le même mode de paiement ou en choisir un autre.
@@ -63,10 +63,10 @@ export default function ScreenPaymentCancel({ reference, orderId, amount }: Scre
           <div className="mt-6 w-full max-w-md rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Commande concernée</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Commande concernée</p>
                 <p className="text-[13px] font-extrabold text-slate-900 dark:text-white tabular-nums">{order?.id || orderId || displayedRef}</p>
               </div>
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">En attente</span>
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">En attente</span>
             </div>
             {typeof displayedAmount === 'number' && displayedAmount > 0 && (
               <>
@@ -77,7 +77,7 @@ export default function ScreenPaymentCancel({ reference, orderId, amount }: Scre
                 </div>
               </>
             )}
-            <p className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <Clock size={11} /> Vous avez <b>48h</b> pour finaliser le paiement, sinon la commande sera annulée.
             </p>
           </div>
@@ -114,7 +114,7 @@ export default function ScreenPaymentCancel({ reference, orderId, amount }: Scre
             <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-emerald-600 text-white"><MessageCircle size={16} /></span>
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-extrabold text-slate-900 dark:text-white">Besoin d&apos;aide ?</p>
-              <p className="text-[10px] text-slate-600 dark:text-slate-400">Notre équipe résout les blocages sous 15 min</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">Notre équipe résout les blocages sous 15 min</p>
             </div>
             <a
               href={brandWhatsAppUrl(undefined, "Bonjour DDM+, j'ai un blocage avec mon paiement.")}

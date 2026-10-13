@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     if (!userId || !code) return NextResponse.json({ error: 'Paramètres requis' }, { status: 400 })
 
     const user = (await User.findById(userId).lean()) as any
-    if (!user || !user.twoFactorEnabled) {
+    if (!user || !user.twoFactorEnabled || user.isActive === false || user.deletedAt) {
       return NextResponse.json({ error: 'MFA non activé' }, { status: 400 })
     }
 
@@ -25,11 +25,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear 2FA code and issue token
-    await User.updateOne({ _id: userId }, { $unset: { twoFactorCode: 1, twoFactorExpires: 1 } })
+    const consumed = await User.updateOne({
+      _id: userId,
+      twoFactorCode: user.twoFactorCode,
+      twoFactorExpires: { $gt: new Date() },
+      isActive: { $ne: false },
+      $expr: { $eq: [{ $ifNull: ['$sessionVersion', 0] }, user.sessionVersion ?? 0] },
+    }, { $unset: { twoFactorCode: 1, twoFactorExpires: 1 } })
+    if (consumed.matchedCount !== 1) return NextResponse.json({ error: 'Code expiré ou déjà utilisé. Reconnectez-vous.' }, { status: 401 })
 
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
+        sessionVersion: user.sessionVersion ?? 0,
         email: user.email,
         role: user.role,
         username: user.username

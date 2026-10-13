@@ -29,9 +29,11 @@ export interface StructuredAdvice {
   sayToClient?: string
   difficulty?: 'Simple' | 'Moyen' | 'Complexe'
   durationMinutes?: { min: number; max: number }
+  /** analyze_request : fournitures/pièces probables en noms génériques (recherche catalogue DDM+) */
+  materials?: string[]
 }
 
-interface MarketPriceData {
+export interface MarketPriceData {
   category: string
   count: number
   medianPrice: number
@@ -218,14 +220,15 @@ RÈGLES:
 5. "durationMinutes": {"min": nombre, "max": nombre} — estimation raisonnable de la durée en minutes.
 6. "askClient": 0 à 2 questions à poser au client si pertinent.
 7. Sécurité d'abord : toute section "warning" passe avant les autres.
-8. Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
-{"title":"Analyse de la demande","summary":"...","sections":[{"icon":"eye","title":"Ce que je vois","items":["..."]},{"icon":"tools","title":"Matériel probable","items":["..."]},{"icon":"warning","title":"Risques","items":["..."]},{"icon":"client","title":"À clarifier","items":["..."]}],"difficulty":"Simple","durationMinutes":{"min":15,"max":45},"askClient":["..."]}`,
+8. "materials": 0 à 5 fournitures ou pièces de rechange probablement nécessaires, en noms génériques courts achetables (ex: "disjoncteur 20A", "joint de robinet", "charnière de porte"). Pas d'outils de base, pas de marque. Tableau vide si rien de précis.
+9. Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"title":"Analyse de la demande","summary":"...","sections":[{"icon":"eye","title":"Ce que je vois","items":["..."]},{"icon":"tools","title":"Matériel probable","items":["..."]},{"icon":"warning","title":"Risques","items":["..."]},{"icon":"client","title":"À clarifier","items":["..."]}],"difficulty":"Simple","durationMinutes":{"min":15,"max":45},"askClient":["..."],"materials":["..."]}`,
         },
         {
           role: 'user',
           content: `Catégorie: ${cat}
 Description client: "${ctx.description || '(vide)'}"
-Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
+Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}${missionBlockOf(ctx)}
 
 Génère une analyse structurée pour aider l'artisan à décider avant de faire une offre.`,
         },
@@ -417,10 +420,37 @@ function sanitizeAdvice(raw: unknown): StructuredAdvice {
     sayToClient: typeof obj.sayToClient === 'string' ? obj.sayToClient.trim().slice(0, 240) : undefined,
     difficulty: ADVICE_DIFFICULTIES.includes(obj.difficulty as any) ? obj.difficulty as StructuredAdvice['difficulty'] : undefined,
     durationMinutes: dmMin !== undefined ? { min: dmMin, max: dmMax ?? dmMin } : undefined,
+    materials: Array.isArray(obj.materials) ? cleanStrings(obj.materials, 5, 60) : undefined,
   }
 }
 
 const VISION_TYPES: AssistType[] = ['clarify_request', 'enhance_request']
+
+const MIN_OFFER_PRICE = 1000
+
+/**
+ * Règles > LLM : le prix suggéré est borné par les prix réellement pratiqués
+ * (≥ 3 missions terminées dans la catégorie), sinon par le budget du client.
+ * Arrondi aux 500 FCFA. Retourne aussi si un ajustement a eu lieu.
+ */
+export function clampSuggestedPrice(
+  price: number,
+  market?: MarketPriceData,
+  budget?: number
+): { price: number; adjusted: boolean } {
+  let lo = MIN_OFFER_PRICE
+  let hi = Number.POSITIVE_INFINITY
+  if (market && market.count >= 3 && market.medianPrice > 0) {
+    lo = Math.max(lo, Math.min(market.minPrice, Math.round(market.medianPrice * 0.5)))
+    hi = Math.max(lo, Math.max(market.maxPrice, Math.round(market.medianPrice * 2)))
+  } else if (budget && budget > 0) {
+    lo = Math.max(lo, Math.round(budget * 0.5))
+    hi = Math.max(lo, Math.round(budget * 1.5))
+  }
+  const bounded = Math.min(hi, Math.max(lo, price))
+  const rounded = Math.max(MIN_OFFER_PRICE, Math.round(bounded / 500) * 500)
+  return { price: rounded, adjusted: Math.abs(rounded - price) >= 500 }
+}
 
 export interface AiAssistResult {
   text: string
@@ -432,6 +462,8 @@ export interface AiAssistResult {
   observations?: string[]
   photoGuidance?: string[]
   suggestedPrice?: number
+  /** true si le prix proposé par le modèle a été recadré sur les données de marché / le budget */
+  priceAdjusted?: boolean
   suggestedMessage?: string
   reasoning?: string
   /** Fiche structurée (mission_coach) */
@@ -486,11 +518,12 @@ export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
 
   if (ctx.type === 'suggest_offer') {
     const parsed = extractJson(result.text)
-    const suggestedPrice = typeof parsed?.suggestedPrice === 'number' ? parsed.suggestedPrice : undefined
-    const suggestedMessage = typeof parsed?.suggestedMessage === 'string' ? parsed.suggestedMessage.trim() : undefined
-    const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim() : undefined
-    if (!suggestedPrice || !suggestedMessage) throw new Error('AI returned no valid offer suggestion')
-    return { text: '', suggestedPrice, suggestedMessage, reasoning, source: result.source, model: result.model }
+    const rawPrice = typeof parsed?.suggestedPrice === 'number' && Number.isFinite(parsed.suggestedPrice) ? parsed.suggestedPrice : undefined
+    const suggestedMessage = typeof parsed?.suggestedMessage === 'string' ? parsed.suggestedMessage.trim().slice(0, 400) : undefined
+    const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim().slice(0, 240) : undefined
+    if (!rawPrice || rawPrice <= 0 || !suggestedMessage) throw new Error('AI returned no valid offer suggestion')
+    const { price: suggestedPrice, adjusted } = clampSuggestedPrice(rawPrice, ctx.marketPrices, ctx.requestBudget)
+    return { text: '', suggestedPrice, priceAdjusted: adjusted, suggestedMessage, reasoning, source: result.source, model: result.model }
   }
 
   return { text: result.text, vision: useVision, source: result.source, model: result.model }

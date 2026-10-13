@@ -8,7 +8,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose'
 export interface IGroupInterest extends Document {
   productId?: mongoose.Types.ObjectId
   productName?: string
-  /** Clé de déduplication : productId ou 'global' (intérêt générique). */
+  /** Clé de déduplication : productId, 'global' (intérêt générique) ou 'group:<groupId>' (rappel avant clôture). */
   scope: string
   phone: string
   name?: string

@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
 import { accentInsensitiveRegex } from '@/lib/search/accents'
@@ -38,7 +38,7 @@ function hasCatalogTextIndex() {
 }
 
 const CATALOG_CACHE_TTL = 60 // secondes
-const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
+const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'no-store' }
 
 function sortedCatalogCacheKey(searchParams: URLSearchParams): string {
   const sorted = new URLSearchParams()
@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
-    const cacheKey = sortedCatalogCacheKey(searchParams)
+    const pricingSettings = await readSharedPricing()
+    const cacheKey = `${sortedCatalogCacheKey(searchParams)}:pricing:${pricingSettings.version}`
     const cached = await getCatalogCache(cacheKey)
     if (cached) return NextResponse.json(cached, { headers: CATALOG_CACHE_HEADERS })
 
@@ -416,10 +417,10 @@ export async function GET(request: NextRequest) {
      const rawFacets = includeFacets ? agg?.[0]?.facets?.[0] : undefined
      const facets = rawFacets ? formatFacets(rawFacets) : undefined
 
-     const shippingRates = getConfiguredShippingRates()
+    const shippingRates = configuredShippingRates(pricingSettings.config)
 
      const payload = data.map((product: any) => {
-       const pricing = computeProductPricing(product, shippingRates)
+      const pricing = computeProductPricing(product, shippingRates, undefined, pricingSettings.config.defaults.singleImportServiceFeeRate, pricingSettings.config.defaults)
 
        // Les produits à variantes chiffrées restent éligibles : le join porte
        // la sélection de variante et les paliers sont mis à l'échelle.

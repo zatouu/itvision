@@ -21,9 +21,11 @@ import {
   ShoppingBag,
   Users,
   LifeBuoy,
+  Megaphone,
 } from 'lucide-react'
 import { formatFcfa } from '@/components/market/storefront/formatFcfa'
-import { TreasuryTab, PurchasesTab, GroupsTab, SupportTab, NewProductModal } from './tabs'
+import { TreasuryTab, PurchasesTab, GroupsTab, SupportTab, NewProductModal, type ResalePrefill } from './tabs'
+import SalesKitModal from './SalesKitModal'
 
 interface VendorStats {
   productsCount: number
@@ -93,6 +95,28 @@ export default function VendorDashboardPage() {
   const [tabData, setTabData] = useState<Partial<Record<TabKey, any>>>({})
   const [tabLoading, setTabLoading] = useState(false)
   const [showNewProduct, setShowNewProduct] = useState(false)
+  const [resalePrefill, setResalePrefill] = useState<ResalePrefill | null>(null)
+  const [kitProduct, setKitProduct] = useState<VendorProduct | null>(null)
+  const [resaleError, setResaleError] = useState('')
+
+  const openResale = async (groupId: string) => {
+    setResaleError('')
+    try {
+      const res = await fetch(`/api/vendor/products/prefill?groupId=${encodeURIComponent(groupId)}`, { credentials: 'include' })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok || !d.success) throw new Error(d.error || 'Lot indisponible')
+      if (d.prefill.alreadyListedProductId) throw new Error('Ce lot est déjà en vente dans votre boutique.')
+      setResalePrefill(d.prefill)
+    } catch (e: any) {
+      setResaleError(e.message)
+    }
+  }
+
+  // Lien de notification « Lot livré » : /espace-vendeur?resell=GRP-…
+  useEffect(() => {
+    const groupId = new URLSearchParams(window.location.search).get('resell')
+    if (groupId && /^GRP-[\w-]{3,40}$/.test(groupId)) void openResale(groupId)
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -338,6 +362,14 @@ export default function VendorDashboardPage() {
                       {product.stockQuantity < 5 && product.stockQuantity > 0 && (
                         <p className="text-[10px] font-bold text-red-600 mt-0.5">Stock bas</p>
                       )}
+                      {product.isPublished !== false && (
+                        <button
+                          onClick={() => setKitProduct(product)}
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        >
+                          <Megaphone size={12} /> Kit de vente
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -400,7 +432,12 @@ export default function VendorDashboardPage() {
             )}
 
             {activeTab === 'purchases' && (
-              <PurchasesTab data={tabData.purchases} loading={tabLoading} />
+              <>
+                {resaleError && (
+                  <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800">{resaleError}</p>
+                )}
+                <PurchasesTab data={tabData.purchases} loading={tabLoading} onResell={openResale} />
+              </>
             )}
 
             {activeTab === 'groups' && (
@@ -431,6 +468,22 @@ export default function VendorDashboardPage() {
             const res = await fetch('/api/vendor/products', { credentials: 'include' })
             const data = await res.json()
             if (data.success) setProducts(data.products)
+          }}
+        />
+      )}
+      {kitProduct && (
+        <SalesKitModal product={kitProduct} shopName={vendor?.name || 'Ma boutique'} onClose={() => setKitProduct(null)} />
+      )}
+      {resalePrefill && (
+        <NewProductModal
+          prefill={resalePrefill}
+          onClose={() => setResalePrefill(null)}
+          onCreated={async () => {
+            const res = await fetch('/api/vendor/products', { credentials: 'include' })
+            const data = await res.json()
+            if (data.success) setProducts(data.products)
+            setTabData(prev => ({ ...prev, purchases: undefined }))
+            setActiveTab('products')
           }}
         />
       )}

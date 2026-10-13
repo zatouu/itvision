@@ -28,7 +28,7 @@ const plural = (n: number, s: string, p = `${s}s`) => (n > 1 ? p : s)
 
 // Ordre = priorité : ce qui bloque ou coûte d'abord
 function buildActions(c: ActionCenterCounts): ActionDef[] {
-  return [
+  const actions: ActionDef[] = [
     { key: 'overdue', count: c.invoicesOverdue, label: n => `${plural(n, 'facture')} en retard`, cta: 'Régler', href: '/portail-entreprise/documents', icon: Receipt, tone: 'bg-red-50 text-red-700' },
     { key: 'quotes', count: c.quotesToAnswer, label: n => `${plural(n, 'devis', 'devis')} à valider`, cta: 'Répondre', href: '/portail-entreprise/documents', icon: FileSignature, tone: 'bg-emerald-50 text-emerald-700' },
     { key: 'tickets', count: c.ticketsAwaitingReply, label: n => `${plural(n, 'ticket')} en attente de votre réponse`, cta: 'Répondre', href: '/portail-entreprise/support', icon: LifeBuoy, tone: 'bg-orange-50 text-orange-700' },
@@ -37,7 +37,8 @@ function buildActions(c: ActionCenterCounts): ActionDef[] {
     { key: 'sign', count: c.interventionsToSign, label: n => `${plural(n, 'intervention')} à signer`, cta: 'Signer', href: '/portail-entreprise/interventions', icon: PenLine, tone: 'bg-teal-50 text-teal-700' },
     { key: 'due', count: c.invoicesDue, label: n => `${plural(n, 'facture')} à échéance`, cta: 'Voir', href: '/portail-entreprise/documents', icon: Receipt, tone: 'bg-amber-50 text-amber-700' },
     { key: 'rate', count: c.interventionsToRate || 0, label: n => `${plural(n, 'intervention')} à noter`, cta: 'Donner mon avis', href: '/portail-entreprise/interventions', icon: Star, tone: 'bg-amber-50 text-amber-700' },
-  ].filter(a => a.count > 0)
+  ]
+  return actions.filter(action => action.count > 0)
 }
 
 /** « À traiter » : tout ce qui attend une action du client, en un coup d'œil. */

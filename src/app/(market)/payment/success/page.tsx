@@ -94,7 +94,11 @@ function PaymentSuccessContent() {
 
           if (data.type === 'order' && data.orderId) {
             try {
-              const orderRes = await fetch(`/api/order/${data.orderId}${token ? `?token=${encodeURIComponent(token)}` : ''}`, { credentials: 'include', cache: 'no-store' })
+              let accessToken = token
+              if (!accessToken) {
+                try { accessToken = window.localStorage.getItem(`order-token:${data.orderId}`) || '' } catch {}
+              }
+              const orderRes = await fetch(`/api/order/${data.orderId}${accessToken ? `?token=${encodeURIComponent(accessToken)}` : ''}`, { credentials: 'include', cache: 'no-store' })
               const orderData = await orderRes.json()
               if (orderData?.success && orderData.order) setOrder(orderData.order)
             } catch {
@@ -139,7 +143,7 @@ function PaymentSuccessContent() {
   const amount = order?.total || (group?.currentUnitPrice ? 0 : 0)
   const orderId = order?.orderId || payment?.reference || ''
   const eta = order?.delivery?.estimatedDeliveryDate || order?.delivery?.eta || ''
-  const paidAt = order?.createdAt ? fmtDate(order.createdAt) : 'À l\'instant'
+  const paidAt = order?.createdAt ? fmtDate(order.createdAt) : ''
 
   const items = (order?.items || []).map((it) => ({
     name: it.name || it.productName || 'Article',
@@ -231,7 +235,7 @@ function PaymentSuccessContent() {
           <p className="mt-6 text-[11px] md:text-[12px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Paiement confirmé</p>
           <h1 className="mt-2 text-[28px] md:text-[36px] font-extrabold tracking-tight text-slate-900 dark:text-white">Merci pour votre commande</h1>
           <p className="mt-2 text-[13px] md:text-[15px] text-slate-500 dark:text-slate-400 max-w-md">
-            Votre paiement {amount > 0 ? `de ${formatFcfa(amount)}` : ''} a bien été reçu. Vous recevrez une confirmation par SMS.
+            Votre paiement {amount > 0 ? `de ${formatFcfa(amount)}` : ''} a bien été reçu. Une confirmation vous est envoyée par email{order ? ' et vous suivez chaque étape depuis votre commande' : ''}.
           </p>
           <p className="mt-3 font-mono text-[12px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5">
             Réf. {orderId || reference}
@@ -288,10 +292,12 @@ function PaymentSuccessContent() {
                 <span className="font-extrabold tabular-nums text-slate-900 dark:text-white whitespace-nowrap">{formatFcfa(amount)}</span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-slate-500 dark:text-slate-400">Payé le</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{paidAt}</span>
-            </div>
+            {paidAt && (
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Commandée le</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{paidAt}</span>
+              </div>
+            )}
             {payment?.paymentMethod && (
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Méthode</span>

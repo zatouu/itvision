@@ -27,7 +27,7 @@ export default function ProductDescription({
   if (!hasContent) {
     return (
       <p className="text-[13px] text-slate-500 dark:text-slate-400">
-        Produit importé directement depuis la Chine. Inspection qualité incluse avant expédition.
+        Description non renseignée.
       </p>
     )
   }

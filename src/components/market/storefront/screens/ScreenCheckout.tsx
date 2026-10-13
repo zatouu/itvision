@@ -13,6 +13,7 @@ import { Section } from '../Section';
 import { TrustStrip } from '../TrustStrip';
 import { mapCartItem } from '../data-mappers';
 import AddressFields, { type AddressFieldsValue } from '@/components/market/AddressFields';
+import PickupPointPicker from '../PickupPointPicker';
 import type { CartItem } from '../types';
 
 const GRAIN_VALUE_FCFA = 2;
@@ -72,6 +73,8 @@ export default function ScreenCheckout() {
   const [saveAddress, setSaveAddress] = useState(false);
   const [addressLabel, setAddressLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pickupId, setPickupId] = useState("");
+  const [adjustTolerance, setAdjustTolerance] = useState(0.1);
   const [checkoutError, setCheckoutError] = useState("");
   const [shippingRates, setShippingRates] = useState<Record<string, { label: string; durationDays: string; costPerUnit: number; description: string }>>({});
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
@@ -93,13 +96,20 @@ export default function ScreenCheckout() {
           }
           setShippingRates(map);
         }
+        if (typeof d?.adjustTolerance === 'number') setAdjustTolerance(d.adjustTolerance);
       })
       .catch(() => {});
     if (typeof window !== 'undefined') {
       const savedPromo = localStorage.getItem('cart:promo');
       if (savedPromo) { setAppliedPromo(savedPromo); setPromoInput(savedPromo); }
+      const savedShip = localStorage.getItem('cart:ship');
+      if (savedShip && methodMap[savedShip]) setShip(savedShip);
     }
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('cart:ship', ship); } catch {}
+  }, [ship]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -249,8 +259,11 @@ export default function ScreenCheckout() {
 
   const handleCheckout = async () => {
     setCheckoutError('');
-    if (!fullName.trim() || !phone.trim() || !addr.street.trim() || !addr.region || !addr.department || !addr.neighborhood) {
-      setCheckoutError('Veuillez renseigner votre nom, téléphone et adresse complète (région, département, quartier, rue).');
+    const usePickup = !!pickupId && !quote?.localDelivery;
+    if (!fullName.trim() || !phone.trim() || (!usePickup && !addr.street.trim()) || !addr.region || !addr.department || !addr.neighborhood) {
+      setCheckoutError(usePickup
+        ? 'Veuillez renseigner votre nom, téléphone, région, département et quartier.'
+        : 'Veuillez renseigner votre nom, téléphone et adresse complète (région, département, quartier, rue).');
       return;
     }
     if (items.length === 0) {
@@ -280,11 +293,12 @@ export default function ScreenCheckout() {
             region: addr.region,
             department: addr.department,
             neighborhood: addr.neighborhood,
-            street: addr.street.trim(),
+            street: addr.street.trim() || 'Retrait en point relais',
             additionalInfo: addr.additionalInfo?.trim() || undefined,
             country: 'Sénégal',
           },
           shippingMethod: methodMap[ship] || 'air_15j',
+          ...(usePickup ? { pickupPointId: pickupId } : {}),
           ...(appliedPromo ? { promo: { code: appliedPromo, discount: promoDiscount } } : {}),
           ...(grainsCount > 0 ? { grainsAmount: grainsCount } : {}),
         }),
@@ -296,6 +310,10 @@ export default function ScreenCheckout() {
       }
       localStorage.removeItem('cart:items');
       localStorage.removeItem('cart:promo');
+      // Jeton invité mémorisé : le client retrouve sa commande et son paiement sans le lien email
+      if (data.trackingToken) {
+        try { localStorage.setItem(`order-token:${data.orderId}`, data.trackingToken); } catch {}
+      }
       window.dispatchEvent(new CustomEvent('cart:updated'));
       if (loggedIn) {
         // Carnet d'adresses + synchro nom/téléphone du profil (fire-and-forget)
@@ -318,7 +336,7 @@ export default function ScreenCheckout() {
           body: JSON.stringify({ name: fullName.trim(), phone: `+221 ${phone.replace(/\D/g, '')}` }),
         }).catch(() => {});
       }
-      router.push(data.confirmationUrl || `/commandes/${data.orderId}`);
+      router.push(data.paymentUrl || data.confirmationUrl || `/commandes/${data.orderId}`);
     } catch {
       setCheckoutError('Impossible de communiquer avec le serveur.');
     } finally {
@@ -399,6 +417,12 @@ export default function ScreenCheckout() {
         {quoteError}
       </div>
     )}
+    {!quote?.localDelivery && (
+      <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-slate-50 p-3 text-[11px] leading-snug text-slate-600 dark:bg-slate-900/60 dark:text-slate-400">
+        <Icon name="info" size={12} className="mt-px flex-shrink-0"/>
+        Transport estimé sur le poids catalogue, puis vérifié à la pesée en Chine. Écart jusqu&apos;à {Math.round(adjustTolerance * 100)} % : rien ne change. Au-delà, seul le dépassement est facturé avant la livraison, ou remboursé si le colis est plus léger.
+      </p>
+    )}
     </>
   );
 
@@ -439,7 +463,7 @@ export default function ScreenCheckout() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="text-[13px] font-extrabold text-slate-900 dark:text-white">{a.label}</span>
-                    {a.isDefault && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">Défaut</span>}
+                    {a.isDefault && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold uppercase text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">Défaut</span>}
                   </span>
                   <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
                     {a.fullName} · {a.street}, {a.neighborhood}, {a.department}
@@ -523,13 +547,13 @@ export default function ScreenCheckout() {
           <div key={it.id} className="flex items-center gap-3">
             <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
               <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover"/>
-              <span className="absolute -bottom-0.5 -right-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-slate-900 px-1 text-[10px] font-bold text-white">{it.qty}</span>
+              <span className="absolute -bottom-0.5 -right-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-slate-900 px-1 text-[11px] font-bold text-white">{it.qty}</span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[12px] font-bold text-slate-900 dark:text-white line-clamp-1">{it.name}</p>
               <div className="mt-0.5 flex items-center gap-1">
-                <Badge tone="amber" className="!text-[9px] !px-1 !py-0"><Icon name="package" size={9}/>Min {it.minOrderQty}</Badge>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">{it.variant}</span>
+                <Badge tone="amber" className="!text-[11px] !px-1 !py-0"><Icon name="package" size={9}/>Min {it.minOrderQty}</Badge>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">{it.variant}</span>
               </div>
             </div>
             <p className="text-[12px] font-extrabold text-slate-900 dark:text-white tabular-nums flex-shrink-0">{formatFcfa(lineUnit(it) * it.qty)}</p>
@@ -612,7 +636,7 @@ export default function ScreenCheckout() {
                 className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-right text-[12px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
-            <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">1 grain = {GRAIN_VALUE_FCFA} FCFA · utilisable jusqu&apos;à 50% de la commande</p>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">1 grain = {GRAIN_VALUE_FCFA} FCFA · utilisable jusqu&apos;à 50% de la commande</p>
           </div>
         )}
 
@@ -621,7 +645,7 @@ export default function ScreenCheckout() {
           <span className="text-sm font-bold text-slate-900 dark:text-white">Total à payer</span>
           <span className="text-xl font-extrabold text-slate-900 dark:text-white tabular-nums">{formatFcfa(total)}</span>
         </div>
-        {quoteLoading && <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Mise à jour du devis…</p>}
+        {quoteLoading && <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Mise à jour du devis…</p>}
       </div>
     </Card>
   );
@@ -643,7 +667,14 @@ export default function ScreenCheckout() {
           <div className="md:grid md:grid-cols-[1fr_400px] md:gap-6">
             <div>
               <Section title="Adresse de livraison" className="py-4 md:p-0">
-                <Card className="p-3 md:p-5">{AddressForm()}</Card>
+                <Card className="p-3 md:p-5">
+                  {!quote?.localDelivery && (
+                    <div className="mb-3">
+                      <PickupPointPicker value={pickupId} onChange={setPickupId}/>
+                    </div>
+                  )}
+                  {AddressForm()}
+                </Card>
               </Section>
 
               <Section title="Mode d'expédition" subtitle="Depuis Guangzhou, Chine — inspection incluse" className="pb-4 md:mt-4 md:p-0">
@@ -668,7 +699,7 @@ export default function ScreenCheckout() {
                 <Button variant="primary" size="lg" className="hidden w-full md:flex" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
                   {submitting ? 'Traitement...' : 'Aller au paiement'} <Icon name="arrowRight" size={16}/>
                 </Button>
-                <p className="hidden items-center justify-center gap-1 text-center text-[11px] text-slate-500 dark:text-slate-400 md:flex"><Icon name="lock" size={12}/>Paiement sécurisé · Escrow Mobile Money</p>
+                <p className="hidden items-center justify-center gap-1 text-center text-[11px] text-slate-500 dark:text-slate-400 md:flex"><Icon name="lock" size={12}/>Paiement garanti · remboursé si non livré</p>
               </div>
             </div>
           </div>
@@ -676,11 +707,11 @@ export default function ScreenCheckout() {
       </div>
 
       {/* Barre total + CTA — mobile */}
-      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
-        <div className="flex items-center justify-between gap-2">
+      <div className="fixed bottom-[var(--mkt-bottom-nav-h,calc(6rem+env(safe-area-inset-bottom)))] left-0 right-0 z-20 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">Total à payer</p>
-            <p className="mt-0.5 text-[17px] font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight whitespace-nowrap">{formatFcfa(total)}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-none">Total à payer</p>
+            <p className="mt-0.5 break-words text-[17px] font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight">{formatFcfa(total)}</p>
           </div>
           <Button variant="primary" size="md" className="whitespace-nowrap flex-shrink-0" onClick={handleCheckout} disabled={submitting || items.length === 0 || !quote}>
             {submitting ? 'Traitement...' : 'Aller au paiement'}

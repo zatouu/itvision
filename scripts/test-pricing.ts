@@ -1,5 +1,14 @@
 import { simulatePricing1688, simulatePricingFromProduct } from '@/lib/pricing1688.refactored'
-import { computeProductPricing } from '@/lib/logistics'
+import { computeProductPricing, REAL_SHIPPING_COSTS } from '@/lib/logistics'
+import assert from 'node:assert/strict'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { calculateCartTotal, type CartItem } from '@/lib/pricing/cart-calculator'
+import { getImportServiceFeeRate, calculateCompleteFees } from '@/lib/pricing/tiered-service-fees'
+import { pricingDefaultsUpdateSchema } from '@/lib/validation'
+import { validateServiceFeeRate } from '@/lib/types/product.types'
+import { getPlatformExchangeRate, getPlatformSingleImportServiceFeeRate, registerPlatformExchangeRate, registerPlatformSingleImportServiceFeeRate } from '@/lib/pricing/platform-rate'
 
 const assertEqual = (a: any, b: any, message?: string) => {
   if (a !== b) {
@@ -11,7 +20,7 @@ const assertEqual = (a: any, b: any, message?: string) => {
 
 const runScenario = (label: string, product: any, input: any) => {
   console.log(`\n--- Scenario: ${label}`)
-  const pricingSummary = computeProductPricing(product)
+  const pricingSummary = computeProductPricing(product, undefined, input.orderQuantity ?? 1)
   const sim = simulatePricingFromProduct(product, input)
 
   console.log('computeProductPricing.fees:', pricingSummary.fees)
@@ -35,7 +44,138 @@ const runScenario = (label: string, product: any, input: any) => {
   console.log('OK: fees match')
 }
 
-const main = () => {
+const runImportQuantityScenarios = async () => {
+  for (const rate of [0, 12.5, 18, 100]) assert.equal(validateServiceFeeRate(rate), true)
+  for (const rate of [undefined, Number.NaN, Infinity, -1, 101]) assert.equal(validateServiceFeeRate(rate), false)
+  const imported: CartItem = {
+    id: 'import', name: 'Article import', price: 10000, baseCostFcfa: 10000, qty: 1, weightKg: 1
+  }
+  const local: CartItem = {
+    id: 'local', name: 'Article local', price: 3000, baseCostFcfa: 1000, qty: 5, localDelivery: true
+  }
+  const quote = (items: CartItem[]) => calculateCartTotal(items, 'air_15', { rate: 0, label: 'Test' })
+
+  const single = await quote([imported])
+  assert.equal(single.fees.serviceFeeRate, 15)
+  assert.equal(single.fees.serviceFeeAmount, 1500)
+  assert.equal(single.total, 11750)
+
+  const multiple = await quote([{ ...imported, qty: 2 }])
+  assert.equal(multiple.fees.serviceFeeRate, 10)
+  assert.equal(multiple.fees.serviceFeeAmount, 2000)
+  assert.equal(multiple.total, 22500)
+
+  const differentProducts = await quote([imported, { ...imported, id: 'autre-import' }])
+  assert.equal(differentProducts.fees.serviceFeeRate, 10)
+  const splitLines = await quote([imported, imported])
+  assert.equal(splitLines.fees.serviceFeeRate, 10)
+
+  const mixed = await quote([imported, local])
+  assert.equal(mixed.fees.serviceFeeRate, 15)
+  assert.equal(mixed.fees.serviceFeeAmount, 1500)
+  assert.equal(mixed.total, 26750)
+  const localOnly = await quote([local])
+  assert.equal(localOnly.fees.serviceFeeAmount, 0)
+  assert.equal(localOnly.fees.insuranceAmount, 0)
+  assert.equal(localOnly.total, 15000)
+
+  const retailOnly = await quote([{ ...imported, baseCostFcfa: undefined }])
+  assert.equal(retailOnly.fees.serviceFeeAmount, 0)
+  const expensiveSingle = await quote([{ ...imported, price: 600000 }])
+  assert.equal(expensiveSingle.fees.serviceFeeRate, 15)
+  const volume = await quote([{ ...imported, price: 300000, qty: 2 }])
+  assert.equal(volume.fees.serviceFeeRate, 8)
+
+  assert.equal(getImportServiceFeeRate(1, 10), 15)
+  assert.equal(getImportServiceFeeRate(2, 10), 10)
+  assert.equal(getImportServiceFeeRate(1, 18), 18)
+  assert.equal(getImportServiceFeeRate(1, 10, 18), 18)
+  assert.equal(getImportServiceFeeRate(2, 10, 18), 10)
+  assert.equal(getImportServiceFeeRate(1, 20, 18), 20)
+  assert.equal(getImportServiceFeeRate(1, 10, 0), 10)
+  assert.equal(getImportServiceFeeRate(1, 10, Number.NaN), 15)
+  assert.equal(getImportServiceFeeRate(1, 10, 101), 15)
+  assert.equal(getImportServiceFeeRate(1, 10, -1), 15)
+  const configuredSingle = await calculateCartTotal([imported, local], 'air_15', { rate: 0, label: 'Test' }, { singleImportServiceFeeRate: 18 })
+  assert.equal(configuredSingle.fees.serviceFeeRate, 18)
+  assert.equal(configuredSingle.fees.serviceFeeAmount, 1800)
+  const configuredMultiple = await calculateCartTotal([{ ...imported, qty: 2 }], 'air_15', { rate: 0, label: 'Test' }, { singleImportServiceFeeRate: 18 })
+  assert.equal(configuredMultiple.fees.serviceFeeRate, 10)
+  assert.equal(calculateCompleteFees(10000, 10000, { importQuantity: 1 }).serviceFee.amount, 1500)
+  assert.equal(computeProductPricing({ price1688: 100, exchangeRate: 100, minOrderQty: 5 }).fees?.serviceFeeRate, 10)
+  const simulation = simulatePricing1688({ price1688: 100, exchangeRate: 100, shippingMethod: 'air_15', weightKg: 1, orderQuantity: 1 })
+  assert.equal(simulation.serviceFee, 1500)
+  assert.equal(simulation.totalClientPrice, 20250)
+  assert.equal(simulation.shippingCostReal, 8000)
+  assert.equal(simulation.totalRealCost, 18250)
+  assert.equal(simulation.netMargin, 2000)
+  assert.equal(simulatePricing1688({ baseCost: 10000, shippingMethod: 'air_express', weightKg: 1 }).shippingCostReal, 11000)
+  assert.equal(simulatePricing1688({ baseCost: 10000, shippingMethod: 'sea_freight', volumeM3: 0.1 }).shippingCostReal, 18000)
+  const customCosts = { ...REAL_SHIPPING_COSTS, air_15: { rate: 9000, minimumCharge: 0 } }
+  const customSimulation = simulatePricing1688({ baseCost: 10000, shippingMethod: 'air_15', weightKg: 1 }, undefined, undefined, 15, customCosts)
+  assert.equal(customSimulation.shippingCostReal, 9000)
+  assert.equal(customSimulation.shippingCostClient, 8500)
+  assert.equal(customSimulation.netMargin, 1000)
+  const clientOverride = simulatePricing1688({ baseCost: 10000, shippingMethod: 'air_15', weightKg: 1 }, [{ methodId: 'air_15', ratePerKg: 10000 }])
+  assert.equal(clientOverride.shippingCostClient, 10000)
+  assert.equal(clientOverride.shippingCostReal, 8000)
+  const loss = simulatePricing1688({ baseCost: 10000, shippingMethod: 'air_15', weightKg: 1 }, undefined, undefined, 15, { ...REAL_SHIPPING_COSTS, air_15: { rate: 12000 } })
+  assert.equal(loss.netMargin, -2000)
+  console.log('Frais import par quantite : assertions OK')
+}
+
+const runSavedPricingSettingsScenarios = async () => {
+  const originalDirectory = process.cwd()
+  const originalExchangeRate = getPlatformExchangeRate()
+  const originalSingleRate = getPlatformSingleImportServiceFeeRate()
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), 'ddm-pricing-'))
+  try {
+    process.chdir(temporaryDirectory)
+    const { readPricingDefaults, writePricingDefaults } = await import('@/lib/pricing/settings')
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 15)
+    writePricingDefaults({ singleImportServiceFeeRate: 18 })
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 18)
+    assert.equal(computeProductPricing({ price1688: 100, exchangeRate: 100 }).fees?.serviceFeeRate, 18)
+    assert.equal(computeProductPricing({ price1688: 100, exchangeRate: 100 }, undefined, 2).fees?.serviceFeeRate, 10)
+    assert.equal(simulatePricing1688({ price1688: 100, exchangeRate: 100, shippingMethod: 'air_15', weightKg: 1 }).serviceFee, 1800)
+    writePricingDefaults({ singleImportServiceFeeRate: 12.5 })
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 12.5)
+    assert.equal(getPlatformSingleImportServiceFeeRate(), 12.5)
+    writePricingDefaults({ singleImportServiceFeeRate: 0 })
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 0)
+    writeFileSync(join(temporaryDirectory, 'data', 'pricing-settings.json'), JSON.stringify({ defaultServiceFeeRate: 10 }))
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 15)
+    assert.throws(() => writePricingDefaults({ singleImportServiceFeeRate: Number.NaN }))
+    assert.equal(readPricingDefaults().singleImportServiceFeeRate, 15)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ defaultServiceFeeRate: 0, defaultInsuranceRate: 0 }).success, true)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ defaultServiceFeeRate: 10, defaultInsuranceRate: -1 }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ singleImportServiceFeeRate: '18' }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ singleImportServiceFeeRate: 18, unknownField: true }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ serviceFeeTiers: [] }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ serviceFeeTiers: [null] }).success, false)
+    const firstTier = { minAmount: 0, feeRate: 10, label: 'Standard', description: '' }
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ serviceFeeTiers: [firstTier, firstTier] }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ serviceFeeTiers: [{ ...firstTier, minAmount: 10 }] }).success, false)
+    assert.equal(pricingDefaultsUpdateSchema.safeParse({ serviceFeeTiers: [firstTier, { ...firstTier, minAmount: 500000, feeRate: 8 }] }).success, true)
+    const savedPath = join(temporaryDirectory, 'data', 'pricing-settings.json')
+    const validContents = readFileSync(savedPath, 'utf-8')
+    writeFileSync(savedPath, '{')
+    assert.throws(() => readPricingDefaults({ strict: true }))
+    assert.throws(() => writePricingDefaults({ singleImportServiceFeeRate: 18 }))
+    assert.equal(readFileSync(savedPath, 'utf-8'), '{')
+    writeFileSync(savedPath, validContents)
+    writePricingDefaults({ singleImportServiceFeeRate: 18 })
+    assert.deepEqual(readdirSync(join(temporaryDirectory, 'data')), ['pricing-settings.json'])
+    console.log('Reglages tarifaires admin : assertions OK')
+  } finally {
+    registerPlatformExchangeRate(() => originalExchangeRate)
+    registerPlatformSingleImportServiceFeeRate(() => originalSingleRate)
+    process.chdir(originalDirectory)
+    rmSync(temporaryDirectory, { recursive: true, force: true })
+  }
+}
+
+const main = async () => {
   try {
     // Small order
     runScenario('small', {
@@ -67,6 +207,32 @@ const main = () => {
       weightKg: 10
     }, { shippingMethod: 'sea_freight', volumeM3: 1, orderQuantity: 60 })
 
+    await runImportQuantityScenarios()
+    await runSavedPricingSettingsScenarios()
+    const costDirectory = mkdtempSync(join(tmpdir(), 'ddm-shipping-costs-'))
+    try {
+      const { getConfiguredInternalShippingCosts, writeInternalShippingCosts } = await import('@/lib/shipping/settings')
+      const costFile = join(costDirectory, 'shipping-costs.json')
+      assert.deepEqual(getConfiguredInternalShippingCosts(costFile), REAL_SHIPPING_COSTS)
+      const saved = writeInternalShippingCosts({ air_15: { rate: 9000, minimumCharge: 0 } }, costFile)
+      assert.equal(saved.air_15.rate, 9000)
+      assert.equal(saved.air_express.rate, 11000)
+      assert.equal(saved.sea_freight.rate, 180000)
+      assert.equal(getConfiguredInternalShippingCosts(costFile).air_15.rate, 9000)
+      assert.equal(simulatePricing1688({ baseCost: 10000, shippingMethod: 'air_15', weightKg: 1 }, undefined, undefined, 15, getConfiguredInternalShippingCosts(costFile)).netMargin, 1000)
+      for (const payload of [{}, { unknown: { rate: 10 } }, { air_15: { rate: '8000' } }, { air_15: { rate: -1 } }, { air_15: { rate: Infinity } }, { air_15: { rate: 8000, minimumCharge: -1 } }]) {
+        assert.throws(() => writeInternalShippingCosts(payload, costFile))
+      }
+      assert.equal(getConfiguredInternalShippingCosts(costFile).air_15.rate, 9000)
+      writeFileSync(costFile, '{')
+      assert.throws(() => getConfiguredInternalShippingCosts(costFile))
+      assert.throws(() => writeInternalShippingCosts({ air_15: { rate: 8000 } }, costFile))
+      assert.equal(readFileSync(costFile, 'utf8'), '{')
+      assert.deepEqual(readdirSync(costDirectory), ['shipping-costs.json'])
+      console.log('Couts transporteur configurables : assertions OK')
+    } finally {
+      rmSync(costDirectory, { recursive: true, force: true })
+    }
     console.log('\nAll pricing tests passed')
   } catch (err) {
     console.error('Pricing tests failed:', err)

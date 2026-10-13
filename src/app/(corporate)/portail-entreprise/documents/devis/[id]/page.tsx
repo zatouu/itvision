@@ -21,13 +21,17 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     fetch(`/api/client-enterprise/quotes/${id}`)
-      .then(r => { if (!r.ok) throw new Error('Introuvable'); return r.json() })
+      .then(async r => {
+        if (r.status === 403) throw new Error((await r.json().catch(() => null))?.error || 'Accès refusé.')
+        if (!r.ok) throw new Error('Impossible de charger le devis.')
+        return r.json()
+      })
       .then(d => {
         setQ(d.quote)
         setLoading(false)
         if (new URLSearchParams(window.location.search).get('repondre') === '1') setModalTab('action')
       })
-      .catch(() => { setError('Impossible de charger le devis.'); setLoading(false) })
+      .catch((e: Error) => { setError(e.message); setLoading(false) })
   }, [id])
 
   // Le rôle du membre peut interdire la réponse (capability 'quotes:respond' côté API)

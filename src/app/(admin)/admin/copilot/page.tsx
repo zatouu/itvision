@@ -22,6 +22,9 @@ interface Proposal {
     hardViolation?: string | null
   }
   llmUnavailable?: boolean
+  // Sauvetage d'achat groupé (agent group_order_rescue)
+  draftMessage?: string
+  extendDays?: number
   product?: { name: string; price: number; category?: string; image?: string; sellerName?: string }
   // Devis brouillon (agent quote_draft)
   reportRef?: string
@@ -71,6 +74,8 @@ const TYPE_LABELS: Record<string, string> = {
   sourcing_request: 'Trouvez-moi (sourcing)',
   quote_draft: 'Devis depuis rapport',
   contract_renewal: 'Renouvellement contrat',
+  group_order_rescue: 'Achat groupé à sauver',
+  group_order_seeding: 'Achat groupé à lancer',
 }
 
 export default function AdminCopilotPage() {
@@ -223,6 +228,12 @@ export default function AdminCopilotPage() {
                     )}
                     {!!d.proposal?.suggestedFixes?.length && (
                       <p className="text-stone-600"><b className="text-stone-700">Fixes suggérés :</b> {d.proposal.suggestedFixes.join(' · ')}</p>
+                    )}
+                    {!!d.proposal?.draftMessage && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Message à diffuser (chaîne WhatsApp, statut, groupes)</p>
+                        <p className="mt-1 text-[12px] text-stone-700 whitespace-pre-line">{d.proposal.draftMessage}</p>
+                      </div>
                     )}
                     {!!d.proposal?.lines?.length && (
                       <div className="rounded-lg border border-stone-200 bg-white p-2.5 space-y-1.5">

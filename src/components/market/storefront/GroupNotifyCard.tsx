@@ -87,9 +87,10 @@ export function GroupNotifyCard({ productId, className }: GroupNotifyCardProps) 
               onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
               placeholder="77 123 45 67"
               type="tel"
+              aria-label="Téléphone pour les notifications de groupe"
               inputMode="tel"
               autoComplete="tel-national"
-              className="h-10 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"
+              className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none dark:text-white dark:placeholder-slate-500"
             />
           </div>
           {status === 'error' && error && (

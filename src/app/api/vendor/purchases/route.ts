@@ -57,6 +57,8 @@ export async function GET(req: NextRequest) {
           targetQty: g.targetQty,
           deadline: g.deadline,
           unitPrice: g.currentUnitPrice,
+          canResell: g.status === 'delivered' && me?.paymentStatus === 'paid' && !me?.resaleProductId,
+          resaleProductId: me?.resaleProductId ? String(me.resaleProductId) : undefined,
         }
       }),
     })

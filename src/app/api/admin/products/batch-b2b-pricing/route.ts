@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
 import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
-import { readPricingDefaults } from '@/lib/pricing/settings'
+import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/admin/products/batch-b2b-pricing
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const defaults = readPricingDefaults()
+    const defaults = (await readSharedPricing()).config.defaults
     const defaultDiscount = typeof defaults.defaultB2BDiscountPercent === 'number' ? defaults.defaultB2BDiscountPercent : 15
     const discountPercent = typeof body.discountPercent === 'number' ? body.discountPercent : defaultDiscount
     const force = body.force === true

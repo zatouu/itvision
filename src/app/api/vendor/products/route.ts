@@ -12,6 +12,8 @@ import ShopFollower from '@/lib/models/ShopFollower'
 import Product from '@/lib/models/Product'
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
+import mongoose from 'mongoose'
+import { GroupOrder } from '@/lib/models/GroupOrder'
 
 export async function GET(req: NextRequest) {
   try {
@@ -92,6 +94,8 @@ const createSchema = z.object({
     .max(8)
     .optional(),
   minOrderQty: z.number().int().min(1).max(10000).default(1),
+  // Lot d'achat groupé livré remis en vente (« Mettre en vente dans ma boutique »)
+  sourceGroupId: z.string().regex(/^GRP-[\w-]{3,40}$/).optional(),
 })
 
 // Modération à la création : checks déterministes inline — un produit sain
@@ -120,7 +124,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }
 
-    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, colorOptions, variantGroups, priceTiers, minOrderQty } = parsed.data
+    const { name, description, category, price, stockQuantity, image, gallery, condition, tags, features, deliveryDays, weightKg, colorOptions, variantGroups, priceTiers, minOrderQty, sourceGroupId } = parsed.data
+
+    // Un lot ne se met en vente qu'une fois : réservation atomique sur la participation payée d'un groupe livré
+    const productId = new mongoose.Types.ObjectId()
+    if (sourceGroupId) {
+      const claim = await GroupOrder.updateOne(
+        {
+          groupId: sourceGroupId,
+          status: 'delivered',
+          participants: { $elemMatch: { userId: new mongoose.Types.ObjectId(auth.user.id), paymentStatus: 'paid', resaleProductId: { $exists: false } } },
+        },
+        { $set: { 'participants.$.resaleProductId': productId } }
+      )
+      if (claim.modifiedCount !== 1) {
+        return NextResponse.json({ success: false, error: 'Ce lot est déjà en vente ou n\'est pas encore livré' }, { status: 409 })
+      }
+    }
 
     // Si des variantes définissent leur propre stock, le stock total = somme des stocks variantes
     const variantStockSum = (variantGroups || [])
@@ -136,6 +156,7 @@ export async function POST(req: NextRequest) {
     }))
 
     const product = await Product.create({
+      _id: productId,
       name,
       description,
       category,
@@ -161,6 +182,14 @@ export async function POST(req: NextRequest) {
       shopId: shop._id,
       isPublished: false,
       channels: ['marketplace'],
+    }).catch(async (err) => {
+      if (sourceGroupId) {
+        await GroupOrder.updateOne(
+          { groupId: sourceGroupId, 'participants.resaleProductId': productId },
+          { $unset: { 'participants.$.resaleProductId': 1 } }
+        ).catch(() => {})
+      }
+      throw err
     })
 
     const autoPublishEnabled = process.env.VENDOR_PRODUCT_AUTO_PUBLISH !== '0'

@@ -1,4 +1,9 @@
 // Serveur uniquement : cacher le require à webpack/next pour éviter le bundling côté client
+import { registerPlatformExchangeRate, registerPlatformSingleImportServiceFeeRate } from './platform-rate'
+import { DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE } from './tiered-service-fees'
+import { randomUUID } from 'node:crypto'
+import { pricingDefaultsUpdateSchema } from '@/lib/validation'
+
 const _req: any = eval('require')
 const fs: any = _req('fs')
 const path: any = _req('path')
@@ -16,6 +21,7 @@ export interface ServiceFeeTierSetting {
 export interface PricingDefaults {
   defaultExchangeRate: number
   defaultServiceFeeRate: number
+  singleImportServiceFeeRate: number
   defaultInsuranceRate: number
   defaultB2BDiscountPercent: number
   serviceFeeTiers: ServiceFeeTierSetting[]
@@ -31,10 +37,13 @@ export const DEFAULT_SERVICE_FEE_TIERS: ServiceFeeTierSetting[] = [
 const DEFAULTS: PricingDefaults = {
   defaultExchangeRate: 100,
   defaultServiceFeeRate: 10,
+  singleImportServiceFeeRate: DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE,
   defaultInsuranceRate: 2.5,
   defaultB2BDiscountPercent: 15,
   serviceFeeTiers: DEFAULT_SERVICE_FEE_TIERS
 }
+
+export { DEFAULTS as DEFAULT_PRICING_SETTINGS }
 
 function ensureFile() {
   const dir = path.dirname(FILE_PATH)
@@ -95,6 +104,7 @@ function sanitizePricingDefaults(raw: unknown): PricingDefaults {
 
   const defaultExchangeRate = Number(source.defaultExchangeRate)
   const defaultServiceFeeRate = Number(source.defaultServiceFeeRate)
+  const singleImportServiceFeeRate = source.singleImportServiceFeeRate
   const defaultInsuranceRate = Number(source.defaultInsuranceRate)
   const defaultB2BDiscountPercent = Number(source.defaultB2BDiscountPercent)
 
@@ -106,6 +116,9 @@ function sanitizePricingDefaults(raw: unknown): PricingDefaults {
   return {
     defaultExchangeRate: Number.isFinite(defaultExchangeRate) && defaultExchangeRate > 0 ? Math.round(defaultExchangeRate) : DEFAULTS.defaultExchangeRate,
     defaultServiceFeeRate: resolvedDefaultServiceFeeRate,
+    singleImportServiceFeeRate: typeof singleImportServiceFeeRate === 'number' && Number.isFinite(singleImportServiceFeeRate) && singleImportServiceFeeRate >= 0 && singleImportServiceFeeRate <= 100
+      ? singleImportServiceFeeRate
+      : DEFAULTS.singleImportServiceFeeRate,
     defaultInsuranceRate: Number.isFinite(defaultInsuranceRate) && defaultInsuranceRate >= 0 && defaultInsuranceRate <= 100 ? Number(defaultInsuranceRate) : DEFAULTS.defaultInsuranceRate,
     defaultB2BDiscountPercent:
       Number.isFinite(defaultB2BDiscountPercent) && defaultB2BDiscountPercent >= 1 && defaultB2BDiscountPercent <= 50
@@ -115,25 +128,41 @@ function sanitizePricingDefaults(raw: unknown): PricingDefaults {
   }
 }
 
-export function readPricingDefaults(): PricingDefaults {
+export function readPricingDefaults(options: { strict?: boolean } = {}): PricingDefaults {
   try {
     ensureFile()
     const raw = fs.readFileSync(FILE_PATH, 'utf-8')
     const parsed = JSON.parse(raw)
+    if (options.strict) pricingDefaultsUpdateSchema.parse(parsed)
     return sanitizePricingDefaults({ ...DEFAULTS, ...parsed })
-  } catch {
+  } catch (error) {
+    if (options.strict) throw error
     return DEFAULTS
   }
 }
 
 export function writePricingDefaults(payload: Partial<PricingDefaults>) {
+  const validated = pricingDefaultsUpdateSchema.parse(payload)
+  const temporaryPath = `${FILE_PATH}.${randomUUID()}.tmp`
   try {
     ensureFile()
-    const current = readPricingDefaults()
-    const updated = sanitizePricingDefaults({ ...current, ...payload })
-    fs.writeFileSync(FILE_PATH, JSON.stringify(updated, null, 2))
+    const current = readPricingDefaults({ strict: true })
+    const updated = sanitizePricingDefaults({ ...current, ...validated })
+    fs.writeFileSync(temporaryPath, JSON.stringify(updated, null, 2), { flag: 'wx', mode: fs.statSync(FILE_PATH).mode })
+    fs.renameSync(temporaryPath, FILE_PATH)
+    rateCache = null
     return updated
-  } catch (err) {
-    throw err
+  } finally {
+    if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath)
   }
 }
+
+let rateCache: { rate: number; at: number } | null = null
+registerPlatformExchangeRate(() => {
+  if (!rateCache || Date.now() - rateCache.at > 60_000) {
+    rateCache = { rate: readPricingDefaults().defaultExchangeRate, at: Date.now() }
+  }
+  return rateCache.rate
+})
+
+registerPlatformSingleImportServiceFeeRate(() => readPricingDefaults().singleImportServiceFeeRate)

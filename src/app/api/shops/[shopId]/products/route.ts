@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
 import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import mongoose from 'mongoose'
 
 interface RouteContext {
@@ -41,9 +41,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
       Product.countDocuments(filter)
     ])
 
-    const shippingRates = getConfiguredShippingRates()
+    const pricingSettings = await readSharedPricing()
+    const shippingRates = configuredShippingRates(pricingSettings.config)
     const items = products.map((p: any) => {
-      const pricing = computeProductPricing(p, shippingRates)
+      const pricing = computeProductPricing(p, shippingRates, undefined, pricingSettings.config.defaults.singleImportServiceFeeRate, pricingSettings.config.defaults)
       return {
         id: String(p._id),
         name: p.name,

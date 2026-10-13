@@ -2,6 +2,7 @@ import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
 import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
 import { getJwtSecretKey } from '@/lib/jwt-secret'
 import { verifyDevToken } from '@/lib/auth-dev'
+import { assertCurrentSession, SessionStoreUnavailableError } from '@/lib/auth-session'
 import type { NextRequest } from 'next/server'
 
 export type JwtUser = {
@@ -13,6 +14,7 @@ export type JwtUser = {
   companyClientId?: string
   userCategory?: 'MARKETPLACE_CLIENT' | 'ENTERPRISE_CLIENT' | 'PLATFORM_USER'
   technicianId?: string
+  sessionVersion?: number
 }
 
 export function extractAuthToken(request: NextRequest): string | null {
@@ -57,6 +59,13 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
     throw new Error('Non authentifié')
   }
 
+  try {
+    await assertCurrentSession(payload)
+  } catch (error) {
+    if (error instanceof SessionStoreUnavailableError) throw error
+    throw new Error('Non authentifié')
+  }
+
   const role = String(payload.role || '').toUpperCase()
   const userId = String(payload.userId || payload.id || payload.sub || '')
 
@@ -79,6 +88,7 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
         : 'standard',
     companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
     technicianId: typeof rawClaims.technicianId === 'string' ? rawClaims.technicianId : undefined,
+    sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
     userCategory:
       typeof rawClaims.userCategory === 'string' &&
       ['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(rawClaims.userCategory)
@@ -90,6 +100,7 @@ export async function verifyAuthToken(token: string): Promise<JwtUser> {
 export async function verifyJwtPayload(token: string): Promise<JWTPayload> {
   const secret = getJwtSecretKey()
   const { payload } = await jwtVerify(token, secret)
+  await assertCurrentSession(payload)
   return payload
 }
 
@@ -111,7 +122,7 @@ export async function signAuthTokenWithExpiry(
   },
   expiresIn: string
 ): Promise<string> {
-  return new SignJWT(payload)
+  return new SignJWT({ ...payload, sessionVersion: payload.sessionVersion ?? 0 })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expiresIn)

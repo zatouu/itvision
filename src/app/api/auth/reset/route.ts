@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
+import { disconnectWebSessions } from '@/lib/auth-session'
 
 function validatePassword(password: string): string | null {
   const minLength = 8
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const { token, password } = await request.json()
     
-    if (!token || !password) {
+    if (typeof token !== 'string' || !token || typeof password !== 'string' || !password) {
       return NextResponse.json({ error: 'Token et mot de passe requis' }, { status: 400 })
     }
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     })
     
     if (!user) {
-      console.log(`[RESET] Token invalide ou expiré: ${token}`)
+      console.log('[RESET] Token invalide ou expiré')
       return NextResponse.json({ error: 'Lien de réinitialisation invalide ou expiré' }, { status: 400 })
     }
 
@@ -58,7 +59,8 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12)
     
     // Mettre à jour le mot de passe et supprimer le token
-    await User.updateOne({ _id: user._id }, {
+    const result = await User.updateOne({ _id: user._id, passwordResetToken: token, passwordResetExpires: { $gt: new Date() } }, {
+      $inc: { sessionVersion: 1 },
       $set: { 
         passwordHash,
         forcePasswordReset: false,
@@ -68,10 +70,15 @@ export async function POST(request: NextRequest) {
       $unset: { 
         passwordResetToken: 1, 
         passwordResetExpires: 1,
+        twoFactorCode: 1,
+        twoFactorExpires: 1,
         companyInvitePending: 1,
         lockedUntil: 1 // Débloquer le compte si il était verrouillé
       }
     })
+
+    if (result.matchedCount !== 1) return NextResponse.json({ error: 'Lien de réinitialisation invalide ou expiré' }, { status: 400 })
+    disconnectWebSessions(String(user._id))
 
     console.log(`[RESET] Mot de passe réinitialisé avec succès pour: ${user.email}`)
 

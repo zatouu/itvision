@@ -5,11 +5,10 @@ import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
 import { confirmPayment } from '@/lib/payment-fulfillment'
-import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { restoreProductStock } from '@/lib/inventory'
-import PromoCode from '@/lib/models/PromoCode'
 import { sendWebPushToOrder } from '@/lib/push-web'
-import { isValidOrderStatus, isAllowedOrderStatusTransition, ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/market/order-status'
+import { isValidOrderStatus, isAllowedOrderStatusTransition, applyOrderCancellationEffects, ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/market/order-status'
+import { syncOrderGuarantee } from '@/lib/market/order-paid-effects'
 
 // Au-delà, la commande est partie : l'adresse n'est plus modifiable par le client
 const ADDRESS_EDITABLE_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing']
@@ -150,8 +149,25 @@ export async function GET(
           status: order.status,
           paymentStatus: order.paymentStatus,
           address: order.address,
+          pickupPoint: order.pickupPoint,
+          readyForPickupAt: order.readyForPickupAt,
+          shippingAdjustment: order.shippingAdjustment ? {
+            realWeightKg: order.shippingAdjustment.realWeightKg,
+            estimatedCost: order.shippingAdjustment.estimatedCost,
+            realCost: order.shippingAdjustment.realCost,
+            amount: order.shippingAdjustment.amount,
+            status: order.shippingAdjustment.status,
+            paymentReference: order.shippingAdjustment.status === 'awaiting_payment' ? order.shippingAdjustment.paymentReference : undefined,
+          } : undefined,
           delivery: order.delivery,
           createdAt: order.createdAt,
+          deliveredAt: order.deliveredAt,
+          paymentMethod: order.paymentMethod,
+          refundStatus: order.refundStatus,
+          refundAmount: order.refundAmount,
+          refundReference: order.refundStatus === 'done' ? order.refundReference : undefined,
+          refundedAt: order.refundedAt,
+          guaranteeReference: order.guaranteeReference && order.guaranteeReference !== 'pending' ? order.guaranteeReference : undefined,
           currency: order.currency
         }
       },
@@ -251,6 +267,20 @@ export async function PATCH(
       updateData.notes = body.notes
     }
 
+    // Remboursement effectué (commande payée annulée) : référence opérateur obligatoire
+    let refundFilter: Record<string, unknown> | null = null
+    if (isAdmin && body.refund && typeof body.refund === 'object') {
+      const reference = typeof body.refund.reference === 'string' ? body.refund.reference.trim().slice(0, 120) : ''
+      if (!reference) {
+        return NextResponse.json({ success: false, error: 'Référence du remboursement obligatoire' }, { status: 400 })
+      }
+      updateData.refundStatus = 'done'
+      updateData.refundReference = reference
+      updateData.refundedAt = new Date()
+      updateData.refundedBy = adminAuth.ok ? (adminAuth.user?.email || adminAuth.user?.id || 'admin') : 'admin'
+      refundFilter = { refundStatus: 'pending' }
+    }
+
     // Support de mise à jour du suivi transporteur
     if (body.delivery && typeof body.delivery === 'object') {
       updateData.delivery = { ...body.delivery, lastUpdate: new Date() }
@@ -298,10 +328,17 @@ export async function PATCH(
         }
     // Mise à jour conditionnelle : échoue si le statut a changé depuis la vérification
     if (previousStatus) query.status = previousStatus
+    if (refundFilter) Object.assign(query, refundFilter)
 
     const order = (await Order.findOneAndUpdate(query, updateData, { new: true }).lean()) as any
 
     if (!order) {
+      if (refundFilter) {
+        return NextResponse.json(
+          { success: false, error: 'Aucun remboursement en attente sur cette commande' },
+          { status: 409 }
+        )
+      }
       if (previousStatus) {
         return NextResponse.json(
           { success: false, error: 'Le statut de la commande a changé entre-temps, rechargez la page' },
@@ -316,33 +353,12 @@ export async function PATCH(
 
     const statusChanged = previousStatus !== null && previousStatus !== order.status
 
-    // Effets de l'annulation (stock, promo, grains) : uniquement au passage en "cancelled"
+    // Effets de l'annulation (stock, promo, grains, remboursement dû) : uniquement au passage en "cancelled"
     if (statusChanged && order.status === 'cancelled') {
-      try {
-        await restoreOrderStock(order)
-      } catch (stockErr) {
-        console.error('[inventory] Erreur restauration stock commande:', stockErr)
-      }
-      // Restituer l'utilisation du code promo (une seule fois)
-      if (order.promoCode && (order.promoDiscount || 0) > 0 && !order.promoRestored) {
-        try {
-          await PromoCode.updateOne(
-            { code: order.promoCode.toUpperCase(), usedCount: { $gt: 0 } },
-            { $inc: { usedCount: -1 } }
-          )
-          await Order.updateOne({ _id: order._id }, { $set: { promoRestored: true } })
-        } catch (promoErr) {
-          console.error('[order] Erreur restitution promo:', promoErr)
-        }
-      }
-      if (order.clientId) {
-        try {
-          await reverseGrainsForOrder(order.clientId, order._id, `commande ${order.status}`)
-          await updateTierFromBalance(order.clientId)
-        } catch (grainsErr) {
-          console.error('[grains] Erreur reverse grains commande:', grainsErr)
-        }
-      }
+      await applyOrderCancellationEffects(order, `commande ${order.status}`)
+    }
+    if (statusChanged) {
+      await syncOrderGuarantee(order, order.status)
     }
 
     // Envoyer une notification push web si le statut a changé
@@ -394,8 +410,14 @@ export async function DELETE(
 
     await connectDB()
 
-    // Restaurer le stock avant suppression
+    // Restaurer le stock avant suppression — une commande payée ne se supprime pas (traçabilité comptable)
     const order = await Order.findOne({ orderId }).lean() as any
+    if (order && order.paymentStatus === 'completed') {
+      return NextResponse.json(
+        { success: false, error: 'Commande payée : annulez-la (remboursement tracé) au lieu de la supprimer' },
+        { status: 409 }
+      )
+    }
     if (order) {
       try {
         await restoreOrderStock(order)

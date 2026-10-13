@@ -68,6 +68,9 @@ export interface IAdminInvoice extends Document {
   terms?: string
 
   quoteId?: string
+  maintenanceContractId?: mongoose.Types.ObjectId
+  billingPeriodStart?: Date
+  billingPeriodEnd?: Date
   paymentMethod?: string
   paymentDate?: string
 
@@ -156,6 +159,9 @@ const AdminInvoiceSchema = new Schema<IAdminInvoice>({
   terms: { type: String },
 
   quoteId: { type: String },
+  maintenanceContractId: { type: Schema.Types.ObjectId, ref: 'MaintenanceContract' },
+  billingPeriodStart: { type: Date },
+  billingPeriodEnd: { type: Date },
   paymentMethod: { type: String },
   paymentDate: { type: String },
 
@@ -182,5 +188,10 @@ AdminInvoiceSchema.index({ 'client.company': 1 })
 AdminInvoiceSchema.index({ clientUserId: 1, createdAt: -1 })
 AdminInvoiceSchema.index({ clientCompanyId: 1, createdAt: -1 })
 AdminInvoiceSchema.index({ 'payments.date': 1 })
+// Une seule facture par échéance de contrat (facturation récurrente)
+AdminInvoiceSchema.index(
+  { maintenanceContractId: 1, billingPeriodStart: 1 },
+  { unique: true, partialFilterExpression: { maintenanceContractId: { $exists: true }, billingPeriodStart: { $exists: true } } }
+)
 
 export default mongoose.models.AdminInvoice || mongoose.model<IAdminInvoice>('AdminInvoice', AdminInvoiceSchema)

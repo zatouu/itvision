@@ -24,6 +24,24 @@ const OfferSchema = new Schema({
   clientCounterComment: { type: String },
   clientCounterAudioUrl: { type: String },
   clientCounterStatus: { type: String, enum: ['pending','accepted','rejected'] },
+  // Matériel de l'intervention : compris dans le prix ou à fournir par le client (lien DDM+ facultatif)
+  materialIncluded: { type: Boolean },
+  materials: {
+    type: [new Schema({
+      name: { type: String, required: true },
+      qty: { type: Number, default: 1, min: 1, max: 99 },
+      byClient: { type: Boolean, default: true },
+      product: {
+        id: { type: String },
+        name: { type: String },
+        image: { type: String },
+        priceFcfa: { type: Number },
+        local: { type: Boolean },
+        link: { type: String },
+      },
+    }, { _id: false })],
+    default: undefined,
+  },
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 
 OfferSchema.index({ requestId: 1, updatedAt: -1 })

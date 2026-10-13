@@ -65,6 +65,11 @@ export interface ProductSpec {
   value: string;
 }
 
+export interface ProductVariantGroup {
+  name: string;
+  variants: ProductVariant[];
+}
+
 export interface ProductGroupBuy {
   id?: string;
   active: boolean;
@@ -101,6 +106,7 @@ export interface Product {
   priceTiers: PriceTier[];
   groupBuy?: ProductGroupBuy;
   variants: ProductVariant[];
+  variantGroups?: ProductVariantGroup[];
   specs: [string, string][];
   descriptionImages?: string[];
   shipping: ProductShipping;
@@ -115,6 +121,12 @@ export interface Product {
   createdAt?: string;
   /** 'in_stock' | 'preorder' | 'out_of_stock' — pilote le badge de disponibilité */
   availabilityStatus?: string;
+  stockQuantity?: number;
+  requiresQuote?: boolean;
+  availabilityNote?: string;
+  leadTimeDays?: number;
+  /** Poids catalogue estimé : le transport sera recalculé à la pesée */
+  weightEstimated?: boolean;
   /** true si le produit a des groupes de variantes (sélection obligatoire avant panier) */
   hasVariants?: boolean;
   /** Libellé des frais inclus dans `price` (ex. « frais de service 10% + assurance 2,5% ») */
@@ -132,6 +144,8 @@ export interface Group {
   participantList?: { name: string; qty: number; variantLabels?: string[]; joinedAt?: string }[];
   deadline: string;
   deadlineAt?: number;
+  /** Groupe WhatsApp de discussion (lien d'invitation) */
+  whatsappInviteUrl?: string;
   unit: number;
   base: number;
   save: number;
@@ -143,6 +157,12 @@ export interface Group {
   /** Groupes de variantes du produit (sélection requise au join si non vide) */
   variantGroups?: { name: string; variants: { id: string; name: string; price?: number; stock?: number; image?: string }[] }[];
   requiresVariant?: boolean;
+  /** Transport du lot : 'maritime_60j' | 'air_15j' | 'express_3j' */
+  shippingMethod?: string;
+  /** Transport estimé par pièce (poids catalogue) : facturé au poids réel après pesée du lot */
+  shippingCostPerUnit?: number;
+  /** Photos / vidéos du contrôle qualité à Guangzhou (contrôle réussi ou partiel) */
+  qualityCheck?: { result: string; checkedAt?: string; photos: string[]; videos: string[] };
 }
 
 export interface CartItem {

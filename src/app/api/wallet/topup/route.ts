@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { initiatePayment, PaymentProvider } from '@/lib/payment'
-import { creditPoints, getAppConfig, getOrCreateWallet } from '@/lib/wallet'
+import { creditPoints, getAppConfig, getOrCreateWallet, isOnlinePaymentsEnabled } from '@/lib/wallet'
 import TopupPayment from '@/lib/models/TopupPayment'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import { sendManualReviewEmail } from '@/lib/payments/manual-review'
@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     const { userId } = await requireAuth(request)
+    if (!(await isOnlinePaymentsEnabled())) {
+      return NextResponse.json({ error: 'Achat de crédits bientôt disponible', code: 'ONLINE_PAYMENTS_DISABLED' }, { status: 409 })
+    }
 
     const body = await request.json().catch(() => null)
     if (!body || typeof body !== 'object') {

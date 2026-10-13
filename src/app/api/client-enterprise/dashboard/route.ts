@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, companyScope, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
@@ -19,6 +19,11 @@ export async function GET(request: NextRequest) {
   await connectDB()
   const userId = new mongoose.Types.ObjectId(access.userId)
   const companyId = access.profiles.companyClientId
+  // Sans finance:view : ni factures, ni montants ; les devis restent visibles pour qui doit y répondre
+  const canFinance = access.isAdmin || canCompany(access, 'finance:view')
+  const canQuotes = canFinance || canCompany(access, 'quotes:respond')
+  const contractFields = 'contractNumber name type status startDate endDate coverage stats' + (canFinance ? ' annualPrice' : '')
+  const projectFields = 'name status startDate endDate progress currentPhase milestones serviceType' + (canFinance ? ' value' : '')
 
   const [
     clientDoc,
@@ -34,7 +39,7 @@ export async function GET(request: NextRequest) {
     MaintenanceContract.find({ ...companyScope({ userId, companyId }), status: { $in: ['active', 'draft'] } })
       .sort({ endDate: 1 })
       .limit(5)
-      .select('contractNumber name type status startDate endDate annualPrice coverage stats')
+      .select(contractFields)
       .lean(),
 
     Intervention.find(companyScope({ userId, companyId }))
@@ -48,10 +53,10 @@ export async function GET(request: NextRequest) {
     }))
       .sort({ updatedAt: -1 })
       .limit(5)
-      .select('name status startDate endDate progress currentPhase milestones value serviceType')
+      .select(projectFields)
       .lean(),
 
-    AdminQuote.find({
+    !canQuotes ? [] : AdminQuote.find({
       ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }),
       status: 'sent'
     })
@@ -60,7 +65,7 @@ export async function GET(request: NextRequest) {
       .select('numero title date status total client')
       .lean(),
 
-    AdminInvoice.find({
+    !canFinance ? [] : AdminInvoice.find({
       ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }),
       status: { $in: ['sent', 'overdue', 'partial'] }
     })
@@ -88,7 +93,7 @@ export async function GET(request: NextRequest) {
     MaintenanceContract.countDocuments({ ...companyScope({ userId, companyId }), status: 'active' }),
     Intervention.countDocuments(companyScope({ userId, companyId })),
     Project.countDocuments(clientProjectFilter(companyScope({ userId, companyId }))),
-    AdminInvoice.aggregate([
+    !canFinance ? [] : AdminInvoice.aggregate([
       { $match: { ...(companyId ? { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] } : { clientUserId: userId }), status: { $in: ['sent', 'overdue', 'partial'] } } },
       { $group: { _id: null, total: { $sum: { $subtract: ['$total', { $add: [{ $ifNull: ['$amountPaid', 0] }, { $ifNull: ['$creditedAmount', 0] }] }] } } } }
     ]),
@@ -99,7 +104,7 @@ export async function GET(request: NextRequest) {
     })
   ])
 
-  const amountDue = totalInvoicesDue[0]?.total ?? 0
+  const amountDue = canFinance ? (totalInvoicesDue[0]?.total ?? 0) : null
 
   // Prochaine intervention planifiée
   const nextIntervention = await Intervention.findOne({
@@ -134,7 +139,7 @@ export async function GET(request: NextRequest) {
         endDate: (expiringContract as any).endDate,
         daysLeft: Math.floor((new Date((expiringContract as any).endDate).getTime() - Date.now()) / 86400000)
       } : null,
-      overdueInvoices: unpaidInvoices.filter((i: any) => i.status === 'overdue').length,
+      overdueInvoices: (unpaidInvoices as any[]).filter((i: any) => i.status === 'overdue').length,
       criticalTickets: openTickets.filter((t: any) => t.priority === 'urgent').length,
       nextIntervention: nextIntervention ? {
         title: (nextIntervention as any).title,

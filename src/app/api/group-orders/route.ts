@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import GroupInterest from '@/lib/models/GroupInterest'
+import { announceNewGroup } from '@/lib/group-orders/announce'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
 import { sendSms } from '@/lib/sms'
 import { MARKET_BRAND } from '@/lib/branding'
 import { readPaymentSettings } from '@/lib/payments/settings'
-import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates, type SharedPricingConfig } from '@/lib/pricing/shared-settings'
 import type { ShippingMethodId } from '@/lib/logistics'
 import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
@@ -45,10 +46,11 @@ function calcShippingCostPerUnit(
   shippingMethod: string,
   weightKg: number,
   volumeM3: number,
-  targetQty: number
+  targetQty: number,
+  config: SharedPricingConfig
 ): number {
   if (!targetQty || targetQty <= 0) return 0
-  const rates = getConfiguredShippingRates()
+  const rates = configuredShippingRates(config)
   const internalMethod = SHIPPING_METHOD_MAP[shippingMethod] || 'sea_freight'
   const rate = rates[internalMethod]
   if (!rate) return 0
@@ -369,8 +371,9 @@ export async function POST(req: NextRequest) {
           ? (product.lengthCm * product.widthCm * product.heightCm) / 1_000_000
           : 0
 
+    const pricingSnapshot = await readSharedPricing()
     if (normalizedShippingMethod === 'maritime_60j') {
-      const seaFreightEligibility = readSeaFreightEligibilitySettings()
+      const seaFreightEligibility = pricingSnapshot.config.seaFreightEligibility
       const billedWeightPerUnit = calculateBilledWeight({
         actualWeightKg: productWeightKg,
         lengthCm: product.lengthCm,
@@ -409,7 +412,8 @@ export async function POST(req: NextRequest) {
       normalizedShippingMethod,
       productWeightKg,
       productVolumeM3,
-      targetQty
+      targetQty,
+      pricingSnapshot.config
     )
 
     const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
@@ -418,6 +422,7 @@ export async function POST(req: NextRequest) {
     // Créer l'achat groupé
     const groupOrder = new GroupOrder({
       groupId: generateGroupId(),
+      pricingSnapshot,
       status: initialStatus,
       product: {
         productId: product._id,
@@ -500,29 +505,9 @@ export async function POST(req: NextRequest) {
       console.error('Erreur notification:', notifError)
     }
 
-    // « Préviens-moi » : notifier par SMS les intéressés sur ce produit
-    try {
-      const interests = await GroupInterest.find({
-        productId: groupOrder.product?.productId,
-        notified: false,
-      }).select('phone').lean()
-      if (interests.length > 0) {
-        const groupUrl = `${MARKET_BRAND.url}/achats-groupes/${groupOrder.groupId}`
-        await Promise.allSettled(
-          interests.map((i: any) =>
-            sendSms(
-              i.phone,
-              `DDM+ : un achat groupé vient d'être lancé sur ${groupOrder.product?.name || 'ce produit'} — ${groupUrl}`
-            )
-          )
-        )
-        await GroupInterest.updateMany(
-          { _id: { $in: interests.map((i: any) => i._id) } },
-          { $set: { notified: true } }
-        )
-      }
-    } catch (interestErr) {
-      console.error('Erreur notification préviens-moi:', interestErr)
+    // Annonce : intéressés par ce produit, abonnés aux nouveaux groupes, kit de diffusion pour l'équipe
+    if (groupOrder.status === 'open') {
+      void announceNewGroup(groupOrder.groupId).catch((err) => console.error('Erreur annonce nouveau groupe:', err))
     }
 
     const response = NextResponse.json({
