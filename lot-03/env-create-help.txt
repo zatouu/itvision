@@ -1,0 +1,28 @@
+create an environment variable for the current project or account
+
+USAGE
+  $ eas env:create [ENVIRONMENT] [--name <value>] [--value <value>]
+    [--force] [--type string|file] [--visibility plaintext|sensitive|secret]
+    [--scope project|account] [--environment <value>...] [--non-interactive]
+
+ARGUMENTS
+  [ENVIRONMENT]  Environment to create the variable in. Default environments are
+                 'production', 'preview', and 'development'.
+
+FLAGS
+  --environment=<value>...  Environment variable's environment, e.g.
+                            'production', 'preview', 'development'
+  --force                   Overwrite existing variable
+  --name=<value>            Name of the variable
+  --non-interactive         Run the command in non-interactive mode.
+  --scope=<option>          [default: project] Scope for the variable
+                            <options: project|account>
+  --type=<option>           The type of variable
+                            <options: string|file>
+  --value=<value>           Text value or the variable
+  --visibility=<option>     Visibility of the variable
+                            <options: plaintext|sensitive|secret>
+
+DESCRIPTION
+  create an environment variable for the current project or account
+
