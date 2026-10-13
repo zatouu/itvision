@@ -1,0 +1,135 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { connectDB } from '@/lib/db'
+import User from '@/lib/models/User'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { creditGrainsForFavorite, updateTierFromBalance } from '@/lib/grains'
+
+function normalizeIds(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of input) {
+    if (typeof raw !== 'string') continue
+    const id = raw.trim()
+    if (!id) continue
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
+// Le JWT market n'est émis que pour des comptes User — pas de fallback Client.
+async function loadAccountModel(userId: string) {
+  return User.findById(userId)
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    await connectDB()
+
+    const account: any = await loadAccountModel(String(auth.user.id))
+    if (!account) {
+      return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
+    }
+
+    const favorites: string[] = Array.isArray(account.favoriteProductIds) ? account.favoriteProductIds : []
+
+    return NextResponse.json({ success: true, favorites })
+  } catch {
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    await connectDB()
+
+    const body = await req.json().catch(() => ({}))
+    const favorites = normalizeIds((body as any)?.favorites)
+
+    // garde-fou
+    const limited = favorites.slice(0, 500)
+
+    const account: any = await loadAccountModel(String(auth.user.id))
+    if (!account) {
+      return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
+    }
+
+    account.favoriteProductIds = limited
+    await account.save()
+
+    return NextResponse.json({ success: true, favorites: limited })
+  } catch {
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    await connectDB()
+
+    const body = await req.json().catch(() => ({}))
+    const productId = typeof (body as any)?.productId === 'string' ? (body as any).productId.trim() : ''
+    if (!productId) {
+      return NextResponse.json({ success: false, error: 'productId requis' }, { status: 400 })
+    }
+
+    const account: any = await loadAccountModel(String(auth.user.id))
+    if (!account) {
+      return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
+    }
+
+    const current: string[] = Array.isArray(account.favoriteProductIds) ? account.favoriteProductIds : []
+    const set = new Set(current)
+    const isNewFavorite = !current.includes(productId)
+    set.add(productId)
+    const next = Array.from(set).slice(0, 500)
+
+    account.favoriteProductIds = next
+    await account.save()
+
+    // Créditer les grains de fidélité (best effort)
+    try {
+      if (isNewFavorite) {
+        await creditGrainsForFavorite(auth.user.id, productId)
+        await updateTierFromBalance(auth.user.id)
+      }
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains favori:', grainsErr)
+    }
+
+    return NextResponse.json({ success: true, favorites: next })
+  } catch {
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    await connectDB()
+
+    const { searchParams } = new URL(req.url)
+    const productId = (searchParams.get('productId') || '').trim()
+    if (!productId) {
+      return NextResponse.json({ success: false, error: 'productId requis' }, { status: 400 })
+    }
+
+    const account = await User.findByIdAndUpdate(auth.user.id, { $pull: { favoriteProductIds: productId } }, { new: true }).select('favoriteProductIds')
+    if (!account) {
+      return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, favorites: account.favoriteProductIds || [] })
+  } catch {
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
+  }
+}

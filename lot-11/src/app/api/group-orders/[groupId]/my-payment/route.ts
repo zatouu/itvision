@@ -1,0 +1,211 @@
+/**
+ * GET /api/group-orders/[groupId]/my-payment?phone=XXXX
+ *
+ * Permet à un participant de récupérer son propre lien de paiement
+ * sans intervention admin, en s'identifiant par son numéro de téléphone.
+ * Génère la référence de paiement si elle n'existe pas encore.
+ */
+import { NextRequest, NextResponse } from 'next/server'
+import { connectDB } from '@/lib/db'
+import { GroupOrder } from '@/lib/models/GroupOrder'
+import { validatePhone, formatPhone } from '@/lib/payment-service'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
+import { maskName } from '@/lib/payments/resolve-payment-reference'
+
+function generatePaymentReference(groupId: string, participantPhone: string): string {
+  const groupShort = groupId.slice(-6).toUpperCase()
+  const phoneShort = participantPhone.replace(/\D/g, '').slice(-4)
+  const random = Math.random().toString(36).substring(2, 5).toUpperCase()
+  return `AG-${groupShort}-${phoneShort}-${random}`
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ groupId: string }> }
+) {
+  try {
+    // Le lookup par téléphone est énumérable — limiter les tentatives par IP
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const { groupId } = await params
+    const { searchParams } = new URL(request.url)
+    const phone = searchParams.get('phone')
+
+    if (!phone) {
+      return NextResponse.json(
+        { error: 'Paramètre phone requis' },
+        { status: 400 }
+      )
+    }
+
+    if (!validatePhone(phone)) {
+      return NextResponse.json(
+        { error: 'Numéro de téléphone invalide' },
+        { status: 400 }
+      )
+    }
+
+    const formattedPhone = formatPhone(phone)
+
+    await connectDB()
+
+    const group = await GroupOrder.findOne({ groupId })
+    if (!group) {
+      return NextResponse.json(
+        { error: 'Achat groupé introuvable' },
+        { status: 404 }
+      )
+    }
+
+    // Transport facturé au poids réel après pesée du lot : lien dédié, quel que soit le statut du groupe
+    const self = group.participants.find((p: any) => formatPhone(p.phone) === formattedPhone) as any
+    if (self?.transport && group.status !== 'cancelled') {
+      const due = self.transport.paymentStatus !== 'paid'
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: self.paymentStatus === 'paid',
+        transport: {
+          amount: self.transport.amount,
+          paid: !due,
+          checkoutUrl: due ? `/paiement/checkout/${self.transport.paymentReference}` : null,
+          weightKg: (group as any).freight?.realWeightKg,
+        },
+        participant: {
+          name: maskName(self.name),
+          qty: self.qty,
+          totalAmount: self.totalAmount,
+          paymentStatus: self.paymentStatus,
+          isCreator: formatPhone((group as any).createdBy?.phone || '') === formattedPhone,
+        },
+        group: { groupId: (group as any).groupId, productName: (group as any).product?.name, status: group.status },
+      })
+    }
+
+    // Vérifier que le groupe permet les paiements (statut éligible)
+    const eligibleStatuses = ['open', 'filled', 'ordering', 'ordered']
+    if (!eligibleStatuses.includes(group.status)) {
+      return NextResponse.json(
+        { error: `Cet achat groupé n'accepte plus de paiements (statut: ${group.status})` },
+        { status: 400 }
+      )
+    }
+
+    // Trouver le participant
+    const participantIndex = group.participants.findIndex(
+      (p: any) => formatPhone(p.phone) === formattedPhone
+    )
+
+    if (participantIndex === -1) {
+      return NextResponse.json(
+        { error: 'Aucun participant trouvé avec ce numéro dans cet achat groupé' },
+        { status: 404 }
+      )
+    }
+
+    const participant = group.participants[participantIndex]
+
+    const isCreator = formatPhone((group as any).createdBy?.phone || '') === formattedPhone
+
+    // Si déjà payé
+    if ((participant as any).paymentStatus === 'paid') {
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: true,
+        message: 'Votre paiement a déjà été validé',
+        participant: {
+          name: maskName(participant.name),
+          qty: (participant as any).qty,
+          totalAmount: (participant as any).totalAmount,
+          paymentStatus: (participant as any).paymentStatus,
+          isCreator
+        },
+        group: {
+          groupId: (group as any).groupId,
+          productName: (group as any).product?.name,
+          status: group.status
+        }
+      })
+    }
+
+    // Prix final connu à la validation du groupe : pas de paiement tant qu'il est ouvert
+    if (group.status === 'open') {
+      const qty = (participant as any).qty || 1
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: false,
+        paymentOpensAtClose: true,
+        message: 'Le paiement s\'ouvre dès que le groupe est validé : vous paierez le prix final, au meilleur palier atteint.',
+        participant: {
+          name: maskName(participant.name),
+          qty,
+          unitPrice: (participant as any).unitPrice,
+          totalAmount: (participant as any).totalAmount,
+          paymentStatus: (participant as any).paymentStatus || 'pending',
+          isCreator
+        },
+        checkoutUrl: null,
+        group: {
+          groupId: (group as any).groupId,
+          productName: (group as any).product?.name,
+          status: group.status,
+          deadline: group.deadline
+        }
+      })
+    }
+
+    // Générer la référence si elle n'existe pas
+    let reference = (participant as any).paymentReference
+    if (!reference) {
+      reference = generatePaymentReference(groupId, formattedPhone)
+      group.participants[participantIndex].paymentReference = reference
+      await group.save()
+    }
+
+    const qty = (participant as any).qty || 1
+    const unitPrice = (participant as any).unitPrice || (group as any).currentUnitPrice || (group as any).product?.basePrice || 0
+    const totalAmount = (participant as any).totalAmount || (qty * unitPrice)
+
+    return NextResponse.json({
+      success: true,
+      alreadyPaid: false,
+      participant: {
+        name: maskName(participant.name),
+        phone: formattedPhone,
+        qty,
+        unitPrice,
+        totalAmount,
+        variantLabels: Array.isArray((participant as any).variantLabels) && (participant as any).variantLabels.length > 0
+          ? (participant as any).variantLabels
+          : undefined,
+        paymentStatus: (participant as any).paymentStatus || 'pending',
+        joinedAt: (participant as any).joinedAt,
+        isCreator
+      },
+      payment: {
+        reference,
+        amount: totalAmount,
+        currency: 'FCFA',
+        description: `${qty}x ${(group as any).product?.name || 'Produit'} — Achat Groupé ${groupId}`
+      },
+      checkoutUrl: `/paiement/checkout/${reference}`,
+      group: {
+        groupId: (group as any).groupId,
+        productName: (group as any).product?.name,
+        productImage: (group as any).product?.image,
+        status: group.status,
+        deadline: group.deadline,
+        currentQty: (group as any).currentQty,
+        targetQty: (group as any).targetQty,
+        progress: Math.round(((group as any).currentQty / Math.max(1, (group as any).targetQty || 1)) * 100),
+        shippingMethod: group.shippingMethod
+      }
+    })
+  } catch (error) {
+    console.error('[my-payment] Erreur:', error)
+    return NextResponse.json(
+      { error: 'Erreur interne' },
+      { status: 500 }
+    )
+  }
+}

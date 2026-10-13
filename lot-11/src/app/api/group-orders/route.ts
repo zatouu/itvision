@@ -1,0 +1,535 @@
+import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
+import { GroupOrder } from '@/lib/models/GroupOrder'
+import GroupInterest from '@/lib/models/GroupInterest'
+import { announceNewGroup } from '@/lib/group-orders/announce'
+import Product from '@/lib/models/Product'
+import { connectDB } from '@/lib/db'
+import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
+import { sendSms } from '@/lib/sms'
+import { MARKET_BRAND } from '@/lib/branding'
+import { readPaymentSettings } from '@/lib/payments/settings'
+import { readSharedPricing, configuredShippingRates, type SharedPricingConfig } from '@/lib/pricing/shared-settings'
+import type { ShippingMethodId } from '@/lib/logistics'
+import { setAuthCookie } from '@/lib/auth-server'
+import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/group-orders/pricing'
+import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
+import { validatePhone, formatPhone } from '@/lib/payment-service'
+import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
+import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
+import { sanitizePublicGroup, sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
+import { getRedisClient } from '@/lib/redis'
+import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
+
+const GROUPS_LIST_CACHE_TTL = 45 // secondes — la liste bouge peu, lue à chaque accueil
+
+const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
+  maritime_60j: 'sea_freight',
+  air_15j: 'air_15',
+  express_3j: 'air_express'
+}
+
+function asTrimmedString(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  return trimmed.slice(0, maxLength)
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function calcShippingCostPerUnit(
+  shippingMethod: string,
+  weightKg: number,
+  volumeM3: number,
+  targetQty: number,
+  config: SharedPricingConfig
+): number {
+  if (!targetQty || targetQty <= 0) return 0
+  const rates = configuredShippingRates(config)
+  const internalMethod = SHIPPING_METHOD_MAP[shippingMethod] || 'sea_freight'
+  const rate = rates[internalMethod]
+  if (!rate) return 0
+  const totalWeight = (weightKg || 0) * targetQty
+  const totalVolume = (volumeM3 || 0) * targetQty
+  const billed = rate.billing === 'per_cubic_meter'
+    ? totalVolume * (rate.rate || 0)
+    : totalWeight * (rate.rate || 0)
+  const totalCost = Math.max(rate.minimumCharge || 0, billed)
+  return Math.round(totalCost / targetQty)
+}
+
+// Générer un ID unique pour le groupe
+function generateGroupId(): string {
+  const timestamp = Date.now().toString(36).toUpperCase()
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `GRP-${timestamp}-${random}`
+}
+
+// GET - Liste des achats groupés
+export async function GET(req: NextRequest) {
+  try {
+    const settings = readPaymentSettings()
+    const groupRules = settings.groupOrders.rules
+    const allowedShippingMethods = Object.entries(groupRules.allowedShippingMethods)
+      .filter(([, enabled]) => enabled)
+      .map(([method]) => method)
+
+    await connectDB()
+    
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status')
+    const productId = searchParams.get('productId')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    
+    const query: any = {}
+    
+    // Par défaut, montrer les achats groupés ouverts
+    if (status) {
+      query.status = status
+    } else {
+      query.status = { $in: ['open', 'filled'] }
+    }
+    
+    if (productId) {
+      query['product.productId'] = productId
+    }
+    
+    // Ne pas montrer les expirés sauf si demandé
+    if (!searchParams.get('includeExpired')) {
+      query.deadline = { $gte: new Date() }
+    }
+
+    const cacheKey = `mkt:group-orders:v1:${status || ''}:${productId || ''}:${limit}:${searchParams.get('includeExpired') ? 1 : 0}`
+    const redis = getRedisClient()
+    if (redis && redis.status === 'ready') {
+      const cached = await redis.get(cacheKey)
+      if (cached) return NextResponse.json(JSON.parse(cached))
+    }
+
+    const groups = await GroupOrder.find(query)
+      .select('groupId status product minQty targetQty currentQty maxQty priceTiers currentUnitPrice deadline shippingMethod shippingCostPerUnit participants createdAt')
+      .sort({ deadline: 1, currentQty: -1 })
+      .limit(limit)
+      .lean()
+
+    // Calculer stats
+    const stats = {
+      totalOpen: await GroupOrder.countDocuments({ status: 'open', deadline: { $gte: new Date() } }),
+      totalFilled: await GroupOrder.countDocuments({ status: 'filled' }),
+      totalParticipants: groups.reduce((sum: number, g: any) => sum + (g.participants?.length || 0), 0)
+    }
+
+    const response = {
+      success: true,
+      // La liste n'expose jamais les identités/montants des participants
+      groups: groups.map((g: any) => sanitizePublicGroup(g)),
+      stats,
+      config: {
+        minJoinQty: groupRules.minJoinQty,
+        maxJoinQtyPerParticipant: groupRules.maxJoinQtyPerParticipant,
+        defaultDeadlineDays: groupRules.defaultDeadlineDays,
+        // Exposés pour que le formulaire de création affiche les seuils
+        // réellement appliqués par le POST au lieu de valeurs inventées.
+        defaultMinQty: groupRules.defaultMinQty,
+        defaultTargetQty: groupRules.defaultTargetQty,
+        defaultMaxQty: groupRules.defaultMaxQty,
+        allowedShippingMethods
+      }
+    }
+    if (redis && redis.status === 'ready') {
+      await redis.set(cacheKey, JSON.stringify(response), 'EX', GROUPS_LIST_CACHE_TTL)
+    }
+    return NextResponse.json(response)
+    
+  } catch (error) {
+    console.error('Erreur récupération achats groupés:', error)
+    return NextResponse.json(
+      { success: false, error: 'Erreur serveur' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Créer un nouvel achat groupé
+export async function POST(req: NextRequest) {
+  try {
+    const rateLimitResponse = await applyRateLimit(req, serviceWriteRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
+    const settings = readPaymentSettings()
+    if (!settings.groupOrders.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Les achats groupés sont temporairement désactivés' },
+        { status: 503 }
+      )
+    }
+    const groupRules = settings.groupOrders.rules
+    const enabledShippingMethods = Object.entries(groupRules.allowedShippingMethods)
+      .filter(([, enabled]) => enabled)
+      .map(([method]) => method)
+    const defaultShippingMethod = enabledShippingMethods[0] || 'maritime_60j'
+
+    await connectDB()
+    
+    const body = await req.json()
+    const {
+      productId,
+      qty: qtyRaw,
+      deadline,
+      shippingMethod,
+      description,
+      creator // { name, phone, email }
+    } = body
+
+    const creatorName = asTrimmedString(creator?.name, 80) || ''
+    const creatorPhoneRaw = asTrimmedString(creator?.phone, 32) || ''
+    const creatorEmail = asTrimmedString(creator?.email, 120)
+    const cleanDescription = asTrimmedString(description, 500)
+    
+    if (!productId || !creatorName || !creatorPhoneRaw) {
+      return NextResponse.json(
+        { success: false, error: 'Données manquantes: productId, qty, creator (name, phone) requis' },
+        { status: 400 }
+      )
+    }
+
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string; requiresVerification?: boolean }
+    try {
+      auth = await resolveGuestOrAuthUser(req, { name: creatorName, phone: creatorPhoneRaw, email: creatorEmail })
+    } catch (e) {
+      return NextResponse.json({ success: false, error: e instanceof Error ? e.message : 'Non authentifié' }, { status: 401 })
+    }
+
+    const qty = Number(qtyRaw)
+    const deadlineDate = deadline
+      ? new Date(deadline)
+      : new Date(Date.now() + groupRules.defaultDeadlineDays * 24 * 60 * 60 * 1000)
+    const allowedShippingMethods = enabledShippingMethods.length > 0
+      ? enabledShippingMethods
+      : [defaultShippingMethod]
+    const normalizedShippingMethod =
+      typeof shippingMethod === 'string' && allowedShippingMethods.includes(shippingMethod)
+        ? shippingMethod
+        : defaultShippingMethod
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return NextResponse.json(
+        { success: false, error: 'Identifiant produit invalide' },
+        { status: 400 }
+      )
+    }
+
+    if (!validatePhone(creatorPhoneRaw)) {
+      return NextResponse.json(
+        { success: false, error: 'Numéro de téléphone invalide.' },
+        { status: 400 }
+      )
+    }
+
+    if (creatorEmail && !isValidEmail(creatorEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Adresse email invalide' },
+        { status: 400 }
+      )
+    }
+
+    const creatorPhone = formatPhone(creatorPhoneRaw)
+
+    if (!Number.isFinite(qty) || !Number.isInteger(qty)) {
+      return NextResponse.json(
+        { success: false, error: 'Quantité invalide (entier requis)' },
+        { status: 400 }
+      )
+    }
+
+    if (qty < groupRules.minJoinQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: minimum ${groupRules.minJoinQty}` },
+        { status: 400 }
+      )
+    }
+
+    if (qty > groupRules.maxJoinQtyPerParticipant) {
+      return NextResponse.json(
+        { success: false, error: `Quantité invalide: maximum ${groupRules.maxJoinQtyPerParticipant}` },
+        { status: 400 }
+      )
+    }
+
+    const now = new Date()
+    if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= now) {
+      return NextResponse.json(
+        { success: false, error: 'Date limite invalide (doit être dans le futur)' },
+        { status: 400 }
+      )
+    }
+    const maxDeadlineDays = 120
+    if (deadlineDate.getTime() - now.getTime() > maxDeadlineDays * 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { success: false, error: `Date limite trop éloignée (maximum ${maxDeadlineDays} jours)` },
+        { status: 400 }
+      )
+    }
+    
+    // Récupérer le produit
+    const product = await Product.findOne({ _id: productId, isPublished: { $ne: false } }).lean() as any
+    if (!product) {
+      return NextResponse.json(
+        { success: false, error: 'Produit non trouvé' },
+        { status: 404 }
+      )
+    }
+    
+    // Vérifier que l'achat groupé est activé pour ce produit
+    if (!product.groupBuyEnabled) {
+      return NextResponse.json(
+        { success: false, error: 'L\'achat groupé n\'est pas disponible pour ce produit' },
+        { status: 400 }
+      )
+    }
+
+    // Sélection de variante du créateur — fail-closed comme le checkout standard
+    const rawVariantIds = Array.isArray(body?.variantIds) ? body.variantIds : (body?.variantId ? [body.variantId] : [])
+    const variantSelection = validateGroupVariantSelection(product, rawVariantIds)
+    if ('error' in variantSelection) {
+      return NextResponse.json(
+        { success: false, error: variantSelection.error },
+        { status: 400 }
+      )
+    }
+
+    const existingGroup = await GroupOrder.findOne({
+      'product.productId': product._id,
+      status: 'open',
+      deadline: { $gte: new Date() }
+    })
+      .sort({ currentQty: -1, deadline: 1 })
+      .lean()
+
+    if (existingGroup) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'GROUP_ALREADY_EXISTS',
+          error: 'Un groupe ouvert existe déjà pour ce produit. Rejoignez ce groupe pour concentrer les participants.',
+          group: sanitizePublicGroup(existingGroup)
+        },
+        { status: 409 }
+      )
+    }
+    
+    const minQty = Number(product.groupBuyMinQty) > 0 ? Number(product.groupBuyMinQty) : groupRules.defaultMinQty
+    const targetQty =
+      Number(product.groupBuyTargetQty) >= minQty
+        ? Number(product.groupBuyTargetQty)
+        : Math.max(minQty, groupRules.defaultTargetQty)
+    const maxQty =
+      Number(product.groupBuyMaxQty) >= targetQty
+        ? Number(product.groupBuyMaxQty)
+        : Math.max(targetQty, groupRules.defaultMaxQty)
+
+    if (typeof maxQty === 'number' && qty > maxQty) {
+      return NextResponse.json(
+        { success: false, error: `Quantité initiale invalide: maximum autorisé ${maxQty}` },
+        { status: 400 }
+      )
+    }
+
+    // Calculer le prix unitaire initial (tarif de base = headline du groupe)
+    let currentUnitPrice = product.price || 0
+    const priceTiers = product.priceTiers || []
+
+    if (priceTiers.length > 0) {
+      const sortedTiers = [...priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
+      for (const tier of sortedTiers) {
+        if (qty >= tier.minQty) {
+          currentUnitPrice = tier.price
+          break
+        }
+      }
+    }
+
+    // Prix du créateur : paliers mis à l'échelle de sa variante éventuelle
+    const creatorUnitPrice = groupParticipantUnitPrice(
+      product, product.price || 0, priceTiers, variantSelection.variantIds, qty
+    )
+
+    const productWeightKg = product.weightKg || product.grossWeightKg || product.netWeightKg || 0
+    const productVolumeM3 =
+      typeof product.volumeM3 === 'number' && product.volumeM3 > 0
+        ? product.volumeM3
+        : (
+          typeof product.lengthCm === 'number' && product.lengthCm > 0 &&
+          typeof product.widthCm === 'number' && product.widthCm > 0 &&
+          typeof product.heightCm === 'number' && product.heightCm > 0
+        )
+          ? (product.lengthCm * product.widthCm * product.heightCm) / 1_000_000
+          : 0
+
+    const pricingSnapshot = await readSharedPricing()
+    if (normalizedShippingMethod === 'maritime_60j') {
+      const seaFreightEligibility = pricingSnapshot.config.seaFreightEligibility
+      const billedWeightPerUnit = calculateBilledWeight({
+        actualWeightKg: productWeightKg,
+        lengthCm: product.lengthCm,
+        widthCm: product.widthCm,
+        heightCm: product.heightCm,
+      }).billedWeight
+      const seaMetrics = {
+        totalVolumeM3: Number((productVolumeM3 * targetQty).toFixed(4)),
+        totalBilledWeightKg: Number((billedWeightPerUnit * targetQty).toFixed(2)),
+        totalOrderValueFcfa: Math.round((currentUnitPrice || 0) * targetQty),
+        hasDimensionsOrVolumeData:
+          productVolumeM3 > 0 || (
+            typeof product.lengthCm === 'number' && product.lengthCm > 0 &&
+            typeof product.widthCm === 'number' && product.widthCm > 0 &&
+            typeof product.heightCm === 'number' && product.heightCm > 0
+          ),
+      }
+      const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
+      if (!seaEligibility.eligible) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'SEA_FREIGHT_NOT_ELIGIBLE',
+            error: 'Le mode maritime est réservé aux commandes volumineuses. Veuillez choisir Express ou Aérien.',
+            seaFreightEligibility,
+            seaMetrics,
+            reasons: seaEligibility.reasons,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Calcul automatique du coût de transport par unité (basé sur targetQty)
+    const shippingCostPerUnit = calcShippingCostPerUnit(
+      normalizedShippingMethod,
+      productWeightKg,
+      productVolumeM3,
+      targetQty,
+      pricingSnapshot.config
+    )
+
+    const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
+    const initialStatus = groupRules.autoFillOnTargetReached && reachedObjective ? 'filled' : 'open'
+    
+    // Créer l'achat groupé
+    const groupOrder = new GroupOrder({
+      groupId: generateGroupId(),
+      pricingSnapshot,
+      status: initialStatus,
+      product: {
+        productId: product._id,
+        name: product.name,
+        image: product.image,
+        basePrice: product.price || 0,
+        currency: product.currency || 'FCFA'
+      },
+      minQty,
+      targetQty,
+      currentQty: qty,
+      maxQty,
+      maxParticipants: groupRules.maxParticipantsPerGroup,
+      priceTiers,
+      currentUnitPrice,
+      participants: [{
+        userId: auth.userId ? (auth.userId as any) : undefined,
+        name: creatorName,
+        phone: creatorPhone,
+        email: creatorEmail,
+        qty,
+        unitPrice: creatorUnitPrice,
+        totalAmount: qty * creatorUnitPrice,
+        variantIds: variantSelection.variantIds.length > 0 ? variantSelection.variantIds : undefined,
+        variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined,
+        paidAmount: 0,
+        paymentStatus: 'pending',
+        joinedAt: new Date()
+      }],
+      deadline: deadlineDate,
+      shippingMethod: normalizedShippingMethod,
+      shippingCostPerUnit: shippingCostPerUnit > 0 ? shippingCostPerUnit : undefined,
+      createdBy: {
+        userId: auth.userId ? (auth.userId as any) : undefined,
+        name: creatorName,
+        phone: creatorPhone,
+        email: creatorEmail
+      },
+      description: cleanDescription
+    })
+    
+    await groupOrder.save()
+    void invalidateGroupOrdersCache()
+
+    // Créditer les grains de fidélité (best effort) — uniquement pour un
+    // utilisateur réellement identifié (jamais pour un invité non vérifié).
+    try {
+      if (auth.userId) {
+        await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
+        if (initialStatus === 'filled') {
+          await creditGroupCompleteToParticipants(groupOrder)
+        }
+        await updateTierFromBalance(auth.userId)
+      }
+    } catch (grainsErr) {
+      console.error('[grains] Erreur crédit grains groupe:', grainsErr)
+    }
+
+    // Envoyer notification de confirmation au créateur
+    try {
+      await notifyGroupJoinConfirmation(
+        {
+          name: creatorName,
+          email: creatorEmail,
+          phone: creatorPhone,
+          qty,
+          unitPrice: creatorUnitPrice,
+          totalAmount: qty * creatorUnitPrice
+        },
+        {
+          groupId: groupOrder.groupId,
+          product: groupOrder.product,
+          currentQty: groupOrder.currentQty,
+          targetQty: groupOrder.targetQty,
+          currentUnitPrice: groupOrder.currentUnitPrice,
+          deadline: groupOrder.deadline
+        }
+      )
+    } catch (notifError) {
+      console.error('Erreur notification:', notifError)
+    }
+
+    // Annonce : intéressés par ce produit, abonnés aux nouveaux groupes, kit de diffusion pour l'équipe
+    if (groupOrder.status === 'open') {
+      void announceNewGroup(groupOrder.groupId).catch((err) => console.error('Erreur annonce nouveau groupe:', err))
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      message: 'Achat groupé créé avec succès',
+      group: sanitizePublicGroupDetail(groupOrder.toObject()),
+      isNewAccount: auth.isNew || false,
+      // Contact déjà rattaché à un compte : inscription faite en invité, sans
+      // session — le front invite à se connecter pour la retrouver dans « Mon compte ».
+      accountExists: auth.requiresVerification === true,
+    }, { status: 201 })
+
+    if (auth.token) {
+      setAuthCookie(response, auth.token)
+    }
+
+    return response
+  } catch (error) {
+    console.error('Erreur création achat groupé:', error)
+    return NextResponse.json(
+      { success: false, error: 'Erreur lors de la création' },
+      { status: 500 }
+    )
+  }
+}
