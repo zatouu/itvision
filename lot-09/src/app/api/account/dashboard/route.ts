@@ -1,0 +1,260 @@
+import { NextResponse } from 'next/server'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { connectDB } from '@/lib/db'
+import mongoose from 'mongoose'
+import User from '@/lib/models/User'
+import { Order } from '@/lib/models/Order'
+import { GroupOrder } from '@/lib/models/GroupOrder'
+import ProductValidated from '@/lib/models/Product'
+import GrainsTransaction, { getGrainsBalance } from '@/lib/models/GrainsTransaction'
+import { GRAIN_TIERS, getTierFromBalance, nextTierInfo, type GrainTierName } from '@/lib/grains'
+import Activity from '@/lib/models/Activity'
+import Reward from '@/lib/models/Reward'
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
+
+function tierThreshold(tier: string): number {
+  return GRAIN_TIERS.find((t) => t.name === tier)?.min ?? 0
+}
+
+function nextTier(tier: string): string {
+  return nextTierInfo(tier as GrainTierName).name
+}
+
+function initials(name?: string): string {
+  if (!name) return 'U'
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+export async function GET() {
+  try {
+    const auth = await verifyAuthServer()
+    if (auth.unavailable) return NextResponse.json({ success: false, error: 'Service temporairement indisponible' }, { status: 503 })
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    }
+
+    await connectDB()
+    const userId = new mongoose.Types.ObjectId(auth.user.id)
+
+    const user = await User.findById(userId).lean() as any
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Utilisateur introuvable' }, { status: 404 })
+    }
+
+    // Self-healing : boutique créée par un admin (ownerEmail) sans VendorProfile
+    // → provisionne le profil + rôle VENDOR, sinon l'espace vendeur reste invisible.
+    let healedVendor = false
+    try {
+      const rec = await reconcileVendorAccount(String(user._id))
+      healedVendor = !!rec?.healed
+      if (healedVendor) user.role = 'VENDOR'
+    } catch (e) {
+      console.error('[dashboard] vendor reconcile failed:', e)
+    }
+
+    const [orders, groups, favoriteIds, openGroups, activities, grainsBalance, rewards] = await Promise.all([
+      Order.find({ clientId: userId }).sort({ createdAt: -1 }).lean() as Promise<any[]>,
+      GroupOrder.find({
+        $or: [{ 'participants.userId': userId }, { 'createdBy.userId': userId }],
+      }).sort({ updatedAt: -1 }).lean() as Promise<any[]>,
+      User.findById(userId).select('favoriteProductIds').lean().then((doc: any) => doc?.favoriteProductIds || []) as Promise<string[]>,
+      GroupOrder.find({ status: 'open', deadline: { $gte: new Date() } })
+        .sort({ currentQty: -1 })
+        .limit(3)
+        .select('groupId product.name product.image product.basePrice currentUnitPrice currentQty targetQty deadline')
+        .lean() as Promise<any[]>,
+      Activity.find({ userId }).sort({ createdAt: -1 }).limit(5).lean() as Promise<any[]>,
+      getGrainsBalance(userId),
+      Reward.find({ active: true }).sort({ cost: 1 }).lean() as Promise<any[]>,
+    ])
+
+    const tier = user.tier || getTierFromBalance(grainsBalance)
+    const nextT = nextTier(tier)
+    const currentThreshold = tierThreshold(tier)
+    const nextThreshold = tierThreshold(nextT)
+    const grainsToNextTier = Math.max(0, nextThreshold - grainsBalance)
+    const progressToNextTier = nextT === tier
+      ? 100
+      : Math.min(100, Math.round(((grainsBalance - currentThreshold) / (nextThreshold - currentThreshold)) * 100))
+
+    const totalOrders = orders.length
+    const inProgress = orders.filter(o => ['pending', 'processing'].includes(String(o.status || '').toLowerCase())).length
+    const shipped = orders.filter(o => String(o.status || '').toLowerCase() === 'shipped').length
+    const delivered = orders.filter(o => String(o.status || '').toLowerCase() === 'delivered').length
+
+    const totalSavings = orders.reduce((sum, o) => sum + (o.discountTotal || o.savings || 0), 0)
+    const activeGroupBuys = groups.filter(g => g.status === 'open').length
+    const almostComplete = openGroups.filter(g => g.targetQty > 0 && (g.currentQty / g.targetQty) >= 0.75).length
+
+    const latestOrder = orders[0] || null
+
+    const favoritePreviewIds = favoriteIds.slice(-4).reverse().filter(Boolean)
+    const favoriteObjectIds = favoritePreviewIds
+      .filter(id => mongoose.isValidObjectId(id))
+      .map(id => new mongoose.Types.ObjectId(id))
+
+    const favoriteProducts = favoriteObjectIds.length
+      ? await ProductValidated.find({ _id: { $in: favoriteObjectIds } }).select('name image price currency').lean()
+      : []
+
+    // Recommendations based on favorite categories + recent order categories
+    const categoryIds = new Set<string>()
+    favoriteProducts.forEach((p: any) => { if (p.category) categoryIds.add(String(p.category)) })
+    orders.slice(0, 5).forEach((o: any) => {
+      o.items?.forEach((i: any) => { if (i.category) categoryIds.add(String(i.category)) })
+    })
+
+    const recommendations = categoryIds.size > 0
+      ? await ProductValidated.find({
+          category: { $in: Array.from(categoryIds).slice(0, 5) },
+          published: { $ne: false },
+        })
+          .sort({ isFeatured: -1, createdAt: -1 })
+          .limit(8)
+          .select('name image price currency groupBuyEnabled groupBuyBestPrice')
+          .lean()
+      : await ProductValidated.find({ published: { $ne: false } })
+          .sort({ isFeatured: -1, createdAt: -1 })
+          .limit(8)
+          .select('name image price currency groupBuyEnabled groupBuyBestPrice')
+          .lean()
+
+    const activeGroups = openGroups.map((g: any) => {
+      const progress = g.targetQty > 0 ? Math.min(100, Math.round((g.currentQty / g.targetQty) * 100)) : 0
+      const daysLeft = Math.max(0, Math.ceil((new Date(g.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      return {
+        _id: g.groupId,
+        productName: g.product?.name || 'Produit',
+        image: g.product?.image,
+        progress,
+        daysLeft,
+        currentQty: g.currentQty,
+        targetQty: g.targetQty,
+        currentUnitPrice: g.currentUnitPrice,
+      }
+    })
+
+    const dashboard = {
+      user: {
+        id: String(user._id),
+        firstName: user.name?.split(' ')[0] || user.username || 'Utilisateur',
+        lastName: user.name?.split(' ').slice(1).join(' ') || '',
+        email: user.email,
+        role: user.role || '',
+        avatarUrl: user.avatarUrl,
+        initial: initials(user.name || user.username),
+        status: user.isActive ? 'active' : 'inactive',
+        tier,
+        grainsBalance,
+        referralCode: user.referralCode || null,
+        referrals: {
+          count: user.referralCount || user.referrals?.length || 0,
+          totalEarned: user.referralBalance || 0,
+        },
+      },
+      stats: {
+        ordersCount: totalOrders,
+        ordersInProgress: inProgress,
+        ordersShipped: shipped,
+        ordersDelivered: delivered,
+        favoritesCount: favoriteIds.length,
+        activeGroupBuys,
+        almostCompleteGroups: almostComplete,
+        totalSavings,
+        openClaims: 0,
+      },
+      cart: {
+        itemsCount: 0,
+        total: 0,
+        items: [] as any[],
+      },
+      activeGroups,
+      orders: orders.map((o: any) => ({
+        id: o.orderId,
+        orderId: o.orderId,
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        total: o.total,
+        createdAt: o.createdAt,
+        items: o.items?.map((it: any) => ({
+          name: it.productName || it.name || 'Article',
+          qty: it.quantity || it.qty || 1,
+          unit: it.price || it.unitPrice || it.unit || 0,
+          image: it.productImage || it.image || '/placeholder.svg',
+        })) || [],
+        shipping: o.shipping?.method || o.shipping?.label || (typeof o.shipping === 'string' ? o.shipping : undefined) || o.shippingMethod || 'Standard aérien',
+        trackingNumber: o.trackingNumber || o.delivery?.trackingNumber || '',
+        eta: o.delivery?.estimatedDeliveryDate || o.delivery?.eta || o.eta || '',
+      })),
+      orderSteps: [
+        { key: 'ordered', label: 'Commande confirmée', desc: 'Paiement validé' },
+        { key: 'sourcing', label: 'Sourcing en Chine', desc: 'Recherche du fournisseur' },
+        { key: 'china', label: 'Inspection qualité', desc: 'Contrôle qualité en Chine' },
+        { key: 'in_transit', label: 'En transit', desc: 'Transport international' },
+        { key: 'delivered', label: 'Livrée', desc: 'Livraison à l\'adresse' },
+      ],
+      latestOrder: latestOrder ? {
+        id: latestOrder.orderId,
+        orderId: latestOrder.orderId,
+        status: latestOrder.status,
+        paymentStatus: latestOrder.paymentStatus,
+        total: latestOrder.total,
+        createdAt: latestOrder.createdAt,
+        items: latestOrder.items?.map((it: any) => ({
+          name: it.productName || it.name || 'Article',
+          qty: it.quantity || it.qty || 1,
+          unit: it.price || it.unitPrice || it.unit || 0,
+          image: it.productImage || it.image || '/placeholder.svg',
+        })) || [],
+        shipping: latestOrder.shipping?.method || latestOrder.shipping?.label || (typeof latestOrder.shipping === 'string' ? latestOrder.shipping : undefined) || latestOrder.shippingMethod || 'Standard aérien',
+        trackingNumber: latestOrder.trackingNumber || latestOrder.delivery?.trackingNumber || '',
+        eta: latestOrder.delivery?.estimatedDeliveryDate || latestOrder.delivery?.eta || latestOrder.eta || '',
+      } : null,
+      activities: activities.map((a: any) => ({
+        _id: String(a._id),
+        type: a.type,
+        description: a.description,
+        amount: a.amount,
+        unit: a.unit,
+        createdAt: a.createdAt,
+      })),
+      grains: {
+        balance: grainsBalance,
+        tier,
+        nextTier: nextT,
+        grainsToNextTier,
+        progressToNextTier,
+        availableRewards: rewards.map((r: any) => ({
+          id: String(r._id),
+          title: r.title,
+          description: r.description,
+          icon: r.icon,
+          cost: r.cost,
+          type: r.type,
+        })),
+      },
+      recommendations: recommendations.map((p: any) => ({
+        _id: String(p._id),
+        name: p.name,
+        image: p.image,
+        price: p.price || p.groupBuyBestPrice || 0,
+        currency: p.currency || 'FCFA',
+        groupBuyEnabled: p.groupBuyEnabled,
+      })),
+      favoriteProducts: favoriteProducts.map((p: any) => ({
+        _id: String(p._id),
+        name: p.name,
+        image: p.image,
+        price: p.price || 0,
+        currency: p.currency || 'FCFA',
+      })),
+    }
+
+    const response = NextResponse.json({ success: true, dashboard })
+    if (healedVendor) await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
+    return response
+  } catch (err) {
+    console.error('Dashboard error:', err)
+    return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
+  }
+}
