@@ -30,7 +30,8 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 # Mémoire augmentée pour le build Next.js (évite les stalls)
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ARG NEXT_BUILD_HEAP_MB=6144
+ENV NODE_OPTIONS=--max-old-space-size=${NEXT_BUILD_HEAP_MB}
 # Placeholder uniquement pour permettre le build Next.js (pas utilisé à l'exécution)
 ENV MONGODB_URI=mongodb://localhost:27017/build-placeholder
 ENV DATABASE_URL=file:/tmp/build-only.db

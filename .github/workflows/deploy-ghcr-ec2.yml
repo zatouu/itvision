@@ -2,8 +2,13 @@ name: Build & Deploy to EC2 (GHCR + Compose)
 
 on:
   push:
-    branches: [ main, cursor/*, deploy/*, rel/ui-refresh, feat/mobile-fusion, feature/corporate-evolutions, feature/barakalah ]
+    branches: [ main, cursor/*, deploy/*, rel/ui-refresh, feat/mobile-fusion, feature/corporate-evolutions, feat/suivi-audit-2026-10 ]
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Autoriser explicitement le deploiement EC2 apres validation'
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -14,13 +19,127 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  # Aucune image n'est construite ni déployée si ces contrôles échouent
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Type-check
+        env:
+          DATABASE_URL: file:/tmp/build-only.db
+        run: npm run db:generate && npm run type-check
+
+      - name: Registre des domaines (AGENTS.md)
+        run: npm run test:domains
+
+      - name: Frontières inter-domaines (rapport)
+        run: npm run test:boundaries
+
+      - name: Capacités portail entreprise
+        run: npm run test:capabilities
+
+      - name: Garde-fous du sourcing
+        run: npm run test:sourcing-policy
+
+      - name: Tarification et quantites import
+        run: npm run test:pricing
+
+      - name: Schemas et precontrole de production
+        run: npm run test:production-readiness
+
+  # Recette API et navigateur sur une base jetable
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      CI: 'true'
+      MONGODB_URI: mongodb://localhost:27017/itvision_e2e?replicaSet=rs0
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-e2e-only-jwt-secret-not-used-elsewhere-0123456789
+      NEXTAUTH_SECRET: ci-e2e-only-nextauth-secret-not-used-elsewhere-0123
+      CRON_SECRET: e2e-cron-secret
+      PAYMENTS_MOCK: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: MongoDB (replica set pour les transactions) et Redis
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name redis -p 6379:6379 redis:7-alpine
+          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break; sleep 2; done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
+          for i in $(seq 1 30); do [ "$(docker exec mongo mongosh --quiet --eval 'rs.status().myState')" = "1" ] && break; sleep 2; done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Initialiser les couts transporteur E2E
+        run: npm run migrate:market-pricing
+
+      - name: Installer Chromium pour les tests navigateur
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright (API marketplace + corporate)
+        run: npx playwright test tests/marketplace tests/corporate/capabilities.spec.ts tests/corporate/sourcing.spec.ts --project=chromium
+
+  mobile-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: mobile/app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run type-check
+      - run: npm test -- --runInBand --silent
+
+  build-and-push:
+    needs: [quality, e2e, mobile-quality]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
       contents: read
       packages: write
       id-token: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -33,7 +152,8 @@ jobs:
           SHA=${{ github.sha }}
           {
             echo "tags<<EOF"
-            echo "${REPO_LOWER}:latest"
+            # latest = image de production (main) ; les autres branches n'écrasent plus ce tag
+            if [ "${{ github.ref_name }}" = "main" ]; then echo "${REPO_LOWER}:latest"; fi
             echo "${REPO_LOWER}:sha-${SHA}"
             echo "${REPO_LOWER}:${REF_SAFE}"
             echo "EOF"
@@ -43,6 +163,11 @@ jobs:
             echo "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verifier l'architecture et la memoire du runner
+        run: |
+          test "$(uname -m)" = "aarch64"
+          free -m
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -55,6 +180,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push (arm64 — EC2 Graviton)
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -62,11 +188,70 @@ jobs:
           platforms: linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_BUILD_HEAP_MB=${{ vars.NEXT_BUILD_HEAP_MB || '6144' }}
           cache-from: type=gha,scope=itvision-build
           cache-to: type=gha,mode=min,scope=itvision-build
 
-  deploy:
+  image-check:
     needs: build-and-push
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tester l'image exacte sur une base jetable
+        env:
+          IMAGE_DIGEST: ${{ needs.build-and-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          IMAGE="$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')@${IMAGE_DIGEST}"
+          docker network create audit-image
+          docker run -d --name audit-mongo --network audit-image mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name audit-redis --network audit-image redis:7-alpine
+          for attempt in $(seq 1 30); do
+            docker exec audit-mongo mongosh --quiet --eval 'db.adminCommand("ping").ok' && break
+            sleep 2
+          done
+          docker exec audit-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"audit-mongo:27017"}]})'
+          for attempt in $(seq 1 30); do
+            [ "$(docker exec audit-mongo mongosh --quiet --eval 'db.hello().isWritablePrimary')" = 'true' ] && break
+            sleep 2
+          done
+          docker run --rm --platform linux/arm64 "$IMAGE" node scripts/check-production-runtime.cjs --files-only
+          docker run --rm --platform linux/arm64 --network audit-image \
+            -e MONGODB_URI='mongodb://audit-mongo:27017/audit_image_test?replicaSet=rs0' \
+            "$IMAGE" node .ops/migrate-shipping-costs.cjs --apply
+          docker run -d --name audit-app --platform linux/arm64 --network audit-image -p 127.0.0.1:3000:3000 \
+            -e MONGODB_URI='mongodb://audit-mongo:27017/audit_image_test?replicaSet=rs0' \
+            -e REDIS_URL='redis://audit-redis:6379' \
+            -e JWT_SECRET='ci-image-only-jwt-secret-01234567890123456789' \
+            -e NEXTAUTH_SECRET='ci-image-only-nextauth-secret-01234567890123' \
+            -e CRON_SECRET='ci-image-only-cron-secret' \
+            -e MAINTENANCE_CRON_DISABLED=true -e AGENT_WORKER_ENABLED=false \
+            -e SMS_PROVIDER=console -e PAYMENTS_MOCK=true "$IMAGE"
+          curl --fail --silent --show-error --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:3000/api/health
+          docker exec audit-app node .ops/production-preflight.cjs
+          docker exec audit-app node scripts/check-production-runtime.cjs
+      - name: Diagnostic en cas d'echec
+        if: failure()
+        run: docker logs --tail 100 audit-app || true
+      - name: Nettoyer la recette jetable
+        if: always()
+        run: |
+          docker rm -f audit-app audit-mongo audit-redis || true
+          docker network rm audit-image || true
+
+  deploy:
+    needs: [build-and-push, image-check]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -108,14 +293,8 @@ jobs:
             export APP_DIR=~/itvision
             mkdir -p $APP_DIR
 
-            # Image à déployer : latest pour main, tag branch-safe pour les autres branches
-            REF_SAFE=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
             IMAGE_BASE=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
-            if [ "${{ github.ref_name }}" = "main" ]; then
-              DEPLOY_IMAGE="${IMAGE_BASE}:latest"
-            else
-              DEPLOY_IMAGE="${IMAGE_BASE}:${REF_SAFE}"
-            fi
+            DEPLOY_IMAGE="${IMAGE_BASE}@${{ needs.build-and-push.outputs.digest }}"
             echo "🐳 Déploiement image : $DEPLOY_IMAGE"
 
             # Installer Docker et Compose si absents
@@ -198,7 +377,7 @@ jobs:
             echo "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" >> .env.ec2
             echo "TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" >> .env.ec2
             echo "ALLOW_TEST_CODES=${{ secrets.ALLOW_TEST_CODES }}" >> .env.ec2
-            echo "OTP_TEST_PHONES=${{ secrets.OTP_TEST_PHONES || '+221774133440' }}" >> .env.ec2
+            echo "OTP_TEST_PHONES=${{ secrets.OTP_TEST_PHONES }}" >> .env.ec2
             echo "PAYMENTS_MOCK=${{ secrets.PAYMENTS_MOCK }}" >> .env.ec2
             echo "PAYDUNYA_MASTER_KEY=${{ secrets.PAYDUNYA_MASTER_KEY }}" >> .env.ec2
             echo "PAYDUNYA_PRIVATE_KEY=${{ secrets.PAYDUNYA_PRIVATE_KEY }}" >> .env.ec2
@@ -217,7 +396,11 @@ jobs:
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.ec2
             echo "MAINTENANCE_CRON_DISABLED=${{ secrets.MAINTENANCE_CRON_DISABLED }}" >> .env.ec2
             echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env.ec2
-            echo "NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}" >> .env.ec2
+            echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env.ec2
+            echo "DEEPSEEK_MODEL=${{ vars.DEEPSEEK_MODEL }}" >> .env.ec2
+            echo "LLM_TEXT_PROVIDER=${{ vars.LLM_TEXT_PROVIDER }}" >> .env.ec2
+            echo "ALIEXPRESS_RAPIDAPI_KEY=${{ secrets.ALIEXPRESS_RAPIDAPI_KEY }}" >> .env.ec2
+            echo "AGENT_WORKER_ENABLED=${{ vars.AGENT_WORKER_ENABLED || 'false' }}" >> .env.ec2
             
 
             # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)
@@ -242,18 +425,12 @@ jobs:
               fi
             done
 
-            # Démarrage/MAJ des services
-            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml run --rm --no-deps app node .ops/production-preflight.cjs
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d --wait --wait-timeout 180
 
             # Vérification santé
             echo "⏳ Attente démarrage app..."
-            sleep 15
-            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
-              echo "✅ App healthy!"
-            else
-              echo "⚠️ App pas encore ready — vérifier logs: docker compose logs app"
-            fi
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml exec -T app node scripts/check-production-runtime.cjs
             sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml ps
 
             # Nettoyage des anciennes images
-            sudo docker image prune -f
