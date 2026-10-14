@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 import mongoose from 'mongoose'
+import bcrypt from 'bcryptjs'
+import User from '@/lib/models/User'
 import { mkdtempSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
@@ -135,8 +137,20 @@ test.describe('Couts transporteur partages', () => {
   test('la route admin protege les couts et refuse une version perimee', async () => {
     await initializeSharedShippingCosts(REAL_SHIPPING_COSTS)
     await initializeSharedPricing(initialPricing())
+    const passwordHash = await bcrypt.hash(randomUUID(), 4)
+    const users = await User.create(['CLIENT', 'ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'].map(role => ({
+      username: `shipping-${role.toLowerCase()}`,
+      email: `shipping-${role.toLowerCase()}@example.test`,
+      name: `Shipping ${role}`,
+      passwordHash,
+      role,
+      isActive: true,
+      sessionVersion: 0,
+    })))
     const request = async (role?: string, body?: object, path = '/api/admin/shipping-rates') => {
-      const token = role ? await new SignJWT({ userId: 'shipping-test', role }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('5m').sign(getJwtSecretKey()) : undefined
+      const user = users.find(user => user.role === role)
+      if (role && !user) throw new Error(`Compte de test absent : ${role}`)
+      const token = user ? await new SignJWT({ userId: String(user._id), role: user.role, sessionVersion: user.sessionVersion }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('5m').sign(getJwtSecretKey()) : undefined
       return new NextRequest(`http://localhost${path}`, {
         method: body ? 'POST' : 'GET',
         headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },

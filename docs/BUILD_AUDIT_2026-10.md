@@ -2,8 +2,9 @@
 
 ## Etat du dossier
 
-Branche locale : `feat/suivi-audit-2026-10`. Les modifications sont locales,
-sans commit ni push. Copier le depot `vit`, pas le dossier voisin `Proj`.
+Le lot initial venait de `feat/suivi-audit-2026-10`. La correction des tests CI
+est maintenant dans le clone `itvision`, branche `feature/barakalah`,
+sans commit ni push. Ne pas reporter ces corrections dans `Proj` ou `vit`.
 Ce document ne constitue pas une validation de production.
 
 Avant de configurer les secrets, consulter la
@@ -67,6 +68,40 @@ npm ci --no-audit --no-fund
 npm run type-check
 npm test -- --runInBand --silent
 ```
+
+## Recette CI : fixtures et composants UI
+
+Les E2E API restent executes sur Next avec Mongo/Redis jetables. Le produit
+importe du test MOQ contient desormais un volume valide. Le test des couts
+transporteur cree des comptes actifs dans sa propre base temporaire et signe
+leurs identifiants et versions de session : les attentes 401/403/409 restent
+inchangees, sans affaiblir les controles d'authentification.
+
+Les scenarios de `tests/marketplace/storefront-ui.spec.ts` sont des tests de
+composants, pas de pages Next completes. Leur configuration dediee demarre
+`scripts/test-storefront-server.ts`, monte les composants reels et les styles
+du projet, et laisse Playwright simuler les API. Ce serveur ecoute uniquement
+sur `127.0.0.1` et ne contacte pas le backend. Il ne valide ni le middleware,
+ni le rendu serveur, ni l'authentification des pages admin.
+
+Depuis la racine, apres installation des dependances :
+
+```bash
+npx playwright install chromium
+npx playwright test --config=playwright.storefront.config.ts
+```
+
+Le port par defaut est 3100 ; `STOREFRONT_UI_PORT` permet de le changer.
+La configuration Playwright principale exclut uniquement cette suite, qui
+est lancee par une seconde etape obligatoire du job CI `e2e`. Aucun de ses
+11 scenarios n'est ignore. Les traces disponibles sont archivees en cas
+d'echec dans l'artefact `playwright-results`.
+
+Verification locale : 11 scenarios UI passes avec Edge, sur les dependances
+deja disponibles du poste. Les hooks Product et les identites de session ont
+ete controles avec stockage simule. La recette Mongo complete doit encore
+etre relancee en CI ; l'ancien `ERR_CONNECTION_REFUSED` ne suffit pas a
+determiner pourquoi le serveur Next s'est arrete.
 
 ## Pipeline de la branche
 

@@ -178,7 +178,7 @@ test('tarification admin : version, conflit, rechargement et affichage responsiv
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     localStorage.setItem('compare:ids', 'ui-a,ui-b')
-    localStorage.setItem('cart:items', JSON.stringify([{ id: 'ui-product', name: 'Produit de test', qty: 1, price: 15000, minOrderQty: 1, image: '/placeholder.svg' }]))
+    localStorage.setItem('cart:items', JSON.stringify([{ id: 'ui-product', name: 'Produit de test', qty: 1, price: 15000, unit: 15000, tierUnit: 15000, minOrderQty: 1, image: '/placeholder.svg' }]))
   })
   await context.route('**/api/**', async route => {
     const pathname = new URL(route.request().url()).pathname

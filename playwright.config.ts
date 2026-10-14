@@ -13,6 +13,7 @@ const isRemote = !!process.env.PLAYWRIGHT_BASE_URL
 
 export default defineConfig({
   testDir: './tests',
+  testIgnore: '**/storefront-ui.spec.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

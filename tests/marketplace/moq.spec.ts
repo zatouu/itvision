@@ -57,7 +57,7 @@ test.describe('MOQ — lot minimum appliqué au catalogue et au devis', () => {
     moqProductId = String(moqProduct._id)
     unitProductId = String(unitProduct._id)
     const importedProduct = await Product.create(baseProduct(`${PREFIX}-Import-${stamp}`, {
-      minOrderQty: 1, baseCost: 10000, price1688: 10000, marginRate: 0, serviceFeeRate: 10,
+      minOrderQty: 1, baseCost: 10000, price1688: 10000, marginRate: 0, serviceFeeRate: 10, volumeM3: 0.01,
     }))
     importedProductId = String(importedProduct._id)
 
