@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -34,12 +33,11 @@ import {
   Calculator,
   Crown,
   Briefcase,
-  Trash2,
-  Wrench
+  Trash2
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { useCsrf } from '@/hooks/useCsrf'
-import { getUserCategoryLabel, resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
+import { getUserCategoryLabel, type UserCategory } from '@/lib/user-segmentation'
 
 // Types
 interface UserData {
@@ -89,9 +87,7 @@ interface CompanyOption {
 // Configuration des rôles
 const ROLES = [
   { value: 'CLIENT', label: 'Client', icon: User, color: 'emerald', description: 'Accès au portail client' },
-  { value: 'PROVIDER', label: 'Prestataire Xeuy Bi', icon: Wrench, color: 'emerald', description: 'Prestataire de services sur l\'app Xeuy Bi' },
   { value: 'TECHNICIAN', label: 'Technicien', icon: Settings, color: 'blue', description: 'Interventions et maintenance' },
-  { value: 'VENDOR', label: 'Vendeur Marketplace', icon: Briefcase, color: 'purple', description: 'Vendeur sur la marketplace' },
   { value: 'PRODUCT_MANAGER', label: 'Gestionnaire Produits', icon: Package, color: 'purple', description: 'Gestion du catalogue produits' },
   { value: 'ACCOUNTANT', label: 'Comptable', icon: Calculator, color: 'orange', description: 'Accès comptabilité et factures' },
   { value: 'ADMIN', label: 'Administrateur', icon: Briefcase, color: 'red', description: 'Gestion générale (sans config système)' },
@@ -128,7 +124,7 @@ const UserFormFields = memo(function UserFormFields({
     <form onSubmit={handleSubmit}>
       <div className="space-y-5">
         {/* Avatar */}
-        <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-xl">
+        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
           <div className="relative">
             <div className="h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
               {formData.avatarUrl ? (
@@ -139,7 +135,7 @@ const UserFormFields = memo(function UserFormFields({
             </div>
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-stone-700 mb-2">Photo de profil</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Photo de profil</p>
             <ImageUpload
               onUpload={(url) => setFormData(prev => ({ ...prev, avatarUrl: url }))}
               maxFiles={1}
@@ -151,7 +147,7 @@ const UserFormFields = memo(function UserFormFields({
 
         {/* Nom complet */}
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
             Nom complet <span className="text-red-500">*</span>
           </label>
           <input
@@ -159,7 +155,7 @@ const UserFormFields = memo(function UserFormFields({
             required
             value={formData.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
             placeholder="Jean Dupont"
           />
         </div>
@@ -167,7 +163,7 @@ const UserFormFields = memo(function UserFormFields({
         {/* Username + Email en grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Nom d&apos;utilisateur <span className="text-red-500">*</span>
             </label>
             <input
@@ -176,12 +172,12 @@ const UserFormFields = memo(function UserFormFields({
               disabled={isEdit}
               value={formData.username}
               onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-              className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="jean.dupont"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Email <span className="text-red-500">*</span>
             </label>
             <input
@@ -190,7 +186,7 @@ const UserFormFields = memo(function UserFormFields({
               disabled={isEdit}
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="jean@exemple.com"
             />
           </div>
@@ -198,12 +194,12 @@ const UserFormFields = memo(function UserFormFields({
 
         {/* Téléphone */}
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">Téléphone</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Téléphone</label>
           <input
             type="tel"
             value={formData.phone}
             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
             placeholder="+221 77 123 45 67"
           />
         </div>
@@ -212,11 +208,11 @@ const UserFormFields = memo(function UserFormFields({
         {formData.role === 'CLIENT' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-2">Entreprise liée (optionnel)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Entreprise liée (optionnel)</label>
               <select
                 value={formData.companyClientId}
                 onChange={(e) => setFormData(prev => ({ ...prev, companyClientId: e.target.value }))}
-                className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors bg-white"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors bg-white"
               >
                 <option value="">Aucune</option>
                 {companyOptions.map((c) => (
@@ -225,47 +221,47 @@ const UserFormFields = memo(function UserFormFields({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-stone-500">Lie l'utilisateur à une entreprise (Client) pour le portail entreprise.</p>
+              <p className="mt-1 text-xs text-gray-500">Lie l'utilisateur à une entreprise (Client) pour le portail entreprise.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Société (libre)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Société (libre)</label>
                 <input
                   type="text"
                   value={formData.company}
                   onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                   placeholder="Nom de société (si pas liée)"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Pays</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pays</label>
                 <input
                   type="text"
                   value={formData.country}
                   onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                   placeholder="Sénégal"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Adresse</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Adresse</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                   placeholder="Adresse"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Ville</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ville</label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                   placeholder="Dakar"
                 />
               </div>
@@ -275,7 +271,7 @@ const UserFormFields = memo(function UserFormFields({
 
         {/* Rôle avec cartes */}
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-3">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
             Rôle <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -290,22 +286,22 @@ const UserFormFields = memo(function UserFormFields({
                   className={`p-3 rounded-xl border-2 text-left transition-all ${
                     isSelected
                       ? `border-${role.color}-500 bg-${role.color}-50 ring-2 ring-${role.color}-200`
-                      : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Icon className={`h-4 w-4 ${isSelected ? `text-${role.color}-600` : 'text-stone-500'}`} />
-                    <span className={`text-sm font-semibold ${isSelected ? `text-${role.color}-700` : 'text-stone-700'}`}>
+                    <Icon className={`h-4 w-4 ${isSelected ? `text-${role.color}-600` : 'text-gray-500'}`} />
+                    <span className={`text-sm font-semibold ${isSelected ? `text-${role.color}-700` : 'text-gray-700'}`}>
                       {role.label}
                     </span>
                   </div>
-                  <p className="text-xs text-stone-500 line-clamp-1">{role.description}</p>
+                  <p className="text-xs text-gray-500 line-clamp-1">{role.description}</p>
                 </button>
               )
             })}
           </div>
           {selectedRole && (
-            <p className="mt-2 text-xs text-stone-500 flex items-center gap-1">
+            <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
               <selectedRole.icon className="h-3 w-3" />
               {selectedRole.description}
             </p>
@@ -315,7 +311,7 @@ const UserFormFields = memo(function UserFormFields({
         {/* Mot de passe (création seulement) */}
         {!isEdit && (
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Mot de passe <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -324,35 +320,35 @@ const UserFormFields = memo(function UserFormFields({
                 required={!isEdit}
                 value={formData.password || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full px-4 py-3 pr-12 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            <p className="text-xs text-stone-500 mt-1">Min. 8 caractères avec majuscule, minuscule et chiffre</p>
+            <p className="text-xs text-gray-500 mt-1">Min. 8 caractères avec majuscule, minuscule et chiffre</p>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
+      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
         <button
           type="button"
           onClick={onCancel}
-          className="px-5 py-2.5 text-stone-700 font-medium rounded-xl border-2 border-stone-200 hover:bg-stone-50 hover:border-stone-300 transition-all"
+          className="px-5 py-2.5 text-gray-700 font-medium rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
         >
           Annuler
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-800 text-white font-medium rounded-xl hover:bg-emerald-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
         >
           {isSubmitting ? (
             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -401,7 +397,7 @@ const PasswordResetForm = memo(function PasswordResetForm({
           </p>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
             Nouveau mot de passe
           </label>
           <div className="relative">
@@ -409,34 +405,34 @@ const PasswordResetForm = memo(function PasswordResetForm({
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 pr-12 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+              className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
               placeholder="••••••••"
               autoFocus
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
-          <p className="text-xs text-stone-500 mt-1">Min. 8 caractères</p>
+          <p className="text-xs text-gray-500 mt-1">Min. 8 caractères</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
+      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
         <button
           type="button"
           onClick={onCancel}
-          className="px-5 py-2.5 text-stone-700 font-medium rounded-xl border-2 border-stone-200 hover:bg-stone-50 hover:border-stone-300 transition-all"
+          className="px-5 py-2.5 text-gray-700 font-medium rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all"
         >
           Annuler
         </button>
         <button
           type="submit"
           disabled={isSubmitting || password.length < 8}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-800 text-white font-medium rounded-xl hover:bg-emerald-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/25"
         >
           {isSubmitting ? (
             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -500,7 +496,7 @@ function SimpleModal({
       />
       <div className={`relative w-full ${sizeClass} bg-white rounded-2xl shadow-2xl overflow-hidden`}>
         {/* Header */}
-        <div className="px-6 py-5 bg-emerald-800">
+        <div className="px-6 py-5 bg-gradient-to-r from-emerald-500 to-teal-600">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               {icon && (
@@ -554,7 +550,6 @@ export default function UserManagementInterface() {
   const [success, setSuccess] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
-  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({})
   const usersPerPage = 10
 
   // Init filters from URL query once (e.g. /admin/users?userCategory=MARKETPLACE_CLIENT)
@@ -569,7 +564,7 @@ export default function UserManagementInterface() {
 
     if (q) setSearchTerm(q)
     if (role) setRoleFilter(role)
-    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER', 'XEUY_PROVIDER', 'XEUY_CLIENT'].includes(userCategory)) {
+    if (['MARKETPLACE_CLIENT', 'ENTERPRISE_CLIENT', 'PLATFORM_USER'].includes(userCategory)) {
       setUserCategoryFilter(userCategory as UserCategory)
     }
     if (isActive) setStatusFilter(isActive)
@@ -604,7 +599,6 @@ export default function UserManagementInterface() {
       if (data.success) {
         setUsers(data.users)
         setTotalUsers(data.total)
-        if (data.domainCounts) setDomainCounts(data.domainCounts)
       } else {
         setError(data.error || 'Erreur lors du chargement')
       }
@@ -826,7 +820,7 @@ export default function UserManagementInterface() {
   const getRoleBadge = (role: string) => {
     const roleConfig = ROLES.find(r => r.value === role)
     if (!roleConfig) {
-      return <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700">{role}</span>
+      return <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700">{role}</span>
     }
     const colorClasses: Record<string, string> = {
       emerald: 'bg-emerald-100 text-emerald-700',
@@ -847,28 +841,22 @@ export default function UserManagementInterface() {
 
   const getStatusBadge = (user: UserData) => {
     if (!user.isActive) {
-      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-stone-100 text-stone-600">Inactif</span>
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600">Inactif</span>
     }
     if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-100 text-red-700">Verrouillé</span>
     }
-    return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800">Actif</span>
+    return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-100 text-green-700">Actif</span>
   }
 
   const getUserCategoryBadge = (user: UserData) => {
-    const category = user.userCategory || resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: (user as any).providerProfileId, email: user.email, username: user.username })
+    const category = user.userCategory || (user.role === 'CLIENT' ? (user.companyClientId ? 'ENTERPRISE_CLIENT' : 'MARKETPLACE_CLIENT') : 'PLATFORM_USER')
 
     if (category === 'ENTERPRISE_CLIENT') {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">{getUserCategoryLabel(category)}</span>
     }
     if (category === 'MARKETPLACE_CLIENT') {
       return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700">{getUserCategoryLabel(category)}</span>
-    }
-    if (category === 'XEUY_PROVIDER') {
-      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-100 text-teal-700">{getUserCategoryLabel(category)}</span>
-    }
-    if (category === 'XEUY_CLIENT') {
-      return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-100 text-cyan-700">{getUserCategoryLabel(category)}</span>
     }
     return <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">{getUserCategoryLabel(category)}</span>
   }
@@ -895,13 +883,13 @@ export default function UserManagementInterface() {
       <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-stone-900 flex items-center gap-3">
-              <div className="p-2 bg-emerald-950 rounded-xl">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
                 <Users className="h-7 w-7 text-white" />
               </div>
               Gestion des Comptes Utilisateurs
             </h1>
-            <p className="text-stone-600 mt-2">
+            <p className="text-gray-600 mt-2">
               Segmentation unifiée : clients marketplace, clients entreprise et utilisateurs plateforme
             </p>
           </div>
@@ -909,14 +897,14 @@ export default function UserManagementInterface() {
           <div className="flex items-center gap-3">
             <button
               onClick={fetchUsers}
-              className="flex items-center gap-2 px-4 py-2.5 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-800 text-white rounded-xl hover:bg-emerald-900 transition-all shadow-lg shadow-emerald-500/25 font-medium"
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/25 font-medium"
             >
               <UserPlus className="h-4 w-4" />
               Nouvel Utilisateur
@@ -928,7 +916,7 @@ export default function UserManagementInterface() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {[
             { label: 'Total', value: stats.total, icon: Users, bg: 'bg-blue-100', iconColor: 'text-blue-600' },
-            { label: 'Actifs', value: stats.active, icon: UserCheck, bg: 'bg-emerald-100', iconColor: 'text-emerald-700' },
+            { label: 'Actifs', value: stats.active, icon: UserCheck, bg: 'bg-green-100', iconColor: 'text-green-600' },
             { label: 'Admins', value: stats.admins, icon: Shield, bg: 'bg-red-100', iconColor: 'text-red-600' },
             { label: 'Techniciens', value: stats.technicians, icon: Settings, bg: 'bg-purple-100', iconColor: 'text-purple-600' },
             { label: 'Clients', value: stats.clients, icon: User, bg: 'bg-emerald-100', iconColor: 'text-emerald-600' }
@@ -938,15 +926,15 @@ export default function UserManagementInterface() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white rounded-xl p-4 border border-stone-200 shadow-sm"
+              className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
             >
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${stat.bg}`}>
                   <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-stone-900">{stat.value}</p>
-                  <p className="text-xs text-stone-500">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-500">{stat.label}</p>
                 </div>
               </div>
             </motion.div>
@@ -985,118 +973,28 @@ export default function UserManagementInterface() {
           )}
         </AnimatePresence>
 
-        {/* Onglets de filtrage par domaine — compta/utilisateurs isolés par produit */}
-        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
-          {[
-            { key: 'all', label: 'Tous', count: null as number | null, color: 'bg-stone-100 text-stone-700 border-stone-300', activeColor: 'bg-stone-700 text-white border-stone-700' },
-            { key: 'ENTERPRISE_CLIENT', label: 'Corporate', count: domainCounts.ENTERPRISE_CLIENT ?? null, color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
-            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace DDM+', count: domainCounts.MARKETPLACE_CLIENT ?? null, color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
-            { key: 'PLATFORM_USER', label: 'Staff & Admin', count: domainCounts.PLATFORM_USER ?? null, color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
-          ].map(tab => {
-            const isActiveTab = userCategoryFilter === tab.key || (tab.key === 'all' && userCategoryFilter === 'all')
-            return (
-              <button
-                key={tab.key}
-                onClick={() => {
-                  setUserCategoryFilter(tab.key as 'all' | UserCategory)
-                  setCurrentPage(1)
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
-              >
-                {tab.label}
-                {tab.count !== null && (
-                  <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-
-          {/* Groupe isolé : comptes de l'app mobile Xeuy Bi (migration prévue) */}
-          <div className="flex items-center gap-2 pl-3 ml-1 border-l-2 border-dashed border-amber-300">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 whitespace-nowrap">
-              Xeuy Bi — app mobile
-            </span>
-            {[
-              { key: 'XEUY_PROVIDER', label: 'Prestataires', count: domainCounts.XEUY_PROVIDER ?? null, color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
-              { key: 'XEUY_CLIENT', label: 'Clients', count: domainCounts.XEUY_CLIENT ?? null, color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
-            ].map(tab => {
-              const isActiveTab = userCategoryFilter === tab.key
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => {
-                    setUserCategoryFilter(tab.key as 'all' | UserCategory)
-                    setCurrentPage(1)
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
-                >
-                  {tab.label}
-                  {tab.count !== null && (
-                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Bannière isolation Xeuy */}
-        {(userCategoryFilter === 'XEUY_PROVIDER' || userCategoryFilter === 'XEUY_CLIENT') && (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-semibold text-amber-800">Comptes de l'app mobile Xeuy Bi</p>
-              <p className="text-amber-700">
-                Ces utilisateurs sont gérés par l'app mobile (auth OTP par téléphone, emails synthétiques <code>@xeuy.bi</code>).
-                Ils seront migrés vers la branche dédiée Xeuy — éviter toute modification manuelle ici.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Outils métier liés à la catégorie active (hors sidebar, accès contextuel) */}
-        {userCategoryFilter === 'ENTERPRISE_CLIENT' && (
-          <p className="mb-4 text-xs text-stone-500">
-            Outil lié : <Link href="/admin/clients" className="font-semibold text-blue-600 hover:underline">contrats & suivi clients B2B →</Link>
-          </p>
-        )}
-        {userCategoryFilter === 'PLATFORM_USER' && (
-          <p className="mb-4 text-xs text-stone-500">
-            Outil lié : <Link href="/admin/technicians" className="font-semibold text-blue-600 hover:underline">planning & compétences techniciens →</Link>
-          </p>
-        )}
-        {userCategoryFilter === 'MARKETPLACE_CLIENT' && (
-          <p className="mb-4 text-xs text-stone-500">
-            Outil lié : <Link href="/admin/marketplace/comptes-pro" className="font-semibold text-blue-600 hover:underline">validation des comptes pro →</Link>
-          </p>
-        )}
-
         {/* Filtres */}
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Recherche</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
               <div className="relative">
-                <Search className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Search className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
                   placeholder="Nom, email..."
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Rôle</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Rôle</label>
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full px-4 py-2.5 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
               >
                 <option value="all">Tous les rôles</option>
                 {ROLES.map(role => (
@@ -1105,26 +1003,24 @@ export default function UserManagementInterface() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Catégorie</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
               <select
                 value={userCategoryFilter}
                 onChange={(e) => setUserCategoryFilter(e.target.value as 'all' | UserCategory)}
-                className="w-full px-4 py-2.5 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
               >
                 <option value="all">Toutes</option>
                 <option value="MARKETPLACE_CLIENT">Clients marketplace</option>
                 <option value="ENTERPRISE_CLIENT">Clients entreprise</option>
-                <option value="XEUY_PROVIDER">Prestataires Xeuy Bi</option>
-                <option value="XEUY_CLIENT">Clients Xeuy Bi</option>
                 <option value="PLATFORM_USER">Utilisateurs plateforme</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Statut</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2.5 border-2 border-stone-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-colors"
               >
                 <option value="all">Tous</option>
                 <option value="true">Actifs</option>
@@ -1132,8 +1028,8 @@ export default function UserManagementInterface() {
               </select>
             </div>
             <div className="flex items-end">
-              <div className="text-sm text-stone-600 bg-stone-50 rounded-xl px-4 py-2.5 w-full">
-                <span className="font-semibold text-stone-900">{totalUsers}</span> utilisateurs • Page {currentPage}/{totalPages || 1}
+              <div className="text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-2.5 w-full">
+                <span className="font-semibold text-gray-900">{totalUsers}</span> utilisateurs • Page {currentPage}/{totalPages || 1}
               </div>
             </div>
           </div>
@@ -1141,17 +1037,17 @@ export default function UserManagementInterface() {
       </div>
 
       {/* Liste des utilisateurs */}
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
             <RefreshCw className="h-10 w-10 animate-spin mx-auto text-emerald-600 mb-4" />
-            <p className="text-stone-600">Chargement des utilisateurs...</p>
+            <p className="text-gray-600">Chargement des utilisateurs...</p>
           </div>
         ) : users.length === 0 ? (
           <div className="p-12 text-center">
-            <Users className="h-16 w-16 mx-auto text-stone-300 mb-4" />
-            <p className="text-lg font-medium text-stone-900 mb-2">Aucun utilisateur trouvé</p>
-            <p className="text-stone-500 mb-6">Créez votre premier utilisateur pour commencer</p>
+            <Users className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+            <p className="text-lg font-medium text-gray-900 mb-2">Aucun utilisateur trouvé</p>
+            <p className="text-gray-500 mb-6">Créez votre premier utilisateur pour commencer</p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
@@ -1164,24 +1060,24 @@ export default function UserManagementInterface() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-stone-50 border-b border-stone-200">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">Utilisateur</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">Rôle / Catégorie</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">Statut</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">Sécurité</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-stone-600 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Utilisateur</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Rôle / Catégorie</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Sécurité</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-gray-100">
                   {users.map((user, index) => (
                     <motion.tr
                       key={user._id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="hover:bg-stone-50 transition-colors"
+                      className="hover:bg-gray-50 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -1195,20 +1091,20 @@ export default function UserManagementInterface() {
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-stone-900">{user.name}</p>
-                            <p className="text-sm text-stone-500">@{user.username}</p>
+                            <p className="font-semibold text-gray-900">{user.name}</p>
+                            <p className="text-sm text-gray-500">@{user.username}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <p className="text-sm text-stone-900 flex items-center gap-1.5">
-                            <Mail className="h-3.5 w-3.5 text-stone-400" />
+                          <p className="text-sm text-gray-900 flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5 text-gray-400" />
                             {user.email}
                           </p>
                           {user.phone && (
-                            <p className="text-sm text-stone-500 flex items-center gap-1.5">
-                              <Phone className="h-3.5 w-3.5 text-stone-400" />
+                            <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                              <Phone className="h-3.5 w-3.5 text-gray-400" />
                               {user.phone}
                             </p>
                           )}
@@ -1224,7 +1120,7 @@ export default function UserManagementInterface() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {user.twoFactorEnabled && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-800" title="2FA activé">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700" title="2FA activé">
                               <Smartphone className="h-3 w-3" />
                               2FA
                             </span>
@@ -1241,7 +1137,7 @@ export default function UserManagementInterface() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditModal(user)}
-                            className="p-2 text-stone-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Modifier"
                           >
                             <Edit3 className="h-4 w-4" />
@@ -1249,7 +1145,7 @@ export default function UserManagementInterface() {
                           
                           <button
                             onClick={() => openPasswordModal(user)}
-                            className="p-2 text-stone-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                             title="Réinitialiser mot de passe"
                           >
                             <Key className="h-4 w-4" />
@@ -1258,7 +1154,7 @@ export default function UserManagementInterface() {
                           {user.isActive ? (
                             <button
                               onClick={() => handleUserAction(user._id, 'deactivate')}
-                              className="p-2 text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Désactiver"
                             >
                               <UserX className="h-4 w-4" />
@@ -1266,7 +1162,7 @@ export default function UserManagementInterface() {
                           ) : (
                             <button
                               onClick={() => handleUserAction(user._id, 'activate')}
-                              className="p-2 text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Activer"
                             >
                               <UserCheck className="h-4 w-4" />
@@ -1276,7 +1172,7 @@ export default function UserManagementInterface() {
                           {user.lockedUntil && new Date(user.lockedUntil) > new Date() ? (
                             <button
                               onClick={() => handleUserAction(user._id, 'unlock')}
-                              className="p-2 text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Déverrouiller"
                             >
                               <Unlock className="h-4 w-4" />
@@ -1284,7 +1180,7 @@ export default function UserManagementInterface() {
                           ) : (
                             <button
                               onClick={() => handleUserAction(user._id, 'lock')}
-                              className="p-2 text-stone-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
                               title="Verrouiller"
                             >
                               <Lock className="h-4 w-4" />
@@ -1293,7 +1189,7 @@ export default function UserManagementInterface() {
 
                           <button
                             onClick={() => handleDeleteUser(user)}
-                            className="p-2 text-stone-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                             title="Supprimer définitivement"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1308,15 +1204,15 @@ export default function UserManagementInterface() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-stone-200 flex items-center justify-between bg-stone-50">
-                <p className="text-sm text-stone-600">
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <p className="text-sm text-gray-600">
                   {((currentPage - 1) * usersPerPage) + 1} - {Math.min(currentPage * usersPerPage, totalUsers)} sur {totalUsers}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-stone-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-colors"
+                    className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-colors"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -1329,7 +1225,7 @@ export default function UserManagementInterface() {
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                           currentPage === page
                             ? 'bg-emerald-600 text-white'
-                            : 'border border-stone-200 hover:bg-white'
+                            : 'border border-gray-200 hover:bg-white'
                         }`}
                       >
                         {page}
@@ -1339,7 +1235,7 @@ export default function UserManagementInterface() {
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-stone-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-colors"
+                    className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-colors"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>

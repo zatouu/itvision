@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { trackPageview } from '@/utils/analytics'
 
 /**
  * Composant pour tracker automatiquement les visites de pages
@@ -38,7 +37,6 @@ export default function PageVisitTracker() {
 
     // Tracker la visite après un court délai (pour éviter les bounces)
     const timer = setTimeout(() => {
-      trackPageview(pathname, pageName)
       trackVisit(pathname, pageName)
     }, 2000) // 2 secondes minimum
 
@@ -46,20 +44,6 @@ export default function PageVisitTracker() {
   }, [pathname])
 
   return null
-}
-
-/** Identifiant aléatoire du navigateur (aucune donnée personnelle) : compte les visiteurs non connectés une seule fois. */
-function visitorId(): string | undefined {
-  try {
-    let id = localStorage.getItem('ddm_vid')
-    if (!id) {
-      id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
-      localStorage.setItem('ddm_vid', id)
-    }
-    return id
-  } catch {
-    return undefined
-  }
 }
 
 function trackVisit(path: string, pageName: string) {
@@ -96,8 +80,7 @@ function trackVisit(path: string, pageName: string) {
         duration,
         scrollDepth,
         interactions,
-        referrer: document.referrer,
-        visitorId: visitorId(),
+        referrer: document.referrer
       })
 
       if (navigator.sendBeacon) {

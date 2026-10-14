@@ -255,12 +255,11 @@ export default function ProductCard({
       setAdding(true)
       const raw = typeof window !== 'undefined' ? localStorage.getItem('cart:items') : null
       const items = raw ? JSON.parse(raw) : []
-      const productId = detailHref ? detailHref.split('/').pop() : null
-      if (!productId) {
-        setAdding(false)
-        return
-      }
-      const existsIndex = items.findIndex((i: any) => i.id === productId && i.shipping?.id === activeShipping?.id)
+      const shippingKey = activeShipping ? `-${activeShipping.id}` : ''
+      const productName = `${name}-${model || ''}${shippingKey}`
+      const whitespaceRegex = new RegExp('\\s+', 'g')
+      const id = productName.replace(whitespaceRegex, '-').toLowerCase()
+      const existsIndex = items.findIndex((i: any) => i.id === id)
       if (existsIndex >= 0) {
         items[existsIndex].qty += 1
         // Garder le prix principal égal au prix sourcing. Les frais/transport sont stockés séparément.
@@ -284,7 +283,7 @@ export default function ProductCard({
       } else {
         const itemName = model ? `${name} (${model})` : name
         items.push({
-          id: productId,
+          id,
           name: itemName,
           qty: 1,
           // Prix principal = prix sourcing (basePrice). Les frais et le transport sont ajoutés au checkout.
@@ -308,16 +307,7 @@ export default function ProductCard({
         items[lastIndex].insurancePercent = insurancePercent
       }
       localStorage.setItem('cart:items', JSON.stringify(items))
-      trackEvent('add_to_cart', {
-        currency: effectiveCurrency,
-        value: basePrice,
-        items: [{
-          item_id: productId || '',
-          item_name: name,
-          price: basePrice,
-          quantity: 1,
-        }],
-      })
+      trackEvent('add_to_cart', { productId: id })
       try {
         window.dispatchEvent(new CustomEvent('cart:updated'))
       } catch {}
@@ -364,7 +354,7 @@ export default function ProductCard({
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 dark:bg-gray-800">
         <Image
-          src={images[activeIndex] || images[0] || '/placeholder.svg'}
+          src={images[activeIndex] || images[0] || '/file.svg'}
           alt={name}
           fill
           className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"

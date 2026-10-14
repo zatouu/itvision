@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Plus, X, AlertTriangle } from 'lucide-react'
 
 const TYPE_OPTIONS = [
@@ -18,7 +18,7 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' },
 ]
 
-export default function RequestInterventionButton({ canRequest = true }: { canRequest?: boolean }) {
+export default function RequestInterventionButton() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,11 +32,6 @@ export default function RequestInterventionButton({ canRequest = true }: { canRe
     site: '',
     preferredDate: ''
   })
-
-  // Raccourci du tableau de bord : /portail-entreprise/interventions?nouvelle=1
-  useEffect(() => {
-    if (canRequest && new URLSearchParams(window.location.search).get('nouvelle') === '1') setOpen(true)
-  }, [canRequest])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,22 +64,11 @@ export default function RequestInterventionButton({ canRequest = true }: { canRe
     }
   }
 
-  if (!canRequest) {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-400"
-        title="Droit « Demander une intervention » non accordé : demandez-le à un administrateur de votre espace"
-      >
-        <Plus className="w-4 h-4" /> Demander une intervention
-      </span>
-    )
-  }
-
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-800 text-white text-sm font-semibold px-4 py-2 hover:bg-emerald-900 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700 transition-colors"
       >
         <Plus className="w-4 h-4" /> Demander une intervention
       </button>

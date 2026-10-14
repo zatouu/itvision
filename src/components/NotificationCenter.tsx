@@ -2,29 +2,22 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Bell,
-  X,
-  Check,
-  CheckCheck,
-  Trash2,
-  ExternalLink,
-  Info,
-  CheckCircle,
-  AlertTriangle,
+import { 
+  Bell, 
+  X, 
+  Check, 
+  CheckCheck, 
+  Trash2, 
+  ExternalLink, 
+  Info, 
+  CheckCircle, 
+  AlertTriangle, 
   XCircle,
   Clock,
   RefreshCw,
-  BellOff,
-  BellRing
+  Sparkles,
+  BellOff
 } from 'lucide-react'
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData = atob(base64)
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
-}
 
 interface Notification {
   id: string
@@ -48,50 +41,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [pushState, setPushState] = useState<'unsupported' | 'default' | 'granted' | 'denied' | 'subscribed'>('default')
-  const [pushBusy, setPushBusy] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-
-  // État de l'opt-in push (PWA)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
-      setPushState('unsupported')
-      return
-    }
-    if (Notification.permission === 'denied') { setPushState('denied'); return }
-    if (Notification.permission !== 'granted') { setPushState('default'); return }
-    navigator.serviceWorker.ready
-      .then(reg => reg.pushManager.getSubscription())
-      .then(sub => setPushState(sub ? 'subscribed' : 'granted'))
-      .catch(() => setPushState('granted'))
-  }, [])
-
-  const enablePush = async () => {
-    try {
-      setPushBusy(true)
-      const perm = await Notification.requestPermission()
-      if (perm !== 'granted') { setPushState(perm === 'denied' ? 'denied' : 'default'); return }
-      const keyRes = await fetch('/api/notifications/vapid-public-key')
-      const keyData = await keyRes.json()
-      if (!keyData?.publicKey) return
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey) as any,
-      })
-      const res = await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ subscription: sub.toJSON() }),
-      })
-      if (res.ok) setPushState('subscribed')
-    } catch (e) {
-      console.error('[push] subscribe failed:', e)
-    } finally {
-      setPushBusy(false)
-    }
-  }
 
   // Charger les notifications
   const fetchNotifications = async () => {
@@ -235,9 +185,6 @@ export default function NotificationCenter({ className }: NotificationCenterProp
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
         title="Notifications"
-        aria-label={unreadCount > 0 ? `Notifications (${unreadCount} non lues)` : 'Notifications'}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
       >
         <Bell className="h-5 w-5" />
         <AnimatePresence>
@@ -284,7 +231,6 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     onClick={fetchNotifications}
                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                     title="Actualiser"
-                    aria-label="Actualiser les notifications"
                   >
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   </button>
@@ -294,7 +240,6 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                       onClick={markAllAsRead}
                       className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                       title="Tout marquer comme lu"
-                      aria-label="Tout marquer comme lu"
                     >
                       <CheckCheck className="h-4 w-4" />
                     </button>
@@ -303,7 +248,6 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   <button
                     onClick={() => setIsOpen(false)}
                     className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                    aria-label="Fermer les notifications"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -424,24 +368,17 @@ export default function NotificationCenter({ className }: NotificationCenterProp
               )}
             </div>
 
-            {/* Footer — opt-in push PWA */}
-            {(pushState === 'default' || pushState === 'granted') && (
+            {/* Footer */}
+            {notifications.length > 0 && (
               <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-                <button
-                  onClick={enablePush}
-                  disabled={pushBusy}
-                  className="flex items-center justify-center gap-2 w-full text-sm text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-50"
+                <a
+                  href="/client-portal"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                 >
-                  {pushBusy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
-                  Activer les notifications push
-                </button>
-              </div>
-            )}
-            {pushState === 'subscribed' && notifications.length === 0 && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 text-center">
-                <p className="text-xs text-gray-500 flex items-center justify-center gap-1.5">
-                  <BellRing className="h-3.5 w-3.5 text-emerald-500" /> Notifications push activées
-                </p>
+                  <Sparkles className="h-4 w-4" />
+                  Voir toutes les notifications
+                </a>
               </div>
             )}
           </motion.div>

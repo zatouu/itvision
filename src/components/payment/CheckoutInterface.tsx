@@ -2,30 +2,53 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Copy,
-  Check,
-  Shield,
-  Clock,
-  Truck,
-  BadgeCheck,
-  MessageCircle,
-  CreditCard,
-  Banknote,
-  Wallet,
-  Landmark,
-  Smartphone,
-  Package,
-  Sparkles,
-  AlertCircle,
-  ArrowRight,
-  Lock,
-  Percent,
-  Gift,
-  Star,
-} from 'lucide-react'
+import { CreditCard, Smartphone, Copy, Check, Info, ExternalLink, Package, Shield, Loader2, Banknote, MessageCircle, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import type { PaymentSettings } from '@/lib/payments/settings'
+
+/* ─── Icônes SVG des moyens de paiement ─── */
+function VisaIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="32" rx="4" fill="#1A1F71"/>
+      <path d="M19.5 21H17L18.8 11H21.3L19.5 21ZM15.2 11L12.8 18.1L12.5 16.6L12.5 16.6L11.6 12C11.6 12 11.5 11 10.2 11H6.1L6 11.2C6 11.2 7.5 11.5 9.2 12.5L11.4 21H14L18 11H15.2ZM35 21H37.5L35.3 11H33.3C32.2 11 31.9 11.8 31.9 11.8L28 21H30.6L31.1 19.5H34.3L35 21ZM31.9 17.5L33.3 13.5L34.1 17.5H31.9ZM29.2 13.4L29.5 11.5C29.5 11.5 28.2 11 26.8 11C25.3 11 22 11.7 22 14.5C22 17.1 25.6 17.1 25.6 18.5C25.6 19.9 22.4 19.6 21.2 18.7L20.9 20.7C20.9 20.7 22.2 21.3 24 21.3C25.8 21.3 28.8 20.3 28.8 17.7C28.8 15 25.2 14.8 25.2 13.6C25.2 12.4 27.6 12.5 29.2 13.4Z" fill="white"/>
+    </svg>
+  )
+}
+
+function MastercardIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="32" rx="4" fill="#252525"/>
+      <circle cx="19" cy="16" r="9" fill="#EB001B"/>
+      <circle cx="29" cy="16" r="9" fill="#F79E1B"/>
+      <path d="M24 9.3C25.8 10.8 27 13.2 27 16C27 18.8 25.8 21.2 24 22.7C22.2 21.2 21 18.8 21 16C21 13.2 22.2 10.8 24 9.3Z" fill="#FF5F00"/>
+    </svg>
+  )
+}
+
+function WaveIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="32" rx="4" fill="#1DC3E1"/>
+      <path d="M12 20C14 14 17 12 20 12C23 12 24 16 27 16C30 16 32 14 34 10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+      <text x="12" y="26" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial">WAVE</text>
+    </svg>
+  )
+}
+
+function OrangeMoneyIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="32" rx="4" fill="#FF6600"/>
+      <circle cx="24" cy="14" r="7" fill="white"/>
+      <circle cx="24" cy="14" r="5" fill="#FF6600"/>
+      <text x="10" y="27" fill="white" fontSize="5.5" fontWeight="bold" fontFamily="Arial">ORANGE</text>
+    </svg>
+  )
+}
+
+type TabId = 'card' | 'mobile' | 'manual'
 
 interface CheckoutInterfaceProps {
   participant: {
@@ -43,103 +66,40 @@ interface CheckoutInterfaceProps {
       insuranceRate: number
       insuranceAmount: number
       totalFees: number
-      quantityDiscount?: { percent: number; amount: number; label: string }
+      quantityDiscount?: {
+        percent: number
+        amount: number
+        label: string
+      }
     }
-    shipping?: { method: string; totalCost: number; totalWeight?: number }
+    shipping?: {
+      method: string
+      totalCost: number
+      totalWeight?: number
+      weightDetails?: {
+        actualWeight: number
+        volumetricWeight: number
+        billedWeight: number
+        billingMethod: 'actual' | 'volumetric'
+      }
+    }
     subtotal?: number
     subtotalBeforeDiscounts?: number
-    items?: { name: string; qty: number; price: number }[]
-    address?: { street?: string; city?: string; department?: string; region?: string; country?: string; notes?: string }
-    statusLabel?: string
-    shippingMethod?: string
   }
-  group: { productName: string; groupId: string }
+  group: {
+    productName: string
+    groupId: string
+  }
   settings: PaymentSettings
 }
 
-type Provider = 'wave' | 'om' | 'free' | 'virement' | 'gateway'
-
-const WAVE = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#1D1D1B"/><path d="M18 8c-1.5 0-2.5 1-3.5 2.5C13.5 12 12.5 13 11 13s-2.5-1-3.5-2.5C6.5 9 5.5 8 4 8" stroke="#9AE5D3" strokeWidth="2.5" strokeLinecap="round"/></svg>
-)
-const OM = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#FF6600"/><circle cx="12" cy="12" r="6" fill="#FFF"/><path d="M9 12h6M12 9v6" stroke="#FF6600" strokeWidth="2" strokeLinecap="round"/></svg>
-)
-const FREE = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#00A0DF"/><path d="M7 12h10M12 7v10" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round"/></svg>
-)
-
-const PROVIDERS: { key: Provider; label: string; icon: any; color: string; instructions: string[] }[] = [
-  {
-    key: 'wave',
-    label: 'Wave',
-    icon: WAVE,
-    color: 'bg-blue-50 border-blue-200 hover:border-blue-400',
-    instructions: [
-      'Ouvrez l’application Wave sur votre téléphone.',
-      'Transférez le montant exact au numéro affiché ci-dessous.',
-      'Cliquez sur « J’ai payé » pour confirmer via WhatsApp.',
-    ],
-  },
-  {
-    key: 'om',
-    label: 'Orange Money',
-    icon: OM,
-    color: 'bg-orange-50 border-orange-200 hover:border-orange-400',
-    instructions: [
-      'Composez #144# ou ouvrez l’appli Orange Money.',
-      'Effectuez un transfert au numéro marchand ci-dessous.',
-      'Cliquez sur « J’ai payé » pour confirmer via WhatsApp.',
-    ],
-  },
-  {
-    key: 'free',
-    label: 'Free Money',
-    icon: FREE,
-    color: 'bg-sky-50 border-sky-200 hover:border-sky-400',
-    instructions: [
-      'Ouvrez l’application Free Money.',
-      'Transférez le montant exact au numéro ci-dessous.',
-      'Cliquez sur « J’ai payé » pour confirmer via WhatsApp.',
-    ],
-  },
-  {
-    key: 'virement',
-    label: 'Virement bancaire',
-    icon: Landmark,
-    color: 'bg-slate-50 border-slate-200 hover:border-slate-400',
-    instructions: [
-      'Effectuez un virement sur le compte bancaire indiqué.',
-      'Indiquez impérativement la référence en libellé.',
-      'Envoyez le reçu par WhatsApp pour validation.',
-    ],
-  },
-]
-
-const ADD_ONS = [
-  { id: 'assurance', name: 'Assurance transport', price: 1500, icon: Shield },
-  { id: 'express', name: 'Livraison express Dakar', price: 2500, icon: Truck },
-  { id: 'gift', name: 'Emballage cadeau', price: 1000, icon: Gift },
-]
-
-const INSTALLMENTS = [
-  { count: 1, label: '1x', available: true },
-  { count: 2, label: '2x', available: false },
-  { count: 3, label: '3x', available: false },
-  { count: 4, label: '4x', available: false },
-]
-
 export default function CheckoutInterface({ participant, group, settings }: CheckoutInterfaceProps) {
   const gatewayActive = settings.providers.gateway.active
-  const [selectedProvider, setSelectedProvider] = useState<Provider>(gatewayActive ? 'gateway' : 'wave')
-  const [selectedInstallment, setSelectedInstallment] = useState<number>(1)
+
+  const [activeTab, setActiveTab] = useState<TabId>(gatewayActive ? 'card' : 'mobile')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
-  const [paymentStatus, setPaymentStatus] = useState(participant.status)
-  const [addedOns, setAddedOns] = useState<string[]>([])
-  const [timeLeft, setTimeLeft] = useState(30 * 60)
-  const [addOnsSaving, setAddOnsSaving] = useState(false)
 
   const showToast = useCallback((msg: string, type: 'error' | 'success' = 'error') => {
     setToast({ msg, type })
@@ -152,27 +112,37 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
     setTimeout(() => setCopiedField(null), 2000)
   }, [])
 
-  const amount = participant.amount + addedOns.reduce((sum, id) => sum + (ADD_ONS.find((a) => a.id === id)?.price || 0), 0)
+  const handleGatewayPayment = async () => {
+    if (loading) return
+    setLoading(true)
 
-  // Charger les options persistées au montage
-  useEffect(() => {
-    fetch(`/api/payment/add-ons?reference=${encodeURIComponent(participant.reference)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.success && Array.isArray(data.addOns)) {
-          setAddedOns(data.addOns.map((a: any) => a.id))
-        }
+    try {
+      const response = await fetch('/api/payment/checkout/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: participant.reference })
       })
-      .catch(() => {})
-  }, [participant.reference])
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((t) => (t > 0 ? t - 1 : 0))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
+      const data = await response.json()
 
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur inconnue')
+      }
+
+      window.location.href = data.url
+    } catch (error: any) {
+      console.error(error)
+      showToast(error.message || "Erreur lors de l'initialisation du paiement.")
+      setLoading(false)
+    }
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(amount)
+  }
+
+  // Polling du statut de paiement (vérifie toutes les 15s si le paiement a été validé)
+  const [paymentStatus, setPaymentStatus] = useState(participant.status)
   useEffect(() => {
     if (paymentStatus === 'paid') return
     const interval = setInterval(async () => {
@@ -181,406 +151,496 @@ export default function CheckoutInterface({ participant, group, settings }: Chec
         const data = await res.json()
         if (data?.status === 'paid' || data?.status === 'completed') {
           setPaymentStatus('paid')
-          showToast('Paiement confirmé ! Redirection...', 'success')
-          setTimeout(() => window.location.href = `/suivi/${participant.reference}`, 2000)
+          showToast('Paiement confirmé !', 'success')
+          clearInterval(interval)
         }
       } catch {}
-    }, 8000)
+    }, 15000)
     return () => clearInterval(interval)
   }, [participant.reference, paymentStatus, showToast])
 
-  const handleGatewayPayment = async () => {
-    if (loading) return
-    setLoading(true)
-    try {
-      const response = await fetch('/api/payment/checkout/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: participant.reference }),
-      })
-      const data = await response.json()
-      if (data?.url) window.location.href = data.url
-      else if (data?.error) showToast(data.error)
-      else showToast('Erreur lors du lancement du paiement')
-    } catch {
-      showToast('Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const isPaid = paymentStatus === 'paid'
 
-  const handleMobilePayment = async () => {
-    if (loading || selectedProvider === 'virement') return
-    setLoading(true)
-    try {
-      const providerMap: Record<string, string> = {
-        wave: 'wave',
-        om: 'orange_money',
-        free: 'free_money',
-      }
-      const apiProvider = providerMap[selectedProvider]
-      if (!apiProvider) {
-        showToast('Moyen de paiement non pris en charge')
-        return
-      }
-      const response = await fetch('/api/market/payments/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: participant.reference,
-          provider: apiProvider,
-          clientPhone: participant.phone,
-        }),
-      })
-      const data = await response.json()
-      if (!response.ok || !data.success) {
-        showToast(data.error || 'Erreur lors du lancement du paiement')
-        return
-      }
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl
-      } else {
-        showToast('Paiement lancé. Validez sur votre téléphone.', 'success')
-      }
-    } catch {
-      showToast('Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const wavePhone = settings.providers.manual.waveMerchantPhone
-  const omPhone = settings.providers.manual.orangeMerchantPhone
-  const freePhone = settings.providers.manual.freeMoneyMerchantPhone
-
-  const phoneByProvider: Record<string, string> = {
-    wave: wavePhone,
-    om: omPhone,
-    free: freePhone,
-    virement: '',
-  }
-
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${m}:${sec.toString().padStart(2, '0')}`
-  }
-
-  const toggleAddOn = async (id: string) => {
-    const next = addedOns.includes(id) ? addedOns.filter((x) => x !== id) : [...addedOns, id]
-    setAddedOns(next)
-    setAddOnsSaving(true)
-    try {
-      const res = await fetch('/api/payment/add-ons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: participant.reference, addOnIds: next }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        showToast(data.error || 'Erreur mise à jour options')
-      }
-    } catch {
-      showToast('Erreur réseau options')
-    } finally {
-      setAddOnsSaving(false)
-    }
-  }
-
-  const whatsappHref = (message: string) => {
-    const phone = wavePhone?.replace(/\D/g, '') || '221000000000'
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-  }
-
-  const isPaid = paymentStatus === 'paid' || paymentStatus === 'completed'
-
-  return (
-    <div className="relative">
-      <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
-        {/* LEFT: Order Summary */}
-        <aside className="lg:sticky lg:top-24 lg:h-fit order-2 lg:order-1">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-              <h2 className="font-bold text-slate-900 dark:text-slate-200">Récapitulatif de la commande</h2>
-            </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Produits</span>
-                <span className="font-medium dark:text-slate-200">{participant.subtotal?.toLocaleString('fr-FR') || participant.amount.toLocaleString('fr-FR')} FCFA</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Frais & assurance</span>
-                <span className="font-medium dark:text-slate-200">{participant.fees?.totalFees?.toLocaleString('fr-FR') || '0'} FCFA</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Livraison</span>
-                <span className="font-medium dark:text-slate-200">{participant.shipping?.totalCost?.toLocaleString('fr-FR') || '0'} FCFA</span>
-              </div>
-              {addedOns.length > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                  <span>Options ajoutées</span>
-                  <span className="font-medium">+{addedOns.reduce((sum, id) => sum + (ADD_ONS.find((a) => a.id === id)?.price || 0), 0).toLocaleString('fr-FR')} FCFA</span>
-                </div>
-              )}
-              <div className="h-px bg-slate-100 dark:bg-slate-700 my-2" />
-              <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-slate-200">
-                <span>Total</span>
-                <span>{amount.toLocaleString('fr-FR')} FCFA</span>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-xs text-slate-500 dark:text-slate-400">
-              <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">{group.productName}</p>
-              <p>Référence : <span className="font-mono text-violet-600 dark:text-violet-400">{participant.reference}</span></p>
-              <p>Client : {participant.name} • {participant.phone}</p>
-            </div>
-
-            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-xl">
-              <Lock className="w-4 h-4" />
-              Paiement sécurisé par escrow — votre argent est protégé jusqu'à la livraison.
-            </div>
+  if (isPaid) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border border-green-200"
+      >
+        <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-10 text-center text-white">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', delay: 0.2 }}
+            className="mx-auto bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mb-4"
+          >
+            <Check size={40} strokeWidth={3} />
+          </motion.div>
+          <h2 className="text-2xl font-bold mb-2">Paiement Validé !</h2>
+          <p className="opacity-90">Merci {participant.name}, votre commande est confirmée.</p>
+        </div>
+        <div className="p-6 space-y-0">
+          <div className="flex justify-between items-center py-3.5 border-b border-gray-100">
+            <span className="text-gray-500 text-sm">Commande</span>
+            <span className="font-medium text-sm text-gray-800">{group.productName}</span>
           </div>
-        </aside>
-
-        {/* RIGHT: Payment Methods */}
-        <div className="order-1 lg:order-2 space-y-6">
-          {/* Provider cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {PROVIDERS.map((provider) => {
-              const Icon = provider.icon
-              const active = selectedProvider === provider.key
-              return (
-                <button
-                  key={provider.key}
-                  onClick={() => setSelectedProvider(provider.key)}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${active ? `ring-2 ring-emerald-500 ${provider.color}` : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
-                >
-                  <Icon className="w-10 h-10 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-slate-200">{provider.label}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Paiement manuel</p>
-                  </div>
-                  {active && <Check className="w-5 h-5 text-emerald-600 ml-auto" />}
-                </button>
-              )
-            })}
-            {gatewayActive && (
-              <button
-                onClick={() => setSelectedProvider('gateway')}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 transition text-left ${selectedProvider === 'gateway' ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 hover:border-gray-200 dark:hover:border-slate-600'}`}
-              >
-                <CreditCard className="w-10 h-10 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-slate-200">Carte / Gateway</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Paiement en ligne sécurisé</p>
-                </div>
-                {selectedProvider === 'gateway' && <Check className="w-5 h-5 text-emerald-600 ml-auto" />}
-              </button>
-            )}
+          <div className="flex justify-between items-center py-3.5 border-b border-gray-100">
+            <span className="text-gray-500 text-sm">Référence</span>
+            <span className="font-mono bg-gray-100 px-2.5 py-1 rounded text-sm">{participant.reference}</span>
           </div>
-
-          {/* Installments */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Percent className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-              <h3 className="font-bold text-slate-900 dark:text-slate-200">Paiement en échéances</h3>
-              <span className="ml-auto text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-1 rounded-full font-bold">Bientôt</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {INSTALLMENTS.map((inst) => (
-                <button
-                  key={inst.count}
-                  disabled={!inst.available}
-                  onClick={() => inst.available && setSelectedInstallment(inst.count)}
-                  className={`py-2 rounded-xl text-sm font-bold border-2 transition ${
-                    selectedInstallment === inst.count && inst.available
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : inst.available
-                      ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
-                      : 'bg-slate-100 dark:bg-slate-700 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {inst.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Le paiement fractionné sera activé prochainement selon les moyens disponibles au Sénégal.</p>
-          </div>
-
-          {/* Instructions */}
-          {selectedProvider !== 'gateway' ? (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
-              <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Instructions {PROVIDERS.find(p => p.key === selectedProvider)?.label}
-              </h3>
-              <ol className="space-y-2 text-sm text-slate-600 dark:text-slate-400 list-decimal list-inside mb-4">
-                {PROVIDERS.find(p => p.key === selectedProvider)?.instructions.map((step, i) => (
-                  <li key={i}>{step}</li>
-                ))}
-              </ol>
-
-              {selectedProvider !== 'virement' && (
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Numéro marchand</p>
-                    <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{phoneByProvider[selectedProvider]}</p>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(phoneByProvider[selectedProvider], 'phone')}
-                    className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
-                  >
-                    {copiedField === 'phone' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
-                  </button>
-                </div>
-              )}
-
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Montant à transférer</p>
-                  <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{amount.toLocaleString('fr-FR')} FCFA</p>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(String(amount), 'amount')}
-                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
-                >
-                  {copiedField === 'amount' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
-                </button>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Référence à indiquer</p>
-                  <p className="font-mono text-lg font-bold text-slate-900 dark:text-slate-200">{participant.reference}</p>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(participant.reference, 'ref')}
-                  className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-emerald-400 transition"
-                >
-                  {copiedField === 'ref' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />}
-                </button>
-              </div>
-
-              {selectedProvider === 'virement' ? (
-                <a
-                  href={whatsappHref(`Bonjour DDM+, je confirme mon virement.\nRéférence: ${participant.reference}\nMontant: ${amount.toLocaleString('fr-FR')} FCFA`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition"
-                >
-                  <MessageCircle className="w-5 h-5" /> J'ai payé — envoyer le reçu par WhatsApp
-                </a>
-              ) : (
-                <button
-                  onClick={handleMobilePayment}
-                  disabled={loading}
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-violet-700 transition disabled:opacity-60"
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Chargement...</span>
-                  ) : (
-                    <><Wallet className="w-5 h-5" /> Payer maintenant</>
-                  )}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
-              <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Paiement en ligne
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Payez par carte bancaire, Visa, Mastercard ou mobile money via notre passerelle sécurisée.</p>
-              <button
-                onClick={handleGatewayPayment}
-                disabled={loading}
-                className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-emerald-600 to-violet-600 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-violet-700 transition disabled:opacity-60"
-              >
-                {loading ? <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg> Chargement...</span> : <><Wallet className="w-5 h-5" /> Payer maintenant</>}
-              </button>
-            </div>
-          )}
-
-          {/* Escrow & trust badges */}
-          <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 p-5">
-            <div className="flex items-start gap-3">
-              <Shield className="w-6 h-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <div>
-                <h3 className="font-bold text-emerald-900 dark:text-emerald-300">Protection acheteur DDM+</h3>
-                <p className="text-sm text-emerald-800 dark:text-emerald-400 mt-1">Votre paiement est conservé en escrow. Le vendeur n’est payé qu’après votre validation de la livraison.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
-                <BadgeCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Vérifié</span>
-              </div>
-              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
-                <Lock className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Sécurisé</span>
-              </div>
-              <div className="flex flex-col items-center text-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
-                <Truck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
-                <span className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300">Suivi</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cross-sell */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-5">
-            <h3 className="font-bold text-slate-900 dark:text-slate-200 mb-3 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" /> Complétez votre commande
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {ADD_ONS.map((addon) => {
-                const Icon = addon.icon
-                const added = addedOns.includes(addon.id)
-                return (
-                  <div key={addon.id} className={`p-3 rounded-xl border-2 transition ${added ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 dark:text-violet-400">
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-200">{addon.name}</p>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">+{addon.price.toLocaleString('fr-FR')} FCFA</p>
-                    <button
-                      onClick={() => toggleAddOn(addon.id)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition ${added ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                    >
-                      {added ? 'Ajouté' : 'Ajouter'}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="flex justify-between items-center py-3.5">
+            <span className="text-gray-500 text-sm">Montant payé</span>
+            <span className="font-bold text-green-600 text-lg">{formatCurrency(participant.amount)}</span>
           </div>
         </div>
-      </div>
-
-      {/* Countdown banner */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-            <Clock className="w-4 h-4 text-amber-500" />
-            <span>Annulation automatique si non payé dans</span>
-            <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{formatTime(timeLeft)}</span>
-          </div>
-          <Link href="/panier" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
-            Retour panier <ArrowRight className="w-4 h-4" />
+        <div className="px-6 pb-6">
+          <Link
+            href="/compte/commandes"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-violet-500 text-white py-3 rounded-xl font-bold text-sm hover:from-green-600 hover:to-violet-600 transition"
+          >
+            Suivre ma commande
+            <ChevronRight size={16} />
           </Link>
         </div>
+      </motion.div>
+    )
+  }
+
+  const isRetailFallback = participant.fees?.serviceFeeRate === 0 && (participant.fees?.supplierCost ?? 0) > 0
+
+  // Tabs definition
+  const tabs: { id: TabId; label: string; icon: React.ReactNode; show: boolean }[] = [
+    {
+      id: 'card',
+      label: 'Carte bancaire',
+      icon: <CreditCard size={17} />,
+      show: gatewayActive
+    },
+    {
+      id: 'mobile',
+      label: 'Mobile Money',
+      icon: <Smartphone size={17} />,
+      show: true
+    },
+    {
+      id: 'manual',
+      label: 'Autre',
+      icon: <Banknote size={17} />,
+      show: true
+    }
+  ]
+
+  const wavePhone = settings.providers.manual.waveMerchantPhone
+  const orangePhone = settings.providers.manual.orangeMerchantPhone
+  const whatsappLink = `https://wa.me/${wavePhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Paiement réf: ${participant.reference} - ${formatCurrency(participant.amount)}`)}`
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+      {/* ─── Sidebar Récapitulatif ─── */}
+      <div className="md:w-5/12 lg:w-2/5 bg-gradient-to-br from-gray-50 to-violet-50/30 p-6 border-b md:border-b-0 md:border-r border-gray-100">
+        <div className="flex items-center gap-2 mb-5">
+          <Package className="w-4 h-4 text-violet-500" />
+          <h3 className="text-sm uppercase tracking-wider text-gray-500 font-semibold">Récapitulatif</h3>
+        </div>
+
+        <div className="mb-5 pb-4 border-b border-gray-100">
+          <p className="text-gray-400 text-xs mb-1">Commande</p>
+          <p className="font-semibold text-gray-800 text-sm leading-snug">{group.productName}</p>
+        </div>
+
+        {participant.fees && (
+          <div className="mb-5 space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span className="text-gray-500">{isRetailFallback ? 'Produits' : 'Coût fournisseur'}</span>
+              <span className="font-medium">{formatCurrency(participant.fees.supplierCost)}</span>
+            </div>
+            {!isRetailFallback && (
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span className="text-gray-500">Frais service ({participant.fees.serviceFeeRate}%)</span>
+                  <span className="font-medium">{formatCurrency(participant.fees.serviceFeeAmount)}</span>
+                </div>
+                {participant.fees.serviceFeeSavings > 0 && (
+                  <div className="flex justify-between text-green-600 text-xs">
+                    <span>Économie B2B</span>
+                    <span>-{formatCurrency(participant.fees.serviceFeeSavings)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span className="text-gray-500">Assurance ({participant.fees.insuranceRate}%)</span>
+                  <span className="font-medium">{formatCurrency(participant.fees.insuranceAmount)}</span>
+                </div>
+              </>
+            )}
+            {participant.fees.quantityDiscount && participant.fees.quantityDiscount.amount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Réduction volume</span>
+                <span>-{formatCurrency(participant.fees.quantityDiscount.amount)}</span>
+              </div>
+            )}
+            {participant.shipping && (
+              <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-100">
+                <span className="flex items-center gap-1 text-gray-500">
+                  Transport
+                  {participant.shipping.weightDetails?.billingMethod === 'volumetric' && (
+                    <span className="text-xs text-amber-600">(volumétrique)</span>
+                  )}
+                </span>
+                <span className="font-medium">{formatCurrency(participant.shipping.totalCost)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mb-5 pt-4 border-t border-gray-100">
+          <p className="text-gray-400 text-xs mb-1">Montant total à payer</p>
+          <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-violet-600 bg-clip-text text-transparent">
+            {formatCurrency(participant.amount)}
+          </p>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-violet-100 shadow-sm">
+          <p className="text-xs text-gray-400 mb-1.5">Référence de paiement</p>
+          <div className="flex items-center justify-between gap-2">
+            <code className="font-mono font-bold text-gray-800 text-sm truncate">{participant.reference}</code>
+            <button
+              onClick={() => copyToClipboard(participant.reference, 'ref')}
+              className="text-violet-400 hover:text-violet-600 flex-shrink-0 p-1 hover:bg-violet-50 rounded transition"
+            >
+              {copiedField === 'ref' ? <Check size={15} /> : <Copy size={15} />}
+            </button>
+          </div>
+          <p className="text-xs text-amber-600 mt-2 flex items-start gap-1">
+            <Info size={12} className="mt-0.5 shrink-0" />
+            <span>Notez cette référence dans le motif du transfert.</span>
+          </p>
+        </div>
+
+        <Link href="/compte/commandes" className="mt-4 flex items-center gap-1.5 text-xs text-gray-400 hover:text-violet-600 transition">
+          <ExternalLink size={12} />
+          Voir mes commandes
+        </Link>
+
+        {/* Moyens acceptés en mini-icônes */}
+        <div className="mt-6 pt-4 border-t border-gray-100">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Moyens acceptés</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <VisaIcon className="h-6 w-auto rounded" />
+            <MastercardIcon className="h-6 w-auto rounded" />
+            <WaveIcon className="h-6 w-auto rounded" />
+            <OrangeMoneyIcon className="h-6 w-auto rounded" />
+          </div>
+        </div>
       </div>
 
-      {/* Toast */}
+      {/* ─── Contenu principal ─── */}
+      <div className="md:w-7/12 lg:w-3/5 p-6 md:p-8">
+        <h1 className="text-2xl font-bold text-slate-800 mb-1">Moyen de paiement</h1>
+        <p className="text-sm text-gray-400 mb-6">Choisissez comment payer votre commande</p>
+
+        {/* Onglets */}
+        <div className="flex gap-1 mb-7 border-b border-slate-200">
+          {tabs.filter(t => t.show).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`pb-3 px-3 sm:px-4 text-sm font-medium transition-colors relative ${
+                activeTab === tab.id ? 'text-violet-600' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </div>
+              {activeTab === tab.id && (
+                <motion.div layoutId="checkout-tab" className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-green-500 to-violet-500" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── Contenu des onglets ─── */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="min-h-[320px]"
+          >
+            {/* ══════════ CARTE BANCAIRE ══════════ */}
+            {activeTab === 'card' && gatewayActive && (
+              <div className="space-y-6">
+                {/* Badges cartes */}
+                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-blue-50 rounded-xl border border-violet-100">
+                  <div className="flex gap-2">
+                    <VisaIcon className="h-9 w-auto rounded shadow-sm" />
+                    <MastercardIcon className="h-9 w-auto rounded shadow-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">Visa & Mastercard</p>
+                    <p className="text-xs text-slate-500">Paiement sécurisé par carte bancaire</p>
+                  </div>
+                  <Shield size={20} className="text-green-500" />
+                </div>
+
+                {/* Avantages */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
+                    <span>Confirmation instantanée</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
+                    <span>Données chiffrées SSL</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
+                    <span>Aucun stockage de carte</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs text-gray-600">
+                    <Check size={14} className="text-green-500 mt-0.5 shrink-0" />
+                    <span>Certifié PCI-DSS</span>
+                  </div>
+                </div>
+
+                {/* Bouton payer */}
+                <button
+                  onClick={handleGatewayPayment}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 to-violet-600 hover:from-green-700 hover:to-violet-700 disabled:opacity-60 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      <span>Redirection en cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard size={20} />
+                      <span>Payer {formatCurrency(participant.amount)}</span>
+                      <span className="bg-white/20 px-2 py-0.5 rounded text-xs">Sécurisé</span>
+                    </>
+                  )}
+                </button>
+
+                <p className="text-center text-[11px] text-slate-400">
+                  Vous serez redirigé vers notre partenaire sécurisé pour finaliser le paiement.
+                </p>
+              </div>
+            )}
+
+            {/* ══════════ MOBILE MONEY ══════════ */}
+            {activeTab === 'mobile' && (
+              <div className="space-y-5">
+                {/* Si gateway active, proposer le paiement intégré mobile money via PayDunya */}
+                {gatewayActive && (
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-200 mb-2">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-green-100 p-1.5 rounded-lg">
+                        <Smartphone size={18} className="text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-green-900">Paiement instantané</p>
+                        <p className="text-xs text-green-700 mt-0.5">
+                          Payez directement via Wave ou Orange Money en cliquant ci-dessous. Votre paiement sera confirmé automatiquement.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleGatewayPayment}
+                      disabled={loading}
+                      className="mt-3 w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-60 text-white font-bold py-3.5 px-6 rounded-xl shadow transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          <span>Redirection...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Payer {formatCurrency(participant.amount)} via Mobile Money</span>
+                          <ChevronRight size={16} />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span>{gatewayActive ? 'ou transfert manuel' : 'Transfert mobile'}</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Wave */}
+                <div className="border rounded-xl p-5 hover:border-[#1DC3E1] transition-colors group">
+                  <div className="flex items-center gap-3 mb-4">
+                    <WaveIcon className="h-8 w-auto rounded shadow-sm" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-800">Wave</h4>
+                      <p className="text-[11px] text-gray-400">Transfert rapide et gratuit</p>
+                    </div>
+                    <span className="bg-[#1DC3E1]/10 text-[#1DC3E1] text-[10px] font-bold px-2 py-1 rounded-full">Recommandé</span>
+                  </div>
+                  <div className="space-y-3 pl-0">
+                    <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Numéro marchand</p>
+                        <p className="text-lg font-mono font-bold text-slate-900">{wavePhone}</p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(wavePhone, 'wave')}
+                        className="text-gray-400 hover:text-[#1DC3E1] p-2 hover:bg-[#1DC3E1]/10 rounded-lg transition"
+                      >
+                        {copiedField === 'wave' ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-1.5">
+                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">1.</span> Ouvrez l&apos;app Wave → &quot;Envoyer&quot;</p>
+                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">2.</span> Numéro : <strong>{wavePhone}</strong></p>
+                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">3.</span> Montant : <strong>{formatCurrency(participant.amount)}</strong></p>
+                      <p className="flex items-start gap-2"><span className="text-[#1DC3E1] font-bold">4.</span> Note : <strong className="font-mono">{participant.reference}</strong></p>
+                    </div>
+                    <a
+                      href={`https://wave.com/send?amount=${participant.amount}&recipient=${wavePhone.replace(/[^0-9+]/g, '')}&message=${participant.reference}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 mt-1 text-sm bg-[#1DC3E1] text-white px-4 py-2.5 rounded-lg font-medium hover:bg-[#17a8c3] transition"
+                    >
+                      <Smartphone size={16} />
+                      Ouvrir Wave
+                    </a>
+                  </div>
+                </div>
+
+                {/* Orange Money */}
+                <div className="border rounded-xl p-5 hover:border-[#FF6600] transition-colors group">
+                  <div className="flex items-center gap-3 mb-4">
+                    <OrangeMoneyIcon className="h-8 w-auto rounded shadow-sm" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-800">Orange Money</h4>
+                      <p className="text-[11px] text-gray-400">USSD ou application</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3 pl-0">
+                    <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Numéro marchand</p>
+                        <p className="text-lg font-mono font-bold text-slate-900">{orangePhone}</p>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(orangePhone, 'orange')}
+                        className="text-gray-400 hover:text-[#FF6600] p-2 hover:bg-orange-50 rounded-lg transition"
+                      >
+                        {copiedField === 'orange' ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-1.5">
+                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">1.</span> Composez <strong>#144#</strong> ou ouvrez l&apos;app Orange Money</p>
+                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">2.</span> Choisissez &quot;Transfert d&apos;argent&quot;</p>
+                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">3.</span> Numéro : <strong>{orangePhone}</strong></p>
+                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">4.</span> Montant : <strong>{formatCurrency(participant.amount)}</strong></p>
+                      <p className="flex items-start gap-2"><span className="text-[#FF6600] font-bold">5.</span> Confirmez avec votre code secret</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Confirmation WhatsApp */}
+                <div className="bg-amber-50 rounded-xl p-4 text-sm border border-amber-200">
+                  <p className="font-semibold text-amber-900 mb-1.5 flex items-center gap-1.5">
+                    <Info size={14} />
+                    Après votre transfert
+                  </p>
+                  <p className="text-amber-800 text-xs leading-relaxed">
+                    Envoyez la capture d&apos;écran de confirmation par WhatsApp pour une validation rapide de votre commande.
+                  </p>
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 mt-3 text-xs bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition"
+                  >
+                    <MessageCircle size={14} />
+                    Envoyer sur WhatsApp
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════ AUTRE (ESPÈCES / VIREMENT) ══════════ */}
+            {activeTab === 'manual' && (
+              <div className="space-y-5">
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="bg-gray-200 p-2 rounded-lg">
+                      <Banknote size={20} className="text-gray-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-800">Paiement à la livraison / en espèces</h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Payez lors de la réception de votre commande ou passez à nos bureaux.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">1</span>
+                      <span>Présentez la référence <strong className="font-mono">{participant.reference}</strong></span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">2</span>
+                      <span>Montant exact : <strong>{formatCurrency(participant.amount)}</strong></span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-[11px] font-bold shrink-0">3</span>
+                      <span>Contactez-nous pour organiser la remise</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
+                  <p className="text-sm font-semibold text-violet-900 mb-2">Contact</p>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={`tel:${wavePhone}`}
+                      className="flex-1 flex items-center justify-center gap-2 bg-white border border-violet-200 text-violet-700 py-2.5 rounded-lg text-sm font-medium hover:bg-violet-100 transition"
+                    >
+                      📞 Appeler
+                    </a>
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition"
+                    >
+                      <MessageCircle size={14} />
+                      WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Toast notification */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-bold flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl text-sm font-medium ${
+              toast.type === 'success'
+                ? 'bg-green-600 text-white'
+                : 'bg-red-600 text-white'
+            }`}
           >
-            {toast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
             {toast.msg}
           </motion.div>
         )}
