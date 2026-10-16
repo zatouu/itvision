@@ -42,8 +42,8 @@ export default function ProgressRing({ radius, stroke, progress, color, label }:
       </svg>
       {label && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-gray-900">{Math.round(progress)}%</span>
-          {label && <span className="text-xs text-gray-500 mt-1">{label}</span>}
+          <span className="text-2xl font-bold text-stone-900">{Math.round(progress)}%</span>
+          {label && <span className="text-xs text-stone-500 mt-1">{label}</span>}
         </div>
       )}
     </div>

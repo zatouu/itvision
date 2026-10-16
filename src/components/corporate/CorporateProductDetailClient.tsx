@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   Shield, CheckCircle, MessageCircle, Phone, ArrowLeft, PackageCheck,
   ShoppingBag, Hash, Ruler, Weight, Tag, ChevronRight, Sparkles, Truck,
   Clock, Star
 } from 'lucide-react'
 import WhatsAppOrderDrawer from './WhatsAppOrderDrawer'
+import { brandWhatsAppUrl, CORPORATE_BRAND } from '@/lib/branding'
 
 export interface ProductDetailData {
   id: string
@@ -46,13 +48,13 @@ export default function CorporateProductDetailClient({ product }: Props) {
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto max-w-6xl flex items-center gap-1 text-sm">
-          <a
+          <Link
             href="/corporate-produits"
             className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             Catalogue
-          </a>
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
           <span className="text-gray-400 truncate max-w-[200px]">{product.category}</span>
           <ChevronRight className="h-3.5 w-3.5 text-gray-300 hidden sm:inline" />
@@ -254,7 +256,7 @@ export default function CorporateProductDetailClient({ product }: Props) {
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Besoin d&apos;être conseillé ?</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Nos experts évaluent gratuitement vos besoins.</p>
                   <a
-                    href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour, je souhaite être conseillé pour : ' + product.name)}`}
+                    href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour, je souhaite être conseillé pour : ' + product.name)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-green-700 dark:text-green-400 hover:underline"

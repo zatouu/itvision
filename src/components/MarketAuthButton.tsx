@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { LogIn, LogOut, ShoppingBag, User } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Settings, ShoppingBag, Store, User } from 'lucide-react'
+import LogoutButton from '@/components/auth/LogoutButton'
+import { useMarketAuth } from '@/hooks/useMarketAuth'
 
 interface MarketAuthButtonProps {
   className?: string
@@ -28,111 +30,102 @@ export default function MarketAuthButton({
   unauthLabel = 'Mon compte',
   showLogout = true
 }: MarketAuthButtonProps) {
-  const router = useRouter()
   const pathname = usePathname()
-
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [marketplaceTier, setMarketplaceTier] = useState<string>('standard')
-  const [resolvedAccountHref, setResolvedAccountHref] = useState<string>(accountHref)
-
-  const TIER_BADGE: Record<string, { label: string; className: string }> = {
-    pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200' },
-    reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border border-violet-200' },
-    partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
-  }
+  const auth = useMarketAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    let cancelled = false
-
-    async function loadAuthState() {
-      setIsLoading(true)
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'GET',
-          headers: { accept: 'application/json' },
-          cache: 'no-store'
-        })
-        if (cancelled) return
-        setIsAuthenticated(res.ok)
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setIsAuthenticated(res.ok)
-          setMarketplaceTier(data.user?.marketplaceTier || 'standard')
-          // Client entreprise : pointer vers le portail entreprise
-          if (data.user?.clientType === 'enterprise' || data.user?.companyClientId) {
-            setResolvedAccountHref('/portail-entreprise')
-          }
-        }
-      } catch {
-        if (cancelled) return
-        setIsAuthenticated(false)
-      } finally {
-        if (cancelled) return
-        setIsLoading(false)
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
       }
     }
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpen])
 
-    loadAuthState()
-    return () => {
-      cancelled = true
-    }
-  }, [pathname])
+  const TIER_BADGE: Record<string, { label: string; className: string }> = {
+    pro: { label: 'Pro', className: 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800' },
+    reseller: { label: 'Revendeur', className: 'bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800' },
+    partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800' },
+  }
 
   const redirect = pathname || '/market'
   const loginHref = `/login?redirect=${encodeURIComponent(redirect)}`
   const resolvedUnauthHref = unauthHref || loginHref
+  const resolvedAccountHref = auth.isEnterprise ? '/portail-entreprise' : accountHref
 
   const baseClassName =
     variant === 'header'
       ? 'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold shadow-sm transition'
       : 'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition'
 
-  async function handleLogout() {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json'
-        }
-      })
-    } finally {
-      setIsAuthenticated(false)
-      router.refresh()
-      onDone?.()
-    }
-  }
+  const itemClass = 'flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800'
 
-  if (!isLoading && isAuthenticated) {
+  if (!auth.isLoading && auth.isAuthenticated) {
     return (
-      <div className={`inline-flex items-center gap-2 ${className}`}>
-        <Link
-          href={resolvedAccountHref}
-          onClick={() => onDone?.()}
+      <div className={`relative inline-flex items-center gap-2 ${className}`} ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
           className={`${baseClassName} border-green-200 bg-white text-green-700 hover:bg-green-50 dark:border-green-900/60 dark:bg-slate-950 dark:text-green-300 dark:hover:bg-green-900/20`}
         >
           <User className="h-4 w-4" />
           Mon compte
-          {TIER_BADGE[marketplaceTier] && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TIER_BADGE[marketplaceTier].className}`}>
-              {TIER_BADGE[marketplaceTier].label}
+          {TIER_BADGE[auth.marketplaceTier] && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${TIER_BADGE[auth.marketplaceTier].className}`}>
+              {TIER_BADGE[auth.marketplaceTier].label}
             </span>
           )}
-        </Link>
+          <ChevronDown className={`h-3.5 w-3.5 opacity-60 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-        {showLogout ? (
-          <button
-            type="button"
-            onClick={handleLogout}
-            className={`${baseClassName} border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
-            aria-label="Déconnexion Market"
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-1.5 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
           >
-            <ShoppingBag className="h-4 w-4" />
-            <span className={variant === 'header' ? 'hidden 2xl:inline' : ''}>Déconnexion</span>
-            <LogOut className="h-4 w-4 opacity-70" />
-          </button>
-        ) : null}
+            <Link href={resolvedAccountHref} onClick={() => { setMenuOpen(false); onDone?.() }} className={itemClass} role="menuitem">
+              <User className="h-4 w-4 text-slate-400" />
+              Mon compte
+            </Link>
+            {auth.isVendor && (
+              <>
+                <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                <Link href="/espace-vendeur" onClick={() => { setMenuOpen(false); onDone?.() }} className={`${itemClass} font-semibold text-green-700 dark:text-green-300`} role="menuitem">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Tableau de bord boutique
+                </Link>
+                {auth.shopSlug && (
+                  <Link href={`/boutiques/${auth.shopSlug}`} onClick={() => { setMenuOpen(false); onDone?.() }} className={itemClass} role="menuitem">
+                    <Store className="h-4 w-4 text-slate-400" />
+                    Voir ma vitrine
+                  </Link>
+                )}
+                <Link href="/espace-vendeur/parametres" onClick={() => { setMenuOpen(false); onDone?.() }} className={itemClass} role="menuitem">
+                  <Settings className="h-4 w-4 text-slate-400" />
+                  Paramètres boutique
+                </Link>
+              </>
+            )}
+            {showLogout ? (
+              <>
+                <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                <LogoutButton
+                  className={itemClass}
+                  redirectTo="/market"
+                  onDone={() => { setMenuOpen(false); onDone?.() }}
+                >
+                  <LogOut className="h-4 w-4 text-slate-400" />
+                  Déconnexion
+                </LogoutButton>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
     )
   }

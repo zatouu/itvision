@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage, Share2 } from 'lucide-react'
+import { defaultProductCategories } from '@/lib/data/default-categories'
+import { CategorySelect } from '@/components/admin/CategorySelect'
+import { productConfigurationError } from '@/lib/pricing/variants'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -80,10 +83,15 @@ type Product = {
   shippingOverrides?: ShippingOverride[]
   isPublished?: boolean
   isFeatured?: boolean
+  // Canaux de distribution
+  channels?: ('marketplace' | 'corporate' | 'xeuy-bi')[]
+  corporateVisible?: boolean
   // Configuration achat groupé
   groupBuyEnabled?: boolean
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
+  // Lot minimum par commande standard (MOQ)
+  minOrderQty?: number
   priceTiers?: Array<{
     minQty: number
     maxQty?: number
@@ -114,8 +122,9 @@ async function fetchProducts(
     limit: String(limit)
   })
   const res = await fetch(`/api/products?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch products')
+  if (!res.ok) throw new Error('Le catalogue est temporairement indisponible.')
   const data = await res.json()
+  if (!Array.isArray(data?.items)) throw new Error('La réponse du catalogue est incomplète.')
   return {
     items: (data?.items || []) as Product[],
     total: Number(data?.total) || 0,
@@ -137,6 +146,15 @@ const isVideoUrl = (url: string) => {
 const isYouTubeUrl = (url: string) => {
   if (!url) return false
   return /youtu\.be\//i.test(url) || /youtube\.com\//i.test(url)
+}
+
+const slugifyCategory = (value: string) => {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'groupbuy' | 'import'
@@ -431,7 +449,7 @@ export default function AdminProductManager() {
     price: undefined, // Prix public direct (optionnel si baseCost ou price1688 défini)
     b2bPrice: undefined,
     baseCost: undefined, // Coût d'achat fournisseur
-    marginRate: 30, // Marge par défaut 30%
+    marginRate: 0, // Marge par défaut 0%
     currency: 'FCFA',
     image: '',
     gallery: [],
@@ -456,15 +474,19 @@ export default function AdminProductManager() {
     variantOptions: [],
     // Variantes avec prix et images
     variantGroups: [],
-    availabilityNote: 'Import direct Chine avec livraison express (3j), aérien (15j) ou maritime (60j)',
+    availabilityNote: '',
     sourcing: {},
     shippingOverrides: [],
-    isPublished: true,
+    isPublished: false,
     isFeatured: false,
+    // Canaux de distribution
+    channels: ['marketplace'],
+    corporateVisible: false,
     // Configuration achat groupé
     groupBuyEnabled: false,
     groupBuyMinQty: 10,
     groupBuyTargetQty: 50,
+    minOrderQty: 1,
     priceTiers: [],
     // Informations 1688
     price1688: undefined,
@@ -479,15 +501,19 @@ export default function AdminProductManager() {
   const [pageSize, setPageSize] = useState(50)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [listError, setListError] = useState<'refresh' | 'more' | null>(null)
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [conditionFilter, setConditionFilter] = useState<string>('')
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; count: number }>>([])
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ category: string; label: string; count: number; subCategories?: Array<{ slug: string; name: string; label?: string; icon?: string }> }>>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkAction, setBulkAction] = useState<'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category'>(
-    'none'
-  )
+  const [bulkAction, setBulkAction] = useState<
+    'none' | 'publish' | 'unpublish' | 'feature' | 'unfeature' | 'set-category' |
+    'set-channel-marketplace' | 'set-channel-corporate' | 'set-channel-xeuy-bi' |
+    'unset-channel-marketplace' | 'unset-channel-corporate' | 'unset-channel-xeuy-bi' |
+    'set-corporate-visible' | 'set-corporate-hidden'
+  >('none')
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
   const [autoPrice, setAutoPrice] = useState(false)
@@ -501,14 +527,17 @@ export default function AdminProductManager() {
   const [dragOverDesc, setDragOverDesc] = useState(false)
   const [dragItem, setDragItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
   const [dragOverItem, setDragOverItem] = useState<{ type: 'gallery' | 'desc'; index: number } | null>(null)
+  const [seedingCategories, setSeedingCategories] = useState(false)
+  const [creatingCategory, setCreatingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
-    { id: 'details', label: 'Détails & logistique', description: 'Poids, dimensions, disponibilité', icon: Layers },
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
-    { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
-    { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
-    { id: 'groupbuy', label: 'Achat Groupé', description: 'Prix dégressifs par quantité', icon: Users },
+    { id: 'variants', label: 'Variantes', description: 'Choix, coûts source et stock', icon: Settings },
+    { id: 'details', label: 'Stock & expédition', description: 'Disponibilité, poids et dimensions', icon: Truck },
+    { id: 'pricing', label: 'Prix & transport', description: 'Prix, marges et tarifs', icon: Package },
+    { id: 'groupbuy', label: 'Lots & groupes', description: 'Minimum et prix dégressifs', icon: Users },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
@@ -520,16 +549,21 @@ export default function AdminProductManager() {
       tags: item.tags || [],
       colorOptions: item.colorOptions || [],
       variantOptions: item.variantOptions || [],
-      shippingOverrides: ensureOverrides(item.shippingOverrides)
+      shippingOverrides: ensureOverrides(item.shippingOverrides),
+      channels: (Array.isArray(item.channels) && item.channels.length > 0 ? item.channels : ['marketplace']) as Product['channels'],
+      corporateVisible: !!item.corporateVisible
     }))
 
   const refresh = async () => {
     setLoading(true)
+    setListError(null)
     try {
       const result = await fetchProducts(query, category, conditionFilter, { skip: 0, limit: pageSize })
       setItems(normalizeItems(result.items))
       setTotalCount(result.total || result.items.length)
       setSelectedIds(new Set())
+    } catch {
+      setListError('refresh')
     } finally {
       setLoading(false)
     }
@@ -539,6 +573,7 @@ export default function AdminProductManager() {
     if (loading || loadingMore) return
     if (totalCount > 0 && items.length >= totalCount) return
     setLoadingMore(true)
+    setListError(null)
     try {
       const result = await fetchProducts(query, category, conditionFilter, { skip: items.length, limit: pageSize })
       const next = normalizeItems(result.items)
@@ -554,34 +589,121 @@ export default function AdminProductManager() {
         return merged
       })
       setTotalCount(result.total || totalCount)
+    } catch {
+      setListError('more')
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const loadCategoryOptions = async () => {
+    setCategoryOptions(
+      defaultProductCategories.map(c => ({
+        category: c.id,
+        label: c.name,
+        count: 0,
+        subCategories: (c.subCategories || []).map((s) => ({
+          slug: s.id,
+          name: s.name,
+          label: s.name,
+          icon: s.icon
+        }))
+      }))
+    )
+
+    try {
+      const res = await fetch('/api/products/categories', { credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.success && Array.isArray(data.items) && data.items.length > 0) {
+        setCategoryOptions(
+          data.items
+            .map((it: any) => ({
+              category: String(it.category || ''),
+              label: String(it.label || it.name || it.category || ''),
+              count: Number(it.count) || 0,
+              subCategories: (it.subCategories || []).map((s: any) => ({
+                slug: String(s.slug || ''),
+                name: String(s.label || s.name || s.slug || ''),
+                label: String(s.label || s.name || s.slug || ''),
+                icon: s.icon || 'tag'
+              }))
+            }))
+            .filter((it: any) => it.category)
+        )
+      }
+    } catch {
+      // fallback déjà appliqué au début de la fonction
+    }
+  }
+
+  const resetCategories = async () => {
+    if (seedingCategories) return
+    if (!window.confirm('Réinitialiser les catégories produits depuis la liste par défaut ?')) return
+
+    setSeedingCategories(true)
+    try {
+      const res = await fetch('/api/admin/catalog/categories/seed', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Impossible de réinitialiser les catégories')
+      }
+
+      await loadCategoryOptions()
+
+      const summary = data?.summary
+      const details = summary
+        ? `\nCréées: ${Number(summary.created) || 0}\nMises à jour: ${Number(summary.updated) || 0}`
+        : ''
+      alert(`Catégories réinitialisées avec succès.${details}`)
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de la réinitialisation des catégories')
+    } finally {
+      setSeedingCategories(false)
+    }
+  }
+
+  const createCategory = async () => {
+    const name = newCategoryName.trim()
+    if (!name || creatingCategory) return
+
+    const slug = slugifyCategory(name)
+    if (!slug) {
+      alert('Nom de catégorie invalide')
+      return
+    }
+
+    setCreatingCategory(true)
+    try {
+      const res = await fetch('/api/admin/catalog/categories', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, slug })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Impossible d\'ajouter la catégorie')
+      }
+
+      setNewCategoryName('')
+      await loadCategoryOptions()
+
+      const action = data?.action === 'updated' ? 'mise à jour' : 'ajoutée'
+      alert(`Catégorie ${action} avec succès: ${name}`)
+    } catch (e: any) {
+      alert(e?.message || 'Erreur lors de l\'ajout de la catégorie')
+    } finally {
+      setCreatingCategory(false)
     }
   }
 
   useEffect(() => { refresh() }, [])
 
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = await fetch('/api/products/categories', { credentials: 'include' })
-        const data = await res.json().catch(() => ({}))
-        if (!mounted) return
-        if (res.ok && data?.success && Array.isArray(data.items)) {
-          setCategoryOptions(
-            data.items
-              .map((it: any) => ({ category: String(it.category || ''), count: Number(it.count) || 0 }))
-              .filter((it: any) => it.category)
-          )
-        }
-      } catch {
-        // ignore: suggestions only
-      }
-    })()
-    return () => {
-      mounted = false
-    }
+    loadCategoryOptions()
   }, [])
 
   // État pour le brouillon
@@ -651,26 +773,72 @@ export default function AdminProductManager() {
     if (!autoPrice || !editing) return
     if (typeof editing.baseCost !== 'number') return
     const margin = typeof editing.marginRate === 'number' ? editing.marginRate : (empty.marginRate || 0)
-    const computed = Math.round(editing.baseCost * (1 + margin / 100))
+    const serviceFee = editing.serviceFeeRate || 10
+    const insurance = editing.insuranceRate || 2.5
+    const computed = Math.round(editing.baseCost * (1 + (margin + serviceFee + insurance) / 100))
     if (editing.price === computed) return
     setEditing(prev => {
       if (!prev || !autoPrice) return prev
       if (typeof prev.baseCost !== 'number') return prev
       const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : (empty.marginRate || 0)
-      const recomputed = Math.round(prev.baseCost * (1 + marginPrev / 100))
+      const serviceFeePrev = prev.serviceFeeRate || 10
+      const insurancePrev = prev.insuranceRate || 2.5
+      const recomputed = Math.round(prev.baseCost * (1 + (marginPrev + serviceFeePrev + insurancePrev) / 100))
       if (prev.price === recomputed) return prev
       return { ...prev, price: recomputed }
     })
-  }, [autoPrice, editing?.baseCost, editing?.marginRate])
+  }, [autoPrice, editing?.baseCost, editing?.marginRate, editing?.serviceFeeRate, editing?.insuranceRate])
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const editorSnapshot = useRef('')
+  const editorOpen = !!editing
+  useEffect(() => {
+    if (!editorOpen) return
+    editorSnapshot.current = JSON.stringify(editing)
+    const previous = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    editorRef.current?.focus()
+    return () => { document.body.style.overflow = overflow; previous?.focus() }
+  }, [editorOpen])
+  const closeEditor = () => {
+    if (saving) return
+    if (JSON.stringify(editing) !== editorSnapshot.current && !window.confirm('Fermer sans enregistrer les modifications ?')) return
+    setEditing(null)
+    setSaveError(null)
+  }
 
   const onSave = async () => {
     if (!editing) return
     setSaveError(null)
+    const configurationError = productConfigurationError(editing)
+    if (configurationError) {
+      setSaveError(configurationError)
+      return
+    }
+
+    // Validation basique
+    if (!editing.name.trim()) {
+      setSaveError('Le nom du produit est requis')
+      return
+    }
+    if (!editing.category?.trim()) {
+      setSaveError('La catégorie est requise')
+      return
+    }
+    const hasAnyPrice =
+      typeof editing.baseCost === 'number' && editing.baseCost > 0 ||
+      typeof editing.price1688 === 'number' && editing.price1688 > 0 ||
+      typeof editing.price === 'number' && editing.price > 0
+    if (!hasAnyPrice && !editing.requiresQuote) {
+      setSaveError('Renseignez un prix, un coût de base ou cochez "Sur devis"')
+      return
+    }
+
     setSaving(true)
-    
+
     try {
       const method = editing._id ? 'PATCH' : 'POST'
       const payload: Record<string, unknown> = {
@@ -763,9 +931,18 @@ export default function AdminProductManager() {
     if (bulkAction === 'feature') set.isFeatured = true
     if (bulkAction === 'unfeature') set.isFeatured = false
     if (bulkAction === 'set-category') set.category = bulkCategory
+    if (bulkAction === 'set-corporate-visible') set.corporateVisible = true
+    if (bulkAction === 'set-corporate-hidden') set.corporateVisible = false
+
+    const channelToggle = bulkAction.startsWith('set-channel-') || bulkAction.startsWith('unset-channel-')
+    if (channelToggle) {
+      const channel = bulkAction.replace('set-channel-', '').replace('unset-channel-', '') as 'marketplace' | 'corporate' | 'xeuy-bi'
+      if (bulkAction.startsWith('set-channel-')) set.addChannel = channel
+      else set.removeChannel = channel
+    }
 
     if (bulkAction === 'set-category' && !String(bulkCategory || '').trim()) {
-      alert('Veuillez saisir une catégorie (ou laissez vide pour supprimer).')
+      alert('Veuillez choisir une catégorie dans la liste.')
       return
     }
 
@@ -778,7 +955,15 @@ export default function AdminProductManager() {
         ? 'Mettre en avant'
         : bulkAction === 'unfeature'
         ? 'Retirer mise en avant'
-        : 'Changer catégorie'
+        : bulkAction === 'set-category'
+        ? 'Changer catégorie'
+        : bulkAction === 'set-corporate-visible'
+        ? 'Rendre visible corporate'
+        : bulkAction === 'set-corporate-hidden'
+        ? 'Masquer corporate'
+        : bulkAction.startsWith('set-channel-')
+        ? `Ajouter canal ${bulkAction.replace('set-channel-', '')}`
+        : `Retirer canal ${bulkAction.replace('unset-channel-', '')}`
 
     if (!confirm(`${label} sur ${selectedCount} produit(s) ?`)) return
 
@@ -808,7 +993,7 @@ export default function AdminProductManager() {
     if (typeof product.price === 'number') return formatCurrency(product.price, product.currency)
     if (typeof product.b2bPrice === 'number') return formatCurrency(product.b2bPrice, product.currency)
     if (typeof product.baseCost === 'number') {
-      const margin = typeof product.marginRate === 'number' ? product.marginRate : 25
+      const margin = typeof product.marginRate === 'number' ? product.marginRate : 0
       const sale = Math.round(product.baseCost * (1 + margin / 100))
       return formatCurrency(sale, product.currency)
     }
@@ -816,9 +1001,13 @@ export default function AdminProductManager() {
   }
 
   const suggestedSalePrice = (product: Product): number | undefined => {
-    if (typeof product.baseCost !== 'number') return undefined
+    const base = typeof product.baseCost === 'number' ? product.baseCost : ((product.price1688 || 0) * (product.exchangeRate || 100))
+    if (base <= 0) return undefined
     const margin = typeof product.marginRate === 'number' ? product.marginRate : (empty.marginRate || 0)
-    return Math.round(product.baseCost * (1 + margin / 100))
+    const serviceFee = base * ((product.serviceFeeRate || 10) / 100)
+    const insurance = base * ((product.insuranceRate || 2.5) / 100)
+    const marginAmount = base * (margin / 100)
+    return Math.round(base + serviceFee + insurance + marginAmount)
   }
 
   const suggestedPrice = editing ? suggestedSalePrice(editing) : undefined
@@ -1020,25 +1209,37 @@ export default function AdminProductManager() {
             Fiche produit
           </div>
           <div className="mt-4 space-y-3">
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Nom du produit"
-              value={editing.name}
-              onChange={e => setEditing({ ...editing, name: e.target.value })}
-            />
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Accroche / bénéfice principal"
-              value={editing.tagline || ''}
-              onChange={e => setEditing({ ...editing, tagline: e.target.value })}
-            />
-            <input
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              placeholder="Catégorie (ex: Vidéosurveillance)"
-              value={editing.category || ''}
-              list="admin-product-categories"
-              onChange={e => setEditing({ ...editing, category: e.target.value })}
-            />
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">Nom du produit *</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Ex: Caméra Hikvision 4MP PoE"
+                value={editing.name}
+                onChange={e => setEditing({ ...editing, name: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">Accroche / bénéfice principal</span>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                placeholder="Ex: Surveillance HD, vision nocturne 30m, installation plug & play"
+                value={editing.tagline || ''}
+                onChange={e => setEditing({ ...editing, tagline: e.target.value })}
+              />
+            </label>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Catégorie *</label>
+              <CategorySelect
+                value={editing.category || ''}
+                options={categoryOptions}
+                onChange={(val) => setEditing({ ...editing, category: val })}
+                placeholder="Choisir une catégorie"
+                showSubCategories={true}
+                showCounts={true}
+                allowEmpty={false}
+                className="w-full"
+              />
+            </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-1">
@@ -1269,6 +1470,41 @@ export default function AdminProductManager() {
             </label>
           </div>
         </div>
+
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
+            <Share2 className="h-4 w-4" />
+            Canaux de distribution
+          </div>
+          <div className="mt-4 flex flex-wrap gap-4">
+            {(['marketplace', 'corporate', 'xeuy-bi'] as const).map((channel) => (
+              <label key={channel} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={(editing.channels || []).includes(channel)}
+                  onChange={(e) => {
+                    const current = new Set(editing.channels || [])
+                    if (e.target.checked) {
+                      current.add(channel)
+                    } else {
+                      current.delete(channel)
+                    }
+                    setEditing({ ...editing, channels: Array.from(current) as Product['channels'] })
+                  }}
+                />
+                <span className="capitalize">{channel === 'xeuy-bi' ? 'Xeuy Bi (pièces)' : channel}</span>
+              </label>
+            ))}
+          </div>
+          <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={!!editing.corporateVisible}
+              onChange={(e) => setEditing({ ...editing, corporateVisible: e.target.checked })}
+            />
+            <span className="font-medium text-blue-900">Visible sur le catalogue corporate (itvisionplus.sn/produits)</span>
+          </label>
+        </div>
       </div>
     )
   }
@@ -1277,11 +1513,6 @@ export default function AdminProductManager() {
     if (!editing) return null
     return (
       <div className="space-y-6">
-        <datalist id="admin-product-categories">
-          {categoryOptions.map((it) => (
-            <option key={it.category} value={it.category} />
-          ))}
-        </datalist>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
             <Layers className="h-4 w-4" />
@@ -1319,7 +1550,7 @@ export default function AdminProductManager() {
               />
             </label>
             <label className="space-y-1">
-              <span>Promesse client (jours)</span>
+              <span>Délai indicatif (jours)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
@@ -1730,9 +1961,10 @@ export default function AdminProductManager() {
               />
             </label>
           </div>
-          <div className="mt-4 flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
-            <label className="inline-flex items-center gap-2 text-sm">
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-start gap-3">
               <input
+                id="autoPrice"
                 type="checkbox"
                 checked={autoPrice}
                 onChange={e => {
@@ -1745,14 +1977,28 @@ export default function AdminProductManager() {
                     }
                   }
                 }}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
-              Calcul automatique du prix public (coût + marge)
-            </label>
-            {autoPrice && typeof suggestedPrice === 'number' && (
-              <span className="text-sm font-semibold text-emerald-600">
-                Suggestion: {formatCurrency(suggestedPrice, editing.currency)}
-              </span>
-            )}
+              <div className="flex-1">
+                <label htmlFor="autoPrice" className="block text-sm font-medium text-gray-900 cursor-pointer">
+                  Calcul automatique du prix public
+                </label>
+                <p className="text-xs text-gray-500">
+                  Le prix public se met à jour automatiquement à partir du coût fournisseur, de la marge, des frais de service et de l&apos;assurance.
+                </p>
+                {autoPrice && typeof suggestedPrice === 'number' && (
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700">
+                    <Calculator className="h-4 w-4" />
+                    Prix calculé : {formatCurrency(suggestedPrice, editing.currency)}
+                  </div>
+                )}
+                {autoPrice && suggestedPrice === undefined && (
+                  <div className="mt-2 text-xs text-amber-600">
+                    Renseignez un coût fournisseur ou un prix source pour activer le calcul.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           {/* Indicateur de validation du prix */}
           {!editing.requiresQuote && !editing.price && !editing.b2bPrice && !editing.baseCost && !editing.price1688 && (
@@ -1779,10 +2025,12 @@ export default function AdminProductManager() {
                     ? formatCurrency(editing.price, editing.currency)
                     : editing.b2bPrice
                       ? formatCurrency(editing.b2bPrice, editing.currency)
-                      : editing.baseCost && editing.marginRate
-                      ? formatCurrency(Math.round(editing.baseCost * (1 + (editing.marginRate || 25) / 100)), editing.currency)
-                      : editing.price1688 && editing.exchangeRate
-                        ? `Calculé depuis prix source: ${formatCurrency(Math.round(editing.price1688 * (editing.exchangeRate || 100) * (1 + (editing.marginRate || 25) / 100)), editing.currency)}`
+                      : editing.baseCost || editing.price1688
+                        ? (() => {
+                            const base = editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))
+                            const total = Math.round(base * (1 + ((editing.marginRate || 0) + (editing.serviceFeeRate || 10) + (editing.insuranceRate || 2.5)) / 100))
+                            return formatCurrency(total, editing.currency)
+                          })()
                         : 'Sera calculé automatiquement'
                 }
               </span>
@@ -2124,11 +2372,8 @@ export default function AdminProductManager() {
   // Ajoute une variante à un groupe
   const addVariant = (groupIndex: number) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants.push({
-      id: generateVariantId(),
-      name: `Variante ${groups[groupIndex].variants.length + 1}`,
-      stock: 0
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: [...group.variants, { id: generateVariantId(), name: `Variante ${group.variants.length + 1}`, stock: 0 }]
     })
     setEditing({ ...editing, variantGroups: groups })
   }
@@ -2136,47 +2381,43 @@ export default function AdminProductManager() {
   // Supprime une variante
   const removeVariant = (groupIndex: number, variantIndex: number) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants.splice(variantIndex, 1)
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: group.variants.filter((_, optionIndex) => optionIndex !== variantIndex)
+    })
     setEditing({ ...editing, variantGroups: groups })
   }
 
   // Met à jour une variante
   const updateVariant = (groupIndex: number, variantIndex: number, updates: Partial<ProductVariant>) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants[variantIndex] = {
-      ...groups[groupIndex].variants[variantIndex],
-      ...updates
-    }
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: group.variants.map((option, optionIndex) => optionIndex !== variantIndex ? option : { ...option, ...updates })
+    })
     setEditing({ ...editing, variantGroups: groups })
   }
 
   const renderVariantsTab = () => {
     if (!editing) return null
     const exchangeRate = editing.exchangeRate || 100
-    
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        <section aria-label="Variantes du produit" className="min-w-0 bg-white py-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
               <Settings className="h-4 w-4" />
-              Variantes du produit (style 1688)
+              Variantes du produit
             </div>
             <button
               type="button"
               onClick={addVariantGroup}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+              className="inline-flex min-h-11 items-center gap-1 px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-sm hover:bg-emerald-800"
             >
               <Plus className="h-4 w-4" /> Ajouter un groupe
             </button>
           </div>
           
-          <p className="text-xs text-gray-500 mb-4">
-            Créez des variantes avec leurs prix et images spécifiques (ex: Couleur, Taille, Norme...). 
-            Le prix en Yuan sera automatiquement converti en FCFA.
-          </p>
+          <p className="text-sm text-gray-600 mb-4">Un choix par groupe. Les montants sont des coûts fournisseur ; entre plusieurs options tarifées, le coût le plus élevé s'applique.</p>
+          <p className="mb-4 text-sm font-medium text-gray-700">{editing.stockStatus === 'in_stock' ? `Stock global Dakar : ${editing.stockQuantity ?? 0} unité(s). Les stocks des groupes ne s'additionnent pas.` : editing.stockStatus === 'out_of_stock' ? 'Produit indisponible à la commande.' : 'Commande Chine : stock indicatif, approvisionnement à la demande.'}</p>
 
           {(!editing.variantGroups || editing.variantGroups.length === 0) ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
@@ -2188,10 +2429,11 @@ export default function AdminProductManager() {
             <div className="space-y-6">
               {editing.variantGroups.map((group, groupIndex) => (
                 <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <input
                       type="text"
-                      className="text-lg font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none px-1"
+                      aria-label={`Nom du groupe ${groupIndex + 1}`}
+                      className="min-h-11 min-w-0 w-full font-semibold text-gray-800 bg-white border border-gray-300 rounded-lg px-2"
                       value={group.name}
                       onChange={e => updateVariantGroupName(groupIndex, e.target.value)}
                       placeholder="Nom du groupe (ex: Couleur)"
@@ -2200,14 +2442,14 @@ export default function AdminProductManager() {
                       <button
                         type="button"
                         onClick={() => addVariant(groupIndex)}
-                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        className="inline-flex min-h-11 items-center gap-1 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
-                        + Variante
+                        <Plus className="h-4 w-4"/> Variante
                       </button>
                       <button
                         type="button"
                         onClick={() => removeVariantGroup(groupIndex)}
-                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className="min-h-11 text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Supprimer groupe
                       </button>
@@ -2216,9 +2458,9 @@ export default function AdminProductManager() {
                   
                   <div className="space-y-3">
                     {group.variants.map((variant, variantIndex) => (
-                      <div key={variant.id} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                      <div key={variant.id} className="grid grid-cols-[48px_minmax(0,1fr)] items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
                         {/* Image variante */}
-                        <div className="w-16 h-16 flex-shrink-0">
+                        <div className="w-12 h-12">
                           {variant.image ? (
                             <img src={variant.image} alt={variant.name} className="w-full h-full object-cover rounded-lg" />
                           ) : (
@@ -2229,11 +2471,12 @@ export default function AdminProductManager() {
                         </div>
                         
                         {/* Infos variante */}
-                        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <div className="min-w-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                           <div>
                             <label className="text-xs text-gray-500">Nom *</label>
                             <input
                               type="text"
+                              aria-label={`Nom variante ${groupIndex + 1}-${variantIndex + 1}`}
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.name}
                               onChange={e => updateVariant(groupIndex, variantIndex, { name: e.target.value })}
@@ -2241,26 +2484,45 @@ export default function AdminProductManager() {
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Prix (¥)</label>
+                            <label className="text-xs text-gray-500">SKU</label>
+                            <input
+                              type="text"
+                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                              value={variant.sku || ''}
+                              aria-label={`SKU ${variant.name}`}
+                              onChange={e => updateVariant(groupIndex, variantIndex, { sku: e.target.value })}
+                              placeholder="SKU-001"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">Coût fournisseur (CNY)</label>
                             <input
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.price1688 ?? ''}
+                              aria-label={`Coût CNY ${variant.name}`}
+                              min="0"
                               onChange={e => {
                                 const price1688 = e.target.value ? Number(e.target.value) : undefined
-                                const priceFCFA = price1688 ? Math.round(price1688 * exchangeRate) : undefined
+                                const priceFCFA = typeof price1688 === 'number' ? Math.round(price1688 * exchangeRate) : undefined
                                 updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
                               }}
-                              placeholder="57"
+                              placeholder="Global"
                             />
+                            <span className="text-[10px] text-gray-400">Vide = choix sans impact sur le prix</span>
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Prix FCFA</label>
+                            <label className="text-xs text-gray-600">Coût fournisseur (FCFA)</label>
                             <input
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
                               value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
-                              readOnly
+                              aria-label={`Coût FCFA ${variant.name}`}
+                              min="0"
+                              onChange={e => {
+                                const priceFCFA = e.target.value ? Number(e.target.value) : undefined
+                                updateVariant(groupIndex, variantIndex, { priceFCFA })
+                              }}
                               placeholder="Auto"
                             />
                           </div>
@@ -2270,16 +2532,20 @@ export default function AdminProductManager() {
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.stock}
+                              aria-label={`Stock ${variant.name}`}
+                              min="0"
+                              step="1"
                               onChange={e => updateVariant(groupIndex, variantIndex, { stock: Number(e.target.value) || 0 })}
                               placeholder="0"
                             />
                           </div>
                           <div>
                             <label className="text-xs text-gray-500">Image variante</label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <input
                                 type="text"
-                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="min-w-0 w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                                aria-label={`Image ${variant.name}`}
                                 value={variant.image || ''}
                                 onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
                                 placeholder="URL ou uploadée"
@@ -2323,7 +2589,7 @@ export default function AdminProductManager() {
                         </div>
                         
                         {/* Actions */}
-                        <div className="flex flex-col gap-1">
+                        <div className="col-start-2 flex flex-wrap items-center justify-between gap-2">
                           <label className="flex items-center gap-1 text-xs">
                             <input
                               type="radio"
@@ -2331,11 +2597,9 @@ export default function AdminProductManager() {
                               checked={variant.isDefault}
                               onChange={() => {
                                 // Désélectionner toutes les autres variantes du groupe
-                                const groups = [...(editing.variantGroups || [])]
-                                groups[groupIndex].variants = groups[groupIndex].variants.map((v, i) => ({
-                                  ...v,
-                                  isDefault: i === variantIndex
-                                }))
+                                const groups = (editing.variantGroups || []).map((entry, index) => index !== groupIndex ? entry : {
+                                  ...entry, variants: entry.variants.map((option, optionIndex) => ({ ...option, isDefault: optionIndex === variantIndex }))
+                                })
                                 setEditing({ ...editing, variantGroups: groups })
                               }}
                             />
@@ -2344,7 +2608,8 @@ export default function AdminProductManager() {
                           <button
                             type="button"
                             onClick={() => removeVariant(groupIndex, variantIndex)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            className="grid h-11 w-11 place-items-center text-red-700 hover:bg-red-50 rounded"
+                            aria-label={`Supprimer ${variant.name}`}
                             title="Supprimer"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -2357,7 +2622,7 @@ export default function AdminProductManager() {
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Résumé des variantes */}
         {editing.variantGroups && editing.variantGroups.length > 0 && (
@@ -2373,18 +2638,15 @@ export default function AdminProductManager() {
                 <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.length, 0)}</strong>
               </div>
               <div>
-                <span className="text-blue-600">Stock total :</span>{' '}
-                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
+                <span className="text-blue-600">Stock global :</span>{' '}
+                <strong>{editing.stockStatus === 'in_stock' ? editing.stockQuantity ?? 0 : 'Sur commande / indisponible'}</strong>
               </div>
               <div>
-                <span className="text-blue-600">Prix min/max :</span>{' '}
+                <span className="text-blue-600">Prix spécifiques :</span>{' '}
                 <strong>
                   {(() => {
-                    const prices = editing.variantGroups.flatMap(g => g.variants.map(v => v.price1688).filter(p => p !== undefined)) as number[]
-                    if (prices.length === 0) return '-'
-                    const min = Math.min(...prices)
-                    const max = Math.max(...prices)
-                    return min === max ? `¥${min}` : `¥${min} - ¥${max}`
+                    const withPrice = editing.variantGroups.flatMap(g => g.variants.filter(v => v.price1688 || v.priceFCFA))
+                    return withPrice.length > 0 ? `${withPrice.length} variante(s)` : 'Aucun (prix global)'
                   })()}
                 </strong>
               </div>
@@ -2505,6 +2767,29 @@ export default function AdminProductManager() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Lot minimum (MOQ) — s'applique à la commande standard */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-700 mb-4">
+            <Package className="h-4 w-4" />
+            Lot minimum (MOQ)
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-500">Quantité minimum par commande</label>
+              <input
+                type="number"
+                min="1"
+                value={editing.minOrderQty ?? 1}
+                onChange={e => setEditing({ ...editing, minOrderQty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                1 = pas de lot. Au-delà, le panier et le checkout exigent cette quantité minimum.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Paliers de prix */}
@@ -2638,14 +2923,47 @@ export default function AdminProductManager() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gestion des Produits</h1>
           <p className="text-sm text-gray-500">Pilotez votre sourcing Chine & vos tarifs transport depuis une seule interface.</p>
         </div>
-        <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
-          <Plus className="h-4 w-4" /> Nouveau produit
-        </button>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  createCategory()
+                }
+              }}
+              placeholder="Nouvelle catégorie"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:w-56"
+            />
+            <button
+              onClick={createCategory}
+              disabled={creatingCategory || !newCategoryName.trim()}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {creatingCategory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Ajouter catégorie
+            </button>
+          </div>
+          <button
+            onClick={resetCategories}
+            disabled={seedingCategories}
+            className="inline-flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
+          >
+            {seedingCategories ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Réinitialiser catégories
+          </button>
+          <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
+            <Plus className="h-4 w-4" /> Nouveau produit
+          </button>
+        </div>
       </div>
 
       {/* Alerte brouillon disponible */}
@@ -2708,12 +3026,20 @@ export default function AdminProductManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher par nom" className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
-        <input
+        <CategorySelect
           value={category}
-          onChange={e => setCategory(e.target.value)}
+          options={categoryOptions}
+          onChange={(val) => {
+            setCategory(val)
+            setTimeout(() => refresh(), 0)
+          }}
           placeholder="Catégorie"
-          list="admin-product-categories"
-          className="w-48 border rounded-lg px-3 py-2 text-sm"
+          showSubCategories={true}
+          showCounts={true}
+          allowEmpty={true}
+          emptyLabel="Toutes les catégories"
+          size="sm"
+          className="w-48"
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -2773,7 +3099,7 @@ export default function AdminProductManager() {
           </div>
           <select
             value={bulkAction}
-            onChange={(e) => setBulkAction(e.target.value as any)}
+            onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)}
             className="h-9 rounded-lg border px-2 text-sm"
           >
             <option value="none">Actions…</option>
@@ -2782,14 +3108,30 @@ export default function AdminProductManager() {
             <option value="feature">Mettre en avant</option>
             <option value="unfeature">Retirer mise en avant</option>
             <option value="set-category">Changer catégorie</option>
+            <optgroup label="Canaux">
+              <option value="set-channel-marketplace">+ Canal Marketplace</option>
+              <option value="set-channel-corporate">+ Canal Corporate</option>
+              <option value="set-channel-xeuy-bi">+ Canal Xeuy Bi</option>
+              <option value="unset-channel-marketplace">- Canal Marketplace</option>
+              <option value="unset-channel-corporate">- Canal Corporate</option>
+              <option value="unset-channel-xeuy-bi">- Canal Xeuy Bi</option>
+            </optgroup>
+            <optgroup label="Corporate">
+              <option value="set-corporate-visible">Visible corporate</option>
+              <option value="set-corporate-hidden">Masquer corporate</option>
+            </optgroup>
           </select>
           {bulkAction === 'set-category' && (
-            <input
+            <CategorySelect
               value={bulkCategory}
-              onChange={(e) => setBulkCategory(e.target.value)}
+              options={categoryOptions}
+              onChange={(val) => setBulkCategory(val)}
               placeholder="Nouvelle catégorie"
-              list="admin-product-categories"
-              className="h-9 w-52 rounded-lg border px-3 text-sm"
+              showSubCategories={true}
+              showCounts={true}
+              allowEmpty={false}
+              size="sm"
+              className="w-52"
             />
           )}
           <button
@@ -2802,6 +3144,12 @@ export default function AdminProductManager() {
         </div>
       </div>
 
+      {listError && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <span>{listError === 'more' ? 'Impossible de charger les produits suivants.' : 'Le catalogue est temporairement indisponible.'} {items.length > 0 && 'Les produits affichés peuvent ne plus être à jour.'}</span>
+          <button type="button" className="min-h-11 px-3 font-semibold underline" onClick={() => listError === 'more' ? loadMore() : refresh()}>Réessayer le chargement</button>
+        </div>
+      )}
       <div className="overflow-x-auto bg-white rounded-xl border">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
@@ -2825,7 +3173,7 @@ export default function AdminProductManager() {
             {loading ? (
               <tr><td colSpan={6} className="p-6 text-center text-gray-500"><Loader2 className="h-4 w-4 inline animate-spin" /> Chargement...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Aucun produit</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500">{listError ? 'Chargement indisponible' : 'Aucun produit'}</td></tr>
             ) : (
               items.map(product => (
                 <tr key={product._id} className="border-t">
@@ -2858,6 +3206,15 @@ export default function AdminProductManager() {
                           {product.isFeatured && (
                             <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">⭐ Mis en avant</span>
                           )}
+                          {(product.channels || []).includes('corporate') || product.corporateVisible ? (
+                            <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Corporate</span>
+                          ) : null}
+                          {(product.channels || []).includes('marketplace') ? (
+                            <span className="text-[10px] text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">Market</span>
+                          ) : null}
+                          {(product.channels || []).includes('xeuy-bi') ? (
+                            <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Xeuy Bi</span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -2949,25 +3306,34 @@ export default function AdminProductManager() {
 
       {editing && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 px-4 py-8 overflow-y-auto"
-          onClick={() => setEditing(null)}
+          className="fixed inset-0 z-50 bg-black/40 px-2 py-4 sm:px-4"
+          onClick={closeEditor}
         >
           <div
-            className="mx-auto w-full max-w-6xl rounded-2xl bg-white shadow-2xl"
+            ref={editorRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-editor-title"
+            tabIndex={-1}
+            className="mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-y-auto rounded-lg bg-white text-gray-900 shadow-2xl"
             onClick={e => e.stopPropagation()}
+            onKeyDown={event => {
+              if (event.key === 'Escape') { event.stopPropagation(); closeEditor() }
+              if (event.key !== 'Tab') return
+              const controls = Array.from(editorRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || []).filter(element => element.getClientRects().length > 0)
+              const first = controls[0]
+              const last = controls[controls.length - 1]
+              if (event.shiftKey && (document.activeElement === first || document.activeElement === editorRef.current)) { event.preventDefault(); last?.focus() }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+            }}
           >
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
               <div>
-                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                <h3 id="product-editor-title" className="text-lg font-semibold text-gray-900">
                   {editing._id ? 'Modifier le produit' : 'Créer un produit'}
-                  {!editing._id && (
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">
-                      Workflow import & logistique
-                    </span>
-                  )}
                 </h3>
-                <div className="flex items-center gap-4">
-                  <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-gray-600">{editing.isPublished ? 'Publication activée' : 'Brouillon'} · {editing.stockStatus === 'in_stock' ? 'Stock Dakar' : editing.stockStatus === 'out_of_stock' ? 'Indisponible' : 'Commande Chine'}</p>
                   {/* Indicateur de sauvegarde automatique */}
                   {!editing._id && lastSaved && (
                     <span className="text-xs text-green-600 flex items-center gap-1">
@@ -2981,14 +3347,16 @@ export default function AdminProductManager() {
               </div>
               <button
                 type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-lg border border-transparent p-1.5 text-gray-400 transition hover:border-gray-200 hover:bg-gray-100 hover:text-gray-600"
+                onClick={closeEditor}
+                aria-label="Fermer l’éditeur produit"
+                disabled={saving}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex flex-col gap-6 px-6 py-6 md:flex-row">
-              <nav className="flex flex-wrap gap-3 md:w-64 md:flex-col">
+            <div className="flex min-w-0 flex-col gap-4 p-4 lg:flex-row lg:gap-6 lg:p-6">
+              <nav aria-label="Sections du produit" className="flex gap-2 overflow-x-auto pb-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible">
                 {tabs.map(tab => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.id
@@ -2997,7 +3365,8 @@ export default function AdminProductManager() {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 md:flex-none inline-flex items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      aria-pressed={isActive}
+                      className={`inline-flex min-h-11 shrink-0 items-start gap-2 rounded-lg border px-3 py-2 text-left transition lg:w-full ${
                         isActive
                           ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm'
                           : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/60'
@@ -3005,18 +3374,18 @@ export default function AdminProductManager() {
                     >
                       <Icon className={`mt-0.5 h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
                       <div>
-                        <div className="text-sm font-semibold">{tab.label}</div>
-                        <div className="text-xs text-gray-500">{tab.description}</div>
+                        <div className="whitespace-nowrap text-sm font-semibold lg:whitespace-normal">{tab.label}</div>
+                        <div className="hidden text-xs text-gray-600 lg:block">{tab.description}</div>
                       </div>
                     </button>
                   )
                 })}
               </nav>
-              <div className="flex-1 space-y-6">
+              <div className="min-w-0 flex-1 space-y-6">
                 {renderTabContent()}
                 {/* Message d'erreur de sauvegarde */}
                 {saveError && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                  <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
                     <svg className="h-5 w-5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
@@ -3027,24 +3396,50 @@ export default function AdminProductManager() {
                   </div>
                 )}
                 
-                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    onClick={() => { setEditing(null); setSaveError(null) }}
-                    disabled={saving}
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    onClick={onSave}
-                    disabled={saving}
-                  >
-                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {saving ? 'Enregistrement...' : 'Enregistrer'}
-                  </button>
+                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      onClick={() => {
+                        const idx = tabs.findIndex((t) => t.id === activeTab)
+                        if (idx > 0) setActiveTab(tabs[idx - 1].id)
+                      }}
+                      disabled={saving || tabs.findIndex((t) => t.id === activeTab) === 0}
+                    >
+                      ← Précédent
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      onClick={() => {
+                        const idx = tabs.findIndex((t) => t.id === activeTab)
+                        if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
+                      }}
+                      disabled={saving || tabs.findIndex((t) => t.id === activeTab) === tabs.length - 1}
+                    >
+                      Suivant →
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                      onClick={closeEditor}
+                      disabled={saving}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      onClick={onSave}
+                      disabled={saving}
+                    >
+                      {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {saving ? 'Enregistrement...' : 'Enregistrer'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

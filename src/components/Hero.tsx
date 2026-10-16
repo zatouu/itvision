@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { CheckCircle, ArrowRight } from 'lucide-react'
-import ITVisionLogo from './ITVisionLogo'
+import { DDMLogo } from './branding/DDMLogo'
 import TechLines from './TechLines'
 
 const Hero = () => {
@@ -87,7 +87,7 @@ const Hero = () => {
               <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 border border-gray-200 shadow-xl modern-card">
                 <TechLines density="high" opacity={0.1} className="rounded-2xl" />
                 <div className="relative flex items-center justify-center h-64 md:h-80">
-                  <ITVisionLogo size={180} animated={true} />
+                  <DDMLogo variant="circular" size="hero" priority />
                 </div>
                 <div className="absolute top-4 right-4 bg-gradient-to-r from-emerald-500 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
                   Certifié IT Vision

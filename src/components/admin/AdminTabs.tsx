@@ -49,7 +49,7 @@ export default function AdminTabs({ context }: Props) {
   }
 
   return (
-    <div className="border-b border-gray-200 mb-6">
+    <div className="border-b border-stone-200 mb-6">
       <div className="flex items-center gap-2">
         {tabs.map((tab, index) => {
           const [tabPath, tabQuery = ''] = tab.href.split('?')
@@ -66,7 +66,7 @@ export default function AdminTabs({ context }: Props) {
               key={`${tab.href}-${tab.label}-${index}`}
               href={tab.href}
               className={`px-3 py-2 rounded-t-lg text-sm font-medium border-b-2 -mb-px ${
-                active ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-600 hover:text-gray-900'
+                active ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-600 hover:text-stone-900'
               }`}
             >
               {tab.label}

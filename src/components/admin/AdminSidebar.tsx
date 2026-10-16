@@ -16,7 +16,7 @@ import {
   Briefcase,
   AlertCircle,
   Settings,
-  CreditCard,
+  CreditCard, QrCode,
   ChevronRight,
   ChevronDown,
   ChevronLeft,
@@ -33,9 +33,22 @@ import {
   ListChecks,
   Wallet,
   TrendingDown,
-  Banknote
+  Banknote,
+  Star,
+  Mail,
+  Send,
+  Globe,
+  Search,
+  ImageIcon,
+  Eye,
+  Scale,
+  Store,
+  Bot,
+  Gift,
+  MapPin
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { getPageRule } from '@/lib/domains'
 
 interface MenuItem {
   id: string
@@ -45,196 +58,242 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-const menuItems: MenuItem[] = [
+/**
+ * Un lien de menu est visible si le registre domains.ts l'autorise pour ce rôle.
+ * Rôle inconnu (chargement) → tout est visible (comportement historique).
+ */
+function canSeeHref(href: string | undefined, role: string | null): boolean {
+  if (!href || !role) return true
+  const rule = getPageRule(href.split('?')[0])
+  if (!rule) return true
+  const access = rule.access
+  if (access === 'public' || access === 'auth') return true
+  if ('staffRoles' in access) return access.staffRoles.includes(role)
+  if ('profile' in access) return false
+  return true
+}
+
+function filterItemsByRole(items: MenuItem[], role: string | null): MenuItem[] {
+  return items
+    .map(item => item.children
+      ? { ...item, children: filterItemsByRole(item.children, role) }
+      : item)
+    .filter(item => item.children ? item.children.length > 0 : canSeeHref(item.href, role))
+}
+
+function filterSectionsByRole(sections: MenuSection[], role: string | null): MenuSection[] {
+  if (!role) return sections
+  return sections
+    .map(section => ({ ...section, items: filterItemsByRole(section.items, role) }))
+    .filter(section => section.items.length > 0)
+}
+
+interface MenuSection {
+  id: string
+  label: string
+  icon: any
+  color: 'gray' | 'blue' | 'purple' | 'emerald' | 'slate'
+  items: MenuItem[]
+}
+
+const SECTION_COLORS: Record<string, {
+  activeBg: string; activeText: string; bar: string; header: string; dot: string; collapsedBar: string
+}> = {
+  gray:    { activeBg: 'bg-stone-100',    activeText: 'text-stone-700',    bar: 'bg-stone-500',    header: 'text-stone-600',    dot: 'bg-stone-500',    collapsedBar: 'bg-stone-400' },
+  blue:    { activeBg: 'bg-blue-50',     activeText: 'text-blue-700',   bar: 'bg-blue-500',    header: 'text-blue-600',    dot: 'bg-blue-500',    collapsedBar: 'bg-blue-400' },
+  purple:  { activeBg: 'bg-purple-50',   activeText: 'text-purple-700', bar: 'bg-purple-500',  header: 'text-purple-600',  dot: 'bg-purple-500',  collapsedBar: 'bg-purple-400' },
+  emerald: { activeBg: 'bg-emerald-50',  activeText: 'text-emerald-700',bar: 'bg-emerald-500', header: 'text-emerald-600', dot: 'bg-emerald-500', collapsedBar: 'bg-emerald-400' },
+  slate:   { activeBg: 'bg-slate-100',   activeText: 'text-slate-700',  bar: 'bg-slate-500',   header: 'text-slate-600',   dot: 'bg-slate-500',   collapsedBar: 'bg-slate-400' },
+}
+
+const menuSections: MenuSection[] = [
+  // ─── COMMUN / TRANSVERSE ──────────────────────────────────────
   {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: 'commun',
+    label: 'Commun',
     icon: LayoutDashboard,
-    href: '/admin'
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: BarChart3,
-    href: '/admin/analytics'
-  },
-  {
-    id: 'administration',
-    label: 'Administration',
-    icon: Settings,
-    children: [
+    color: 'gray',
+    items: [
       {
-        id: 'how-to',
-        label: 'Guide d\'utilisation',
-        icon: BookOpen,
-        href: '/admin/administration/how-to'
+        id: 'dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        href: '/admin'
       },
       {
-        id: 'paiements',
-        label: 'Paiements',
-        icon: CreditCard,
-        href: '/admin/paiements'
+        id: 'analytics',
+        label: 'Analytics',
+        icon: BarChart3,
+        href: '/admin/analytics'
       },
       {
-        id: 'migration',
-        label: 'Paramètres / Migration',
-        icon: Settings,
-        href: '/admin/migration'
+        id: 'tickets',
+        label: 'Support',
+        icon: AlertCircle,
+        href: '/admin/tickets'
+      },
+      {
+        id: 'copilot',
+        label: 'Copilote IA',
+        icon: Bot,
+        href: '/admin/copilot'
+      },
+      {
+        id: 'sourcing',
+        label: 'Veille 1688',
+        icon: Globe,
+        href: '/admin/sourcing'
       }
     ]
   },
+
+  // ─── ITVISION CORPORATE (B2B Sécurité électronique) ───────────
   {
-    id: 'finance',
-    label: 'Finance',
-    icon: Wallet,
-    children: [
-      {
-        id: 'tresorerie',
-        label: 'Trésorerie 360°',
-        icon: Wallet,
-        href: '/admin/tresorerie'
-      },
-      {
-        id: 'devis',
-        label: 'Devis',
-        icon: FileText,
-        href: '/admin/devis'
-      },
-      {
-        id: 'factures',
-        label: 'Factures',
-        icon: Receipt,
-        href: '/admin/factures'
-      },
-      {
-        id: 'depenses',
-        label: 'Dépenses',
-        icon: TrendingDown,
-        href: '/admin/depenses'
-      },
-      {
-        id: 'comptabilite',
-        label: 'Comptabilité',
-        icon: Calculator,
-        href: '/admin/comptabilite'
-      },
-      {
-        id: 'paiements-finance',
-        label: 'Paiements',
-        icon: Banknote,
-        href: '/admin/paiements'
-      }
-    ]
-  },
-  {
-    id: 'projets',
-    label: 'Projets',
-    icon: FolderKanban,
-    href: '/admin/projects'
-  },
-  {
-    id: 'planning',
-    label: 'Planning',
-    icon: Calendar,
-    href: '/admin/planning'
-  },
-  {
-    id: 'clients',
-    label: 'Clients',
+    id: 'corporate',
+    label: 'ITVision Corporate',
     icon: Building2,
-    href: '/admin/clients'
-  },
-  {
-    id: 'clients-marketplace',
-    label: 'Clients marketplace',
-    icon: Users,
-    href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
-  },
-  {
-    id: 'clients-entreprise-comptes',
-    label: 'Clients entreprise (comptes)',
-    icon: UsersRound,
-    href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
-  },
-  {
-    id: 'utilisateurs-plateforme',
-    label: 'Utilisateurs plateforme',
-    icon: Shield,
-    href: '/admin/users?userCategory=PLATFORM_USER'
-  },
-  {
-    id: 'commandes',
-    label: 'Commandes',
-    icon: ShoppingCart,
-    href: '/admin/commandes'
-  },
-  {
-    id: 'achats-groupes',
-    label: 'Achats Groupés',
-    icon: UsersRound,
-    href: '/admin/achats-groupes'
-  },
-  {
-    id: 'achats-chine',
-    label: 'Achats Chine',
-    icon: Package,
-    href: '/admin/achats-chine'
-  },
-  {
-    id: 'produits',
-    label: 'Produits',
-    icon: Package,
-    children: [
+    color: 'blue',
+    items: [
       {
-        id: 'produits-liste',
-        label: 'Liste produits',
-        icon: ListChecks,
-        href: '/admin/produits'
+        id: 'projets',
+        label: 'Projets',
+        icon: FolderKanban,
+        href: '/admin/projects'
       },
       {
-        id: 'produits-prix',
-        label: 'Gestion des prix',
-        icon: Tags,
-        href: '/admin/prices'
+        id: 'planning',
+        label: 'Planning',
+        icon: Calendar,
+        href: '/admin/planning'
       },
       {
-        id: 'produits-b2b-pricing',
-        label: 'Pricing B2B en masse',
-        icon: Tags,
-        href: '/admin/produits/b2b-pricing'
-      }
-    ]
-  },
-  {
-    id: 'technicians',
-    label: 'Techniciens',
-    icon: Users,
-    href: '/admin/technicians'
-  },
-  {
-    id: 'maintenance',
-    label: 'Maintenance',
-    icon: Wrench,
-    children: [
+        id: 'clients-equipe',
+        label: 'Clients & Équipe',
+        icon: Users,
+        children: [
+          {
+            id: 'clients-b2b',
+            label: 'Clients B2B',
+            icon: Users,
+            href: '/admin/clients'
+          },
+          {
+            id: 'techniciens',
+            label: 'Techniciens',
+            icon: Wrench,
+            href: '/admin/technicians'
+          },
+          {
+            id: 'satisfaction',
+            label: 'Satisfaction clients',
+            icon: Star,
+            href: '/admin/satisfaction'
+          },
+          {
+            id: 'catalogue-services',
+            label: 'Catalogue services',
+            icon: ListChecks,
+            href: '/admin/catalog'
+          }
+        ]
+      },
       {
-        id: 'maintenance-contrats',
-        label: 'Contrats',
+        id: 'finance',
+        label: 'Finance',
+        icon: Wallet,
+        children: [
+          {
+            id: 'tresorerie',
+            label: 'Trésorerie 360°',
+            icon: Wallet,
+            href: '/admin/tresorerie'
+          },
+          {
+            id: 'rapprochement',
+            label: 'Rapprochement bancaire',
+            icon: Banknote,
+            href: '/admin/tresorerie/rapprochement'
+          },
+          {
+            id: 'devis',
+            label: 'Devis',
+            icon: FileText,
+            href: '/admin/devis'
+          },
+          {
+            id: 'factures',
+            label: 'Factures',
+            icon: Receipt,
+            href: '/admin/factures'
+          },
+          {
+            id: 'depenses',
+            label: 'Dépenses',
+            icon: TrendingDown,
+            href: '/admin/depenses'
+          },
+          {
+            id: 'comptabilite',
+            label: 'Comptabilité',
+            icon: Calculator,
+            href: '/admin/comptabilite'
+          },
+          {
+            id: 'paiements-finance',
+            label: 'Paiements',
+            icon: Banknote,
+            href: '/admin/paiements'
+          }
+        ]
+      },
+      {
+        id: 'maintenance',
+        label: 'Maintenance',
         icon: Wrench,
-        href: '/admin/maintenance'
+        children: [
+          {
+            id: 'maintenance-contrats',
+            label: 'Contrats',
+            icon: Wrench,
+            href: '/admin/maintenance'
+          },
+          {
+            id: 'maintenance-rapports',
+            label: 'Rapports d\'intervention',
+            icon: ClipboardCheck,
+            href: '/admin/rapports'
+          }
+        ]
       },
       {
-        id: 'maintenance-rapports',
-        label: 'Rapports d\'intervention',
-        icon: ClipboardCheck,
-        href: '/admin/rapports'
+        id: 'prospects',
+        label: 'Prospects B2B',
+        icon: Mail,
+        children: [
+          {
+            id: 'leads',
+            label: 'Liste prospects',
+            icon: Users,
+            href: '/admin/prospects'
+          },
+          {
+            id: 'campaigns',
+            label: 'Campagnes email',
+            icon: Send,
+            href: '/admin/campaigns'
+          }
+        ]
       }
     ]
   },
+
+  // ─── MARKETPLACE (Sourcing Chine) ─────────────────────────────
   {
     id: 'marketplace',
     label: 'Marketplace',
     icon: Briefcase,
-    children: [
+    color: 'purple',
+    items: [
       {
         id: 'marketplace-dashboard',
         label: 'Dashboard Marketplace',
@@ -242,24 +301,283 @@ const menuItems: MenuItem[] = [
         href: '/admin/marketplace'
       },
       {
-        id: 'marketplace-comptes-pro',
-        label: 'Comptes Pro',
+        id: 'marketplace-tunnel',
+        label: 'Tunnel & apporteurs',
+        icon: BarChart3,
+        href: '/admin/marketplace/tunnel'
+      },
+      {
+        id: 'vendeurs-boutiques',
+        label: 'Boutiques & Vendeurs',
+        icon: Store,
+        children: [
+          {
+            id: 'boutiques-validation',
+            label: 'Boutiques & retraits',
+            icon: Store,
+            href: '/admin/marketplace/shops'
+          },
+          {
+            id: 'comptes-pro',
+            label: 'Comptes Pro',
+            icon: Shield,
+            href: '/admin/marketplace/comptes-pro'
+          },
+          {
+            id: 'retours-litiges',
+            label: 'Retours & litiges',
+            icon: Scale,
+            href: '/admin/marketplace/retours'
+          },
+          {
+            id: 'remboursements-ddm',
+            label: 'Remboursements clients',
+            icon: Wallet,
+            href: '/admin/marketplace/remboursements'
+          },
+          {
+            id: 'ambassadeurs-ddm',
+            label: 'Ambassadeurs',
+            icon: Gift,
+            href: '/admin/marketplace/ambassadeurs'
+          },
+          {
+            id: 'avis-produits',
+            label: 'Avis produits',
+            icon: Star,
+            href: '/admin/marketplace/avis'
+          },
+          {
+            id: 'points-retrait',
+            label: 'Points de retrait',
+            icon: MapPin,
+            href: '/admin/marketplace/points-retrait'
+          },
+          {
+            id: 'garanties',
+            label: 'Garanties commandes',
+            icon: Shield,
+            href: '/admin/garanties'
+          }
+        ]
+      },
+      {
+        id: 'produits',
+        label: 'Produits',
+        icon: Package,
+        children: [
+          {
+            id: 'produits-liste',
+            label: 'Liste produits',
+            icon: ListChecks,
+            href: '/admin/produits'
+          },
+          {
+            id: 'produits-prix',
+            label: 'Gestion des prix',
+            icon: Tags,
+            href: '/admin/prices'
+          },
+          {
+            id: 'produits-b2b-pricing',
+            label: 'Pricing B2B en masse',
+            icon: Tags,
+            href: '/admin/produits/b2b-pricing'
+          }
+        ]
+      },
+      {
+        id: 'commandes',
+        label: 'Commandes',
+        icon: ShoppingCart,
+        href: '/admin/commandes'
+      },
+      {
+        id: 'achats-groupes',
+        label: 'Achats Groupés',
         icon: UsersRound,
-        href: '/admin/marketplace/comptes-pro'
+        href: '/admin/achats-groupes'
+      },
+      {
+        id: 'sourcing-import',
+        label: 'Sourcing & Import',
+        icon: Download,
+        children: [
+          {
+            id: 'achats-chine',
+            label: 'Achats Chine',
+            icon: Package,
+            href: '/admin/achats-chine'
+          },
+          {
+            id: 'auto-import',
+            label: 'Auto Import 1688/Ali',
+            icon: Download,
+            href: '/admin/auto-import'
+          },
+          {
+            id: 'marketplace-sourcing',
+            label: 'Trouvez-moi (sourcing)',
+            icon: Search,
+            href: '/admin/market/sourcing-requests'
+          }
+        ]
+      },
+      {
+        id: 'contenu-marketplace',
+        label: 'Contenu',
+        icon: ImageIcon,
+        children: [
+          {
+            id: 'marketplace-promo-slides',
+            label: 'Slides promotionnelles',
+            icon: ImageIcon,
+            href: '/admin/market/promo-slides'
+          },
+          {
+            id: 'marketplace-image-embeddings',
+            label: 'Recherche par image',
+            icon: Search,
+            href: '/admin/market/image-embeddings'
+          }
+        ]
       }
     ]
   },
+
+  // ─── XEUY BI (App de services) ────────────────────────────────
   {
-    id: 'garanties',
-    label: 'Garanties',
-    icon: Shield,
-    href: '/admin/garanties'
+    id: 'xeuybi',
+    label: 'Xeuy Bi',
+    icon: Wrench,
+    color: 'emerald',
+    items: [
+      {
+        id: 'plateforme',
+        label: 'Plateforme',
+        icon: Globe,
+        children: [
+          {
+            id: 'plateforme-config',
+            label: 'Configuration',
+            icon: Settings,
+            href: '/admin/platform/config'
+          },
+          {
+            id: 'plateforme-analytics',
+            label: 'Analytics Mobile',
+            icon: BarChart3,
+            href: '/admin/platform/analytics'
+          },
+          {
+            id: 'plateforme-wallets',
+            label: 'Wallets',
+            icon: Wallet,
+            href: '/admin/platform/wallets'
+          },
+          {
+            id: 'plateforme-transactions',
+            label: 'Transactions Points',
+            icon: CreditCard,
+            href: '/admin/platform/transactions'
+          },
+          {
+            id: 'plateforme-remboursements',
+            label: 'Remboursements & retraits',
+            icon: Wallet,
+            href: '/admin/platform/remboursements'
+          },
+          {
+            id: 'plateforme-kyc',
+            label: 'KYC Prestataires',
+            icon: Shield,
+            href: '/admin/platform/kyc'
+          },
+          {
+            id: 'plateforme-visibility',
+            label: 'Visibilité & Notifications',
+            icon: Eye,
+            href: '/admin/platform/visibility'
+          }
+        ]
+      },
+      {
+        id: 'services',
+        label: 'Services & Litiges',
+        icon: Wrench,
+        children: [
+          {
+            id: 'services-disputes',
+            label: 'Litiges',
+            icon: Scale,
+            href: '/admin/services/disputes'
+          }
+        ]
+      },
+    ]
   },
+
+  // ─── UTILISATEURS & RÔLES (unifié — le rôle/catégorie détermine le scope) ──
   {
-    id: 'tickets',
-    label: 'Support',
-    icon: AlertCircle,
-    href: '/admin/tickets'
+    id: 'comptes',
+    label: 'Utilisateurs',
+    icon: Users,
+    color: 'slate',
+    items: [
+      {
+        id: 'utilisateurs-roles',
+        label: 'Utilisateurs et rôles',
+        icon: Users,
+        href: '/admin/users'
+      }
+    ]
+  },
+
+  // ─── SYSTÈME / ADMINISTRATION ─────────────────────────────────
+  {
+    id: 'systeme',
+    label: 'Système',
+    icon: Settings,
+    color: 'slate',
+    items: [
+      {
+        id: 'administration',
+        label: 'Administration',
+        icon: Settings,
+        children: [
+          {
+            id: 'how-to',
+            label: 'Guide d\'utilisation',
+            icon: BookOpen,
+            href: '/admin/administration/how-to'
+          },
+          {
+            id: 'emails',
+            label: 'Emails',
+            icon: Mail,
+            href: '/admin/emails'
+          },
+          {
+            id: 'paiements',
+            label: 'Paiements',
+            icon: CreditCard,
+            href: '/admin/paiements'
+          },
+          {
+            id: 'paiements-qr',
+            label: 'Paiements QR',
+            icon: QrCode,
+            href: '/admin/paiements-qr'
+          },
+          {
+            id: 'migration',
+            label: 'Paramètres / Migration',
+            icon: Settings,
+            href: '/admin/migration'
+          }
+        ]
+      }
+    ]
   }
 ]
 
@@ -268,6 +586,52 @@ export default function AdminSidebar() {
   const [search, setSearch] = useState('')
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [role, setRole] = useState<string | null>(null)
+
+  // Rôle du staff connecté → le menu suit le registre domains.ts
+  // (un ACCOUNTANT ne voit pas les sections marketplace/Xeuy, etc.)
+  useEffect(() => {
+    fetch('/api/auth/login', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setRole(String(d?.user?.role || '').toUpperCase() || null))
+      .catch(() => {})
+  }, [])
+
+  const visibleSections = useMemo(
+    () => filterSectionsByRole(menuSections, role),
+    [role]
+  )
+
+  const isActive = (href?: string) => {
+    if (!href) return false
+    const [targetPath, targetQuery = ''] = href.split('?')
+
+    if (targetPath === '/admin' || targetPath === '/admin/marketplace') {
+      return pathname === targetPath
+    }
+
+    const active = pathname.startsWith(targetPath)
+    if (!active) return false
+
+    if (!targetQuery) {
+      // "Tous les comptes" n'est actif que si aucun filtre de catégorie n'est posé
+      if (targetPath === '/admin/users' && new URLSearchParams(search).has('userCategory')) return false
+      return true
+    }
+
+    const expectedParams = new URLSearchParams(targetQuery)
+    const currentParams = new URLSearchParams(search)
+    return Array.from(expectedParams.entries()).every(([key, value]) => currentParams.get(key) === value)
+  }
+
+  const hasActiveChild = (item: MenuItem): boolean => {
+    if (item.href && isActive(item.href)) return true
+    if (item.children) {
+      return item.children.some(child => hasActiveChild(child))
+    }
+    return false
+  }
 
   // Charger l'état de collapse depuis localStorage
   useEffect(() => {
@@ -281,7 +645,29 @@ export default function AdminSidebar() {
     if (typeof window !== 'undefined') {
       setSearch(window.location.search)
     }
+    // Auto-expand any submenu whose child is active
+    const activeParents: string[] = []
+    for (const section of visibleSections) {
+      for (const item of section.items) {
+        if (item.children && hasActiveChild(item)) {
+          activeParents.push(item.id)
+        }
+      }
+    }
+    if (activeParents.length > 0) {
+      setOpenMenus(prev => {
+        const merged = new Set([...prev, ...activeParents])
+        return Array.from(merged)
+      })
+    }
   }, [pathname])
+
+  // Ouvrir/fermer le menu sur mobile depuis le header
+  useEffect(() => {
+    const onToggle = () => setMobileOpen(prev => !prev)
+    window.addEventListener('admin:toggle-mobile', onToggle)
+    return () => window.removeEventListener('admin:toggle-mobile', onToggle)
+  }, [])
 
   // Sauvegarder l'état de collapse
   const toggleCollapse = () => {
@@ -298,36 +684,12 @@ export default function AdminSidebar() {
     )
   }
 
-  const isActive = (href?: string) => {
-    if (!href) return false
-    const [targetPath, targetQuery = ''] = href.split('?')
-
-    if (targetPath === '/admin') {
-      return pathname === '/admin'
-    }
-
-    let active = pathname.startsWith(targetPath)
-    if (!active) return false
-
-    if (!targetQuery) return true
-
-    const expectedParams = new URLSearchParams(targetQuery)
-    const currentParams = new URLSearchParams(search)
-    return Array.from(expectedParams.entries()).every(([key, value]) => currentParams.get(key) === value)
-  }
-
-  const hasActiveChild = (item: MenuItem): boolean => {
-    if (item.href && isActive(item.href)) return true
-    if (item.children) {
-      return item.children.some(child => hasActiveChild(child))
-    }
-    return false
-  }
-
-  const renderMenuItem = (item: MenuItem, level: number = 0) => {
+  const renderMenuItem = (item: MenuItem, level: number = 0, colors?: { activeBg: string; activeText: string }) => {
     const hasChildren = item.children && item.children.length > 0
     const isOpen = openMenus.includes(item.id)
     const active = isActive(item.href) || hasActiveChild(item)
+    const activeBg = colors?.activeBg || 'bg-stone-100'
+    const activeText = colors?.activeText || 'text-stone-700'
 
     if (hasChildren) {
       return (
@@ -337,8 +699,8 @@ export default function AdminSidebar() {
             title={isCollapsed ? item.label : undefined}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
               active
-                ? 'bg-green-50 text-green-700'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? `${activeBg} ${activeText}`
+                : 'text-stone-700 hover:bg-stone-50'
             } ${isCollapsed ? 'justify-center' : ''}`}
           >
             <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
@@ -354,8 +716,8 @@ export default function AdminSidebar() {
             )}
           </button>
           {isOpen && !isCollapsed && (
-            <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
-              {item.children!.map(child => renderMenuItem(child, level + 1))}
+            <div className="ml-4 mt-1 space-y-1 border-l-2 border-stone-200 pl-3">
+              {item.children!.map(child => renderMenuItem(child, level + 1, colors))}
             </div>
           )}
         </div>
@@ -366,11 +728,12 @@ export default function AdminSidebar() {
       <Link
         key={item.id}
         href={item.href || '#'}
+        onClick={() => setMobileOpen(false)}
         title={isCollapsed ? item.label : undefined}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg transition-colors ${
           active
-            ? 'bg-green-50 text-green-700 font-medium'
-            : 'text-gray-700 hover:bg-gray-50'
+            ? `${activeBg} ${activeText} font-medium`
+            : 'text-stone-700 hover:bg-stone-50'
         }`}
         style={!isCollapsed ? { paddingLeft: `${12 + level * 12}px` } : undefined}
       >
@@ -380,53 +743,99 @@ export default function AdminSidebar() {
     )
   }
 
-  return (
-    <aside 
-      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 flex flex-col h-screen sticky top-0`}
-    >
-      {/* Header avec logo */}
-      <div className={`p-4 border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+  const renderSection = (section: MenuSection) => {
+    const sectionActive = section.items.some(item => hasActiveChild(item))
+    const c = SECTION_COLORS[section.color]
+
+    return (
+      <div key={section.id} className="space-y-1">
+        {/* Section header */}
         {!isCollapsed ? (
-          <>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+          <div className="flex items-center gap-2 px-3 pt-4 pb-1.5">
+            <div className={`w-1 h-4 rounded-full ${c.bar}`} />
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${c.header}`}>
+              {section.label}
+            </span>
+            {sectionActive && (
+              <div className={`ml-auto w-1.5 h-1.5 rounded-full ${c.dot} animate-pulse`} />
+            )}
+          </div>
+        ) : (
+          <div className="pt-3 pb-1 flex justify-center">
+            <div className={`w-6 h-0.5 rounded-full ${c.collapsedBar}`} />
+          </div>
+        )}
+        {/* Section items */}
+        {section.items.map(item => renderMenuItem(item, 0, { activeBg: c.activeBg, activeText: c.activeText }))}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Overlay mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 z-50 h-screen
+          bg-white border-r border-stone-200 flex-shrink-0
+          transition-all duration-300 ease-in-out flex flex-col
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+          w-64
+          ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}
+        `}
+      >
+        {/* Header avec logo */}
+        <div className={`p-4 border-b border-stone-200 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+          {!isCollapsed ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-emerald-950 rounded-lg flex items-center justify-center">
+                  <Image src="/Icone.png" alt="IT Vision" width={24} height={24} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-900">Admin Panel</h2>
+                  <p className="text-xs text-stone-500">IT Vision</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-gray-900">Admin Panel</h2>
-                <p className="text-xs text-gray-500">IT Vision</p>
-              </div>
-            </div>
+              <button
+                onClick={toggleCollapse}
+                className="hidden lg:block p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+                title="Réduire le menu"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
             <button
               onClick={toggleCollapse}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-              title="Réduire le menu"
+              className="hidden lg:block p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+              title="Agrandir le menu"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Menu className="h-5 w-5" />
             </button>
-          </>
-        ) : (
-          <button
-            onClick={toggleCollapse}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-            title="Agrandir le menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {menuItems.map(item => renderMenuItem(item))}
-      </nav>
-
-      {/* Footer avec version */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-gray-200 text-xs text-gray-400 text-center">
-          v1.0.0
+          )}
         </div>
-      )}
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
+          {visibleSections.map(section => renderSection(section))}
+        </nav>
+
+        {/* Footer avec version */}
+        {!isCollapsed && (
+          <div className="p-3 border-t border-stone-200 text-xs text-stone-400 text-center">
+            Admin · IT Vision
+          </div>
+        )}
+      </aside>
+    </>
   )
 }
