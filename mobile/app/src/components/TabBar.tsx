@@ -4,7 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { router, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Home, ClipboardList, FileText, MessageCircle, UserCircle } from 'lucide-react-native'
+import { Home, ClipboardList, FileText, MessageCircle, UserCircle, type LucideIcon } from 'lucide-react-native'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../notifications'
 import { loadInbox, subscribeInbox, getInboxState, bindInboxSocket } from '../chat-inbox'
 import { radius, spacing, typography, isIOS } from '../design'
@@ -19,17 +19,15 @@ interface TabBarProps {
   mode?: AppMode
 }
 
-type IconProps = { size?: number; color?: string; strokeWidth?: number }
-
 // 4 onglets (pattern type ATD) — les notifications restent dans la cloche du header.
-const CLIENT_TABS: { key: TabKey; labelKey: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+const CLIENT_TABS: { key: TabKey; labelKey: string; icon: LucideIcon; route: string }[] = [
   { key: 'home',          labelKey: 'tabs.home', icon: Home,          route: '/' },
   { key: 'requests',      labelKey: 'tabs.requests', icon: ClipboardList, route: '/my-requests' },
   { key: 'messages',      labelKey: 'tabs.messages', icon: MessageCircle, route: '/messages' },
   { key: 'profile',       labelKey: 'tabs.profile', icon: UserCircle,    route: '/profile' },
 ]
 
-const PROVIDER_TABS: { key: TabKey; labelKey: string; icon: React.ComponentType<IconProps>; route: string }[] = [
+const PROVIDER_TABS: { key: TabKey; labelKey: string; icon: LucideIcon; route: string }[] = [
   { key: 'home',          labelKey: 'tabs.home', icon: Home,          route: '/pro-home' },
   { key: 'requests',      labelKey: 'tabs.requests', icon: ClipboardList, route: '/nearby-requests' },
   { key: 'offers',        labelKey: 'tabs.offers', icon: FileText,      route: '/my-offers' },
