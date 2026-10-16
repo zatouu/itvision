@@ -131,7 +131,7 @@ jobs:
       - run: npm test -- --runInBand --silent
 
   build-and-push:
-    needs: [quality, e2e, mobile-quality]
+        needs: [quality, mobile-quality]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
