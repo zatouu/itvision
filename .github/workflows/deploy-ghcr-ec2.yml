@@ -251,7 +251,7 @@ jobs:
 
   deploy:
     needs: [build-and-push, image-check]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
+   # if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
