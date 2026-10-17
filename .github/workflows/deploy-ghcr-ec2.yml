@@ -8,7 +8,7 @@ on:
       deploy:
         description: 'Autoriser explicitement le deploiement EC2 apres validation'
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: deploy-${{ github.ref }}
