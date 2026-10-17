@@ -4,8 +4,11 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
-import { requireInterventionAccess } from '@/lib/interventions-access'
+import { requireInterventionAccess, resolveTechnicianId, isAssignedTechnician, TECHNICIAN_TRANSITIONS } from '@/lib/interventions-access'
 import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
+import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
+import { notifyTechnicianOfChange } from '@/lib/tech/notify-technician'
+import { countCompletionOnContract } from '@/lib/interventions/lifecycle'
 import { logAuditEvent } from '@/lib/audit'
 
 function computeEndTime(start: string, durationHours: number) {
@@ -23,6 +26,9 @@ function computeEndTime(start: string, durationHours: number) {
 // GET - Récupérer toutes les interventions
 export async function GET(request: NextRequest) {
   try {
+    const access = await requireInterventionAccess(request)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     await connectMongoose()
     
     const { searchParams } = new URL(request.url)
@@ -41,7 +47,13 @@ export async function GET(request: NextRequest) {
     }
     if (service && service !== 'all') query.service = service
     if (zone && zone !== 'all') query['client.zone'] = zone
-    if (technicianId) query.technicienId = technicianId
+    if (access.role === 'TECHNICIAN') {
+      const ownTechId = await resolveTechnicianId(access.email)
+      if (!ownTechId) return NextResponse.json({ success: true, interventions: [], total: 0 })
+      query.$or = [{ technicienId: ownTechId }, { assignedTechnician: ownTechId }]
+    } else if (technicianId) {
+      query.technicienId = technicianId
+    }
 
     const [items, total] = await Promise.all([
       Intervention.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -105,11 +117,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Auto-affectation du technicien connecté si non précisé
+    // Un technicien ne crée que pour lui-même
     let technicienId = body.technicienId
-    if (!technicienId && auth?.role === 'TECHNICIAN') {
-      const tech = await Technician.findOne({ userId: auth.userId }).lean() as any
-      if (tech?._id) technicienId = String(tech._id)
+    if (access.role === 'TECHNICIAN') {
+      technicienId = await resolveTechnicianId(access.email) || undefined
     }
 
     const scheduledDateString = scheduledDate.toISOString().split('T')[0]
@@ -155,7 +166,12 @@ export async function POST(request: NextRequest) {
         userAgent: request.headers.get('user-agent') || undefined
       })
       emitInterventionUpdate(String(created._id), { id: String(created._id), status: created.status })
+      if (technicienId && access.role !== 'TECHNICIAN') {
+        void notifyTechnicianOfChange(null, created.toObject ? created.toObject() : created)
+      }
       if (body.clientId) {
+        void notifyInterventionChange(null, created.toObject ? created.toObject() : created)
+          .catch(e => console.error('[Intervention] notification:', e))
         emitUserNotification(body.clientId, {
           type: 'info',
           title: 'Nouvelle intervention créée',
@@ -201,6 +217,20 @@ export async function PUT(request: NextRequest) {
     const intervention = await Intervention.findById(interventionId)
     if (!intervention) {
       return NextResponse.json({ error: 'Intervention introuvable' }, { status: 404 })
+    }
+
+    // Technicien : uniquement ses interventions, uniquement démarrer / terminer
+    if (access.role === 'TECHNICIAN') {
+      const ownTechId = await resolveTechnicianId(access.email)
+      if (!isAssignedTechnician(intervention, ownTechId)) {
+        return NextResponse.json({ error: 'Intervention non assignée à ce technicien' }, { status: 403 })
+      }
+      if (technicianId !== undefined || scheduledDate !== undefined || scheduledTime !== undefined) {
+        return NextResponse.json({ error: 'Affectation et horaires sont gérés par le planning' }, { status: 403 })
+      }
+      if (!status || !(TECHNICIAN_TRANSITIONS[intervention.status] || []).includes(status)) {
+        return NextResponse.json({ error: 'Changement de statut non autorisé', code: 'INVALID_TRANSITION' }, { status: 409 })
+      }
     }
 
     const updatePayload: any = {}
@@ -280,30 +310,38 @@ export async function PUT(request: NextRequest) {
     let statusChanged = false
     if (status && ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
       updatePayload.status = status
-      statusChanged = true
+      statusChanged = status !== intervention.status
+    }
 
-      // Quand une intervention est marquée terminée, mettre à jour le contrat et l'historique
-      if (status === 'completed' && intervention.maintenanceContractId) {
-        const contract = await MaintenanceContract.findById(intervention.maintenanceContractId)
-        if (contract) {
-          const used = (contract.coverage?.interventionsUsed || 0)
-          const included = (contract.coverage?.interventionsIncluded || 0)
-          if (included === 0 || used < included) {
-            contract.coverage.interventionsUsed = used + 1
-          }
-          contract.stats.totalInterventions = (contract.stats.totalInterventions || 0) + 1
-          if (intervention.typeIntervention === 'maintenance' || intervention.typeIntervention === 'preventive') {
-            contract.stats.preventiveInterventions = (contract.stats.preventiveInterventions || 0) + 1
-          } else {
-            contract.stats.curativeInterventions = (contract.stats.curativeInterventions || 0) + 1
-          }
-          await contract.save()
-        }
-      }
+    // Pointage : position du technicien à son arrivée sur site
+    // Action faite hors ligne puis envoyée au retour du réseau : heure réelle (72 h au plus, jamais dans le futur)
+    const occurredMs = access.role === 'TECHNICIAN' && body.occurredAt ? new Date(body.occurredAt).getTime() : NaN
+    const occurredAt = Number.isFinite(occurredMs) && occurredMs <= Date.now() + 5 * 60_000 && occurredMs >= Date.now() - 72 * 3_600_000
+      ? new Date(Math.min(occurredMs, Date.now()))
+      : null
+    const lat = Number(body.gps?.lat), lng = Number(body.gps?.lng)
+    if (status === 'in_progress' && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      updatePayload.gpsLocation = { lat, lng, timestamp: occurredAt || new Date() }
     }
 
     const previousState = intervention.toObject ? intervention.toObject() : intervention
-    await Intervention.updateOne({ _id: interventionId }, { $set: updatePayload })
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({ error: 'Aucune modification demandée' }, { status: 400 })
+    }
+    // Mise à jour conditionnelle : un double clic ou deux écrans simultanés ne rejouent pas la transition
+    const writeResult = await Intervention.updateOne(
+      { _id: interventionId, status: intervention.status },
+      { $set: updatePayload }
+    )
+    if (writeResult.matchedCount === 0) {
+      return NextResponse.json({ error: 'Intervention modifiée entre-temps, rechargez la fiche', code: 'CONFLICT' }, { status: 409 })
+    }
+
+    // Contrat : une intervention n'est décomptée qu'au passage effectif à « terminée »
+    if (statusChanged && status === 'completed') {
+      await countCompletionOnContract(intervention)
+    }
+
     const updated = await Intervention.findById(interventionId)
 
     if (updated?.addHistoryEntry) {
@@ -311,7 +349,8 @@ export async function PUT(request: NextRequest) {
         previousStatus: intervention.status,
         newStatus: updatePayload.status,
         statusChanged,
-        technicianAssigned: !!technicianId
+        technicianAssigned: !!technicianId,
+        ...(occurredAt && statusChanged ? { occurredAt } : {}),
       })
       await updated.save()
     }
@@ -333,6 +372,13 @@ export async function PUT(request: NextRequest) {
       })
       const updatedAny = updated as any
       emitInterventionUpdate(interventionId, { id: interventionId, status: updatedAny?.status as string })
+      if (updatedAny) {
+        void notifyInterventionChange(previousState as any, updatedAny.toObject ? updatedAny.toObject() : updatedAny)
+          .catch(e => console.error('[Intervention] notification:', e))
+        if (access.role !== 'TECHNICIAN') {
+          void notifyTechnicianOfChange(previousState as any, updatedAny.toObject ? updatedAny.toObject() : updatedAny)
+        }
+      }
       if (updatedAny?.clientId) {
         emitUserNotification(String(updatedAny.clientId), {
           type: 'info',

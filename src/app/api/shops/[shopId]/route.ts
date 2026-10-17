@@ -16,7 +16,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       ? { _id: new mongoose.Types.ObjectId(shopId), status: 'active' }
       : { slug: shopId, status: 'active' }
 
-    const shop = await Shop.findOne(query).select('-__v').lean()
+    const shop = await Shop.findOne(query)
+      .select('name slug description logo coverImage isVerified categories socialLinks address city country createdAt')
+      .lean()
     if (!shop) {
       return NextResponse.json({ success: false, error: 'Boutique introuvable' }, { status: 404 })
     }

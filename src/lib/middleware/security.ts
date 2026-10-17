@@ -16,7 +16,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'Permissions-Policy': `camera=(), microphone=(), geolocation=${pathname.replace(/\/$/, '') === '/compte/profil' ? '(self)' : '()'}, payment=()`,
     'Content-Security-Policy': [
       "default-src 'self'",
       scriptSrc,
@@ -24,7 +24,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
       "img-src 'self' data: https:",
       "font-src 'self'",
       connectSrc,
-      "frame-src 'none'",
+      "frame-src 'self' https://js.stripe.com https://pay.wave.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -90,13 +90,28 @@ const ServiceRequestSchema = new Schema({
   anomalyFlags: { type: [String], default: [] },
   anomalyScore: { type: Number, default: 0 },
   pauseLog: { type: [PauseLogSchema], default: [] },
+  // Coach IA prestataire : contenu généré une fois par étape (clé = statut), pour ne pas re-facturer ni re-générer
+  aiCoach: { type: Schema.Types.Mixed, default: {} },
+  // Fiche d'analyse IA de la demande (analyze_request) : générée une seule fois, partagée par
+  // tous les prestataires qui consultent la demande. { advice, materials, model, generatedAt, descriptionHash }
+  aiBrief: { type: Schema.Types.Mixed },
   // Quand le client a consulté ses offres pour cette demande (déduplique les badges)
   clientOffersReadAt: { type: Date },
+  // Quand chaque partie a lu le chat de mission (badges inbox "Messages")
+  clientChatReadAt: { type: Date },
+  providerChatReadAt: { type: Date },
+  // Clé d'idempotence client (file offline) : déduplique la création en cas de replay
+  idempotencyKey: { type: String },
   lastActivityAt: { type: Date, default: Date.now },
   lastActivityType: { type: String },
   lastActivityBy: { type: String },
   inactivityReminderCount: { type: Number, default: 0 },
   inactivityReminderAt: { type: Date },
+  // Validation automatique d'une mission terminée non validée par le client
+  // (cash : ~24h, escrow mobile : ~72h — cf. mission-inactivity-job).
+  autoValidationWarnCount: { type: Number, default: 0 },
+  autoValidationWarnAt: { type: Date },
+  autoValidatedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
@@ -105,6 +120,12 @@ ServiceRequestSchema.index({ 'location': '2dsphere' })
 ServiceRequestSchema.index({ status: 1, createdAt: -1 })
 ServiceRequestSchema.index({ status: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ clientId: 1, status: 1, createdAt: -1 })
+// sparse ne suffit pas : les docs avec idempotencyKey explicitement null sont
+// indexés et collisionnent. partialFilterExpression n'indexe que les vraies clés.
+ServiceRequestSchema.index({ clientId: 1, idempotencyKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+})
 ServiceRequestSchema.index({ status: 1, category: 1, expiresAt: 1 })
 ServiceRequestSchema.index({ status: 1, lastActivityAt: 1 })
 

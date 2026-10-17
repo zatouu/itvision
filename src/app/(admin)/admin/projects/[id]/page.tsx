@@ -9,11 +9,12 @@ import {
   FolderKanban, MessageSquare, Flag, Layers, BarChart3, Zap, Trash2,
   Plus, X, ExternalLink, Download, Lock, Unlock, Play, Check,
   ChevronRight, Calendar, MapPin, Phone, Mail, Building2, User,
-  DollarSign, Package, Wrench
+  DollarSign, Package, Wrench, Eye, ClipboardCheck
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import WorkflowMiniPanel from '@/components/WorkflowMiniPanel'
 import MilestoneDetailView from '@/components/admin/MilestoneDetailView'
+import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 interface Project {
   _id: string
@@ -44,9 +45,13 @@ interface Project {
     id: string; date: string; type: string; title: string
     description?: string; author: string
   }>
-  documents?: Array<{ id: string; name: string; url: string; type: string; uploadDate?: string }>
+  documents?: Array<{ id: string; name: string; url: string; type: string; uploadDate?: string; clientVisible?: boolean }>
   metrics?: { tasksTotal?: number; tasksCompleted?: number; budgetPlanned?: number; budgetUsed?: number; satisfactionScore?: number }
   clientAccess?: boolean
+  reception?: {
+    requestedAt?: string; warrantyMonths?: number; signedAt?: string; decision?: 'accepted' | 'reserves'; reserves?: string
+    signature?: string; signatureName?: string; signatureTitle?: string; warrantyEnd?: string; reservesLiftedAt?: string
+  }
   quote?: { id: string; totalHT: number; totalTTC: number; status: string } | null
   createdAt: string
   updatedAt: string
@@ -59,7 +64,7 @@ interface ExpenseItem {
 }
 
 interface ProjectImage {
-  _id: string; filename: string; url: string; title?: string; description?: string; isMain: boolean; order: number; createdAt: string
+  _id: string; filename: string; url: string; title?: string; description?: string; isMain: boolean; order: number; createdAt: string; clientVisible?: boolean
 }
 
 type TabKey = 'overview' | 'edit' | 'milestones' | 'notes' | 'expenses' | 'documents' | 'photos' | 'timeline' | 'workflow' | 'cashflow'
@@ -103,6 +108,9 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [saving, setSaving] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [receptionBusy, setReceptionBusy] = useState(false)
+  const [warrantyMonths, setWarrantyMonths] = useState(12)
 
   // Edit state
   const [editing, setEditing] = useState<Partial<Project>>({})
@@ -119,7 +127,8 @@ export default function ProjectDetailPage() {
   const [newNote, setNewNote] = useState('')
 
   // Document upload
-  const [newDoc, setNewDoc] = useState({ name: '', url: '', type: '' })
+  const [newDoc, setNewDoc] = useState({ name: '', url: '', type: 'technical', clientVisible: true })
+  const [previewDoc, setPreviewDoc] = useState<{ id: string; name: string; url: string; type: string } | null>(null)
 
   // Milestone detail modal
   const [selectedMilestone, setSelectedMilestone] = useState<any | null>(null)
@@ -190,6 +199,38 @@ export default function ProjectDetailPage() {
     } finally { setSaving(false) }
   }
 
+  const receptionAction = async (action: 'request' | 'lift' | 'cancel') => {
+    if (!project?._id) return
+    if (action === 'cancel' && !confirm('Annuler la demande de réception ?')) return
+    setReceptionBusy(true)
+    try {
+      const res = await fetch(`/api/projects/${project._id}/reception`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ action, warrantyMonths })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Erreur')
+      toast.success(action === 'request' ? 'Réception demandée : le client est notifié' : action === 'lift' ? 'Réserves levées, client notifié' : 'Demande annulée')
+      await loadProject()
+    } catch (e: any) { toast.error(e?.message || 'Erreur') } finally { setReceptionBusy(false) }
+  }
+
+  const toggleClientAccess = async () => {
+    if (!project?._id) return
+    setSharing(true)
+    try {
+      const next = !project.clientAccess
+      const res = await fetch('/api/projects', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: project._id, clientAccess: next })
+      })
+      if (!res.ok) throw new Error()
+      setProject(prev => prev ? { ...prev, clientAccess: next } : prev)
+      setEditing(prev => ({ ...prev, clientAccess: next }))
+      toast.success(next ? 'Projet partagé avec le client' : 'Projet retiré du portail client')
+    } catch { toast.error('Modification impossible') } finally { setSharing(false) }
+  }
+
   const handleAddMilestone = () => {
     if (!newMilestone.name.trim()) return
     const m = { id: Date.now().toString(), name: newMilestone.name.trim(), status: 'pending' as const, dueDate: newMilestone.dueDate || undefined }
@@ -227,17 +268,47 @@ export default function ProjectDetailPage() {
 
   const handleAddDoc = async () => {
     if (!newDoc.name.trim() || !newDoc.url.trim() || !project?._id) return
-    const doc = { id: Date.now().toString(), name: newDoc.name.trim(), url: newDoc.url.trim(), type: newDoc.type || 'document', uploadDate: new Date().toISOString() }
+    const doc = { id: Date.now().toString(), name: newDoc.name.trim(), url: newDoc.url.trim(), type: newDoc.type || 'technical', uploadDate: new Date().toISOString(), clientVisible: newDoc.clientVisible }
     try {
       const res = await fetch(`/api/projects/${project._id}/documents`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ document: doc })
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || 'Erreur')
+      }
       setProject(prev => prev ? { ...prev, documents: [...(prev.documents || []), doc] } : prev)
-      setNewDoc({ name: '', url: '', type: '' })
-      toast.success('Document ajouté')
-    } catch { toast.error('Erreur') }
+      setNewDoc({ name: '', url: '', type: newDoc.type, clientVisible: newDoc.clientVisible })
+      toast.success(doc.clientVisible ? 'Document ajouté et partagé avec le client' : 'Document ajouté (interne)')
+    } catch (e: any) { toast.error(e?.message || 'Erreur') }
+  }
+
+  const toggleDocVisibility = async (docId: string, clientVisible: boolean) => {
+    try {
+      const res = await fetch(`/api/projects/${project!._id}/documents`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ documentId: docId, clientVisible })
+      })
+      if (!res.ok) throw new Error()
+      setProject(prev => prev ? { ...prev, documents: (prev.documents || []).map(d => d.id === docId ? { ...d, clientVisible } : d) } : prev)
+      toast.success(clientVisible ? 'Document visible par le client' : 'Document masqué au client')
+    } catch { toast.error('Modification impossible') }
+  }
+
+  const toggleImagesVisibility = async (imageIds: string[], clientVisible: boolean) => {
+    if (!imageIds.length) return
+    try {
+      const res = await fetch(`/api/projects/${project!._id}/images`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ imageIds, clientVisible })
+      })
+      if (!res.ok) throw new Error()
+      setImages(prev => prev.map(i => imageIds.includes(i._id) ? { ...i, clientVisible } : i))
+      toast.success(clientVisible
+        ? `${imageIds.length > 1 ? `${imageIds.length} photos visibles` : 'Photo visible'} par le client`
+        : `${imageIds.length > 1 ? `${imageIds.length} photos masquées` : 'Photo masquée'} au client`)
+    } catch { toast.error('Modification impossible') }
   }
 
   const handleDeleteDoc = async (docId: string) => {
@@ -293,7 +364,7 @@ export default function ProjectDetailPage() {
                 </span>
                 {project.serviceType && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">
-                    {project.serviceType}
+                    {ITV_DOMAINS[project.serviceType as ItvDomain]?.label || project.serviceType}
                   </span>
                 )}
               </div>
@@ -315,6 +386,29 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Partage portail client */}
+          {(() => {
+            const visible = !!project.clientAccess || !['lead', 'pending', 'quoted', 'negotiation', 'cancelled'].includes(String(project.status))
+            const linked = !!(project as any).clientCompanyId
+            return (
+              <div className={`mb-3 flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2 text-sm ${visible ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-stone-50 text-stone-600'}`}>
+                <span className="flex-1 min-w-0">
+                  {!linked
+                    ? 'Aucune entreprise cliente liée : le projet n’apparaît sur aucun portail.'
+                    : visible
+                      ? `Visible sur le portail du client${project.clientAccess ? ' (partagé)' : ' (travaux démarrés)'} : étapes, jalons, photos et documents partagés.`
+                      : 'Non visible sur le portail du client (phase commerciale).'}
+                </span>
+                {linked && (
+                  <button onClick={toggleClientAccess} disabled={sharing}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${project.clientAccess ? 'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+                    {sharing ? '…' : project.clientAccess ? 'Ne plus partager' : 'Partager avec le client'}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-px">
@@ -345,6 +439,49 @@ export default function ProjectDetailPage() {
         {/* OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Réception des travaux (PV signé par le client sur son portail) */}
+            {(() => {
+              const r = project.reception
+              const linked = !!(project as any).clientCompanyId
+              if (!r?.requestedAt && !linked) return null
+              return (
+                <div className="bg-white border border-stone-200 rounded-2xl p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ClipboardCheck className="w-5 h-5 text-emerald-600" />
+                    <h3 className="font-semibold text-stone-900 flex-1">Réception des travaux</h3>
+                    {!r?.requestedAt && (
+                      <>
+                        <label className="flex items-center gap-1.5 text-xs text-stone-600">Garantie
+                          <input type="number" min={0} max={120} value={warrantyMonths} onChange={e => setWarrantyMonths(Number(e.target.value))} className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-sm" /> mois
+                        </label>
+                        <button onClick={() => receptionAction('request')} disabled={receptionBusy} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">Demander la réception au client</button>
+                      </>
+                    )}
+                    {r?.requestedAt && !r.signedAt && (
+                      <button onClick={() => receptionAction('cancel')} disabled={receptionBusy} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60">Annuler la demande</button>
+                    )}
+                    {r?.decision === 'reserves' && !r.reservesLiftedAt && (
+                      <button onClick={() => receptionAction('lift')} disabled={receptionBusy} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">Réserves levées</button>
+                    )}
+                    {r?.signedAt && (
+                      <>
+                        <a href={`/api/projects/${project._id}/reception/pdf?inline=1`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"><Eye className="w-3.5 h-3.5" />Voir le PV</a>
+                        <a href={`/api/projects/${project._id}/reception/pdf`} className="inline-flex items-center gap-1 rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"><Download className="w-3.5 h-3.5" />PDF</a>
+                      </>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-stone-600">
+                    {!r?.requestedAt ? 'Quand l’installation est terminée, le client signe le PV depuis son portail (mobile). La garantie démarre à la signature.'
+                      : !r.signedAt ? `Demandée le ${fd(r.requestedAt)} : en attente de signature du client (garantie ${r.warrantyMonths || 12} mois).`
+                      : `PV signé le ${fd(r.signedAt)} par ${r.signatureName}${r.signatureTitle ? ` (${r.signatureTitle})` : ''}, ${r.decision === 'accepted' ? 'sans réserve' : 'avec réserves'}${r.reservesLiftedAt ? `, réserves levées le ${fd(r.reservesLiftedAt)}` : ''}. Garantie jusqu’au ${fd(r.warrantyEnd)}.`}
+                  </p>
+                  {r?.decision === 'reserves' && r.reserves && <p className="mt-2 whitespace-pre-line rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{r.reserves}</p>}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {r?.signature && <img src={r.signature} alt="Signature du client" className="mt-2 h-16 w-auto rounded-lg border border-stone-100 bg-stone-50" />}
+                </div>
+              )
+            })()}
+
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard label="Progression" value={`${project.progress || 0}%`} color="blue" icon={CheckCircle2} />
@@ -458,8 +595,12 @@ export default function ProjectDetailPage() {
               <Field label="Adresse">
                 <input value={editing.address || ''} onChange={e => setEditing({ ...editing, address: e.target.value })} className="input" />
               </Field>
-              <Field label="Type de service">
-                <input value={editing.serviceType || ''} onChange={e => setEditing({ ...editing, serviceType: e.target.value })} className="input" />
+              <Field label="Domaine (portail client)">
+                <select value={editing.serviceType || ''} onChange={e => setEditing({ ...editing, serviceType: e.target.value })} className="input">
+                  <option value="">À choisir</option>
+                  {editing.serviceType && !(editing.serviceType in ITV_DOMAINS) && <option value={editing.serviceType}>{editing.serviceType} (libre)</option>}
+                  {(Object.keys(ITV_DOMAINS) as ItvDomain[]).map(d => <option key={d} value={d}>{ITV_DOMAINS[d].label}</option>)}
+                </select>
               </Field>
               <Field label="Phase actuelle">
                 <input value={editing.currentPhase || ''} onChange={e => setEditing({ ...editing, currentPhase: e.target.value })} className="input" />
@@ -485,7 +626,7 @@ export default function ProjectDetailPage() {
             </Field>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!editing.clientAccess} onChange={e => setEditing({ ...editing, clientAccess: e.target.checked })} className="rounded" />
-              Accès portail client activé
+              Visible par le client sur son portail (même avant le démarrage des travaux)
             </label>
           </div>
         )}
@@ -601,28 +742,88 @@ export default function ProjectDetailPage() {
         {activeTab === 'documents' && (
           <div className="space-y-4">
             <div className="bg-white border border-stone-200 rounded-2xl p-4">
-              <div className="flex items-end gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                 <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Nom</label><input value={newDoc.name} onChange={e => setNewDoc({ ...newDoc, name: e.target.value })} className="input" placeholder="Nom du document" /></div>
-                <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">URL</label><input value={newDoc.url} onChange={e => setNewDoc({ ...newDoc, url: e.target.value })} className="input" placeholder="https://..." /></div>
-                <div><label className="block text-sm font-medium text-stone-700 mb-1">Type</label><input value={newDoc.type} onChange={e => setNewDoc({ ...newDoc, type: e.target.value })} className="input" placeholder="pdf, xlsx..." /></div>
-                <button onClick={handleAddDoc} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 self-end"><Plus className="w-4 h-4" /></button>
+                <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Lien</label><input value={newDoc.url} onChange={e => setNewDoc({ ...newDoc, url: e.target.value })} className="input" placeholder="https://..." /></div>
+                <div><label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
+                  <select value={newDoc.type} onChange={e => setNewDoc({ ...newDoc, type: e.target.value })} className="input">
+                    <option value="technical">Technique</option><option value="photo">Photo</option><option value="manual">Manuel</option>
+                    <option value="contract">Contrat</option><option value="quote">Devis / BC</option><option value="invoice">Facture</option>
+                  </select>
+                </div>
+                <button onClick={handleAddDoc} aria-label="Ajouter le document" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 sm:self-end"><Plus className="w-4 h-4 mx-auto" /></button>
               </div>
+              <label className="mt-3 flex items-center gap-2 text-sm text-stone-600">
+                <input type="checkbox" checked={newDoc.clientVisible} onChange={e => setNewDoc({ ...newDoc, clientVisible: e.target.checked })} className="rounded" />
+                Visible par le client sur son portail (il est notifié)
+              </label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(project.documents || []).map(d => (
-                <div key={d.id} className="bg-white border border-stone-200 rounded-xl p-4 flex items-start gap-3 group">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-blue-600" /></div>
-                  <div className="flex-1 min-w-0">
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-stone-900 hover:text-blue-600 truncate block">{d.name}</a>
-                    <p className="text-[10px] text-stone-400">{d.type} · {fd(d.uploadDate)}</p>
+              {(project.documents || []).map(d => {
+                const ext = (d.url || '').split('?')[0].toLowerCase()
+                const isPdf = ext.endsWith('.pdf')
+                const isImg = /\.(png|jpe?g|webp|gif)$/.test(ext)
+                const previewable = isPdf || isImg
+                const typeStyle: Record<string, string> = {
+                  quote: 'bg-blue-50 text-blue-600', invoice: 'bg-amber-50 text-amber-600',
+                  contract: 'bg-emerald-50 text-emerald-600', photo: 'bg-violet-50 text-violet-600',
+                  technical: 'bg-cyan-50 text-cyan-600', manual: 'bg-stone-100 text-stone-600',
+                }
+                const typeLabel: Record<string, string> = {
+                  quote: 'Devis / BC', invoice: 'Facture', contract: 'Contrat',
+                  photo: 'Photo', technical: 'Technique', manual: 'Manuel',
+                }
+                const cls = typeStyle[d.type] || 'bg-stone-100 text-stone-600'
+                return (
+                  <div key={d.id} className="bg-white border border-stone-200 rounded-xl p-4 flex items-start gap-3 group">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cls}`}><FileText className="w-5 h-5" /></div>
+                    <div className="flex-1 min-w-0">
+                      <button onClick={() => previewable ? setPreviewDoc(d) : window.open(d.url, '_blank')} className="text-sm font-medium text-stone-900 hover:text-blue-600 truncate block text-left w-full">{d.name}</button>
+                      <p className="text-[10px] text-stone-400">{typeLabel[d.type] || d.type} · {fd(d.uploadDate)}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {previewable && (
+                          <button onClick={() => setPreviewDoc(d)} className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800"><Eye className="w-3.5 h-3.5" />Aperçu</button>
+                        )}
+                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-800"><ExternalLink className="w-3.5 h-3.5" />Ouvrir</a>
+                        <a href={d.url} download className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-800"><Download className="w-3.5 h-3.5" /></a>
+                        <button onClick={() => toggleDocVisibility(d.id, !d.clientVisible)} title="Basculer la visibilité sur le portail client"
+                          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${d.clientVisible ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-stone-100 text-stone-500'}`}>
+                          {d.clientVisible ? 'Visible client' : 'Interne'}
+                        </button>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteDoc(d.id)} className="p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                  <button onClick={() => handleDeleteDoc(d.id)} className="p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-              ))}
+                )
+              })}
               {(project.documents || []).length === 0 && (
                 <div className="text-center py-10 text-stone-500 col-span-full bg-white border border-stone-200 rounded-xl"><FileText className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">Aucun document</p></div>
               )}
             </div>
+
+            {/* Preview modal */}
+            {previewDoc && (
+              <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6" onClick={() => setPreviewDoc(null)}>
+                <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200">
+                    <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <p className="flex-1 min-w-0 text-sm font-semibold text-stone-900 truncate">{previewDoc.name}</p>
+                    <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Ouvrir dans un nouvel onglet"><ExternalLink className="w-4 h-4" /></a>
+                    <a href={previewDoc.url} download className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Télécharger"><Download className="w-4 h-4" /></a>
+                    <button onClick={() => setPreviewDoc(null)} className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Fermer"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="flex-1 min-h-0 bg-stone-100">
+                    {previewDoc.url.split('?')[0].toLowerCase().endsWith('.pdf') ? (
+                      <iframe src={`${previewDoc.url}#toolbar=1&view=FitH`} className="w-full h-full min-h-[70vh]" title={previewDoc.name} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
+                        <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -634,6 +835,20 @@ export default function ProjectDetailPage() {
             ) : images.length === 0 ? (
               <div className="text-center py-10 bg-white border border-stone-200 rounded-xl text-stone-500"><ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">Aucune photo</p></div>
             ) : (
+              <>
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm">
+                <span className="flex-1 min-w-0 text-stone-600">
+                  {images.filter(i => i.clientVisible).length} / {images.length} photo{images.length > 1 ? 's' : ''} visible{images.filter(i => i.clientVisible).length > 1 ? 's' : ''} sur le portail du client
+                </span>
+                {images.some(i => !i.clientVisible) && (
+                  <button onClick={() => toggleImagesVisibility(images.filter(i => !i.clientVisible).map(i => i._id), true)}
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Tout partager</button>
+                )}
+                {images.some(i => i.clientVisible) && (
+                  <button onClick={() => toggleImagesVisibility(images.filter(i => i.clientVisible).map(i => i._id), false)}
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">Tout masquer</button>
+                )}
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {images.map(img => (
                   <div key={img._id} className="bg-white border border-stone-200 rounded-xl overflow-hidden group">
@@ -643,10 +858,15 @@ export default function ProjectDetailPage() {
                     <div className="p-3">
                       <p className="text-sm font-medium text-stone-900 truncate">{img.title || img.filename}</p>
                       {img.description && <p className="text-xs text-stone-500 truncate">{img.description}</p>}
+                      <button onClick={() => toggleImagesVisibility([img._id], !img.clientVisible)} title="Basculer la visibilité sur le portail client"
+                        className={`mt-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${img.clientVisible ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-stone-100 text-stone-500'}`}>
+                        {img.clientVisible ? 'Visible client' : 'Interne'}
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
+              </>
             )}
           </div>
         )}

@@ -7,12 +7,17 @@ import dbConnect from '@/lib/mongodb'
 import { EscrowTransaction } from '@/lib/models/EscrowTransaction'
 import { openDispute } from '@/lib/escrow-service'
 import { verifyAuthServer } from '@/lib/auth-server'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ reference: string }> }
 ) {
   try {
+    // phoneLast4 = 4 chiffres → brute-forceable sans rate-limit
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     await dbConnect()
     const { reference } = await params
     const body = await request.json().catch(() => ({}))

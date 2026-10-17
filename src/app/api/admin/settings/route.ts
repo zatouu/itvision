@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readPricingDefaults, writePricingDefaults, type PricingDefaults } from '@/lib/pricing/settings'
-import { requireAdminApi } from '@/lib/api-auth'
+import { readSharedPricing, writeSharedPricing, PricingConflictError } from '@/lib/pricing/shared-settings'
+import { requireAdminApi, PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
+import { pricingDefaultsUpdateSchema, validate } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN'])
+  // Lecture ouverte au PRODUCT_MANAGER (page /admin/produits/b2b-pricing) ;
+  // l'écriture des réglages globaux (POST) reste réservée aux admins.
+  const auth = await requireAdminApi(request, PRODUCT_STAFF_ROLES)
   if (!auth.ok) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
   }
 
   try {
-    const defaults = readPricingDefaults()
-    return NextResponse.json({ success: true, defaults })
+    const pricing = await readSharedPricing()
+    return NextResponse.json({
+      success: true,
+      defaults: pricing.config.defaults,
+      pricingVersion: pricing.version,
+      permissions: { canWrite: ['ADMIN', 'SUPER_ADMIN'].includes(auth.user.role.toUpperCase()) },
+    }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    console.error('[pricing-settings] read failed:', err)
+    return NextResponse.json({ success: false, error: 'Lecture des réglages impossible.' }, { status: 500 })
   }
 }
 
@@ -24,27 +32,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const allowed: Partial<PricingDefaults> = {}
-
-    if (typeof body.defaultExchangeRate === 'number' && body.defaultExchangeRate > 0) allowed.defaultExchangeRate = Math.round(body.defaultExchangeRate)
-    if (typeof body.defaultServiceFeeRate === 'number' && body.defaultServiceFeeRate >= 0 && body.defaultServiceFeeRate <= 100) allowed.defaultServiceFeeRate = Number(body.defaultServiceFeeRate)
-    if (typeof body.defaultInsuranceRate === 'number' && body.defaultInsuranceRate >= 0 && body.defaultInsuranceRate <= 100) allowed.defaultInsuranceRate = Number(body.defaultInsuranceRate)
-    if (typeof body.defaultB2BDiscountPercent === 'number' && body.defaultB2BDiscountPercent >= 1 && body.defaultB2BDiscountPercent <= 50) {
-      allowed.defaultB2BDiscountPercent = Number(body.defaultB2BDiscountPercent)
+    const body = await request.json().catch(() => null)
+    if (!Number.isInteger(body?.pricingVersion) || body.pricingVersion < 1) {
+      return NextResponse.json({ success: false, error: 'Version requise. Rechargez les reglages.' }, { status: 400 })
     }
-    if (Array.isArray(body.serviceFeeTiers)) {
-      allowed.serviceFeeTiers = body.serviceFeeTiers
+    const validated = validate(pricingDefaultsUpdateSchema, body.defaults)
+    if (!validated.success) {
+      return NextResponse.json({ success: false, error: validated.error }, { status: 400 })
     }
 
-    if (Object.keys(allowed).length === 0) {
-      return NextResponse.json({ success: false, error: 'Aucun champ valide fourni' }, { status: 400 })
-    }
-
-    const updated = writePricingDefaults(allowed)
-    return NextResponse.json({ success: true, defaults: updated })
+    const updated = await writeSharedPricing({ defaults: validated.data }, body.pricingVersion)
+    return NextResponse.json({ success: true, defaults: updated.config.defaults, pricingVersion: updated.version })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    if (err instanceof PricingConflictError) return NextResponse.json({ success: false, error: err.message }, { status: 409 })
+    console.error('[pricing-settings] write failed:', err)
+    return NextResponse.json({ success: false, error: 'Enregistrement des réglages impossible.' }, { status: 500 })
   }
 }

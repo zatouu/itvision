@@ -9,22 +9,91 @@ import { onOffer } from '@/lib/visibility'
 import { getAppConfig, releaseMissionReservation, reserveMissionCredits } from '@/lib/wallet'
 import MissionUnlock from '@/lib/models/MissionUnlock'
 import { computeUnlockCost } from '@/lib/credit-cost'
+import { internalPost } from '@/lib/internal-auth'
 
 const MAX_PRICE = 50_000_000
 const MAX_ETA_MINUTES = 10080 // 7 jours
 const MAX_COMMENT_LENGTH = 1000
+const MAX_MATERIALS = 10
+
+/**
+ * Lignes matériel de l'offre. Le produit DDM+ associé vient uniquement de la fiche IA de la demande
+ * (jamais d'un lien envoyé par l'application) ; le lien porte le code ambassadeur du prestataire.
+ */
+async function buildOfferMaterials(raw: unknown, sr: any, providerId: string, request: NextRequest) {
+  if (!Array.isArray(raw)) return undefined
+  const suggestions: any[] = Array.isArray(sr.aiBrief?.materialProducts) ? sr.aiBrief.materialProducts : []
+  const byId = new Map<string, any>()
+  const byTerm = new Map<string, any>()
+  for (const s of suggestions) {
+    const products = Array.isArray(s?.products) ? s.products : []
+    for (const p of products) if (p?.id) byId.set(String(p.id), p)
+    if (s?.term && products[0]) byTerm.set(String(s.term).trim().toLowerCase(), products[0])
+  }
+
+  const lines = raw.slice(0, MAX_MATERIALS).flatMap((m: any) => {
+    const name = typeof m?.name === 'string' ? m.name.trim().slice(0, 80) : ''
+    if (!name) return []
+    const product = (m?.productId && byId.get(String(m.productId))) || byTerm.get(name.toLowerCase())
+    return [{ name, qty: Math.min(99, Math.max(1, Math.round(Number(m?.qty) || 1))), byClient: m?.byClient !== false, product }]
+  })
+
+  let refCode: string | undefined
+  if (lines.some(l => l.byClient && l.product)) {
+    const res = await internalPost<{ code?: string }>(request, '/api/internal/market/ambassador-code', { userId: providerId })
+    refCode = res?.code
+  }
+  const campaign = encodeURIComponent(String(sr._id))
+  return lines.map(l => ({
+    name: l.name,
+    qty: l.qty,
+    byClient: l.byClient,
+    ...(l.product && typeof l.product.path === 'string' && l.product.path.startsWith('/') ? {
+      product: {
+        id: String(l.product.id),
+        name: String(l.product.name || '').slice(0, 120),
+        image: l.product.image || undefined,
+        priceFcfa: typeof l.product.priceFcfa === 'number' ? l.product.priceFcfa : undefined,
+        local: l.product.local === true,
+        link: `${l.product.path}?utm_source=xeuy&utm_medium=offre&utm_campaign=${campaign}${refCode ? `&ref=${refCode}` : ''}`,
+      },
+    } : {}),
+  }))
+}
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
+    // Authentification obligatoire — les offres ne sont plus listables publiquement
+    const { userId, role } = await requireAuth(request)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
     const { searchParams } = new URL(request.url)
     const requestId = searchParams.get('requestId')
     const mine = searchParams.get('mine')
     const q: any = {}
     if (requestId) q.requestId = requestId
     if (mine === '1') {
-      const { userId } = await requireAuth(request)
       q.providerId = userId
+    }
+
+    // Sans scope explicite : interdit. Avec requestId : client propriétaire,
+    // provider ayant offert, ou staff uniquement.
+    if (!isStaff) {
+      if (mine === '1') {
+        // déjà scopé providerId = userId
+      } else if (requestId) {
+        const sr = await ServiceRequest.findById(requestId).select('clientId').lean() as any
+        const isOwner = sr && String(sr.clientId) === String(userId)
+        if (!isOwner) {
+          const ownOffer = await Offer.exists({ requestId, providerId: String(userId) })
+          if (!ownOffer) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+          }
+          q.providerId = userId
+        }
+      } else {
+        return NextResponse.json({ error: 'Paramètre mine=1 ou requestId requis' }, { status: 400 })
+      }
     }
 
     // Exclure les offres "submitted" dont la validité est dépassée sans faire d'écriture en GET
@@ -150,6 +219,9 @@ export async function POST(request: NextRequest) {
       proposedTime: safeProposedTime,
     }
     if (providerName && typeof providerName === 'string') offerData.providerName = providerName.slice(0, 60)
+    const materials = await buildOfferMaterials((body as any).materials, sr, String(userId), request)
+    if (materials) offerData.materials = materials
+    if (typeof (body as any).materialIncluded === 'boolean') offerData.materialIncluded = (body as any).materialIncluded
 
     // Upsert: si le provider a déjà une offre sur cette demande, on la met à jour
     // au lieu d'en créer une nouvelle (évite les doublons).
@@ -170,6 +242,8 @@ export async function POST(request: NextRequest) {
       existing.validityMinutes = offerData.validityMinutes
       existing.validUntil = offerData.validUntil
       existing.proposedTime = offerData.proposedTime
+      if (materials) existing.materials = materials
+      if (typeof offerData.materialIncluded === 'boolean') existing.materialIncluded = offerData.materialIncluded
       if (offerData.providerName) existing.providerName = offerData.providerName
       // Remettre le statut à submitted si l'offre avait expiré
       if (existing.status === 'expired') existing.status = 'submitted'

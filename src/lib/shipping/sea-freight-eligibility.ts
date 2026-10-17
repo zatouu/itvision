@@ -1,3 +1,5 @@
+import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+
 export type SeaFreightEligibilitySettings = {
   minVolumeM3: number
   minBilledWeightKg: number
@@ -91,5 +93,53 @@ export function evaluateSeaFreightEligibility(
       orderValueOk,
       dataOk,
     },
+  }
+}
+
+/**
+ * Construit les métriques d'éligibilité maritime depuis les items du calculateur
+ * (volume, dimensions et poids issus de la DB — partagé entre devis et commande).
+ */
+export function buildSeaFreightMetrics(items: Array<{
+  qty?: number
+  weightKg?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
+  volumeM3?: number
+}>, orderValueFcfa: number): SeaFreightEligibilityMetrics {
+  let totalVolumeM3 = 0
+  let totalBilledWeightKg = 0
+  let hasDimensionsOrVolumeData = false
+
+  for (const item of items) {
+    const qty = Number(item.qty) > 0 ? Number(item.qty) : 1
+    const volume = typeof item.volumeM3 === 'number' && item.volumeM3 > 0 ? item.volumeM3 : 0
+    const hasDims =
+      typeof item.lengthCm === 'number' && item.lengthCm > 0 &&
+      typeof item.widthCm === 'number' && item.widthCm > 0 &&
+      typeof item.heightCm === 'number' && item.heightCm > 0
+
+    if (volume > 0 || hasDims) {
+      hasDimensionsOrVolumeData = true
+    }
+
+    totalVolumeM3 += volume * qty
+
+    const actualWeight = typeof item.weightKg === 'number' && item.weightKg > 0 ? item.weightKg : 0
+    const weightInfo = calculateBilledWeight({
+      actualWeightKg: actualWeight,
+      lengthCm: item.lengthCm,
+      widthCm: item.widthCm,
+      heightCm: item.heightCm,
+    })
+    totalBilledWeightKg += weightInfo.billedWeight * qty
+  }
+
+  return {
+    totalVolumeM3: Number(totalVolumeM3.toFixed(4)),
+    totalBilledWeightKg: Number(totalBilledWeightKg.toFixed(2)),
+    totalOrderValueFcfa: Math.round(orderValueFcfa || 0),
+    hasDimensionsOrVolumeData,
   }
 }

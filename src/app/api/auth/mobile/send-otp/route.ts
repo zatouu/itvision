@@ -31,11 +31,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Le code de dev n'est jamais exposé en production — sauf pour les numéros
+    // whitelistés (OTP_TEST_PHONES) dont le code est de toute façon fixe (000000).
+    const exposeDevCode =
+      result.devCode && (result.testPhone || process.env.NODE_ENV !== 'production')
     return NextResponse.json({
       success: true,
       phone: result.phone,
       expiresIn: result.expiresIn,
-      ...(result.devCode ? { _devCode: result.devCode, isFreeMode: true } : {}),
+      ...(exposeDevCode ? { _devCode: result.devCode, isFreeMode: true } : {}),
     })
   } catch (err) {
     console.error('[POST /api/auth/mobile/send-otp]', err)

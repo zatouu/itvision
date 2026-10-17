@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, companyScope, companyCapabilities } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
@@ -72,11 +72,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       technician: intervention.signatures.technician ? { signature: intervention.signatures.technician.signature, name: intervention.signatures.technician.name, timestamp: intervention.signatures.technician.timestamp } : null,
       client: intervention.signatures.client ? { signature: intervention.signatures.client.signature, name: intervention.signatures.client.name, title: intervention.signatures.client.title, timestamp: intervention.signatures.client.timestamp } : null,
     } : null,
-    feedback: intervention.feedback ? {
-      rating: intervention.feedback.rating,
-      comment: intervention.feedback.comment,
-      submittedAt: intervention.feedback.submittedAt,
+    feedback: (intervention.clientFeedback || intervention.feedback)?.rating ? {
+      rating: (intervention.clientFeedback || intervention.feedback).rating,
+      comment: (intervention.clientFeedback || intervention.feedback).comment,
+      tags: (intervention.clientFeedback || intervention.feedback).tags || [],
+      submittedAt: (intervention.clientFeedback || intervention.feedback).submittedAt,
     } : null,
+    canRate: companyCapabilities(access).has('interventions:feedback'),
     history: (intervention.history || []).map((h: any) => ({
       action: h.action,
       timestamp: h.timestamp,

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import SentEmail from '@/lib/models/SentEmail'
+import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // Journal des emails envoyés = données personnelles : réservé au staff.
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+    }
+
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)

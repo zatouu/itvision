@@ -3,37 +3,25 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
-import { verifyJwtPayload } from '@/lib/jwt'
+import AdminQuote from '@/lib/models/AdminQuote'
 import { logDataAccess } from '@/lib/security-logger'
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
+import { nextQuoteNumero, DEFAULT_BRS_THRESHOLD } from '@/lib/finance/billing'
+import { buildReportQuoteLines, priceReportQuote } from '@/lib/finance/report-quote'
 
-async function verifyAdminToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.cookies.get('admin-auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
+const CONTRACT_COVERAGE_CAP = 500000 // FCFA HT couverts par le contrat
 
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const normalizedRole = String((payload as any).role || '').toUpperCase()
-  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
-    throw new Error('Accès non autorisé')
-  }
-  logDataAccess('admin_reports', 'generate_quote', request, (payload as any).userId)
-  return { ...payload, role: normalizedRole }
-}
-
-// POST — Génération automatique d'un devis depuis un rapport validé
+// POST — Devis brouillon (AdminQuote réel) depuis un rapport validé
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let claimedId: string | null = null
   try {
     await connectMongoose()
-    const adminPayload = await verifyAdminToken(request)
-    const userId = (adminPayload as any).userId as string
+    const { userId } = await requireApiUser(request, ADMIN_ROLES)
+    logDataAccess('admin_reports', 'generate_quote', request, userId)
     const { id } = await params
 
     const report = await MaintenanceReport.findById(id)
-      .populate('technicianId', 'name')
-      .populate('clientId', 'name company email')
-      .populate('interventionId')
+      .populate('clientId', 'name company email phone address')
       .lean() as any
 
     if (!report) {
@@ -47,114 +35,126 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       )
     }
 
-    if (report.quoteGenerated) {
+    if (report.quoteGenerated || report.quoteId) {
       return NextResponse.json(
-        { error: 'Un devis a déjà été généré pour ce rapport', quoteId: report.quoteId },
+        { error: 'Un devis a déjà été généré pour ce rapport', quoteId: report.quoteId || report.quoteNumber },
         { status: 409 }
       )
     }
 
-    // Calculer les lignes de devis à partir des travaux réalisés
-    const lineItems: { description: string; quantity: number; unitPrice: number; total: number }[] = []
-
-    // Matériel installé
-    if (report.equipmentInstalled?.length > 0) {
-      for (const eq of report.equipmentInstalled) {
-        lineItems.push({
-          description: `Matériel: ${eq.name || eq.type || 'Équipement'}`,
-          quantity: eq.quantity || 1,
-          unitPrice: eq.unitPrice || 0,
-          total: (eq.quantity || 1) * (eq.unitPrice || 0)
-        })
-      }
+    // Réservation atomique : deux clics simultanés ne créent pas deux devis
+    const claim = await MaintenanceReport.updateOne(
+      { _id: report._id, quoteGenerated: { $ne: true }, quoteId: { $exists: false } },
+      { $set: { quoteGenerated: true, quoteGeneratedAt: new Date() } }
+    )
+    if (claim.modifiedCount === 0) {
+      return NextResponse.json({ error: 'Un devis a déjà été généré pour ce rapport' }, { status: 409 })
     }
+    claimedId = String(report._id)
 
-    // Main d'œuvre
-    const duree = report.totalDuration || report.interventionDuration || 2
-    const hourlyRate = 35000 // FCFA/h — configurable
-    lineItems.push({
-      description: 'Main d\'œuvre technique',
-      quantity: duree,
-      unitPrice: hourlyRate,
-      total: duree * hourlyRate
+    const lines = buildReportQuoteLines(report)
+    const totals = priceReportQuote(lines)
+
+    // Couverture contrat (champs réels : coverage.interventionsIncluded / interventionsUsed)
+    const client = report.clientId || {}
+    const contract = client?._id
+      ? await MaintenanceContract.findOne({ clientId: client._id, status: 'active' })
+          .select('contractNumber coverage')
+          .lean() as any
+      : null
+    const included = contract?.coverage?.interventionsIncluded || 0
+    const used = contract?.coverage?.interventionsUsed || 0
+    const contractRemaining = Math.max(0, included - used)
+    const contractCovered = !!contract && contractRemaining > 0 && totals.subtotal <= CONTRACT_COVERAGE_CAP
+
+    const notes = [
+      Array.isArray(report.recommendations) && report.recommendations.length
+        ? `Recommandations : ${report.recommendations.join('; ')}`
+        : '',
+      contractCovered ? `Intervention couverte par le contrat ${contract.contractNumber || ''} (${contractRemaining} restante(s)).` : '',
+    ].filter(Boolean).join('\n')
+
+    const quote = await AdminQuote.create({
+      numero: await nextQuoteNumero(),
+      title: `Maintenance — ${report.site || 'site client'}`,
+      date: new Date(),
+      client: {
+        name: client?.company || client?.name || 'Client',
+        address: client?.address || '',
+        phone: client?.phone || '',
+        email: client?.email || '',
+      },
+      // report.clientId référence le modèle Client (entreprise) : c'est le lien portail entreprise
+      clientCompanyId: client?._id || undefined,
+      projectId: report.projectId || undefined,
+      products: totals.products.map(l => ({
+        description: l.description,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        netUnitPrice: l.netUnitPrice,
+        taxable: !l.isLabor,
+        isLabor: l.isLabor,
+        total: l.total,
+      })),
+      subtotal: totals.subtotal,
+      applyBRS: true,
+      brsThreshold: DEFAULT_BRS_THRESHOLD,
+      brsAmount: totals.brsAmount,
+      taxAmount: totals.taxAmount,
+      other: 0,
+      total: totals.total,
+      status: 'draft',
+      notes: notes || undefined,
+      conditions: 'Devis valable 30 jours.',
+      createdBy: userId,
     })
 
-    // Dépenses additionnelles
-    if (report.additionalExpenses?.length > 0) {
-      for (const exp of report.additionalExpenses) {
-        lineItems.push({
-          description: exp.description || 'Frais annexes',
-          quantity: 1,
-          unitPrice: exp.amount || 0,
-          total: exp.amount || 0
-        })
-      }
-    }
-
-    const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0)
-    const tvaRate = 0.18
-    const tva = Math.round(subtotal * tvaRate)
-    const total = subtotal + tva
-
-    // Vérifier couverture contrat
-    let contractCovered = false
-    let contractRemaining = 0
-    if (report.clientId?._id) {
-      const contract = await MaintenanceContract.findOne({
-        clientId: report.clientId._id,
-        status: 'active'
-      }).select('interventionsUsed interventionsLimit').lean() as any
-      if (contract) {
-        contractRemaining = (contract.interventionsLimit || 0) - (contract.interventionsUsed || 0)
-        contractCovered = contractRemaining > 0 && subtotal <= 500000 // plafond couvert
-      }
-    }
-
-    const quote = {
-      reportId: report._id,
-      quoteNumber: `DV-${Date.now().toString(36).toUpperCase()}`,
-      clientId: report.clientId?._id,
-      technicianId: report.technicianId?._id,
-      generatedBy: userId,
-      generatedAt: new Date(),
-      lineItems,
-      subtotal,
-      tva,
-      total,
-      contractCovered,
-      contractRemaining,
-      status: 'draft',
-      notes: report.recommendations
-        ? `Recommandations: ${report.recommendations.join('; ')}`
-        : undefined
-    }
-
-    // Mettre à jour le rapport
     await MaintenanceReport.updateOne(
-      { _id: id },
+      { _id: report._id },
       {
         $set: {
-          quoteGenerated: true,
-          quoteId: quote.quoteNumber,
-          quoteGeneratedAt: new Date()
-        }
+          quoteId: quote._id,
+          quoteNumber: quote.numero,
+          'billing.needsQuote': false,
+          'billing.quoteId': quote._id,
+          'billing.quoteStatus': 'draft',
+          'billing.lastUpdatedAt': new Date(),
+        },
       }
     )
 
     return NextResponse.json({
       success: true,
-      quote,
+      quote: {
+        _id: String(quote._id),
+        numero: quote.numero,
+        subtotal: quote.subtotal,
+        brsAmount: quote.brsAmount,
+        taxAmount: quote.taxAmount,
+        total: quote.total,
+        status: quote.status,
+      },
+      contractCovered,
+      contractRemaining,
       message: contractCovered
-        ? `Devis généré — ${contractRemaining} interventions restantes sur contrat`
-        : 'Devis généré — hors contrat'
-    })
+        ? `Devis ${quote.numero} créé (brouillon) — ${contractRemaining} intervention(s) restante(s) sur contrat`
+        : `Devis ${quote.numero} créé (brouillon) — hors contrat`,
+    }, { status: 201 })
 
-  } catch (error: any) {
+  } catch (error) {
+    // Libère la réservation si la création a échoué
+    if (claimedId) {
+      await MaintenanceReport.updateOne(
+        { _id: claimedId, quoteId: { $exists: false } },
+        { $set: { quoteGenerated: false }, $unset: { quoteGeneratedAt: 1 } }
+      ).catch(() => {})
+    }
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur génération devis:', error)
-    const status = error.message === 'Accès non autorisé' ? 403 : 500
     return NextResponse.json(
-      { error: error.message || 'Erreur interne du serveur' },
-      { status }
+      { error: 'Erreur interne du serveur' },
+      { status: 500 }
     )
   }
 }

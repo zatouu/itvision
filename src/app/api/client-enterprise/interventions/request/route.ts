@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, companyScope } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
@@ -10,7 +10,10 @@ import { logAuditEvent } from '@/lib/audit'
 export async function POST(request: NextRequest) {
   const result = await requireDomainAccess(request, 'corporate')
   if (!result.ok) return result.response
-  const { access, user } = result
+  const { access } = result
+
+  const denied = requireCompanyCapability(access, 'maintenance:request')
+  if (denied) return denied
 
   await connectDB()
   const userId = new mongoose.Types.ObjectId(access.userId)
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
     userId: 'admin',
     type: 'info',
     title: 'Nouvelle demande intervention client',
-    message: `${user.username || user.email} a demandé une intervention : ${title}`,
+    message: `${access.email || 'Un client'} a demandé une intervention : ${title}`,
     actionUrl: `/admin/maintenance/interventions/${intervention._id}`,
     metadata: { interventionId: String(intervention._id), clientId: String(userId) }
   })

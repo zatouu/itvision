@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { GroupOrderChatMessage } from '@/lib/models/GroupOrderChatMessage'
+import { listThreadMessages, postMessage, sanitizeAttachments, toGroupOrderMessageDto, MESSAGE_MAX_LENGTH } from '@/lib/messaging/thread-messages'
 import { requireAdminApi } from '@/lib/api-auth'
+import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { readPaymentSettings } from '@/lib/payments/settings'
 import {
   getGroupChatParticipantByToken,
@@ -48,24 +49,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { searchParams } = new URL(request.url)
     const limit = parseLimit(searchParams.get('limit'))
 
-    const messages = await GroupOrderChatMessage.find({ groupId })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
+    const messages = await listThreadMessages('group_order', groupId, { limit })
 
-    const ordered = messages.slice().reverse()
-
-    return NextResponse.json({
-      messages: ordered.map(m => ({
-        id: String(m._id),
-        groupId: m.groupId,
-        authorType: m.authorType,
-        authorParticipantId: m.authorParticipantId || null,
-        authorName: m.authorName,
-        text: m.text,
-        createdAt: m.createdAt
-      }))
-    })
+    return NextResponse.json({ messages: messages.map(toGroupOrderMessageDto) })
   } catch (error) {
     console.error('Erreur GET group chat messages:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
@@ -74,11 +60,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimitResponse = await applyRateLimit(request, authRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
+
     const { groupId } = await context.params
     const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.trim() : ''
 
-    if (!text) {
+    if (text.length > MESSAGE_MAX_LENGTH.group_order) {
+      return NextResponse.json({ error: 'Message trop long' }, { status: 400 })
+    }
+
+    if (!text && sanitizeAttachments((body as any).attachments).length === 0) {
       return NextResponse.json({ error: 'Message vide' }, { status: 400 })
     }
 
@@ -93,25 +86,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     if (isAdmin && adminAuth.user) {
-      const created = await GroupOrderChatMessage.create({
-        groupId,
-        authorType: 'admin',
-        authorUserId: adminAuth.user.id,
-        authorName: adminAuth.user.email || 'Admin',
-        text
+      const created = await postMessage({
+        threadType: 'group_order',
+        threadId: groupId,
+        senderId: adminAuth.user.id,
+        senderRole: 'admin',
+        senderName: adminAuth.user.email || 'Admin',
+        text,
+        attachments: (body as any).attachments
       })
 
-      return NextResponse.json({
-        message: {
-          id: String(created._id),
-          groupId: created.groupId,
-          authorType: created.authorType,
-          authorParticipantId: null,
-          authorName: created.authorName,
-          text: created.text,
-          createdAt: created.createdAt
-        }
-      })
+      return NextResponse.json({ message: toGroupOrderMessageDto(created) })
     }
 
     const token = getGroupChatTokenFromRequest(request, (body as any).token)
@@ -124,25 +109,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
-    const created = await GroupOrderChatMessage.create({
-      groupId,
-      authorType: 'participant',
-      authorParticipantId: participant.participantId || undefined,
-      authorName: participant.name,
-      text
+    const created = await postMessage({
+      threadType: 'group_order',
+      threadId: groupId,
+      senderRole: 'participant',
+      senderParticipantId: participant.participantId || undefined,
+      senderName: participant.name,
+      text,
+      attachments: (body as any).attachments
     })
 
-    return NextResponse.json({
-      message: {
-        id: String(created._id),
-        groupId: created.groupId,
-        authorType: created.authorType,
-        authorParticipantId: created.authorParticipantId || null,
-        authorName: created.authorName,
-        text: created.text,
-        createdAt: created.createdAt
-      }
-    })
+    return NextResponse.json({ message: toGroupOrderMessageDto(created) })
   } catch (error) {
     console.error('Erreur POST group chat message:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

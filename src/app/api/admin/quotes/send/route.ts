@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
 
     const quote = await AdminQuote.findById(id).lean() as any
     if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
+    if (quote.status === 'superseded') {
+      return NextResponse.json({ error: 'Ce devis a été remplacé par une nouvelle version : envoyez la dernière version' }, { status: 409 })
+    }
 
     // Résoudre les emails contacts du client
     let recipient = to
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     const siteUrl = brand.url
 
-    const ok = await emailService.sendEmail({
+    const delivery = await emailService.sendEmailDetailed({
       to: recipient,
       fromName: brand.name,
       brand,
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
         }
       ]
     })
+    const ok = delivery.ok
 
     if (ok) {
       await AdminQuote.updateOne(
@@ -133,7 +137,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: ok })
+    // delivery 'simulated' = publié au portail mais aucun email parti (SMTP absent) ; copyTo = copie de contrôle ITV
+    return NextResponse.json({ success: ok, delivery: delivery.status, to: recipient, copyTo: delivery.bcc })
   } catch (error) {
     console.error('Erreur envoi devis:', error)
     return NextResponse.json({ error: 'Erreur lors de l\'envoi du devis' }, { status: 500 })

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const safePlatform = ['ios', 'android', 'web'].includes(platform) ? platform : 'android'
-    const safeAppType = ['consumer', 'provider'].includes(appType) ? appType : 'consumer'
+    const safeAppType = ['consumer', 'provider', 'unified'].includes(appType) ? appType : 'consumer'
 
     await connectMongoose()
 

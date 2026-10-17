@@ -87,10 +87,17 @@ export async function POST(
       )
     }
 
-    // Calculer le montant
+    if (group.status === 'open') {
+      return NextResponse.json(
+        { error: 'Validez d\'abord le groupe : le prix final n\'est fixé qu\'à la clôture' },
+        { status: 409 }
+      )
+    }
+
+    // Montant du participant (palier final, variante comprise)
     const quantity = (participant as any).qty || 1
-    const unitPrice = (group as any).currentUnitPrice || (group as any).product?.basePrice
-    const amount = quantity * unitPrice
+    const unitPrice = (participant as any).unitPrice || (group as any).currentUnitPrice || (group as any).product?.basePrice
+    const amount = (participant as any).totalAmount || quantity * unitPrice
 
     // Générer la référence de paiement
     const reference = participant.paymentReference || 

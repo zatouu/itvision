@@ -95,6 +95,8 @@ export interface IIntervention extends Document {
   clientFeedback?: {
     rating: number
     comment?: string
+    tags?: string[]
+    userId?: mongoose.Types.ObjectId
     submittedAt: Date
   }
   clientAcknowledgedAt?: Date
@@ -220,13 +222,15 @@ const InterventionSchema = new Schema<IIntervention>({
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
   
   // Devis lié
-  quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+  quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
   quoteGenerated: { type: Boolean, default: false },
   
   // Feedback client post-intervention
   clientFeedback: {
     rating: { type: Number, min: 1, max: 5 },
     comment: { type: String },
+    tags: { type: [String], default: undefined },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     submittedAt: { type: Date }
   },
   clientAcknowledgedAt: { type: Date },

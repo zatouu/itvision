@@ -3,28 +3,14 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import User from '@/lib/models/User'
 import { generateMaintenanceContractDocx, generateMaintenanceContractPdf } from '@/lib/contracts/export'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyAdmin(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  if ((payload.role as string)?.toUpperCase() !== 'ADMIN') {
-    throw new Error('Accès réservé aux administrateurs')
-  }
-  return { userId: payload.userId as string }
-}
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await verifyAdmin(request)
+    await requireApiUser(request, ADMIN_ROLES)
     await connectMongoose()
 
     const { id } = await params
@@ -113,10 +99,10 @@ export async function GET(
       }
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur export contrat maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    const status = message.toLowerCase().includes('accès') ? 403 : 500
-    return NextResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

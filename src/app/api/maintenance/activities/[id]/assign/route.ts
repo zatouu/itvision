@@ -3,21 +3,9 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceBid from '@/lib/models/MaintenanceBid'
 import Intervention from '@/lib/models/Intervention'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase()
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
+import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
+import { notifyTechnician, notifyTechnicianOfChange } from '@/lib/tech/notify-technician'
 
 /**
  * PATCH /api/maintenance/activities/[id]/assign
@@ -29,7 +17,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const { role } = await verifyToken(request)
+    const { role } = await requireApiUser(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
@@ -66,6 +54,7 @@ export async function PATCH(
     await bid.save()
 
     // Rejeter les autres offres
+    const otherBidders = await MaintenanceBid.find({ activityId: activity._id, _id: { $ne: bid._id } }).distinct('technicianId')
     await MaintenanceBid.updateMany(
       {
         activityId: activity._id,
@@ -78,8 +67,10 @@ export async function PATCH(
 
     // Créer ou lier l'intervention associée
     let intervention = null
+    let before: any = null
     if (activity.interventionId) {
       intervention = await Intervention.findById(activity.interventionId)
+      before = intervention ? intervention.toObject() : null
     }
 
     if (!intervention) {
@@ -136,6 +127,14 @@ export async function PATCH(
     intervention.maintenanceActivityId = activity._id
     await intervention.save()
 
+    const after = intervention.toObject()
+    void notifyInterventionChange(before, after).catch(e => console.error('[activity assign] notification client:', e))
+    void notifyTechnicianOfChange(before, after)
+    for (const techId of otherBidders) {
+      if (String(techId) === String(bid.technicianId)) continue
+      void notifyTechnician(techId, { title: 'Offre non retenue', message: `${intervention.title} a été confiée à un autre technicien.`, actionUrl: '/tech-interface?tab=missions' })
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Offre affectée avec succès',
@@ -152,9 +151,10 @@ export async function PATCH(
       }
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur affectation offre:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

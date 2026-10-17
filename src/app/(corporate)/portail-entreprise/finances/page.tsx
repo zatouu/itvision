@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE, CLIENT_VISIBLE_INVOICE } from '@/lib/client-documents'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import SoftMessage from '@/components/ui/SoftMessage'
 import FinanceExport from '@/components/portal/FinanceExport'
@@ -22,8 +23,8 @@ export default async function FinancesPage() {
   const filter = { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] }
 
   const [invoices, quotes, contracts] = await Promise.all([
-    AdminInvoice.find(filter).sort({ date: -1 }).lean() as Promise<any[]>,
-    AdminQuote.find(filter).sort({ date: -1 }).lean() as Promise<any[]>,
+    AdminInvoice.find({ ...filter, ...CLIENT_VISIBLE_INVOICE }).sort({ date: -1 }).lean() as Promise<any[]>,
+    AdminQuote.find({ ...filter, ...CLIENT_VISIBLE_QUOTE }).sort({ date: -1 }).lean() as Promise<any[]>,
     MaintenanceContract.find({ ...companyScope({ userId, companyId }), status: 'active' })
       .select('name annualPrice endDate type').lean() as Promise<any[]>,
   ])
@@ -31,7 +32,7 @@ export default async function FinancesPage() {
   // Calculs financiers globaux
   const totalBilled  = invoices.reduce((s, i) => s + (i.total || 0), 0)
   const totalPaid    = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.total || 0), 0)
-  const totalDue     = invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0)
+  const totalDue     = invoices.filter(i => ['sent', 'overdue', 'partial'].includes(i.status)).reduce((s, i: any) => s + (i.total || 0) - (i.amountPaid || 0) - (i.creditedAmount || 0), 0)
   const totalOverdue = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.total || 0), 0)
   const paymentRate  = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0
 
@@ -60,7 +61,7 @@ export default async function FinancesPage() {
 
   // Échéancier : factures à régler groupées par mois d'échéance
   const unpaid = invoices
-    .filter((i: any) => ['sent', 'overdue'].includes(i.status) && i.dueDate)
+      .filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status) && i.dueDate)
     .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
   const schedule: { key: string; label: string; total: number; items: any[] }[] = []
   for (const inv of unpaid) {
@@ -94,7 +95,7 @@ export default async function FinancesPage() {
       value: `${fmtNum(totalDue)} F`,
       icon: totalOverdue > 0 ? AlertTriangle : Clock,
       tone: totalOverdue > 0 ? 'text-red-600' : 'text-amber-600',
-      sub: totalOverdue > 0 ? `${fmtNum(totalOverdue)} F en retard` : `${invoices.filter(i=>['sent','overdue'].includes(i.status)).length} factures`
+      sub: totalOverdue > 0 ? `${fmtNum(totalOverdue)} F en retard` : `${invoices.filter(i=>['sent','overdue','partial'].includes(i.status)).length} factures`
     },
     {
       label: 'Contrats annuels', value: `${fmtNum(contractAnnual)} F`,

@@ -9,6 +9,7 @@ import {
   Star, TrendingUp, MessageSquare, Settings, Archive, UserX
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
+import PortalActivityPanel from '@/components/admin/PortalActivityPanel'
 
 interface Client {
   _id: string
@@ -55,7 +56,7 @@ export default function ImprovedClientManagement() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'archived'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -278,7 +279,7 @@ export default function ImprovedClientManagement() {
   }
 
   const handleDelete = async (clientId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) return
+    if (!confirm('Supprimer ce client ? S\'il a déjà des factures, devis, contrats ou interventions, il sera archivé (historique conservé, accès portail coupé).')) return
 
     try {
       const res = await fetch(`/api/admin/clients/${clientId}`, {
@@ -288,7 +289,7 @@ export default function ImprovedClientManagement() {
       const data = await res.json()
       
       if (data.success) {
-        addToast('Client supprimé', 'success')
+        addToast(data.archived ? 'Client archivé (historique conservé)' : 'Client supprimé', 'success')
         fetchClients()
       } else {
         addToast(data.error || 'Erreur lors de la suppression', 'error')
@@ -535,6 +536,7 @@ export default function ImprovedClientManagement() {
               <option value="all">Tous les statuts</option>
               <option value="active">Actifs</option>
               <option value="inactive">Inactifs</option>
+              <option value="archived">Archivés</option>
             </select>
 
             <select
@@ -851,6 +853,8 @@ export default function ImprovedClientManagement() {
                       )}
                     </div>
                   </div>
+
+                  {selectedClient.permissions?.canAccessPortal && <PortalActivityPanel clientId={String(selectedClient._id)} />}
 
                   {selectedClient.tags && selectedClient.tags.length > 0 && (
                     <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">

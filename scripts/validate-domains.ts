@@ -8,7 +8,7 @@
  * - pas de préfixe dupliqué ni d'entrée 'review' oubliée dans le reporting
  * À lancer en CI ou avant chaque étape du plan de sortie du monolithe.
  */
-import { readdirSync, statSync } from 'fs'
+import { readdirSync, readFileSync, statSync } from 'fs'
 import { join } from 'path'
 import {
   PAGE_RULES,
@@ -94,6 +94,64 @@ ok(`${deprecated.length} routes marquées deprecated : ${deprecated.map(r => r.p
 
 const review = [...PAGE_RULES, ...API_RULES].filter(r => r.review)
 if (review.length) console.log(`  ? ${review.length} routes à revoir : ${review.map(r => r.prefix).join(', ')}`)
+
+// ─── Garde-fou : routes API déclarées non publiques sans garde d'auth ─────────
+// Le middleware n'applique pas `access` aux API (autorisation par handler).
+// Ce rapport liste les handlers qui ne référencent AUCUN helper d'auth : c'est
+// là que le registre documente une protection que le code n'applique pas.
+console.log('— API : garde d’auth vs registre —')
+const AUTH_HELPERS = [
+  'verifyAuthServer', 'requireRole', 'requireAdminApi', 'requireAuth',
+  'resolveGuestOrAuthUser', 'verifyAuthToken', 'extractAuthToken',
+  'internalPost', 'x-cron-secret', 'verifyCronSecret', 'requireManagerRole',
+  'requireDomainAccess', 'companyScope', 'verifyJwtPayload', 'getServerSession',
+  'withAuth', 'authenticateRequest', 'getAuthUser', 'getAuthenticatedUser',
+  'getCurrentUser', 'verifyToken', 'requireProvider', 'requireStaff',
+  'jwtVerify', 'requireValidSession', 'getToken', 'verifySession',
+]
+// Fichiers « alias » (export { X } from '...') : la garde vit dans la cible.
+const ALIAS_ONLY = /^\s*(export\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?\s*)+$/
+function apiPathOf(file: string): string | null {
+  const rel = file.replace(/\\/g, '/').split('/api/')[1]
+  if (!rel) return null
+  const segments = rel.split('/').filter(s => s && s !== 'route.ts' && s !== 'route.tsx')
+  return '/api/' + segments.join('/')
+}
+
+function routeFilesUnder(prefix: string): string[] {  const base = join(API_DIR, ...prefix.replace(/^\/api\//, '').split('/'))
+  const out: string[] = []
+  const walk = (dir: string) => {
+    let entries: string[] = []
+    try { entries = readdirSync(dir) } catch { return }
+    for (const name of entries) {
+      const full = join(dir, name)
+      try {
+        if (statSync(full).isDirectory()) walk(full)
+        else if (name === 'route.ts' || name === 'route.tsx') out.push(full)
+      } catch { /* ignore */ }
+    }
+  }
+  walk(base)
+  return out
+}
+let ungarded = 0
+for (const rule of API_RULES) {
+  if (rule.access === 'public' || rule.domain === 'deprecated') continue
+  for (const file of routeFilesUnder(rule.prefix)) {
+    const src = readFileSync(file, 'utf-8')
+    if (ALIAS_ONLY.test(src)) continue
+    // Une règle plus spécifique (ex. webhook public) peut couvrir ce fichier :
+    // on applique la même résolution « préfixe le plus précis » que le registre.
+    const routePath = apiPathOf(file)
+    if (routePath && API_RULES.find(r => routePath === r.prefix || routePath.startsWith(r.prefix + '/'))?.access === 'public') continue
+    if (!AUTH_HELPERS.some(h => src.includes(h)) && !/\brequire[A-Z][A-Za-z]*\s*\(/.test(src)) {
+      ungarded++
+      console.log(`  ? ${file.replace(ROOT + '\\', '').replace(ROOT + '/', '')} — déclaré non public, aucune garde détectée`)
+    }
+  }
+}
+if (ungarded === 0) ok('toutes les routes API non publiques référencent un helper d’auth')
+else console.log(`  ? ${ungarded} route(s) à vérifier (rapport indicatif — non bloquant)`)
 
 // Sanity checks sur des cas connus
 const sanity: [string, string][] = [

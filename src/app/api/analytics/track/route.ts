@@ -94,6 +94,9 @@ export async function POST(request: NextRequest) {
     } catch {
       // Token invalide ou absent, visite anonyme
     }
+    if (!sessionId && typeof body.visitorId === 'string' && /^[a-z0-9-]{8,64}$/i.test(body.visitorId)) {
+      sessionId = `anon:${body.visitorId}`
+    }
 
     // Récupérer les infos client
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] ||

@@ -3,22 +3,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceBid from '@/lib/models/MaintenanceBid'
 import Technician from '@/lib/models/Technician'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase(),
-    technicianId: payload.technicianId as string | undefined
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
+import { resolveTechnicianId } from '@/lib/interventions-access'
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +12,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { role } = await verifyToken(request)
+    const { role } = await requireApiUser(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
@@ -47,9 +33,10 @@ export async function GET(
       }))
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur récupération offres maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
@@ -59,7 +46,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const { role, technicianId, userId } = await verifyToken(request)
+    const { role, technicianId, email } = await requireApiUser(request)
     if (!['TECHNICIAN', 'ADMIN'].includes(role)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
@@ -71,8 +58,9 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { amount, availability, message } = body
-    if (!amount || !availability) {
+    const { availability, message } = body
+    const amount = Number(body.amount)
+    if (!Number.isFinite(amount) || amount <= 0 || !availability) {
       return NextResponse.json({ error: 'Montant et disponibilité requis' }, { status: 400 })
     }
 
@@ -81,13 +69,17 @@ export async function POST(
     let technicianPhone: string | undefined
 
     if (role === 'TECHNICIAN') {
-      const technician = await Technician.findOne({ userId }).lean() as any
+      const ownId = await resolveTechnicianId(email)
+      const technician = ownId ? await Technician.findById(ownId).lean() as any : null
       if (!technician) {
         return NextResponse.json({ error: 'Technicien introuvable' }, { status: 404 })
       }
       techId = technician._id.toString()
       technicianName = technician.name || technician.email || 'Technicien'
       technicianPhone = technician.phone
+      if (await MaintenanceBid.exists({ activityId: activity._id, technicianId: techId })) {
+        return NextResponse.json({ error: 'Vous avez déjà fait une offre sur cette mission' }, { status: 409 })
+      }
     } else {
       technicianName = body.technicianName || 'Technicien (admin)'
       technicianPhone = body.technicianPhone
@@ -114,9 +106,10 @@ export async function POST(
       bidId: bid._id.toString()
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur dépôt offre maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

@@ -6,9 +6,21 @@ import { NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { requireAuth } from '@/lib/jwt'
+import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
 
 export async function POST(request: Request) {
   try {
+    // Même garde que /api/upload : auth + quota d'uploads (sinon stockage ouvert)
+    const rateLimited = await applyRateLimit(request as any, uploadRateLimiter)
+    if (rateLimited) return rateLimited
+
+    try {
+      await requireAuth(request as any)
+    } catch {
+      return NextResponse.json({ error: 'Authentification requise' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const files = formData.getAll('photos') as File[]
 

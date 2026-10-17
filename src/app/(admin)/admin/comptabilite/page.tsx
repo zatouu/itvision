@@ -1,5 +1,6 @@
 import Breadcrumb from '@/components/Breadcrumb'
 import AccountingDashboard from '@/components/AccountingDashboard'
+import AccountingExport from '@/components/admin/AccountingExport'
 import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/jwt'
 
@@ -32,7 +33,8 @@ export default async function AdminComptabilitePage() {
         backHref="/admin" 
         backLabel="Retour au dashboard"
       />
-      <div className="mt-4">
+      <div className="mt-4 space-y-6">
+        <AccountingExport />
         <AccountingDashboard />
       </div>
     </div>

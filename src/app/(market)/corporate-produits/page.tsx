@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db'
-import ProductValidated from '@/lib/models/Product.validated'
+import ProductValidated from '@/lib/models/Product'
 import CorporateCatalogClient from '@/components/corporate/CorporateCatalogClient'
+import { corporateCatalogFilter } from '@/lib/market/corporate-catalog'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -15,23 +16,9 @@ function normalizeStr(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 function stripHtml(s: string): string {
   return s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
-
-const SEARCH_TERMS = Array.from(new Set([
-  'camera', 'caméra', 'videosurveillance', 'vidéosurveillance', 'cctv', 'hikvision', 'dahua', 'nvr', 'dvr',
-  "contrôle d'accès", "controle d'acces", 'biométrique', 'badge', 'rfid', 'serrure',
-  'alarme', 'alarm', 'détecteur', 'detecteur', 'sirène', 'intrusion', 'capteur',
-  'réseau', 'reseau', 'wifi', 'wi-fi', 'switch', 'poe', 'routeur', 'câble', 'cable',
-  'domotique', 'smart home', 'maison intelligente', 'automatisation', 'tuya', 'zigbee', 'sonoff',
-  'gadget', 'accessoire', 'objet connecté', 'support', 'adaptateur',
-  'incendie', 'fumée', 'fumee', 'extincteur', 'détection incendie',
-]))
 
 type StockStatus = 'in_stock' | 'preorder' | 'out_of_stock'
 
@@ -147,21 +134,9 @@ function stockLabel(status: StockStatus, qty: number, leadTimeDays?: number): st
 async function fetchProducts(): Promise<CorporateProduct[]> {
   try {
     await connectDB()
-    const regexes = SEARCH_TERMS.map((t) => new RegExp(escapeRegex(t), 'i'))
-    const docs = await ProductValidated.find({
-      isPublished: { $ne: false },
-      $or: [
-        { corporateVisible: true },
-        { channels: { $in: ['corporate'] } },
-        // Fallback: produits tech existants avec un prix, en attendant le tagging explicite
-        {
-          $and: [
-            { category: { $in: regexes } },
-            { $or: [{ b2bPrice: { $gt: 0 } }, { price: { $gt: 0 } }] },
-          ],
-        },
-      ],
-    })
+    // ⚠️ Produits IT Vision uniquement (jamais un vendeur tiers) — règle partagée
+    // avec /api/corporate/products : src/lib/market/corporate-catalog.ts
+    const docs = await ProductValidated.find(corporateCatalogFilter())
       .select('name category description tagline image price b2bPrice currency features stockStatus stockQuantity leadTimeDays isFeatured corporateVisible channels')
       .sort({ isFeatured: -1, corporateVisible: -1, category: 1, name: 1 })
       .limit(80)

@@ -14,23 +14,41 @@ import Technician from '@/lib/models/Technician'
 import Project from '@/lib/models/Project'
 import Intervention from '@/lib/models/Intervention'
 import '@/lib/models/Client' // registration nécessaire pour .populate('clientId')
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
+import { resolveTechnicianId, isAssignedTechnician } from '@/lib/interventions-access'
+import { advanceIntervention } from '@/lib/interventions/lifecycle'
+import { isOwnUploadUrl } from '@/lib/maintenance/report-rules'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
-  const token = request.cookies.get('auth-token')?.value || 
-                request.cookies.get('tech-auth-token')?.value ||
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const decoded = payload as any
-  const role = String(decoded.role || '').toUpperCase()
-  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
-  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? userId : undefined)
-  return { ...decoded, role, technicianId, userId }
+  // Clients exclus : ils lisent les rapports publiés via le portail entreprise
+  const user = await requireApiUser(request, ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'])
+  return { ...user, technicianId: user.technicianId || (user.role === 'TECHNICIAN' ? user.userId : undefined) }
 }
 
 const ISSUE_SEVERITIES = new Set(['low', 'medium', 'high', 'critical'])
+const INTERVENTION_TYPES = new Set(['maintenance', 'preventive', 'installation', 'repair', 'inspection', 'emergency'])
+
+const isSignature = (s: unknown): s is string =>
+  typeof s === 'string' && s.startsWith('data:image/png;base64,') && s.length < 600_000
+
+/** Photos d'un rapport : uniquement nos propres uploads, 30 au plus par catégorie. */
+function parsePhotos(input: unknown): Array<{ url: string; caption?: string; timestamp: Date; gps?: { lat: number; lng: number } }> {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((photo: any) => {
+      const url = typeof photo === 'string' ? photo : photo?.url
+      if (!isOwnUploadUrl(url)) return null
+      const gps = photo?.gps && Number.isFinite(Number(photo.gps.lat)) ? { lat: Number(photo.gps.lat), lng: Number(photo.gps.lng) } : undefined
+      return {
+        url,
+        caption: typeof photo === 'object' ? String(photo?.caption || '').slice(0, 200) || undefined : undefined,
+        timestamp: (typeof photo === 'object' && photo?.timestamp && !isNaN(new Date(photo.timestamp).getTime())) ? new Date(photo.timestamp) : new Date(),
+        gps,
+      }
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null)
+    .slice(0, 30)
+}
 const ISSUE_STATUSES = new Set(['identified', 'in_progress', 'resolved'])
 const RECOMMENDATION_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent'])
 const REPORT_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent'])
@@ -358,10 +376,12 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur récupération rapports:', error)
     return NextResponse.json(
-      { error: 'Accès non autorisé' },
-      { status: 401 }
+      { error: 'Erreur serveur' },
+      { status: 500 }
     )
   }
 }
@@ -382,20 +402,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Résoudre le vrai technicien (par _id, userId, puis email)
+    // Résoudre le vrai technicien : un technicien rédige toujours en son nom
     let technicianId = reportData.technicianId || tokenData.technicianId
     let technician = null
-    if (technicianId) {
+    if (tokenData.role === 'TECHNICIAN') {
+      const ownId = await resolveTechnicianId(tokenData.email)
+      technician = ownId ? await Technician.findById(ownId) : null
+    } else if (technicianId) {
       technician = await Technician.findById(technicianId).catch(() => null)
-      if (!technician && mongoose.isValidObjectId(technicianId)) {
-        technician = await Technician.findOne({ userId: technicianId }).catch(() => null)
-      }
-    }
-    if (!technician && tokenData.userId) {
-      technician = await Technician.findOne({ userId: tokenData.userId }).catch(() => null)
-    }
-    if (!technician && tokenData.email) {
-      technician = await Technician.findOne({ email: String(tokenData.email).toLowerCase() })
     }
     if (!technician || !technician.isActive) {
       return NextResponse.json(
@@ -411,20 +425,26 @@ export async function POST(request: NextRequest) {
     let projectId: string | undefined = reportData.projectId
     let interventionDate = new Date(reportData.interventionDate)
     let site = reportData.site
-    let interventionType = reportData.interventionType || 'maintenance'
+    let interventionType = INTERVENTION_TYPES.has(String(reportData.interventionType)) ? reportData.interventionType : 'maintenance'
 
     if (interventionId) {
       const intervention = await Intervention.findById(interventionId).lean() as any
       if (!intervention) {
         return NextResponse.json({ error: 'Intervention introuvable' }, { status: 404 })
       }
+      if (tokenData.role === 'TECHNICIAN' && !isAssignedTechnician(intervention, technicianId)) {
+        return NextResponse.json({ error: 'Intervention non assignée à ce technicien' }, { status: 403 })
+      }
+      if (intervention.status === 'cancelled') {
+        return NextResponse.json({ error: 'Intervention annulée' }, { status: 409 })
+      }
       clientId = intervention.clientId?.toString?.() || clientId
       projectId = intervention.projectId?.toString?.() || projectId
       interventionDate = intervention.date || interventionDate
       site = intervention.site || site
       interventionType = intervention.typeIntervention || interventionType
-      // On hérite du technicien assigné si le rapport n'en précise pas
-      if (!reportData.technicianId && intervention.technicienId) {
+      // On hérite du technicien assigné si un admin rédige sans le préciser
+      if (tokenData.role !== 'TECHNICIAN' && !reportData.technicianId && intervention.technicienId) {
         technicianId = intervention.technicienId.toString()
         technician = await Technician.findById(technicianId) || technician
       }
@@ -448,15 +468,15 @@ export async function POST(request: NextRequest) {
 
     if (!clientId || !projectId) {
       return NextResponse.json(
-        { error: 'Impossible de déterminer le client et le projet pour ce rapport' },
+        { error: 'Aucun projet n’est rattaché à ce client : demandez au planning de lier l’intervention à un projet.' },
         { status: 400 }
       )
     }
 
-    // Calcul automatique de la durée si startTime/endTime fournis
-    const startTime = reportData.startTime || '08:00'
-    const endTime = reportData.endTime || '09:00'
-    const duration = reportData.duration ?? computeDurationMinutes(startTime, endTime)
+    // Heure de départ inconnue à la création : durée nulle, signalée à la soumission
+    const startTime = String(reportData.startTime || '').slice(0, 5) || new Date().toTimeString().slice(0, 5)
+    const endTime = String(reportData.endTime || '').slice(0, 5) || startTime
+    const duration = computeDurationMinutes(startTime, endTime)
 
     const sanitizedTasks = sanitizeStringArray(reportData.tasksPerformed)
     const sanitizedRecommendations = sanitizeStringArray(reportData.recommendations)
@@ -493,24 +513,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Support photos en format nested {before:[], after:[]} ou flat photosBefore/photosAfter
-    const parsePhotos = (input: any): Array<{url: string, caption?: string, timestamp: Date, gps?: any}> => {
-      if (!Array.isArray(input)) return []
-      return input
-        .map((photo: any) => {
-          if (typeof photo === 'string') return { url: photo, timestamp: new Date() }
-          if (typeof photo === 'object' && photo !== null) {
-            return {
-              url: toNonEmptyString(photo.url) || '',
-              caption: toNonEmptyString(photo.caption),
-              timestamp: toDate(photo.timestamp) || new Date(),
-              gps: photo.gps
-            }
-          }
-          return null
-        })
-        .filter((p: any): p is {url: string, caption?: string, timestamp: Date, gps?: any} => p !== null && p.url)
-    }
-
     const photos = {
       before: parsePhotos(reportData.photos?.before || reportData.photosBefore),
       after: parsePhotos(reportData.photos?.after || reportData.photosAfter)
@@ -542,18 +544,17 @@ export async function POST(request: NextRequest) {
       followUpRecommendations,
       nextActions,
       billing,
-      clientAcknowledgement,
       photos,
       signatures: {
-        technician: reportData.technicianSignature
-          ? { signature: reportData.technicianSignature, name: reportData.technician || 'Technicien', timestamp: new Date() }
+        technician: isSignature(reportData.technicianSignature)
+          ? { signature: reportData.technicianSignature, name: String(reportData.technician || technician.name || 'Technicien').slice(0, 120), timestamp: new Date() }
           : undefined,
-        client: reportData.clientSignature
-          ? { signature: reportData.clientSignature, name: reportData.clientName || '', title: reportData.clientTitle || '', timestamp: new Date() }
+        client: isSignature(reportData.clientSignature)
+          ? { signature: reportData.clientSignature, name: String(reportData.clientSignatoryName || '').slice(0, 120), title: String(reportData.clientTitle || '').slice(0, 120), timestamp: new Date() }
           : undefined,
       },
       gpsLocation: reportData.gpsLocation,
-      status: reportData.status || 'draft',
+      status: 'draft',
       priority,
       version: 1,
       analytics: {
@@ -577,16 +578,10 @@ export async function POST(request: NextRequest) {
     technician.stats.totalReports += 1
     await technician.save()
 
-    // Si le rapport est lié à une intervention, on met à jour le statut de l'intervention
+    // Rapport commencé = intervention démarrée (jamais de retour en arrière si elle est déjà terminée)
     if (interventionId) {
-      try {
-        await Intervention.updateOne(
-          { _id: interventionId },
-          { status: 'in_progress' }
-        )
-      } catch (e) {
-        console.error('[MaintenanceReport] Impossible de mettre à jour l\'intervention liée:', e)
-      }
+      await advanceIntervention(interventionId, 'in_progress', tokenData.userId)
+        .catch(e => console.error('[MaintenanceReport] Intervention liée:', e))
     }
 
     // Population pour réponse
@@ -602,6 +597,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur création rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la création du rapport' },
@@ -659,70 +656,82 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-      const structuredUpdates = extractStructuredFields(updateData, {
-        current: {
-          followUpRecommendations: existingReport.followUpRecommendations,
-          billing: existingReport.billing
-        }
-      })
-
-      ;['issuesDetected', 'materialsUsed', 'followUpRecommendations', 'nextActions', 'billing', 'clientAcknowledgement'].forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(updateData, key)) {
-          delete updateData[key]
-        }
-      })
-    
-      // Vérification statut modifiable
-    if (['validated', 'published', 'archived'].includes(existingReport.status)) {
+    // Seuls un brouillon ou un rapport à corriger se modifient (un rapport soumis attend la relecture)
+    if (!['draft', 'rejected'].includes(existingReport.status)) {
       return NextResponse.json(
         { error: 'Rapport non modifiable dans cet état' },
         { status: 403 }
       )
     }
-    
-    // Calcul durée si nécessaire (gère le passage à minuit)
-    if (updateData.startTime && updateData.endTime && !updateData.duration) {
-      updateData.duration = computeDurationMinutes(updateData.startTime, updateData.endTime)
+
+    const structuredUpdates = extractStructuredFields(updateData, {
+      current: {
+        followUpRecommendations: existingReport.followUpRecommendations,
+        billing: existingReport.billing
+      }
+    })
+    // L'accusé de réception appartient au client, jamais au technicien
+    delete (structuredUpdates as Record<string, unknown>).clientAcknowledgement
+
+    // Liste blanche : statut, validation, publication, technicien et client ne se modifient pas ici
+    const $set: Record<string, unknown> = {}
+    const $unset: Record<string, 1> = {}
+    const has = (k: string) => Object.prototype.hasOwnProperty.call(updateData, k)
+    if (has('site')) $set.site = toNonEmptyString(updateData.site) || existingReport.site
+    if (has('interventionDate')) {
+      const d = toDate(updateData.interventionDate)
+      if (d) $set.interventionDate = d
     }
+    if (has('startTime') && String(updateData.startTime || '').trim()) $set.startTime = String(updateData.startTime).slice(0, 5)
+    const start = ($set.startTime as string | undefined) ?? existingReport.startTime
+    // Champ requis par le schéma : départ inconnu = durée nulle, signalée à la soumission
+    if (has('endTime')) $set.endTime = String(updateData.endTime || '').slice(0, 5) || start
+    const end = ($set.endTime as string | undefined) ?? existingReport.endTime
+    if (has('startTime') || has('endTime')) {
+      const minutes = computeDurationMinutes(start, end)
+      if (typeof minutes === 'number') $set.duration = minutes
+    }
+    if (has('interventionType') && !existingReport.interventionId && INTERVENTION_TYPES.has(String(updateData.interventionType))) {
+      $set.interventionType = updateData.interventionType
+    }
+    if (has('initialObservations')) $set.initialObservations = toNonEmptyString(updateData.initialObservations) || existingReport.initialObservations
+    if (has('problemDescription')) $set.problemDescription = String(updateData.problemDescription || '').slice(0, 5000)
+    if (has('results')) $set.results = toNonEmptyString(updateData.results) || existingReport.results
+    if (has('tasksPerformed')) $set.tasksPerformed = sanitizeStringArray(updateData.tasksPerformed)
+    if (has('recommendations')) $set.recommendations = sanitizeStringArray(updateData.recommendations)
+    if (has('problemSeverity')) {
+      const candidate = String(updateData.problemSeverity || '').toLowerCase()
+      $set.problemSeverity = ISSUE_SEVERITIES.has(candidate) ? candidate : existingReport.problemSeverity
+    }
+    if (has('priority')) {
+      const candidate = String(updateData.priority || '').toLowerCase()
+      $set.priority = REPORT_PRIORITIES.has(candidate) ? candidate : existingReport.priority
+    }
+    if (has('gpsLocation') && updateData.gpsLocation && Number.isFinite(Number(updateData.gpsLocation.lat))) {
+      $set.gpsLocation = { lat: Number(updateData.gpsLocation.lat), lng: Number(updateData.gpsLocation.lng), accuracy: Number(updateData.gpsLocation.accuracy) || 0, timestamp: new Date() }
+    }
+    // Photos : la liste envoyée remplace la précédente (le formulaire renvoie toujours la liste complète)
+    if (has('photosBefore')) $set['photos.before'] = parsePhotos(updateData.photosBefore)
+    if (has('photosAfter')) $set['photos.after'] = parsePhotos(updateData.photosAfter)
+    if (has('technicianSignature') && updateData.technicianSignature !== existingReport.signatures?.technician?.signature) {
+      if (isSignature(updateData.technicianSignature)) {
+        $set['signatures.technician'] = { signature: updateData.technicianSignature, name: String(updateData.technician || 'Technicien').slice(0, 120), timestamp: new Date() }
+      } else $unset['signatures.technician'] = 1
+    }
+    if (has('clientSignature') && updateData.clientSignature !== existingReport.signatures?.client?.signature) {
+      if (isSignature(updateData.clientSignature)) {
+        $set['signatures.client'] = { signature: updateData.clientSignature, name: String(updateData.clientSignatoryName || '').slice(0, 120), title: String(updateData.clientTitle || '').slice(0, 120), timestamp: new Date() }
+      } else $unset['signatures.client'] = 1
+    }
+    $set.status = 'draft'
 
-      if (Object.prototype.hasOwnProperty.call(updateData, 'tasksPerformed')) {
-        updateData.tasksPerformed = sanitizeStringArray(updateData.tasksPerformed)
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updateData, 'recommendations')) {
-        updateData.recommendations = sanitizeStringArray(updateData.recommendations)
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updateData, 'initialObservations')) {
-        updateData.initialObservations = toNonEmptyString(updateData.initialObservations) || existingReport.initialObservations
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updateData, 'results')) {
-        updateData.results = toNonEmptyString(updateData.results) || existingReport.results
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updateData, 'problemSeverity')) {
-        const candidate = String(updateData.problemSeverity || '').toLowerCase()
-        updateData.problemSeverity = ISSUE_SEVERITIES.has(candidate) ? candidate : existingReport.problemSeverity
-      }
-
-      if (Object.prototype.hasOwnProperty.call(updateData, 'priority')) {
-        const candidate = String(updateData.priority || '').toLowerCase()
-        updateData.priority = REPORT_PRIORITIES.has(candidate) ? candidate : existingReport.priority
-      }
-
-      delete updateData.reportId
-      delete updateData._id
-      delete updateData.technicianId
-    
     // Mise à jour
     const updatedReport = await MaintenanceReport.findByIdAndUpdate(
       reportId,
       {
-          ...updateData,
-          ...structuredUpdates,
-        version: existingReport.version + 1,
-        'analytics.revisionCount': existingReport.analytics.revisionCount + 1
+        $set: { ...$set, ...structuredUpdates },
+        ...(Object.keys($unset).length ? { $unset } : {}),
+        $inc: { version: 1, 'analytics.revisionCount': 1 }
       },
       { new: true, runValidators: true }
     ).populate('clientId', 'name company')
@@ -731,8 +740,8 @@ export async function PUT(request: NextRequest) {
     // Ajout historique
     updatedReport!.addHistoryEntry('updated', technicianId, {
       previousStatus: existingReport.status,
-      newStatus: updateData.status || existingReport.status,
-      fieldsChanged: Object.keys(updateData)
+      newStatus: 'draft',
+      fieldsChanged: Object.keys($set)
     })
     
     await updatedReport!.save()
@@ -744,6 +753,8 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur mise à jour rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la mise à jour' },

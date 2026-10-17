@@ -24,8 +24,11 @@ export function resolveProductPrice(params: {
   qty: number
   marketplaceTier?: MarketplaceTier
   totalCartQty?: number
+  /** Paliers de prix dégressifs du produit ({ minQty, price }) — le palier
+   *  applicable le plus avantageux l'emporte sur le prix retail/wholesale. */
+  priceTiers?: { minQty?: number; price?: number }[]
 }): ResolvedPrice {
-  const { price, b2bPrice, qty, marketplaceTier = 'standard', totalCartQty } = params
+  const { price, b2bPrice, qty, marketplaceTier = 'standard', totalCartQty, priceTiers } = params
 
   const isProAccount = marketplaceTier !== 'standard'
   const isWholesaleQty = qty >= 5 || (typeof totalCartQty === 'number' && totalCartQty >= 5)
@@ -33,10 +36,21 @@ export function resolveProductPrice(params: {
     typeof b2bPrice === 'number' && b2bPrice > 0 && b2bPrice < price
 
   const wholesaleEligible = hasWholesalePrice && (isProAccount || isWholesaleQty)
-  const appliedPrice = wholesaleEligible ? b2bPrice! : price
+  let appliedPrice = wholesaleEligible ? b2bPrice! : price
+
+  // Paliers quantité du produit : meilleur palier dont minQty <= qty.
+  const tierPrice = Array.isArray(priceTiers)
+    ? priceTiers
+        .filter((t) => typeof t?.price === 'number' && t.price > 0 && qty >= (t.minQty ?? 1))
+        .sort((a, b) => (b.minQty ?? 1) - (a.minQty ?? 1))[0]?.price
+    : undefined
+  if (typeof tierPrice === 'number' && tierPrice < appliedPrice) {
+    appliedPrice = tierPrice
+  }
+
   const savingsPercent =
-    wholesaleEligible && price > 0
-      ? Math.round((1 - b2bPrice! / price) * 100)
+    appliedPrice < price && price > 0
+      ? Math.round((1 - appliedPrice / price) * 100)
       : 0
 
   return {

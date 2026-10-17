@@ -1,8 +1,39 @@
 import { qwenChat, qwenVision, type ChatMessage } from './qwen'
 
-export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_help' | 'daily_tips' | 'suggest_offer'
+export type AssistType = 'enhance_request' | 'clarify_request' | 'analyze_request' | 'mission_coach' | 'mission_help' | 'daily_tips' | 'suggest_offer' | 'general_chat'
 
-interface MarketPriceData {
+/** Contexte mission chargé côté serveur (ServiceRequest) pour les types prestataire. */
+export interface MissionContext {
+  subcategory?: string
+  /** Nombre de photos jointes par le client à la demande (contexte textuel — pas de vision pour le coach) */
+  clientImageCount?: number
+  pauseReason?: string
+  pauseCount?: number
+  elapsedMinutes?: number
+  price?: number
+  urgent?: boolean
+}
+
+export interface StructuredSection {
+  icon: 'tools' | 'check' | 'warning' | 'steps' | 'parts' | 'client' | 'info' | 'eye' | 'clock'
+  title: string
+  items: string[]
+}
+
+/** Réponse structurée commune au coach, aux questions mission et à l'analyse de demande. */
+export interface StructuredAdvice {
+  title: string
+  summary?: string
+  sections: StructuredSection[]
+  askClient?: string[]
+  sayToClient?: string
+  difficulty?: 'Simple' | 'Moyen' | 'Complexe'
+  durationMinutes?: { min: number; max: number }
+  /** analyze_request : fournitures/pièces probables en noms génériques (recherche catalogue DDM+) */
+  materials?: string[]
+}
+
+export interface MarketPriceData {
   category: string
   count: number
   medianPrice: number
@@ -21,6 +52,7 @@ interface AssistContext {
   /** URLs publiques (ou data URIs) des photos du client — déclenche le modèle vision */
   imageUrls?: string[]
   missionStatus?: string
+  mission?: MissionContext
   profile?: any
   nearbyCount?: number
   earnings?: any
@@ -29,6 +61,8 @@ interface AssistContext {
   requestBudget?: number
   marketPrices?: MarketPriceData
   providerCompletedMissions?: number
+  /** Historique borné (general_chat) : derniers échanges user/assistant */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
 }
 
 export interface ClarifyQuestion {
@@ -55,6 +89,31 @@ function answersBlockOf(ctx: AssistContext): string {
   return ctx.answers && ctx.answers.length > 0
     ? `\nPrécisions données par le client:\n${ctx.answers.map(a => `- ${a.question} → ${a.answer}`).join('\n')}`
     : ''
+}
+
+/** Étapes de mission pour lesquelles un coaching est généré (clé = statut ServiceRequest). */
+const COACH_STEP_GUIDANCE: Record<string, string> = {
+  accepted: 'Le prestataire vient d\'être accepté. Conseille-le sur la préparation : matériel à vérifier selon la catégorie, contacter le client pour confirmer l\'adresse et l\'accès, partir avec les consommables probables.',
+  on_the_way: 'Le prestataire est en route vers le client. Conseille-le sur : confirmer l\'heure d\'arrivée au client, préparer mentalement le diagnostic, sécurité routière, avoir le téléphone du client à portée de main.',
+  provider_arriving: 'Le prestataire approche du lieu. Conseille-le sur : prévenir le client de l\'arrivée imminente, repérer l\'accès et le stationnement, préparer ses outils de diagnostic.',
+  arrived: 'Le prestataire est arrivé chez le client. Conseille-le sur : saluer et rassurer le client, inspecter avant de toucher, confirmer la portée des travaux et le prix, sécuriser la zone (disjoncteur, eau, enfants/animaux).',
+  in_progress: 'L\'intervention est en cours. Donne les étapes de travail recommandées pour cette catégorie, les points de contrôle qualité et les précautions sécurité.',
+  paused: 'La mission est en pause. Conseille le prestataire sur : informer le client de la raison et de la reprise, sécuriser le chantier, noter ce qui reste à faire pour une reprise rapide.',
+  awaiting_validation: 'Le prestataire a terminé et attend la validation du client. Conseille-le sur : nettoyer la zone, faire tester le résultat par le client, expliquer ce qui a été fait, préparer le règlement.',
+}
+
+function missionBlockOf(ctx: AssistContext): string {
+  const m = ctx.mission
+  if (!m) return ''
+  const lines: string[] = []
+  if (m.subcategory) lines.push(`- Sous-catégorie: ${m.subcategory}`)
+  if (m.clientImageCount) lines.push(`- ${m.clientImageCount} photo(s) fournie(s) par le client`)
+  if (typeof m.elapsedMinutes === 'number') lines.push(`- Temps écoulé depuis le début: ${m.elapsedMinutes} min`)
+  if (typeof m.price === 'number' && m.price > 0) lines.push(`- Prix convenu: ${m.price.toLocaleString('fr-FR')} FCFA`)
+  if (m.urgent) lines.push('- Mission urgente')
+  if (m.pauseCount) lines.push(`- ${m.pauseCount} pause(s) déjà effectuée(s)`)
+  if (m.pauseReason) lines.push(`- Dernière raison de pause: ${m.pauseReason}`)
+  return lines.length > 0 ? `\nContexte mission:\n${lines.join('\n')}` : ''
 }
 
 /**
@@ -152,20 +211,57 @@ Génère les questions de clarification les plus utiles pour ce problème préci
       return [
         {
           role: 'system',
-          content: `Tu es un expert technique qui aide des artisans sénégalais à analyser des demandes de service. Réponds en français simple. Sois concis (max 200 mots). Les artisans sont souvent analphabètes — utilise un langage très simple et direct.`,
+          content: `Tu es un expert technique qui aide des artisans sénégalais à analyser des demandes de service avant de faire une offre. Réponds en français simple et direct. Utilise un langage simple car les artisans sont souvent peu scolarisés.
+RÈGLES:
+1. Les sections utilisent obligatoirement des "icon" parmi: tools, check, warning, steps, parts, client, info, eye, clock.
+2. Maximum 4 sections, 2 à 3 items courts par section.
+3. "summary": une seule phrase du diagnostic probable (sera affichée en aperçu).
+4. "difficulty": Simple / Moyen / Complexe.
+5. "durationMinutes": {"min": nombre, "max": nombre} — estimation raisonnable de la durée en minutes.
+6. "askClient": 0 à 2 questions à poser au client si pertinent.
+7. Sécurité d'abord : toute section "warning" passe avant les autres.
+8. "materials": 0 à 5 fournitures ou pièces de rechange probablement nécessaires, en noms génériques courts achetables (ex: "disjoncteur 20A", "joint de robinet", "charnière de porte"). Pas d'outils de base, pas de marque. Tableau vide si rien de précis.
+9. Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"title":"Analyse de la demande","summary":"...","sections":[{"icon":"eye","title":"Ce que je vois","items":["..."]},{"icon":"tools","title":"Matériel probable","items":["..."]},{"icon":"warning","title":"Risques","items":["..."]},{"icon":"client","title":"À clarifier","items":["..."]}],"difficulty":"Simple","durationMinutes":{"min":15,"max":45},"askClient":["..."],"materials":["..."]}`,
         },
         {
           role: 'user',
           content: `Catégorie: ${cat}
 Description client: "${ctx.description || '(vide)'}"
-Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}
+Attributs: ${ctx.attributes ? JSON.stringify(ctx.attributes) : 'aucun'}${missionBlockOf(ctx)}
 
-Analyse cette demande et donne:
-1. **Diagnostic probable** (2-3 hypothèses max, en termes simples)
-2. **Matériel probablement nécessaire** (liste courte)
-3. **Difficulté** (Simple / Moyen / Complexe)
-4. **Précautions sécurité** (si applicable, 1-2 points importants)
-5. **Questions à poser au client** (2 max)`,
+Génère une analyse structurée pour aider l'artisan à décider avant de faire une offre.`,
+        },
+      ]
+    }
+
+    case 'mission_coach': {
+      const stepGuidance = COACH_STEP_GUIDANCE[ctx.missionStatus || ''] || COACH_STEP_GUIDANCE.in_progress
+      return [
+        {
+          role: 'system',
+          content: `Tu es un coach de terrain pour artisans sénégalais. À chaque étape d'une mission, tu génères une fiche de conseils structurée, adaptée à l'étape courante, à la catégorie et au contexte réel de la mission.
+RÈGLES:
+1. Français très simple et direct — les artisans sont souvent peu scolarisés.
+2. Ne donne que des conseils utiles à l'ÉTAPE COURANTE, jamais de généralités.
+3. Chaque section a une "icon" parmi: tools, check, warning, steps, parts, client, info, eye, clock.
+4. Maximum 3 sections, 3 à 4 items courts par section (une phrase impérative par item).
+5. "summary": une seule phrase d'action (sera affichée en aperçu sur mobile).
+6. "askClient": 0 à 2 questions à poser au client si pertinent pour cette étape.
+7. "sayToClient": une phrase polie que le prestataire peut dire au client à cette étape.
+8. Sécurité d'abord : toute section "warning" passe avant les autres.
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour, sans markdown:
+{"title":"...","summary":"...","sections":[{"icon":"steps","title":"...","items":["..."]}],"askClient":["..."],"sayToClient":"...","difficulty":"Simple","durationMinutes":{"min":15,"max":45}}`,
+        },
+        {
+          role: 'user',
+          content: `Catégorie: ${cat}
+Description de la mission: "${ctx.description || '(non décrite)'}"
+Étape actuelle: ${ctx.missionStatus || 'in_progress'}${missionBlockOf(ctx)}
+
+GUIDANCE ÉTAPE: ${stepGuidance}
+
+Génère la fiche coach pour cette étape précise.`,
         },
       ]
     }
@@ -250,6 +346,28 @@ Suggère un prix d'offre compétitif et un message professionnel pour répondre 
       ]
     }
 
+    case 'general_chat': {
+      const history = (ctx.history || [])
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+        .slice(-8)
+        .map(m => ({ role: m.role, content: m.content.trim().slice(0, 500) }))
+      return [
+        {
+          role: 'system',
+          content: `Tu es l'assistant de Xeuy Bi, l'app sénégalaise qui met en relation des clients et des artisans/prestataires de services (plomberie, électricité, ménage, déménagement, sécurité, etc.).
+RÈGLES:
+1. Français très simple et direct — beaucoup d'utilisateurs sont peu scolarisés. Réponds court (max 150 mots), concret, en tutoyant naturellement.
+2. Ton rôle : aider à utiliser l'app (créer une demande, comprendre les offres, le paiement Wave/OM/Free, l'escrow, les missions), donner des conseils pratiques liés aux services, et orienter vers la bonne action.
+3. Si la question porte sur un prix, donne une fourchette réaliste du marché sénégalais en FCFA en précisant que le prix final se négocie via les offres.
+4. Ne promets jamais une action que tu ne peux pas faire : tu ne crées pas de demande toi-même, tu expliques comment faire (bouton « Nouvelle demande » ou micro sur l'accueil).
+5. Si la question n'a rien à voir avec les services/l'app, réponds brièvement puis ramène à l'essentiel.
+6. Pas de markdown lourd : phrases simples, listes à puces courtes si utile.`,
+        },
+        ...history,
+        { role: 'user' as const, content: ctx.question || ctx.description || 'Bonjour' },
+      ]
+    }
+
     default:
       return [{ role: 'user', content: ctx.description || 'Aide-moi' }]
   }
@@ -270,7 +388,69 @@ function cleanStrings(arr: unknown, max: number, maxLen = 200): string[] {
     : []
 }
 
+const SECTION_ICONS: StructuredSection['icon'][] = ['tools', 'check', 'warning', 'steps', 'parts', 'client', 'info', 'eye', 'clock']
+const ADVICE_DIFFICULTIES: NonNullable<StructuredAdvice['difficulty']>[] = ['Simple', 'Moyen', 'Complexe']
+
+/** Valide et borne la réponse JSON structurée du coach / d'un type à sortie fiche. */
+function sanitizeAdvice(raw: unknown): StructuredAdvice {
+  const obj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const title = typeof obj.title === 'string' ? obj.title.trim().slice(0, 120) : ''
+  const sections: StructuredSection[] = Array.isArray(obj.sections)
+    ? obj.sections
+        .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+        .map((s) => ({
+          icon: (SECTION_ICONS.includes(s.icon as any) ? s.icon : 'info') as StructuredSection['icon'],
+          title: typeof s.title === 'string' ? s.title.trim().slice(0, 60) : '',
+          items: cleanStrings(s.items, 4, 160),
+        }))
+        .filter(s => s.title && s.items.length > 0)
+        .slice(0, 4)
+    : []
+  if (!title || sections.length === 0) throw new Error('AI returned no valid structured advice')
+
+  const dm = obj.durationMinutes && typeof obj.durationMinutes === 'object' ? obj.durationMinutes as Record<string, unknown> : null
+  const dmMin = dm && typeof dm.min === 'number' && dm.min >= 0 ? Math.round(dm.min) : undefined
+  const dmMax = dm && typeof dm.max === 'number' && dm.max >= (dmMin ?? 0) ? Math.round(dm.max) : undefined
+
+  return {
+    title,
+    summary: typeof obj.summary === 'string' ? obj.summary.trim().slice(0, 300) : undefined,
+    sections,
+    askClient: cleanStrings(obj.askClient, 2, 200),
+    sayToClient: typeof obj.sayToClient === 'string' ? obj.sayToClient.trim().slice(0, 240) : undefined,
+    difficulty: ADVICE_DIFFICULTIES.includes(obj.difficulty as any) ? obj.difficulty as StructuredAdvice['difficulty'] : undefined,
+    durationMinutes: dmMin !== undefined ? { min: dmMin, max: dmMax ?? dmMin } : undefined,
+    materials: Array.isArray(obj.materials) ? cleanStrings(obj.materials, 5, 60) : undefined,
+  }
+}
+
 const VISION_TYPES: AssistType[] = ['clarify_request', 'enhance_request']
+
+const MIN_OFFER_PRICE = 1000
+
+/**
+ * Règles > LLM : le prix suggéré est borné par les prix réellement pratiqués
+ * (≥ 3 missions terminées dans la catégorie), sinon par le budget du client.
+ * Arrondi aux 500 FCFA. Retourne aussi si un ajustement a eu lieu.
+ */
+export function clampSuggestedPrice(
+  price: number,
+  market?: MarketPriceData,
+  budget?: number
+): { price: number; adjusted: boolean } {
+  let lo = MIN_OFFER_PRICE
+  let hi = Number.POSITIVE_INFINITY
+  if (market && market.count >= 3 && market.medianPrice > 0) {
+    lo = Math.max(lo, Math.min(market.minPrice, Math.round(market.medianPrice * 0.5)))
+    hi = Math.max(lo, Math.max(market.maxPrice, Math.round(market.medianPrice * 2)))
+  } else if (budget && budget > 0) {
+    lo = Math.max(lo, Math.round(budget * 0.5))
+    hi = Math.max(lo, Math.round(budget * 1.5))
+  }
+  const bounded = Math.min(hi, Math.max(lo, price))
+  const rounded = Math.max(MIN_OFFER_PRICE, Math.round(bounded / 500) * 500)
+  return { price: rounded, adjusted: Math.abs(rounded - price) >= 500 }
+}
 
 export interface AiAssistResult {
   text: string
@@ -282,8 +462,12 @@ export interface AiAssistResult {
   observations?: string[]
   photoGuidance?: string[]
   suggestedPrice?: number
+  /** true si le prix proposé par le modèle a été recadré sur les données de marché / le budget */
+  priceAdjusted?: boolean
   suggestedMessage?: string
   reasoning?: string
+  /** Fiche structurée (mission_coach) */
+  advice?: StructuredAdvice
 }
 
 export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
@@ -327,13 +511,19 @@ export async function aiAssist(ctx: AssistContext): Promise<AiAssistResult> {
     }
   }
 
+  if (ctx.type === 'mission_coach' || ctx.type === 'analyze_request') {
+    const advice = sanitizeAdvice(extractJson(result.text))
+    return { text: advice.summary || advice.title, advice, source: result.source, model: result.model }
+  }
+
   if (ctx.type === 'suggest_offer') {
     const parsed = extractJson(result.text)
-    const suggestedPrice = typeof parsed?.suggestedPrice === 'number' ? parsed.suggestedPrice : undefined
-    const suggestedMessage = typeof parsed?.suggestedMessage === 'string' ? parsed.suggestedMessage.trim() : undefined
-    const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim() : undefined
-    if (!suggestedPrice || !suggestedMessage) throw new Error('AI returned no valid offer suggestion')
-    return { text: '', suggestedPrice, suggestedMessage, reasoning, source: result.source, model: result.model }
+    const rawPrice = typeof parsed?.suggestedPrice === 'number' && Number.isFinite(parsed.suggestedPrice) ? parsed.suggestedPrice : undefined
+    const suggestedMessage = typeof parsed?.suggestedMessage === 'string' ? parsed.suggestedMessage.trim().slice(0, 400) : undefined
+    const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim().slice(0, 240) : undefined
+    if (!rawPrice || rawPrice <= 0 || !suggestedMessage) throw new Error('AI returned no valid offer suggestion')
+    const { price: suggestedPrice, adjusted } = clampSuggestedPrice(rawPrice, ctx.marketPrices, ctx.requestBudget)
+    return { text: '', suggestedPrice, priceAdjusted: adjusted, suggestedMessage, reasoning, source: result.source, model: result.model }
   }
 
   return { text: result.text, vision: useVision, source: result.source, model: result.model }

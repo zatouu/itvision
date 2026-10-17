@@ -15,21 +15,14 @@ export const PUBLIC_ROUTES: string[] = [
 ]
 
 // Routes propres à la marketplace (accessibles sur market.itvisionplus.sn)
-// NOTE : liste explicitement figée — ne pas dériver du registre sans revue,
-// car /produits et assimilés ont un comportement spécial sur le domaine principal.
-export const MARKETPLACE_ROUTES = [
-  '/panier',
-  '/checkout',
-  '/commandes',
-  '/achats-groupes',
-  '/retrouver-ma-commande',
-  '/market',
-  '/payment',
-  '/paiement',
-  '/grains',
-  '/devenir-vendeur',
-  '/espace-vendeur',
-]
+// DÉRIVÉ du registre : toutes les pages déclarées domain 'market', sauf
+// celles à comportement spécial sur le domaine principal :
+// - /produits      → réécrit en /corporate-produits (vitrine B2B), pas redirect market
+// - /corporate-produits → page hébergée sur le domaine corporate
+export const MARKETPLACE_ROUTES: string[] = PAGE_RULES
+  .filter(r => r.domain === 'market')
+  .map(r => r.prefix)
+  .filter(p => p !== '/produits' && p !== '/corporate-produits')
 
 // Routes API transversales (mobile / app) autorisées en CORS
 export const MOBILE_API_PREFIXES = [
@@ -55,6 +48,15 @@ export function isPublicRoute(pathname: string): boolean {
 export function isMarketplaceRoute(pathname: string): boolean {
   return MARKETPLACE_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + '/')
+  )
+}
+
+// Pages transversales publiques (/cgv, /politique-confidentialite, /login…) —
+// servies sur TOUS les domaines (footer market, liens légaux).
+export function isSharedPublicRoute(pathname: string): boolean {
+  return PAGE_RULES.some(
+    (r) => r.domain === 'shared' && r.access === 'public' &&
+      (pathname === r.prefix || pathname.startsWith(r.prefix + '/'))
   )
 }
 

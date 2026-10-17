@@ -29,42 +29,63 @@ export async function createUserProfiles(
   const userObjectId = new mongoose.Types.ObjectId(String(userId))
   const updates: Record<string, mongoose.Types.ObjectId> = {}
 
+  // Upserts atomiques : un register rejoué (retry, double-submit) ne doit pas
+  // violer les index uniques userId (E11000) — l'existant est conservé.
+
   // MarketplaceProfile : tous les utilisateurs
-  const marketplaceProfile = await MarketplaceProfile.create({
-    userId: userObjectId,
-    marketplaceTier: seed.marketplaceTier || 'standard',
-    referralCode: seed.referralCode,
-    referredBy: seed.referredBy,
-    referralBalance: seed.referralBalance || 0,
-    referralCount: seed.referralCount || 0
-  })
+  const marketplaceProfile = await MarketplaceProfile.findOneAndUpdate(
+    { userId: userObjectId },
+    {
+      $setOnInsert: {
+        userId: userObjectId,
+        marketplaceTier: seed.marketplaceTier || 'standard',
+        referralCode: seed.referralCode,
+        referredBy: seed.referredBy,
+        referralBalance: seed.referralBalance || 0,
+        referralCount: seed.referralCount || 0
+      }
+    },
+    { upsert: true, new: true }
+  )
   updates.marketplaceProfileId = marketplaceProfile._id
 
   // CorporateProfile : si données entreprise fournies
   if (seed.company || seed.companyClientId || seed.address || seed.city || seed.country) {
-    const corporateProfile = await CorporateProfile.create({
-      userId: userObjectId,
-      company: seed.company,
-      address: seed.address,
-      city: seed.city,
-      country: seed.country,
-      companyClientId: seed.companyClientId ? new mongoose.Types.ObjectId(String(seed.companyClientId)) : undefined
-    })
+    const corporateProfile = await CorporateProfile.findOneAndUpdate(
+      { userId: userObjectId },
+      {
+        $setOnInsert: {
+          userId: userObjectId,
+          company: seed.company,
+          address: seed.address,
+          city: seed.city,
+          country: seed.country,
+          companyClientId: seed.companyClientId ? new mongoose.Types.ObjectId(String(seed.companyClientId)) : undefined
+        }
+      },
+      { upsert: true, new: true }
+    )
     updates.corporateProfileId = corporateProfile._id
   }
 
   // ProviderProfile : techniciens / prestataires
   if (role === 'TECHNICIAN' || role === 'PROVIDER') {
-    const providerProfile = await ProviderProfile.create({
-      userId: userObjectId,
-      kycVerified: false,
-      providerStats: {
-        completedMissions: 0,
-        cancelledByProvider: 0,
-        cancelledByClient: 0,
-        reliabilityScore: 100
-      }
-    })
+    const providerProfile = await ProviderProfile.findOneAndUpdate(
+      { userId: userObjectId },
+      {
+        $setOnInsert: {
+          userId: userObjectId,
+          kycVerified: false,
+          providerStats: {
+            completedMissions: 0,
+            cancelledByProvider: 0,
+            cancelledByClient: 0,
+            reliabilityScore: 100
+          }
+        }
+      },
+      { upsert: true, new: true }
+    )
     updates.providerProfileId = providerProfile._id
   }
 

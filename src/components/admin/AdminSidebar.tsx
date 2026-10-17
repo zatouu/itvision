@@ -34,6 +34,7 @@ import {
   Wallet,
   TrendingDown,
   Banknote,
+  Star,
   Mail,
   Send,
   Globe,
@@ -41,9 +42,13 @@ import {
   ImageIcon,
   Eye,
   Scale,
-  Smartphone
+  Store,
+  Bot,
+  Gift,
+  MapPin
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { getPageRule } from '@/lib/domains'
 
 interface MenuItem {
   id: string
@@ -51,6 +56,36 @@ interface MenuItem {
   icon: any
   href?: string
   children?: MenuItem[]
+}
+
+/**
+ * Un lien de menu est visible si le registre domains.ts l'autorise pour ce rôle.
+ * Rôle inconnu (chargement) → tout est visible (comportement historique).
+ */
+function canSeeHref(href: string | undefined, role: string | null): boolean {
+  if (!href || !role) return true
+  const rule = getPageRule(href.split('?')[0])
+  if (!rule) return true
+  const access = rule.access
+  if (access === 'public' || access === 'auth') return true
+  if ('staffRoles' in access) return access.staffRoles.includes(role)
+  if ('profile' in access) return false
+  return true
+}
+
+function filterItemsByRole(items: MenuItem[], role: string | null): MenuItem[] {
+  return items
+    .map(item => item.children
+      ? { ...item, children: filterItemsByRole(item.children, role) }
+      : item)
+    .filter(item => item.children ? item.children.length > 0 : canSeeHref(item.href, role))
+}
+
+function filterSectionsByRole(sections: MenuSection[], role: string | null): MenuSection[] {
+  if (!role) return sections
+  return sections
+    .map(section => ({ ...section, items: filterItemsByRole(section.items, role) }))
+    .filter(section => section.items.length > 0)
 }
 
 interface MenuSection {
@@ -96,6 +131,18 @@ const menuSections: MenuSection[] = [
         label: 'Support',
         icon: AlertCircle,
         href: '/admin/tickets'
+      },
+      {
+        id: 'copilot',
+        label: 'Copilote IA',
+        icon: Bot,
+        href: '/admin/copilot'
+      },
+      {
+        id: 'sourcing',
+        label: 'Veille 1688',
+        icon: Globe,
+        href: '/admin/sourcing'
       }
     ]
   },
@@ -120,16 +167,35 @@ const menuSections: MenuSection[] = [
         href: '/admin/planning'
       },
       {
-        id: 'clients',
-        label: 'Clients entreprise',
-        icon: Building2,
-        href: '/admin/clients'
-      },
-      {
-        id: 'technicians',
-        label: 'Techniciens',
+        id: 'clients-equipe',
+        label: 'Clients & Équipe',
         icon: Users,
-        href: '/admin/technicians'
+        children: [
+          {
+            id: 'clients-b2b',
+            label: 'Clients B2B',
+            icon: Users,
+            href: '/admin/clients'
+          },
+          {
+            id: 'techniciens',
+            label: 'Techniciens',
+            icon: Wrench,
+            href: '/admin/technicians'
+          },
+          {
+            id: 'satisfaction',
+            label: 'Satisfaction clients',
+            icon: Star,
+            href: '/admin/satisfaction'
+          },
+          {
+            id: 'catalogue-services',
+            label: 'Catalogue services',
+            icon: ListChecks,
+            href: '/admin/catalog'
+          }
+        ]
       },
       {
         id: 'finance',
@@ -141,6 +207,12 @@ const menuSections: MenuSection[] = [
             label: 'Trésorerie 360°',
             icon: Wallet,
             href: '/admin/tresorerie'
+          },
+          {
+            id: 'rapprochement',
+            label: 'Rapprochement bancaire',
+            icon: Banknote,
+            href: '/admin/tresorerie/rapprochement'
           },
           {
             id: 'devis',
@@ -194,12 +266,6 @@ const menuSections: MenuSection[] = [
         ]
       },
       {
-        id: 'garanties',
-        label: 'Garanties',
-        icon: Shield,
-        href: '/admin/garanties'
-      },
-      {
         id: 'prospects',
         label: 'Prospects B2B',
         icon: Mail,
@@ -233,6 +299,67 @@ const menuSections: MenuSection[] = [
         label: 'Dashboard Marketplace',
         icon: Briefcase,
         href: '/admin/marketplace'
+      },
+      {
+        id: 'marketplace-tunnel',
+        label: 'Tunnel & apporteurs',
+        icon: BarChart3,
+        href: '/admin/marketplace/tunnel'
+      },
+      {
+        id: 'vendeurs-boutiques',
+        label: 'Boutiques & Vendeurs',
+        icon: Store,
+        children: [
+          {
+            id: 'boutiques-validation',
+            label: 'Boutiques & retraits',
+            icon: Store,
+            href: '/admin/marketplace/shops'
+          },
+          {
+            id: 'comptes-pro',
+            label: 'Comptes Pro',
+            icon: Shield,
+            href: '/admin/marketplace/comptes-pro'
+          },
+          {
+            id: 'retours-litiges',
+            label: 'Retours & litiges',
+            icon: Scale,
+            href: '/admin/marketplace/retours'
+          },
+          {
+            id: 'remboursements-ddm',
+            label: 'Remboursements clients',
+            icon: Wallet,
+            href: '/admin/marketplace/remboursements'
+          },
+          {
+            id: 'ambassadeurs-ddm',
+            label: 'Ambassadeurs',
+            icon: Gift,
+            href: '/admin/marketplace/ambassadeurs'
+          },
+          {
+            id: 'avis-produits',
+            label: 'Avis produits',
+            icon: Star,
+            href: '/admin/marketplace/avis'
+          },
+          {
+            id: 'points-retrait',
+            label: 'Points de retrait',
+            icon: MapPin,
+            href: '/admin/marketplace/points-retrait'
+          },
+          {
+            id: 'garanties',
+            label: 'Garanties commandes',
+            icon: Shield,
+            href: '/admin/garanties'
+          }
+        ]
       },
       {
         id: 'produits',
@@ -272,40 +399,48 @@ const menuSections: MenuSection[] = [
         href: '/admin/achats-groupes'
       },
       {
-        id: 'achats-chine',
-        label: 'Achats Chine',
-        icon: Package,
-        href: '/admin/achats-chine'
-      },
-      {
-        id: 'auto-import',
-        label: 'Auto Import 1688/Ali',
+        id: 'sourcing-import',
+        label: 'Sourcing & Import',
         icon: Download,
-        href: '/admin/auto-import'
+        children: [
+          {
+            id: 'achats-chine',
+            label: 'Achats Chine',
+            icon: Package,
+            href: '/admin/achats-chine'
+          },
+          {
+            id: 'auto-import',
+            label: 'Auto Import 1688/Ali',
+            icon: Download,
+            href: '/admin/auto-import'
+          },
+          {
+            id: 'marketplace-sourcing',
+            label: 'Trouvez-moi (sourcing)',
+            icon: Search,
+            href: '/admin/market/sourcing-requests'
+          }
+        ]
       },
       {
-        id: 'marketplace-comptes-pro',
-        label: 'Comptes Pro',
-        icon: UsersRound,
-        href: '/admin/marketplace/comptes-pro'
-      },
-      {
-        id: 'marketplace-sourcing',
-        label: 'Trouvez-moi (sourcing)',
-        icon: Search,
-        href: '/admin/market/sourcing-requests'
-      },
-      {
-        id: 'marketplace-promo-slides',
-        label: 'Slides promotionnelles',
+        id: 'contenu-marketplace',
+        label: 'Contenu',
         icon: ImageIcon,
-        href: '/admin/market/promo-slides'
-      },
-      {
-        id: 'marketplace-image-embeddings',
-        label: 'Recherche par image',
-        icon: Search,
-        href: '/admin/market/image-embeddings'
+        children: [
+          {
+            id: 'marketplace-promo-slides',
+            label: 'Slides promotionnelles',
+            icon: ImageIcon,
+            href: '/admin/market/promo-slides'
+          },
+          {
+            id: 'marketplace-image-embeddings',
+            label: 'Recherche par image',
+            icon: Search,
+            href: '/admin/market/image-embeddings'
+          }
+        ]
       }
     ]
   },
@@ -347,6 +482,12 @@ const menuSections: MenuSection[] = [
             href: '/admin/platform/transactions'
           },
           {
+            id: 'plateforme-remboursements',
+            label: 'Remboursements & retraits',
+            icon: Wallet,
+            href: '/admin/platform/remboursements'
+          },
+          {
             id: 'plateforme-kyc',
             label: 'KYC Prestataires',
             icon: Shield,
@@ -376,55 +517,18 @@ const menuSections: MenuSection[] = [
     ]
   },
 
-  // ─── COMPTES UTILISATEURS (regroupé par rôle / domaine) ────────
+  // ─── UTILISATEURS & RÔLES (unifié — le rôle/catégorie détermine le scope) ──
   {
     id: 'comptes',
-    label: 'Comptes utilisateurs',
+    label: 'Utilisateurs',
     icon: Users,
     color: 'slate',
     items: [
       {
-        id: 'comptes-tous',
-        label: 'Tous les comptes',
+        id: 'utilisateurs-roles',
+        label: 'Utilisateurs et rôles',
         icon: Users,
         href: '/admin/users'
-      },
-      {
-        id: 'comptes-staff',
-        label: 'Staff & admins',
-        icon: Shield,
-        href: '/admin/users?userCategory=PLATFORM_USER'
-      },
-      {
-        id: 'comptes-entreprise',
-        label: 'Clients entreprise',
-        icon: Building2,
-        href: '/admin/users?userCategory=ENTERPRISE_CLIENT'
-      },
-      {
-        id: 'comptes-marketplace',
-        label: 'Clients marketplace',
-        icon: ShoppingCart,
-        href: '/admin/users?userCategory=MARKETPLACE_CLIENT'
-      },
-      {
-        id: 'comptes-xeuy',
-        label: 'App mobile Xeuy (migration)',
-        icon: Smartphone,
-        children: [
-          {
-            id: 'comptes-xeuy-prestataires',
-            label: 'Prestataires Xeuy Bi',
-            icon: Wrench,
-            href: '/admin/users?userCategory=XEUY_PROVIDER'
-          },
-          {
-            id: 'comptes-xeuy-clients',
-            label: 'Clients Xeuy Bi',
-            icon: Users,
-            href: '/admin/users?userCategory=XEUY_CLIENT'
-          }
-        ]
       }
     ]
   },
@@ -483,13 +587,28 @@ export default function AdminSidebar() {
   const [openMenus, setOpenMenus] = useState<string[]>(['administration'])
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [role, setRole] = useState<string | null>(null)
+
+  // Rôle du staff connecté → le menu suit le registre domains.ts
+  // (un ACCOUNTANT ne voit pas les sections marketplace/Xeuy, etc.)
+  useEffect(() => {
+    fetch('/api/auth/login', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setRole(String(d?.user?.role || '').toUpperCase() || null))
+      .catch(() => {})
+  }, [])
+
+  const visibleSections = useMemo(
+    () => filterSectionsByRole(menuSections, role),
+    [role]
+  )
 
   const isActive = (href?: string) => {
     if (!href) return false
     const [targetPath, targetQuery = ''] = href.split('?')
 
-    if (targetPath === '/admin') {
-      return pathname === '/admin'
+    if (targetPath === '/admin' || targetPath === '/admin/marketplace') {
+      return pathname === targetPath
     }
 
     const active = pathname.startsWith(targetPath)
@@ -528,7 +647,7 @@ export default function AdminSidebar() {
     }
     // Auto-expand any submenu whose child is active
     const activeParents: string[] = []
-    for (const section of menuSections) {
+    for (const section of visibleSections) {
       for (const item of section.items) {
         if (item.children && hasActiveChild(item)) {
           activeParents.push(item.id)
@@ -707,7 +826,7 @@ export default function AdminSidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 p-2 space-y-0 overflow-y-auto">
-          {menuSections.map(section => renderSection(section))}
+          {visibleSections.map(section => renderSection(section))}
         </nav>
 
         {/* Footer avec version */}

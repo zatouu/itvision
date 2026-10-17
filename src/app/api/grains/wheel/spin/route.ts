@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/jwt'
 import WheelSpin from '@/lib/models/WheelSpin'
 import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import { updateTierFromBalance } from '@/lib/grains'
+import { getRedisClient } from '@/lib/redis'
 
 const WHEEL_OPTIONS = [
   { label: '5 grains', value: 5, probability: 25 },
@@ -31,6 +32,18 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth(req)
     await connectDB()
 
+    // Verrou anti double-spin concurrent (check-then-create non atomique)
+    const redis = getRedisClient()
+    const lockKey = `grains:wheel:${auth.userId}`
+    let locked = false
+    if (redis) {
+      locked = (await redis.set(lockKey, '1', 'EX', 10, 'NX')) === 'OK'
+      if (!locked) {
+        return NextResponse.json({ success: false, error: 'Tour en cours, réessayez' }, { status: 429 })
+      }
+    }
+
+    try {
     const lastSpin = await WheelSpin.findOne({ userId: auth.userId }).sort({ createdAt: -1 }).lean()
     if (lastSpin && Date.now() - new Date(lastSpin.createdAt as Date).getTime() < 24 * 60 * 60 * 1000) {
       return NextResponse.json({ success: false, error: 'Tour gratuit déjà utilisé aujourd\'hui' }, { status: 400 })
@@ -64,6 +77,9 @@ export async function POST(req: NextRequest) {
       grainsEarned,
       balance: await getGrainsBalance(auth.userId),
     })
+    } finally {
+      if (locked) await redis!.del(lockKey).catch(() => {})
+    }
   } catch (err: any) {
     if (err?.status === 401 || err?.message?.includes('authentifié')) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })

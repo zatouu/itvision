@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'crypto'
-import { connectDB } from '@/lib/db'
-import { Order } from '@/lib/models/Order'
-import OrderChatMessage from '@/lib/models/OrderChatMessage'
-import { requireAuth } from '@/lib/jwt'
-import { requireAdminApi } from '@/lib/api-auth'
-
-function hashTrackingToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex')
-}
+import {
+  listThreadMessages,
+  markThreadRead,
+  postMessage,
+  toOrderMessageDto,
+  EmptyMessageError,
+} from '@/lib/messaging/thread-messages'
+import {
+  resolveOrderChatAccess,
+  notifyAdminsOfClientMessage,
+  notifyClientOfSupportReply,
+} from '@/lib/messaging/order-chat'
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,43 +20,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'orderReference requis' }, { status: 400 })
     }
 
-    let userId: string | null = null
-    let isAdmin = false
-    try {
-      const auth = await requireAuth(req)
-      userId = auth.userId ? String(auth.userId) : null
-    } catch {}
-
-    if (!userId) {
-      const adminAuth = await requireAdminApi(req)
-      isAdmin = adminAuth.ok
+    const access = await resolveOrderChatAccess(req, orderReference, searchParams.get('token'))
+    if (!access.ok) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status })
     }
 
-    await connectDB()
+    const messages = await listThreadMessages('order', orderReference, { limit: 200 })
 
-    const order = await Order.findOne({ orderId: orderReference }).lean() as any
-    if (!order) {
-      return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 })
-    }
+    // Ouvrir le fil vaut lecture des messages de l'autre partie
+    const readerId = access.user?.userId || `guest:${orderReference}`
+    void markThreadRead('order', orderReference, readerId, {
+      senderRoles: access.isAdmin ? ['client'] : ['admin', 'system'],
+    }).catch(() => {})
 
-    const token = searchParams.get('token')
-    const isOwner = userId && String(order.clientId) === userId
-    let tokenValid = false
-    if (!isOwner && token) {
-      const tokenHash = hashTrackingToken(token)
-      tokenValid = order.trackingAccessTokenHash === tokenHash &&
-        new Date(order.trackingAccessTokenCreatedAt).getTime() > Date.now() - 90 * 24 * 60 * 60 * 1000
-    }
-    if (!isOwner && !tokenValid && !isAdmin) {
-      return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 })
-    }
-
-    const messages = await OrderChatMessage.find({ orderReference, isInternal: false })
-      .sort({ createdAt: 1 })
-      .limit(200)
-      .lean()
-
-    return NextResponse.json({ success: true, messages })
+    return NextResponse.json({ success: true, messages: messages.map(toOrderMessageDto) })
   } catch (err) {
     console.error('[order-chat] Erreur GET:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
@@ -63,57 +42,43 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const { orderReference, text } = body
-    if (!orderReference || !text || typeof text !== 'string' || text.trim().length === 0) {
+    if (!orderReference || typeof orderReference !== 'string') {
       return NextResponse.json({ success: false, error: 'orderReference et text requis' }, { status: 400 })
     }
 
-    let userId: string | null = null
-    let senderName = 'Invité'
-    let senderRole: 'client' | 'admin' = 'client'
-    try {
-      const auth = await requireAuth(req)
-      userId = auth.userId ? String(auth.userId) : null
-      senderName = auth.username || auth.email || 'Client'
-    } catch {}
-
-    const adminAuth = await requireAdminApi(req)
-    if (adminAuth.ok) {
-      senderRole = 'admin'
-      senderName = 'Support IT Vision'
-    }
-
-    await connectDB()
-
-    const order = await Order.findOne({ orderId: orderReference }).lean() as any
-    if (!order) {
-      return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 })
-    }
-
     const token = req.nextUrl.searchParams.get('token') || body.token
-    const isOwner = userId && String(order.clientId) === userId
-    let tokenValid = false
-    if (!isOwner && token) {
-      const tokenHash = hashTrackingToken(token)
-      tokenValid = order.trackingAccessTokenHash === tokenHash &&
-        new Date(order.trackingAccessTokenCreatedAt).getTime() > Date.now() - 90 * 24 * 60 * 60 * 1000
-    }
-    if (!isOwner && !tokenValid && !adminAuth.ok) {
-      return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 })
+    const access = await resolveOrderChatAccess(req, orderReference, token)
+    if (!access.ok) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status })
     }
 
-    const message = await OrderChatMessage.create({
-      orderId: orderReference,
-      orderReference,
-      senderId: userId || undefined,
-      senderRole,
-      senderName,
-      text: text.trim().slice(0, 2000)
+    const message = await postMessage({
+      threadType: 'order',
+      threadId: orderReference,
+      senderId: access.user?.userId,
+      senderRole: access.isAdmin ? 'admin' : 'client',
+      senderName: access.isAdmin
+        ? 'Support IT Vision'
+        : access.user
+          ? access.user.username || access.user.email || 'Client'
+          : 'Invité',
+      text,
+      attachments: body.attachments,
     })
 
-    return NextResponse.json({ success: true, message }, { status: 201 })
+    if (access.isAdmin) {
+      void notifyClientOfSupportReply(access.order, message).catch((err) => console.error('[order-chat] notify client:', err))
+    } else {
+      notifyAdminsOfClientMessage(message)
+    }
+
+    return NextResponse.json({ success: true, message: toOrderMessageDto(message) }, { status: 201 })
   } catch (err) {
+    if (err instanceof EmptyMessageError) {
+      return NextResponse.json({ success: false, error: 'orderReference et text requis' }, { status: 400 })
+    }
     console.error('[order-chat] Erreur POST:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
   }

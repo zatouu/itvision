@@ -10,6 +10,7 @@ const { Server } = require('socket.io')
 const { jwtVerify } = require('jose')
 const mongoose = require('mongoose')
 const geo = require('./lib/redis-geo')
+const { isSessionCurrent, guardSocketSession } = require('./lib/auth-session')
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || 'localhost'
@@ -71,14 +72,22 @@ async function verifyToken(token) {
     const secret = new TextEncoder().encode(jwtSecret || 'dev-insecure-jwt-secret')
     const { payload } = await jwtVerify(token, secret)
 
-    if (!payload.userId) {
+    if (!payload.userId || !mongoose.Types.ObjectId.isValid(String(payload.userId))) {
       return null
     }
+
+    await ensureMongo()
+    const user = await mongoose.connection.collection('users').findOne(
+      { _id: new mongoose.Types.ObjectId(String(payload.userId)) },
+      { projection: { sessionVersion: 1, isActive: 1, deletedAt: 1 } }
+    )
+    if (!isSessionCurrent(payload, user)) return null
 
     return {
       userId: payload.userId,
       role: payload.role || 'USER',
       email: payload.email || '',
+      authDomain: payload.domain === 'xeuy' ? 'xeuy' : 'web',
       companyClientId: payload.companyClientId || null
     }
   } catch (error) {
@@ -113,6 +122,88 @@ const ServiceRequestSchema = new mongoose.Schema({
 }, { strict: false, timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } })
 ServiceRequestSchema.index({ location: '2dsphere' })
 const ServiceRequest = mongoose.models.ServiceRequest || mongoose.model('ServiceRequest', ServiceRequestSchema)
+
+// Schémas minimaux pour les contrôles d'accès aux rooms (strict:false, cf. note ci-dessus)
+const OfferSchema = new mongoose.Schema({
+  requestId: { type: mongoose.Schema.Types.ObjectId },
+  providerId: { type: String },
+  status: { type: String },
+}, { strict: false })
+const Offer = mongoose.models.Offer || mongoose.model('Offer', OfferSchema)
+
+const ProviderProfileSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId },
+}, { strict: false })
+const ProviderProfile = mongoose.models.ProviderProfile || mongoose.model('ProviderProfile', ProviderProfileSchema)
+
+// Statuts où une demande est encore ouverte aux offres
+const OPEN_REQUEST_STATUSES = ['created', 'pending_offers', 'broadcasted']
+// Statuts de mission que les clients peuvent relayer (relay = hint UX, l'état
+// réel ne change que via les transitions REST du lifecycle)
+const RELAYABLE_STATUSES = new Set([
+  ...OPEN_REQUEST_STATUSES,
+  'accepted', 'assigned', 'on_the_way', 'provider_arriving', 'arrived',
+  'in_progress', 'paused', 'awaiting_validation', 'completed',
+  'cancelled', 'expired', 'dispute',
+])
+
+/**
+ * Contrôle d'accès aux rooms `request-<id>` / `mission-<id>`.
+ * Autorisé : client propriétaire, prestataire assigné, admin,
+ * prestataire ayant déjà fait une offre, ou prestataire (profil existant)
+ * sur une demande encore ouverte. Retourne { allowed, sr, participant }.
+ */
+async function getRequestAccess(userId, role, requestId) {
+  try {
+    if (!requestId || !mongoose.Types.ObjectId.isValid(String(requestId))) return { allowed: false }
+    await ensureMongo()
+    const sr = await ServiceRequest.findById(requestId).select('clientId assignedProviderId status').lean()
+    if (!sr) return { allowed: false }
+    const isClient = String(sr.clientId) === String(userId)
+    const isAssigned = String(sr.assignedProviderId || '') === String(userId)
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN'
+    if (isClient || isAssigned || isAdmin) {
+      return { allowed: true, sr, participant: true }
+    }
+    const offer = await Offer.findOne({ requestId: sr._id, providerId: String(userId) }).select('_id').lean()
+    if (offer) return { allowed: true, sr, participant: false }
+    if (OPEN_REQUEST_STATUSES.includes(sr.status)) {
+      const profile = await ProviderProfile.exists({ userId })
+      if (profile) return { allowed: true, sr, participant: false }
+    }
+    return { allowed: false, sr }
+  } catch (e) {
+    console.error('[WS] getRequestAccess error:', e.message)
+    return { allowed: false }
+  }
+}
+
+const CORPORATE_STAFF_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'TECHNICIAN'])
+
+/**
+ * Contrôle d'accès aux rooms `ticket-<id>` / `project-<id>` : personnel IT Vision,
+ * client propriétaire, membre de la même entreprise, ou personne assignée/abonnée.
+ * Accès brut aux collections : un modèle minimal enregistré ici masquerait le modèle complet de l'app.
+ */
+async function canAccessCorporateRoom(collection, docId, user) {
+  try {
+    if (CORPORATE_STAFF_ROLES.has(String(user.role || '').toUpperCase())) return true
+    if (!docId || !mongoose.Types.ObjectId.isValid(String(docId))) return false
+    await ensureMongo()
+    const doc = await mongoose.connection.collection(collection).findOne(
+      { _id: new mongoose.Types.ObjectId(String(docId)) },
+      { projection: { clientId: 1, clientCompanyId: 1, assignedTo: 1, watchers: 1 } }
+    )
+    if (!doc) return false
+    const uid = String(user.userId)
+    if (String(doc.clientId) === uid) return true
+    if (user.companyClientId && doc.clientCompanyId && String(doc.clientCompanyId) === String(user.companyClientId)) return true
+    return [...(doc.assignedTo || []), ...(doc.watchers || [])].map(String).includes(uid)
+  } catch (e) {
+    console.error('[WS] canAccessCorporateRoom error:', e.message)
+    return false
+  }
+}
 
 // ── GEOFENCING : présence des providers via Redis GEO ──
 // Redis GEO commands (GEOADD, GEOSEARCH) for O(log N) spatial queries.
@@ -211,6 +302,7 @@ app.prepare().then(() => {
 
     // Attacher les infos utilisateur au socket
     socket.user = user
+    socket.authToken = token
     console.log(`✅ Authentification réussie: ${user.email} (${user.role})`)
     next()
   })
@@ -218,6 +310,7 @@ app.prepare().then(() => {
   // Gestion des connexions
   io.on('connection', (socket) => {
     const { userId, email, role } = socket.user
+    guardSocketSession(socket, async () => Boolean(await verifyToken(socket.authToken)))
 
     console.log(`\n🔌 Client connecté: ${email}`)
     console.log(`   Role: ${role}`)
@@ -225,6 +318,7 @@ app.prepare().then(() => {
 
     // Rejoindre les rooms personnelles
     socket.join(`user-${userId}`)
+    if (socket.user.authDomain === 'web') socket.join(`web-session-${userId}`)
 
     // Room entreprise (portail corporate) — tous les utilisateurs de la société
     if (socket.user.companyClientId) {
@@ -241,8 +335,14 @@ app.prepare().then(() => {
     }
 
     // ── ROOMS MOBILES ──
-    // Consumer s'abonne aux offres d'une demande spécifique
-    socket.on('join-request-room', (requestId) => {
+    // Consumer s'abonne aux offres d'une demande spécifique — accès contrôlé
+    // (client propriétaire, provider assigné/offrant, ou provider sur demande ouverte)
+    socket.on('join-request-room', async (requestId) => {
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed) {
+        console.warn(`   ⛔ ${userId} join-request-room refusé: ${requestId}`)
+        return
+      }
       socket.join(`request-${requestId}`)
       console.log(`   📋 ${userId} écoute la demande: ${requestId}`)
     })
@@ -250,8 +350,24 @@ app.prepare().then(() => {
       socket.leave(`request-${requestId}`)
     })
 
+    // Vérifie (une fois, mis en cache sur le socket) que l'utilisateur a un profil prestataire
+    const ensureProviderProfile = async () => {
+      if (socket.isProvider !== undefined) return socket.isProvider
+      try {
+        await ensureMongo()
+        socket.isProvider = !!(await ProviderProfile.exists({ userId }))
+      } catch {
+        socket.isProvider = false
+      }
+      return socket.isProvider
+    }
+
     // Provider s'abonne à ses notifications
-    socket.on('join-provider-channel', () => {
+    socket.on('join-provider-channel', async () => {
+      if (!(await ensureProviderProfile())) {
+        console.warn(`   ⛔ ${userId} join-provider-channel refusé (pas de profil prestataire)`)
+        return
+      }
       socket.join(`provider-${userId}`)
       socket.join('providers-online')
       console.log(`   🔧 Provider en ligne: ${userId}`)
@@ -269,8 +385,9 @@ app.prepare().then(() => {
 
     // Provider rejoint une zone géofencée pour recevoir les demandes proches
     // Stocke la position + rayon pour les notifications temps réel
-    socket.on('join-nearby-room', (data) => {
+    socket.on('join-nearby-room', async (data) => {
       if (!data?.lat || !data?.lng) return
+      if (!(await ensureProviderProfile())) return
       const radiusKm = Number(data.radiusKm) || 10
       socket.join('nearby-providers')
       socket.nearbyRadius = radiusKm
@@ -288,9 +405,13 @@ app.prepare().then(() => {
     })
 
     // Provider envoie sa position GPS globale pour le geofencing
-    socket.on('provider:gps', (data) => {
+    socket.on('provider:gps', async (data) => {
       if (typeof data?.lat !== 'number' || typeof data?.lng !== 'number') {
         console.log(`   ⚠️ ${userId} provider:gps missing lat/lng`)
+        return
+      }
+      if (!(await ensureProviderProfile())) {
+        console.warn(`   ⛔ ${userId} provider:gps refusé (pas de profil prestataire)`)
         return
       }
       const now = Date.now()
@@ -397,8 +518,13 @@ app.prepare().then(() => {
       }
     })
 
-    // Chat mission — rejoindre/quitter la room de chat
-    socket.on('join-mission-chat', (requestId) => {
+    // Chat mission — room strictement réservée aux participants (client + provider assigné)
+    socket.on('join-mission-chat', async (requestId) => {
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed || !access.participant) {
+        console.warn(`   ⛔ ${userId} join-mission-chat refusé: ${requestId}`)
+        return
+      }
       socket.join(`mission-${requestId}`)
       console.log(`   💬 ${userId} a rejoint le chat mission: ${requestId}`)
     })
@@ -421,9 +547,11 @@ app.prepare().then(() => {
       })
     }
 
-    socket.on('request:viewing', (data) => {
+    socket.on('request:viewing', async (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed) return
       const existing = providerPresence.get(userId)
       updatePresence(userId, {
         lat: data?.lat || existing?.lat || null,
@@ -458,9 +586,11 @@ app.prepare().then(() => {
     })
 
     // Provider est en train de rédiger une offre → notifier le client
-    socket.on('offer:typing', (data) => {
+    socket.on('offer:typing', async (data) => {
       const requestId = data?.requestId
       if (!requestId) return
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed) return
       socket.to(`request-${requestId}`).emit('offer:typing', {
         requestId,
         providerId: userId,
@@ -469,44 +599,61 @@ app.prepare().then(() => {
       })
     })
 
-    // Mission status updated relay
-    socket.on('mission:status_updated', (data) => {
+    // Mission status updated relay — réservé aux participants, statut whitelisté,
+    // clientId/providerId résolus côté serveur (jamais depuis le payload client)
+    socket.on('mission:status_updated', async (data) => {
       const requestId = data?.requestId
       if (!requestId) return
-      console.log(`   🔄 mission:status_updated pour ${requestId} → ${data.status}`)
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed || !access.participant) {
+        console.warn(`   ⛔ ${userId} mission:status_updated refusé: ${requestId}`)
+        return
+      }
+      const status = String(data.status || '')
+      if (!RELAYABLE_STATUSES.has(status)) return
       const payload = {
         requestId,
-        status: data.status,
-        ...data,
+        status,
+        clientId: String(access.sr.clientId),
+        providerId: access.sr.assignedProviderId ? String(access.sr.assignedProviderId) : undefined,
       }
+      console.log(`   🔄 mission:status_updated pour ${requestId} → ${status}`)
       io.to(`request-${requestId}`).emit('request:status-changed', payload)
-      io.to(`request-${requestId}`).emit('mission:status_updated', data)
+      io.to(`request-${requestId}`).emit('mission:status_updated', payload)
       // Notifier aussi les écrans liste (qui ne rejoignent pas la room request)
       io.to(`user-${userId}`).emit('request:status-changed', payload)
-      if (data.clientId) {
-        io.to(`user-${data.clientId}`).emit('request:status-changed', payload)
+      if (payload.clientId) {
+        io.to(`user-${payload.clientId}`).emit('request:status-changed', payload)
       }
-      if (data.providerId) {
-        io.to(`user-${data.providerId}`).emit('request:status-changed', payload)
+      if (payload.providerId) {
+        io.to(`user-${payload.providerId}`).emit('request:status-changed', payload)
       }
     })
 
-    // Client typing in mission chat
-    socket.on('mission:client_typing', (data) => {
+    // Client typing in mission chat — participants uniquement
+    socket.on('mission:client_typing', async (data) => {
       const requestId = data?.requestId
       if (!requestId) return
-      socket.to(`request-${requestId}`).emit('mission:client_typing', data)
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed || !access.participant) return
+      socket.to(`request-${requestId}`).emit('mission:client_typing', { requestId })
     })
 
-    // AI Advice broadcast relay
-    socket.on('ai:advice_updated', (data) => {
+    // AI Advice broadcast relay — accès room contrôlé
+    socket.on('ai:advice_updated', async (data) => {
       const requestId = data?.requestId
       if (!requestId) return
+      const access = await getRequestAccess(userId, role, requestId)
+      if (!access.allowed) return
       socket.to(`request-${requestId}`).emit('ai:advice_updated', data)
     })
 
     // Événement: Rejoindre un projet
-    socket.on('join-project', (projectId) => {
+    socket.on('join-project', async (projectId) => {
+      if (!(await canAccessCorporateRoom('projects', projectId, socket.user))) {
+        console.warn(`   ⛔ ${userId} join-project refusé: ${projectId}`)
+        return
+      }
       socket.join(`project-${projectId}`)
       console.log(`   📁 ${email} a rejoint le projet: ${projectId}`)
       
@@ -526,7 +673,11 @@ app.prepare().then(() => {
     })
 
     // Événement: Rejoindre un ticket
-    socket.on('join-ticket', (ticketId) => {
+    socket.on('join-ticket', async (ticketId) => {
+      if (!(await canAccessCorporateRoom('tickets', ticketId, socket.user))) {
+        console.warn(`   ⛔ ${userId} join-ticket refusé: ${ticketId}`)
+        return
+      }
       socket.join(`ticket-${ticketId}`)
       console.log(`   🎫 ${email} a rejoint le ticket: ${ticketId}`)
     })
@@ -647,7 +798,7 @@ app.prepare().then(() => {
     const { requestId } = requestData
     if (!requestId) return 0
     try {
-      const { enqueueDispatch } = require('./src/lib/visibility/dispatch')
+      const { enqueueDispatch } = require(dev ? './src/lib/visibility/dispatch' : './.ops/dispatch.cjs')
       await enqueueDispatch(String(requestId))
       return 1
     } catch (err) {

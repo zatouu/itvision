@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { emailService } from '@/lib/email-service'
 import { getBrandFromHost } from '@/lib/branding'
+import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // Endpoint de diagnostic : envoi d'email réel + logs SMTP → staff uniquement.
+    const auth = await requireAdminApi(request)
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
+    }
+
     const brand = getBrandFromHost(request.nextUrl.host)
 
     console.log('📧 Test d\'envoi d\'email vers zatou1900@gmail.com')

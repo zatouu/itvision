@@ -72,4 +72,22 @@ tests/.auth/
 
 .commit-msg
 *.code-workspace
-mobile/consumer/proposals/
+mobile/*/proposals/
+
+*.apk
+
+# temporary build artifacts
+tmp/
+
+# Fichiers sensibles / runtime
+*.cookies
+cookies.txt
+pgcsps_build/PGCSPS KARIBU V3.docx
+
+# Profil navigateur persisté (session 1688 — cookies, données sensibles)
+data/browser-profile/
+data/browser-profile-test/
+data/agent-worker.pid
+
+# Sentry Config File
+.env.sentry-build-plugin
