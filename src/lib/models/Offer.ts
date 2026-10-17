@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from 'mongoose'
+import mongoose, { Schema, model } from 'mongoose'
 
 export type OfferStatus = 'submitted' | 'withdrawn' | 'accepted' | 'rejected' | 'expired'
 
@@ -49,5 +49,7 @@ OfferSchema.index({ providerId: 1, updatedAt: -1 })
 OfferSchema.index({ requestId: 1, providerId: 1 }, { unique: true })
 OfferSchema.index({ status: 1, validUntil: 1 })
 
-const Offer = models.Offer || model('Offer', OfferSchema)
+// overwriteModels: true — server.js enregistre d'abord un schéma minimal sans index ;
+// le schéma complet (unique requestId+providerId, validations) doit le remplacer.
+const Offer: mongoose.Model<any> = model('Offer', OfferSchema, undefined, { overwriteModels: true })
 export default Offer

@@ -80,5 +80,6 @@ const ProviderProfileSchema = new Schema<IProviderProfile>({
   stockReminderAt: { type: Date },
 }, { timestamps: true })
 
-export default (mongoose.models.ProviderProfile as mongoose.Model<IProviderProfile>) ||
-  mongoose.model<IProviderProfile>('ProviderProfile', ProviderProfileSchema)
+// overwriteModels: true — server.js enregistre d'abord un schéma minimal sans index
+// (contrôles d'accès Socket.IO) ; le schéma complet (2dsphere, unique userId, défauts) doit le remplacer.
+export default mongoose.model<IProviderProfile>('ProviderProfile', ProviderProfileSchema, undefined, { overwriteModels: true })
