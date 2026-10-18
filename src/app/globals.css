@@ -686,6 +686,19 @@ select.error:focus {
   border: 1px solid var(--input-border) !important;
 }
 
+/* Recherche marketplace : le conteneur arrondi porte la bordure et l'anneau de focus, pas le champ */
+.mkt-search input.mkt-search-input {
+  border: 0 !important;
+  background-color: transparent !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  text-overflow: ellipsis;
+}
+
+.mkt-search input.mkt-search-input:focus-visible {
+  outline: none;
+}
+
 /* Utilitaire pour limiter le texte à 2 lignes */
 .line-clamp-2 {
   display: -webkit-box;

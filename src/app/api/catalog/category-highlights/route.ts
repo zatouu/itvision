@@ -33,7 +33,7 @@ export async function GET() {
     }
 
     const products = await Product.find({ isPublished: { $ne: false } })
-      .select('name category image')
+      .select({ name: 1, category: 1, image: 1, gallery: { $slice: 3 } })
       .lean()
 
     const slugs = categories.map((c: any) => String(c.slug || c._id || c.name || '').toLowerCase())

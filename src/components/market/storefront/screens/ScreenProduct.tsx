@@ -22,6 +22,7 @@ import { ReviewForm } from '../ReviewForm';
 import RetryNotice from '../RetryNotice';
 import { useWishlist } from '../useWishlist';
 import { useSourcingModal } from '../SourcingModalContext';
+import { recordProductView } from '../recently-viewed';
 import { addToCart, loadCart, mapProductDetail, productSelection } from '../data-mappers';
 import type { CartItem, Product, PriceTier, ShippingMode } from '../types';
 import type { CartQuote } from '@/lib/pricing/quote-cart';
@@ -122,6 +123,11 @@ export default function ScreenProduct() {
   const [reviewsError, setReviewsError] = useState('');
   const reviewRequest = useRef<AbortController | null>(null);
   useEffect(() => () => reviewRequest.current?.abort(), [id, attempt]);
+
+  // Alimente « Reprendre où vous en étiez » sur l'accueil
+  useEffect(() => {
+    if (PRODUCT?.id) recordProductView(String(PRODUCT.id));
+  }, [PRODUCT?.id]);
 
   useEffect(() => {
     const update = () => setCart(loadCart());

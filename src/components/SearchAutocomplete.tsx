@@ -236,8 +236,8 @@ export default function SearchAutocomplete({
 
   return (
     <div ref={wrapperRef} className="relative flex-1 min-w-0">
-      <div className="flex items-center gap-1 sm:gap-2">
-        <Search className="ml-3 hidden h-4 w-4 flex-shrink-0 text-slate-400 dark:text-slate-500 sm:block" />
+      <div className="flex items-center gap-1">
+        <Search aria-hidden className="ml-3 hidden h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-500 sm:block" />
         <input
           ref={inputRef}
           value={value}
@@ -245,7 +245,7 @@ export default function SearchAutocomplete({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none dark:text-slate-200"
+          className="mkt-search-input h-10 min-w-0 flex-1 bg-transparent pl-3 text-base outline-none sm:pl-1 sm:text-sm dark:text-slate-200"
           role="combobox"
           aria-label="Rechercher dans le catalogue"
           autoComplete="off"
@@ -259,9 +259,9 @@ export default function SearchAutocomplete({
             title="Recherche par image"
             aria-label="Recherche par image"
             onClick={onCameraClick}
-            className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+            className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-violet-600 transition hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/50"
           >
-            <Camera className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <Camera className="h-[18px] w-[18px]" />
           </button>
         )}
         <button
@@ -269,7 +269,7 @@ export default function SearchAutocomplete({
           onClick={() => handleSearch(value)}
           aria-label="Rechercher"
           title="Rechercher"
-          className="flex h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 sm:px-5"
+          className="flex h-10 min-w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-700 px-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 sm:px-5"
         >
           <Search size={18} className="sm:hidden" />
           <span className="hidden sm:inline">Rechercher</span>

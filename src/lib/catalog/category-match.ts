@@ -74,22 +74,24 @@ export function productMatchesCategory(
   return patternsFor(categorySlug).some((re) => re.test(haystack))
 }
 
+const isUsableImage = (value: unknown): value is string => typeof value === 'string' && !!value && !value.includes('placeholder')
+
 /** Compte les produits correspondant à chaque slug de catégorie. */
-export function countProductsByCategory<T extends { category?: string | null; name?: string | null }>(
+export function countProductsByCategory<T extends { category?: string | null; name?: string | null; image?: unknown; gallery?: unknown }>(
   products: T[],
   slugs: string[]
 ): Map<string, { count: number; image?: string; images?: string[] }> {
   const result = new Map<string, { count: number; image?: string; images?: string[] }>()
   for (const slug of slugs) result.set(slug, { count: 0, images: [] })
   for (const p of products) {
-    const img = (p as any).image
-    const usable = typeof img === 'string' && img && !img.includes('placeholder')
+    // Photo principale, sinon première photo de la galerie (certains imports n'ont qu'une galerie)
+    const img = isUsableImage(p.image) ? p.image : Array.isArray(p.gallery) ? p.gallery.find(isUsableImage) : undefined
     for (const slug of slugs) {
       if (productMatchesCategory(p, slug)) {
         const entry = result.get(slug)!
         entry.count += 1
-        if (usable && (entry.images?.length ?? 0) < 5) entry.images!.push(img)
-        if (!entry.image && usable) entry.image = img
+        if (img && (entry.images?.length ?? 0) < 5) entry.images!.push(img)
+        if (!entry.image && img) entry.image = img
       }
     }
   }

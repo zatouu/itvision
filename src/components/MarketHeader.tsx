@@ -240,7 +240,7 @@ export default function MarketHeader() {
               return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm font-medium ${active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}><ItemIcon size={16} />{item.name}</Link>
             })}
           </nav>
-          <div className="flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white py-0.5 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mkt-search flex min-w-0 flex-1 items-center rounded-full border border-zinc-200 bg-zinc-50 p-1 transition focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-500/15 dark:border-slate-700 dark:bg-slate-900 dark:focus-within:border-emerald-400">
             <SearchAutocomplete
               value={searchQuery}
               onChange={setSearchQuery}
