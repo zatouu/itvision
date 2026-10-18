@@ -1,0 +1,2212 @@
+From b864d14abb9c0555405e7661aaeca4604f7537a4 Mon Sep 17 00:00:00 2001
+From: "o.ndiaye" <o.ndiaye@attijariwfa.com>
+Date: Sun, 18 Oct 2026 22:55:44 +0000
+Subject: [PATCH] =?UTF-8?q?DDM+=20:=20accueil=20plus=20attractif,=20carrou?=
+ =?UTF-8?q?sel=20administrable,=20recherche=20=C3=A9pur=C3=A9e?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Accueil marketplace :
+- Carrousel en tête (slides de l'admin, sinon 3 slides automatiques :
+  Trouvez-moi, achats groupés, catalogue) : glisser au doigt, lecture
+  auto en pause au survol/toucher/hors écran, points et flèches.
+- Bande de confiance colorée, grandes tuiles de catégories en couleur
+  (photo du catalogue ou pictogramme), rangée « Bons plans ».
+- « Reprendre où vous en étiez » : produits consultés sur l'appareil
+  (stockage local uniquement, bouton Effacer).
+- Achats groupés : bandeau violet + chiffres réels (participants,
+  économies, groupes complétés) affichés seulement au-delà d'un seuil.
+- « Comment ça marche » en 3 étapes, bouton WhatsApp à côté de
+  Trouvez-moi, tuiles lots / boutiques.
+- Slides en requêtes de conteneur : même rendu dans le site et l'aperçu.
+
+Admin « Carrousel de l'accueil » :
+- Modèles prêts à l'emploi, pastilles de couleur, glisser-déposer des
+  images, choix du lien dans une liste (pages, catégories, Trouvez-moi),
+  aperçu en direct ordinateur/mobile, programmation repliée, tri par
+  flèches, statut (en ligne / programmée / terminée / masquée).
+- API : validation des slides (titre, liens internes/https uniquement,
+  images, dates), nouvelle slide placée en dernier. Champ « pastille ».
+
+Recherche (en-tête market) : le champ n'hérite plus de la bordure
+carrée globale (.bg-white input), boutons contenus dans la pilule,
+texte 16 px sur mobile (pas de zoom iOS).
+
+Catégories : image de repli prise dans la galerie du produit.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+---
+ .../admin/market/promo-slides/page.tsx        | 777 ++++++++++--------
+ src/app/api/admin/promo-slides/[id]/route.ts  |  21 +-
+ src/app/api/admin/promo-slides/route.ts       |  30 +-
+ .../api/catalog/category-highlights/route.ts  |   2 +-
+ src/app/globals.css                           |  13 +
+ src/components/MarketHeader.tsx               |   2 +-
+ src/components/SearchAutocomplete.tsx         |  12 +-
+ .../market/storefront/HomeHeroCarousel.tsx    | 139 ++++
+ .../market/storefront/PromoSlideView.tsx      |  95 +++
+ .../market/storefront/TrustStrip.tsx          |  16 +-
+ .../market/storefront/category-visuals.ts     |  43 +
+ .../market/storefront/recently-viewed.ts      |  35 +
+ .../market/storefront/screens/ScreenHome.tsx  | 381 +++++++--
+ .../storefront/screens/ScreenProduct.tsx      |   6 +
+ src/lib/catalog/category-match.ts             |  12 +-
+ src/lib/market/promo-slides.ts                | 135 +++
+ src/lib/models/PromoSlide.ts                  |   3 +
+ 17 files changed, 1253 insertions(+), 469 deletions(-)
+ create mode 100644 src/components/market/storefront/HomeHeroCarousel.tsx
+ create mode 100644 src/components/market/storefront/PromoSlideView.tsx
+ create mode 100644 src/components/market/storefront/category-visuals.ts
+ create mode 100644 src/components/market/storefront/recently-viewed.ts
+ create mode 100644 src/lib/market/promo-slides.ts
+
+diff --git a/src/app/(admin)/admin/market/promo-slides/page.tsx b/src/app/(admin)/admin/market/promo-slides/page.tsx
+index 87684e3c..3d11c079 100644
+--- a/src/app/(admin)/admin/market/promo-slides/page.tsx
++++ b/src/app/(admin)/admin/market/promo-slides/page.tsx
+@@ -1,75 +1,147 @@
+ 'use client'
+ 
+-import { useEffect, useState } from 'react'
+-import { motion } from 'framer-motion'
++import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+ import {
+-  Plus,
+-  Pencil,
+-  Trash2,
+-  Eye,
+-  EyeOff,
+-  GripVertical,
+-  Save,
+-  X,
+-  ImageIcon,
+-  ArrowUpDown,
++  ArrowDown, ArrowUp, CalendarClock, Eye, EyeOff, ImagePlus, Monitor, Pencil, Plus, Save, Smartphone, Trash2, X,
+ } from 'lucide-react'
++import ImageUpload from '@/components/ImageUpload'
++import { PromoSlideView, type HeroSlide } from '@/components/market/storefront/PromoSlideView'
++import { cn } from '@/lib/utils'
++import {
++  MAX_SLIDE_IMAGES, SLIDE_LINK_PRESETS, SLIDE_THEMES, SLIDE_THEME_KEYS, SOURCING_LINK,
++  resolveSlideTheme, sanitizeSlideImages, sanitizeSlideLink, type SlideThemeKey,
++} from '@/lib/market/promo-slides'
+ 
+ interface PromoSlide {
+   _id: string
+   title: string
+   subtitle?: string
++  badge?: string
+   ctaText: string
+   ctaLink: string
+   bgColor?: string
+-  accentColor?: string
+-  textColor?: string
+   images?: string[]
+   isActive: boolean
+   order: number
+-  startDate?: string
+-  endDate?: string
+-  createdAt: string
++  startDate?: string | null
++  endDate?: string | null
++}
++
++interface SlideForm {
++  title: string
++  subtitle: string
++  badge: string
++  ctaText: string
++  ctaLink: string
++  theme: SlideThemeKey
++  images: string[]
++  isActive: boolean
++  startDate: string
++  endDate: string
+ }
+ 
+-const DEFAULT_COLORS = [
+-  { label: 'Amber', value: 'from-amber-50 via-yellow-50 to-orange-50', accent: 'bg-black' },
+-  { label: 'Emeraude', value: 'from-emerald-50 via-emerald-50 to-teal-50', accent: 'bg-emerald-600' },
+-  { label: 'Violet', value: 'from-violet-50 via-purple-50 to-fuchsia-50', accent: 'bg-violet-600' },
+-  { label: 'Bleu', value: 'from-blue-50 via-sky-50 to-cyan-50', accent: 'bg-blue-600' },
+-  { label: 'Rose', value: 'from-rose-50 via-pink-50 to-red-50', accent: 'bg-rose-600' },
++const EMPTY_FORM: SlideForm = {
++  title: '', subtitle: '', badge: '', ctaText: 'Découvrir', ctaLink: '/produits', theme: 'emerald',
++  images: [], isActive: true, startDate: '', endDate: '',
++}
++
++// Modèles prêts à l'emploi : l'admin n'a plus qu'à remplacer les « … »
++const TEMPLATES: { key: string; label: string; form: Partial<SlideForm> }[] = [
++  { key: 'promo', label: 'Promotion', form: { theme: 'sunset', badge: 'Promo', title: 'Jusqu’à -20 % sur …', subtitle: 'Offre valable jusqu’au …, dans la limite des stocks.', ctaText: 'J’en profite', ctaLink: '/produits' } },
++  { key: 'new', label: 'Nouveautés', form: { theme: 'ocean', badge: 'Nouveau', title: 'Nouveautés : …', subtitle: 'Les derniers produits arrivés sur DDM+.', ctaText: 'Découvrir', ctaLink: '/produits' } },
++  { key: 'group', label: 'Achat groupé', form: { theme: 'violet', badge: 'Achat groupé', title: '… au prix de gros', subtitle: 'Rejoignez le groupe avant la date limite pour profiter du meilleur prix.', ctaText: 'Rejoindre le groupe', ctaLink: '/achats-groupes' } },
++  { key: 'sourcing', label: 'Trouvez-moi', form: { theme: 'emerald', badge: 'Trouvez-moi', title: 'Une photo suffit, on le trouve en Chine', subtitle: 'Envoyez la photo ou le lien d’un produit, nous vous envoyons un devis.', ctaText: 'Envoyer une photo', ctaLink: SOURCING_LINK } },
+ ]
+ 
++const CUSTOM_LINK = '__custom__'
++const inputClass = 'w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30'
++const labelClass = 'mb-1 block text-sm font-semibold text-stone-800'
++
++// <input type="datetime-local"> travaille en heure locale, l'API en ISO
++const toLocalInput = (value?: string | null) => {
++  if (!value) return ''
++  const date = new Date(value)
++  if (Number.isNaN(date.getTime())) return ''
++  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
++}
++const fromLocalInput = (value: string) => (value ? new Date(value).toISOString() : null)
++
++function slideStatus(slide: PromoSlide): { label: string; tone: string } {
++  const now = Date.now()
++  if (!slide.isActive) return { label: 'Masquée', tone: 'bg-stone-100 text-stone-600' }
++  if (slide.startDate && new Date(slide.startDate).getTime() > now) {
++    return { label: `Programmée (${new Date(slide.startDate).toLocaleDateString('fr-FR')})`, tone: 'bg-blue-50 text-blue-700' }
++  }
++  if (slide.endDate && new Date(slide.endDate).getTime() < now) return { label: 'Terminée', tone: 'bg-amber-50 text-amber-800' }
++  return { label: 'En ligne', tone: 'bg-emerald-50 text-emerald-700' }
++}
++
++function toHeroSlide(form: SlideForm, id = 'preview'): HeroSlide {
++  return {
++    id,
++    title: form.title || 'Titre de la slide',
++    subtitle: form.subtitle || undefined,
++    badge: form.badge || undefined,
++    ctaText: form.ctaText || 'Découvrir',
++    ctaLink: form.ctaLink,
++    theme: form.theme,
++    images: form.images,
++    art: form.ctaLink === SOURCING_LINK ? 'camera' : form.ctaLink.startsWith('/achats-groupes') ? 'users' : 'sparkles',
++  }
++}
++
++/** Rend le slide à sa vraie largeur (site ordinateur ou mobile) puis le réduit pour tenir dans la colonne d'aperçu. */
++function ScaledPreview({ width, children }: { width: number; children: ReactNode }) {
++  const outerRef = useRef<HTMLDivElement>(null)
++  const innerRef = useRef<HTMLDivElement>(null)
++  const [scale, setScale] = useState(1)
++  const [height, setHeight] = useState<number | undefined>(undefined)
++
++  useEffect(() => {
++    const update = () => {
++      const available = outerRef.current?.clientWidth || width
++      const next = Math.min(1, available / width)
++      setScale(next)
++      setHeight((innerRef.current?.offsetHeight || 0) * next)
++    }
++    update()
++    const observer = new ResizeObserver(update)
++    if (outerRef.current) observer.observe(outerRef.current)
++    if (innerRef.current) observer.observe(innerRef.current)
++    return () => observer.disconnect()
++  }, [width])
++
++  return (
++    <div ref={outerRef} className="w-full overflow-hidden" style={{ height }}>
++      <div ref={innerRef} className="mx-auto" style={{ width, transform: `scale(${scale})`, transformOrigin: 'top left' }}>{children}</div>
++    </div>
++  )
++}
++
+ export default function PromoSlidesPage() {
+   const [slides, setSlides] = useState<PromoSlide[]>([])
+   const [loading, setLoading] = useState(true)
++  const [saving, setSaving] = useState(false)
+   const [error, setError] = useState('')
+-  const [editing, setEditing] = useState<PromoSlide | null>(null)
+-  const [isCreating, setIsCreating] = useState(false)
+-  const [form, setForm] = useState<Partial<PromoSlide>>({
+-    title: '',
+-    subtitle: '',
+-    ctaText: 'En savoir plus',
+-    ctaLink: '/produits',
+-    bgColor: DEFAULT_COLORS[0].value,
+-    accentColor: DEFAULT_COLORS[0].accent,
+-    textColor: 'text-slate-900',
+-    images: [],
+-    isActive: true,
+-    order: 0,
+-  })
+-  const [imageInput, setImageInput] = useState('')
++  const [editingId, setEditingId] = useState<string | null>(null)
++  const [formOpen, setFormOpen] = useState(false)
++  const [form, setForm] = useState<SlideForm>(EMPTY_FORM)
++  const [linkChoice, setLinkChoice] = useState('/produits')
++  const [imageUrl, setImageUrl] = useState('')
++  const [previewMobile, setPreviewMobile] = useState(false)
++  const [categories, setCategories] = useState<{ slug: string; label: string }[]>([])
++
++  const linkOptions = useMemo(() => [
++    ...SLIDE_LINK_PRESETS,
++    ...categories.map(category => ({ label: `Catégorie : ${category.label}`, value: `/produits?cat=${encodeURIComponent(category.slug)}` })),
++  ], [categories])
+ 
+   const loadSlides = async () => {
+     try {
+-      setLoading(true)
+       const res = await fetch('/api/admin/promo-slides', { credentials: 'include' })
+       const data = await res.json()
+-      if (data.success) {
+-        setSlides(data.slides)
+-      } else {
+-        setError(data.error || 'Erreur de chargement')
+-      }
++      if (data.success) setSlides(data.slides)
++      else setError(data.error || 'Erreur de chargement')
+     } catch {
+       setError('Erreur réseau')
+     } finally {
+@@ -79,103 +151,144 @@ export default function PromoSlidesPage() {
+ 
+   useEffect(() => {
+     loadSlides()
++    fetch('/api/catalog/category-highlights')
++      .then(res => (res.ok ? res.json() : null))
++      .then(data => {
++        type HighlightItem = { slug?: string; labelFr?: string; name?: string }
++        const items: HighlightItem[] = Array.isArray(data?.items) ? data.items : []
++        setCategories(items.filter(item => item?.slug).map(item => ({ slug: String(item.slug), label: String(item.labelFr || item.name || item.slug) })))
++      })
++      .catch(() => {})
+   }, [])
+ 
+-  const resetForm = () => {
+-    setForm({
+-      title: '',
+-      subtitle: '',
+-      ctaText: 'En savoir plus',
+-      ctaLink: '/produits',
+-      bgColor: DEFAULT_COLORS[0].value,
+-      accentColor: DEFAULT_COLORS[0].accent,
+-      textColor: 'text-slate-900',
+-      images: [],
+-      isActive: true,
+-      order: 0,
+-    })
+-    setImageInput('')
++  const patchForm = (patch: Partial<SlideForm>) => setForm(current => ({ ...current, ...patch }))
++
++  // Les catégories arrivent après l'ouverture d'une slide : un lien de catégorie ne doit pas rester en « Autre lien »
++  useEffect(() => {
++    if (linkChoice === CUSTOM_LINK && form.ctaLink && linkOptions.some(option => option.value === form.ctaLink)) {
++      setLinkChoice(form.ctaLink)
++    }
++  }, [linkOptions]) // eslint-disable-line react-hooks/exhaustive-deps
++
++  const syncLinkChoice = (link: string) => {
++    setLinkChoice(linkOptions.some(option => option.value === link) ? link : CUSTOM_LINK)
++  }
++
++  const openCreate = () => {
++    setForm(EMPTY_FORM)
++    setLinkChoice(EMPTY_FORM.ctaLink)
++    setEditingId(null)
++    setFormOpen(true)
++    setError('')
+   }
+ 
+-  const handleCreate = () => {
+-    resetForm()
+-    setIsCreating(true)
+-    setEditing(null)
++  const openEdit = (slide: PromoSlide) => {
++    const next: SlideForm = {
++      title: slide.title || '',
++      subtitle: slide.subtitle || '',
++      badge: slide.badge || '',
++      ctaText: slide.ctaText || 'Découvrir',
++      ctaLink: slide.ctaLink || '/produits',
++      theme: resolveSlideTheme(slide.bgColor),
++      images: sanitizeSlideImages(slide.images),
++      isActive: slide.isActive,
++      startDate: toLocalInput(slide.startDate),
++      endDate: toLocalInput(slide.endDate),
++    }
++    setForm(next)
++    syncLinkChoice(next.ctaLink)
++    setEditingId(slide._id)
++    setFormOpen(true)
++    setError('')
++    window.scrollTo({ top: 0, behavior: 'smooth' })
+   }
+ 
+-  const handleEdit = (slide: PromoSlide) => {
+-    setForm({ ...slide })
+-    setImageInput(slide.images?.join('\n') || '')
+-    setEditing(slide)
+-    setIsCreating(false)
++  const closeForm = () => {
++    setFormOpen(false)
++    setEditingId(null)
++    setImageUrl('')
+   }
+ 
+-  const handleCancel = () => {
+-    setEditing(null)
+-    setIsCreating(false)
+-    resetForm()
++  const applyTemplate = (template: Partial<SlideForm>) => {
++    setForm(current => ({ ...current, ...template }))
++    if (template.ctaLink) syncLinkChoice(template.ctaLink)
+   }
+ 
+-  const handleSave = async () => {
++  const addImageUrl = () => {
++    const [url] = sanitizeSlideImages([imageUrl])
++    if (!url) { setError('Adresse d’image invalide : elle doit commencer par https:// ou /'); return }
++    patchForm({ images: [...form.images, url].slice(0, MAX_SLIDE_IMAGES) })
++    setImageUrl('')
++  }
++
++  const save = async () => {
++    if (!form.title.trim()) { setError('Le titre est obligatoire'); return }
++    if (!sanitizeSlideLink(form.ctaLink)) { setError('Lien du bouton invalide : choisissez une page dans la liste ou une adresse https://'); return }
++    setSaving(true)
++    setError('')
+     try {
+       const payload = {
+-        ...form,
+-        images: imageInput
+-          .split('\n')
+-          .map((s) => s.trim())
+-          .filter(Boolean),
++        title: form.title, subtitle: form.subtitle, badge: form.badge, ctaText: form.ctaText, ctaLink: form.ctaLink,
++        bgColor: form.theme, images: form.images, isActive: form.isActive,
++        startDate: fromLocalInput(form.startDate), endDate: fromLocalInput(form.endDate),
+       }
+-
+-      const url = editing ? `/api/admin/promo-slides/${editing._id}` : '/api/admin/promo-slides'
+-      const method = editing ? 'PUT' : 'POST'
+-
+-      const res = await fetch(url, {
+-        method,
++      const res = await fetch(editingId ? `/api/admin/promo-slides/${editingId}` : '/api/admin/promo-slides', {
++        method: editingId ? 'PUT' : 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         credentials: 'include',
+         body: JSON.stringify(payload),
+       })
+-
+-      const data = await res.json()
+-      if (data.success) {
+-        await loadSlides()
+-        handleCancel()
+-      } else {
+-        setError(data.error || 'Erreur lors de la sauvegarde')
+-      }
++      const data = await res.json().catch(() => ({}))
++      if (!res.ok || !data.success) { setError(data.error || 'Erreur lors de l’enregistrement'); return }
++      await loadSlides()
++      closeForm()
+     } catch {
+       setError('Erreur réseau')
++    } finally {
++      setSaving(false)
+     }
+   }
+ 
+-  const handleDelete = async (id: string) => {
+-    if (!confirm('Supprimer cette slide ?')) return
++  const update = async (id: string, body: Record<string, unknown>) => {
++    const res = await fetch(`/api/admin/promo-slides/${id}`, {
++      method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body),
++    })
++    const data = await res.json().catch(() => ({}))
++    if (!res.ok || !data.success) throw new Error(data.error || 'Erreur lors de la mise à jour')
++  }
++
++  const toggleActive = async (slide: PromoSlide) => {
+     try {
+-      const res = await fetch(`/api/admin/promo-slides/${id}`, {
+-        method: 'DELETE',
+-        credentials: 'include',
+-      })
+-      const data = await res.json()
+-      if (data.success) {
+-        await loadSlides()
+-      } else {
+-        setError(data.error || 'Erreur lors de la suppression')
+-      }
+-    } catch {
+-      setError('Erreur réseau')
++      await update(slide._id, { isActive: !slide.isActive })
++      await loadSlides()
++    } catch (err) {
++      setError(err instanceof Error ? err.message : 'Erreur réseau')
+     }
+   }
+ 
+-  const toggleActive = async (slide: PromoSlide) => {
++  // Renumérote toute la liste : corrige aussi les anciennes slides qui avaient toutes l'ordre 0
++  const move = async (index: number, direction: -1 | 1) => {
++    const target = index + direction
++    if (target < 0 || target >= slides.length) return
++    const reordered = [...slides]
++    ;[reordered[index], reordered[target]] = [reordered[target], reordered[index]]
++    setSlides(reordered)
+     try {
+-      const res = await fetch(`/api/admin/promo-slides/${slide._id}`, {
+-        method: 'PUT',
+-        headers: { 'Content-Type': 'application/json' },
+-        credentials: 'include',
+-        body: JSON.stringify({ isActive: !slide.isActive }),
+-      })
+-      const data = await res.json()
+-      if (data.success) await loadSlides()
++      await Promise.all(reordered.map((slide, position) => (slide.order !== position ? update(slide._id, { order: position }) : null)))
++    } catch (err) {
++      setError(err instanceof Error ? err.message : 'Erreur réseau')
++    }
++    await loadSlides()
++  }
++
++  const remove = async (slide: PromoSlide) => {
++    if (!confirm(`Supprimer la slide « ${slide.title} » ?`)) return
++    try {
++      const res = await fetch(`/api/admin/promo-slides/${slide._id}`, { method: 'DELETE', credentials: 'include' })
++      const data = await res.json().catch(() => ({}))
++      if (!res.ok || !data.success) { setError(data.error || 'Erreur lors de la suppression'); return }
++      if (editingId === slide._id) closeForm()
++      await loadSlides()
+     } catch {
+       setError('Erreur réseau')
+     }
+@@ -183,273 +296,237 @@ export default function PromoSlidesPage() {
+ 
+   if (loading) {
+     return (
+-      <div className="p-8">
+-        <div className="animate-pulse h-8 w-48 bg-stone-200 rounded mb-6" />
+-        <div className="space-y-4">
+-          {[1, 2, 3].map((i) => (
+-            <div key={i} className="h-24 bg-stone-100 rounded-2xl" />
+-          ))}
+-        </div>
++      <div className="p-4 sm:p-8">
++        <div className="mb-6 h-8 w-48 animate-pulse rounded bg-stone-200" />
++        <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl bg-stone-100" />)}</div>
+       </div>
+     )
+   }
+ 
++  const activeCount = slides.filter(slide => slideStatus(slide).label === 'En ligne').length
++
+   return (
+-    <div className="p-6 lg:p-8 max-w-6xl">
+-      <div className="flex items-center justify-between mb-8">
+-        <div>
+-          <h1 className="text-2xl font-bold text-stone-900">Slides promotionnelles</h1>
+-          <p className="text-sm text-stone-500 mt-1">
+-            Gérez les slides du carrousel en page d&apos;accueil. Les slides actives et dans la période de validité s&apos;affichent.
++    <div className="max-w-6xl p-4 sm:p-6 lg:p-8">
++      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
++        <div className="min-w-0">
++          <h1 className="text-2xl font-bold text-stone-900">Carrousel de l’accueil DDM+</h1>
++          <p className="mt-1 max-w-2xl text-sm text-stone-600">
++            Les slides en ligne défilent en haut de l’accueil de la marketplace.
++            {activeCount === 0 && ' Aucune slide en ligne : le site affiche 3 slides automatiques (Trouvez-moi, achats groupés, catalogue).'}
+           </p>
+         </div>
+-        <button
+-          onClick={handleCreate}
+-          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors"
+-        >
+-          <Plus className="h-4 w-4" />
+-          Nouvelle slide
+-        </button>
++        {!formOpen && (
++          <button type="button" onClick={openCreate}
++            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-700">
++            <Plus className="h-4 w-4" />Nouvelle slide
++          </button>
++        )}
+       </div>
+ 
+       {error && (
+-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+-          {error}
+-          <button onClick={() => setError('')} className="ml-2 underline">Fermer</button>
++        <div role="alert" className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
++          <span>{error}</span>
++          <button type="button" onClick={() => setError('')} aria-label="Fermer le message" className="shrink-0"><X className="h-4 w-4" /></button>
+         </div>
+       )}
+ 
+-      {/* Formulaire */}
+-      {(isCreating || editing) && (
+-        <motion.div
+-          initial={{ opacity: 0, y: 20 }}
+-          animate={{ opacity: 1, y: 0 }}
+-          className="mb-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm"
+-        >
+-          <div className="flex items-center justify-between mb-4">
+-            <h2 className="text-lg font-bold text-stone-900">
+-              {editing ? 'Modifier la slide' : 'Nouvelle slide'}
+-            </h2>
+-            <button onClick={handleCancel} className="text-stone-400 hover:text-stone-600">
+-              <X className="h-5 w-5" />
+-            </button>
++      {formOpen && (
++        <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
++          <div className="mb-4 flex items-center justify-between gap-3">
++            <h2 className="text-lg font-bold text-stone-900">{editingId ? 'Modifier la slide' : 'Nouvelle slide'}</h2>
++            <button type="button" onClick={closeForm} aria-label="Fermer" className="rounded-lg p-2 text-stone-500 hover:bg-stone-100"><X className="h-5 w-5" /></button>
+           </div>
+ 
+-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Titre *</label>
+-              <input
+-                type="text"
+-                value={form.title || ''}
+-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-                placeholder="Titre de la slide"
+-              />
+-            </div>
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Sous-titre</label>
+-              <input
+-                type="text"
+-                value={form.subtitle || ''}
+-                onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))}
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-                placeholder="Description courte"
+-              />
+-            </div>
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Texte du bouton</label>
+-              <input
+-                type="text"
+-                value={form.ctaText || ''}
+-                onChange={(e) => setForm((f) => ({ ...f, ctaText: e.target.value }))}
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-              />
+-            </div>
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Lien du bouton</label>
+-              <input
+-                type="text"
+-                value={form.ctaLink || ''}
+-                onChange={(e) => setForm((f) => ({ ...f, ctaLink: e.target.value }))}
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-                placeholder="/produits"
+-              />
++          {!editingId && (
++            <div className="mb-5">
++              <p className={labelClass}>Partir d’un modèle</p>
++              <div className="flex flex-wrap gap-2">
++                {TEMPLATES.map(template => (
++                  <button key={template.key} type="button" onClick={() => applyTemplate(template.form)}
++                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-stone-200 px-3 text-sm font-medium text-stone-700 hover:border-emerald-500 hover:bg-emerald-50">
++                    <span className={cn('h-4 w-4 rounded-full', SLIDE_THEMES[template.form.theme ?? 'emerald'].swatch)} />
++                    {template.label}
++                  </button>
++                ))}
++              </div>
+             </div>
+-          </div>
++          )}
++
++          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
++            <div className="space-y-4">
++              <div>
++                <label htmlFor="slide-title" className={labelClass}>Titre *</label>
++                <input id="slide-title" value={form.title} maxLength={120} onChange={e => patchForm({ title: e.target.value })}
++                  className={inputClass} placeholder="Ex. : Caméras Wi-Fi à prix de gros" />
++              </div>
++              <div>
++                <label htmlFor="slide-subtitle" className={labelClass}>Texte sous le titre</label>
++                <textarea id="slide-subtitle" value={form.subtitle} maxLength={240} rows={2} onChange={e => patchForm({ subtitle: e.target.value })}
++                  className={inputClass} placeholder="Une phrase qui donne envie de cliquer" />
++              </div>
++              <div>
++                <label htmlFor="slide-badge" className={labelClass}>Pastille <span className="font-normal text-stone-500">(facultatif)</span></label>
++                <input id="slide-badge" value={form.badge} maxLength={40} onChange={e => patchForm({ badge: e.target.value })}
++                  className={inputClass} placeholder="Ex. : -20 %, Nouveau, Stock limité" />
++              </div>
++
++              <fieldset>
++                <legend className={labelClass}>Couleur</legend>
++                <div className="flex flex-wrap gap-3">
++                  {SLIDE_THEME_KEYS.map(key => (
++                    <button key={key} type="button" onClick={() => patchForm({ theme: key })} aria-pressed={form.theme === key}
++                      className="flex flex-col items-center gap-1 text-xs font-medium text-stone-700">
++                      <span className={cn('h-10 w-10 rounded-full ring-offset-2 transition', SLIDE_THEMES[key].swatch, form.theme === key ? 'ring-2 ring-emerald-600' : 'ring-1 ring-stone-200')} />
++                      {SLIDE_THEMES[key].label}
++                    </button>
++                  ))}
++                </div>
++              </fieldset>
++
++              <div>
++                <p className={labelClass}>Images <span className="font-normal text-stone-500">(jusqu’à {MAX_SLIDE_IMAGES}, de préférence sur fond blanc)</span></p>
++                <ImageUpload
++                  type="promo-slides"
++                  maxFiles={MAX_SLIDE_IMAGES}
++                  existingImages={form.images}
++                  onUpload={url => setForm(current => ({ ...current, images: [...current.images, url].slice(0, MAX_SLIDE_IMAGES) }))}
++                  onRemove={url => setForm(current => ({ ...current, images: current.images.filter(image => image !== url) }))}
++                  onError={setError}
++                />
++                {form.images.length < MAX_SLIDE_IMAGES && (
++                  <div className="mt-2 flex gap-2">
++                    <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className={inputClass}
++                      placeholder="…ou collez l’adresse d’une image (https://…)" aria-label="Adresse d’une image" />
++                    <button type="button" onClick={addImageUrl} disabled={!imageUrl.trim()}
++                      className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-stone-200 px-3 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50">
++                      <ImagePlus className="h-4 w-4" />Ajouter
++                    </button>
++                  </div>
++                )}
++              </div>
+ 
+-          <div className="mb-4">
+-            <label className="block text-sm font-medium text-stone-700 mb-2">Couleur de fond</label>
+-            <div className="flex flex-wrap gap-2">
+-              {DEFAULT_COLORS.map((c) => (
+-                <button
+-                  key={c.value}
+-                  type="button"
+-                  onClick={() =>
+-                    setForm((f) => ({ ...f, bgColor: c.value, accentColor: c.accent }))
+-                  }
+-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+-                    form.bgColor === c.value
+-                      ? 'border-emerald-500 ring-2 ring-emerald-200 bg-emerald-50'
+-                      : 'border-stone-200 hover:border-stone-300'
+-                  }`}
+-                >
+-                  {c.label}
++              <div className="grid gap-4 sm:grid-cols-2">
++                <div>
++                  <label htmlFor="slide-cta" className={labelClass}>Texte du bouton</label>
++                  <input id="slide-cta" value={form.ctaText} maxLength={40} onChange={e => patchForm({ ctaText: e.target.value })} className={inputClass} />
++                </div>
++                <div>
++                  <label htmlFor="slide-link" className={labelClass}>Le bouton mène vers</label>
++                  <select id="slide-link" value={linkChoice} className={inputClass}
++                    onChange={e => {
++                      setLinkChoice(e.target.value)
++                      patchForm({ ctaLink: e.target.value === CUSTOM_LINK ? '' : e.target.value })
++                    }}>
++                    {linkOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
++                    <option value={CUSTOM_LINK}>Autre lien…</option>
++                  </select>
++                </div>
++              </div>
++              {linkChoice === CUSTOM_LINK && (
++                <div>
++                  <label htmlFor="slide-custom-link" className={labelClass}>Adresse du lien</label>
++                  <input id="slide-custom-link" value={form.ctaLink} onChange={e => patchForm({ ctaLink: e.target.value })} className={inputClass}
++                    placeholder="/produits/… ou https://…" />
++                  <p className="mt-1 text-xs text-stone-500">Astuce : ouvrez la page voulue sur le site et copiez la fin de l’adresse (à partir du « / »).</p>
++                </div>
++              )}
++
++              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-stone-800">
++                <input type="checkbox" checked={form.isActive} onChange={e => patchForm({ isActive: e.target.checked })} className="h-5 w-5 rounded accent-emerald-600" />
++                Afficher sur le site
++              </label>
++
++              <details className="rounded-xl border border-stone-200 p-3">
++                <summary className="flex min-h-9 cursor-pointer items-center gap-2 text-sm font-semibold text-stone-800">
++                  <CalendarClock className="h-4 w-4" />Programmer (facultatif)
++                  {(form.startDate || form.endDate) && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">dates définies</span>}
++                </summary>
++                <div className="mt-3 grid gap-3 sm:grid-cols-2">
++                  <div>
++                    <label htmlFor="slide-start" className={labelClass}>Visible à partir du</label>
++                    <input id="slide-start" type="datetime-local" value={form.startDate} onChange={e => patchForm({ startDate: e.target.value })} className={inputClass} />
++                  </div>
++                  <div>
++                    <label htmlFor="slide-end" className={labelClass}>Jusqu’au</label>
++                    <input id="slide-end" type="datetime-local" value={form.endDate} onChange={e => patchForm({ endDate: e.target.value })} className={inputClass} />
++                  </div>
++                </div>
++              </details>
++
++              <div className="flex flex-wrap gap-3 pt-1">
++                <button type="button" onClick={save} disabled={saving}
++                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
++                  <Save className="h-4 w-4" />{saving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer la slide'}
+                 </button>
+-              ))}
++                <button type="button" onClick={closeForm} className="min-h-11 rounded-xl px-5 font-medium text-stone-600 hover:bg-stone-100">Annuler</button>
++              </div>
+             </div>
+-          </div>
+ 
+-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Ordre</label>
+-              <input
+-                type="number"
+-                value={form.order ?? 0}
+-                onChange={(e) => setForm((f) => ({ ...f, order: parseInt(e.target.value) || 0 }))}
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-              />
+-            </div>
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Date début</label>
+-              <input
+-                type="datetime-local"
+-                value={form.startDate ? new Date(form.startDate).toISOString().slice(0, 16) : ''}
+-                onChange={(e) =>
+-                  setForm((f) => ({
+-                    ...f,
+-                    startDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+-                  }))
+-                }
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-              />
+-            </div>
+-            <div>
+-              <label className="block text-sm font-medium text-stone-700 mb-1">Date fin</label>
+-              <input
+-                type="datetime-local"
+-                value={form.endDate ? new Date(form.endDate).toISOString().slice(0, 16) : ''}
+-                onChange={(e) =>
+-                  setForm((f) => ({
+-                    ...f,
+-                    endDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+-                  }))
+-                }
+-                className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+-              />
++            <div className="lg:sticky lg:top-4 lg:self-start">
++              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
++                <p className="text-sm font-semibold text-stone-800">Aperçu</p>
++                <div className="inline-flex rounded-lg border border-stone-200 p-0.5" role="group" aria-label="Taille de l’aperçu">
++                  <button type="button" onClick={() => setPreviewMobile(false)} aria-pressed={!previewMobile}
++                    className={cn('inline-flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-medium', !previewMobile ? 'bg-stone-900 text-white' : 'text-stone-600')}>
++                    <Monitor className="h-3.5 w-3.5" />Ordinateur
++                  </button>
++                  <button type="button" onClick={() => setPreviewMobile(true)} aria-pressed={previewMobile}
++                    className={cn('inline-flex min-h-9 items-center gap-1 rounded-md px-2.5 text-xs font-medium', previewMobile ? 'bg-stone-900 text-white' : 'text-stone-600')}>
++                    <Smartphone className="h-3.5 w-3.5" />Mobile
++                  </button>
++                </div>
++              </div>
++              <ScaledPreview width={previewMobile ? 360 : 1200}>
++                <PromoSlideView slide={toHeroSlide(form)} preview eager />
++              </ScaledPreview>
++              <p className="mt-2 text-xs text-stone-500">L’aperçu se met à jour pendant la saisie. Le bouton n’est pas cliquable ici.</p>
+             </div>
+           </div>
+-
+-          <div className="mb-4">
+-            <label className="block text-sm font-medium text-stone-700 mb-1">
+-              Images (une URL par ligne, max 4)
+-            </label>
+-            <textarea
+-              value={imageInput}
+-              onChange={(e) => setImageInput(e.target.value)}
+-              rows={3}
+-              className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+-              placeholder="https://exemple.com/image1.jpg&#10;https://exemple.com/image2.jpg"
+-            />
+-          </div>
+-
+-          <div className="flex items-center gap-3">
+-            <button
+-              onClick={handleSave}
+-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-colors"
+-            >
+-              <Save className="h-4 w-4" />
+-              {editing ? 'Enregistrer' : 'Créer'}
+-            </button>
+-            <button
+-              onClick={handleCancel}
+-              className="px-5 py-2.5 rounded-xl font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+-            >
+-              Annuler
+-            </button>
+-          </div>
+-        </motion.div>
++        </div>
+       )}
+ 
+-      {/* Liste */}
+       <div className="space-y-3">
+         {slides.length === 0 ? (
+-          <div className="text-center py-12 bg-white border border-stone-200 rounded-2xl">
+-            <ImageIcon className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+-            <p className="text-stone-500">Aucune slide configurée</p>
+-            <p className="text-sm text-stone-400">Les slides par défaut s&apos;afficheront sur le site</p>
++          <div className="rounded-2xl border border-stone-200 bg-white px-4 py-12 text-center">
++            <ImagePlus className="mx-auto mb-3 h-12 w-12 text-stone-300" />
++            <p className="font-medium text-stone-700">Aucune slide pour le moment</p>
++            <p className="text-sm text-stone-500">Les 3 slides automatiques s’affichent sur le site. Créez la vôtre en partant d’un modèle.</p>
+           </div>
+         ) : (
+-          slides.map((slide) => (
+-            <motion.div
+-              key={slide._id}
+-              initial={{ opacity: 0 }}
+-              animate={{ opacity: 1 }}
+-              className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-shadow hover:shadow-sm ${
+-                slide.isActive ? 'border-stone-200' : 'border-stone-200 opacity-60'
+-              }`}
+-            >
+-              <div className="text-stone-400">
+-                <GripVertical className="h-4 w-4" />
+-              </div>
+-
+-              <div
+-                className={`w-12 h-12 rounded-xl bg-gradient-to-r ${slide.bgColor || 'from-stone-100 to-stone-200'} flex-shrink-0`}
+-              />
+-
+-              <div className="flex-1 min-w-0">
+-                <div className="flex items-center gap-2">
+-                  <h3 className="font-bold text-stone-900 truncate">{slide.title}</h3>
+-                  {slide.isActive ? (
+-                    <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+-                      <Eye className="h-3 w-3" />
+-                      Active
+-                    </span>
+-                  ) : (
+-                    <span className="inline-flex items-center gap-1 bg-stone-100 text-stone-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+-                      <EyeOff className="h-3 w-3" />
+-                      Inactive
+-                    </span>
+-                  )}
++          slides.map((slide, index) => {
++            const status = slideStatus(slide)
++            const theme = SLIDE_THEMES[resolveSlideTheme(slide.bgColor)]
++            const image = sanitizeSlideImages(slide.images)[0]
++            return (
++              <div key={slide._id} className={cn('flex flex-wrap items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 sm:flex-nowrap sm:p-4', !slide.isActive && 'opacity-70')}>
++                <div className={cn('relative grid h-16 w-24 shrink-0 place-items-center overflow-hidden rounded-xl', theme.swatch)}>
++                  {image && <img src={image} alt="" className="h-12 w-12 rotate-3 rounded-lg bg-white object-contain p-0.5 shadow" />}
+                 </div>
+-                <p className="text-sm text-stone-500 truncate">{slide.subtitle}</p>
+-                <div className="flex items-center gap-3 mt-1 text-xs text-stone-400">
+-                  <span>Ordre: {slide.order}</span>
+-                  <span>·</span>
+-                  <span>{slide.images?.length || 0} image(s)</span>
+-                  {slide.startDate && (
+-                    <>
+-                      <span>·</span>
+-                      <span>Début: {new Date(slide.startDate).toLocaleDateString('fr-FR')}</span>
+-                    </>
+-                  )}
++                <div className="min-w-0 flex-1 basis-40">
++                  <div className="flex flex-wrap items-center gap-2">
++                    <h3 className="font-bold text-stone-900 [overflow-wrap:anywhere]">{slide.title}</h3>
++                    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', status.tone)}>{status.label}</span>
++                  </div>
++                  {slide.subtitle && <p className="truncate text-sm text-stone-500">{slide.subtitle}</p>}
++                  <p className="mt-0.5 truncate text-xs text-stone-400">Bouton « {slide.ctaText} » → {slide.ctaLink === SOURCING_LINK ? 'Trouvez-moi' : slide.ctaLink}</p>
++                </div>
++                <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
++                  <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Monter"
++                    className="grid h-10 w-10 place-items-center rounded-lg text-stone-500 hover:bg-stone-100 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
++                  <button type="button" onClick={() => move(index, 1)} disabled={index === slides.length - 1} aria-label="Descendre"
++                    className="grid h-10 w-10 place-items-center rounded-lg text-stone-500 hover:bg-stone-100 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
++                  <button type="button" onClick={() => toggleActive(slide)} aria-label={slide.isActive ? 'Masquer' : 'Afficher'} title={slide.isActive ? 'Masquer' : 'Afficher'}
++                    className="grid h-10 w-10 place-items-center rounded-lg text-stone-500 hover:bg-stone-100">
++                    {slide.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
++                  </button>
++                  <button type="button" onClick={() => openEdit(slide)} aria-label="Modifier" title="Modifier"
++                    className="grid h-10 w-10 place-items-center rounded-lg text-stone-500 hover:bg-stone-100"><Pencil className="h-4 w-4" /></button>
++                  <button type="button" onClick={() => remove(slide)} aria-label="Supprimer" title="Supprimer"
++                    className="grid h-10 w-10 place-items-center rounded-lg text-stone-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                 </div>
+               </div>
+-
+-              <div className="flex items-center gap-2">
+-                <button
+-                  onClick={() => toggleActive(slide)}
+-                  className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+-                  title={slide.isActive ? 'Désactiver' : 'Activer'}
+-                >
+-                  {slide.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+-                </button>
+-                <button
+-                  onClick={() => handleEdit(slide)}
+-                  className="p-2 rounded-lg hover:bg-stone-100 text-stone-500 transition-colors"
+-                  title="Modifier"
+-                >
+-                  <Pencil className="h-4 w-4" />
+-                </button>
+-                <button
+-                  onClick={() => handleDelete(slide._id)}
+-                  className="p-2 rounded-lg hover:bg-red-50 text-stone-500 hover:text-red-600 transition-colors"
+-                  title="Supprimer"
+-                >
+-                  <Trash2 className="h-4 w-4" />
+-                </button>
+-              </div>
+-            </motion.div>
+-          ))
++            )
++          })
+         )}
+       </div>
+     </div>
+diff --git a/src/app/api/admin/promo-slides/[id]/route.ts b/src/app/api/admin/promo-slides/[id]/route.ts
+index e544acef..af40c713 100644
+--- a/src/app/api/admin/promo-slides/[id]/route.ts
++++ b/src/app/api/admin/promo-slides/[id]/route.ts
+@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
+ import { connectMongoose } from '@/lib/mongoose'
+ import PromoSlide from '@/lib/models/PromoSlide'
+ import { requireAuth } from '@/lib/jwt'
++import { parseSlideInput } from '@/lib/market/promo-slides'
+ 
+ const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
+ 
+@@ -21,23 +22,11 @@ export async function PUT(
+     await requireAdmin(request)
+ 
+     const { id } = await params
+-    const body = await request.json()
++    const body = await request.json().catch(() => ({}))
++    const { data: update, error } = parseSlideInput(body, true)
++    if (error) return NextResponse.json({ success: false, error }, { status: 400 })
+ 
+-    const update: any = {}
+-    if (body.title !== undefined) update.title = body.title
+-    if (body.subtitle !== undefined) update.subtitle = body.subtitle
+-    if (body.ctaText !== undefined) update.ctaText = body.ctaText
+-    if (body.ctaLink !== undefined) update.ctaLink = body.ctaLink
+-    if (body.bgColor !== undefined) update.bgColor = body.bgColor
+-    if (body.accentColor !== undefined) update.accentColor = body.accentColor
+-    if (body.textColor !== undefined) update.textColor = body.textColor
+-    if (body.images !== undefined) update.images = body.images
+-    if (body.isActive !== undefined) update.isActive = body.isActive
+-    if (typeof body.order === 'number') update.order = body.order
+-    if (body.startDate !== undefined) update.startDate = body.startDate ? new Date(body.startDate) : null
+-    if (body.endDate !== undefined) update.endDate = body.endDate ? new Date(body.endDate) : null
+-
+-    const slide = await PromoSlide.findByIdAndUpdate(id, update, { new: true })
++    const slide = await PromoSlide.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+ 
+     if (!slide) {
+       return NextResponse.json({ success: false, error: 'Slide introuvable' }, { status: 404 })
+diff --git a/src/app/api/admin/promo-slides/route.ts b/src/app/api/admin/promo-slides/route.ts
+index 18167ed4..ce352050 100644
+--- a/src/app/api/admin/promo-slides/route.ts
++++ b/src/app/api/admin/promo-slides/route.ts
+@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
+ import { connectMongoose } from '@/lib/mongoose'
+ import PromoSlide from '@/lib/models/PromoSlide'
+ import { requireAuth } from '@/lib/jwt'
++import { parseSlideInput } from '@/lib/market/promo-slides'
+ 
+ const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
+ 
+@@ -43,20 +44,23 @@ export async function POST(request: NextRequest) {
+     await connectMongoose()
+     await requireAdmin(request)
+ 
+-    const body = await request.json()
++    const body = await request.json().catch(() => ({}))
++    const { data, error } = parseSlideInput(body, false)
++    if (error) return NextResponse.json({ success: false, error }, { status: 400 })
++
++    // Sans ordre précisé, la nouvelle slide passe en dernier
++    if (data.order === undefined) {
++      const last = await PromoSlide.findOne().sort({ order: -1 }).select('order').lean<{ order?: number }>()
++      data.order = (last?.order ?? -1) + 1
++    }
+     const slide = await PromoSlide.create({
+-      title: body.title || 'Nouvelle slide',
+-      subtitle: body.subtitle,
+-      ctaText: body.ctaText || 'En savoir plus',
+-      ctaLink: body.ctaLink || '/produits',
+-      bgColor: body.bgColor,
+-      accentColor: body.accentColor,
+-      textColor: body.textColor,
+-      images: body.images || [],
+-      isActive: body.isActive ?? true,
+-      order: typeof body.order === 'number' ? body.order : 0,
+-      startDate: body.startDate ? new Date(body.startDate) : undefined,
+-      endDate: body.endDate ? new Date(body.endDate) : undefined,
++      ...data,
++      ctaText: data.ctaText || 'Découvrir',
++      ctaLink: data.ctaLink || '/produits',
++      images: data.images || [],
++      isActive: data.isActive ?? true,
++      startDate: data.startDate || undefined,
++      endDate: data.endDate || undefined,
+     })
+ 
+     return NextResponse.json({ success: true, slide })
+diff --git a/src/app/api/catalog/category-highlights/route.ts b/src/app/api/catalog/category-highlights/route.ts
+index 6736741b..b15601fa 100644
+--- a/src/app/api/catalog/category-highlights/route.ts
++++ b/src/app/api/catalog/category-highlights/route.ts
+@@ -33,7 +33,7 @@ export async function GET() {
+     }
+ 
+     const products = await Product.find({ isPublished: { $ne: false } })
+-      .select('name category image')
++      .select({ name: 1, category: 1, image: 1, gallery: { $slice: 3 } })
+       .lean()
+ 
+     const slugs = categories.map((c: any) => String(c.slug || c._id || c.name || '').toLowerCase())
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 5c264345..4c516c11 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -686,6 +686,19 @@ select.error:focus {
+   border: 1px solid var(--input-border) !important;
+ }
+ 
++/* Recherche marketplace : le conteneur arrondi porte la bordure et l'anneau de focus, pas le champ */
++.mkt-search input.mkt-search-input {
++  border: 0 !important;
++  background-color: transparent !important;
++  border-radius: 0;
++  box-shadow: none !important;
++  text-overflow: ellipsis;
++}
++
++.mkt-search input.mkt-search-input:focus-visible {
++  outline: none;
++}
++
+ /* Utilitaire pour limiter le texte à 2 lignes */
+ .line-clamp-2 {
+   display: -webkit-box;
+diff --git a/src/components/MarketHeader.tsx b/src/components/MarketHeader.tsx
+index acbb9e64..934b287f 100644
+--- a/src/components/MarketHeader.tsx
++++ b/src/components/MarketHeader.tsx
+@@ -240,7 +240,7 @@ export default function MarketHeader() {
+               return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm font-medium ${active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}><ItemIcon size={16} />{item.name}</Link>
+             })}
+           </nav>
+-          <div className="flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white py-0.5 transition focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20 dark:border-slate-700 dark:bg-slate-900">
++          <div className="mkt-search flex min-w-0 flex-1 items-center rounded-full border border-zinc-200 bg-zinc-50 p-1 transition focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-500/15 dark:border-slate-700 dark:bg-slate-900 dark:focus-within:border-emerald-400">
+             <SearchAutocomplete
+               value={searchQuery}
+               onChange={setSearchQuery}
+diff --git a/src/components/SearchAutocomplete.tsx b/src/components/SearchAutocomplete.tsx
+index 78fd6f0d..e9accd9d 100644
+--- a/src/components/SearchAutocomplete.tsx
++++ b/src/components/SearchAutocomplete.tsx
+@@ -236,8 +236,8 @@ export default function SearchAutocomplete({
+ 
+   return (
+     <div ref={wrapperRef} className="relative flex-1 min-w-0">
+-      <div className="flex items-center gap-1 sm:gap-2">
+-        <Search className="ml-3 hidden h-4 w-4 flex-shrink-0 text-slate-400 dark:text-slate-500 sm:block" />
++      <div className="flex items-center gap-1">
++        <Search aria-hidden className="ml-3 hidden h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-500 sm:block" />
+         <input
+           ref={inputRef}
+           value={value}
+@@ -245,7 +245,7 @@ export default function SearchAutocomplete({
+           onFocus={handleFocus}
+           onKeyDown={handleKeyDown}
+           placeholder={placeholder}
+-          className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none dark:text-slate-200"
++          className="mkt-search-input h-10 min-w-0 flex-1 bg-transparent pl-3 text-base outline-none sm:pl-1 sm:text-sm dark:text-slate-200"
+           role="combobox"
+           aria-label="Rechercher dans le catalogue"
+           autoComplete="off"
+@@ -259,9 +259,9 @@ export default function SearchAutocomplete({
+             title="Recherche par image"
+             aria-label="Recherche par image"
+             onClick={onCameraClick}
+-            className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
++            className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-violet-600 transition hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/50"
+           >
+-            <Camera className="w-4 h-4 text-violet-600 dark:text-violet-400" />
++            <Camera className="h-[18px] w-[18px]" />
+           </button>
+         )}
+         <button
+@@ -269,7 +269,7 @@ export default function SearchAutocomplete({
+           onClick={() => handleSearch(value)}
+           aria-label="Rechercher"
+           title="Rechercher"
+-          className="flex h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 sm:px-5"
++          className="flex h-10 min-w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-700 px-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 sm:px-5"
+         >
+           <Search size={18} className="sm:hidden" />
+           <span className="hidden sm:inline">Rechercher</span>
+diff --git a/src/components/market/storefront/HomeHeroCarousel.tsx b/src/components/market/storefront/HomeHeroCarousel.tsx
+new file mode 100644
+index 00000000..9c8dc75d
+--- /dev/null
++++ b/src/components/market/storefront/HomeHeroCarousel.tsx
+@@ -0,0 +1,139 @@
++'use client';
++
++import { useCallback, useEffect, useRef, useState } from 'react';
++import { ChevronLeft, ChevronRight } from 'lucide-react';
++import { cn } from '@/lib/utils';
++import { PromoSlideView, type HeroSlide } from './PromoSlideView';
++
++const AUTOPLAY_MS = 6000;
++
++export interface HomeHeroCarouselProps {
++  slides: HeroSlide[];
++  onSourcing?: () => void;
++}
++
++/** Carrousel à défilement natif (glisser au doigt) avec lecture auto, pausée au survol, au toucher et hors écran. */
++export function HomeHeroCarousel({ slides, onSourcing }: HomeHeroCarouselProps) {
++  const trackRef = useRef<HTMLDivElement>(null);
++  const [active, setActive] = useState(0);
++  const [paused, setPaused] = useState(false);
++  const [visible, setVisible] = useState(true);
++  const [reducedMotion, setReducedMotion] = useState(false);
++  const resumeTimer = useRef<number | undefined>(undefined);
++  const count = slides.length;
++
++  useEffect(() => {
++    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
++    const update = () => setReducedMotion(media.matches);
++    update();
++    media.addEventListener('change', update);
++    return () => media.removeEventListener('change', update);
++  }, []);
++
++  // Slide actif = celui majoritairement visible dans la piste
++  useEffect(() => {
++    const track = trackRef.current;
++    if (!track || count < 2) return;
++    const observer = new IntersectionObserver(entries => {
++      for (const entry of entries) {
++        if (entry.isIntersecting) setActive(Number((entry.target as HTMLElement).dataset.index) || 0);
++      }
++    }, { root: track, threshold: 0.6 });
++    Array.from(track.children).forEach(child => observer.observe(child));
++    return () => observer.disconnect();
++  }, [count]);
++
++  useEffect(() => {
++    const track = trackRef.current;
++    if (!track) return;
++    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.3 });
++    observer.observe(track);
++    return () => observer.disconnect();
++  }, []);
++
++  const goTo = useCallback((index: number, smooth = true) => {
++    const track = trackRef.current;
++    const slide = track?.children[index] as HTMLElement | undefined;
++    if (!track || !slide) return;
++    const padding = parseFloat(getComputedStyle(track).paddingLeft) || 0;
++    track.scrollTo({ left: slide.offsetLeft - padding, behavior: smooth && !reducedMotion ? 'smooth' : 'auto' });
++  }, [reducedMotion]);
++
++  const pauseFor = useCallback((ms: number) => {
++    setPaused(true);
++    window.clearTimeout(resumeTimer.current);
++    resumeTimer.current = window.setTimeout(() => setPaused(false), ms);
++  }, []);
++
++  useEffect(() => () => window.clearTimeout(resumeTimer.current), []);
++
++  useEffect(() => {
++    if (count < 2 || paused || !visible || reducedMotion) return;
++    const timer = window.setInterval(() => {
++      if (document.visibilityState === 'visible') goTo((active + 1) % count);
++    }, AUTOPLAY_MS);
++    return () => window.clearInterval(timer);
++  }, [active, count, paused, visible, reducedMotion, goTo]);
++
++  if (count === 0) return null;
++
++  const navigate = (index: number) => {
++    pauseFor(12000);
++    goTo((index + count) % count);
++  };
++
++  return (
++    <section
++      aria-roledescription="carrousel"
++      aria-label="À la une"
++      className="relative"
++      onMouseEnter={() => setPaused(true)}
++      onMouseLeave={() => setPaused(false)}
++      onFocusCapture={() => setPaused(true)}
++      onBlurCapture={() => setPaused(false)}
++      onTouchStart={() => pauseFor(10000)}
++    >
++      <div
++        ref={trackRef}
++        className="scrollbar-hide relative flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 sm:scroll-px-0 sm:px-0"
++      >
++        {slides.map((slide, index) => (
++          <div
++            key={slide.id}
++            data-index={index}
++            role="group"
++            aria-roledescription="slide"
++            aria-label={`${index + 1} sur ${count}`}
++            aria-hidden={count > 1 && index !== active ? true : undefined}
++            inert={count > 1 && index !== active ? true : undefined}
++            className="w-full shrink-0 snap-start"
++          >
++            <PromoSlideView slide={slide} onSourcing={onSourcing} eager={index === 0} />
++          </div>
++        ))}
++      </div>
++
++      {count > 1 && (
++        <>
++          <button type="button" onClick={() => navigate(active - 1)} aria-label="Slide précédent"
++            className="absolute left-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-zinc-900 shadow-lg hover:bg-white md:grid">
++            <ChevronLeft size={22} />
++          </button>
++          <button type="button" onClick={() => navigate(active + 1)} aria-label="Slide suivant"
++            className="absolute right-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-zinc-900 shadow-lg hover:bg-white md:grid">
++            <ChevronRight size={22} />
++          </button>
++          <div className="mt-2 flex justify-center gap-1">
++            {slides.map((slide, index) => (
++              <button key={slide.id} type="button" onClick={() => navigate(index)}
++                aria-label={`Afficher le slide ${index + 1}`} aria-current={index === active ? 'true' : undefined}
++                className="grid h-6 min-w-6 place-items-center px-0.5">
++                <span className={cn('block h-2 rounded-full transition-all', index === active ? 'w-6 bg-emerald-600 dark:bg-emerald-400' : 'w-2 bg-zinc-300 dark:bg-zinc-700')} />
++              </button>
++            ))}
++          </div>
++        </>
++      )}
++    </section>
++  );
++}
+diff --git a/src/components/market/storefront/PromoSlideView.tsx b/src/components/market/storefront/PromoSlideView.tsx
+new file mode 100644
+index 00000000..f1e1c041
+--- /dev/null
++++ b/src/components/market/storefront/PromoSlideView.tsx
+@@ -0,0 +1,95 @@
++'use client';
++
++import type { ReactNode } from 'react';
++import Link from 'next/link';
++import { ArrowRight, Camera, Sparkles, Truck, Users, type LucideIcon } from 'lucide-react';
++import { cn } from '@/lib/utils';
++import { SLIDE_THEMES, SOURCING_LINK, sanitizeSlideLink, type SlideThemeKey } from '@/lib/market/promo-slides';
++
++export type SlideArt = 'camera' | 'users' | 'truck' | 'sparkles';
++
++export interface HeroSlide {
++  id: string;
++  title: string;
++  subtitle?: string;
++  badge?: string;
++  ctaText: string;
++  ctaLink: string;
++  theme: SlideThemeKey;
++  images: string[];
++  /** Illustration quand le slide n'a pas d'image */
++  art?: SlideArt;
++}
++
++const ART: Record<SlideArt, LucideIcon> = { camera: Camera, users: Users, truck: Truck, sparkles: Sparkles };
++
++export interface PromoSlideViewProps {
++  slide: HeroSlide;
++  onSourcing?: () => void;
++  /** Aperçu admin : le bouton ne navigue pas */
++  preview?: boolean;
++  /** Premier slide : images chargées immédiatement */
++  eager?: boolean;
++}
++
++export function PromoSlideView({ slide, onSourcing, preview = false, eager = false }: PromoSlideViewProps) {
++  const theme = SLIDE_THEMES[slide.theme] ?? SLIDE_THEMES.emerald;
++  const link = sanitizeSlideLink(slide.ctaLink) ?? '/produits';
++  const images = slide.images.filter(Boolean);
++  const ArtIcon = ART[slide.art ?? 'sparkles'];
++  const ctaClass = cn(
++    'mt-3 inline-flex min-h-11 w-fit items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-bold shadow-lg transition-transform hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 @xl:px-5',
++    theme.darkText ? 'bg-zinc-950 text-white focus-visible:outline-zinc-950' : 'bg-white text-zinc-900 focus-visible:outline-white',
++  );
++  const ctaContent = <>{slide.ctaText || 'Découvrir'}<ArrowRight size={16} aria-hidden /></>;
++
++  let cta: ReactNode;
++  if (preview) cta = <span className={ctaClass}>{ctaContent}</span>;
++  else if (link === SOURCING_LINK) cta = <button type="button" onClick={() => onSourcing?.()} className={ctaClass}>{ctaContent}</button>;
++  else if (link.startsWith('https://')) cta = <a href={link} target="_blank" rel="noopener noreferrer" className={ctaClass}>{ctaContent}</a>;
++  else cta = <Link href={link} className={ctaClass}>{ctaContent}</Link>;
++
++  return (
++    // Mise en page selon la largeur du slide (requêtes de conteneur) : identique dans le carrousel et dans l'aperçu admin
++    <div className="@container h-full">
++    <div className={cn('relative isolate flex h-full min-h-[196px] overflow-hidden rounded-2xl p-5 @xl:min-h-[250px] @xl:p-8 @2xl:px-16 @4xl:min-h-[300px] @4xl:px-20', theme.bg, theme.darkText ? 'text-zinc-950' : 'text-white')}>
++      <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/20 blur-3xl" />
++      <span aria-hidden className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-56 rounded-full bg-black/15 blur-3xl" />
++      <span aria-hidden className="pointer-events-none absolute bottom-4 right-1/3 hidden h-3 w-3 rounded-full bg-white/50 @xl:block" />
++      <span aria-hidden className="pointer-events-none absolute right-6 top-6 hidden h-2 w-2 rounded-full bg-white/60 @xl:block" />
++
++      <div className="relative z-10 flex min-w-0 flex-1 flex-col justify-center pr-3 @xl:pr-6">
++        {slide.badge && (
++          <span className={cn('mb-2 w-fit rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide', theme.darkText ? 'bg-zinc-950/10' : 'bg-white/20')}>
++            {slide.badge}
++          </span>
++        )}
++        <h2 className="line-clamp-3 text-xl font-extrabold leading-tight [overflow-wrap:anywhere] @xl:text-3xl @4xl:text-4xl">{slide.title}</h2>
++        {slide.subtitle && <p className={cn('mt-1.5 line-clamp-2 max-w-xl text-sm @xl:line-clamp-3 @xl:text-base', theme.darkText ? 'text-zinc-800' : 'text-white/90')}>{slide.subtitle}</p>}
++        {cta}
++      </div>
++
++      <div aria-hidden className="relative z-0 hidden w-[32%] shrink-0 items-center justify-center @[18rem]:flex @xl:w-[38%]">
++        {images.length > 0 ? (
++          <div className="relative h-28 w-28 @xl:h-44 @xl:w-44 @4xl:h-56 @4xl:w-56">
++            {images[1] && (
++              <img src={images[1]} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async"
++                className="absolute -left-10 bottom-0 hidden h-24 w-24 -rotate-6 rounded-xl bg-white object-contain p-1 shadow-xl @xl:block @4xl:h-28 @4xl:w-28" />
++            )}
++            {images[2] && (
++              <img src={images[2]} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async"
++                className="absolute -right-6 -top-4 hidden h-24 w-24 rotate-12 rounded-xl bg-white object-contain p-1 shadow-xl @4xl:block" />
++            )}
++            <img src={images[0]} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async"
++              className="relative h-full w-full rotate-3 rounded-2xl bg-white object-contain p-1.5 shadow-2xl" />
++          </div>
++        ) : (
++          <span className={cn('grid h-24 w-24 place-items-center rounded-full ring-8 @xl:h-36 @xl:w-36 @4xl:h-44 @4xl:w-44', theme.darkText ? 'bg-zinc-950/10 ring-zinc-950/5' : 'bg-white/15 ring-white/10')}>
++            <ArtIcon className="h-11 w-11 @xl:h-16 @xl:w-16 @4xl:h-20 @4xl:w-20" strokeWidth={1.6} />
++          </span>
++        )}
++      </div>
++    </div>
++    </div>
++  );
++}
+diff --git a/src/components/market/storefront/TrustStrip.tsx b/src/components/market/storefront/TrustStrip.tsx
+index 4a89adad..82b64602 100644
+--- a/src/components/market/storefront/TrustStrip.tsx
++++ b/src/components/market/storefront/TrustStrip.tsx
+@@ -3,17 +3,19 @@ import { Icon, type IconName } from './Icon';
+ 
+ export interface TrustStripProps {
+   compact?: boolean;
++  /** Une couleur par engagement (accueil) au lieu du vert uniforme */
++  colorful?: boolean;
+   className?: string;
+ }
+ 
+-const items: { icon: IconName; label: string; sub: string }[] = [
+-  { icon: 'shield', label: 'Paiement sécurisé', sub: 'Escrow Mobile Money' },
+-  { icon: 'truck', label: 'Livraison suivie', sub: 'Dakar & régions' },
+-  { icon: 'checkCircle', label: 'Inspection Chine', sub: 'Avant expédition' },
+-  { icon: 'message', label: 'Support 7j/7', sub: 'WhatsApp direct' },
++const items: { icon: IconName; label: string; sub: string; tone: string }[] = [
++  { icon: 'shield', label: 'Paiement sécurisé', sub: 'Escrow Mobile Money', tone: 'bg-emerald-600 text-white' },
++  { icon: 'truck', label: 'Livraison suivie', sub: 'Dakar & régions', tone: 'bg-blue-600 text-white' },
++  { icon: 'checkCircle', label: 'Inspection Chine', sub: 'Avant expédition', tone: 'bg-amber-500 text-zinc-950' },
++  { icon: 'message', label: 'Support 7j/7', sub: 'WhatsApp direct', tone: 'bg-violet-600 text-white' },
+ ];
+ 
+-export function TrustStrip({ compact = false, className }: TrustStripProps) {
++export function TrustStrip({ compact = false, colorful = false, className }: TrustStripProps) {
+   return (
+     <div
+       className={cn(
+@@ -27,7 +29,7 @@ export function TrustStrip({ compact = false, className }: TrustStripProps) {
+           key={it.label}
+           className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900"
+         >
+-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
++          <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-lg', colorful ? it.tone : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300')}>
+             <Icon name={it.icon} size={16} />
+           </span>
+           <div className="min-w-0">
+diff --git a/src/components/market/storefront/category-visuals.ts b/src/components/market/storefront/category-visuals.ts
+new file mode 100644
+index 00000000..0e57744e
+--- /dev/null
++++ b/src/components/market/storefront/category-visuals.ts
+@@ -0,0 +1,43 @@
++import {
++  Armchair, Baby, Car, Dumbbell, Gift, HeartPulse, House, Laptop, Package, Shirt, ShieldCheck, Smartphone, Utensils, Wrench,
++  type LucideIcon,
++} from 'lucide-react';
++
++export interface CategoryVisual {
++  Icon: LucideIcon;
++  /** Dégradé de la tuile — la teinte de départ (en haut à gauche, sous le texte blanc) reste foncée pour le contraste */
++  tile: string;
++}
++
++const RULES: { test: RegExp; visual: CategoryVisual }[] = [
++  { test: /secur|surveil|camera|alarm|acces|incendie/, visual: { Icon: ShieldCheck, tile: 'from-rose-600 to-red-500' } },
++  { test: /informat|bureau|ordinat|reseau|ecran|clavier|souris/, visual: { Icon: Laptop, tile: 'from-indigo-600 to-blue-500' } },
++  { test: /electron|smartphone|telephon|audio|video|\btv\b/, visual: { Icon: Smartphone, tile: 'from-sky-700 to-cyan-500' } },
++  { test: /domoti|smart|maison|eclairage|home/, visual: { Icon: House, tile: 'from-teal-700 to-emerald-500' } },
++  { test: /mobilier|meuble|install|rack|baie/, visual: { Icon: Armchair, tile: 'from-orange-700 to-amber-500' } },
++  { test: /pack|cadeau|gift/, visual: { Icon: Gift, tile: 'from-pink-600 to-fuchsia-500' } },
++  { test: /\bmode\b|vetement|textile|chaussure/, visual: { Icon: Shirt, tile: 'from-fuchsia-700 to-purple-500' } },
++  { test: /\bautos?\b|automobile|voiture|\bmotos?\b/, visual: { Icon: Car, tile: 'from-slate-700 to-zinc-500' } },
++  { test: /beaute|sante|soin/, visual: { Icon: HeartPulse, tile: 'from-rose-600 to-pink-500' } },
++  { test: /cuisine|electromenager/, visual: { Icon: Utensils, tile: 'from-red-600 to-orange-500' } },
++  { test: /sport|fitness/, visual: { Icon: Dumbbell, tile: 'from-green-700 to-lime-500' } },
++  { test: /bebe|enfant|jouet/, visual: { Icon: Baby, tile: 'from-orange-600 to-rose-500' } },
++  { test: /outil|bricol|quincaill/, visual: { Icon: Wrench, tile: 'from-stone-700 to-amber-600' } },
++];
++
++const FALLBACK_TILES = [
++  'from-emerald-700 to-teal-500',
++  'from-violet-600 to-purple-500',
++  'from-blue-700 to-indigo-500',
++  'from-orange-700 to-rose-500',
++  'from-cyan-700 to-sky-500',
++  'from-fuchsia-700 to-pink-500',
++];
++
++const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
++
++export function categoryVisual(key: string, label: string, index = 0): CategoryVisual {
++  const haystack = normalize(`${key} ${label}`);
++  const rule = RULES.find(entry => entry.test.test(haystack));
++  return rule?.visual ?? { Icon: Package, tile: FALLBACK_TILES[index % FALLBACK_TILES.length] };
++}
+diff --git a/src/components/market/storefront/recently-viewed.ts b/src/components/market/storefront/recently-viewed.ts
+new file mode 100644
+index 00000000..52741e8b
+--- /dev/null
++++ b/src/components/market/storefront/recently-viewed.ts
+@@ -0,0 +1,35 @@
++/** Produits consultés récemment — stockés uniquement sur l'appareil (aucune donnée envoyée au serveur). */
++const STORAGE_KEY = 'ddm:recently-viewed';
++const MAX_ITEMS = 12;
++const OBJECT_ID = /^[a-f\d]{24}$/i;
++
++export function getRecentlyViewedIds(): string[] {
++  if (typeof window === 'undefined') return [];
++  try {
++    const raw: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '[]');
++    return Array.isArray(raw)
++      ? raw.filter((id): id is string => typeof id === 'string' && OBJECT_ID.test(id)).slice(0, MAX_ITEMS)
++      : [];
++  } catch {
++    return [];
++  }
++}
++
++export function recordProductView(id: string) {
++  if (typeof window === 'undefined' || !OBJECT_ID.test(id)) return;
++  try {
++    const ids = [id, ...getRecentlyViewedIds().filter(existing => existing !== id)].slice(0, MAX_ITEMS);
++    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
++  } catch {
++    // Stockage indisponible (navigation privée, quota) : la fonctionnalité est simplement inactive
++  }
++}
++
++export function clearRecentlyViewed() {
++  if (typeof window === 'undefined') return;
++  try {
++    window.localStorage.removeItem(STORAGE_KEY);
++  } catch {
++    // Stockage indisponible : rien à effacer
++  }
++}
+diff --git a/src/components/market/storefront/screens/ScreenHome.tsx b/src/components/market/storefront/screens/ScreenHome.tsx
+index c4bb6c65..6afcb8d6 100644
+--- a/src/components/market/storefront/screens/ScreenHome.tsx
++++ b/src/components/market/storefront/screens/ScreenHome.tsx
+@@ -1,20 +1,144 @@
+ 'use client';
+ 
+-import { useEffect, useState } from 'react';
++import { useEffect, useMemo, useState, type ReactNode } from 'react';
+ import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+-import { ArrowRight, Camera, Package, Users } from 'lucide-react';
++import {
++  ArrowRight, Boxes, Camera, Flame, History, LayoutGrid, MessageCircle, PackageCheck, Route, ShieldCheck, Sparkles, Store, Truck,
++  type LucideIcon,
++} from 'lucide-react';
++import { cn } from '@/lib/utils';
++import { brandWhatsAppUrl } from '@/lib/branding';
++import { SOURCING_LINK, resolveSlideTheme, sanitizeSlideImages, sanitizeSlideLink } from '@/lib/market/promo-slides';
+ import { formatFcfa } from '../formatFcfa';
+ import { useSourcingModal } from '../SourcingModalContext';
+-import { Icon } from '../Icon';
+-import { ProgressBar } from '../ProgressBar';
+ import { ProductCard } from '../ProductCard';
++import { GroupCard } from '../GroupCard';
++import { TrustStrip } from '../TrustStrip';
++import { HomeHeroCarousel } from '../HomeHeroCarousel';
++import type { HeroSlide } from '../PromoSlideView';
++import { categoryVisual } from '../category-visuals';
++import { clearRecentlyViewed, getRecentlyViewedIds } from '../recently-viewed';
+ import { useQuickAdd } from '../useQuickAdd';
+ import { mapCatalogItem, mapGroupOrder, mapCategory } from '../data-mappers';
+ import type { Product, Group, Category } from '../types';
+ 
+ type HomeCategory = Category & { image?: string; count?: number };
+-const moreLink = 'inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-400';
++type GroupStats = { totalParticipants: number; totalSaved: number; totalFilled: number };
++// En dessous, des chiffres trop faibles desserviraient la confiance : on n'affiche rien
++const SOCIAL_PROOF_MIN_PARTICIPANTS = 10;
++
++// Étapes alignées sur les engagements affichés dans la bande de confiance (paiement, inspection, livraison)
++const HOW_STEPS: { icon: LucideIcon; title: string; text: string; tone: string }[] = [
++  { icon: ShieldCheck, title: 'Commandez et payez en sécurité', text: 'Paiement Mobile Money sécurisé, prix affichés avant de commander.', tone: 'bg-emerald-600' },
++  { icon: PackageCheck, title: 'Nous achetons et contrôlons', text: 'Achat auprès du fournisseur et inspection en Chine avant l’expédition.', tone: 'bg-amber-500' },
++  { icon: Truck, title: 'Livraison suivie', text: 'Suivez votre colis jusqu’à Dakar ou en régions.', tone: 'bg-blue-600' },
++];
++const moreLink = 'inline-flex min-h-11 shrink-0 items-center gap-1 text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-400 sm:text-sm';
++const railClass = 'scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-1 sm:-mx-6 sm:scroll-px-6 sm:px-6';
++// Grille ordinateur ajustée au nombre de groupes (classes complètes pour Tailwind)
++const GROUP_GRID: Record<number, string> = { 1: 'lg:grid-cols-3', 2: 'lg:grid-cols-3', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6' };
++const usableImage = (url?: string | null): url is string => typeof url === 'string' && url.length > 0 && !url.includes('placeholder');
++
++function buildAutoSlides(products: Product[], groups: Group[]): HeroSlide[] {
++  const bestSave = groups.reduce((max, group) => Math.max(max, Number(group.save) || 0), 0);
++  return [
++    {
++      id: 'auto-sourcing', theme: 'emerald', badge: 'Trouvez-moi', art: 'camera', images: [],
++      title: 'Une photo suffit, on le trouve en Chine',
++      subtitle: 'Envoyez la photo ou le lien d’un produit, on vous envoie un devis.',
++      ctaText: 'Envoyer une photo', ctaLink: SOURCING_LINK,
++    },
++    {
++      id: 'auto-groups', theme: 'violet', art: 'users',
++      badge: groups.length > 0 ? `${groups.length} groupe${groups.length > 1 ? 's' : ''} en cours` : 'Achats groupés',
++      images: groups.map(group => group.image).filter(usableImage).slice(0, 3),
++      title: 'Achetez à plusieurs, payez moins cher',
++      subtitle: bestSave > 0 ? `Jusqu’à -${bestSave}% en rejoignant un groupe d’achat.` : 'Rejoignez un groupe d’achat et profitez du prix de gros.',
++      ctaText: 'Voir les groupes', ctaLink: '/achats-groupes',
++    },
++    {
++      id: 'auto-catalog', theme: 'sunset', badge: 'Import direct', art: 'truck',
++      images: products.map(product => product.image).filter(usableImage).slice(0, 3),
++      title: 'Importé de Chine, livré au Sénégal',
++      subtitle: 'Électronique, sécurité, maison : livraison suivie jusqu’à Dakar et en régions.',
++      ctaText: 'Explorer le catalogue', ctaLink: '/produits',
++    },
++  ];
++}
++
++function mapAdminSlides(raw: unknown): HeroSlide[] {
++  if (!Array.isArray(raw)) return [];
++  return raw
++    .filter(slide => slide && typeof slide.title === 'string' && slide.title.trim())
++    .map(slide => ({
++      id: String(slide._id),
++      title: slide.title,
++      subtitle: slide.subtitle || undefined,
++      badge: slide.badge || undefined,
++      ctaText: slide.ctaText || 'Découvrir',
++      ctaLink: sanitizeSlideLink(slide.ctaLink) ?? '/produits',
++      theme: resolveSlideTheme(slide.bgColor),
++      images: sanitizeSlideImages(slide.images),
++    }));
++}
++
++function SectionHeader({ id, title, subtitle, icon: Icon, tone, href, linkLabel }: {
++  id: string; title: string; subtitle?: string; icon: LucideIcon; tone: string; href?: string; linkLabel?: string;
++}) {
++  return (
++    <div className="mb-3 flex items-end justify-between gap-3">
++      <div className="flex min-w-0 items-center gap-2.5">
++        <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-sm', tone)}><Icon size={20} aria-hidden /></span>
++        <div className="min-w-0">
++          <h2 id={id} className="text-lg font-extrabold leading-tight sm:text-xl">{title}</h2>
++          {subtitle && <p className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">{subtitle}</p>}
++        </div>
++      </div>
++      {href && <Link href={href} className={moreLink}>{linkLabel}<ArrowRight size={14} aria-hidden /></Link>}
++    </div>
++  );
++}
++
++function CategoryTile({ category, index }: { category: HomeCategory; index: number }) {
++  const [imageError, setImageError] = useState(false);
++  const { Icon, tile } = categoryVisual(category.key, category.label, index);
++  const count = typeof category.count === 'number' ? category.count : 0;
++  return (
++    <Link
++      href={`/produits?cat=${encodeURIComponent(category.key)}`}
++      className={cn('group relative flex min-h-[128px] min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br p-3.5 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:min-h-[156px] sm:p-4 lg:min-h-[180px]', tile)}
++    >
++      <span aria-hidden className="pointer-events-none absolute -left-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
++      <span className="relative z-10 line-clamp-2 text-sm font-extrabold leading-snug [overflow-wrap:anywhere] sm:text-base">{category.label}</span>
++      {count > 0 && <span className="relative z-10 mt-0.5 text-xs font-semibold text-white/90">{count} produit{count > 1 ? 's' : ''}</span>}
++      <span className="relative z-10 mt-auto inline-flex items-center gap-1 text-xs font-bold">Voir<ArrowRight size={12} aria-hidden className="transition-transform group-hover:translate-x-0.5" /></span>
++      {category.image && !imageError ? (
++        <img src={category.image} alt="" loading="lazy" decoding="async" onError={() => setImageError(true)}
++          className="absolute -bottom-3 -right-3 h-20 w-20 rotate-6 rounded-2xl bg-white object-contain p-1.5 shadow-lg transition-transform group-hover:rotate-0 sm:h-24 sm:w-24" />
++      ) : (
++        <Icon aria-hidden strokeWidth={1.5} className="absolute -bottom-4 -right-3 h-20 w-20 rotate-12 text-white/30 transition-transform group-hover:rotate-0 sm:h-24 sm:w-24" />
++      )}
++    </Link>
++  );
++}
++
++function ShopTile({ href, icon: Icon, title, text, tone }: { href: string; icon: LucideIcon; title: string; text: string; tone: string }) {
++  return (
++    <Link href={href} className={cn('group flex min-h-20 items-center gap-4 rounded-2xl bg-gradient-to-r p-4 text-white shadow-sm transition hover:shadow-md', tone)}>
++      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20"><Icon size={24} aria-hidden /></span>
++      <span className="min-w-0 flex-1">
++        <span className="block font-extrabold">{title}</span>
++        <span className="block text-sm text-white/90">{text}</span>
++      </span>
++      <ArrowRight size={20} aria-hidden className="shrink-0 transition-transform group-hover:translate-x-1" />
++    </Link>
++  );
++}
++
++function Rail({ children, className }: { children: ReactNode; className?: string }) {
++  return <div className={cn(railClass, className)}>{children}</div>;
++}
+ 
+ export default function ScreenHome() {
+   const router = useRouter();
+@@ -22,8 +146,12 @@ export default function ScreenHome() {
+   const { quickAdd, toast: quickAddToast } = useQuickAdd();
+   const [loading, setLoading] = useState(true);
+   const [products, setProducts] = useState<Product[]>([]);
++  const [deals, setDeals] = useState<Product[]>([]);
+   const [groups, setGroups] = useState<Group[]>([]);
+   const [categories, setCategories] = useState<HomeCategory[]>([]);
++  const [adminSlides, setAdminSlides] = useState<HeroSlide[]>([]);
++  const [recent, setRecent] = useState<Product[]>([]);
++  const [groupStats, setGroupStats] = useState<GroupStats | null>(null);
+   const [failures, setFailures] = useState<string[]>([]);
+   const [attempt, setAttempt] = useState(0);
+ 
+@@ -31,28 +159,46 @@ export default function ScreenHome() {
+     const controller = new AbortController();
+     const load = (url: string) => fetch(url, { signal: controller.signal })
+       .then(response => response.ok ? response.json() : null).catch(() => null);
++    const recentIds = getRecentlyViewedIds();
+     setLoading(true);
+     Promise.all([
+       load('/api/catalog/products?limit=12&compact=1'),
+       load('/api/group-orders?limit=6&status=open'),
+       load('/api/catalog/category-highlights'),
+-    ]).then(([productData, groupData, categoryData]) => {
++      load('/api/promo-slides'),
++      load('/api/catalog/products?limit=12&compact=1&sortBy=groupbuy-discount-desc'),
++      recentIds.length >= 2 ? load(`/api/catalog/products?compact=1&ids=${recentIds.join(',')}`) : Promise.resolve(null),
++      load('/api/group-orders/stats'),
++    ]).then(([productData, groupData, categoryData, slideData, dealData, recentData, statsData]) => {
+       if (controller.signal.aborted) return;
+       const unavailable: string[] = [];
+       const productItems = productData?.products ?? productData?.items;
+       const categoryItems = categoryData?.categories ?? categoryData?.items;
++      const dealItems = dealData?.products ?? dealData?.items;
++      const recentItems = recentData?.products ?? recentData?.items;
+       if (!Array.isArray(productItems)) unavailable.push('Produits');
+       if (!Array.isArray(groupData?.groups)) unavailable.push('Groupes');
+       if (!Array.isArray(categoryItems)) unavailable.push('Catégories');
+       setProducts(Array.isArray(productItems) ? productItems.map(mapCatalogItem) : []);
++      setDeals(Array.isArray(dealItems) ? dealItems.map(mapCatalogItem).filter((product: Product) => (product.save ?? 0) > 0).slice(0, 10) : []);
++      setRecent(Array.isArray(recentItems) ? recentItems.map(mapCatalogItem) : []);
+       setGroups(Array.isArray(groupData?.groups) ? groupData.groups.map(mapGroupOrder) : []);
+       setCategories(Array.isArray(categoryItems) ? categoryItems.map(item => ({
+         ...mapCategory(item), image: item.image, count: item.count,
+       })) : []);
++      setAdminSlides(mapAdminSlides(slideData?.slides));
++      const stats = statsData?.stats;
++      setGroupStats(stats ? {
++        totalParticipants: Number(stats.totalParticipants) || 0,
++        totalSaved: Number(stats.totalSaved) || 0,
++        totalFilled: Number(stats.totalFilled) || 0,
++      } : null);
+       setFailures(unavailable);
+     }).catch(() => {
+       if (controller.signal.aborted) return;
+       setProducts([]);
++      setDeals([]);
++      setRecent([]);
+       setGroups([]);
+       setCategories([]);
+       setFailures(['Produits', 'Groupes', 'Catégories']);
+@@ -62,14 +208,22 @@ export default function ScreenHome() {
+     return () => controller.abort();
+   }, [attempt]);
+ 
+-  const liveGroups = groups.filter(group => group.status === 'live' || group.status === 'almost');
++  const liveGroups = useMemo(() => groups.filter(group => group.status === 'live' || group.status === 'almost'), [groups]);
+   const featuredCategories = [...categories].sort((first, second) => (second.count ?? 0) - (first.count ?? 0)).slice(0, 6);
++  // Slides de l'admin s'il y en a, sinon trois slides générés à partir du catalogue réel
++  const slides = useMemo(
++    () => adminSlides.length > 0 ? adminSlides : buildAutoSlides(products, liveGroups),
++    [adminSlides, products, liveGroups],
++  );
+ 
+   if (loading) return (
+-    <div role="status" aria-label="Chargement de l'accueil" className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+-      <div className="h-20 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+-      <div className="grid grid-cols-2 gap-3 min-[360px]:grid-cols-3 lg:grid-cols-6">
+-        {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-28 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />)}
++    <div role="status" aria-label="Chargement de l'accueil" className="mx-auto max-w-7xl space-y-6 px-4 py-4 sm:px-6">
++      <div className="h-[196px] animate-pulse rounded-2xl bg-gradient-to-br from-emerald-200 to-teal-100 dark:from-emerald-950 dark:to-zinc-900 sm:h-[250px] lg:h-[300px]" />
++      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
++        {Array.from({ length: 4 }, (_, index) => <div key={index} className="h-14 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />)}
++      </div>
++      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
++        {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />)}
+       </div>
+       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+         {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-64 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />)}
+@@ -80,91 +234,178 @@ export default function ScreenHome() {
+   return (
+     <>
+       <div className="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+-        <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6">
+-            <div>
+-              <h1 className="text-2xl font-extrabold">DDM+</h1>
+-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Le marché Chine-Sénégal</p>
+-            </div>
+-            <button type="button" onClick={openSourcing} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800">
+-              <Camera size={18} />Trouvez-moi
+-            </button>
+-          </div>
++        <h1 className="sr-only">DDM+ — le marché Chine-Sénégal</h1>
++        <div className="mx-auto max-w-7xl pt-3 sm:px-6 sm:pt-5">
++          <HomeHeroCarousel slides={slides} onSourcing={() => openSourcing()} />
+         </div>
+ 
+-        <div className="mx-auto max-w-7xl space-y-7 px-4 pb-8 pt-4 sm:px-6 md:space-y-9">
++        <div className="mx-auto max-w-7xl space-y-8 px-4 pb-10 pt-4 sm:px-6 md:space-y-10">
++          <TrustStrip compact colorful />
++
+           {failures.length > 0 && (
+-            <div role="alert" className="flex flex-wrap items-center justify-between gap-2 border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
++            <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200">
+               <span>Indisponible pour le moment : {failures.join(', ')}.</span>
+               <button type="button" onClick={() => setAttempt(value => value + 1)} className="min-h-11 px-3 font-bold underline">Réessayer</button>
+             </div>
+           )}
+ 
++          {recent.length >= 2 && (
++            <section aria-labelledby="home-recent">
++              <div className="mb-3 flex items-end justify-between gap-3">
++                <div className="flex min-w-0 items-center gap-2.5">
++                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-900 text-white shadow-sm"><History size={20} aria-hidden /></span>
++                  <div className="min-w-0">
++                    <h2 id="home-recent" className="text-lg font-extrabold leading-tight sm:text-xl">Reprendre où vous en étiez</h2>
++                    <p className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">Les produits que vous avez consultés</p>
++                  </div>
++                </div>
++                <button type="button" onClick={() => { clearRecentlyViewed(); setRecent([]); }}
++                  className="min-h-11 shrink-0 px-1 text-xs font-semibold text-zinc-500 hover:text-zinc-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200">
++                  Effacer
++                </button>
++              </div>
++              <Rail>
++                {recent.map(product => (
++                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)}
++                    className="w-[40%] min-w-[140px] max-w-[190px] shrink-0 snap-start" />
++                ))}
++              </Rail>
++            </section>
++          )}
++
+           <section aria-labelledby="home-categories">
+-            <div className="mb-2 flex items-center justify-between gap-3">
+-              <h2 id="home-categories" className="text-lg font-bold">Catégories</h2>
+-              <Link href="/produits" className={moreLink}>Tout le catalogue <ArrowRight size={14} /></Link>
+-            </div>
++            <SectionHeader id="home-categories" title="Catégories" subtitle="Trouvez vite ce qu’il vous faut" icon={LayoutGrid}
++              tone="bg-gradient-to-br from-emerald-600 to-teal-500 text-white" href="/produits" linkLabel="Tout le catalogue" />
+             {featuredCategories.length > 0 ? (
+-              <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
+-                {featuredCategories.map(category => (
+-                  <Link key={category.key} href={`/produits?cat=${encodeURIComponent(category.key)}`} className="group flex min-w-0 flex-col items-center gap-1 rounded-lg border border-zinc-200 bg-white p-2 text-center hover:border-emerald-500 dark:border-zinc-800 dark:bg-zinc-900 sm:gap-2 sm:py-3">
+-                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 sm:h-14 sm:w-14">
+-                      {category.image ? <img src={category.image} alt="" className="h-full w-full object-contain" loading="lazy" onError={event => { event.currentTarget.onerror = null; event.currentTarget.src = '/placeholder.svg'; }} /> : <Icon name={category.icon} size={24} />}
+-                    </span>
+-                    <span className="min-h-8 text-xs font-bold leading-4 [overflow-wrap:anywhere]">{category.label}</span>
+-                    {typeof category.count === 'number' && <span className="hidden text-[11px] text-zinc-500 dark:text-zinc-400 sm:inline">{category.count} produit{category.count !== 1 ? 's' : ''}</span>}
+-                  </Link>
+-                ))}
++              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
++                {featuredCategories.map((category, index) => <CategoryTile key={category.key} category={category} index={index} />)}
+               </div>
+             ) : <p className="py-3 text-sm text-zinc-500 dark:text-zinc-400">{failures.includes('Catégories') ? 'Les catégories n’ont pas pu être chargées.' : 'Aucune catégorie disponible pour le moment.'}</p>}
+           </section>
+ 
+-          <section aria-labelledby="home-products">
+-            <div className="mb-3 flex items-center justify-between gap-3">
+-              <h2 id="home-products" className="text-lg font-bold">Sélection DDM+</h2>
+-              <Link href="/produits" className={moreLink}>Voir tout <ArrowRight size={14} /></Link>
++          {deals.length > 0 && (
++            <section aria-labelledby="home-deals">
++              <SectionHeader id="home-deals" title="Bons plans" subtitle="Prix dégressifs et remises de groupe" icon={Flame}
++                tone="bg-gradient-to-br from-orange-500 to-red-600 text-white" href="/produits" linkLabel="Voir tout" />
++              <Rail className="lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
++                {deals.map((product, index) => (
++                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)}
++                    className={cn('w-[44%] min-w-[150px] max-w-[210px] shrink-0 snap-start lg:w-auto lg:min-w-0 lg:max-w-none', index >= 5 && 'lg:hidden')} />
++                ))}
++              </Rail>
++            </section>
++          )}
++
++          <section aria-labelledby="home-groups" className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-700 via-purple-600 to-fuchsia-600 p-4 text-white shadow-sm sm:p-6">
++            <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
++            <div className="relative mb-3 flex flex-wrap items-end justify-between gap-2">
++              <div className="min-w-0">
++                <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white/90">
++                  <span aria-hidden className="h-2 w-2 animate-pulse rounded-full bg-red-400" />En direct
++                </p>
++                <h2 id="home-groups" className="text-xl font-extrabold leading-tight sm:text-2xl">Achats groupés</h2>
++                <p className="text-sm text-white/90">Plus on est nombreux, plus le prix baisse.</p>
++              </div>
++              <Link href="/achats-groupes" className="inline-flex min-h-11 items-center gap-1 rounded-full bg-white/15 px-4 text-sm font-bold hover:bg-white/25">
++                Voir les groupes<ArrowRight size={14} aria-hidden />
++              </Link>
+             </div>
++            {/* Chiffres réels, affichés seulement quand ils sont parlants */}
++            {groupStats && groupStats.totalParticipants >= SOCIAL_PROOF_MIN_PARTICIPANTS && (
++              <dl className="relative mb-4 flex flex-wrap gap-2">
++                <div className="rounded-xl bg-white/15 px-3 py-2">
++                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/85">Participants</dt>
++                  <dd className="text-lg font-extrabold leading-tight">{groupStats.totalParticipants.toLocaleString('fr-FR')}</dd>
++                </div>
++                {groupStats.totalSaved >= 50000 && (
++                  <div className="rounded-xl bg-white/15 px-3 py-2">
++                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/85">Économisés ensemble</dt>
++                    <dd className="text-lg font-extrabold leading-tight">{formatFcfa(groupStats.totalSaved)}</dd>
++                  </div>
++                )}
++                {groupStats.totalFilled >= 3 && (
++                  <div className="rounded-xl bg-white/15 px-3 py-2">
++                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-white/85">Groupes complétés</dt>
++                    <dd className="text-lg font-extrabold leading-tight">{groupStats.totalFilled.toLocaleString('fr-FR')}</dd>
++                  </div>
++                )}
++              </dl>
++            )}
++            {liveGroups.length > 0 ? (
++              <Rail className={cn('relative lg:mx-0 lg:grid lg:overflow-visible lg:px-0', GROUP_GRID[Math.min(liveGroups.length, 6)])}>
++                {liveGroups.map(group => (
++                  <GroupCard key={group.id} group={group} onClick={() => router.push(`/achats-groupes/${group.id}`)}
++                    className="w-[46%] min-w-[156px] max-w-[220px] shrink-0 snap-start lg:w-auto lg:min-w-0 lg:max-w-none" />
++                ))}
++              </Rail>
++            ) : (
++              <p className="relative rounded-xl bg-white/10 p-4 text-sm text-white">
++                {failures.includes('Groupes') ? 'Les groupes n’ont pas pu être chargés.' : 'Aucun groupe ouvert pour le moment : découvrez comment fonctionnent les achats groupés.'}
++              </p>
++            )}
++          </section>
++
++          <section aria-labelledby="home-products">
++            <SectionHeader id="home-products" title="Sélection DDM+" subtitle="Nos produits mis en avant" icon={Sparkles}
++              tone="bg-gradient-to-br from-blue-600 to-cyan-500 text-white" href="/produits" linkLabel="Voir tout" />
+             {products.length > 0 ? (
+-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+-                {products.slice(0, 6).map(product => <ProductCard key={product.id} product={product} size="lg" onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)} />)}
++              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
++                {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} size="lg" onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)} />)}
+               </div>
+             ) : <p className="py-3 text-sm text-zinc-500 dark:text-zinc-400">{failures.includes('Produits') ? 'La sélection n’a pas pu être chargée.' : 'La sélection sera bientôt disponible.'}</p>}
+           </section>
+ 
+-          <section aria-labelledby="home-groups" className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+-            <div className="mb-3 flex items-center justify-between gap-3">
+-              <h2 id="home-groups" className="text-lg font-bold">Achats groupés</h2>
+-              <Link href="/achats-groupes" className={moreLink}>Voir les groupes <ArrowRight size={14} /></Link>
+-            </div>
+-            {liveGroups.length > 0 ? (
+-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+-                {liveGroups.slice(0, 3).map(group => (
+-                  <Link key={group.id} href={`/achats-groupes/${group.id}`} className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 hover:border-emerald-500 dark:border-zinc-800 dark:bg-zinc-900">
+-                    <div className="flex gap-3">
+-                      <img src={group.image || '/placeholder.svg'} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-zinc-100 object-contain" onError={event => { event.currentTarget.onerror = null; event.currentTarget.src = '/placeholder.svg'; }} />
+-                      <div className="min-w-0">
+-                        <h3 className="text-sm font-bold [overflow-wrap:anywhere]">{group.name}</h3>
+-                        <p className="mt-1 font-extrabold text-emerald-700 dark:text-emerald-400">{group.unit > 0 ? formatFcfa(group.unit) : 'Sur devis'}</p>
+-                      </div>
+-                    </div>
+-                    <ProgressBar value={group.currentQty} max={group.targetQty} className="mt-3" />
+-                    <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+-                      <span>{group.currentQty} / {group.targetQty} unités</span><span>{group.deadline}</span>
+-                    </div>
+-                  </Link>
+-                ))}
++          <section aria-labelledby="home-how" className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
++            <SectionHeader id="home-how" title="Comment ça marche" subtitle="Acheter en Chine, sans prise de tête" icon={Route}
++              tone="bg-gradient-to-br from-amber-500 to-orange-600 text-white" href="/comment-ca-marche" linkLabel="En savoir plus" />
++            <ol className="grid gap-3 md:grid-cols-3">
++              {HOW_STEPS.map((step, index) => (
++                <li key={step.title} className="flex gap-3 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60 sm:p-4">
++                  <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white shadow-sm', step.tone)}><step.icon size={20} aria-hidden /></span>
++                  <div className="min-w-0">
++                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Étape {index + 1}</p>
++                    <p className="font-bold leading-snug">{step.title}</p>
++                    <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">{step.text}</p>
++                  </div>
++                </li>
++              ))}
++            </ol>
++          </section>
++
++          <section aria-labelledby="home-sourcing" className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-600 p-5 text-white shadow-sm sm:p-7">
++            <span aria-hidden className="pointer-events-none absolute -bottom-20 -right-10 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
++            <div className="relative grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
++              <div className="min-w-0">
++                <h2 id="home-sourcing" className="text-xl font-extrabold leading-tight sm:text-2xl">Vous ne trouvez pas votre produit ?</h2>
++                <p className="mt-1 text-sm text-white/90 sm:text-base">Envoyez une photo ou un lien : on le cherche pour vous chez les fournisseurs en Chine.</p>
++                <ol className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
++                  {['Envoyez une photo', 'On trouve le fournisseur', 'Vous validez le devis'].map((step, index) => (
++                    <li key={step} className="flex items-center gap-2">
++                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-xs font-extrabold text-emerald-800">{index + 1}</span>
++                      <span className="font-semibold">{step}</span>
++                    </li>
++                  ))}
++                </ol>
+               </div>
+-            ) : <p className="py-3 text-sm text-zinc-500 dark:text-zinc-400">{failures.includes('Groupes') ? 'Les groupes n’ont pas pu être chargés.' : 'Aucun groupe ouvert pour le moment.'}</p>}
++              <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
++                <button type="button" onClick={() => openSourcing()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-bold text-emerald-800 shadow-lg hover:bg-emerald-50">
++                  <Camera size={18} aria-hidden />Trouvez-moi
++                </button>
++                <a href={brandWhatsAppUrl(undefined, 'Bonjour DDM+, je cherche un produit et j’aimerais un conseil.')} target="_blank" rel="noopener noreferrer"
++                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-white/70 px-6 text-sm font-bold text-white hover:bg-white/10">
++                  <MessageCircle size={18} aria-hidden />Une question ? WhatsApp
++                </a>
++              </div>
++            </div>
+           </section>
+ 
+-          <nav aria-label="Autres façons d’acheter" className="grid gap-2 border-t border-zinc-200 pt-4 sm:grid-cols-2 dark:border-zinc-800">
+-            <Link href="/produits?moq=lot" className="flex min-h-12 items-center gap-3 px-1 text-sm font-semibold hover:text-emerald-700 dark:hover:text-emerald-400"><Package size={20} />Acheter par lots<ArrowRight size={16} className="ml-auto" /></Link>
+-            <Link href="/market/boutiques" className="flex min-h-12 items-center gap-3 px-1 text-sm font-semibold hover:text-emerald-700 dark:hover:text-emerald-400"><Users size={20} />Boutiques partenaires<ArrowRight size={16} className="ml-auto" /></Link>
++          <nav aria-label="Autres façons d’acheter" className="grid gap-3 sm:grid-cols-2">
++            <ShopTile href="/produits?moq=lot" icon={Boxes} title="Acheter par lots" text="Commandez en quantité, payez moins à l’unité" tone="from-orange-700 to-amber-600" />
++            <ShopTile href="/market/boutiques" icon={Store} title="Boutiques partenaires" text="Les vendeurs de la marketplace DDM+" tone="from-blue-700 to-sky-600" />
+           </nav>
+         </div>
+       </div>
+       {quickAddToast}
+     </>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/src/components/market/storefront/screens/ScreenProduct.tsx b/src/components/market/storefront/screens/ScreenProduct.tsx
+index 710496c9..1aba136a 100644
+--- a/src/components/market/storefront/screens/ScreenProduct.tsx
++++ b/src/components/market/storefront/screens/ScreenProduct.tsx
+@@ -22,6 +22,7 @@ import { ReviewForm } from '../ReviewForm';
+ import RetryNotice from '../RetryNotice';
+ import { useWishlist } from '../useWishlist';
+ import { useSourcingModal } from '../SourcingModalContext';
++import { recordProductView } from '../recently-viewed';
+ import { addToCart, loadCart, mapProductDetail, productSelection } from '../data-mappers';
+ import type { CartItem, Product, PriceTier, ShippingMode } from '../types';
+ import type { CartQuote } from '@/lib/pricing/quote-cart';
+@@ -123,6 +124,11 @@ export default function ScreenProduct() {
+   const reviewRequest = useRef<AbortController | null>(null);
+   useEffect(() => () => reviewRequest.current?.abort(), [id, attempt]);
+ 
++  // Alimente « Reprendre où vous en étiez » sur l'accueil
++  useEffect(() => {
++    if (PRODUCT?.id) recordProductView(String(PRODUCT.id));
++  }, [PRODUCT?.id]);
++
+   useEffect(() => {
+     const update = () => setCart(loadCart());
+     update();
+diff --git a/src/lib/catalog/category-match.ts b/src/lib/catalog/category-match.ts
+index a124250f..66d9f566 100644
+--- a/src/lib/catalog/category-match.ts
++++ b/src/lib/catalog/category-match.ts
+@@ -74,22 +74,24 @@ export function productMatchesCategory(
+   return patternsFor(categorySlug).some((re) => re.test(haystack))
+ }
+ 
++const isUsableImage = (value: unknown): value is string => typeof value === 'string' && !!value && !value.includes('placeholder')
++
+ /** Compte les produits correspondant à chaque slug de catégorie. */
+-export function countProductsByCategory<T extends { category?: string | null; name?: string | null }>(
++export function countProductsByCategory<T extends { category?: string | null; name?: string | null; image?: unknown; gallery?: unknown }>(
+   products: T[],
+   slugs: string[]
+ ): Map<string, { count: number; image?: string; images?: string[] }> {
+   const result = new Map<string, { count: number; image?: string; images?: string[] }>()
+   for (const slug of slugs) result.set(slug, { count: 0, images: [] })
+   for (const p of products) {
+-    const img = (p as any).image
+-    const usable = typeof img === 'string' && img && !img.includes('placeholder')
++    // Photo principale, sinon première photo de la galerie (certains imports n'ont qu'une galerie)
++    const img = isUsableImage(p.image) ? p.image : Array.isArray(p.gallery) ? p.gallery.find(isUsableImage) : undefined
+     for (const slug of slugs) {
+       if (productMatchesCategory(p, slug)) {
+         const entry = result.get(slug)!
+         entry.count += 1
+-        if (usable && (entry.images?.length ?? 0) < 5) entry.images!.push(img)
+-        if (!entry.image && usable) entry.image = img
++        if (img && (entry.images?.length ?? 0) < 5) entry.images!.push(img)
++        if (!entry.image && img) entry.image = img
+       }
+     }
+   }
+diff --git a/src/lib/market/promo-slides.ts b/src/lib/market/promo-slides.ts
+new file mode 100644
+index 00000000..8a9991ea
+--- /dev/null
++++ b/src/lib/market/promo-slides.ts
+@@ -0,0 +1,135 @@
++/**
++ * Carrousel de l'accueil DDM+ : thèmes de couleur et validation des slides.
++ * Partagé par la vitrine, l'admin (aperçu) et l'API admin (validation).
++ */
++
++export type SlideThemeKey = 'emerald' | 'violet' | 'sunset' | 'ocean' | 'amber' | 'night'
++
++export interface SlideTheme {
++  label: string
++  /** Fond du slide — classes complètes pour que Tailwind les génère */
++  bg: string
++  /** Pastille de choix dans l'admin */
++  swatch: string
++  /** Texte sombre sur fond clair (sinon texte blanc) */
++  darkText: boolean
++}
++
++export const SLIDE_THEMES: Record<SlideThemeKey, SlideTheme> = {
++  emerald: { label: 'Émeraude', bg: 'bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-500', swatch: 'bg-gradient-to-br from-emerald-700 to-teal-500', darkText: false },
++  violet: { label: 'Violet', bg: 'bg-gradient-to-br from-violet-700 via-purple-600 to-fuchsia-500', swatch: 'bg-gradient-to-br from-violet-700 to-fuchsia-500', darkText: false },
++  sunset: { label: 'Corail', bg: 'bg-gradient-to-br from-rose-600 via-pink-600 to-orange-500', swatch: 'bg-gradient-to-br from-rose-600 to-orange-500', darkText: false },
++  ocean: { label: 'Océan', bg: 'bg-gradient-to-br from-blue-700 via-sky-600 to-cyan-500', swatch: 'bg-gradient-to-br from-blue-700 to-cyan-500', darkText: false },
++  amber: { label: 'Soleil', bg: 'bg-gradient-to-br from-amber-300 via-amber-400 to-orange-400', swatch: 'bg-gradient-to-br from-amber-300 to-orange-400', darkText: true },
++  night: { label: 'Nuit', bg: 'bg-gradient-to-br from-zinc-900 via-slate-800 to-emerald-900', swatch: 'bg-gradient-to-br from-zinc-900 to-emerald-900', darkText: false },
++}
++
++export const SLIDE_THEME_KEYS = Object.keys(SLIDE_THEMES) as SlideThemeKey[]
++
++/**
++ * `bgColor` contient soit une clé de thème, soit (anciennes slides) des classes
++ * Tailwind pastel (« from-amber-50 via-yellow-50 … ») : on retrouve le thème par mot-clé.
++ */
++export function resolveSlideTheme(bgColor?: string | null): SlideThemeKey {
++  const value = String(bgColor || '').toLowerCase()
++  if ((SLIDE_THEME_KEYS as string[]).includes(value)) return value as SlideThemeKey
++  if (/violet|purple|fuchsia/.test(value)) return 'violet'
++  if (/rose|pink|red/.test(value)) return 'sunset'
++  if (/blue|sky|cyan|indigo/.test(value)) return 'ocean'
++  if (/amber|yellow|orange/.test(value)) return 'amber'
++  if (/zinc|slate|gray|black|night/.test(value)) return 'night'
++  return 'emerald'
++}
++
++/** Lien spécial : le bouton du slide ouvre la fenêtre « Trouvez-moi » (envoi de photo). */
++export const SOURCING_LINK = '#trouvez-moi'
++
++export const SLIDE_LINK_PRESETS: { label: string; value: string }[] = [
++  { label: 'Tout le catalogue', value: '/produits' },
++  { label: 'Achats groupés', value: '/achats-groupes' },
++  { label: 'Trouvez-moi (envoi de photo)', value: SOURCING_LINK },
++  { label: 'Acheter par lots', value: '/produits?moq=lot' },
++  { label: 'Boutiques partenaires', value: '/market/boutiques' },
++]
++
++export const MAX_SLIDE_IMAGES = 3
++
++// Les navigateurs retirent tabulations et retours ligne des URL (« /\t/site.com » devient « //site.com ») ;
++// la barre oblique inverse est aussi lue comme « / ». On refuse donc ces caractères partout.
++const UNSAFE_URL_CHARS = /[\u0000-\u001f\u007f\\]/
++
++/** Lien interne (« /… »), lien Trouvez-moi ou URL https. Tout le reste (javascript:, //hôte…) est refusé. */
++export function sanitizeSlideLink(raw: unknown): string | null {
++  if (typeof raw !== 'string') return null
++  const link = raw.trim()
++  if (!link || link.length > 500 || UNSAFE_URL_CHARS.test(link)) return null
++  if (link === SOURCING_LINK) return link
++  if (link.startsWith('/')) return link.startsWith('//') ? null : link
++  try {
++    const url = new URL(link)
++    return url.protocol === 'https:' ? url.toString() : null
++  } catch {
++    return null
++  }
++}
++
++export function sanitizeSlideImages(raw: unknown): string[] {
++  if (!Array.isArray(raw)) return []
++  return raw
++    .filter((value): value is string => typeof value === 'string')
++    .map(value => value.trim())
++    .filter(value => !UNSAFE_URL_CHARS.test(value))
++    .filter(value => (value.startsWith('/') && !value.startsWith('//')) || /^https:\/\//i.test(value))
++    .filter(value => value.length <= 1000)
++    .slice(0, MAX_SLIDE_IMAGES)
++}
++
++export interface SlideInput {
++  title?: string
++  subtitle?: string
++  badge?: string
++  ctaText?: string
++  ctaLink?: string
++  bgColor?: SlideThemeKey
++  images?: string[]
++  isActive?: boolean
++  order?: number
++  startDate?: Date | null
++  endDate?: Date | null
++}
++
++/** Validation des données envoyées par l'admin. `partial` : mise à jour (champs absents ignorés). */
++export function parseSlideInput(body: Record<string, unknown>, partial: boolean): { data: SlideInput; error?: string } {
++  const data: SlideInput = {}
++  const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
++
++  if (!partial || body.title !== undefined) {
++    const title = text(body.title, 120)
++    if (!title) return { data, error: 'Le titre est obligatoire' }
++    data.title = title
++  }
++  if (body.subtitle !== undefined) data.subtitle = text(body.subtitle, 240)
++  if (body.badge !== undefined) data.badge = text(body.badge, 40)
++  if (body.ctaText !== undefined) data.ctaText = text(body.ctaText, 40) || 'Découvrir'
++  if (body.ctaLink !== undefined) {
++    const link = sanitizeSlideLink(body.ctaLink)
++    if (!link) return { data, error: 'Lien du bouton invalide : choisissez une page du site (/produits…) ou une adresse https://' }
++    data.ctaLink = link
++  }
++  if (body.bgColor !== undefined) data.bgColor = resolveSlideTheme(typeof body.bgColor === 'string' ? body.bgColor : '')
++  if (body.images !== undefined) data.images = sanitizeSlideImages(body.images)
++  if (body.isActive !== undefined) data.isActive = !!body.isActive
++  if (typeof body.order === 'number' && Number.isFinite(body.order)) data.order = Math.round(body.order)
++
++  for (const key of ['startDate', 'endDate'] as const) {
++    if (body[key] === undefined) continue
++    if (!body[key]) { data[key] = null; continue }
++    const date = new Date(String(body[key]))
++    if (Number.isNaN(date.getTime())) return { data, error: key === 'startDate' ? 'Date de début invalide' : 'Date de fin invalide' }
++    data[key] = date
++  }
++  if (data.startDate && data.endDate && data.endDate < data.startDate) {
++    return { data, error: 'La date de fin doit être après la date de début' }
++  }
++  return { data }
++}
+diff --git a/src/lib/models/PromoSlide.ts b/src/lib/models/PromoSlide.ts
+index c07c971e..53408ad0 100644
+--- a/src/lib/models/PromoSlide.ts
++++ b/src/lib/models/PromoSlide.ts
+@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose'
+ export interface IPromoSlide {
+   title: string
+   subtitle?: string
++  /** Pastille courte au-dessus du titre (« -20 % », « Nouveau ») */
++  badge?: string
+   ctaText: string
+   ctaLink: string
+   bgColor?: string
+@@ -21,6 +23,7 @@ const PromoSlideSchema = new Schema<IPromoSlideDoc>(
+   {
+     title: { type: String, required: true },
+     subtitle: { type: String },
++    badge: { type: String, maxlength: 40 },
+     ctaText: { type: String, default: 'En savoir plus' },
+     ctaLink: { type: String, default: '/produits' },
+     bgColor: { type: String, default: 'from-amber-50 via-yellow-50 to-orange-50' },
+-- 
+2.24.1.windows.2
+
