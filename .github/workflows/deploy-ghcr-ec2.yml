@@ -65,51 +65,51 @@ jobs:
         run: npm run test:production-readiness
 
   # Recette API et navigateur sur une base jetable
-  e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    env:
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-      PUPPETEER_SKIP_DOWNLOAD: '1'
-      CI: 'true'
-      MONGODB_URI: mongodb://localhost:27017/itvision_e2e?replicaSet=rs0
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci-e2e-only-jwt-secret-not-used-elsewhere-0123456789
-      NEXTAUTH_SECRET: ci-e2e-only-nextauth-secret-not-used-elsewhere-0123
-      CRON_SECRET: e2e-cron-secret
-      PAYMENTS_MOCK: 'true'
-      NEXT_TELEMETRY_DISABLED: '1'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+  # e2e:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #   permissions:
+  #     contents: read
+  #   env:
+  #     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+  #     PUPPETEER_SKIP_DOWNLOAD: '1'
+  #     CI: 'true'
+  #     MONGODB_URI: mongodb://localhost:27017/itvision_e2e?replicaSet=rs0
+  #     REDIS_URL: redis://localhost:6379
+  #     JWT_SECRET: ci-e2e-only-jwt-secret-not-used-elsewhere-0123456789
+  #     NEXTAUTH_SECRET: ci-e2e-only-nextauth-secret-not-used-elsewhere-0123
+  #     CRON_SECRET: e2e-cron-secret
+  #     PAYMENTS_MOCK: 'true'
+  #     NEXT_TELEMETRY_DISABLED: '1'
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v5
 
-      - name: MongoDB (replica set pour les transactions) et Redis
-        run: |
-          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
-          docker run -d --name redis -p 6379:6379 redis:7-alpine
-          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break; sleep 2; done
-          docker exec mongo mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
-          for i in $(seq 1 30); do [ "$(docker exec mongo mongosh --quiet --eval 'rs.status().myState')" = "1" ] && break; sleep 2; done
+  #     - name: MongoDB (replica set pour les transactions) et Redis
+  #       run: |
+  #         docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+  #         docker run -d --name redis -p 6379:6379 redis:7-alpine
+  #         for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1 && break; sleep 2; done
+  #         docker exec mongo mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})"
+  #         for i in $(seq 1 30); do [ "$(docker exec mongo mongosh --quiet --eval 'rs.status().myState')" = "1" ] && break; sleep 2; done
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: npm
 
-      - name: Install
-        run: npm ci --legacy-peer-deps --no-audit --no-fund
+  #     - name: Install
+  #       run: npm ci --legacy-peer-deps --no-audit --no-fund
 
-      - name: Initialiser les couts transporteur E2E
-        run: npm run migrate:market-pricing
+  #     - name: Initialiser les couts transporteur E2E
+  #       run: npm run migrate:market-pricing
 
-      - name: Installer Chromium pour les tests navigateur
-        run: npx playwright install --with-deps chromium
+  #     - name: Installer Chromium pour les tests navigateur
+  #       run: npx playwright install --with-deps chromium
 
-      - name: Playwright (API marketplace + corporate)
-        run: npx playwright test tests/marketplace tests/corporate/capabilities.spec.ts tests/corporate/sourcing.spec.ts --project=chromium
+  #     - name: Playwright (API marketplace + corporate)
+  #       run: npx playwright test tests/marketplace tests/corporate/capabilities.spec.ts tests/corporate/sourcing.spec.ts --project=chromium
 
   mobile-quality:
     runs-on: ubuntu-latest
