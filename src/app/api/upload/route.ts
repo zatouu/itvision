@@ -38,7 +38,18 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = await applyRateLimit(request, isStaff ? staffUploadRateLimiter : uploadRateLimiter)
     if (rateLimitResponse) return rateLimitResponse
 
-    const formData = await request.formData()
+    let formData: FormData
+    try {
+      formData = await request.formData()
+    } catch {
+      // Corps tronqué : envoi interrompu (réseau mobile) ou fichier au-delà des limites serveur
+      const declared = Number(request.headers.get('content-length') || 0)
+      console.warn(`[upload] corps multipart illisible (${declared ? `${(declared / 1024 / 1024).toFixed(1)} Mo déclarés` : 'taille inconnue'})`)
+      return NextResponse.json(
+        { error: declared > 100 * 1024 * 1024 ? 'Fichier trop volumineux (100 Mo max)' : 'Envoi du fichier interrompu, réessayez (connexion instable ?)' },
+        { status: declared > 100 * 1024 * 1024 ? 413 : 400 }
+      )
+    }
     const file = formData.get('file') as File
     const type = formData.get('type') as string || 'general'
     

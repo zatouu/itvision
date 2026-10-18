@@ -5,7 +5,7 @@ import Toggle from '../src/components/Toggle'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { spacing, radius, typography, shadows } from '../src/design'
-import { ChevronRight, Plus } from 'lucide-react-native'
+import { Check, ChevronRight, Plus, Search } from 'lucide-react-native'
 import { BackIcon } from '../src/components/BackButton'
 import { apiGet, apiPatch, logoutApi } from '../src/api'
 import { clearAuth } from '../src/auth'
@@ -49,6 +49,9 @@ const emptyProfile = {
   reviews: { average: 0, count: 0 },
 }
 
+const MAX_MAIN_CATEGORIES = 5
+const BIO_MAX = 500
+
 function ProfileDetail() {
   const { colors, s } = useStyles()
   const { t } = useTranslation()
@@ -60,6 +63,9 @@ function ProfileDetail() {
   const loaded = useRef(false)
   const { onlinePayments } = useAppFlags()
   const [categories, setCategories] = useState<any[]>([])
+  const [tradeQuery, setTradeQuery] = useState('')
+  const [mainLimitHit, setMainLimitHit] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const dirty = useRef(false)
   const timer = useRef<any>(null)
 
@@ -83,9 +89,12 @@ function ProfileDetail() {
     if (!dirty.current || !loaded.current) return
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => {
+      // Remis à false avant l'envoi : une modification faite pendant la requête reste « à enregistrer »
+      dirty.current = false
+      setSaveState('saving')
       apiPatch('/api/provider/profile', { user: data.user, provider: data.provider })
-        .then(() => { dirty.current = false })
-        .catch((e: unknown) => toast.error(t('profileDetailScreen.saveFailed'), humanErrorMessage(e)))
+        .then(() => setSaveState('saved'))
+        .catch((e: unknown) => { dirty.current = true; setSaveState('error'); toast.error(t('profileDetailScreen.saveFailed'), humanErrorMessage(e)) })
     }, 1200)
     return () => clearTimeout(timer.current)
   }, [data])
@@ -94,7 +103,8 @@ function ProfileDetail() {
   latest.current = data
   useEffect(() => () => {
     if (dirty.current && loaded.current) {
-      apiPatch('/api/provider/profile', { user: latest.current.user, provider: latest.current.provider }).catch(() => {})
+      apiPatch('/api/provider/profile', { user: latest.current.user, provider: latest.current.provider })
+        .catch((e: unknown) => toast.error(t('profileDetailScreen.saveFailed'), humanErrorMessage(e)))
     }
   }, [])
 
@@ -119,7 +129,6 @@ function ProfileDetail() {
 
   const catSlugs = p.serviceCategories || []
   const secondarySlugs = p.secondaryCategories || []
-  const catLabel = (slug: string) => categories.find((c: any) => c.slug === slug)?.label || slug
 
   const renderSwitch = (label: string, value: boolean, onChange: (v: boolean) => void, desc?: string) => (
     <View style={s.row}>
@@ -193,35 +202,69 @@ function ProfileDetail() {
             <Text style={s.hint}>{t('profileDetailScreen.premiumSoon')}</Text>
           </View>
         )
-      case 'business':
+      case 'business': {
+        const q = tradeQuery.trim().toLowerCase()
+        const matches = (c: any) => !q || String(c.label || c.slug).toLowerCase().includes(q)
+        const toggleMain = (slug: string) => {
+          if (catSlugs.includes(slug)) {
+            setMainLimitHit(false)
+            updateProvider({ serviceCategories: catSlugs.filter((x: string) => x !== slug) })
+            return
+          }
+          if (catSlugs.length >= MAX_MAIN_CATEGORIES) { setMainLimitHit(true); return }
+          // Un métier est principal OU secondaire, jamais les deux
+          updateProvider({ serviceCategories: [...catSlugs, slug], secondaryCategories: secondarySlugs.filter((x: string) => x !== slug) })
+        }
+        const toggleSecondary = (slug: string) => updateProvider({
+          secondaryCategories: secondarySlugs.includes(slug) ? secondarySlugs.filter((x: string) => x !== slug) : [...secondarySlugs, slug],
+        })
+        const renderChip = (c: any, active: boolean, onPress: () => void) => (
+          <TouchableOpacity key={c.slug} style={[s.chip, active && s.chipActive]} onPress={onPress}
+            accessibilityRole="checkbox" accessibilityState={{ checked: active }} accessibilityLabel={c.label}>
+            {active && <Check size={14} color={colors.onPrimary} />}
+            <Text style={[s.chipText, active && s.chipTextActive]} numberOfLines={1}>{c.label}</Text>
+          </TouchableOpacity>
+        )
+        const mainList = categories.filter(matches)
+        const secondaryList = categories.filter((c: any) => !catSlugs.includes(c.slug) && matches(c))
+        const secondaryCount = secondarySlugs.filter((x: string) => !catSlugs.includes(x)).length
         return (
           <View style={s.card}>
-            <Text style={s.label}>{t('profileDetailScreen.mainCategories')}</Text>
-            <View style={s.chipRow}>
-              {categories.map((c: any) => (
-                <TouchableOpacity key={c.slug} style={[s.chip, catSlugs.includes(c.slug) && s.chipActive]} onPress={() => {
-                  const next = catSlugs.includes(c.slug) ? catSlugs.filter((x: string) => x !== c.slug) : [...catSlugs, c.slug].slice(0, 5)
-                  updateProvider({ serviceCategories: next })
-                }}>
-                  <Text style={[s.chipText, catSlugs.includes(c.slug) && s.chipTextActive]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={s.intro}>{t('profileDetailScreen.tradesIntro')}</Text>
+            {categories.length > 8 && (
+              <View style={s.searchBox}>
+                <Search size={16} color={colors.textMuted} />
+                <TextInput style={s.searchInput} value={tradeQuery} onChangeText={setTradeQuery}
+                  placeholder={t('profileDetailScreen.searchTrades')} placeholderTextColor={colors.textMuted}
+                  autoCorrect={false} returnKeyType="search" accessibilityLabel={t('profileDetailScreen.searchTrades')} />
+              </View>
+            )}
+            {categories.length === 0 && <ActivityIndicator color={colors.primaryText} style={{ marginVertical: spacing.lg }} />}
+
+            <View style={s.sectionHead}>
+              <Text style={s.label}>{t('profileDetailScreen.mainCategories')}</Text>
+              <Text style={s.counter}>{catSlugs.length}/{MAX_MAIN_CATEGORIES}</Text>
             </View>
-            <Text style={s.label}>{t('profileDetailScreen.secondaryCategories')}</Text>
-            <View style={s.chipRow}>
-              {categories.map((c: any) => (
-                <TouchableOpacity key={c.slug} style={[s.chip2, secondarySlugs.includes(c.slug) && s.chipActive]} onPress={() => {
-                  const next = secondarySlugs.includes(c.slug) ? secondarySlugs.filter((x: string) => x !== c.slug) : [...secondarySlugs, c.slug]
-                  updateProvider({ secondaryCategories: next })
-                }}>
-                  <Text style={[s.chip2Text, secondarySlugs.includes(c.slug) && s.chipTextActive]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={s.helper}>{t('profileDetailScreen.mainCategoriesHint', { max: MAX_MAIN_CATEGORIES })}</Text>
+            {mainLimitHit && <Text style={s.warnText}>{t('profileDetailScreen.mainLimitReached', { max: MAX_MAIN_CATEGORIES })}</Text>}
+            <View style={s.chipRow}>{mainList.map((c: any) => renderChip(c, catSlugs.includes(c.slug), () => toggleMain(c.slug)))}</View>
+
+            <View style={s.sectionHead}>
+              <Text style={s.label}>{t('profileDetailScreen.secondaryCategories')}</Text>
+              {secondaryCount > 0 && <Text style={s.counter}>{secondaryCount}</Text>}
             </View>
+            <Text style={s.helper}>{t('profileDetailScreen.secondaryCategoriesHint')}</Text>
+            <View style={s.chipRow}>{secondaryList.map((c: any) => renderChip(c, secondarySlugs.includes(c.slug), () => toggleSecondary(c.slug)))}</View>
+            {q !== '' && mainList.length === 0 && <Text style={s.helper}>{t('profileDetailScreen.noTradeFound')}</Text>}
+
             <Text style={s.label}>{t('profileDetailScreen.biography')}</Text>
-            <TextInput style={[s.input, { height: 80 }]} multiline value={pref.bio || ''} onChangeText={(text) => updatePref('bio', text)} placeholder={t('profileDetailScreen.bioPlaceholder')} />
+            <TextInput style={[s.input, { minHeight: 96, textAlignVertical: 'top' }]} multiline maxLength={BIO_MAX}
+              value={pref.bio || ''} onChangeText={(text) => updatePref('bio', text)}
+              placeholder={t('profileDetailScreen.bioPlaceholder')} placeholderTextColor={colors.textMuted} />
+            <Text style={s.bioCount}>{(pref.bio || '').length}/{BIO_MAX}</Text>
           </View>
         )
+      }
       case 'wallet':
         return (
           <View style={s.card}>
@@ -291,8 +334,12 @@ function ProfileDetail() {
         <TouchableOpacity onPress={() => router.back()} style={s.back}>
           <BackIcon size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>{title}</Text>
-        <View style={{ width: 40 }} />
+        <Text style={s.title} numberOfLines={1}>{title}</Text>
+        <View style={s.saveSlot} accessibilityLiveRegion="polite">
+          {saveState === 'saving' && <ActivityIndicator size="small" color={colors.textMuted} />}
+          {saveState === 'saved' && <Text style={s.saveText}>{t('profileDetailScreen.saved')}</Text>}
+          {saveState === 'error' && <Text style={[s.saveText, { color: colors.danger }]}>{t('profileDetailScreen.notSaved')}</Text>}
+        </View>
       </View>
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {renderSection()}
@@ -311,7 +358,7 @@ const useStyles = createThemedStyles(colors => {
     safe: { flex: 1, backgroundColor: colors.bgGlobal },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
     back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-    title: { fontSize: 22, fontWeight: '600', color: colors.text },
+    title: { flex: 1, fontSize: 20, fontWeight: '600', color: colors.text, textAlign: 'center', marginHorizontal: spacing.sm },
     body: { padding: spacing.lg, paddingBottom: 100 },
     card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm },
     label: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: spacing.md, marginBottom: spacing.sm },
@@ -328,12 +375,20 @@ const useStyles = createThemedStyles(colors => {
     sliderBtnText: { fontSize: 18, color: colors.text, fontWeight: '600' },
     sliderValue: { fontSize: 16, fontWeight: '600', color: colors.primaryText, flex: 1, textAlign: 'center' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-    chip: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minHeight: 40, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    chipText: { fontSize: 14, color: colors.textSecondary },
+    chipText: { flexShrink: 1, fontSize: 14, color: colors.textSecondary },
     chipTextActive: { color: colors.onPrimary, fontWeight: '600' },
-    chip2: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
-    chip2Text: { fontSize: 14, color: colors.textSecondary },
+    intro: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginBottom: spacing.sm },
+    searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingHorizontal: spacing.md, backgroundColor: colors.bg, marginTop: spacing.sm },
+    searchInput: { flex: 1, minHeight: 44, fontSize: 15, color: colors.text },
+    sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.md },
+    counter: { fontSize: 13, fontWeight: '600', color: colors.primaryText },
+    helper: { fontSize: 13, lineHeight: 18, color: colors.textSecondary, marginBottom: spacing.sm },
+    warnText: { fontSize: 13, lineHeight: 18, color: colors.warnInk, backgroundColor: colors.warnSoft, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.sm },
+    bioCount: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: spacing.xs },
+    saveSlot: { minWidth: 44, maxWidth: 96, alignItems: 'flex-end', justifyContent: 'center' },
+    saveText: { fontSize: 12, color: colors.textMuted },
     hint: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.md, fontStyle: 'italic' },
     walletBox: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.md },
     walletLabel: { fontSize: 14, color: 'rgba(255,255,255,0.85)' },

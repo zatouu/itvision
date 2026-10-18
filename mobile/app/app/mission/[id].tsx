@@ -673,11 +673,11 @@ export default withScreenBoundary(MissionDetail, 'MissionDetail')
 
 const useStyles = createThemedStyles(colors => {
   const PAYMENT_BADGE: Record<string, { key: string; color: string; bg: string }> = {
-    pending:   { key: 'mission.paymentPending',  color: '#92400E', bg: colors.warningLight },
-    held:      { key: 'mission.paymentHeld',     color: '#065F46', bg: '#ECFDF5' },
-    released:  { key: 'mission.paymentReleased', color: '#1E3A8A', bg: colors.infoLight },
-    refunded:  { key: 'mission.paymentRefunded', color: '#991B1B', bg: '#FEF2F2' },
-    failed:    { key: 'mission.paymentFailed',   color: '#991B1B', bg: '#FEF2F2' },
+    pending:   { key: 'mission.paymentPending',  color: colors.warnInk, bg: colors.warningLight },
+    held:      { key: 'mission.paymentHeld',     color: colors.successInk, bg: colors.successLight },
+    released:  { key: 'mission.paymentReleased', color: colors.infoInk, bg: colors.infoLight },
+    refunded:  { key: 'mission.paymentRefunded', color: colors.dangerInk, bg: colors.dangerLight },
+    failed:    { key: 'mission.paymentFailed',   color: colors.dangerInk, bg: colors.dangerLight },
   }
 
   function formatElapsed(startedAt: unknown, endedAt?: unknown): string {

@@ -232,7 +232,7 @@ const useStyles = createThemedStyles(colors => {
     btnText: { color: colors.onPrimary, fontWeight: '600' },
     rejectedBox: { backgroundColor: colors.dangerSoft, borderRadius: 12, padding: 14, gap: 4, borderWidth: 1, borderColor: '#FECACA' },
     rejectedTitle: { fontSize: 15, fontWeight: '700', color: colors.dangerInk },
-    rejectedReason: { fontSize: 13, color: '#991B1B' },
+    rejectedReason: { fontSize: 13, color: colors.dangerInk },
     rejectedHint: { fontSize: 12, color: colors.dangerInk, marginTop: 4 },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textSecondary },
     field: { gap: 4 },

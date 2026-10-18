@@ -69,7 +69,7 @@ const useStyles = createThemedStyles(colors => {
     card: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#E8F5EE',
+      backgroundColor: colors.brandTint,
       borderRadius: radius['2xl'],
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,

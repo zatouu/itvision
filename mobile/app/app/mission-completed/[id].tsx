@@ -426,8 +426,8 @@ export default withScreenBoundary(MissionCompletedScreen, 'MissionCompleted')
 
 const useStyles = createThemedStyles(colors => {
   const s = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#F5F6FA' },
-    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F6FA', gap: 12 },
+    safe: { flex: 1, backgroundColor: colors.bgGlobal },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgGlobal, gap: 12 },
     loadingText: { fontSize: 14, color: colors.textSecondary },
     retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#0F7B4F', borderRadius: 14 },
     retryText: { color: colors.onPrimary, fontWeight: '700' },

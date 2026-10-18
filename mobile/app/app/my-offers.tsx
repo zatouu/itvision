@@ -284,7 +284,7 @@ function MyOffers() {
                 {it.status === 'submitted' && it.clientCounterStatus === 'pending' && (
                   <View style={s.counterBanner}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <MessageSquare size={14} color="#1D4ED8" />
+                      <MessageSquare size={14} color={colors.infoInk} />
                       <Text style={s.counterTitle}>{t('offers.counterClient')}</Text>
                     </View>
                     <Text style={s.counterText}>
@@ -386,25 +386,25 @@ export default withScreenBoundary(MyOffers, 'MyOffers')
 
 const useStyles = createThemedStyles(colors => {
   const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-    submitted: { label: 'En attente',  color: '#92400E', bg: colors.warningLight, dot: '#D97706' },
-    accepted:  { label: 'Acceptée',   color: '#065F46', bg: '#ECFDF5', dot: colors.success },
-    rejected:  { label: 'Refusée',    color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626' },
+    submitted: { label: 'En attente',  color: colors.warnInk, bg: colors.warningLight, dot: '#D97706' },
+    accepted:  { label: 'Acceptée',   color: colors.successInk, bg: colors.successLight, dot: colors.success },
+    rejected:  { label: 'Refusée',    color: colors.dangerInk, bg: colors.dangerLight, dot: '#DC2626' },
     expired:   { label: 'Expirée',    color: colors.textSecondary, bg: colors.slate100, dot: colors.textMuted },
     withdrawn: { label: 'Retirée',    color: colors.textSecondary, bg: colors.slate100, dot: colors.textMuted },
     cancelled: { label: 'Annulée',    color: colors.textSecondary, bg: colors.slate100, dot: colors.textMuted },
   }
 
   const MISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; banner: string }> = {
-    assigned:          { label: 'À démarrer',     color: '#065F46', bg: '#ECFDF5', dot: colors.success, banner: 'Le client vous a sélectionné. Préparez-vous !' },
-    on_the_way:        { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
-    provider_arriving: { label: 'En route',       color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
-    arrived:           { label: 'Arrivé',         color: '#0369A1', bg: '#E0F2FE', dot: '#0EA5E9', banner: 'Vous êtes arrivé chez le client.' },
-    in_progress:       { label: 'En cours',       color: '#5B21B6', bg: '#F5F3FF', dot: '#7C3AED', banner: 'Mission en cours.' },
-    paused:            { label: 'En pause',       color: '#B45309', bg: '#FEF3C7', dot: colors.warning, banner: 'Mission en pause.' },
-    awaiting_validation:{ label: 'Validation client', color: '#B45309', bg: '#FEF3C7', dot: colors.warning, banner: 'En attente de validation client.' },
+    assigned:          { label: 'À démarrer',     color: colors.successInk, bg: colors.successLight, dot: colors.success, banner: 'Le client vous a sélectionné. Préparez-vous !' },
+    on_the_way:        { label: 'En route',       color: colors.infoInk, bg: colors.infoLight, dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
+    provider_arriving: { label: 'En route',       color: colors.infoInk, bg: colors.infoLight, dot: '#0EA5E9', banner: 'Vous êtes en route vers le client.' },
+    arrived:           { label: 'Arrivé',         color: colors.infoInk, bg: colors.infoLight, dot: '#0EA5E9', banner: 'Vous êtes arrivé chez le client.' },
+    in_progress:       { label: 'En cours',       color: colors.violetInk, bg: colors.violetSoft, dot: '#7C3AED', banner: 'Mission en cours.' },
+    paused:            { label: 'En pause',       color: colors.warnInk, bg: colors.warnSoft, dot: colors.warning, banner: 'Mission en pause.' },
+    awaiting_validation:{ label: 'Validation client', color: colors.warnInk, bg: colors.warnSoft, dot: colors.warning, banner: 'En attente de validation client.' },
     completed:         { label: 'Terminée',       color: colors.textSecondary, bg: colors.slate100, dot: '#6B7280', banner: 'Mission terminée avec succès.' },
-    cancelled:         { label: 'Annulée',        color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Mission annulée.' },
-    dispute:           { label: 'Litige',         color: '#991B1B', bg: '#FEF2F2', dot: '#DC2626', banner: 'Un litige est ouvert.' },
+    cancelled:         { label: 'Annulée',        color: colors.dangerInk, bg: colors.dangerLight, dot: '#DC2626', banner: 'Mission annulée.' },
+    dispute:           { label: 'Litige',         color: colors.dangerInk, bg: colors.dangerLight, dot: '#DC2626', banner: 'Un litige est ouvert.' },
   }
 
   const s = StyleSheet.create({
@@ -438,7 +438,7 @@ const useStyles = createThemedStyles(colors => {
     categoryText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600', textTransform: 'capitalize' },
     comment: { fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
     acceptedBanner: { backgroundColor: colors.brandTint, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0' },
-    acceptedText: { fontSize: 13, color: '#15803D', fontWeight: '600' },
+    acceptedText: { fontSize: 13, color: colors.successInk, fontWeight: '600' },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
     errText: { color: colors.dangerInk, fontSize: 13, textAlign: 'center' },
     retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.navy, borderRadius: 14, ...shadows.sm },
@@ -451,7 +451,7 @@ const useStyles = createThemedStyles(colors => {
 
     // ── Contre-offre ──
     counterBanner: { backgroundColor: colors.infoLight, borderRadius: 10, padding: 12, borderWidth: 1.5, borderColor: '#BFDBFE', gap: 6 },
-    counterTitle: { fontSize: 13, fontWeight: '800', color: '#1D4ED8' },
+    counterTitle: { fontSize: 13, fontWeight: '800', color: colors.infoInk },
     counterText: { fontSize: 13, color: colors.textSecondary },
     counterComment: { fontSize: 12, color: colors.textSecondary, fontStyle: 'italic' },
     counterActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
@@ -463,7 +463,7 @@ const useStyles = createThemedStyles(colors => {
     withdrawBtn: { marginTop: 10, borderRadius: 8, paddingVertical: 9, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA', backgroundColor: colors.dangerSoft },
     withdrawBtnText: { color: colors.dangerInk, fontSize: 12, fontWeight: '600' },
     counterAcceptedBanner: { backgroundColor: colors.brandTint, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#BBF7D0' },
-    counterAcceptedText: { fontSize: 12, color: '#15803D', fontWeight: '600' },
+    counterAcceptedText: { fontSize: 12, color: colors.successInk, fontWeight: '600' },
     counterRejectedBanner: { backgroundColor: colors.dangerSoft, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#FECACA' },
     counterRejectedText: { fontSize: 12, color: colors.dangerInk, fontWeight: '600' },
   })

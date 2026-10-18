@@ -151,7 +151,7 @@ const useStyles = createThemedStyles(colors => {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: '#D1D5DB',
+      backgroundColor: colors.border,
       alignSelf: 'center',
       marginBottom: 16,
     },

@@ -263,7 +263,7 @@ const useStyles = createThemedStyles(colors => {
       width: 14, height: 14, borderRadius: 7, backgroundColor: '#DC2626',
     },
     timer: { fontSize: 24, fontWeight: '700', color: colors.dangerInk, fontVariant: ['tabular-nums'] },
-    hint: { fontSize: 12, color: '#991B1B' },
+    hint: { fontSize: 12, color: colors.dangerInk },
     actions: { flexDirection: 'row', gap: 16, marginTop: 8 },
     cancelBtn: {
       width: 44, height: 44, borderRadius: 22, backgroundColor: '#FCA5A5',

@@ -521,19 +521,19 @@ export default withScreenBoundary(Home, 'Home')
 
 const useStyles = createThemedStyles(colors => {
   const STATUS_LABEL: Record<string, { label: string; color: string; dot: string }> = {
-    created:           { label: 'Publiée',              color: '#2563EB', dot: '#2563EB' },
-    pending_offers:    { label: 'Offres reçues',        color: '#B45309', dot: '#D97706' },
-    accepted:          { label: 'Prestataire assigné',  color: '#065F46', dot: '#059669' },
-    assigned:          { label: 'Prestataire assigné',  color: '#065F46', dot: '#059669' },
-    on_the_way:        { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
-    provider_arriving: { label: 'En route',             color: '#0369A1', dot: '#0EA5E9' },
-    arrived:           { label: 'Sur place',            color: '#065F46', dot: '#059669' },
-    in_progress:       { label: 'En cours',             color: '#5B21B6', dot: '#7C3AED' },
-    paused:            { label: 'En pause',             color: '#92400E', dot: '#D97706' },
-    dispute:           { label: 'Litige',               color: '#991B1B', dot: '#DC2626' },
-    awaiting_validation: { label: 'À valider',          color: '#B45309', dot: '#F59E0B' },
+    created:           { label: 'Publiée',              color: colors.infoInk, dot: '#2563EB' },
+    pending_offers:    { label: 'Offres reçues',        color: colors.warnInk, dot: '#D97706' },
+    accepted:          { label: 'Prestataire assigné',  color: colors.successInk, dot: '#059669' },
+    assigned:          { label: 'Prestataire assigné',  color: colors.successInk, dot: '#059669' },
+    on_the_way:        { label: 'En route',             color: colors.infoInk, dot: '#0EA5E9' },
+    provider_arriving: { label: 'En route',             color: colors.infoInk, dot: '#0EA5E9' },
+    arrived:           { label: 'Sur place',            color: colors.successInk, dot: '#059669' },
+    in_progress:       { label: 'En cours',             color: colors.violetInk, dot: '#7C3AED' },
+    paused:            { label: 'En pause',             color: colors.warnInk, dot: '#D97706' },
+    dispute:           { label: 'Litige',               color: colors.dangerInk, dot: '#DC2626' },
+    awaiting_validation: { label: 'À valider',          color: colors.warnInk, dot: '#F59E0B' },
     completed:         { label: 'Terminée',             color: colors.textSecondary, dot: colors.textMuted },
-    cancelled:         { label: 'Annulée',              color: '#991B1B', dot: '#DC2626' },
+    cancelled:         { label: 'Annulée',              color: colors.dangerInk, dot: '#DC2626' },
   }
 
   const s = StyleSheet.create({

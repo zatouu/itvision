@@ -143,7 +143,7 @@ export default withScreenBoundary(MissionLogScreen, 'MissionLog')
 
 const useStyles = createThemedStyles(colors => {
   const s = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#F5F6FA' },
+    safe: { flex: 1, backgroundColor: colors.bgGlobal },
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
     headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
     headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: colors.text },
@@ -155,8 +155,8 @@ const useStyles = createThemedStyles(colors => {
     card: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, gap: 14, borderWidth: 1, borderColor: colors.borderSoft },
     row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     rail: { width: 14, alignItems: 'center' },
-    dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#CBD5E1' },
-    dotCurrent: { backgroundColor: '#0F7B4F', borderWidth: 3, borderColor: '#E6F4EC' },
+    dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.border },
+    dotCurrent: { backgroundColor: colors.success, borderWidth: 3, borderColor: colors.successLight },
     line: { position: 'absolute', top: 12, width: 2, height: 28, backgroundColor: colors.bgDeep },
     time: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, width: 44 },
     label: { flex: 1, fontSize: 13, color: colors.textSecondary },

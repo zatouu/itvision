@@ -711,11 +711,11 @@ const useStyles = createThemedStyles(colors => {
   const s = StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.bgGlobal,
     },
     loadingContainer: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.bgGlobal,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -731,7 +731,7 @@ const useStyles = createThemedStyles(colors => {
     },
     bottomSheet: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.bgGlobal,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       marginTop: -28,
@@ -808,7 +808,7 @@ const useStyles = createThemedStyles(colors => {
     // Layout B: Action Hero
     actionLayoutContainer: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.bgGlobal,
     },
     header: {
       flexDirection: 'row',
@@ -1015,11 +1015,11 @@ const useStyles = createThemedStyles(colors => {
       maxHeight: 300,
     },
     aiModalResultCard: {
-      backgroundColor: '#F0F9FF',
+      backgroundColor: colors.infoLight,
       borderRadius: radius.md,
       padding: spacing.md,
       borderWidth: 1,
-      borderColor: '#BAE6FD',
+      borderColor: colors.border,
     },
     aiModalResultText: {
       fontSize: 14,

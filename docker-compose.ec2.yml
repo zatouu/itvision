@@ -139,6 +139,13 @@ services:
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-}
       LLM_TEXT_PROVIDER: ${LLM_TEXT_PROVIDER:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ── Dictée vocale (compatible OpenAI /audio/transcriptions) : principal + secours (ex. Groq) ──
+      STT_API_URL: ${STT_API_URL:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_MODEL: ${STT_MODEL:-}
+      STT_FALLBACK_API_URL: ${STT_FALLBACK_API_URL:-}
+      STT_FALLBACK_API_KEY: ${STT_FALLBACK_API_KEY:-}
+      STT_FALLBACK_MODEL: ${STT_FALLBACK_MODEL:-}
       ALIEXPRESS_RAPIDAPI_KEY: ${ALIEXPRESS_RAPIDAPI_KEY:-}
       SOURCING_MARGIN_RATE: ${SOURCING_MARGIN_RATE:-15}
       # Worker agents (Chromium) : désactivé tant que la mémoire de l'EC2 n'est pas confirmée

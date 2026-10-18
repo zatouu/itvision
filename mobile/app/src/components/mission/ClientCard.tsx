@@ -173,14 +173,14 @@ const useStyles = createThemedStyles(colors => {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: '#E0E7FF',
+      backgroundColor: colors.infoLight,
       alignItems: 'center',
       justifyContent: 'center',
     },
     initialsText: {
       fontSize: 16,
       fontWeight: '800',
-      color: '#3730A3',
+      color: colors.infoInk,
       letterSpacing: 0.5,
     },
     verifiedBadge: {

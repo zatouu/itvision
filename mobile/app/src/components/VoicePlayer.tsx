@@ -120,12 +120,12 @@ const useStyles = createThemedStyles(colors => {
     playIcon: { fontSize: 16, color: colors.onPrimary },
     waveContainer: { flex: 1, gap: 4 },
     waveTrack: {
-      height: 6, borderRadius: 3, backgroundColor: '#D1FAE5', overflow: 'hidden',
+      height: 6, borderRadius: 3, backgroundColor: colors.successLight, overflow: 'hidden',
     },
     waveFill: {
       height: '100%', borderRadius: 3, backgroundColor: '#059669',
     },
-    duration: { fontSize: 11, color: '#065F46', fontVariant: ['tabular-nums'] },
+    duration: { fontSize: 11, color: colors.successInk, fontVariant: ['tabular-nums'] },
     removeBtn: {
       width: 28, height: 28, borderRadius: 14, backgroundColor: colors.dangerSoft,
       alignItems: 'center', justifyContent: 'center',

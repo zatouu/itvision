@@ -33,7 +33,7 @@ const useStyles = createThemedStyles(colors => {
     text: {
       flex: 1,
       fontSize: typography.sm.fontSize,
-      color: '#92400E',
+      color: colors.warnInk,
       lineHeight: 18,
     },
   })

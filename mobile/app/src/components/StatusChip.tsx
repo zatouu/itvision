@@ -50,7 +50,7 @@ const useStyles = createThemedStyles(colors => {
     warning: { bg: colors.warningLight, color: colors.warning, Icon: AlertTriangle },
     danger: { bg: colors.dangerLight, color: colors.danger, Icon: AlertTriangle },
     info: { bg: colors.infoLight, color: colors.info, Icon: Info },
-    neutral: { bg: '#F1F5F9', color: colors.textSecondary, Icon: Circle },
+    neutral: { bg: colors.slate100, color: colors.textSecondary, Icon: Circle },
     primary: { bg: colors.primaryLight, color: colors.primaryText, Icon: Circle },
   }
   return { colors, variants }

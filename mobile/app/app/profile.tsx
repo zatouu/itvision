@@ -328,8 +328,8 @@ const useStyles = createThemedStyles(colors => {
 
 
     referralCompact: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.brandSoft, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#A7F3D0' },
-    referralIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center' },
-    referralCodeSmall: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: '#065F46', letterSpacing: 1.5 },
+    referralIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
+    referralCodeSmall: { fontSize: 15, fontWeight: typography.weight.extrabold as any, color: colors.successInk, letterSpacing: 1.5 },
     referralHint: { fontSize: 11, color: colors.primaryText, fontWeight: typography.weight.medium as any, marginTop: 1 },
     referralShareBtn: { backgroundColor: '#059669', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
     referralShareText: { color: colors.onPrimary, fontWeight: typography.weight.bold as any, fontSize: 12 },

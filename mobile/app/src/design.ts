@@ -58,6 +58,8 @@ export const colors = {
   infoInk: '#1E40AF',
   infoLight: '#EFF6FF',
   infoSoft: '#E6EEFE',
+  violetInk: '#5B21B6',
+  violetSoft: '#F5F3FF',
   // Category colors
   electricity: '#2563EB',
   plumbing: '#0891B2',
@@ -137,6 +139,8 @@ export const darkColors: ThemeColors = {
   infoInk: '#ACCFFF',
   infoLight: '#1D304A',
   infoSoft: '#1D304A',
+  violetInk: '#C4B5FD',
+  violetSoft: '#2A2342',
   waveSoft: '#17354A',
   waveInk: '#80CDFF',
   orangeSoft: '#3E2A1B',
