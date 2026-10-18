@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import FileDropZone from '@/components/ui/FileDropZone'
 import {
   Loader2,
   AlertCircle,
@@ -230,6 +231,7 @@ export default function VendorShopSettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Logo</p>
+              <FileDropZone accept="image/*" maxSizeMb={10} disabled={!!uploading} onFiles={files => uploadImage(files[0], 'logo', 'logo')} onError={setError} overlayLabel="Déposez le logo" className="max-w-[160px]">
               <button
                 type="button"
                 onClick={() => logoInput.current?.click()}
@@ -247,6 +249,7 @@ export default function VendorShopSettingsPage() {
                   {uploading === 'logo' ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Changer'}
                 </span>
               </button>
+              </FileDropZone>
               <input
                 ref={logoInput}
                 type="file"
@@ -257,6 +260,7 @@ export default function VendorShopSettingsPage() {
             </div>
             <div>
               <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Bannière</p>
+              <FileDropZone accept="image/*" maxSizeMb={10} disabled={!!uploading} onFiles={files => uploadImage(files[0], 'coverImage', 'cover')} onError={setError} overlayLabel="Déposez la bannière">
               <button
                 type="button"
                 onClick={() => coverInput.current?.click()}
@@ -274,6 +278,7 @@ export default function VendorShopSettingsPage() {
                   {uploading === 'cover' ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Changer'}
                 </span>
               </button>
+              </FileDropZone>
               <input
                 ref={coverInput}
                 type="file"

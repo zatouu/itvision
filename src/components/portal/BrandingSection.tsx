@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { Palette, Upload, Trash2, Loader2, Check, Building2, LayoutDashboard, Receipt, Wrench, RotateCcw } from 'lucide-react'
 import { CARD, BTN_PRIMARY } from '@/components/portal-ui'
+import FileDropZone from '@/components/ui/FileDropZone'
 import { BRAND_PRESETS, PORTAL_BRANDING_EVENT, brandThemeStyle, sanitizeBrandColor, type PortalBranding } from '@/lib/company-rights'
 
 const DEFAULT_COLOR = '#059669'
@@ -94,7 +95,10 @@ export default function BrandingSection({ companyName, logo, brandColor, canEdit
   const uploadLogo = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file) return
+    if (file) await uploadLogoFile(file)
+  }
+
+  const uploadLogoFile = async (file: File) => {
     if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) return setMessage({ ok: false, text: 'Format accepté : PNG, JPG ou WebP.' })
     if (file.size > 2 * 1024 * 1024) return setMessage({ ok: false, text: 'Logo trop lourd (2 Mo maximum).' })
     setUploading(true); setMessage(null)
@@ -140,6 +144,7 @@ export default function BrandingSection({ companyName, logo, brandColor, canEdit
         <div className="space-y-4">
           <div className={`${CARD} p-5`}>
             <h3 className="text-sm font-semibold text-stone-900 flex items-center gap-2 mb-3"><Building2 className="w-4 h-4 text-emerald-700" />Logo</h3>
+            <FileDropZone accept="image/png,image/jpeg,image/webp" disabled={!canEdit || uploading} onFiles={files => uploadLogoFile(files[0])} overlayLabel="Déposez le logo ici">
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 flex-shrink-0 rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-center overflow-hidden">
                 {logo
@@ -163,9 +168,10 @@ export default function BrandingSection({ companyName, logo, brandColor, canEdit
                     )}
                   </div>
                 )}
-                <p className="mt-1.5 text-xs text-stone-400">Format carré ou horizontal sur fond clair, PNG transparent idéal. 2 Mo maximum. Affiché en haut de la navigation pour toute l&apos;équipe.</p>
+                <p className="mt-1.5 text-xs text-stone-400">Format carré ou horizontal sur fond clair, PNG transparent idéal. 2 Mo maximum. Glissez-déposez ou cliquez. Affiché en haut de la navigation pour toute l&apos;équipe.</p>
               </div>
             </div>
+            </FileDropZone>
           </div>
 
           <div className={`${CARD} p-5`}>

@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import CreditNote from '@/lib/models/CreditNote'
 import { invoiceBalance, OPEN_INVOICE_STATUSES } from '@/lib/finance/billing'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 import { logAuditEvent } from '@/lib/audit'
 import { notifyCompany } from '@/lib/portal/company-notify'
 
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { new: true }
     ).lean() as any
     if (!saved) return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
+    syncProjectFinanceSafe(saved.projectId)
 
     void logAuditEvent({
       entityType: 'AdminInvoice',
@@ -155,6 +157,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       metadata: { numero: invoice.numero, amount: payment.amount, date: payment.date, reason },
     })
 
+    syncProjectFinanceSafe(saved.projectId)
     return NextResponse.json({ success: true, status: saved.status, amountPaid: saved.amountPaid, balance: invoiceBalance(saved) })
   } catch (error) {
     console.error('Erreur DELETE /api/admin/invoices/[id]/payments:', error)

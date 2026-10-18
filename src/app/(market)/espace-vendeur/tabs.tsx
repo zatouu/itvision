@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import FileDropZone from '@/components/ui/FileDropZone'
 import {
   Loader2, Wallet, Users, LifeBuoy, Plus, ImageIcon,
   CheckCircle, MessageCircle, X, Trash2, ChevronDown,
@@ -441,7 +442,7 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
       .catch(() => {})
   }, [])
 
-  const uploadImages = async (files: FileList) => {
+  const uploadImages = async (files: FileList | File[]) => {
     try {
       setUploading(true)
       const room = MAX_PHOTOS - photos.length
@@ -571,6 +572,7 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Photos ({photos.length}/{MAX_PHOTOS})</label>
               {photos.length > 1 && <span className="text-[10px] text-slate-400">Cliquez sur une photo pour la mettre en principale</span>}
             </div>
+            <FileDropZone accept="image/*" multiple maxSizeMb={10} disabled={uploading || photos.length >= MAX_PHOTOS} onFiles={files => uploadImages(files)} overlayLabel="Déposez vos photos ici">
             <div className="grid grid-cols-4 gap-2">
               {photos.map((url, i) => (
                 <div key={url} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group">
@@ -585,7 +587,7 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 rounded-full bg-slate-900/70 p-1 text-white opacity-0 group-hover:opacity-100 transition"
+                    className="absolute top-1 right-1 rounded-full bg-slate-900/70 p-1 text-white sm:opacity-0 sm:group-hover:opacity-100 transition"
                   >
                     <X size={11} />
                   </button>
@@ -602,6 +604,8 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
                 </button>
               )}
             </div>
+            </FileDropZone>
+            <p className="mt-1 text-[10px] text-slate-400">Glissez vos photos sur la grille ou touchez « Ajouter ».</p>
             <input ref={fileInput} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files?.length && uploadImages(e.target.files)} />
           </div>
 

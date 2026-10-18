@@ -5,12 +5,19 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import { computeInvoiceTotals, nextInvoiceNumero, LABOR_INVOICE_CATEGORY, type TaxRegime } from '@/lib/finance/billing'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 
 const DEFAULT_DUE_DAYS = 30
 
+type InvoiceMode = 'full' | 'deposit' | 'balance'
+
 /**
- * POST /api/admin/invoices/from-quote { quoteId, dueInDays? }
- * Facture brouillon issue d'un devis accepté : mêmes lignes, même client (et lien portail), même projet.
+ * POST /api/admin/invoices/from-quote { quoteId, dueInDays?, mode?, percent? }
+ * Facture brouillon issue d'un devis accepté : même client (et lien portail), même projet.
+ * - full : mêmes lignes que le devis (aucune facture active sur ce devis)
+ * - deposit : acompte de `percent` % du net à payer du devis
+ * - balance : solde = devis − factures actives déjà émises sur ce devis (avoirs déduits)
+ * La somme facturée sur un devis ne dépasse jamais son montant.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +27,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const quoteId = String(body?.quoteId || '')
     if (!mongoose.Types.ObjectId.isValid(quoteId)) return NextResponse.json({ error: 'quoteId invalide' }, { status: 400 })
+    const mode: InvoiceMode = ['deposit', 'balance'].includes(body?.mode) ? body.mode : 'full'
 
     await connectMongoose()
     const quote = await AdminQuote.findById(quoteId).lean() as any
@@ -28,29 +36,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Seul un devis accepté par le client peut être facturé' }, { status: 409 })
     }
 
-    const already = await AdminInvoice.findOne({ quoteId, status: { $ne: 'cancelled' } }).select('numero').lean() as any
-    if (already) {
-      return NextResponse.json({ error: `Ce devis est déjà facturé (${already.numero})`, invoiceId: String(already._id) }, { status: 409 })
+    const previous = await AdminInvoice.find({ quoteId, status: { $ne: 'cancelled' } }).select('numero total creditedAmount').lean() as any[]
+    const quoteTotal = Math.round(Number(quote.total) || 0)
+    const alreadyInvoiced = previous.reduce((s, inv) => s + Math.round(Number(inv.total) || 0) - Math.round(Number(inv.creditedAmount) || 0), 0)
+    const remaining = Math.max(0, quoteTotal - alreadyInvoiced)
+
+    if (mode === 'full' && previous.length) {
+      return NextResponse.json({
+        error: `Ce devis est déjà facturé (${previous.map(p => p.numero).join(', ')}) : facturez le solde`,
+        invoiceId: String(previous[0]._id),
+        remaining,
+      }, { status: 409 })
+    }
+    if (mode !== 'full' && remaining <= 0) {
+      return NextResponse.json({ error: 'Le devis est entièrement facturé', remaining: 0 }, { status: 409 })
     }
 
-    const subtotalHT = (quote.products || []).reduce((s: number, p: any) => s + (Number(p.total) || 0), 0)
-    // Même régime que le devis : BRS (sans TVA), TVA (taux retrouvé depuis le montant), ou aucun
-    const taxRegime: TaxRegime = quote.applyBRS ? 'brs' : quote.taxAmount > 0 ? 'tva' : 'none'
-    const taxRate = taxRegime === 'tva' && subtotalHT > 0 ? Math.round((quote.taxAmount / subtotalHT) * 100) : 0
-
-    const items = [
-      ...(quote.products || []).map((p: any) => ({
-        description: p.description,
-        quantity: p.quantity,
-        // Prix saisi sur le devis : la majoration BRS est recalculée à l'identique
-        unitPrice: p.netUnitPrice ?? p.unitPrice,
-        netUnitPrice: p.netUnitPrice ?? p.unitPrice,
-        category: p.isLabor ? LABOR_INVOICE_CATEGORY : 'products',
-        productId: p.productId ? String(p.productId) : undefined,
-      })),
-      ...(quote.other > 0 ? [{ description: 'Autres frais', quantity: 1, unitPrice: quote.other, category: 'products' }] : []),
-    ]
-    const totals = computeInvoiceTotals(items, { taxRegime, taxRate, brsThreshold: quote.brsThreshold })
+    let items: any[]
+    let totals: ReturnType<typeof computeInvoiceTotals>
+    let label = ''
+    if (mode === 'full') {
+      const subtotalHT = (quote.products || []).reduce((s: number, p: any) => s + (Number(p.total) || 0), 0)
+      // Même régime que le devis : BRS (sans TVA), TVA (taux retrouvé depuis le montant), ou aucun
+      const taxRegime: TaxRegime = quote.applyBRS ? 'brs' : quote.taxAmount > 0 ? 'tva' : 'none'
+      const taxRate = taxRegime === 'tva' && subtotalHT > 0 ? Math.round((quote.taxAmount / subtotalHT) * 100) : 0
+      items = [
+        ...(quote.products || []).map((p: any) => ({
+          description: p.description,
+          quantity: p.quantity,
+          // Prix saisi sur le devis : la majoration BRS est recalculée à l'identique
+          unitPrice: p.netUnitPrice ?? p.unitPrice,
+          netUnitPrice: p.netUnitPrice ?? p.unitPrice,
+          category: p.isLabor ? LABOR_INVOICE_CATEGORY : 'products',
+          productId: p.productId ? String(p.productId) : undefined,
+        })),
+        ...(quote.other > 0 ? [{ description: 'Autres frais', quantity: 1, unitPrice: quote.other, category: 'products' }] : []),
+      ]
+      totals = computeInvoiceTotals(items, { taxRegime, taxRate, brsThreshold: quote.brsThreshold })
+    } else {
+      // Acompte / solde : montant net à payer du devis (taxes déjà comprises), sans nouvelle taxe
+      const percent = Math.min(90, Math.max(1, Math.round(Number(body?.percent) || 30)))
+      const amount = mode === 'deposit' ? Math.min(remaining, Math.round(quoteTotal * percent / 100)) : remaining
+      label = mode === 'deposit' ? `Acompte ${percent} %` : 'Solde'
+      items = [{
+        description: mode === 'deposit'
+          ? `Acompte de ${percent} % sur le devis ${quote.numero}${quote.title ? ` — ${quote.title}` : ''}`
+          : `Solde du devis ${quote.numero}${previous.length ? ` (déduction faite de ${previous.map(p => p.numero).join(', ')})` : ''}`,
+        quantity: 1,
+        unitPrice: amount,
+        category: 'products',
+      }]
+      totals = computeInvoiceTotals(items, { taxRegime: 'none' })
+    }
 
     const dueInDays = Math.min(Math.max(Number(body?.dueInDays) || DEFAULT_DUE_DAYS, 0), 365)
     const invoice = await AdminInvoice.create({
@@ -77,17 +114,20 @@ export async function POST(request: NextRequest) {
       taxAmount: totals.taxAmount,
       brsAmount: totals.brsAmount,
       total: totals.total,
-      notes: `Facture établie selon le devis ${quote.numero}${quote.title ? ` — ${quote.title}` : ''}`,
+      notes: `${label ? `${label} — ` : ''}Facture établie selon le devis ${quote.numero}${quote.title ? ` — ${quote.title}` : ''}`,
       terms: quote.conditions || `Paiement à ${dueInDays} jours.`,
       createdBy: auth.user.id,
     })
+    syncProjectFinanceSafe(quote.projectId)
 
     return NextResponse.json({
       success: true,
       invoiceId: String(invoice._id),
       numero: invoice.numero,
+      mode,
+      remaining: Math.max(0, remaining - totals.total),
       // Écart d'arrondi éventuel entre le total du devis et celui recalculé
-      totalMismatch: totals.total !== Math.round(Number(quote.total) || 0) ? { quote: quote.total, invoice: totals.total } : null,
+      totalMismatch: mode === 'full' && totals.total !== quoteTotal ? { quote: quote.total, invoice: totals.total } : null,
     }, { status: 201 })
   } catch (error: any) {
     console.error('Erreur POST /api/admin/invoices/from-quote:', error)

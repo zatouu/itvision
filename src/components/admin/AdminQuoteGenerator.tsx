@@ -10,6 +10,9 @@ import {
   Receipt, Upload, FileUp, CopyPlus, MessageSquare, MoreHorizontal, RefreshCw
 } from 'lucide-react'
 import Image from 'next/image'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
+import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 
 const QUOTE_FILTERS = [
   { id: 'all', label: 'Tous' },
@@ -73,6 +76,7 @@ interface Quote {
   clientCounterAmount?: number
   clientComments?: Array<{ authorId: string; authorRole: string; message: string; createdAt: string; readByOther: boolean }>
   clientCompanyId?: string
+  projectId?: string
   clientSignature?: { signature: string; name: string; signedAt: string; ip?: string; userAgent?: string }
   attachments?: Array<{ name: string; url: string; type: string; size: number; uploadedAt?: string; category?: string }>
 }
@@ -86,6 +90,14 @@ interface Product {
   inStock: boolean
   image?: string
   availability?: { status: string }
+}
+
+interface ProjectOption {
+  id: string
+  name: string
+  clientName?: string
+  clientCompanyId?: string
+  status?: string
 }
 
 export default function AdminQuoteGenerator() {
@@ -106,6 +118,7 @@ export default function AdminQuoteGenerator() {
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [convertingId, setConvertingId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [clientQuery, setClientQuery] = useState('')
   const [clientResults, setClientResults] = useState<any[]>([])
@@ -120,6 +133,7 @@ export default function AdminQuoteGenerator() {
   // État du devis à l'ouverture de l'édition, pour confirmer l'abandon de modifications
   const editSnapshot = useRef<{ id: string; json: string } | null>(null)
   const [extraRecipient, setExtraRecipient] = useState('')
+  const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([])
   const router = useRouter()
 
   const isObjectId = (value: string) => /^[a-fA-F0-9]{24}$/.test(String(value || ''))
@@ -172,6 +186,7 @@ export default function AdminQuoteGenerator() {
       clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
       clientComments: Array.isArray(q?.clientComments) ? q.clientComments : undefined,
       clientCompanyId: q?.clientCompanyId ? String(q.clientCompanyId) : undefined,
+      projectId: q?.projectId ? String(q.projectId?._id || q.projectId) : undefined,
       clientSignature: q?.clientSignature?.signature ? {
         signature: q.clientSignature.signature,
         name: q.clientSignature.name,
@@ -232,7 +247,45 @@ export default function AdminQuoteGenerator() {
   useEffect(() => {
     loadProducts()
     loadQuotes()
+    loadProjects()
+    // Liens profonds : /admin/devis?search=DEV-… (depuis un projet) ou ?projectId=… (nouveau devis du projet)
+    const params = new URLSearchParams(window.location.search)
+    const search = params.get('search')
+    if (search) setListSearch(search)
+    const fromProject = params.get('projectId')
+    if (fromProject && isObjectId(fromProject)) createNewQuote(fromProject)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Devis ouvert depuis un projet avant le chargement de la liste : reprendre client et titre du projet
+  useEffect(() => {
+    if (!currentQuote?.projectId || currentQuote.client.name) return
+    const p = projectOptions.find(o => o.id === currentQuote.projectId)
+    if (!p) return
+    setCurrentQuote(prev => prev && {
+      ...prev,
+      title: prev.title || p.name,
+      client: { ...prev.client, name: p.clientName || '' },
+      clientCompanyId: prev.clientCompanyId || p.clientCompanyId,
+    })
+    setClientQuery(p.clientName || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectOptions])
+
+  const loadProjects = async () => {
+    try {
+      const res = await fetch('/api/projects?status=all&limit=300', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      setProjectOptions((data.projects || []).map((p: any) => ({
+        id: String(p._id || p.id),
+        name: String(p.name || 'Projet'),
+        clientName: p.clientSnapshot?.company || p.clientCompanyId?.company || p.clientCompanyId?.name || p.clientId?.name,
+        clientCompanyId: p.clientCompanyId?._id ? String(p.clientCompanyId._id) : p.clientCompanyId ? String(p.clientCompanyId) : undefined,
+        status: p.status,
+      })))
+    } catch { /* liste facultative */ }
+  }
 
   const loadProducts = async () => {
     try {
@@ -297,9 +350,7 @@ export default function AdminQuoteGenerator() {
     if (!currentQuote) editSnapshot.current = null
   }, [currentQuote])
 
-  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const importFile = async (file: File) => {
     setImporting(true)
     try {
       const form = new FormData()
@@ -309,9 +360,9 @@ export default function AdminQuoteGenerator() {
         body: form,
         credentials: 'include'
       })
-      const json = await res.json()
+      const json = await readJsonResponse(res)
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Échec de l\'extraction')
+        throw new Error(apiErrorMessage(res, json, 'Échec de l\'extraction'))
       }
       const data = json.data
       const importedQuote: Quote = {
@@ -362,17 +413,18 @@ export default function AdminQuoteGenerator() {
     }
   }
 
-  const createNewQuote = () => {
+  const createNewQuote = (projectId?: string) => {
+    const project = projectId ? projectOptions.find(p => p.id === projectId) : undefined
     const newQuote: Quote = {
       id: `TEMP-${Date.now()}`,
       // Numéro DEV-AAAA-NNNN attribué par le serveur à l'enregistrement
       numero: '',
-      title: '',
+      title: project?.name || '',
       cci: '',
       companyAddress: '11 Cité Lessine, Nord Foire',
       date: new Date().toISOString().split('T')[0],
       client: {
-        name: '',
+        name: project?.clientName || '',
         address: '',
         phone: '',
         email: ''
@@ -386,10 +438,12 @@ export default function AdminQuoteGenerator() {
       taxAmount: 0,
       other: 0,
       total: 0,
-      status: 'draft'
+      status: 'draft',
+      projectId: projectId || undefined,
+      clientCompanyId: project?.clientCompanyId,
     }
     setCurrentQuote(newQuote)
-    setClientQuery('')
+    setClientQuery(project?.clientName || '')
     setActiveTab('create')
   }
 
@@ -566,7 +620,8 @@ export default function AdminQuoteGenerator() {
       const res = await fetch('/api/admin/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentQuote)
+        // projectId vide = délier explicitement le devis de son projet
+        body: JSON.stringify({ ...currentQuote, projectId: currentQuote.projectId || null })
       })
 
       if (res.ok) {
@@ -604,14 +659,22 @@ export default function AdminQuoteGenerator() {
 
   const uploadAttachment = async (file: File, category: string = 'autre') => {
     if (!currentQuote) return
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('category', category)
-    const res = await fetch('/api/admin/documents/upload', { method: 'POST', body: formData, credentials: 'include' })
-    if (!res.ok) throw new Error('Upload échoué')
-    const data = await res.json()
-    const att = { name: data.name, url: data.url || data.staticUrl, type: file.type || 'application/octet-stream', size: file.size, category: data.category }
+    const uploaded = await uploadFile(file, { endpoint: '/api/admin/documents/upload', fields: { category } })
+    const att = { name: uploaded.name, url: uploaded.url, type: file.type || 'application/octet-stream', size: file.size, category }
     setCurrentQuote(prev => prev ? { ...prev, attachments: [...(prev.attachments || []), att] } : prev)
+  }
+
+  const uploadAttachments = async (files: File[]) => {
+    const cat = (document.getElementById('quote-doc-category') as HTMLSelectElement | null)?.value || 'autre'
+    setUploadingAttachment(true)
+    try {
+      for (const file of files) await uploadAttachment(file, cat)
+      addToast(files.length > 1 ? `${files.length} documents ajoutés` : 'Document ajouté', 'success')
+    } catch (err: any) {
+      addToast(err?.message || "Échec de l'envoi du fichier", 'error')
+    } finally {
+      setUploadingAttachment(false)
+    }
   }
 
   const removeAttachment = (url: string) => {
@@ -808,7 +871,7 @@ export default function AdminQuoteGenerator() {
   const term = listSearch.trim().toLowerCase()
   const visibleQuotes = quotes
     .filter(q => matchesFilter(q, listFilter))
-    .filter(q => !term || [q.numero, q.title, q.client.name, q.bonCommande].some(v => String(v || '').toLowerCase().includes(term)))
+    .filter(q => !term || [q.numero, q.title, q.client.name, q.bonCommande, projectOptions.find(p => p.id === q.projectId)?.name].some(v => String(v || '').toLowerCase().includes(term)))
     .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.numero.localeCompare(a.numero))
   const menuQuote = menu ? quotes.find(q => q.id === menu.id) : null
 
@@ -829,24 +892,18 @@ export default function AdminQuoteGenerator() {
           <p className="text-stone-600">Création, envoi, suivi des réponses clients et facturation</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.xlsx,.xls,.csv"
-            onChange={importFromFile}
-            className="hidden"
+          <FileDropZone
+            compact
+            accept=".pdf,.xlsx,.xls,.csv,application/pdf"
+            busy={importing}
+            maxSizeMb={15}
+            onFiles={files => importFile(files[0])}
+            onError={msg => addToast(msg, 'error')}
+            label={importing ? 'Analyse…' : 'Importer un devis (PDF/Excel) — glisser ou cliquer'}
+            className="max-w-full"
           />
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            title="Reprendre un devis existant depuis un PDF ou un fichier Excel"
-            className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 text-sm disabled:opacity-60"
-          >
-            {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {importing ? 'Analyse…' : 'Importer'}
-          </button>
-          <button
-            onClick={createNewQuote}
+            onClick={() => createNewQuote()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2 text-sm"
           >
             <Plus className="h-4 w-4" />
@@ -933,7 +990,7 @@ export default function AdminQuoteGenerator() {
                 <h3 className="text-lg font-medium text-stone-900 mb-2">Aucun devis</h3>
                 <p className="text-stone-500 mb-6">Commencez par créer votre premier devis</p>
                 <button
-                  onClick={createNewQuote}
+                  onClick={() => createNewQuote()}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
                 >
                   <Plus className="h-5 w-5" />
@@ -976,6 +1033,11 @@ export default function AdminQuoteGenerator() {
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">En attente de réponse</span>
                           )}
                           {invoicedAs && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-600">Facturé {invoicedAs}</span>}
+                          {quote.projectId && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                              <Package className="h-3 w-3" />{projectOptions.find(p => p.id === quote.projectId)?.name || 'Projet lié'}
+                            </span>
+                          )}
                           {(quote.clientComments?.length ?? 0) > 0 && (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${unread ? 'bg-teal-600 text-white' : 'bg-teal-50 text-teal-700'}`}>
                               <MessageSquare className="h-3 w-3" />{unread ? `${unread} non lu${unread > 1 ? 's' : ''}` : quote.clientComments!.length}
@@ -1087,6 +1149,41 @@ export default function AdminQuoteGenerator() {
                   <option value="rejected">Rejeté</option>
                 </select>
               </div>
+            </div>
+
+            {/* Projet lié : les montants du projet suivent ses devis acceptés */}
+            <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-emerald-800 flex items-center gap-2 mb-3">
+                <Package className="h-4 w-4" />
+                Projet lié
+              </h3>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <select
+                  value={currentQuote.projectId || ''}
+                  onChange={(e) => {
+                    const p = projectOptions.find(o => o.id === e.target.value)
+                    setCurrentQuote({
+                      ...currentQuote,
+                      projectId: e.target.value || undefined,
+                      clientCompanyId: currentQuote.clientCompanyId || p?.clientCompanyId,
+                      client: currentQuote.client.name || !p?.clientName ? currentQuote.client : { ...currentQuote.client, name: p.clientName },
+                    })
+                  }}
+                  className="w-full min-w-0 flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-400"
+                  aria-label="Projet lié au devis"
+                >
+                  <option value="">Aucun projet</option>
+                  {projectOptions
+                    .filter(p => !currentQuote.clientCompanyId || !p.clientCompanyId || p.clientCompanyId === currentQuote.clientCompanyId || p.id === currentQuote.projectId)
+                    .map(p => (
+                      <option key={p.id} value={p.id}>{p.name}{p.clientName ? ` — ${p.clientName}` : ''}</option>
+                    ))}
+                </select>
+                {currentQuote.projectId && (
+                  <a href={`/admin/projects/${currentQuote.projectId}`} className="text-xs font-medium text-emerald-700 hover:underline whitespace-nowrap">Ouvrir le projet →</a>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-emerald-700">Une fois accepté, ce devis fixe le montant contractuel du projet ; ses factures y sont rattachées.</p>
             </div>
 
             {/* Recherche client portail */}
@@ -1460,38 +1557,29 @@ export default function AdminQuoteGenerator() {
                     </button>
                   </div>
                 ))}
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <select
                     id="quote-doc-category"
-                    className="px-2 py-1 border border-stone-300 rounded text-sm"
+                    className="px-2 py-2 border border-stone-300 rounded-lg text-sm"
                     defaultValue="autre"
+                    aria-label="Catégorie du document"
                   >
                     <option value="bon_commande">Bon de commande</option>
                     <option value="recu">Reçu de versement</option>
                     <option value="contrat">Contrat</option>
                     <option value="autre">Autre</option>
                   </select>
-                  <label className="flex-1 cursor-pointer">
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        const cat = (document.getElementById('quote-doc-category') as HTMLSelectElement)?.value || 'autre'
-                        try {
-                          await uploadAttachment(file, cat)
-                        } catch (err: any) {
-                          addToast(err.message || "Échec de l'envoi du fichier", 'error')
-                        }
-                        e.target.value = ''
-                      }}
-                    />
-                    <span className="block w-full text-center px-4 py-2 border border-dashed border-stone-400 rounded-lg text-sm text-stone-600 hover:bg-stone-50">
-                      + Ajouter un document
-                    </span>
-                  </label>
+                  <FileDropZone
+                    compact
+                    multiple
+                    accept={DOCUMENT_ACCEPT}
+                    maxSizeMb={20}
+                    busy={uploadingAttachment}
+                    onFiles={uploadAttachments}
+                    onError={msg => addToast(msg, 'error')}
+                    label="Glissez vos documents ici ou cliquez pour ajouter"
+                    className="flex-1"
+                  />
                 </div>
               </div>
             </div>

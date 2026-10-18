@@ -14,6 +14,13 @@ import {
 import { useToastContext } from '@/components/ToastProvider'
 import WorkflowMiniPanel from '@/components/WorkflowMiniPanel'
 import MilestoneDetailView from '@/components/admin/MilestoneDetailView'
+import ProjectPipeline from '@/components/admin/projects/ProjectPipeline'
+import ProjectTaskBoard from '@/components/admin/projects/ProjectTaskBoard'
+import ProjectFinancePanel from '@/components/admin/projects/ProjectFinancePanel'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
+import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
+import { allowedTransitions, normalizeProjectStatus, PROJECT_STATUSES, PROJECT_STATUS_META } from '@/lib/projects/workflow'
 import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 interface Project {
@@ -67,10 +74,12 @@ interface ProjectImage {
   _id: string; filename: string; url: string; title?: string; description?: string; isMain: boolean; order: number; createdAt: string; clientVisible?: boolean
 }
 
-type TabKey = 'overview' | 'edit' | 'milestones' | 'notes' | 'expenses' | 'documents' | 'photos' | 'timeline' | 'workflow' | 'cashflow'
+type TabKey = 'overview' | 'tasks' | 'finance' | 'edit' | 'milestones' | 'notes' | 'expenses' | 'documents' | 'photos' | 'timeline' | 'workflow' | 'cashflow'
 
 const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: FolderKanban },
+  { key: 'tasks', label: 'Tâches', icon: Layers },
+  { key: 'finance', label: 'Devis & factures', icon: DollarSign },
   { key: 'edit', label: 'Édition', icon: Edit3 },
   { key: 'milestones', label: 'Jalons', icon: Flag },
   { key: 'notes', label: 'Notes', icon: MessageSquare },
@@ -82,17 +91,8 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'cashflow', label: 'Cashflow', icon: Wallet },
 ]
 
-const STATUS_COLORS: Record<string, string> = {
-  lead: 'bg-stone-100 text-stone-700', quoted: 'bg-blue-100 text-blue-700',
-  negotiation: 'bg-purple-100 text-purple-700', approved: 'bg-emerald-100 text-emerald-700',
-  in_progress: 'bg-blue-100 text-blue-700', testing: 'bg-yellow-100 text-yellow-700',
-  completed: 'bg-emerald-100 text-emerald-800', maintenance: 'bg-indigo-100 text-indigo-700',
-  on_hold: 'bg-orange-100 text-orange-700'
-}
-const STATUS_LABELS: Record<string, string> = {
-  lead: 'Prospect', quoted: 'Devisé', negotiation: 'Négociation', approved: 'Approuvé',
-  in_progress: 'En cours', testing: 'Tests', completed: 'Terminé', maintenance: 'Maintenance', on_hold: 'En pause'
-}
+const STATUS_COLORS: Record<string, string> = Object.fromEntries(PROJECT_STATUSES.map(s => [s, PROJECT_STATUS_META[s].color]))
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(PROJECT_STATUSES.map(s => [s, PROJECT_STATUS_META[s].label]))
 const MSTATUS_LABELS: Record<string, string> = { pending: 'En attente', in_progress: 'En cours', completed: 'Terminé', delayed: 'Retard' }
 const MSTATUS_COLORS: Record<string, string> = { pending: 'bg-stone-100 text-stone-600', in_progress: 'bg-blue-100 text-blue-700', completed: 'bg-emerald-100 text-emerald-800', delayed: 'bg-orange-100 text-orange-700' }
 
@@ -132,6 +132,10 @@ export default function ProjectDetailPage() {
 
   // Milestone detail modal
   const [selectedMilestone, setSelectedMilestone] = useState<any | null>(null)
+
+  // Rafraîchit le pipeline après une action financière ou une modification
+  const [workflowKey, setWorkflowKey] = useState(0)
+  const [uploadingDocs, setUploadingDocs] = useState(false)
 
   const loadProject = async () => {
     setLoading(true)
@@ -188,14 +192,18 @@ export default function ProjectDetailPage() {
           assignedTo: editing.assignedTo
         })
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await readJsonResponse(res)
+        throw new Error(apiErrorMessage(res, err, 'Erreur lors de la sauvegarde'))
+      }
       const data = await res.json()
       const updated = data.project as Project
       setProject(updated)
       setEditing({ ...updated })
-      toast.success('Projet mis à jour', { description: updated.name })
+      setWorkflowKey(k => k + 1)
+      toast.success('Projet mis à jour', { description: data.warning || updated.name })
     } catch (err: any) {
-      toast.error('Erreur lors de la sauvegarde')
+      toast.error(err?.message || 'Erreur lors de la sauvegarde')
     } finally { setSaving(false) }
   }
 
@@ -282,6 +290,40 @@ export default function ProjectDetailPage() {
       setNewDoc({ name: '', url: '', type: newDoc.type, clientVisible: newDoc.clientVisible })
       toast.success(doc.clientVisible ? 'Document ajouté et partagé avec le client' : 'Document ajouté (interne)')
     } catch (e: any) { toast.error(e?.message || 'Erreur') }
+  }
+
+  const handleUploadDocs = async (files: File[]) => {
+    if (!project?._id) return
+    setUploadingDocs(true)
+    const added: NonNullable<Project['documents']> = []
+    try {
+      for (const file of files) {
+        const uploaded = await uploadFile(file, { endpoint: '/api/admin/documents/upload', fields: { category: 'projet' } })
+        const doc = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name.replace(/\.[^.]+$/, '') || file.name,
+          url: uploaded.url,
+          type: file.type.startsWith('image/') && newDoc.type === 'technical' ? 'photo' : newDoc.type || 'technical',
+          uploadDate: new Date().toISOString(),
+          clientVisible: newDoc.clientVisible,
+        }
+        const res = await fetch(`/api/projects/${project._id}/documents`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ document: doc })
+        })
+        const data = await readJsonResponse(res)
+        if (!res.ok) throw new Error(apiErrorMessage(res, data, `Ajout de ${file.name} impossible`))
+        added.push(doc)
+      }
+      toast.success(added.length > 1 ? `${added.length} documents ajoutés` : 'Document ajouté', {
+        description: newDoc.clientVisible ? 'Partagé avec le client sur son portail' : 'Interne (non visible du client)'
+      })
+    } catch (e: any) {
+      toast.error(e?.message || 'Envoi impossible')
+    } finally {
+      if (added.length) setProject(prev => prev ? { ...prev, documents: [...(prev.documents || []), ...added] } : prev)
+      setUploadingDocs(false)
+    }
   }
 
   const toggleDocVisibility = async (docId: string, clientVisible: boolean) => {
@@ -411,6 +453,14 @@ export default function ProjectDetailPage() {
           })()}
 
           {/* Tabs */}
+          <div className="mb-3">
+            <ProjectPipeline
+              projectId={project._id}
+              refreshKey={workflowKey}
+              onChanged={() => loadProject()}
+              onNavigate={tab => setActiveTab(tab === 'overview' ? 'overview' : tab)}
+            />
+          </div>
           <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-px">
             {TABS.map(tab => {
               const Icon = tab.icon
@@ -585,6 +635,26 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* TÂCHES (Kanban) */}
+        {activeTab === 'tasks' && (
+          <ProjectTaskBoard
+            projectId={project._id}
+            milestones={(project.milestones || []).map(m => ({ id: m.id, name: m.name }))}
+            team={project.assignedTo || []}
+            onProgress={p => {
+              if (p === null) return
+              // L'onglet Édition renvoie la progression : la garder alignée sur les tâches
+              setProject(prev => prev ? { ...prev, progress: p } : prev)
+              setEditing(prev => ({ ...prev, progress: p }))
+            }}
+          />
+        )}
+
+        {/* DEVIS & FACTURES */}
+        {activeTab === 'finance' && (
+          <ProjectFinancePanel projectId={project._id} onChanged={() => { setWorkflowKey(k => k + 1); loadProject() }} />
+        )}
+
         {/* EDIT */}
         {activeTab === 'edit' && (
           <div className="bg-white border border-stone-200 rounded-2xl p-6 space-y-5">
@@ -608,17 +678,21 @@ export default function ProjectDetailPage() {
               <Field label="Date de fin">
                 <input type="date" value={editing.endDate?.slice(0, 10) || ''} onChange={e => setEditing({ ...editing, endDate: e.target.value || undefined })} className="input" />
               </Field>
-              <Field label="Valeur (FCFA)">
+              <Field label="Montant (FCFA)">
                 <input type="number" value={editing.value || 0} onChange={e => setEditing({ ...editing, value: Number(e.target.value) })} className="input" />
+                <span className="text-xs text-stone-500">Remplacé automatiquement par le total des devis acceptés dès qu’il y en a.</span>
               </Field>
               <Field label="Progression (%)">
                 <input type="range" min={0} max={100} value={editing.progress || 0} onChange={e => setEditing({ ...editing, progress: Number(e.target.value) })} className="w-full" />
                 <span className="text-sm text-stone-600">{editing.progress || 0}%</span>
               </Field>
-              <Field label="Statut">
-                <select value={editing.status || ''} onChange={e => setEditing({ ...editing, status: e.target.value })} className="input">
-                  {Object.keys(STATUS_LABELS).map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              <Field label="Phase du workflow">
+                <select value={normalizeProjectStatus(editing.status)} onChange={e => setEditing({ ...editing, status: e.target.value })} className="input">
+                  {[normalizeProjectStatus(project.status), ...allowedTransitions(normalizeProjectStatus(project.status))].map(s => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
                 </select>
+                <span className="text-xs text-stone-500">Seuls les passages prévus par le workflow sont proposés ; les garde-fous (devis accepté…) s’appliquent via le pipeline.</span>
               </Field>
             </div>
             <Field label="Description">
@@ -741,22 +815,37 @@ export default function ProjectDetailPage() {
         {/* DOCUMENTS */}
         {activeTab === 'documents' && (
           <div className="space-y-4">
-            <div className="bg-white border border-stone-200 rounded-2xl p-4">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Nom</label><input value={newDoc.name} onChange={e => setNewDoc({ ...newDoc, name: e.target.value })} className="input" placeholder="Nom du document" /></div>
-                <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Lien</label><input value={newDoc.url} onChange={e => setNewDoc({ ...newDoc, url: e.target.value })} className="input" placeholder="https://..." /></div>
-                <div><label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="sm:w-56"><label className="block text-sm font-medium text-stone-700 mb-1">Type</label>
                   <select value={newDoc.type} onChange={e => setNewDoc({ ...newDoc, type: e.target.value })} className="input">
                     <option value="technical">Technique</option><option value="photo">Photo</option><option value="manual">Manuel</option>
                     <option value="contract">Contrat</option><option value="quote">Devis / BC</option><option value="invoice">Facture</option>
                   </select>
                 </div>
-                <button onClick={handleAddDoc} aria-label="Ajouter le document" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 sm:self-end"><Plus className="w-4 h-4 mx-auto" /></button>
+                <label className="flex items-center gap-2 text-sm text-stone-600 sm:pb-2">
+                  <input type="checkbox" checked={newDoc.clientVisible} onChange={e => setNewDoc({ ...newDoc, clientVisible: e.target.checked })} className="rounded" />
+                  Visible par le client sur son portail (il est notifié)
+                </label>
               </div>
-              <label className="mt-3 flex items-center gap-2 text-sm text-stone-600">
-                <input type="checkbox" checked={newDoc.clientVisible} onChange={e => setNewDoc({ ...newDoc, clientVisible: e.target.checked })} className="rounded" />
-                Visible par le client sur son portail (il est notifié)
-              </label>
+              <FileDropZone
+                multiple
+                accept={DOCUMENT_ACCEPT}
+                maxSizeMb={20}
+                busy={uploadingDocs}
+                onFiles={handleUploadDocs}
+                onError={msg => toast.error(msg)}
+                label="Glissez vos documents ici ou cliquez pour parcourir"
+                hint="PDF, Word, Excel, images — 20 Mo max par fichier"
+              />
+              <details className="text-sm">
+                <summary className="cursor-pointer text-stone-500 hover:text-stone-800">Ajouter plutôt un lien (document hébergé ailleurs)</summary>
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Nom</label><input value={newDoc.name} onChange={e => setNewDoc({ ...newDoc, name: e.target.value })} className="input" placeholder="Nom du document" /></div>
+                  <div className="flex-1"><label className="block text-sm font-medium text-stone-700 mb-1">Lien</label><input value={newDoc.url} onChange={e => setNewDoc({ ...newDoc, url: e.target.value })} className="input" placeholder="https://..." /></div>
+                  <button onClick={handleAddDoc} aria-label="Ajouter le lien" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 sm:self-end"><Plus className="w-4 h-4 mx-auto" /></button>
+                </div>
+              </details>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {(project.documents || []).map(d => {
@@ -792,7 +881,7 @@ export default function ProjectDetailPage() {
                         </button>
                       </div>
                     </div>
-                    <button onClick={() => handleDeleteDoc(d.id)} className="p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDeleteDoc(d.id)} aria-label={`Supprimer ${d.name}`} className="p-1 text-red-500 hover:bg-red-50 rounded sm:opacity-0 sm:group-hover:opacity-100 transition"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 )
               })}

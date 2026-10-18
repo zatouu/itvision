@@ -4,11 +4,13 @@ import { createWriteStream, existsSync } from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-import { applyRateLimit, uploadRateLimiter } from '@/lib/rate-limiter'
+import { applyRateLimit, staffUploadRateLimiter, uploadRateLimiter } from '@/lib/rate-limiter'
 import { requireApiUser } from '@/lib/api-auth'
 
 export const maxDuration = 120
 export const dynamic = 'force-dynamic'
+
+const STAFF_UPLOAD_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'TECHNICIAN']
 
 // Vérification d'authentification requise pour l'upload
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
@@ -22,11 +24,7 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
 
 export async function POST(request: NextRequest) {
   try {
-    // SÉCURITÉ: Rate limiting (10 uploads par heure)
-    const rateLimitResponse = await applyRateLimit(request, uploadRateLimiter)
-    if (rateLimitResponse) return rateLimitResponse
-
-    // SÉCURITÉ: Vérifier l'authentification
+    // SÉCURITÉ: Vérifier l'authentification (avant la limite : le quota dépend du rôle)
     const auth = await verifyAuth(request)
     if (!auth.authenticated) {
       return NextResponse.json(
@@ -34,6 +32,11 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // SÉCURITÉ: Rate limiting — 10 uploads/heure, quota élargi pour le personnel (galeries produits, documents)
+    const isStaff = STAFF_UPLOAD_ROLES.includes(String(auth.role || '').toUpperCase())
+    const rateLimitResponse = await applyRateLimit(request, isStaff ? staffUploadRateLimiter : uploadRateLimiter)
+    if (rateLimitResponse) return rateLimitResponse
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: isAllowedVideo ? 'Vidéo trop volumineuse (100MB max)' : 'Fichier trop volumineux (5MB max)' },
+        { error: isAllowedVideo ? 'Vidéo trop volumineuse (100 Mo max)' : 'Fichier trop volumineux (10 Mo max)' },
         { status: 400 }
       )
     }
@@ -136,8 +139,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Erreur upload:', error)
+    const code = (error as NodeJS.ErrnoException)?.code
+    const message = code === 'EACCES' || code === 'EPERM'
+      ? 'Stockage des fichiers non accessible en écriture sur le serveur (droits du volume uploads)'
+      : code === 'ENOSPC'
+        ? 'Espace disque insuffisant sur le serveur'
+        : 'Erreur lors de l\'upload'
     return NextResponse.json(
-      { error: 'Erreur lors de l\'upload' },
+      { error: message },
       { status: 500 }
     )
   }

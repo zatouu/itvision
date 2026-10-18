@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import FileDropZone from '@/components/ui/FileDropZone'
 import {
   X, Loader2, AlertCircle, Phone, Navigation, Building2, MapPin, Play, CheckCircle2, Camera,
   PenLine, FileText, History, FolderKanban, ShieldCheck, Star, Trash2, ChevronRight,
@@ -102,7 +103,7 @@ export default function InterventionSheet({ id, techName = 'Technicien', onClose
   const canSignClient = !!i && ['in_progress', 'completed'].includes(i.status) && !saved?.clientSignature
   const hasLocalPhotos = [...pendingAvant, ...pendingApres].some(p => p.file)
 
-  async function uploadPhotos(files: FileList | null, target: 'avant' | 'apres') {
+  async function uploadPhotos(files: FileList | File[] | null, target: 'avant' | 'apres') {
     if (!files?.length) return
     setUploading(true); setErr(''); setConfirmEmpty(false)
     const added: PendingPhoto[] = []
@@ -363,6 +364,7 @@ export default function InterventionSheet({ id, techName = 'Technicien', onClose
                     return (
                       <div key={k}>
                         <p className="mb-1.5 text-xs font-semibold text-stone-500">Photos {k === 'avant' ? 'avant' : 'après'} ({savedList.length + pending.length})</p>
+                        <FileDropZone accept="image/*" multiple maxSizeMb={10} disabled={uploading} onFiles={files => uploadPhotos(files, k)} overlayLabel="Déposez les photos ici">
                         <div className="flex gap-2 overflow-x-auto pb-1">
                           <label className="flex h-20 w-20 flex-shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-200 text-stone-400 transition hover:border-emerald-400 hover:text-emerald-600">
                             {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
@@ -385,6 +387,7 @@ export default function InterventionSheet({ id, techName = 'Technicien', onClose
                             </a>
                           ))}
                         </div>
+                        </FileDropZone>
                       </div>
                     )
                   })}

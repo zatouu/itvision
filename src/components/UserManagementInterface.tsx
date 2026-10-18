@@ -38,6 +38,7 @@ import {
   Wrench
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
+import { readJsonResponse } from '@/lib/http/read-json'
 import { useCsrf } from '@/hooks/useCsrf'
 import { getUserCategoryLabel, resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
 
@@ -105,7 +106,8 @@ const UserFormFields = memo(function UserFormFields({
   isEdit,
   onSubmit,
   onCancel,
-  isSubmitting
+  isSubmitting,
+  submitError
 }: {
   initialData: UserFormData
   companyOptions: CompanyOption[]
@@ -113,6 +115,7 @@ const UserFormFields = memo(function UserFormFields({
   onSubmit: (data: UserFormData) => void
   onCancel: () => void
   isSubmitting: boolean
+  submitError?: string
 }) {
   const [formData, setFormData] = useState<UserFormData>(initialData)
   const [showPassword, setShowPassword] = useState(false)
@@ -129,7 +132,7 @@ const UserFormFields = memo(function UserFormFields({
       <div className="space-y-5">
         {/* Avatar */}
         <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-xl">
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <div className="h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
               {formData.avatarUrl ? (
                 <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
@@ -137,14 +140,25 @@ const UserFormFields = memo(function UserFormFields({
                 <User className="h-8 w-8 text-white" />
               )}
             </div>
+            {formData.avatarUrl && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, avatarUrl: '' }))}
+                aria-label="Retirer la photo"
+                className="absolute -right-1 -top-1 rounded-full bg-white p-1 text-red-600 shadow ring-1 ring-stone-200 hover:bg-red-50"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-stone-700 mb-2">Photo de profil</p>
             <ImageUpload
               onUpload={(url) => setFormData(prev => ({ ...prev, avatarUrl: url }))}
               maxFiles={1}
               type="avatars"
               existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
+              hidePreview
             />
           </div>
         </div>
@@ -341,7 +355,10 @@ const UserFormFields = memo(function UserFormFields({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
+      {submitError && (
+        <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</p>
+      )}
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
         <button
           type="button"
           onClick={onCancel}
@@ -704,8 +721,9 @@ export default function UserManagementInterface() {
           id: selectedUser._id,
           name: formData.name,
           phone: formData.phone,
-          avatarUrl: formData.avatarUrl,
-          role: formData.role,
+          avatarUrl: formData.avatarUrl || '',
+          // Le rôle n'est envoyé que s'il change : la route réserve l'attribution des rôles admin au Super Admin
+          role: formData.role !== selectedUser.role ? formData.role : undefined,
           company: formData.company,
           address: formData.address,
           city: formData.city,
@@ -715,9 +733,9 @@ export default function UserManagementInterface() {
         })
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setSuccess('Utilisateur modifié avec succès')
         setShowEditModal(false)
         setSelectedUser(null)
@@ -1366,6 +1384,7 @@ export default function UserManagementInterface() {
           onSubmit={handleCreateUser}
           onCancel={() => setShowCreateModal(false)}
           isSubmitting={isSubmitting}
+          submitError={error}
         />
       </SimpleModal>
 
@@ -1399,6 +1418,7 @@ export default function UserManagementInterface() {
             onSubmit={handleUpdateUser}
             onCancel={() => { setShowEditModal(false); setSelectedUser(null); }}
             isSubmitting={isSubmitting}
+            submitError={error}
           />
         )}
       </SimpleModal>

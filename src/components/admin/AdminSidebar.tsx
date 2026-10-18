@@ -161,6 +161,12 @@ const menuSections: MenuSection[] = [
         href: '/admin/projects'
       },
       {
+        id: 'documents',
+        label: 'Documents',
+        icon: FileText,
+        href: '/admin/documents'
+      },
+      {
         id: 'planning',
         label: 'Planning',
         icon: Calendar,

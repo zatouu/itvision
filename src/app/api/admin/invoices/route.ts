@@ -16,6 +16,8 @@ import {
   nextInvoiceNumero,
   type InvoiceStatus,
 } from '@/lib/finance/billing'
+import { syncProjectFinance, syncProjectFinanceSafe } from '@/lib/finance/project-finance'
+import AdminQuote from '@/lib/models/AdminQuote'
 
 export const dynamic = 'force-dynamic'
 
@@ -191,12 +193,18 @@ export async function POST(request: NextRequest) {
       }
       const saved = await AdminInvoice.findOneAndUpdate({ _id: existing._id, updatedAt: existing.updatedAt }, update, { new: true }).lean() as any
       if (!saved) return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
+      syncProjectFinanceSafe(saved.projectId)
       return NextResponse.json({ success: true, invoice: normalizeInvoice(saved, auth.user.id) })
     }
 
     const numero = existing?.numero || String(body.numero || body.number || '').trim() || await nextInvoiceNumero()
 
-    const projectId = asObjectIdString(body?.projectId)
+    let projectId = asObjectIdString(body?.projectId)
+    // Une facture issue d'un devis rejoint le projet du devis (montants comparés au contrat)
+    if (!projectId && asObjectIdString(body?.quoteId)) {
+      const sourceQuote = await AdminQuote.findById(body.quoteId).select('projectId').lean() as any
+      if (sourceQuote?.projectId) projectId = String(sourceQuote.projectId)
+    }
     const links = await resolveClientLinks(body)
     // Lignes et totaux recalculés : le montant facturé ne dépend pas du navigateur
     const taxRegime = isTaxRegime(body.taxRegime) ? body.taxRegime : inferInvoiceRegime(existing || body)
@@ -253,7 +261,11 @@ export async function POST(request: NextRequest) {
       saved = created.toObject()
     }
 
-    return NextResponse.json({ success: true, invoice: normalizeInvoice(saved, auth.user.id) })
+    const previousProjectId = existing?.projectId ? String(existing.projectId) : ''
+    const finance = saved.projectId ? await syncProjectFinance(saved.projectId).catch(() => null) : null
+    if (previousProjectId && previousProjectId !== String(saved.projectId || '')) syncProjectFinanceSafe(previousProjectId)
+
+    return NextResponse.json({ success: true, invoice: normalizeInvoice(saved, auth.user.id), financeWarnings: finance?.warnings || [] })
   } catch (error: any) {
     const message = error?.code === 11000 ? 'Numéro de facture déjà utilisé' : 'Erreur lors de la sauvegarde de la facture'
     console.error('Erreur POST /api/admin/invoices:', error)
@@ -300,6 +312,7 @@ export async function PATCH(request: NextRequest) {
     // Condition sur le statut lu : deux mises à jour concurrentes ne peuvent pas s'écraser
     const saved = await AdminInvoice.findOneAndUpdate({ _id: id, status: current.status }, mongoUpdate, { new: true }).lean() as any
     if (!saved) return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
+    syncProjectFinanceSafe(saved.projectId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -320,7 +333,7 @@ export async function DELETE(request: NextRequest) {
 
     await connectMongoose()
 
-    const invoice = await AdminInvoice.findById(id).select('status').lean() as any
+    const invoice = await AdminInvoice.findById(id).select('status projectId').lean() as any
     if (!invoice) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
     // Numérotation continue obligatoire : seule une facture jamais émise peut disparaître
     if (invoice.status !== 'draft') {
@@ -329,6 +342,7 @@ export async function DELETE(request: NextRequest) {
 
     await AdminInvoice.findByIdAndDelete(id)
     await Expense.updateMany({ billedToInvoiceId: invoice._id }, { $unset: { billedToInvoiceId: 1 } })
+    syncProjectFinanceSafe(invoice.projectId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

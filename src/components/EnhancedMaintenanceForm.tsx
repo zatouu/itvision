@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import FileDropZone from '@/components/ui/FileDropZone'
 import {
   Building2, Clock, ClipboardList, Wrench, Camera, Send, Save, Loader2, Plus, Trash2, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, PenLine, X, RotateCcw, Package, Lightbulb, CalendarClock,
@@ -456,7 +457,7 @@ export default function EnhancedMaintenanceForm({
     return idx === -1 ? STEPS.length - 1 : idx
   }
 
-  async function uploadPhotos(files: FileList | null, kind: 'before' | 'after') {
+  async function uploadPhotos(files: FileList | File[] | null, kind: 'before' | 'after') {
     if (!files?.length) return
     setUploading(kind); setNotice(null)
     const urls: string[] = []
@@ -748,6 +749,7 @@ export default function EnhancedMaintenanceForm({
               return (
                 <div key={kind}>
                   <p className={labelCls}>{kind === 'before' ? 'Avant' : 'Après'} ({list.length})</p>
+                  <FileDropZone accept="image/*" multiple maxSizeMb={10} disabled={ro || !!uploading} onFiles={files => uploadPhotos(files, kind)} overlayLabel="Déposez les photos ici">
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {list.map(url => (
                       <div key={url} className="relative aspect-square">
@@ -770,6 +772,7 @@ export default function EnhancedMaintenanceForm({
                       </label>
                     )}
                   </div>
+                  </FileDropZone>
                 </div>
               )
             })}

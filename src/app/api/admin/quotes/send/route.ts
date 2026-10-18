@@ -6,6 +6,7 @@ import { generateITVisionQuotePdf } from '@/lib/pdf'
 import { emailService } from '@/lib/email-service'
 import { getClientEmailRecipients } from '@/lib/client-contacts'
 import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 import { getBrandFromHost } from '@/lib/branding'
 import fs from 'fs'
 import path from 'path'
@@ -135,6 +136,8 @@ export async function POST(request: NextRequest) {
         clientUserId: quote.clientUserId ? String(quote.clientUserId) : undefined,
         clientCompanyId: quote.clientCompanyId ? String(quote.clientCompanyId) : undefined
       })
+      // Projet lié : passe de « prospect » à « devis envoyé »
+      syncProjectFinanceSafe(quote.projectId)
     }
 
     // delivery 'simulated' = publié au portail mais aucun email parti (SMTP absent) ; copyTo = copie de contrôle ITV

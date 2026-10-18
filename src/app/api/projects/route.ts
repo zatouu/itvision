@@ -7,6 +7,16 @@ import { logDataAccess } from '@/lib/security-logger'
 import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import mongoose from 'mongoose'
 import { notifyProjectChange } from '@/lib/portal/project-notify'
+import {
+  canTransitionProject,
+  checkProjectTransition,
+  legacyProjectStatus,
+  normalizeProjectStatus,
+  PROJECT_STATUS_META,
+  type ProjectStatus,
+} from '@/lib/projects/workflow'
+import { MIGRATION_REQUIRED_MESSAGE, updateProjectFields } from '@/lib/projects/persistence'
+import { computeProjectFinance, syncProjectFinance } from '@/lib/finance/project-finance'
 
 const verifyToken = (request: NextRequest) => requireApiUser(request)
 
@@ -20,32 +30,21 @@ function asObjectIdString(value: any): string | null {
   return /^[a-fA-F0-9]{24}$/.test(s) ? s : null
 }
 
-function normalizeProjectStatusForDb(value: any): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
-  const status = String(value || '').trim().toLowerCase()
-
-  if (status === 'in_progress') return 'in_progress'
-  if (status === 'completed' || status === 'maintenance') return 'completed'
-  if (status === 'cancelled' || status === 'canceled' || status === 'rejected') return 'cancelled'
-
-  // lead, quoted, negotiation, approved, testing, on_hold, pending, etc.
-  return 'pending'
+function normalizeProjectStatusForDb(value: any): ProjectStatus {
+  return normalizeProjectStatus(value)
 }
 
 function normalizeProjectStatusForUi(value: any): string {
-  const status = String(value || '').trim().toLowerCase()
-  if (status === 'pending') return 'lead'
-  if (status === 'cancelled') return 'on_hold'
-  return status || 'lead'
+  return normalizeProjectStatus(value)
 }
 
 function buildStatusQuery(value: any): any {
   const requested = String(value || '').trim().toLowerCase()
   if (!requested || requested === 'all') return null
 
-  const mapped = normalizeProjectStatusForDb(requested)
-  if (mapped === requested) return mapped
-
-  return { $in: [requested, mapped] }
+  // Base non migrée : les statuts détaillés sont stockés au format historique
+  const target = normalizeProjectStatus(requested)
+  return { $in: Array.from(new Set([requested, target, legacyProjectStatus(target)])) }
 }
 
 function normalizeServiceType(value: any, fallback = ''): string {
@@ -60,9 +59,10 @@ function normalizeProgressForDb(value: any, fallback = 0): number {
   return Math.max(0, Math.min(100, Math.trunc(n)))
 }
 
-function normalizeValueForDb(value: any, fallback = '0'): string {
-  if (value === undefined || value === null || value === '') return String(fallback)
-  return String(value)
+function normalizeValueForDb(value: any, fallback: any = 0): number {
+  const raw = value === undefined || value === null || value === '' ? fallback : value
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/\s/g, '').replace(',', '.'))
+  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0
 }
 
 // GET - Récupérer les projets
@@ -229,7 +229,10 @@ export async function POST(request: NextRequest) {
       projectId: projectId.toString(),
       clientId: new mongoose.Types.ObjectId(finalClientId),
       clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
-      status: normalizeProjectStatusForDb(projectData.status || 'lead'),
+      // Un projet naît en phase commerciale ; la suite passe par le workflow (devis accepté…)
+      status: ['lead', 'quoted', 'negotiation'].includes(normalizeProjectStatusForDb(projectData.status || 'lead'))
+        ? normalizeProjectStatusForDb(projectData.status || 'lead')
+        : 'lead' as ProjectStatus,
       startDate: new Date(projectData.startDate),
       endDate: projectData.endDate ? new Date(projectData.endDate) : null,
       currentPhase: projectData.currentPhase || '',
@@ -252,7 +255,19 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date()
     }
 
-    await mongoose.connection.collection('projects').insertOne(docToInsert as any)
+    let legacyStorage = false
+    try {
+      await mongoose.connection.collection('projects').insertOne(docToInsert as any)
+    } catch (insertError: any) {
+      // Ancien validateur Mongo (avant migration) : statut et montant au format historique
+      if (insertError?.code !== 121) throw insertError
+      await mongoose.connection.collection('projects').insertOne({
+        ...docToInsert,
+        status: legacyProjectStatus(docToInsert.status),
+        value: String(docToInsert.value),
+      } as any)
+      legacyStorage = true
+    }
 
     const newProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
@@ -280,7 +295,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       project: newProject,
-      message: 'Projet créé avec succès'
+      message: 'Projet créé avec succès',
+      ...(legacyStorage ? { warning: MIGRATION_REQUIRED_MESSAGE } : {})
     }, { status: 201 })
 
   } catch (error: any) {
@@ -350,15 +366,40 @@ export async function PUT(request: NextRequest) {
     )
     const nextValue = normalizeValueForDb(
       updateData.value,
-      String((existingProject as any).value ?? '0')
+      (existingProject as any).value ?? 0
     )
+
+    // Changement de statut : contrôlé par le workflow (garde-fous détaillés via /api/projects/[id]/transition)
+    const currentStatus = normalizeProjectStatus(existingProject.status)
+    const requestedStatus = updateData.status ? normalizeProjectStatus(updateData.status, currentStatus) : currentStatus
+    if (requestedStatus !== currentStatus && !canTransitionProject(currentStatus, requestedStatus)) {
+      return NextResponse.json(
+        { error: `Passage « ${PROJECT_STATUS_META[currentStatus].label} » → « ${PROJECT_STATUS_META[requestedStatus].label} » non prévu par le workflow` },
+        { status: 409 }
+      )
+    }
+    if (requestedStatus !== currentStatus) {
+      const finance = await computeProjectFinance(projectId)
+      const check = checkProjectTransition(currentStatus, requestedStatus, {
+        acceptedQuotes: finance.acceptedQuotes,
+        sentQuotes: finance.sentQuotes,
+        tasksOpen: ((existingProject as any).tasks || []).filter((t: any) => t.status !== 'done').length,
+        milestonesOpen: (existingProject.milestones || []).filter((m: any) => m.status !== 'completed').length,
+        outstanding: finance.outstanding,
+        remainingToInvoice: finance.remainingToInvoice,
+        receptionSigned: !!(existingProject as any).reception?.signedAt,
+      })
+      if (check.blocking) {
+        return NextResponse.json({ error: `${check.blocking} (passage forcé possible depuis le pipeline du projet, avec motif)` }, { status: 409 })
+      }
+    }
 
     // Mise à jour du projet (native Mongo pour éviter le cast Mongoose sur value)
     const setData: any = {
       name: updateData.name ?? existingProject.name,
       description: updateData.description ?? existingProject.description,
       address: updateData.address ?? existingProject.address,
-      status: normalizeProjectStatusForDb(updateData.status || existingProject.status),
+      status: normalizeProjectStatusForDb(requestedStatus),
       endDate: updateData.endDate !== undefined ? (updateData.endDate ? new Date(updateData.endDate) : null) : existingProject.endDate,
       currentPhase: updateData.currentPhase ?? existingProject.currentPhase,
       progress: nextProgress,
@@ -386,10 +427,16 @@ export async function PUT(request: NextRequest) {
       setData.clientCompanyId = new mongoose.Types.ObjectId(nextCompanyId)
     }
 
-    await mongoose.connection.collection('projects').updateOne(
-      { _id: existingProject._id as any },
-      { $set: setData }
+    const statusChanged = setData.status !== currentStatus
+    const { legacy: legacyStorage } = await updateProjectFields(
+      existingProject._id as any,
+      setData,
+      statusChanged
+        ? { push: { statusHistory: { date: new Date(), status: setData.status, author: userId, note: 'Modification de la fiche projet' } } }
+        : {}
     )
+    // Le montant d'un projet ayant des devis acceptés reste celui des devis (pas de double saisie)
+    await syncProjectFinance(projectId).catch(e => console.error('[projects] synchro montants:', e))
 
     const updatedProject = (await Project.findById(projectId)
       .populate('clientId', 'id name email phone')
@@ -421,7 +468,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       project: updatedProject,
-      message: 'Projet mis à jour avec succès'
+      message: 'Projet mis à jour avec succès',
+      ...(legacyStorage ? { warning: MIGRATION_REQUIRED_MESSAGE } : {})
     })
 
   } catch (error: any) {

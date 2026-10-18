@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import Expense from '@/lib/models/Expense'
 import { computeInvoiceTotals, inferInvoiceRegime } from '@/lib/finance/billing'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 
 /** Frais refacturables d'un même projet ou client, pas encore facturés. */
 async function rebillableFor(invoice: any) {
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await Expense.updateMany({ _id: { $in: claimedExpenses.map(e => e._id) }, billedToInvoiceId: invoice._id }, { $unset: { billedToInvoiceId: 1 } })
       return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
     }
+    syncProjectFinanceSafe(invoice.projectId)
 
     return NextResponse.json({ success: true, added: newItems.length, total: totals.total })
   } catch (error) {

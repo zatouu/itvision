@@ -83,6 +83,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/admin/tresorerie', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/devis', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/factures', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
+  { prefix: '/admin/documents', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] }, note: 'Bibliothèque documentaire : pièces des projets, devis et factures' },
   { prefix: '/admin/depenses', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/paiements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },
   { prefix: '/admin/platform/remboursements', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] }, note: 'Xeuy : remboursements clients et retraits prestataires' },

@@ -70,6 +70,9 @@ import {
   Bell
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
+import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 
 const notify = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') =>
   useToast.getState().addToast(message, type, type === 'error' || type === 'warning' ? 7000 : 4000)
@@ -321,9 +324,7 @@ export default function InvoiceGenerator() {
     return true
   }
 
-  const importFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const importFile = async (file: File) => {
     setImporting(true)
     try {
       const form = new FormData()
@@ -333,9 +334,9 @@ export default function InvoiceGenerator() {
         body: form,
         credentials: 'include'
       })
-      const json = await res.json()
+      const json = await readJsonResponse(res)
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Échec de l\'extraction')
+        throw new Error(apiErrorMessage(res, json, 'Échec de l\'extraction'))
       }
       const data = json.data
       const imported: Invoice = {
@@ -682,22 +683,16 @@ export default function InvoiceGenerator() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.xlsx,.xls,.csv"
-              onChange={importFromFile}
-              className="hidden"
+            <FileDropZone
+              compact
+              accept=".pdf,.xlsx,.xls,.csv,application/pdf"
+              busy={importing}
+              maxSizeMb={15}
+              onFiles={files => importFile(files[0])}
+              onError={msg => notify(msg, 'error')}
+              label={importing ? 'Analyse…' : 'Importer une facture (PDF/Excel) — glisser ou cliquer'}
+              className="max-w-full"
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              title="Reprendre une facture existante depuis un PDF ou un fichier Excel"
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm disabled:opacity-60"
-            >
-              {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              <span>{importing ? 'Analyse…' : 'Importer'}</span>
-            </button>
             <button
               onClick={() => setShowQuoteImportModal(true)}
               className="px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-2 text-sm"
@@ -1275,14 +1270,21 @@ function InvoiceForm({
   }
 
   const uploadAttachment = async (file: File, category: string = 'autre') => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('category', category)
-    const res = await fetch('/api/admin/documents/upload', { method: 'POST', body: formData, credentials: 'include' })
-    if (!res.ok) throw new Error('Upload échoué')
-    const data = await res.json()
-    const att = { name: data.name, url: data.url || data.staticUrl, type: file.type || 'application/octet-stream', size: file.size, category: data.category }
+    const uploaded = await uploadFile(file, { endpoint: '/api/admin/documents/upload', fields: { category } })
+    const att = { name: uploaded.name, url: uploaded.url, type: file.type || 'application/octet-stream', size: file.size, category }
     setFormData(prev => ({ ...prev, attachments: [...(prev.attachments || []), att] }))
+  }
+
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const uploadAttachments = async (files: File[]) => {
+    setUploadingAttachment(true)
+    try {
+      for (const file of files) await uploadAttachment(file, docCategory)
+    } catch (err: any) {
+      notify(err?.message || "Échec de l'envoi du fichier", 'error')
+    } finally {
+      setUploadingAttachment(false)
+    }
   }
 
   const removeAttachment = (url: string) => {
@@ -1812,12 +1814,12 @@ function InvoiceForm({
                 </button>
               </div>
             ))}
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <select
                 value={docCategory}
                 onChange={(e) => setDocCategory(e.target.value)}
                 aria-label="Type de document"
-                className="px-2 py-1 border border-gray-300 rounded text-sm"
+                className="px-2 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 <option value="cheque">Chèque</option>
                 <option value="bon_commande">Bon de commande</option>
@@ -1825,26 +1827,17 @@ function InvoiceForm({
                 <option value="contrat">Contrat</option>
                 <option value="autre">Autre</option>
               </select>
-              <label className="flex-1 cursor-pointer">
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      await uploadAttachment(file, docCategory)
-                    } catch (err: any) {
-                      notify(err.message || "Échec de l'envoi du fichier", 'error')
-                    }
-                    e.target.value = ''
-                  }}
-                />
-                <span className="block w-full text-center px-4 py-2 border border-dashed border-gray-400 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                  + Ajouter un document
-                </span>
-              </label>
+              <FileDropZone
+                compact
+                multiple
+                accept={DOCUMENT_ACCEPT}
+                maxSizeMb={20}
+                busy={uploadingAttachment}
+                onFiles={uploadAttachments}
+                onError={msg => notify(msg, 'error')}
+                label="Glissez vos documents ici ou cliquez pour ajouter"
+                className="flex-1"
+              />
             </div>
           </div>
         </div>

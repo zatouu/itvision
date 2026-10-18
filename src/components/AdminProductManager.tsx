@@ -10,6 +10,8 @@ import { productConfigurationError } from '@/lib/pricing/variants'
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { uploadFile } from '@/lib/http/upload-file'
 
 type ShippingOverride = {
   methodId: string
@@ -1755,12 +1757,13 @@ export default function AdminProductManager() {
             <ImageIcon className="h-4 w-4" />
             Image principale
           </div>
+          <FileDropZone accept="image/*" maxSizeMb={10} disabled={uploadingMain} onFiles={files => handleMainImageUpload(files[0])} overlayLabel="Déposez l’image principale">
           <div className="mt-4 flex flex-col gap-4 lg:flex-row">
             <div className="w-full overflow-hidden rounded-lg border border-dashed border-gray-200 bg-gray-50 lg:w-56">
               {editing.image ? (
                 <img src={editing.image} alt={editing.name || 'Visuel produit'} className="h-36 w-full object-cover" />
               ) : (
-                <div className="flex h-36 items-center justify-center text-xs text-gray-400">Prévisualisation</div>
+                <div className="flex h-36 items-center justify-center text-xs text-gray-400">Glissez une image ici</div>
               )}
             </div>
             <div className="flex-1 space-y-3 text-sm text-gray-700">
@@ -1782,6 +1785,7 @@ export default function AdminProductManager() {
               </div>
             </div>
           </div>
+          </FileDropZone>
         </div>
 
         {/* Galerie produit (miniatures affichées sur la page produit) */}
@@ -2396,6 +2400,15 @@ export default function AdminProductManager() {
     setEditing({ ...editing, variantGroups: groups })
   }
 
+  const uploadVariantImage = async (groupIndex: number, variantIndex: number, file: File) => {
+    try {
+      const uploaded = await uploadFile(file, { endpoint: '/api/upload', fields: { type: 'variants' } })
+      updateVariant(groupIndex, variantIndex, { image: uploaded.url })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de l’upload')
+    }
+  }
+
   const renderVariantsTab = () => {
     if (!editing) return null
     const exchangeRate = editing.exchangeRate || 100
@@ -2541,6 +2554,7 @@ export default function AdminProductManager() {
                           </div>
                           <div>
                             <label className="text-xs text-gray-500">Image variante</label>
+                            <FileDropZone accept="image/*" maxSizeMb={10} onFiles={files => uploadVariantImage(groupIndex, variantIndex, files[0])} overlayLabel="Déposez l’image">
                             <div className="flex flex-wrap gap-2">
                               <input
                                 type="text"
@@ -2548,7 +2562,7 @@ export default function AdminProductManager() {
                                 aria-label={`Image ${variant.name}`}
                                 value={variant.image || ''}
                                 onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
-                                placeholder="URL ou uploadée"
+                                placeholder="URL, ou glissez une image"
                               />
                               <label className="flex items-center gap-1 text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 cursor-pointer font-medium transition-colors">
                                 <Upload className="h-3 w-3" />
@@ -2557,27 +2571,10 @@ export default function AdminProductManager() {
                                   type="file"
                                   className="hidden"
                                   accept="image/*"
-                                  onChange={async (e) => {
+                                  onChange={(e) => {
                                     const file = e.target.files?.[0]
-                                    if (file) {
-                                      try {
-                                        const formData = new FormData()
-                                        formData.append('file', file)
-                                        formData.append('type', 'variants')
-                                        const res = await fetch('/api/upload', { method: 'POST', body: formData })
-                                        if (res.ok) {
-                                          const data = await res.json()
-                                          updateVariant(groupIndex, variantIndex, { image: data.url || data.staticUrl })
-                                          alert('✓ Image uploadée avec succès!')
-                                        } else {
-                                          const err = await res.json()
-                                          alert(`❌ Erreur: ${err.error}`)
-                                        }
-                                      } catch (err) {
-                                        console.error('Upload erreur:', err)
-                                        alert('Erreur lors de l\'upload')
-                                      }
-                                    }
+                                    if (file) uploadVariantImage(groupIndex, variantIndex, file)
+                                    e.target.value = ''
                                   }}
                                 />
                               </label>
@@ -2585,6 +2582,7 @@ export default function AdminProductManager() {
                                 <img src={variant.image} alt="preview" className="w-8 h-8 rounded border border-gray-200 object-cover" />
                               )}
                             </div>
+                            </FileDropZone>
                           </div>
                         </div>
                         

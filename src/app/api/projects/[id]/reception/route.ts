@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await connectMongoose()
     try {
       const { role } = await requireAuth(request)
-      if (role !== 'ADMIN') throw new Error()
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(String(role || '').toUpperCase())) throw new Error()
     } catch { return NextResponse.json({ error: 'Non autorisé' }, { status: 401 }) }
 
     const { id } = await params

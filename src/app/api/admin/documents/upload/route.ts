@@ -18,14 +18,18 @@ const ALLOWED_TYPES = [
 
 const ALLOWED_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.doc', '.docx', '.xls', '.xlsx']
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_SIZE = 20 * 1024 * 1024 // 20MB
+
+const DOCUMENT_ROLES = ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT']
 
 function requireAdmin(request: NextRequest) {
   return requireAuth(request).then(({ role }) => {
     const r = String(role || '').toUpperCase()
-    if (!['ADMIN', 'SUPER_ADMIN'].includes(r)) throw new Error('Accès non autorisé')
+    if (!DOCUMENT_ROLES.includes(r)) throw new Error('Accès non autorisé')
   })
 }
+
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'Fichier trop volumineux (10MB max)' }, { status: 400 })
+      return NextResponse.json({ error: 'Fichier trop volumineux (20 Mo max)' }, { status: 413 })
     }
 
     // Type MIME check (permissif si le navigateur envoie application/octet-stream)
@@ -82,8 +86,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[upload-doc] Erreur:', error)
+    if (error?.code === 'EACCES' || error?.code === 'EPERM') {
+      return NextResponse.json({ error: 'Stockage des fichiers non accessible en écriture sur le serveur (droits du volume uploads)' }, { status: 500 })
+    }
     const msg = error.message || 'Erreur serveur'
-    const status = msg.includes('autorisé') || msg.includes('auth') ? 401 : 500
+    const status = msg.includes('Non authentifié') || msg.includes('auth') ? 401 : msg.includes('autorisé') ? 403 : 500
     return NextResponse.json({ error: msg }, { status })
   }
 }

@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import CreditNote from '@/lib/models/CreditNote'
 import { nextCreditNoteNumero } from '@/lib/finance/billing'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 import { withOptionalTransaction } from '@/lib/mongo-transaction'
 import { logAuditEvent } from '@/lib/audit'
 import { notifyCompany } from '@/lib/portal/company-notify'
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!creditNote) {
       return NextResponse.json({ error: 'La facture a été modifiée entre-temps, rechargez' }, { status: 409 })
     }
+    syncProjectFinanceSafe(invoice.projectId)
 
     void logAuditEvent({
       entityType: 'CreditNote',

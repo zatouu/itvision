@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/api-auth'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import { logAuditEvent } from '@/lib/audit'
+import { syncProjectFinanceSafe } from '@/lib/finance/project-finance'
 
 const VERSIONABLE = ['sent', 'accepted', 'rejected']
 
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       metadata: { from: source.numero, to: quote.numero },
     })
 
+    syncProjectFinanceSafe(quote.projectId)
     return NextResponse.json({ success: true, quote: quote.toObject() }, { status: 201 })
   } catch (error) {
     await AdminQuote.updateOne(

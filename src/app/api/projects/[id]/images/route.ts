@@ -7,7 +7,7 @@ import { notifyProjectDocument } from '@/lib/portal/project-notify'
 
 async function requireAdmin(request: NextRequest) {
   const { role } = await requireAuth(request)
-  if (role !== 'ADMIN') throw new Error('Accès non autorisé')
+  if (!['ADMIN', 'SUPER_ADMIN'].includes(String(role || '').toUpperCase())) throw new Error('Accès non autorisé')
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

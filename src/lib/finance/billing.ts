@@ -4,6 +4,9 @@ import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import CreditNote from '@/lib/models/CreditNote'
 import Project from '@/lib/models/Project'
+import { updateProjectFields } from '@/lib/projects/persistence'
+import { normalizeProjectStatus } from '@/lib/projects/workflow'
+import { syncProjectFinance } from '@/lib/finance/project-finance'
 
 /**
  * Règles métier de la facturation B2B (devis, factures) — source unique pour l'API admin,
@@ -259,8 +262,8 @@ export async function markOverdueInvoices(now = new Date()) {
 const PRE_APPROVAL_PROJECT_STATUSES = ['lead', 'quoted', 'negotiation']
 
 /**
- * Répercute la décision du client sur le projet lié au devis :
- * résumé financier (HT/TTC), statut "approuvé" si le projet n'avait pas démarré, entrée de timeline.
+ * Répercute la décision du client sur le projet lié au devis : montants recalculés depuis les
+ * devis/factures liés (source unique), statut "approuvé" si le projet n'avait pas démarré, entrée de timeline.
  */
 export async function syncProjectWithQuoteDecision(
   quote: { _id: unknown; numero?: string; projectId?: unknown; subtotal?: number; brsAmount?: number; total?: number; validUntil?: Date },
@@ -268,34 +271,26 @@ export async function syncProjectWithQuoteDecision(
   author: string
 ) {
   if (!quote.projectId) return
-  const project = await Project.findById(quote.projectId)
+  const project = await Project.findById(quote.projectId).select('status').lean() as { status?: string } | null
   if (!project) return
 
   const now = new Date()
-  project.quote = {
-    id: String(quote._id),
-    version: (project.quote?.version || 0) + (project.quote?.id === String(quote._id) ? 0 : 1),
-    totalHT: Math.round((Number(quote.subtotal) || 0) - (Number(quote.brsAmount) || 0)),
-    totalTTC: Math.round(Number(quote.total) || 0),
-    margin: project.quote?.margin || 0,
-    validUntil: quote.validUntil || project.quote?.validUntil || now,
-    status: decision === 'accepted' ? 'approved' : 'rejected',
-  } as any
-
-  if (decision === 'accepted') {
-    if (!project.value) project.value = Math.round(Number(quote.total) || 0)
-    if (PRE_APPROVAL_PROJECT_STATUSES.includes(project.status)) {
-      project.status = 'approved'
-      project.statusHistory = [...(project.statusHistory || []), { date: now, status: 'approved', author, note: `Devis ${quote.numero || ''} accepté` }] as any
-    }
+  const status = normalizeProjectStatus(project.status)
+  const set: Record<string, any> = {}
+  const push: Record<string, any> = {
+    timeline: {
+      id: `quote-${String(quote._id)}-${decision}-${now.getTime()}`,
+      date: now,
+      type: decision === 'accepted' ? 'approved' : 'issue',
+      title: decision === 'accepted' ? `Devis ${quote.numero || ''} accepté` : `Devis ${quote.numero || ''} refusé`,
+      author,
+      clientVisible: true,
+    },
   }
-  project.timeline = [...(project.timeline || []), {
-    id: `quote-${String(quote._id)}-${decision}`,
-    date: now,
-    type: decision === 'accepted' ? 'approved' : 'issue',
-    title: decision === 'accepted' ? `Devis ${quote.numero || ''} accepté` : `Devis ${quote.numero || ''} refusé`,
-    author,
-    clientVisible: true,
-  }] as any
-  await project.save()
+  if (decision === 'accepted' && PRE_APPROVAL_PROJECT_STATUSES.includes(status)) {
+    set.status = 'approved'
+    push.statusHistory = { date: now, status: 'approved', author, note: `Devis ${quote.numero || ''} accepté` }
+  }
+  await updateProjectFields(String(quote.projectId), set, { push })
+  await syncProjectFinance(quote.projectId)
 }

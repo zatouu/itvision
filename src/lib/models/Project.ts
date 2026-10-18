@@ -8,7 +8,7 @@ export interface IProject extends Document {
   clientId: mongoose.Types.ObjectId
   // Optionnel: rattacher un projet à une entreprise (Client) pour visibilité multi-utilisateurs
   clientCompanyId?: mongoose.Types.ObjectId
-  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
+  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold' | 'cancelled'
   startDate: Date
   endDate?: Date | null
   // Champs UI supplémentaires
@@ -120,6 +120,21 @@ export interface IProject extends Document {
     budgetUsed?: number
     satisfactionScore?: number
   }
+  // Tableau Kanban des tâches du projet (cf. src/lib/projects/workflow.ts)
+  tasks?: Array<{
+    id: string
+    title: string
+    description?: string
+    status: 'todo' | 'in_progress' | 'review' | 'done'
+    priority: 'low' | 'medium' | 'high'
+    assignee?: string
+    dueDate?: Date | null
+    milestoneId?: string
+    order: number
+    createdAt?: Date
+    updatedAt?: Date
+    completedAt?: Date | null
+  }>
   clientAccess?: boolean
   reception?: {
     requestedAt?: Date
@@ -148,7 +163,7 @@ const ProjectSchema = new Schema<IProject>({
   projectId: { type: String, index: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', },
-  status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'], default: 'lead', index: true },
+  status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold', 'cancelled'], default: 'lead', index: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
   currentPhase: { type: String, default: '' },
@@ -255,7 +270,7 @@ const ProjectSchema = new Schema<IProject>({
     }],
     statusHistory: [{
       date: Date,
-      status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'] },
+      status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold', 'cancelled'] },
       author: String,
       note: String
     }],
@@ -293,6 +308,21 @@ const ProjectSchema = new Schema<IProject>({
       budgetUsed: Number,
       satisfactionScore: Number
     },
+  tasks: [{
+    _id: false,
+    id: { type: String, required: true },
+    title: { type: String, required: true, maxlength: 200 },
+    description: { type: String, maxlength: 4000 },
+    status: { type: String, enum: ['todo', 'in_progress', 'review', 'done'], default: 'todo' },
+    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    assignee: String,
+    dueDate: Date,
+    milestoneId: String,
+    order: { type: Number, default: 0 },
+    createdAt: Date,
+    updatedAt: Date,
+    completedAt: Date
+  }],
   clientAccess: { type: Boolean, default: false },
   // PV de réception signé par le client depuis le portail ; la garantie court à partir de la signature
   reception: {

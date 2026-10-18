@@ -200,27 +200,36 @@ export async function PUT(request: NextRequest) {
 
     const normalizedRole = role ? String(role).toUpperCase() : undefined
 
+    const target = await User.findById(id).select('role').lean() as any
+    if (!target) return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+    const currentRole = String(target.role || '').toUpperCase()
+    // Le formulaire renvoie le rôle actuel : seul un vrai changement de rôle est contrôlé
+    const roleChange = normalizedRole && normalizedRole !== currentRole ? normalizedRole : undefined
+
     // Attribution des rôles privilégiés réservée au SUPER_ADMIN (anti-escalade)
-    if (normalizedRole && ['ADMIN', 'SUPER_ADMIN'].includes(normalizedRole) && admin.role !== 'SUPER_ADMIN') {
+    if (roleChange && ['ADMIN', 'SUPER_ADMIN'].includes(roleChange) && admin.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Seul un Super Admin peut attribuer un rôle administrateur' }, { status: 403 })
     }
 
     // Rétrogradation d'un admin existant réservée au SUPER_ADMIN
-    const target = await User.findById(id).select('role').lean() as any
-    if (!target) return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
-    const targetIsAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(String(target.role || '').toUpperCase())
+    const targetIsAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(currentRole)
     if (targetIsAdmin && admin.role !== 'SUPER_ADMIN' && String(target._id) !== admin.userId) {
       return NextResponse.json({ error: 'Seul un Super Admin peut modifier un administrateur' }, { status: 403 })
+    }
+    if (roleChange && targetIsAdmin && admin.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Seul un Super Admin peut changer le rôle d’un administrateur' }, { status: 403 })
     }
     // Ne pas écraser les champs absents du body (update partiel)
     const setData: any = {}
     for (const [key, val] of Object.entries({ name, phone, avatarUrl, isActive, company, address, city, country })) {
       if (val !== undefined) setData[key] = val
     }
-    if (normalizedRole) setData.role = normalizedRole
+    if (typeof setData.avatarUrl === 'string') setData.avatarUrl = setData.avatarUrl.trim().slice(0, 500)
+    if (roleChange) setData.role = roleChange
     const unsetData: any = {}
+    const effectiveRole = roleChange || currentRole
 
-    if (normalizedRole && normalizedRole !== 'CLIENT') {
+    if (effectiveRole !== 'CLIENT') {
       unsetData.companyClientId = 1
     } else if (companyClientId === null || companyClientId === '') {
       unsetData.companyClientId = 1

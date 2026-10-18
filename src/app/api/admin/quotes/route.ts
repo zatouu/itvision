@@ -6,6 +6,8 @@ import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import { requireAdminApi } from '@/lib/api-auth'
 import { computeQuoteTotals, isQuoteLocked, nextQuoteNumero, syncProjectWithQuoteDecision } from '@/lib/finance/billing'
+import { syncProjectFinance, syncProjectFinanceSafe } from '@/lib/finance/project-finance'
+import Project from '@/lib/models/Project'
 
 const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected']
 
@@ -87,14 +89,18 @@ export async function POST(request: NextRequest) {
     
     const id = asObjectIdString(body?._id) || asObjectIdString(body?.id)
     const projectId = asObjectIdString(body?.projectId)
+    const unlinkProject = body?.projectId === null || body?.projectId === ''
 
-    const existing = id ? await AdminQuote.findById(id).select('numero status').lean() as any : null
+    const existing = id ? await AdminQuote.findById(id).select('numero status projectId').lean() as any : null
     if (id && !existing) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
     if (existing && isQuoteLocked(existing.status)) {
       return NextResponse.json(
         { error: 'Ce devis a été accepté par le client : il ne peut plus être modifié. Créez une nouvelle version.' },
         { status: 409 }
       )
+    }
+    if (projectId && !(await Project.exists({ _id: projectId }))) {
+      return NextResponse.json({ error: 'Projet lié introuvable' }, { status: 404 })
     }
     const status = body.status || existing?.status || 'draft'
     if (!QUOTE_STATUSES.includes(status)) {
@@ -148,7 +154,10 @@ export async function POST(request: NextRequest) {
 
     let quote: any
     if (id) {
-      quote = await AdminQuote.findByIdAndUpdate(id, { $set: quoteData }, { new: true, runValidators: true }).lean()
+      quote = await AdminQuote.findByIdAndUpdate(id, {
+        $set: quoteData,
+        ...(unlinkProject ? { $unset: { projectId: 1 } } : {}),
+      }, { new: true, runValidators: true }).lean()
       if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
     } else {
       const created = new AdminQuote(quoteData)
@@ -165,6 +174,12 @@ export async function POST(request: NextRequest) {
         console.error('Synchro projet après décision devis:', err)
       )
     }
+
+    // Montants du projet = devis liés : resynchroniser l'ancien et le nouveau projet
+    const previousProjectId = existing?.projectId ? String(existing.projectId) : ''
+    const currentProjectId = quote.projectId ? String(quote.projectId) : ''
+    if (currentProjectId) await syncProjectFinance(currentProjectId).catch(err => console.error('Synchro montants projet:', err))
+    if (previousProjectId && previousProjectId !== currentProjectId) syncProjectFinanceSafe(previousProjectId)
 
     return NextResponse.json({ success: true, quote })
   } catch (error: any) {
@@ -193,7 +208,7 @@ export async function DELETE(request: NextRequest) {
 
     await connectMongoose()
 
-    const quote = await AdminQuote.findById(quoteId).select('status').lean() as any
+    const quote = await AdminQuote.findById(quoteId).select('status projectId').lean() as any
     if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
     if (isQuoteLocked(quote.status)) {
       return NextResponse.json({ error: 'Un devis accepté ne peut pas être supprimé' }, { status: 409 })
@@ -204,6 +219,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await AdminQuote.findByIdAndDelete(quoteId)
+    syncProjectFinanceSafe(quote.projectId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

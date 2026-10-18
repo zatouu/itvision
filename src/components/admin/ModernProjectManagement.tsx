@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
+import { PIPELINE, PROJECT_STATUSES } from '@/lib/projects/workflow'
 
 interface Project {
   _id: string
@@ -20,7 +21,7 @@ interface Project {
   address: string
   clientId: string
   clientCompanyId?: any
-  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
+  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold' | 'cancelled'
   startDate: string
   endDate?: string
   currentPhase?: string
@@ -420,10 +421,9 @@ export default function ModernProjectManagement() {
     return types
   }, [projects])
 
-  // Regroupement par statut pour Kanban
+  // Regroupement par statut pour Kanban (phases du workflow, cf. src/lib/projects/workflow.ts)
   const projectsByStatus = useMemo(() => {
-    const statuses = ['lead', 'quoted', 'approved', 'in_progress', 'testing', 'completed'] as const
-    return statuses.map(status => ({
+    return PIPELINE.map(status => ({
       status,
       label: getStatusLabel(status),
       color: getStatusColor(status),
@@ -436,12 +436,13 @@ export default function ModernProjectManagement() {
       lead: 'Prospects',
       quoted: 'Devis envoyés',
       negotiation: 'Négociation',
-      approved: 'Approuvés',
-      in_progress: 'En cours',
-      testing: 'Tests',
-      completed: 'Terminés',
+      approved: 'Gagnés (devis accepté)',
+      in_progress: 'En réalisation',
+      testing: 'Recette client',
+      completed: 'Livrés',
       maintenance: 'Maintenance',
-      on_hold: 'En pause'
+      on_hold: 'En pause',
+      cancelled: 'Perdus / annulés'
     }
     return labels[status] || status
   }
@@ -456,7 +457,8 @@ export default function ModernProjectManagement() {
       testing: 'cyan',
       completed: 'green',
       maintenance: 'indigo',
-      on_hold: 'red'
+      on_hold: 'red',
+      cancelled: 'red'
     }
     return colors[status] || 'gray'
   }
@@ -471,7 +473,8 @@ export default function ModernProjectManagement() {
       testing: Zap,
       completed: Award,
       maintenance: Wrench,
-      on_hold: Pause
+      on_hold: Pause,
+      cancelled: Pause
     }
     const Icon = icons[status] || Activity
     return <Icon className="h-4 w-4" />
@@ -611,12 +614,7 @@ export default function ModernProjectManagement() {
               className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-stone-50"
             >
               <option value="all">Tous les statuts</option>
-              <option value="lead">Prospects</option>
-              <option value="quoted">Devis envoyés</option>
-              <option value="approved">Approuvés</option>
-              <option value="in_progress">En cours</option>
-              <option value="testing">Tests</option>
-              <option value="completed">Terminés</option>
+              {PROJECT_STATUSES.map(s => <option key={s} value={s}>{getStatusLabel(s)}</option>)}
             </select>
 
             {serviceTypeOptions.length > 0 && (
@@ -1089,12 +1087,9 @@ export default function ModernProjectManagement() {
                   >
                     <option value="lead">Prospect</option>
                     <option value="quoted">Devis envoyé</option>
-                    <option value="approved">Approuvé</option>
-                    <option value="in_progress">En cours</option>
-                    <option value="testing">Tests</option>
-                    <option value="completed">Terminé</option>
-                    <option value="on_hold">En pause</option>
+                    <option value="negotiation">Négociation</option>
                   </select>
+                  <p className="mt-1 text-xs text-stone-500">Les phases suivantes se franchissent depuis la fiche projet (devis accepté requis).</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-stone-700">Domaine</label>
