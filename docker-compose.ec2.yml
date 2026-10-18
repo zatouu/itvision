@@ -106,6 +106,10 @@ services:
       APP_BASE_URL: ${NEXT_PUBLIC_SITE_URL}
       # ── Appels internes (worker sourcing, cron, media/localize) ──
       CRON_SECRET: ${CRON_SECRET:-}
+      # ── Anti-robots inscription (Cloudflare Turnstile) — sans clé secrète, inscriptions refusées ──
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      REGISTRATION_CAPTCHA: ${REGISTRATION_CAPTCHA:-}
       MAINTENANCE_CRON_DISABLED: ${MAINTENANCE_CRON_DISABLED:-false}
       # ── OTP test : numéros whitelistés — code fixe 000000, aucun SMS envoyé ──
       OTP_TEST_PHONES: ${OTP_TEST_PHONES:-}

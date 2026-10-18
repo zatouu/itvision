@@ -393,6 +393,9 @@ jobs:
             echo "QWEN_CLOUD_BASE_URL=${{ secrets.QWEN_CLOUD_BASE_URL }}" >> .env.ec2
             echo "QWEN_MODEL=${{ secrets.QWEN_MODEL }}" >> .env.ec2
             echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ec2
+            echo "TURNSTILE_SITE_KEY=${{ vars.TURNSTILE_SITE_KEY }}" >> .env.ec2
+            echo "TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}" >> .env.ec2
+            echo "REGISTRATION_CAPTCHA=${{ vars.REGISTRATION_CAPTCHA }}" >> .env.ec2
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env.ec2
             echo "MAINTENANCE_CRON_DISABLED=${{ secrets.MAINTENANCE_CRON_DISABLED }}" >> .env.ec2
             echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env.ec2

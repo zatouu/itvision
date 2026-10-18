@@ -7,6 +7,7 @@ import emailService from '@/lib/email-service'
 import { MARKET_BRAND } from '@/lib/branding'
 import { applyRateLimit, registerRateLimiter } from '@/lib/rate-limiter'
 import { createUserProfiles } from '@/lib/user-profiles'
+import { getClientIp } from '@/lib/client-ip'
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
@@ -21,24 +22,30 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
 ])
 
 const MIN_FORM_FILL_TIME_MS = 3000 // 3 secondes minimum pour remplir le formulaire
+const MAX_FORM_AGE_MS = 6 * 60 * 60 * 1000 // formulaire chargé il y a plus de 6 h : à recharger
 
 function isDisposableEmail(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase()
   return domain ? DISPOSABLE_EMAIL_DOMAINS.has(domain) : false
 }
 
+/** Clé publique Turnstile, lue à l'exécution (pas besoin de reconstruire l'image pour l'activer). */
+function turnstileSiteKey() {
+  return process.env.TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
+}
+
 async function verifyCaptchaToken(token: string, remoteIp?: string) {
   const secretKey = process.env.TURNSTILE_SECRET_KEY
 
-  // Captcha opt-in : il n'est imposé que si la clé secrète est configurée.
-  // Sans clé, le widget n'est pas rendu côté client (NEXT_PUBLIC_TURNSTILE_SITE_KEY),
-  // donc on n'exige pas de captcha — sinon l'inscription serait impossible en prod.
+  // Sans clé : refus en production (des robots créaient des comptes en masse quand le captcha
+  // s'éteignait silencieusement). REGISTRATION_CAPTCHA=off le désactive explicitement.
   if (!secretKey) {
-    if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        '[REGISTER] TURNSTILE_SECRET_KEY non configurée : captcha désactivé. ' +
-        'Définissez TURNSTILE_SECRET_KEY (+ NEXT_PUBLIC_TURNSTILE_SITE_KEY) pour l\'activer.'
-      )
+    if (process.env.NODE_ENV === 'production' && process.env.REGISTRATION_CAPTCHA !== 'off') {
+      console.error('[REGISTER] TURNSTILE_SECRET_KEY absente : inscriptions publiques refusées (REGISTRATION_CAPTCHA=off pour forcer)')
+      return {
+        success: false,
+        error: 'Inscription momentanément indisponible. Réessayez plus tard ou contactez-nous.'
+      }
     }
     return { success: true }
   }
@@ -121,7 +128,6 @@ function generateUsername(email: string, name: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    await connectMongoose()
     // Cette route ne crée que des comptes CLIENT marketplace — l'email de
     // bienvenue est toujours brandé DDM+, quel que soit le host de la requête.
     const brand = MARKET_BRAND
@@ -132,8 +138,7 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name, phone, role = 'CLIENT', captchaToken = '', website = '', formLoadTime = 0, referredBy = '' } = await request.json()
 
-    const forwardedFor = request.headers.get('x-forwarded-for') || ''
-    const remoteIp = forwardedFor.split(',')[0]?.trim() || undefined
+    const remoteIp = getClientIp(request)
 
     // Honeypot : si le champ caché 'website' est rempli, c'est un bot
     if (website) {
@@ -141,19 +146,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Inscription invalide' }, { status: 400 })
     }
 
-    // Check temps de soumission : un humain met au moins quelques secondes
-    const elapsed = Date.now() - Number(formLoadTime)
-    if (formLoadTime && elapsed < MIN_FORM_FILL_TIME_MS) {
+    // Temps de remplissage : obligatoire (un appel direct à l'API sans formulaire est refusé)
+    const loadedAt = Number(formLoadTime)
+    const elapsed = Date.now() - loadedAt
+    if (!Number.isFinite(loadedAt) || loadedAt <= 0 || elapsed > MAX_FORM_AGE_MS) {
+      console.warn('[REGISTER] formLoadTime absent ou invalide — appel hors formulaire:', { email, ip: remoteIp })
+      return NextResponse.json({ error: 'Formulaire expiré : rechargez la page et réessayez.' }, { status: 400 })
+    }
+    if (elapsed < MIN_FORM_FILL_TIME_MS) {
       console.warn('[REGISTER] Form submitted too fast — likely bot:', { email, elapsedMs: elapsed, ip: remoteIp })
       return NextResponse.json({ error: 'Soumission trop rapide. Veuillez réessayer.' }, { status: 400 })
     }
 
-    const captchaCheck = await verifyCaptchaToken(String(captchaToken || ''), remoteIp)
+    const captchaCheck = await verifyCaptchaToken(String(captchaToken || ''), remoteIp === 'unknown' ? undefined : remoteIp)
     if (!captchaCheck.success) {
       return NextResponse.json({
         error: captchaCheck.error || 'Captcha invalide'
       }, { status: 400 })
     }
+
+    // Base sollicitée seulement après les contrôles anti-robots
+    await connectMongoose()
 
     // Validation des champs requis
     if (!email || !password || !name) {
@@ -311,9 +324,15 @@ export async function POST(request: NextRequest) {
 // API pour vérifier la disponibilité d'un email
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+
+    // Configuration du captcha pour le formulaire (clé publique uniquement)
+    if (searchParams.get('captcha') === '1') {
+      return NextResponse.json({ siteKey: turnstileSiteKey() }, { headers: { 'Cache-Control': 'no-store' } })
+    }
+
     await connectMongoose()
     
-    const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
     
     if (!email) {

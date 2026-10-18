@@ -46,6 +46,7 @@ powershell -ExecutionPolicy Bypass -File scripts/check-github-secrets.ps1 -Owner
 - [x] `JWT_SECRET` - Secret signeur (identique sur toutes instances Next/Socket.io/workers) ✅ **DÉJÀ CONFIGURÉ**
 - [x] `NEXTAUTH_SECRET` - Secret NextAuth (stable entre instances) ✅ **DÉJÀ CONFIGURÉ**
 - [x] `CRON_SECRET` - Secret appels internes/cron (même valeur chez appelants) ✅ **DÉJÀ CONFIGURÉ**
+- [ ] `TURNSTILE_SECRET_KEY` - Clé secrète Cloudflare Turnstile (captcha de l'inscription DDM+). **Sans elle, l'inscription publique est refusée en production** (anti-robots) ❌ **À CONFIGURER**
 
 ### Site & URLs
 - [x] `NEXT_PUBLIC_SITE_URL` - URL HTTPS du site : `https://itvisionplus.sn` (sans chemin) ✅ **DÉJÀ CONFIGURÉ**
@@ -120,6 +121,10 @@ powershell -ExecutionPolicy Bypass -File scripts/check-github-secrets.ps1 -Owner
 
 ### Navigateur (injection build Docker)
 - [ ] `NEXT_PUBLIC_SENTRY_DSN` - DSN public navigateur Sentry (vide = désactivé) ❌ **MANQUANT**
+
+### Anti-robots inscription (lues à l'exécution, sans reconstruire l'image)
+- [ ] `TURNSTILE_SITE_KEY` - Clé publique (site key) Cloudflare Turnstile du domaine `market.itvisionplus.sn` ❌ **À CONFIGURER**
+- [ ] `REGISTRATION_CAPTCHA` - laisser vide. `off` désactive le captcha (déconseillé : réouvre les inscriptions de robots)
 
 ---
 
