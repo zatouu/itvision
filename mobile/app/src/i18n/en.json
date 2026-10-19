@@ -1350,6 +1350,8 @@
     "updateOffer": "Update offer",
     "sendOffer": "Send offer",
     "permissionRequired": "Permission required",
+    "nearYou": "Nearby",
+    "exactAddressLater": "Approximate area ? exact address shared if your offer is accepted",
     "permissionMsg": "Enable location to see nearby requests.",
     "offerAccepted": "Offer accepted!",
     "offerAcceptedMsg": "A client has chosen your offer. The mission starts.",

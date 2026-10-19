@@ -1342,6 +1342,8 @@
     "updateOffer": "Mettre à jour l'offre",
     "sendOffer": "Envoyer l'offre",
     "permissionRequired": "Permisioŋ soxla",
+    "nearYou": "? proximit?",
+    "exactAddressLater": "Zone approximative ? adresse exacte communiqu?e si votre offre est retenue",
     "permissionMsg": "Sakkanal pozisiyoŋ ngir gis laaj yi nekk ci sa wàll.",
     "offerAccepted": "Ofr nangu!",
     "offerAcceptedMsg": "Benn kliyaŋ tànn na sa ofr. Misiyoŋ bi tambalee.",

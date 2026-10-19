@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { APPROXIMATION_MAX_METERS, approximateCoordinates, publicArea } from '@/lib/request-privacy'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
@@ -49,35 +50,36 @@ function score(distanceMeters: number, createdAt: Date): number {
   return Number((distScore * 0.6 + recency * 0.4).toFixed(6))
 }
 
-/**
- * Position approximative (250–450 m) tant que la demande n'est pas attribuée : le domicile
- * du client n'est pas exposé sur les cartes des prestataires. Décalage stable par demande
- * (pour que le marqueur ne saute pas) et dérivé d'un secret serveur (impossible à retrancher).
- */
-function approximateCoordinates(requestId: string, lng: number, lat: number): [number, number] {
-  const secret = process.env.LOCATION_FUZZ_SECRET || process.env.JWT_SECRET || 'xeuy-location-fuzz'
-  const digest = createHmac('sha256', secret).update(requestId).digest()
-  const angle = (digest.readUInt16BE(0) / 65536) * 2 * Math.PI
-  const meters = 250 + (digest.readUInt16BE(2) / 65536) * 200
-  const dLat = (meters * Math.cos(angle)) / 111_320
-  const dLng = (meters * Math.sin(angle)) / (111_320 * Math.max(Math.cos((lat * Math.PI) / 180), 0.2))
-  return [Number((lng + dLng).toFixed(5)), Number((lat + dLat).toFixed(5))]
-}
+const MATCHING_RATE_LIMITS = [
+  { windowMs: 60_000, max: 40, keyPrefix: 'xeuy:matching:min' },
+  { windowMs: 3_600_000, max: 600, keyPrefix: 'xeuy:matching:hour' },
+]
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
     const { userId } = await requireAuth(request)
+
+    // Limite par compte (pas par IP : les opérateurs mobiles partagent les IP). Usage normal de l'app :
+    // quelques appels par minute ; au-delà, c'est un balayage de la carte pour localiser des clients.
+    for (const rule of MATCHING_RATE_LIMITS) {
+      const limit = await rateLimitRequest(request, { ...rule, identifier: String(userId) })
+      if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+    }
+
     const q = parseNearQuery(request)
     if (!q) return NextResponse.json({ error: 'Paramètres géo invalides' }, { status: 400 })
 
-    console.log(`[MATCHING] user=${userId} lng=${q.lng} lat=${q.lat} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
+    console.log(`[MATCHING] user=${userId} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
 
+    const radiusMeters = (q.radiusKm || 5) * 1000
+    // Recherche élargie de la marge de floutage : l'appartenance au rayon est ensuite décidée sur la
+    // position floutée, ce qui empêche de retrouver la vraie position en sondant la limite du rayon.
     const geoFilter: any = {
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [q.lng, q.lat] },
-          $maxDistance: (q.radiusKm || 5) * 1000
+          $maxDistance: radiusMeters + APPROXIMATION_MAX_METERS
         }
       }
     }
@@ -157,9 +159,16 @@ export async function GET(request: NextRequest) {
       const hasCoords = it.location?.coordinates?.length === 2
       const [approxLng, approxLat] = hasCoords ? approximateCoordinates(String(it._id), lng, lat) : [lng, lat]
       const shownDistance = haversineMeters(q.lat, q.lng, approxLat, approxLng)
-      const location = hasCoords ? { ...it.location, coordinates: [approxLng, approxLat], approximate: true } : it.location
+      // Adresse réduite au quartier : le repère précis (immeuble, porte…) n'est donné qu'au prestataire retenu
+      const area = publicArea(it.location?.address || it.address)
+      // Hors du rayon une fois floutée : on l'écarte (l'appartenance ne dépend pas de la vraie position)
+      if (hasCoords && shownDistance > radiusMeters) return null
+      const location = hasCoords
+        ? { type: 'Point', coordinates: [approxLng, approxLat], address: area || undefined, approximate: true }
+        : { address: area || undefined }
       return {
         ...it,
+        address: area,
         location,
         _score: score(shownDistance, it.createdAt),
         _distance: Math.round(shownDistance / 100) * 100,
@@ -174,7 +183,7 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({
-      items: withScore,
+      items: withScore.filter(Boolean),
       browseScope: (q.category || scopeCategories.length > 0) ? 'category' : 'all',
       scopeCategories,
     })

@@ -13,6 +13,8 @@ export interface RateLimitOptions {
   windowMs?: number
   max?: number
   keyPrefix?: string
+  /** Compte par identifiant (ex. userId) plutôt que par IP — indispensable derrière le NAT des opérateurs mobiles */
+  identifier?: string
 }
 
 function cleanup(now: number) {
@@ -31,9 +33,9 @@ export async function rateLimitRequest(
 ): Promise<{ ok: boolean; retryAfter: number } | null> {
   // Bypass E2E (voir rate-limiter.ts)
   if (process.env.DISABLE_RATE_LIMIT === 'true') return { ok: true, retryAfter: 0 }
-  const { windowMs = 60_000, max = 10, keyPrefix = '' } = options
+  const { windowMs = 60_000, max = 10, keyPrefix = '', identifier } = options
   const now = Date.now()
-  const ip = getClientIp(req)
+  const ip = identifier ? `id:${identifier}` : getClientIp(req)
   const key = `${keyPrefix}:${ip}`
 
   cleanup(now)
