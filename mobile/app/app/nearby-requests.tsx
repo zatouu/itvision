@@ -568,7 +568,11 @@ function NearbyRequests() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.modalCatName}>{catMap[selected.category]?.label || selected.category}</Text>
-                  <Text style={s.modalCatMeta}>{selected.location?.address || 'À proximité'}{selected._distance ? ` · ${distLabel(selected._distance)}` : ''}{selected._unlockCost ? ` · ${selected._unlockCost} crédits si sélectionné` : ''}</Text>
+                  <Text style={s.modalCatMeta}>{selected.location?.address || selected.address || t('nearby.nearYou')}{selected._distance ? ` · ~${distLabel(selected._distance)}` : ''}{selected._unlockCost ? ` · ${selected._unlockCost} crédits si sélectionné` : ''}</Text>
+                  <View style={s.privacyRow}>
+                    <ShieldCheck size={12} color={colors.textMuted} />
+                    <Text style={s.privacyText}>{t('nearby.exactAddressLater')}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -868,6 +872,8 @@ const useStyles = createThemedStyles(colors => {
     modalCatIconText: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.onPrimary },
     modalCatName: { fontSize: 16, fontWeight: typography.weight.extrabold as any, color: colors.text, textTransform: 'capitalize' },
     modalCatMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
+    privacyRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+    privacyText: { flex: 1, fontSize: 11, color: colors.textMuted },
     modalBudgetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
     modalBudgetLabel: { fontSize: 13, color: colors.textSecondary },
     modalBudgetValue: { fontSize: 14, fontWeight: typography.weight.extrabold as any, color: colors.text },
