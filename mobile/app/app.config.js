@@ -15,6 +15,9 @@ module.exports = ({ config }) => {
     ...(auditBuild ? { runtimeVersion: 'audit-2026-10' } : {}),
     extra: {
       ...config.extra,
+      // Repris par src/env.ts si la variable n'a pas été inlinée (ex. OTA publié sans .env)
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || config.extra?.apiBaseUrl || 'https://itvisionplus.sn',
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || config.extra?.sentryDsn || '',
       eas: {
         ...(config.extra?.eas || {}),
         projectId: (config.extra?.eas?.projectId) || process.env.EXPO_PUBLIC_PROJECT_ID,

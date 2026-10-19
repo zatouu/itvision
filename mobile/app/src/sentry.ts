@@ -1,7 +1,8 @@
 import * as Sentry from '@sentry/react-native'
 import Constants from 'expo-constants'
+import { SENTRY_DSN } from './env'
 
-const DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || ''
+const DSN = SENTRY_DSN
 const IS_DEV = __DEV__
 // Numéros sénégalais et jetons : jamais envoyés à un service tiers
 const PHONE = /(\+?221[\s.-]?)?\b7[05678](?:[\s.-]?\d){7}\b/g

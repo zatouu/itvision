@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#0F7B4F"
     },
     "ios": {
       "supportsTablet": false,
@@ -27,7 +27,7 @@
       "package": "com.xeuy.xeuy",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F172A"
+        "backgroundColor": "#0F7B4F"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -54,7 +54,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#0F172A",
+          "color": "#0F7B4F",
           "sounds": [],
           "defaultChannel": "default"
         }

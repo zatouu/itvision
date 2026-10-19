@@ -28,6 +28,7 @@ import { humanErrorMessage } from '../../src/errorMessages'
 import { resolveMediaUrl } from '../../src/media'
 import { formatDuration } from '../../src/utils/duration'
 import { resolvePaymentLabel, paymentLabelI18nKey } from '../../src/utils/missionStatus'
+import { API_BASE_URL } from '../../src/env'
 
 function normalizeId(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] || null
@@ -130,7 +131,7 @@ function MissionCompletedScreen() {
     setDownloading(true)
     try {
       const token = getAuthToken()
-      const base = process.env.EXPO_PUBLIC_API_BASE_URL || ''
+      const base = API_BASE_URL
       const fileUri = `${FileSystem.cacheDirectory}recu-${refCode.replace('#', '')}.pdf`
       const res = await FileSystem.downloadAsync(
         `${base}/api/services/requests/${requestId}/receipt`,

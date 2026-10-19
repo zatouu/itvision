@@ -6,8 +6,9 @@ import { getAuthToken, getRefreshToken, getDeviceId, setAuth, clearAuth } from '
 import { enqueue, isNetworkError, replay, startNetInfoReplay } from './offlineQueue'
 import type { HttpMethod, ReplayResult } from './offlineQueue'
 import { captureError } from './sentry'
+import { API_BASE_URL } from './env'
 
-const base = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+const base = API_BASE_URL
 
 // ─── 401 unauthorized callback ───────────────────────────────────────────────
 // Set from _layout.tsx to avoid circular dependency (api → socket → api)
