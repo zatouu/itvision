@@ -22,16 +22,23 @@ import {
 } from '../src/socket'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { useTranslation } from 'react-i18next'
-import KpiCard from '../src/components/KpiCard'
+import NearbyMapCard from '../src/components/home/NearbyMapCard'
+import { MissionKpiCard, OffersKpiCard, RevenueKpiCard } from '../src/components/home/ProKpiCards'
 import Logo from '../src/components/Logo'
 import { spacing, radius, shadows, typography, fonts, getCategoryMeta } from '../src/design'
-import { BellRing, MapPin, FileText, Briefcase, Banknote, ChevronRight, Eye, EyeOff, Sparkles, MessageCircle } from 'lucide-react-native'
+import { BellRing, Briefcase, ChevronRight, Sparkles, MessageCircle } from 'lucide-react-native'
 import { ListGroup, ListRow } from '../src/components/ListGroup'
 import { loadNotifications, subscribeNotifications, unreadCount } from '../src/notifications'
 import { apiGet, apiPost } from '../src/api'
 
 const REQUEST_TTL_HOURS = 2
 const DEFAULT_RADIUS_KM = 10
+
+/** Rayon du profil borné comme côté serveur (1 à 25 km). */
+function clampRadius(raw: unknown): number {
+  const value = Number(raw)
+  return Number.isFinite(value) && value > 0 ? Math.min(Math.max(Math.round(value), 1), 25) : DEFAULT_RADIUS_KM
+}
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView)
 
@@ -100,7 +107,7 @@ function getAdviceList(profile: any, offers: any[], nearbyCount: number, earning
 
 function Home() {
   const { colors, s } = useStyles()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [online, setOnline] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hour] = useState(new Date().getHours())
@@ -122,6 +129,10 @@ function Home() {
   const [offers, setOffers] = useState<any[]>([])
   const [onlineAt, setOnlineAt] = useState<Date | null>(null)
   const [gpsActive, setGpsActive] = useState(false)
+  const [myCoords, setMyCoords] = useState<{ lat: number; lng: number } | null>(null)
+  // Rayon du profil (connu après le 1er chargement) : la recherche de demandes l'utilise ensuite
+  const radiusRef = useRef(DEFAULT_RADIUS_KM)
+  const loadDashboardRef = useRef<(() => void) | null>(null)
   const [synced, setSynced] = useState(false)
   const [pulse, setPulse] = useState(false)
   const [tipIndex, setTipIndex] = useState(0)
@@ -259,8 +270,9 @@ function Home() {
       const last = await Location.getLastKnownPositionAsync({ maxAge: 120_000, requiredAccuracy: 1000 }).catch(() => null)
       const lat = last?.coords?.latitude
       const lng = last?.coords?.longitude
+      if (lat !== undefined && lng !== undefined) setMyCoords({ lat, lng })
       const matchProm = (lat !== undefined && lng !== undefined)
-        ? apiGet(`/api/services/matching?lng=${lng}&lat=${lat}&radiusKm=${DEFAULT_RADIUS_KM}&excludeMine=true`)
+        ? apiGet(`/api/services/matching?lng=${lng}&lat=${lat}&radiusKm=${radiusRef.current}&excludeMine=true`)
         : Promise.resolve({ items: [] })
 
       const [dash, earn, prof, off, match] = await Promise.allSettled([
@@ -283,6 +295,12 @@ function Home() {
       if (earn.status === 'fulfilled') setEarnings(earn.value || {})
       if (prof.status === 'fulfilled') {
         setProfile(prof.value)
+        const profileRadius = clampRadius(prof.value?.provider?.zone?.radiusKm)
+        if (profileRadius !== radiusRef.current) {
+          radiusRef.current = profileRadius
+          // Les demandes ont été cherchées avec l'ancien rayon : on relance une fois
+          setTimeout(() => { loadDashboardRef.current?.() }, 0)
+        }
       }
       if (off.status === 'fulfilled') setOffers(Array.isArray(off.value?.items) ? off.value.items : [])
       if (match.status === 'fulfilled') {
@@ -303,6 +321,7 @@ function Home() {
   }, [])
 
   useEffect(() => {
+    loadDashboardRef.current = loadDashboard
     loadDashboard()
     const unsubs = [
       onOfferAccepted(() => loadDashboard()),
@@ -319,7 +338,7 @@ function Home() {
     }, [loadDashboard])
   )
 
-  const goNearby = () => {
+  const goNearby = (view?: 'map') => {
     if (!online) {
       toast.info(
         t('home.offlineAlert', { defaultValue: 'Hors ligne' }),
@@ -330,12 +349,12 @@ function Home() {
     setNearbyCount(0)
     setNearbyItems([])
     prevNearbyCount.current = 0
-    router.push('/nearby-requests')
+    router.push({ pathname: '/nearby-requests', params: { radius: String(radiusRef.current), ...(view ? { view } : {}) } })
   }
 
   const user = profile?.user || profile || {}
   const provider = profile?.provider || user?.providerProfile || {}
-  const radius = provider.zone?.radiusKm || DEFAULT_RADIUS_KM
+  const radius = clampRadius(provider.zone?.radiusKm)
   const onlineSince = onlineAt ? formatTimeShort(onlineAt) : null
 
   const todayStart = new Date()
@@ -482,49 +501,42 @@ function Home() {
           </ListGroup>
         ) : null}
 
-        {/* KPI grid - 2x2 */}
+        {/* Carte de la zone : rayon réel + demandes, puis les indicateurs */}
+        <NearbyMapCard
+          coords={myCoords}
+          radiusKm={radius}
+          items={nearbyItems}
+          todayCount={todayNearby}
+          online={online}
+          busy={busy}
+          onPress={() => goNearby('map')}
+          onGoOnline={handleToggle}
+        />
         <View style={s.kpiGrid}>
-          <KpiCard
-            value={nearbyCount}
-            label={t('proHome.kpiNearby', { defaultValue: 'Demandes proches' })}
-            subLabel={t('proHome.kpiNearbySub', { defaultValue: "{{count}} aujourd'hui", count: todayNearby })}
-            icon={<MapPin size={22} color={colors.info} />}
-            iconBg={colors.infoLight}
-            iconColor={colors.info}
-            onPress={goNearby}
+          <OffersKpiCard
+            total={offersTotal}
+            pending={offersPending}
+            accepted={offersAccepted}
+            counterPending={counterPendingCount}
+            onPress={() => router.push(counterPendingCount > 0 ? { pathname: '/my-offers', params: { filter: 'counter' } } : '/my-offers')}
           />
-          <KpiCard
-            value={offersTotal}
-            label={t('proHome.kpiOffers', { defaultValue: 'Offres envoyées' })}
-            subLabel={t('proHome.kpiOffersSub', { defaultValue: '{{count}} en attente', count: offersPending })}
-            icon={<FileText size={22} color={colors.warning} />}
-            iconBg="#FFF7ED"
-            iconColor={colors.warning}
-            onPress={() => router.push('/my-offers')}
+          <MissionKpiCard
+            active={!!activeMissionId}
+            status={activeMissionStatus}
+            statusLabel={activeMissionLabel}
+            elapsed={activeMissionId ? missionElapsed : null}
+            onPress={() => activeMissionId ? router.push(`/active-mission/${activeMissionId}` as any) : router.push({ pathname: '/my-offers', params: { filter: 'active' } })}
           />
         </View>
         <View style={s.kpiGrid}>
-          <KpiCard
-            value={activeMission}
-            label={t('proHome.kpiMission', { defaultValue: 'Mission en cours' })}
-            subLabel={activeMission > 0 && missionElapsed ? t('proHome.kpiMissionSince', { defaultValue: 'depuis {{d}}', d: missionElapsed }) : t('proHome.kpiMissionNone', { defaultValue: 'Aucune mission active' })}
-            icon={<Briefcase size={22} color={colors.success} />}
-            iconBg="#F0FDF4"
-            iconColor={colors.success}
-            onPress={() => router.push({ pathname: '/my-offers', params: { filter: 'active' } })}
-          />
-          <KpiCard
-            value={dailyRevenueValue}
-            label={t('proHome.kpiRevenue', { defaultValue: 'Revenus du jour' })}
-            subLabel={t('proHome.kpiRevenueSub', { defaultValue: 'Sem. {{w}} · Mois {{m}}', w: weeklyRevenue, m: monthlyRevenue })}
-            icon={<Banknote size={22} color={colors.text} />}
-            iconBg={colors.slate100}
-            iconColor={colors.navy}
-            right={
-              <TouchableOpacity onPress={() => setHideRevenue(v => !v)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={hideRevenue ? t('home.showRevenue', { defaultValue: 'Afficher les revenus' }) : t('home.hideRevenue', { defaultValue: 'Masquer les revenus' })}>
-                {hideRevenue ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
-              </TouchableOpacity>
-            }
+          <RevenueKpiCard
+            todayLabel={dailyRevenueValue}
+            weekLabel={hideRevenue ? '•••' : weeklyRevenue}
+            monthLabel={hideRevenue ? '•••' : monthlyRevenue}
+            chart={Array.isArray(earnings.chart) ? earnings.chart : []}
+            hidden={hideRevenue}
+            onToggleHidden={() => setHideRevenue(v => !v)}
+            locale={i18n.language || 'fr'}
           />
         </View>
 
@@ -544,7 +556,7 @@ function Home() {
                 style={[s.requestCard, { width: requestCardWidth }, !online && s.actionDisabled, i === 0 && { transform: [{ scale: pulseAnim }] }]}
                 onPress={() => {
                   if (!online) return
-                  router.push('/nearby-requests')
+                  router.push({ pathname: '/nearby-requests', params: { radius: String(radiusRef.current) } })
                 }}
                 activeOpacity={0.85}
               >

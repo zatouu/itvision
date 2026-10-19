@@ -8,14 +8,15 @@ import type MapView from 'react-native-maps'
 import { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps'
 import SafeMapView from '../src/components/SafeMapView'
 import * as Location from 'expo-location'
-import { router, useFocusEffect } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { toast } from '../src/toast'
 import { apiGet, apiPostQueued, apiPost } from '../src/api'
 import { humanErrorMessage } from '../src/errorMessages'
 import { getProviderWallet } from '../src/wallet'
 import { fetchWithCache, cacheClear } from '../src/storage'
-import { connectSocket, joinNearbyRoom, leaveNearbyRoom, emitOfferTyping } from '../src/socket'
+import { connectSocket, joinNearbyRoom, leaveNearbyRoom } from '../src/socket'
+import { useOfferPresence } from '../src/hooks/useOfferPresence'
 import { getProviderName } from '../src/user-profile'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { SkeletonCard } from '../src/components/Skeleton'
@@ -33,7 +34,13 @@ import { RefreshCw, Crosshair, MapPin, X, Minus, Plus, ShieldCheck, Volume2, Spa
 import { BackIcon } from '../src/components/BackButton'
 import SchedulePicker, { formatSlot } from '../src/components/SchedulePicker'
 
-const RADIUS_KM = 10
+const DEFAULT_RADIUS_KM = 10
+
+/** Rayon du profil transmis par l'accueil (?radius=), borné comme côté serveur. */
+function clampRadius(raw?: string | string[]): number {
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isFinite(value) && value > 0 ? Math.min(Math.max(Math.round(value), 1), 25) : DEFAULT_RADIUS_KM
+}
 
 const QUICK_PRICES = [5000, 10000, 15000, 25000]
 const VALIDITY_OPTIONS: { mins: number; label: string }[] = [
@@ -49,11 +56,13 @@ type ViewMode = 'map' | 'list'
 
 function NearbyRequests() {
   const { colors, s } = useStyles()
+  const params = useLocalSearchParams<{ radius?: string; view?: string }>()
+  const RADIUS_KM = clampRadius(params.radius)
   const [items, setItems] = useState<any[]>([])
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [viewMode, setViewMode] = useState<ViewMode>(params.view === 'map' ? 'map' : 'list')
 
   const [selected, setSelected] = useState<any | null>(null)
   const [price, setPrice] = useState('')
@@ -95,16 +104,8 @@ function NearbyRequests() {
     setProposedTime(null)
   }, [])
 
-  // Notifier le client quand le prestataire est en train de rédiger une offre
-  useEffect(() => {
-    if (!selected) return
-    const requestId = selected._id
-    const providerName = getProviderName()
-    emitOfferTyping(requestId, true, providerName || undefined)
-    return () => {
-      emitOfferTyping(requestId, false, providerName || undefined)
-    }
-  }, [selected])
+  // Le client voit en direct « X consulte votre demande », puis « X rédige une offre » pendant la saisie
+  const { notifyTyping, stopTyping } = useOfferPresence(selected?._id ? String(selected._id) : null, coords)
 
   const { t, i18n } = useTranslation()
   const flags = useAppFlags()
@@ -167,7 +168,7 @@ function NearbyRequests() {
     const target = c ?? coords
     if (!target || loadInFlightRef.current) return
     loadInFlightRef.current = true
-    const key = `nearby-${Math.round(target.lat * 10)}-${Math.round(target.lng * 10)}`
+    const key = `nearby-${RADIUS_KM}-${Math.round(target.lat * 10)}-${Math.round(target.lng * 10)}`
     if (isRefresh) {
       setRefreshing(true)
       await cacheClear(key)
@@ -242,7 +243,7 @@ function NearbyRequests() {
         setItems(prev => prev.filter(it => String(it._id) !== String(requestId)))
       }
       const c = coordsRef.current
-      if (c) cacheClear(`nearby-${Math.round(c.lat * 10)}-${Math.round(c.lng * 10)}`)
+      if (c) cacheClear(`nearby-${RADIUS_KM}-${Math.round(c.lat * 10)}-${Math.round(c.lng * 10)}`)
     }
     const handleRequestNew = (data: any) => {
       // Reload silencieux (pas de popup bloquante)
@@ -268,6 +269,7 @@ function NearbyRequests() {
 
   const sendOffer = async () => {
     if (!selected || !price) return
+    stopTyping()
     setSending(true)
     setErr(null)
     try {
@@ -644,7 +646,7 @@ function NearbyRequests() {
           <TextInput
             style={s.priceTextInput}
             value={price}
-            onChangeText={(txt) => setPrice(txt.replace(/[^0-9]/g, ''))}
+            onChangeText={(txt) => { setPrice(txt.replace(/[^0-9]/g, '')); notifyTyping() }}
             keyboardType="numeric"
             placeholder="0"
             placeholderTextColor={colors.textMuted}
@@ -655,7 +657,7 @@ function NearbyRequests() {
               selected?.budget ? Math.round(Number(selected.budget) * 1.1 / 1000) * 1000 : 20000,
               selected?.budget ? Math.round(Number(selected.budget) * 1.25 / 1000) * 1000 : 25000,
             ].map((v, i) => (
-              <TouchableOpacity key={i} style={s.quickPriceChip} onPress={() => setPrice(String(v))}>
+              <TouchableOpacity key={i} style={s.quickPriceChip} onPress={() => { setPrice(String(v)); notifyTyping() }}>
                 <Text style={s.quickPriceChipText}>{(v / 1000).toFixed(0)}k</Text>
               </TouchableOpacity>
             ))}
@@ -701,7 +703,7 @@ function NearbyRequests() {
           )}
 
           <Text style={s.modalSectionLabel}>{t('nearby.optionalMessage')}</Text>
-          <TextInput style={s.textarea} value={comment} onChangeText={setComment} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor={colors.textMuted} />
+          <TextInput style={s.textarea} value={comment} onChangeText={(txt) => { setComment(txt); notifyTyping() }} placeholder={t('nearby.messagePlaceholder')} multiline placeholderTextColor={colors.textMuted} />
 
           {/* Options */}
           <Text style={s.modalSectionLabel}>{t('nearby.options')}</Text>

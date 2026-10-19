@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHmac } from 'crypto'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
@@ -46,6 +47,21 @@ function score(distanceMeters: number, createdAt: Date): number {
   const ageHours = Math.max(0, (Date.now() - new Date(createdAt).getTime()) / 3_600_000)
   const recency = 1 / (1 + ageHours)
   return Number((distScore * 0.6 + recency * 0.4).toFixed(6))
+}
+
+/**
+ * Position approximative (250–450 m) tant que la demande n'est pas attribuée : le domicile
+ * du client n'est pas exposé sur les cartes des prestataires. Décalage stable par demande
+ * (pour que le marqueur ne saute pas) et dérivé d'un secret serveur (impossible à retrancher).
+ */
+function approximateCoordinates(requestId: string, lng: number, lat: number): [number, number] {
+  const secret = process.env.LOCATION_FUZZ_SECRET || process.env.JWT_SECRET || 'xeuy-location-fuzz'
+  const digest = createHmac('sha256', secret).update(requestId).digest()
+  const angle = (digest.readUInt16BE(0) / 65536) * 2 * Math.PI
+  const meters = 250 + (digest.readUInt16BE(2) / 65536) * 200
+  const dLat = (meters * Math.cos(angle)) / 111_320
+  const dLng = (meters * Math.sin(angle)) / (111_320 * Math.max(Math.cos((lat * Math.PI) / 180), 0.2))
+  return [Number((lng + dLng).toFixed(5)), Number((lat + dLat).toFixed(5))]
 }
 
 export async function GET(request: NextRequest) {
@@ -136,10 +152,17 @@ export async function GET(request: NextRequest) {
       const hasPhoto = (it.media || []).some((m: any) => m.type === 'image')
       const hasVideo = (it.media || []).some((m: any) => m.type === 'video')
       const myOffer = myOfferMap.get(String(it._id)) || null
+      // Seule une position approximative sort d'ici ; distance et score affichés en dérivent aussi
+      // (une distance exacte permettrait de retrouver l'adresse par triangulation).
+      const hasCoords = it.location?.coordinates?.length === 2
+      const [approxLng, approxLat] = hasCoords ? approximateCoordinates(String(it._id), lng, lat) : [lng, lat]
+      const shownDistance = haversineMeters(q.lat, q.lng, approxLat, approxLng)
+      const location = hasCoords ? { ...it.location, coordinates: [approxLng, approxLat], approximate: true } : it.location
       return {
         ...it,
-        _score: score(distMeters, it.createdAt),
-        _distance: Math.round(distMeters),
+        location,
+        _score: score(shownDistance, it.createdAt),
+        _distance: Math.round(shownDistance / 100) * 100,
         _unlockCost: cost.cost,
         _unlockedByMe: unlockedSet.has(String(it._id)),
         _hasOffered: !!myOffer,
