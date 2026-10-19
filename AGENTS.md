@@ -105,7 +105,13 @@ Un produit de vendeur tiers (`shopId`) est exclu, même taggé `corporateVisible
 - Les `node_modules` diffèrent entre branches : `npm ci` dans `mobile/app` après
   chaque bascule, sinon `tsc`/`eas` échouent.
 - Vérifs : `npx tsc --noEmit`, `npx jest --silent` (68 tests), `npx expo-doctor` (SDK 57).
-- OTA SDK 51 : `npx eas update --channel ec2 --platform android --message "..."`.
+- OTA SDK 51 : `npm run ota -- "message"` depuis `mobile/app` (script `scripts/ota.js`).
+  `eas update` n'applique pas le bloc `env` d'eas.json : sans `.env` (modèle `.env.example`),
+  l'app partait vers une mauvaise API (« Impossible de contacter le serveur » partout),
+  sans Sentry ni cartes. Le script charge `.env`, complète avec le profil du canal et
+  refuse de publier si `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` manque ou si ec2 vise localhost.
+- Icône, splash natif et couleurs Android (`app.json`) : changement natif → nouveau build APK
+  (un OTA ne les modifie pas).
 - OTA SDK 57 : `--environment preview` est obligatoire, **et il faut charger `.env`**
   (`set -a && . ./.env && set +a`), sinon le bundle part sans
   `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` (carte grise). Vérifier avec `grep -c -a AIzaSy`
