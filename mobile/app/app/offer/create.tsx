@@ -17,6 +17,7 @@ import { humanErrorMessage } from '../../src/errorMessages'
 import { hapticSuccess, hapticError } from '../../src/haptics'
 import { getProviderName } from '../../src/user-profile'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
+import { useOfferPresence } from '../../src/hooks/useOfferPresence'
 
 const ETA_OPTIONS = [15, 30, 45, 60]
 
@@ -42,6 +43,8 @@ function CreateOffer() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<{ suggestedPrice: number; suggestedMessage: string; reasoning?: string } | null>(null)
   const [marketPrices, setMarketPrices] = useState<{ count: number; medianPrice: number; avgPrice: number } | null>(null)
+  // Présence relayée au client tant que la demande est ouverte (« consulte » puis « rédige une offre »)
+  const { notifyTyping, stopTyping } = useOfferPresence(request && ['created', 'broadcasted', 'pending_offers'].includes(request.status) ? requestId : null)
 
   useEffect(() => {
     if (!requestId) {
@@ -123,6 +126,7 @@ function CreateOffer() {
 
   const handleSendOffer = async () => {
     if (!requestId || submitting || !canSend) return
+    stopTyping()
     setSubmitting(true)
     try {
       const response = await apiPostQueued(
@@ -243,14 +247,14 @@ function CreateOffer() {
         <View style={s.priceSection}>
           <Text style={s.priceLabel}>{t('providerOffer.yourPrice')}</Text>
           <View style={s.priceInputRow}>
-            <TouchableOpacity style={s.priceBtn} onPress={() => setPriceText(String(Math.max(500, (Number.isFinite(price) ? price : 1000) - 500)))} accessibilityRole="button" accessibilityLabel={t('journey.priceLess')}>
+            <TouchableOpacity style={s.priceBtn} onPress={() => { setPriceText(String(Math.max(500, (Number.isFinite(price) ? price : 1000) - 500))); notifyTyping() }} accessibilityRole="button" accessibilityLabel={t('journey.priceLess')}>
               <Minus size={24} color={colors.text} />
             </TouchableOpacity>
             <View style={s.priceDisplay}>
-              <TextInput style={s.priceValue} value={priceText} onChangeText={setPriceText} keyboardType="numeric" accessibilityLabel={t('providerOffer.yourPrice')} maxLength={12} selectTextOnFocus />
+              <TextInput style={s.priceValue} value={priceText} onChangeText={(txt) => { setPriceText(txt); notifyTyping() }} keyboardType="numeric" accessibilityLabel={t('providerOffer.yourPrice')} maxLength={12} selectTextOnFocus />
               <Text style={s.priceCurrency}>FCFA</Text>
             </View>
-            <TouchableOpacity style={s.priceBtn} onPress={() => setPriceText(String(Math.min(50_000_000, (Number.isFinite(price) ? price : 0) + 500)))} accessibilityRole="button" accessibilityLabel={t('journey.priceMore')}>
+            <TouchableOpacity style={s.priceBtn} onPress={() => { setPriceText(String(Math.min(50_000_000, (Number.isFinite(price) ? price : 0) + 500))); notifyTyping() }} accessibilityRole="button" accessibilityLabel={t('journey.priceMore')}>
               <Plus size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -318,7 +322,7 @@ function CreateOffer() {
           <Text style={s.sectionTitle}>{t('providerOffer.message')}</Text>
           <TextInput
             value={message}
-            onChangeText={setMessage}
+            onChangeText={(txt) => { setMessage(txt); notifyTyping() }}
             accessibilityLabel={t('providerOffer.message')}
             maxLength={1000}
             placeholder={t('providerOffer.messagePlaceholder')}

@@ -24,7 +24,12 @@ import EstimatedTimeCard from '../../src/components/offers/EstimatedTimeCard'
 import TipCard from '../../src/components/offers/TipCard'
 import NegotiateSheet from '../../src/components/offers/NegotiateSheet'
 import RequestOffersMap from '../../src/components/RequestOffersMap'
+import LiveActivityCard, { LiveActivity } from '../../src/components/offers/LiveActivityCard'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
+
+const MAX_ACTIVITY = 4
+// Sans nouvelle frappe pendant ce délai, « rédige une offre » disparaît (le prestataire a pu fermer l'app)
+const TYPING_TIMEOUT_MS = 15000
 
 /** Anneaux radar animés (strip navy « recherche en cours »). */
 function RadarPulse() {
@@ -60,7 +65,12 @@ function OffersReceived() {
   const [sort, setSort] = useState<SortKey>('recommended')
   const [accepting, setAccepting] = useState<string | null>(null)
   const [viewersCount, setViewersCount] = useState(0)
-  const [liveViewers, setLiveViewers] = useState<RadarViewer[]>([])
+  const [presence, setPresence] = useState<Record<string, RadarViewer & { typingAt?: number }>>({})
+  const [nearbyCount, setNearbyCount] = useState(0)
+  const [activity, setActivity] = useState<LiveActivity[]>([])
+  const [now, setNow] = useState(() => Date.now())
+  const presenceRef = useRef(presence)
+  presenceRef.current = presence
   const [showFilters, setShowFilters] = useState(true)
   const [negotiateTarget, setNegotiateTarget] = useState<Offer | null>(null)
   const [showMap, setShowMap] = useState(false)
@@ -106,6 +116,32 @@ function OffersReceived() {
 
   useEffect(() => { load() }, [load])
 
+  // ── Présence en direct (façon inDrive) : qui consulte, qui rédige, qui a envoyé ──
+  const pushActivity = useCallback((kind: LiveActivity['kind'], providerId: string | undefined, name?: string) => {
+    setActivity(prev => {
+      // Une seule ligne par prestataire et par type : la plus récente remonte en tête
+      const id = `${kind}-${providerId || Math.random().toString(36).slice(2)}`
+      return [{ id, kind, name, at: Date.now() }, ...prev.filter(a => a.id !== id)].slice(0, MAX_ACTIVITY)
+    })
+  }, [])
+
+  // Horloge : expire les indicateurs « rédige » sans nouvelle frappe et rafraîchit les « il y a x min »
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const t0 = Date.now()
+      setNow(t0)
+      setPresence(prev => {
+        let changed = false
+        const next = { ...prev }
+        for (const [id, v] of Object.entries(next)) {
+          if (v.typing && t0 - (v.typingAt || 0) > TYPING_TIMEOUT_MS) { next[id] = { ...v, typing: false }; changed = true }
+        }
+        return changed ? next : prev
+      })
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Fetch live viewers (providers currently consulting this request)
   // Only polls when app is active — pauses in background to prevent freeze
   useEffect(() => {
@@ -118,15 +154,22 @@ function OffersReceived() {
       try {
         const data: any = await apiGet(`/api/services/requests/${requestId}/live`)
         if (!active) return
-        const viewers = (data.viewers || []).map((v: any) => ({
-          providerId: v.providerId,
+        const serverViewers: RadarViewer[] = (data.viewers || []).map((v: any) => ({
+          providerId: String(v.providerId),
           name: v.name,
           avatarUrl: v.avatarUrl,
           distanceKm: v.distanceKm,
           etaMinutes: v.etaMinutes,
         }))
-        setLiveViewers(viewers)
-        setViewersCount(viewers.length)
+        // Le serveur fait foi pour la liste ; on conserve l'état « rédige » reçu en direct
+        setPresence(prev => {
+          const next: Record<string, RadarViewer & { typingAt?: number }> = {}
+          for (const v of serverViewers) next[v.providerId] = { ...prev[v.providerId], ...v }
+          for (const [id, v] of Object.entries(prev)) if (!next[id] && v.typing) next[id] = v
+          return next
+        })
+        setViewersCount(serverViewers.length)
+        setNearbyCount(Array.isArray(data.nearby) ? data.nearby.length : 0)
       } catch {}
     }
 
@@ -165,11 +208,59 @@ function OffersReceived() {
       throttledReload()
     }
     const handleDisconnect = () => {}
-    const handleOfferNew = () => { throttledReload() }
+    const handleOfferNew = (data: any) => {
+      if (data?.requestId && String(data.requestId) !== String(requestId)) return
+      const providerId = data?.providerId ? String(data.providerId) : undefined
+      const name = providerId ? presenceRef.current[providerId]?.name : undefined
+      if (providerId) {
+        setPresence(prev => {
+          if (!prev[providerId]) return prev
+          const next = { ...prev }
+          delete next[providerId]
+          return next
+        })
+      }
+      pushActivity('offer', providerId, name)
+      hapticLight()
+      throttledReload()
+    }
     const handleViewers = (data: any) => {
       if (data?.requestId === requestId && typeof data.count === 'number') {
         setViewersCount(data.count)
       }
+    }
+    const handleViewing = (data: any) => {
+      if (data?.requestId && String(data.requestId) !== String(requestId)) return
+      const providerId = data?.providerId ? String(data.providerId) : null
+      if (!providerId) return
+      setPresence(prev => ({ ...prev, [providerId]: { ...prev[providerId], providerId, name: data.providerName || prev[providerId]?.name } }))
+      pushActivity('viewing', providerId, data.providerName)
+    }
+    const handleStopViewing = (data: any) => {
+      if (data?.requestId && String(data.requestId) !== String(requestId)) return
+      const providerId = data?.providerId ? String(data.providerId) : null
+      if (!providerId) return
+      setPresence(prev => {
+        if (!prev[providerId]) return prev
+        const next = { ...prev }
+        delete next[providerId]
+        return next
+      })
+    }
+    const handleTyping = (data: any) => {
+      if (String(data?.requestId) !== String(requestId)) return
+      const providerId = data?.providerId ? String(data.providerId) : null
+      if (!providerId) return
+      const typing = data.isTyping !== false
+      setPresence(prev => {
+        // « a arrêté d'écrire » ne doit pas ressusciter un prestataire déjà parti (ordre des événements non garanti)
+        if (!typing && !prev[providerId]) return prev
+        return {
+          ...prev,
+          [providerId]: { ...prev[providerId], providerId, name: data.providerName || prev[providerId]?.name, typing, typingAt: Date.now() },
+        }
+      })
+      if (typing) pushActivity('typing', providerId, data.providerName)
     }
     const handleAssigned = () => { throttledReload() }
     const handleOfferUpdated = () => { throttledReload() }
@@ -180,6 +271,9 @@ function OffersReceived() {
     socket.on('disconnect', handleDisconnect)
     socket.on('offer:new', handleOfferNew)
     socket.on('request:viewers_updated', handleViewers)
+    socket.on('request:viewing', handleViewing)
+    socket.on('request:stop-viewing', handleStopViewing)
+    socket.on('offer:typing', handleTyping)
     socket.on('request:assigned', handleAssigned)
     socket.on('offer:updated', handleOfferUpdated)
     socket.on('offer:counter-accepted', handleCounterAccepted)
@@ -211,12 +305,15 @@ function OffersReceived() {
       socket.off('disconnect', handleDisconnect)
       socket.off('offer:new', handleOfferNew)
       socket.off('request:viewers_updated', handleViewers)
+      socket.off('request:viewing', handleViewing)
+      socket.off('request:stop-viewing', handleStopViewing)
+      socket.off('offer:typing', handleTyping)
       socket.off('request:assigned', handleAssigned)
       socket.off('offer:updated', handleOfferUpdated)
       socket.off('offer:counter-accepted', handleCounterAccepted)
       socket.off('offer:counter-rejected', handleCounterRejected)
     }
-  }, [requestId, throttledReload])
+  }, [requestId, throttledReload, pushActivity])
 
   // Redirect to mission if already assigned
   useEffect(() => {
@@ -326,6 +423,22 @@ function OffersReceived() {
   const reqLat = request?.location?.lat ?? request?.location?.coordinates?.[1]
   const reqLng = request?.location?.lng ?? request?.location?.coordinates?.[0]
 
+  // Phrase « en direct » : la rédaction prime sur la consultation, puis la disponibilité alentour
+  const liveViewers = Object.values(presence)
+  const typingViewers = liveViewers.filter(v => v.typing)
+  const viewingCount = Math.max(liveViewers.length, viewersCount)
+  const liveHeadline = typingViewers.length === 1
+    ? t('clientOffers.liveTypingOne', { name: typingViewers[0].name || t('clientOffers.aProvider') })
+    : typingViewers.length > 1
+      ? t('clientOffers.liveTypingMany', { count: typingViewers.length })
+      : viewingCount === 1 && liveViewers[0]?.name
+        ? t('clientOffers.liveViewingOne', { name: liveViewers[0].name })
+        : viewingCount > 0
+          ? t('clientOffers.liveViewingMany', { count: viewingCount })
+          : nearbyCount > 0
+            ? t('clientOffers.liveNearby', { count: nearbyCount })
+            : t('clientOffers.liveWaiting')
+
   return (
     <SafeAreaView style={s.safe}>
       <AppHeader
@@ -369,8 +482,8 @@ function OffersReceived() {
                   </Text>
                   {` · ${t('clientOffers.searchOngoing')}`}
                 </Text>
-                <Text style={s.radarSub}>
-                  {t('clientOffers.providersViewing', { count: Math.max(viewersCount, 0) })}
+                <Text style={s.radarSub} numberOfLines={2}>
+                  {liveHeadline}
                   {expiresInMin != null && expiresInMin > 0 ? ` · ${t('clientOffers.remainingTime', { minutes: expiresInMin })}` : ''}
                 </Text>
               </View>
@@ -382,6 +495,8 @@ function OffersReceived() {
 
           {hasOffers && (
             <>
+              {!isTerminal && <LiveActivityCard items={activity.slice(0, 2)} now={now} />}
+
               {/* Sorting Pills */}
               {showFilters && <SortingPillsRow active={sort} onChange={setSort} />}
 
@@ -414,8 +529,8 @@ function OffersReceived() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.pendingSlotTitle}>
-                        {viewersCount > 0
-                          ? t('clientOffers.providersPreparing', { count: viewersCount })
+                        {typingViewers.length > 0 ? liveHeadline
+                          : viewingCount > 0 ? t('clientOffers.providersViewing', { count: viewingCount })
                           : t('clientOffers.moreOffersComing')}
                       </Text>
                       <Text style={s.pendingSlotSub}>{t('clientOffers.offersArriveSoon')}</Text>
@@ -453,14 +568,20 @@ function OffersReceived() {
             <>
               {/* Radar pulse hero */}
               <View style={s.heroSection}>
-                <RadarPulseIllustration viewers={liveViewers} />
-                <Text style={s.heroTitle}>{t('clientOffers.searching')}</Text>
+                <RadarPulseIllustration viewers={liveViewers} nearbyCount={nearbyCount} />
+                <Text style={s.heroTitle} accessibilityLiveRegion="polite">{liveViewers.length > 0 ? liveHeadline : t('clientOffers.searching')}</Text>
                 <Text style={s.heroSubtitle}>
-                  {t('clientOffers.emptySubtitle', {
-                    category: request ? getCategoryMeta(request.category).label.toLowerCase() : 'prestataires',
-                  })}
+                  {liveViewers.length > 0
+                    ? t('clientOffers.liveHint')
+                    : nearbyCount > 0
+                      ? t('clientOffers.liveNearby', { count: nearbyCount })
+                      : t('clientOffers.emptySubtitle', {
+                        category: request ? getCategoryMeta(request.category).label.toLowerCase() : 'prestataires',
+                      })}
                 </Text>
               </View>
+
+              <LiveActivityCard items={activity} now={now} />
 
               {/* How it works timeline */}
               <View style={s.timelineCard}>

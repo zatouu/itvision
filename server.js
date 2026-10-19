@@ -217,6 +217,14 @@ function isStale(pos) {
   return !pos || Date.now() - (pos.updatedAt || 0) > STALE_POSITION_MS
 }
 
+/** « Moussa Diop » → « Moussa D. » : identité visible par les clients sans nom complet. */
+function formatPublicName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'Prestataire'
+  const first = parts[0].slice(0, 24)
+  return parts.length > 1 ? `${first} ${parts[parts.length - 1][0].toUpperCase()}.` : first
+}
+
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000
   const toRad = (d) => (d * Math.PI) / 180
@@ -319,6 +327,28 @@ app.prepare().then(() => {
     // Rejoindre les rooms personnelles
     socket.join(`user-${userId}`)
     if (socket.user.authDomain === 'web') socket.join(`web-session-${userId}`)
+
+    // Nom montré aux autres utilisateurs : résolu en base (« Prénom N. »), jamais l'email ni un nom envoyé par l'app
+    let displayNamePromise = null
+    const getDisplayName = () => {
+      if (!displayNamePromise) {
+        displayNamePromise = (async () => {
+          try {
+            if (!mongoose.Types.ObjectId.isValid(String(userId))) return 'Prestataire'
+            await ensureMongo()
+            const u = await mongoose.connection.collection('users').findOne(
+              { _id: new mongoose.Types.ObjectId(String(userId)) },
+              { projection: { name: 1 } }
+            )
+            return formatPublicName(u?.name)
+          } catch {
+            displayNamePromise = null
+            return 'Prestataire'
+          }
+        })()
+      }
+      return displayNamePromise
+    }
 
     // Room entreprise (portail corporate) — tous les utilisateurs de la société
     if (socket.user.companyClientId) {
@@ -429,10 +459,11 @@ app.prepare().then(() => {
         lat: data.lat,
         lng: data.lng,
         status: payloadStatus,
-        name: data.providerName || email?.split('@')[0] || 'Prestataire',
+        name: existing?.name || 'Prestataire',
         email,
         lastEmitAt: now,
       })
+      if (!existing?.name) getDisplayName().then(n => { const p = providerPresence.get(userId); if (p) p.name = n })
       console.log(`   📍 ${userId} provider:gps ${data.lat.toFixed(5)},${data.lng.toFixed(5)} status=${payloadStatus}`)
     })
 
@@ -475,12 +506,13 @@ app.prepare().then(() => {
         return
       }
 
+      const providerName = await getDisplayName()
       updatePresence(userId, {
         lat: data.lat,
         lng: data.lng,
         missionRequestId: data.requestId,
         status: 'on_mission',
-        name: data.providerName || email?.split('@')[0] || 'Prestataire',
+        name: providerName,
         email,
         lastEmitAt: now,
       })
@@ -497,7 +529,7 @@ app.prepare().then(() => {
       socket.to(`request-${data.requestId}`).emit('provider:location', {
         requestId: data.requestId,
         providerId: userId,
-        providerName: email?.split('@')[0] || data.providerName || 'Prestataire',
+        providerName,
         lat: data.lat,
         lng: data.lng,
         heading: data.heading || null,
@@ -547,23 +579,40 @@ app.prepare().then(() => {
       })
     }
 
+    // Le client propriétaire de la demande ne compte pas comme « prestataire qui consulte »
+    const isRequestOwner = (access) => !!access?.sr && String(access.sr.clientId) === String(userId)
+    const stopViewing = (requestId) => {
+      const existing = providerPresence.get(userId)
+      if (existing && existing.viewingRequestId === requestId) {
+        existing.viewingRequestId = null
+        existing.status = existing.missionRequestId ? 'on_mission' : 'available'
+        existing.updatedAt = Date.now()
+      }
+      socket.to(`request-${requestId}`).emit('request:stop-viewing', { requestId, providerId: userId })
+      emitViewersCount(requestId)
+    }
+
     socket.on('request:viewing', async (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
       const access = await getRequestAccess(userId, role, requestId)
-      if (!access.allowed) return
+      if (!access.allowed || isRequestOwner(access)) return
       const existing = providerPresence.get(userId)
+      // Un seul détail consulté à la fois : quitter la demande précédente
+      if (existing?.viewingRequestId && existing.viewingRequestId !== requestId) stopViewing(existing.viewingRequestId)
+      const providerName = await getDisplayName()
       updatePresence(userId, {
         lat: data?.lat || existing?.lat || null,
         lng: data?.lng || existing?.lng || null,
         viewingRequestId: requestId,
         status: existing?.missionRequestId ? 'on_mission' : 'viewing',
-        name: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        name: providerName,
         email,
       })
       socket.to(`request-${requestId}`).emit('request:viewing', {
+        requestId,
         providerId: userId,
-        providerName: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        providerName,
         lat: data?.lat || existing?.lat || null,
         lng: data?.lng || existing?.lng || null,
         timestamp: Date.now(),
@@ -573,16 +622,7 @@ app.prepare().then(() => {
     socket.on('request:stop-viewing', (data) => {
       const requestId = typeof data === 'string' ? data : data?.requestId
       if (!requestId) return
-      const existing = providerPresence.get(userId)
-      if (existing) {
-        existing.viewingRequestId = existing.viewingRequestId === requestId ? null : existing.viewingRequestId
-        existing.status = existing.missionRequestId ? 'on_mission' : (existing.viewingRequestId ? 'viewing' : 'available')
-        existing.updatedAt = Date.now()
-      }
-      socket.to(`request-${requestId}`).emit('request:stop-viewing', {
-        providerId: userId,
-      })
-      emitViewersCount(requestId)
+      stopViewing(requestId)
     })
 
     // Provider est en train de rédiger une offre → notifier le client
@@ -590,11 +630,11 @@ app.prepare().then(() => {
       const requestId = data?.requestId
       if (!requestId) return
       const access = await getRequestAccess(userId, role, requestId)
-      if (!access.allowed) return
+      if (!access.allowed || isRequestOwner(access)) return
       socket.to(`request-${requestId}`).emit('offer:typing', {
         requestId,
         providerId: userId,
-        providerName: data?.providerName || email?.split('@')[0] || 'Prestataire',
+        providerName: await getDisplayName(),
         isTyping: data?.isTyping !== false,
       })
     })
@@ -747,6 +787,16 @@ app.prepare().then(() => {
         if (p) {
           p.status = 'offline'
           p.updatedAt = Date.now()
+          // Le client voit tout de suite que ce prestataire ne consulte plus sa demande — sauf s'il
+          // est encore connecté ailleurs (changement de réseau : la nouvelle connexion s'est déjà réannoncée)
+          const stillConnected = (io.sockets.adapter.rooms.get(`user-${userId}`)?.size || 0) > 0
+          if (p.viewingRequestId && !stillConnected) {
+            const requestId = p.viewingRequestId
+            p.viewingRequestId = null
+            io.to(`request-${requestId}`).emit('request:stop-viewing', { requestId, providerId: userId })
+            io.to(`request-${requestId}`).emit('offer:typing', { requestId, providerId: userId, isTyping: false })
+            emitViewersCount(requestId)
+          }
         }
       }
     })

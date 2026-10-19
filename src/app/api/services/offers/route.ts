@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
       io.to(`request-${requestId}`).emit(isUpdate ? 'offer:updated' : 'offer:new', {
         offerId: String(created._id),
         requestId,
+        providerId: String(userId),
         price,
         etaMinutes,
         comment,
