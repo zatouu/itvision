@@ -415,6 +415,23 @@ jobs:
             # Login au registre GHCR avec le token GitHub natif (packages: write déjà accordé)
             echo "${{ github.token }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
             
+            # Espace disque : chaque déploiement apporte une image d'environ 1 Go. Un disque plein
+            # empêche MongoDB de démarrer (ECONNREFUSED au précontrôle). Les images en service sont conservées.
+            echo "Espace disque avant nettoyage :"; df -h / | tail -1
+            sudo docker image prune -af --filter "until=48h" >/dev/null || true
+            sudo docker builder prune -af >/dev/null 2>&1 || true
+            echo "Espace disque après nettoyage :"; df -h / | tail -1
+
+            # Diagnostic affiché dans les logs du workflow si une étape échoue
+            diagnostic() {
+              echo "::group::Diagnostic EC2"
+              df -h / ; free -m || true
+              sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml ps -a || true
+              echo "--- Derniers logs MongoDB ---"
+              sudo docker logs --tail 80 itvision-mongodb 2>&1 || true
+              echo "::endgroup::"
+            }
+
             # Pull de l'image avec retry (3 tentatives en cas de timeout réseau)
             MAX_RETRIES=3
             RETRY_DELAY=10
@@ -434,12 +451,16 @@ jobs:
               fi
             done
 
-            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml run --rm --no-deps app node .ops/production-preflight.cjs
-            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d --wait --wait-timeout 180
+            # Base et cache d'abord : le précontrôle (run --no-deps) suppose MongoDB en service.
+            # Après un redémarrage de l'EC2 ou un crash, on le (re)démarre et on attend qu'il soit sain.
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d --wait --wait-timeout 180 mongodb redis || { diagnostic; exit 1; }
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml run --rm --no-deps app node .ops/production-preflight.cjs || { diagnostic; exit 1; }
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up -d --wait --wait-timeout 180 || { diagnostic; exit 1; }
 
             # Vérification santé
             echo "⏳ Attente démarrage app..."
-            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml exec -T app node scripts/check-production-runtime.cjs
+            sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml exec -T app node scripts/check-production-runtime.cjs || { diagnostic; exit 1; }
             sudo docker compose --env-file .env.ec2 -f docker-compose.ec2.yml ps
 
-            # Nettoyage des anciennes images
+            # Nettoyage des anciennes images (celles du déploiement précédent restent 48 h pour un retour arrière)
+            sudo docker image prune -af --filter "until=48h" >/dev/null || true
