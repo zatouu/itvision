@@ -478,11 +478,12 @@ app.prepare().then(() => {
       console.log(`   🔧 ${userId} statut → ${newStatus}`)
     })
 
-    // Consumer demande le nombre de prestataires en ligne
+    // Consumer demande le nombre de prestataires en ligne (sans se compter lui-même s'il est aussi prestataire)
     socket.on('get-online-providers', () => {
       const now = Date.now()
       let count = 0
-      for (const [, p] of providerPresence.entries()) {
+      for (const [pid, p] of providerPresence.entries()) {
+        if (String(pid) === String(userId)) continue
         if (p.status !== 'offline' && now - (p.updatedAt || 0) <= STALE_POSITION_MS) count++
       }
       socket.emit('online-providers-count', { count })

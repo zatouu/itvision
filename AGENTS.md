@@ -106,10 +106,15 @@ Un produit de vendeur tiers (`shopId`) est exclu, même taggé `corporateVisible
   chaque bascule, sinon `tsc`/`eas` échouent.
 - Vérifs : `npx tsc --noEmit`, `npx jest --silent` (68 tests), `npx expo-doctor` (SDK 57).
 - OTA SDK 51 : `npm run ota -- "message"` depuis `mobile/app` (script `scripts/ota.js`).
-  `eas update` n'applique pas le bloc `env` d'eas.json : sans `.env` (modèle `.env.example`),
-  l'app partait vers une mauvaise API (« Impossible de contacter le serveur » partout),
-  sans Sentry ni cartes. Le script charge `.env`, complète avec le profil du canal et
-  refuse de publier si `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` manque ou si ec2 vise localhost.
+  Source de vérité des clés : les **variables EAS** (environnement `production`, une seule fois) :
+  `npx eas env:set --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value ... --environment production --visibility sensitive`
+  (idem `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_SENTRY_DSN`). Le script lit `eas env:list` et publie
+  avec `--environment production` ; les builds (`eas.json` → `"environment": "production"`)
+  utilisent les mêmes valeurs. À défaut, il retombe sur `.env` (modèle `.env.example`) + le profil
+  du canal, et refuse de publier si `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` manque ou si ec2 vise localhost
+  (`eas update` n'applique pas le bloc `env` d'eas.json). `OTA_DRY_RUN=1` pour tester.
+- Itinéraires (`/api/services/route`) : Google Directions si `GOOGLE_MAPS_API_KEY` est défini côté
+  serveur (secret GitHub → `.env.ec2`), sinon repli automatique OSRM (`OSRM_URL` surchargeable).
 - Icône, splash natif et couleurs Android (`app.json`) : changement natif → nouveau build APK
   (un OTA ne les modifie pas).
 - OTA SDK 57 : `--environment preview` est obligatoire, **et il faut charger `.env`**

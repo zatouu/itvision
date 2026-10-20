@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
@@ -7,6 +8,7 @@ import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { enqueueDispatch } from '@/lib/visibility'
+import { notifyWave } from '@/lib/visibility/notification-engine'
 import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
@@ -224,6 +226,14 @@ export async function POST(request: NextRequest) {
     }
 
     const isUrgent = urgent === true || urgent === 'true' || urgent === 1
+
+    // Prestataire choisi depuis son profil : doit exister, être prestataire et ne pas être le client lui-même
+    let preferredProviderId: string | undefined
+    const rawPreferred = (body as any).preferredProviderId
+    if (typeof rawPreferred === 'string' && mongoose.Types.ObjectId.isValid(rawPreferred) && rawPreferred !== String(userId)) {
+      const isProvider = await ProviderProfile.exists({ userId: rawPreferred })
+      if (isProvider) preferredProviderId = rawPreferred
+    }
     // Réservation planifiée : créneau futur demandé par le client.
     // Mutuellement exclusif avec urgent (urgent = immédiat).
     let safeScheduledFor: Date | undefined
@@ -255,6 +265,7 @@ export async function POST(request: NextRequest) {
         status: 'created',
         expiresAt,
         idempotencyKey: clientOpId,
+        preferredProviderId,
       })
     } catch (createErr: any) {
       // Race : un replay concurrent a créé la demande entre le check et l'insert
@@ -271,6 +282,24 @@ export async function POST(request: NextRequest) {
     enqueueDispatch(String(created._id)).catch(err => {
       console.error('[POST /api/services/requests] enqueueDispatch failed:', err?.message)
     })
+
+    // Le prestataire choisi reçoit la demande tout de suite (temps réel + push), sans attendre les vagues
+    if (preferredProviderId) {
+      notifyWave({
+        request: {
+          requestId: String(created._id),
+          clientId: String(userId),
+          category,
+          location: { lat, lng },
+          budget: safeBudget ?? null,
+          description: created.description,
+          createdAt: created.createdAt,
+        },
+        stage: 0,
+        radiusKm: 0,
+        providerIds: [preferredProviderId],
+      }).catch(err => console.error('[POST /api/services/requests] preferred provider notify failed:', err?.message))
+    }
 
     return NextResponse.json({ success: true, item: created })
   } catch (e: any) {

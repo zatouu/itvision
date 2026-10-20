@@ -48,7 +48,7 @@ function Reviews() {
       </View>
 
       <View style={s.summary}>
-        <Text style={s.avg}>{rev.average ? rev.average.toFixed(1) : '4.9'}</Text>
+        <Text style={s.avg}>{rev.average ? rev.average.toFixed(1) : '—'}</Text>
         <View style={s.stars}>
           {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={18} color={colors.warning} fill={rev.average && i <= Math.round(rev.average) ? colors.warning : 'transparent'} />)}
         </View>
@@ -74,10 +74,6 @@ function Reviews() {
             </View>
             <Text style={s.comment}>{r.comment || t('reviewsScreen.noComment')}</Text>
             <Text style={s.date}>{new Date(r.createdAt).toLocaleDateString('fr-FR')}</Text>
-            <TouchableOpacity style={s.reply}>
-              <MessageSquare size={14} color={colors.primaryText} />
-              <Text style={s.replyText}>{t('reviewsScreen.reply')}</Text>
-            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -110,8 +106,6 @@ const useStyles = createThemedStyles(colors => {
     rating: { fontSize: 14, fontWeight: '600', color: colors.text },
     comment: { fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: spacing.sm },
     date: { fontSize: 12, color: colors.textMuted },
-    reply: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm, alignSelf: 'flex-start' },
-    replyText: { color: colors.primaryText, fontWeight: '600', fontSize: 14 },
     empty: { textAlign: 'center', color: colors.textSecondary, marginTop: 40, fontSize: 15 },
   })
   return { colors, s }

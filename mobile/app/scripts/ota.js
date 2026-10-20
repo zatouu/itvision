@@ -2,12 +2,12 @@
 /**
  * Publication OTA sûre : `npm run ota -- "message"` (canal ec2 par défaut, `--channel preview` sinon).
  *
- * `eas update` n'applique PAS le bloc `env` des profils de build d'eas.json : les variables
- * EXPO_PUBLIC_* ne viennent que du shell ou de mobile/app/.env. Un OTA publié sans elles fait
- * pointer l'app vers une mauvaise API, désactive Sentry et les cartes. Ce script :
- *   1. charge mobile/app/.env (le shell reste prioritaire) ;
- *   2. complète avec le bloc `env` du profil eas.json du même nom que le canal ;
- *   3. refuse de publier s'il manque une variable indispensable.
+ * Source des variables EXPO_PUBLIC_* (inlinées dans le bundle) :
+ *   1. Variables d'environnement EAS (expo.dev > Project settings > Environment variables) — solution
+ *      définitive : saisies une fois, utilisées à l'identique par les builds (eas.json "environment")
+ *      et par les OTA (`eas update --environment`). Aucune dépendance au poste qui publie.
+ *   2. Repli : mobile/app/.env + bloc env du profil eas.json (ancienne méthode, propre à chaque poste).
+ * Refuse de publier sans clé Google Maps (sinon les cartes sont remplacées par un encart vide).
  */
 const fs = require('fs')
 const path = require('path')
@@ -24,6 +24,11 @@ if (!channel || !message) {
   process.exit(1)
 }
 
+const MAPS_KEY = 'EXPO_PUBLIC_GOOGLE_MAPS_API_KEY'
+const RECOMMENDED = ['EXPO_PUBLIC_API_BASE_URL', 'EXPO_PUBLIC_SENTRY_DSN']
+const isWin = process.platform === 'win32'
+const dryRun = process.env.OTA_DRY_RUN === '1'
+
 function readDotEnv(file) {
   if (!fs.existsSync(file)) return {}
   const out = {}
@@ -35,48 +40,75 @@ function readDotEnv(file) {
   return out
 }
 
+function runEas(easArgs, options = {}) {
+  return spawnSync('npx', ['eas', ...easArgs], { cwd: appDir, shell: isWin, encoding: 'utf8', ...options })
+}
+
 const easJson = JSON.parse(fs.readFileSync(path.join(appDir, 'eas.json'), 'utf8'))
-const profileEnv = (easJson.build && easJson.build[channel] && easJson.build[channel].env) || {}
-const env = { ...profileEnv, ...readDotEnv(path.join(appDir, '.env')) }
-for (const [k, v] of Object.entries(process.env)) if (v) env[k] = v
+const profile = (easJson.build && easJson.build[channel]) || {}
+const easEnvironment = profile.environment || (channel === 'ec2' ? 'production' : 'preview')
 
-const REQUIRED = {
-  EXPO_PUBLIC_API_BASE_URL: "adresse de l'API (profil eas.json ou .env)",
-  EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: 'clé Google Maps (sinon les cartes sont remplacées par un encart vide)',
+// 1) Variables EAS du profil
+let easNames = null
+if (process.env.OTA_EAS_ENV_LIST !== undefined) {
+  easNames = process.env.OTA_EAS_ENV_LIST // tests : contenu simulé de `eas env:list`
+} else {
+  const list = runEas(['env:list', '--environment', easEnvironment, '--non-interactive'])
+  if (list.status === 0) easNames = `${list.stdout || ''}`
+  else console.warn(`(Variables EAS illisibles : ${(list.stderr || list.stdout || '').trim().split('\n').pop() || 'erreur inconnue'})`)
 }
-const RECOMMENDED = {
-  EXPO_PUBLIC_SENTRY_DSN: "DSN Sentry (sinon aucune erreur de l'app ne remonte)",
+const onEas = name => easNames !== null && new RegExp(`\\b${name}\\b`).test(easNames)
+
+let mode
+let env = { ...process.env }
+if (onEas(MAPS_KEY)) {
+  mode = 'eas'
+} else {
+  // 2) Repli local
+  const local = { ...(profile.env || {}), ...readDotEnv(path.join(appDir, '.env')) }
+  for (const [k, v] of Object.entries(process.env)) if (v) local[k] = v
+  if (local[MAPS_KEY]) {
+    mode = 'local'
+    env = local
+  }
 }
 
-const missing = Object.entries(REQUIRED).filter(([k]) => !env[k])
-if (missing.length) {
-  console.error(`\nOTA refusé : variable(s) manquante(s) pour le canal « ${channel} » :`)
-  for (const [k, why] of missing) console.error(`  - ${k} : ${why}`)
-  console.error('\nAjoutez-les dans mobile/app/.env (modèle : .env.example), puis relancez.\n')
+if (!mode) {
+  console.error(`\nOTA refusé : ${MAPS_KEY} introuvable (ni sur EAS « ${easEnvironment} », ni dans mobile/app/.env).`)
+  console.error('\nSolution définitive (une seule fois) : expo.dev > projet > Project settings > Environment variables,')
+  console.error(`ou en ligne de commande depuis mobile/app :`)
+  console.error(`  npx eas env:set --name ${MAPS_KEY} --value <clé> --environment ${easEnvironment} --visibility sensitive`)
+  console.error(`  npx eas env:set --name EXPO_PUBLIC_API_BASE_URL --value https://itvisionplus.sn --environment ${easEnvironment} --visibility plaintext`)
+  console.error(`  npx eas env:set --name EXPO_PUBLIC_SENTRY_DSN --value <dsn> --environment ${easEnvironment} --visibility plaintext\n`)
   process.exit(1)
 }
-for (const [k, why] of Object.entries(RECOMMENDED)) {
-  if (!env[k]) console.warn(`Attention : ${k} absent — ${why}.`)
-}
 
-const api = env.EXPO_PUBLIC_API_BASE_URL
-if (channel === 'ec2' && /localhost|127\.0\.0\.1|192\.168\./.test(api)) {
-  console.error(`\nOTA refusé : le canal ec2 (production) pointerait vers ${api}.\n`)
-  process.exit(1)
+if (mode === 'eas') {
+  // Sans URL d'API sur EAS, `expo export` prendrait celle de .env (souvent une IP de dev) : refus en production.
+  if (channel === 'ec2' && !onEas('EXPO_PUBLIC_API_BASE_URL')) {
+    console.error(`\nOTA refusé : EXPO_PUBLIC_API_BASE_URL absent des variables EAS « ${easEnvironment} » (le bundle risquerait de viser l'API de .env).`)
+    console.error(`  npx eas env:set --name EXPO_PUBLIC_API_BASE_URL --value https://itvisionplus.sn --environment ${easEnvironment} --visibility plaintext\n`)
+    process.exit(1)
+  }
+  for (const name of RECOMMENDED) if (!onEas(name)) console.warn(`Attention : ${name} absent des variables EAS « ${easEnvironment} ».`)
+} else {
+  for (const name of RECOMMENDED) if (!env[name]) console.warn(`Attention : ${name} absent.`)
+  const api = env.EXPO_PUBLIC_API_BASE_URL || ''
+  if (channel === 'ec2' && /localhost|127\.0\.0\.1|192\.168\./.test(api)) {
+    console.error(`\nOTA refusé : le canal ec2 (production) pointerait vers ${api}.\n`)
+    process.exit(1)
+  }
+  console.warn(`Clé lue depuis le poste local. Pour ne plus en dépendre : npx eas env:set --name ${MAPS_KEY} --value <clé> --environment ${easEnvironment} --visibility sensitive`)
 }
 
 console.log(`Canal       : ${channel}`)
-console.log(`API         : ${api}`)
-console.log(`Google Maps : ${env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ? 'OK' : 'absent'}`)
-console.log(`Sentry      : ${env.EXPO_PUBLIC_SENTRY_DSN ? 'OK' : 'absent'}`)
+console.log(`Variables   : ${mode === 'eas' ? `EAS « ${easEnvironment} »` : 'mobile/app/.env + eas.json'}`)
+console.log(`Google Maps : OK`)
 console.log('')
 
-if (process.env.OTA_DRY_RUN === '1') process.exit(0)
+if (dryRun) process.exit(0)
 
-const result = spawnSync('npx', ['eas', 'update', '--channel', channel, '--platform', 'android', '--message', message], {
-  cwd: appDir,
-  env,
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-})
+const updateArgs = ['update', '--channel', channel, '--platform', 'android', '--message', message]
+if (mode === 'eas') updateArgs.push('--environment', easEnvironment)
+const result = runEas(updateArgs, { env, stdio: 'inherit', encoding: undefined })
 process.exit(result.status === null ? 1 : result.status)

@@ -410,7 +410,8 @@
     "loadingEdit": "Loading request…",
     "budgetRequired": "Please enter a budget (greater than 0).",
     "draftRestored": "Draft restored",
-    "draftDiscard": "Start over"
+    "draftDiscard": "Start over",
+    "preferredProvider": "Your request will be sent first to {{name}}"
   },
   "schedule": {
     "whenLabel": "When?",
@@ -1136,7 +1137,7 @@
     "recentReviews": "Recent reviews",
     "contact": "Contact",
     "offer": "Offer proposed",
-    "choose": "Choose this provider",
+    "choose": "Send them a request",
     "reviews": "reviews",
     "client": "Client",
     "noReviews": "No reviews yet"
@@ -1401,7 +1402,9 @@
     "unlockConfirmSub": "Credits will be refunded if the mission is quickly cancelled or fraudulent.",
     "insufficientCredits": "Insufficient credits",
     "insufficientCreditsMsg": "Cost: {{cost}} credits. Your balance: {{balance}} credits. Top up now?",
-    "unlockError": "Unlock error: {{msg}}"
+    "unlockError": "Unlock error: {{msg}}",
+    "hiddenByPreferences_one": "{{count}} request hidden by your preferences · Edit",
+    "hiddenByPreferences_other": "{{count}} requests hidden by your preferences · Edit"
   },
   "providerMissionCompleted": {
     "title": "Mission completed",
@@ -1823,12 +1826,30 @@
     "title": "Badges",
     "unlocked": "badges unlocked",
     "items": {
-      "kyc": { "label": "Verified identity", "desc": "KYC approved by the team" },
-      "first": { "label": "First mission", "desc": "You completed a mission" },
-      "rating": { "label": "5 stars", "desc": "Average of at least 4.8 over 5 reviews" },
-      "fast": { "label": "Responsive", "desc": "Average response time < 15 min" },
-      "top": { "label": "Excellence", "desc": "Xeuy score above 85" },
-      "missions": { "label": "100 missions", "desc": "100 missions completed" }
+      "kyc": {
+        "label": "Verified identity",
+        "desc": "KYC approved by the team"
+      },
+      "first": {
+        "label": "First mission",
+        "desc": "You completed a mission"
+      },
+      "rating": {
+        "label": "5 stars",
+        "desc": "Average of at least 4.8 over 5 reviews"
+      },
+      "fast": {
+        "label": "Responsive",
+        "desc": "Average response time < 15 min"
+      },
+      "top": {
+        "label": "Excellence",
+        "desc": "Xeuy score above 85"
+      },
+      "missions": {
+        "label": "100 missions",
+        "desc": "100 missions completed"
+      }
     }
   },
   "calendarScreen": {
@@ -1903,8 +1924,7 @@
     "empty": "No reviews yet.",
     "client": "Client",
     "missionFallback": "Mission",
-    "noComment": "No comment",
-    "reply": "Reply"
+    "noComment": "No comment"
   },
   "profileDetailScreen": {
     "avail": {
@@ -1932,15 +1952,12 @@
       "default": "Settings"
     },
     "saveFailed": "Unable to save",
-    "visibilityRadius": "Visibility radius",
     "maxDistance": "Maximum distance",
+    "noLimit": "No limit",
     "minAmount": "Minimum amount",
     "concurrentMissions": "Concurrent missions",
     "urgentMissions": "Urgent missions",
     "plannedMissions": "Scheduled missions",
-    "similarMissions": "Receive similar missions",
-    "verifiedOnly": "Verified missions only",
-    "escrowOnly": "Secure-payment missions only",
     "mainCity": "Main city",
     "interventionRadius": "Service radius",
     "status": "Status",
@@ -1948,8 +1965,6 @@
     "defaultHours": "Mon-Sat 8am-8pm",
     "visibleOnHome": "Visible on home screen",
     "setAvailableToEnable": "Set yourself as Available to enable",
-    "premiumVisibilityRadius": "Premium visibility radius",
-    "broadcastPriority": "Broadcast priority",
     "premiumSoon": "Premium options will be available soon.",
     "tradesIntro": "Choose the trades you want to receive requests for, then introduce yourself in a few lines.",
     "searchTrades": "Search for a trade",
@@ -1977,7 +1992,8 @@
     "comingSoon": "This screen will be expanded in the next phase.",
     "loadError": "Unable to load your profile. Check your connection.",
     "retry": "Retry",
-    "back": "Back"
+    "back": "Back",
+    "preferencesHint": "These settings filter the requests you receive and the ones shown around you."
   },
   "portfolioScreen": {
     "tabs": {
@@ -1986,7 +2002,6 @@
       "diplome": "Diplomas"
     },
     "title": "Portfolio",
-    "edit": "Edit",
     "introTitle": "Your projects, certifications and diplomas",
     "introDesc": "Showcase your work to reassure clients and improve your Xeuy Score.",
     "featured": "Featured",

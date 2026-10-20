@@ -395,6 +395,7 @@ jobs:
             echo "STT_FALLBACK_API_URL=${{ vars.STT_FALLBACK_API_URL }}" >> .env.ec2
             echo "STT_FALLBACK_API_KEY=${{ secrets.STT_FALLBACK_API_KEY }}" >> .env.ec2
             echo "STT_FALLBACK_MODEL=${{ vars.STT_FALLBACK_MODEL }}" >> .env.ec2
+            echo "GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}" >> .env.ec2
             echo "QWEN_CLOUD_API_KEY=${{ secrets.QWEN_CLOUD_API_KEY }}" >> .env.ec2
             echo "QWEN_CLOUD_BASE_URL=${{ secrets.QWEN_CLOUD_BASE_URL }}" >> .env.ec2
             echo "QWEN_MODEL=${{ secrets.QWEN_MODEL }}" >> .env.ec2

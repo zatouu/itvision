@@ -13,7 +13,6 @@ import { clearAllUserData } from '../src/clear-user-data'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
 import { loadCategories } from '../src/categories'
 import { toast } from '../src/toast'
-import { useAppFlags } from '../src/app-flags'
 import { humanErrorMessage } from '../src/errorMessages'
 import { useTranslation } from 'react-i18next'
 
@@ -61,7 +60,6 @@ function ProfileDetail() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const loaded = useRef(false)
-  const { onlinePayments } = useAppFlags()
   const [categories, setCategories] = useState<any[]>([])
   const [tradeQuery, setTradeQuery] = useState('')
   const [mainLimitHit, setMainLimitHit] = useState(false)
@@ -140,36 +138,42 @@ function ProfileDetail() {
     </View>
   )
 
-  const renderSliderRow = (label: string, value: number, min: number, max: number, unit: string, onChange: (n: number) => void) => (
-    <View style={s.sliderRow}>
-      <Text style={s.rowLabel}>{label}</Text>
-      <View style={s.sliderTrack}>
-        <View style={[s.sliderFill, { width: `${((value - min) / (max - min)) * 100}%` }]} />
+  const renderSliderRow = (label: string, value: number, min: number, max: number, unit: string, onChange: (n: number) => void, opts: { step?: number; display?: string } = {}) => {
+    const step = opts.step || 1
+    return (
+      <View style={s.sliderRow}>
+        <Text style={s.rowLabel}>{label}</Text>
+        <View style={s.sliderTrack}>
+          <View style={[s.sliderFill, { width: `${((value - min) / (max - min)) * 100}%` }]} />
+        </View>
+        <View style={s.sliderButtons}>
+          <TouchableOpacity onPress={() => onChange(Math.max(min, value - step))} style={s.sliderBtn}><Text style={s.sliderBtnText}>-</Text></TouchableOpacity>
+          <Text style={s.sliderValue}>{opts.display ?? `${value}${unit}`}</Text>
+          <TouchableOpacity onPress={() => onChange(Math.min(max, value + step))} style={s.sliderBtn}><Text style={s.sliderBtnText}>+</Text></TouchableOpacity>
+        </View>
       </View>
-      <View style={s.sliderButtons}>
-        <TouchableOpacity onPress={() => onChange(Math.max(min, value - 1))} style={s.sliderBtn}><Text style={s.sliderBtnText}>-</Text></TouchableOpacity>
-        <Text style={s.sliderValue}>{value}{unit}</Text>
-        <TouchableOpacity onPress={() => onChange(Math.min(max, value + 1))} style={s.sliderBtn}><Text style={s.sliderBtnText}>+</Text></TouchableOpacity>
-      </View>
-    </View>
-  )
+    )
+  }
 
   const renderSection = () => {
     switch (section) {
-      case 'preferences':
+      case 'preferences': {
+        // 100 km = sans limite (même règle côté serveur : visibility/preferences.ts)
+        const maxDistance = Math.min(Number(pref.maxDistanceKm) || 100, 100)
         return (
           <View style={s.card}>
-            {renderSliderRow(t('profileDetailScreen.visibilityRadius'), pref.visibilityRadiusKm || p.zone?.radiusKm || 10, 1, 50, ' km', (v) => updatePref('visibilityRadiusKm', v))}
-            {renderSliderRow(t('profileDetailScreen.maxDistance'), pref.maxDistanceKm || 20, 1, 100, ' km', (v) => updatePref('maxDistanceKm', v))}
-            {renderSliderRow(t('profileDetailScreen.minAmount'), pref.minAmount || 0, 0, 50000, ' FCFA', (v) => updatePref('minAmount', v))}
+            {renderSliderRow(t('profileDetailScreen.maxDistance'), maxDistance, 5, 100, ' km', (v) => updatePref('maxDistanceKm', v), {
+              step: 5,
+              display: maxDistance >= 100 ? t('profileDetailScreen.noLimit') : undefined,
+            })}
+            {renderSliderRow(t('profileDetailScreen.minAmount'), pref.minAmount || 0, 0, 50000, ' FCFA', (v) => updatePref('minAmount', v), { step: 1000 })}
             {renderSliderRow(t('profileDetailScreen.concurrentMissions'), p.maxConcurrentMissions || 3, 1, 10, '', (v) => updateProvider({ maxConcurrentMissions: v }))}
             {renderSwitch(t('profileDetailScreen.urgentMissions'), pref.urgent !== false, (v) => updatePref('urgent', v))}
             {renderSwitch(t('profileDetailScreen.plannedMissions'), pref.planned !== false, (v) => updatePref('planned', v))}
-            {renderSwitch(t('profileDetailScreen.similarMissions'), pref.similar !== false, (v) => updatePref('similar', v))}
-            {renderSwitch(t('profileDetailScreen.verifiedOnly'), pref.verifiedOnly === true, (v) => updatePref('verifiedOnly', v))}
-            {onlinePayments && renderSwitch(t('profileDetailScreen.escrowOnly'), pref.escrowOnly === true, (v) => updatePref('escrowOnly', v))}
+            <Text style={s.hint}>{t('profileDetailScreen.preferencesHint')}</Text>
           </View>
         )
+      }
       case 'zone':
         return (
           <View style={s.card}>
@@ -197,8 +201,6 @@ function ProfileDetail() {
         return (
           <View style={s.card}>
             {renderSwitch(t('profileDetailScreen.visibleOnHome'), p.visible === true, toggleVisible, p.availabilityStatus !== 'Disponible' ? t('profileDetailScreen.setAvailableToEnable') : undefined)}
-            {renderSliderRow(t('profileDetailScreen.premiumVisibilityRadius'), pref.visibilityRadiusKm || p.zone?.radiusKm || 10, 1, 100, ' km', (v) => updatePref('visibilityRadiusKm', v))}
-            {renderSliderRow(t('profileDetailScreen.broadcastPriority'), pref.priorityLevel || 0, 0, 5, '', (v) => updatePref('priorityLevel', v))}
             <Text style={s.hint}>{t('profileDetailScreen.premiumSoon')}</Text>
           </View>
         )
