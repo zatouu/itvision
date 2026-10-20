@@ -162,7 +162,7 @@ function AppLayout(){
     return unsub
   }, [providerActive])
 
-  const sendGps = async (reason: string) => {
+  const sendGps = async (reason: string, statusOverride?: 'offline') => {
     if (gpsInFlight.current || AppState.currentState !== 'active') return
     gpsInFlight.current = true
     try {
@@ -175,7 +175,7 @@ function AppLayout(){
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
       ])
-      const statusFlag = isOnlineRef.current ? 'available' : 'offline'
+      const statusFlag = statusOverride || (isOnlineRef.current ? 'available' : 'offline')
       log('[GPS] emit', reason, pos.coords.latitude, pos.coords.longitude, statusFlag)
       emitGps(pos.coords.latitude, pos.coords.longitude, statusFlag)
     } catch (e: any) {
@@ -205,6 +205,18 @@ function AppLayout(){
     const unsubOnline = subscribeOnline(val => { if (val) sendGps('online-toggle') })
     return () => { sub.remove(); unsubOnline() }
   }, [providerActive])
+
+  // Prestataire en mode client : une position à l'ouverture (statut « hors ligne ») pour que le
+  // serveur garde sa dernière position connue et puisse lui pousser les nouvelles demandes.
+  const providerInClientMode = loggedIn && isProviderCapable() && mode === 'client'
+  useEffect(() => {
+    if (!providerInClientMode) return
+    sendGps('client-mode', 'offline')
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active') sendGps('client-mode-active', 'offline')
+    })
+    return () => sub.remove()
+  }, [providerInClientMode])
 
   if (!ready || !themeReady) {
     return (

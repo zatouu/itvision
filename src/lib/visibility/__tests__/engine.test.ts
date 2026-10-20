@@ -257,4 +257,12 @@ console.log('▶ Préférences missions tests')
   console.log('  ✔ diffusion : préférences appliquées par le moteur')
 }
 
+{
+  // Un client qui est aussi prestataire ne reçoit pas sa propre demande
+  const self = makeCandidate({ providerId: req.clientId })
+  assert.strictEqual(isEligible(self, req, config), false)
+  assert.strictEqual(filterAndRank([self], req, config).reasons[req.clientId], 'own_request')
+  console.log('  ✔ le client n\'est jamais notifié de sa propre demande')
+}
+
 console.log('\n✅ Tous les tests du Visibility Engine passent.')

@@ -35,6 +35,7 @@ function candidatePreferenceRejection(candidate: ProviderCandidate, req: Dispatc
  * - Préférences missions du profil respectées (distance max, montant min, urgentes/planifiées)
  */
 export function isEligible(candidate: ProviderCandidate, req: DispatchRequestContext, config?: IVisibilityConfig): boolean {
+  if (candidate.providerId === req.clientId) return false
   if (!candidate.available) return false
   if (config?.requireKycForNotification && !candidate.kycVerified) return false
   if (candidate.distanceKm == null) return false
@@ -57,7 +58,8 @@ export function filterAndRank(
   for (const c of candidates) {
     const ok = isEligible(c, req, config)
     if (!ok) {
-      if (!c.available) reasons[c.providerId] = 'unavailable'
+      if (c.providerId === req.clientId) reasons[c.providerId] = 'own_request'
+      else if (!c.available) reasons[c.providerId] = 'unavailable'
       else if (config.requireKycForNotification && !c.kycVerified) reasons[c.providerId] = 'kyc_missing'
       else if (c.distanceKm == null) reasons[c.providerId] = 'no_distance'
       else {

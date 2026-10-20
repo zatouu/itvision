@@ -213,6 +213,27 @@ const providerPresence = new Map() // fallback only
 const STALE_POSITION_MS = geo.STALE_POSITION_MS
 const EMIT_THROTTLE_MS = 3000 // throttle côté serveur pour limiter les écritures mémoire/batterie
 
+// Dernière position connue persistée dans ProviderProfile.zone.coordinates : la présence GPS ci-dessus
+// expire après quelques minutes, or la push « Nouvelle demande » sert surtout quand l'app est fermée.
+// Sans cette trace, un prestataire hors de l'app n'était jamais retenu par le Visibility Engine.
+const LAST_KNOWN_PERSIST_MS = 2 * 60 * 1000
+const LAST_KNOWN_MIN_MOVE_M = 300
+const lastKnownPersisted = new Map() // userId -> { lat, lng, at }
+
+function persistLastKnownPosition(userId, lat, lng) {
+  const prev = lastKnownPersisted.get(userId)
+  const now = Date.now()
+  if (prev && now - prev.at < LAST_KNOWN_PERSIST_MS && haversineMeters(prev.lat, prev.lng, lat, lng) < LAST_KNOWN_MIN_MOVE_M) return
+  lastKnownPersisted.set(userId, { lat, lng, at: now })
+  ProviderProfile.updateOne(
+    { userId: new mongoose.Types.ObjectId(userId) },
+    { $set: { 'zone.coordinates': [lng, lat], 'zone.updatedAt': new Date() } },
+  ).catch(err => {
+    lastKnownPersisted.delete(userId)
+    console.warn(`[presence] dernière position non enregistrée pour ${userId}:`, err?.message)
+  })
+}
+
 function isStale(pos) {
   return !pos || Date.now() - (pos.updatedAt || 0) > STALE_POSITION_MS
 }
@@ -464,6 +485,7 @@ app.prepare().then(() => {
         lastEmitAt: now,
       })
       if (!existing?.name) getDisplayName().then(n => { const p = providerPresence.get(userId); if (p) p.name = n })
+      if (mongoose.Types.ObjectId.isValid(userId)) persistLastKnownPosition(userId, data.lat, data.lng)
       console.log(`   📍 ${userId} provider:gps ${data.lat.toFixed(5)},${data.lng.toFixed(5)} status=${payloadStatus}`)
     })
 
