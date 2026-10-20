@@ -118,7 +118,6 @@ export const authRateLimiter = new RateLimiter(15 * 60 * 1000, 5) // 5 tentative
 export const registerRateLimiter = new RateLimiter(15 * 60 * 1000, 3, true) // 3 inscriptions par 15 min par IP
 export const apiRateLimiter = new RateLimiter(15 * 60 * 1000, 100) // 100 requêtes API par 15 min
 export const uploadRateLimiter = new RateLimiter(60 * 60 * 1000, 10) // 10 uploads par heure
-export const staffUploadRateLimiter = new RateLimiter(60 * 60 * 1000, 300) // personnel : galeries produits, documents
 export const serviceWriteRateLimiter = new RateLimiter(15 * 60 * 1000, 10) // 10 créations requêtes/offres par 15 min
 export const serviceReadRateLimiter = new RateLimiter(60 * 1000, 30) // 30 requêtes read par minute
 export const aiRateLimiter = new RateLimiter(15 * 60 * 1000, 30) // 30 AI requests per 15 min

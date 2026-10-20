@@ -4,13 +4,18 @@ import { createWriteStream, existsSync } from 'fs'
 import path from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-import { applyRateLimit, staffUploadRateLimiter, uploadRateLimiter } from '@/lib/rate-limiter'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { requireApiUser } from '@/lib/api-auth'
+import { multipartPreflight, runMultipartRoute } from '@/lib/middleware/multipart-routes'
 
 export const maxDuration = 120
 export const dynamic = 'force-dynamic'
 
 const STAFF_UPLOAD_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'TECHNICIAN']
+// Quota par compte et non par IP : les clients mobiles partagent l'IP de l'opérateur et le même
+// User-Agent (okhttp), un quota par IP se vidait pour tout le monde. Une demande = jusqu'à 5 médias + 1 vocal.
+const UPLOADS_PER_HOUR = 30
+const STAFF_UPLOADS_PER_HOUR = 300
 
 // Vérification d'authentification requise pour l'upload
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; userId?: string; role?: string }> {
@@ -22,7 +27,16 @@ async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolea
   }
 }
 
+// Hors middleware (corps non cloné) : voir src/lib/middleware/multipart-routes.ts
 export async function POST(request: NextRequest) {
+  return runMultipartRoute(request, () => handleUpload(request))
+}
+
+export function OPTIONS(request: NextRequest) {
+  return multipartPreflight(request)
+}
+
+async function handleUpload(request: NextRequest): Promise<Response> {
   try {
     // SÉCURITÉ: Vérifier l'authentification (avant la limite : le quota dépend du rôle)
     const auth = await verifyAuth(request)
@@ -33,18 +47,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SÉCURITÉ: Rate limiting — 10 uploads/heure, quota élargi pour le personnel (galeries produits, documents)
+    // SÉCURITÉ: quota d'uploads par compte, élargi pour le personnel (galeries produits, documents)
     const isStaff = STAFF_UPLOAD_ROLES.includes(String(auth.role || '').toUpperCase())
-    const rateLimitResponse = await applyRateLimit(request, isStaff ? staffUploadRateLimiter : uploadRateLimiter)
-    if (rateLimitResponse) return rateLimitResponse
+    const limit = await rateLimitRequest(request, {
+      windowMs: 60 * 60 * 1000,
+      max: isStaff ? STAFF_UPLOADS_PER_HOUR : UPLOADS_PER_HOUR,
+      keyPrefix: isStaff ? 'upload:staff' : 'upload',
+      identifier: String(auth.userId),
+    })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
 
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
+    } catch (err) {
       // Corps tronqué : envoi interrompu (réseau mobile) ou fichier au-delà des limites serveur
       const declared = Number(request.headers.get('content-length') || 0)
-      console.warn(`[upload] corps multipart illisible (${declared ? `${(declared / 1024 / 1024).toFixed(1)} Mo déclarés` : 'taille inconnue'})`)
+      console.warn(`[upload] corps multipart illisible (${declared ? `${Math.round(declared / 1024)} Ko déclarés` : 'taille inconnue'}) : ${err instanceof Error ? err.message : String(err)}`)
       return NextResponse.json(
         { error: declared > 100 * 1024 * 1024 ? 'Fichier trop volumineux (100 Mo max)' : 'Envoi du fichier interrompu, réessayez (connexion instable ?)' },
         { status: declared > 100 * 1024 * 1024 ? 413 : 400 }

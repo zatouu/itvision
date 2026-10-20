@@ -221,7 +221,10 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api/upload, api/ai/transcribe : envois de fichiers depuis l'app. Next clonerait leur corps pour
+     *   le middleware, ce qui casse les envois lents (réseau mobile) ; ces routes appliquent elles-mêmes
+     *   CSRF/CORS (src/lib/middleware/multipart-routes.ts).
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/|api/upload$|api/ai/transcribe$).*)',
   ],
 }
