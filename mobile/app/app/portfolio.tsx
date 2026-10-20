@@ -47,9 +47,7 @@ function Portfolio() {
           <BackIcon size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.title}>{t('portfolioScreen.title')}</Text>
-        <TouchableOpacity style={s.editBtn}>
-          <Text style={s.editText}>{t('portfolioScreen.edit')}</Text>
-        </TouchableOpacity>
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
@@ -69,7 +67,7 @@ function Portfolio() {
         {featured ? (
           <>
             <Text style={s.sectionLabel}>{t('portfolioScreen.featured')}</Text>
-            <TouchableOpacity style={[s.featured, { width: width - 48 }]}>
+            <View style={[s.featured, { width: width - 48 }]}>
               {featured.images?.[0]?.url ? (
                 <Image source={{ uri: resolveMediaUrl(featured.images[0].url) }} style={{ width: width - 48, height: 180 }} resizeMode="cover" />
               ) : (
@@ -87,7 +85,7 @@ function Portfolio() {
                 </View>
                 <Text style={s.featuredTitle}>{featured.title}</Text>
               </View>
-            </TouchableOpacity>
+            </View>
           </>
         ) : null}
 
@@ -139,8 +137,6 @@ const useStyles = createThemedStyles(colors => {
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, paddingBottom: spacing.md },
     back: { width: 44, height: 44, borderRadius: radius.full, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
     title: { fontSize: 22, fontWeight: '600', color: colors.text },
-    editBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.bg },
-    editText: { color: colors.primaryText, fontWeight: '600' },
     body: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
     introCard: { backgroundColor: colors.heroDark, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg },
     introTitle: { fontSize: 18, fontWeight: '600', color: colors.onPrimary, marginBottom: spacing.xs },

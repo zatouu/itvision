@@ -15,6 +15,16 @@
 import { IVisibilityConfig } from '../models/AppConfig'
 import { ProviderCandidate, RankedProvider, NotificationPlan, WavePlan, DispatchRequestContext } from './types'
 import { rankProviders } from './ranking'
+import { preferenceRejection } from './preferences'
+
+function candidatePreferenceRejection(candidate: ProviderCandidate, req: DispatchRequestContext) {
+  return preferenceRejection(candidate.preferences, {
+    distanceKm: candidate.distanceKm,
+    budget: req.budget,
+    urgent: req.urgent,
+    scheduled: req.scheduled,
+  })
+}
 
 /**
  * Éligibilité d'un prestataire pour une mission donnée.
@@ -22,6 +32,7 @@ import { rankProviders } from './ranking'
  * - Catégorie compatible (categories vides = généraliste → compatible)
  * - Position résolue (sinon on ne peut pas géolocaliser → jamais de blast national)
  * - Pas en surcharge (currentLoad < maxConcurrentMissions si défini)
+ * - Préférences missions du profil respectées (distance max, montant min, urgentes/planifiées)
  */
 export function isEligible(candidate: ProviderCandidate, req: DispatchRequestContext, config?: IVisibilityConfig): boolean {
   if (!candidate.available) return false
@@ -31,6 +42,7 @@ export function isEligible(candidate: ProviderCandidate, req: DispatchRequestCon
   const categoryOk = allCats.length === 0 || allCats.includes(req.category)
   if (!categoryOk) return false
   if (candidate.maxConcurrentMissions != null && candidate.currentLoad >= candidate.maxConcurrentMissions) return false
+  if (candidatePreferenceRejection(candidate, req)) return false
   return true
 }
 
@@ -53,7 +65,10 @@ export function filterAndRank(
         const categoryOk = allCats.length === 0 || allCats.includes(req.category)
         if (!categoryOk) reasons[c.providerId] = 'category_mismatch'
         else if (c.maxConcurrentMissions != null && c.currentLoad >= c.maxConcurrentMissions) reasons[c.providerId] = 'max_load'
-        else reasons[c.providerId] = 'unknown'
+        else {
+          const prefReason = candidatePreferenceRejection(c, req)
+          reasons[c.providerId] = prefReason ? `preferences:${prefReason}` : 'unknown'
+        }
       }
       continue
     }

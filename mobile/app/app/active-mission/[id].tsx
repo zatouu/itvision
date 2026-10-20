@@ -104,9 +104,9 @@ function ActiveMissionScreen() {
       phone: mission?.clientPhone || mission?.user?.phone || '',
       avatar: mission?.user?.avatar,
       avatarBlurhash: mission?.user?.avatarBlurhash,
-      rating: mission?.user?.rating || 4.8,
+      rating: Number(mission?.user?.rating) || undefined,
       missionsCount: mission?.user?.missionsCount ?? mission?.user?.completedMissions,
-      isVerified: mission?.user?.isVerified ?? true,
+      isVerified: !!mission?.user?.isVerified,
     }
   }, [mission?.clientName, mission?.clientPhone, mission?.user])
 
@@ -521,7 +521,7 @@ function ActiveMissionScreen() {
                     activeOpacity={0.8}
                     onPress={handlePause}
                   >
-                    <Pause size={16} color="#D97706" strokeWidth={2.4} style={{ marginRight: 6 }} />
+                    <Pause size={16} color={colors.warnInk} strokeWidth={2.4} style={{ marginRight: 6 }} />
                     <Text style={s.pauseButtonText}>
                       {t('providerMissionActive.ctaPause', { defaultValue: 'Pause' })}
                     </Text>
@@ -532,7 +532,7 @@ function ActiveMissionScreen() {
                     activeOpacity={0.8}
                     onPress={handleReport}
                   >
-                    <AlertTriangle size={16} color="#EF4444" strokeWidth={2.4} style={{ marginRight: 6 }} />
+                    <AlertTriangle size={16} color={colors.dangerInk} strokeWidth={2.4} style={{ marginRight: 6 }} />
                     <Text style={s.reportButtonText}>
                       {t('providerMissionActive.ctaReport', { defaultValue: 'Signaler' })}
                     </Text>
@@ -561,7 +561,7 @@ function ActiveMissionScreen() {
                     activeOpacity={0.8}
                     onPress={handleReport}
                   >
-                    <AlertTriangle size={16} color="#EF4444" strokeWidth={2.4} style={{ marginRight: 6 }} />
+                    <AlertTriangle size={16} color={colors.dangerInk} strokeWidth={2.4} style={{ marginRight: 6 }} />
                     <Text style={s.reportButtonText}>
                       {t('providerMissionActive.ctaReport', { defaultValue: 'Signaler' })}
                     </Text>
@@ -747,7 +747,7 @@ const useStyles = createThemedStyles(colors => {
       width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: '#CBD5E1',
+      backgroundColor: colors.border,
       alignSelf: 'center',
       marginTop: 10,
       marginBottom: 8,
@@ -776,11 +776,11 @@ const useStyles = createThemedStyles(colors => {
     statusPillBlue: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#2563EB',
+      backgroundColor: colors.primary,
       paddingVertical: 7,
       paddingHorizontal: 16,
       borderRadius: 20,
-      shadowColor: '#2563EB',
+      shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.2,
       shadowRadius: 6,
@@ -861,17 +861,17 @@ const useStyles = createThemedStyles(colors => {
     notAssignedText: {
       fontSize: 14,
       fontWeight: '700',
-      color: '#B45309',
+      color: colors.warnInk,
       textAlign: 'center',
     },
     primaryButton: {
       height: 54,
       borderRadius: 16,
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#0F7B4F',
+      shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.25,
       shadowRadius: 8,
@@ -907,25 +907,25 @@ const useStyles = createThemedStyles(colors => {
       justifyContent: 'center',
     },
     pauseButton: {
-      borderColor: '#F59E0B',
+      borderColor: colors.warn,
     },
     pauseButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: '#D97706',
+      color: colors.warnInk,
     },
     reportButton: {
-      borderColor: '#EF4444',
+      borderColor: colors.danger,
     },
     reportButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: '#EF4444',
+      color: colors.dangerInk,
     },
     linkReport: {
       alignItems: 'center',
-      paddingVertical: 10,
-      marginTop: 24,
+      paddingVertical: 8,
+      marginTop: 4,
     },
     linkReportText: {
       fontSize: 13,

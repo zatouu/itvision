@@ -54,6 +54,8 @@ const ServiceRequestSchema = new Schema({
     'archived'
   ], default: 'created' },
   assignedProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
+  // Prestataire choisi par le client depuis son profil : notifié en priorité (la demande reste diffusée aux autres)
+  preferredProviderId: { type: Schema.Types.ObjectId, ref: 'User' },
   selectedOfferId: { type: Schema.Types.ObjectId, ref: 'Offer' },
   assignedAt: { type: Date },
   providerArrivingAt: { type: Date },

@@ -77,7 +77,7 @@ function CoachSectionIcon({ icon, tone }: { icon: CoachIcon; tone?: string }) {
     neutral: { bg: colors.bgDeep, fg: colors.ink },
     warning: { bg: colors.warnSoft, fg: colors.warning },
     info: { bg: colors.infoSoft, fg: colors.info },
-    green: { bg: '#fff', fg: colors.brandInk },
+    green: { bg: colors.brandSoft, fg: colors.brandInk },
   }
   const pal = toneMap[finalTone as keyof typeof toneMap] || toneMap.neutral
   const Icon = ICONS[icon] || Info
@@ -385,11 +385,11 @@ const useStyles = createThemedStyles(colors => {
     info: { tone: 'info', color: colors.info, bg: colors.infoSoft },
     eye: { tone: 'info', color: colors.info, bg: colors.infoSoft },
     clock: { tone: 'neutral', color: colors.ink, bg: colors.bgDeep },
-    tools: { tone: 'green', color: colors.brandInk, bg: '#fff' },
+    tools: { tone: 'green', color: colors.brandInk, bg: colors.brandSoft },
     parts: { tone: 'neutral', color: colors.ink, bg: colors.bgDeep },
-    check: { tone: 'green', color: colors.brandInk, bg: '#fff' },
+    check: { tone: 'green', color: colors.brandInk, bg: colors.brandSoft },
     client: { tone: 'neutral', color: colors.ink, bg: colors.bgDeep },
-    steps: { tone: 'green', color: colors.brandInk, bg: '#fff' },
+    steps: { tone: 'green', color: colors.brandInk, bg: colors.brandSoft },
   }
 
   const styles = StyleSheet.create({

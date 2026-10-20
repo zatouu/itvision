@@ -134,8 +134,9 @@ async function handleStatus(r: Response, retryFn?: () => Promise<Response>): Pro
     : r.status === 404 ? 'Ressource introuvable'
     : typeof body.error === 'string' ? body.error
     : 'Une erreur est survenue. Veuillez réessayer.'
-  const err = new Error(msg) as Error & { code?: string }
+  const err = new Error(msg) as Error & { code?: string; status?: number }
   if (body.code) err.code = body.code
+  err.status = r.status
   if (r.status >= 500) captureError(err, { status: r.status, url: r.url })
   throw err
 }

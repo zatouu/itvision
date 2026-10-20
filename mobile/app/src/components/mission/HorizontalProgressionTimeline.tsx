@@ -147,7 +147,7 @@ const useStyles = createThemedStyles(colors => {
       width: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -155,11 +155,11 @@ const useStyles = createThemedStyles(colors => {
       width: 26,
       height: 26,
       borderRadius: 13,
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 3,
-      borderColor: '#E8F5EE',
+      borderColor: colors.primaryLight,
     },
     activeNodeInner: {
       width: 8,
@@ -182,7 +182,7 @@ const useStyles = createThemedStyles(colors => {
       marginHorizontal: -4,
     },
     connectingLineActive: {
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
     },
     connectingLineInactive: {
       backgroundColor: colors.bgDeep,

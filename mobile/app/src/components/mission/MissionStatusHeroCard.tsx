@@ -51,7 +51,7 @@ export const MissionStatusHeroCard: React.FC<Props> = ({
   }, [pulseAnim])
 
   // Gradient selection by status
-  let gradientColors: [string, string] = ['#7C3AED', '#9333EA'] // violet for in_progress
+  let gradientColors: [string, string] = ['#065F3A', '#0F7B4F']
   let title = t('providerMissionActive.statusInProgress', { defaultValue: 'Intervention en cours' })
 
   if (status === 'on_the_way' || status === 'provider_arriving') {

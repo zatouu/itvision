@@ -410,7 +410,8 @@
     "loadingEdit": "Chargement de la demande…",
     "budgetRequired": "Veuillez indiquer un budget (supérieur à 0).",
     "draftRestored": "Brouillon restauré",
-    "draftDiscard": "Recommencer"
+    "draftDiscard": "Recommencer",
+    "preferredProvider": "Votre demande sera envoyée en priorité à {{name}}"
   },
   "schedule": {
     "whenLabel": "Quand ?",
@@ -1136,7 +1137,7 @@
     "recentReviews": "Avis récents",
     "contact": "Contacter",
     "offer": "Offre proposée",
-    "choose": "Choisir ce prestataire",
+    "choose": "Lui envoyer une demande",
     "reviews": "avis",
     "client": "Client",
     "noReviews": "Aucun avis pour le moment"
@@ -1401,7 +1402,9 @@
     "unlockConfirmSub": "Les crédits seront remboursés si la mission est annulée rapidement ou frauduleuse.",
     "insufficientCredits": "Crédits insuffisants",
     "insufficientCreditsMsg": "Coût : {{cost}} crédits. Votre solde : {{balance}} crédits. Recharger maintenant ?",
-    "unlockError": "Erreur déblocage: {{msg}}"
+    "unlockError": "Erreur déblocage: {{msg}}",
+    "hiddenByPreferences_one": "{{count}} demande masquée par vos préférences · Modifier",
+    "hiddenByPreferences_other": "{{count}} demandes masquées par vos préférences · Modifier"
   },
   "providerMissionCompleted": {
     "title": "Mission terminée",
@@ -1823,12 +1826,30 @@
     "title": "Badges",
     "unlocked": "badges débloqués",
     "items": {
-      "kyc": { "label": "Identité vérifiée", "desc": "KYC approuvé par l'équipe" },
-      "first": { "label": "Première mission", "desc": "Vous avez complété une mission" },
-      "rating": { "label": "5 étoiles", "desc": "Moyenne d'au moins 4.8 sur 5 avis" },
-      "fast": { "label": "Réactif", "desc": "Temps de réponse moyen < 15 min" },
-      "top": { "label": "Excellence", "desc": "Score Xeuy supérieur à 85" },
-      "missions": { "label": "100 missions", "desc": "100 missions terminées" }
+      "kyc": {
+        "label": "Identité vérifiée",
+        "desc": "KYC approuvé par l'équipe"
+      },
+      "first": {
+        "label": "Première mission",
+        "desc": "Vous avez complété une mission"
+      },
+      "rating": {
+        "label": "5 étoiles",
+        "desc": "Moyenne d'au moins 4.8 sur 5 avis"
+      },
+      "fast": {
+        "label": "Réactif",
+        "desc": "Temps de réponse moyen < 15 min"
+      },
+      "top": {
+        "label": "Excellence",
+        "desc": "Score Xeuy supérieur à 85"
+      },
+      "missions": {
+        "label": "100 missions",
+        "desc": "100 missions terminées"
+      }
     }
   },
   "calendarScreen": {
@@ -1903,8 +1924,7 @@
     "empty": "Aucun avis pour le moment.",
     "client": "Client",
     "missionFallback": "Mission",
-    "noComment": "Pas de commentaire",
-    "reply": "Répondre"
+    "noComment": "Pas de commentaire"
   },
   "profileDetailScreen": {
     "avail": {
@@ -1932,15 +1952,12 @@
       "default": "Paramètres"
     },
     "saveFailed": "Enregistrement impossible",
-    "visibilityRadius": "Rayon de visibilité",
     "maxDistance": "Distance maximale",
+    "noLimit": "Sans limite",
     "minAmount": "Montant minimum",
     "concurrentMissions": "Missions simultanées",
     "urgentMissions": "Missions urgentes",
     "plannedMissions": "Missions planifiées",
-    "similarMissions": "Recevoir des missions similaires",
-    "verifiedOnly": "Uniquement les missions vérifiées",
-    "escrowOnly": "Uniquement les missions à paiement sécurisé",
     "mainCity": "Ville principale",
     "interventionRadius": "Rayon d'intervention",
     "status": "Statut",
@@ -1948,8 +1965,6 @@
     "defaultHours": "Lun-Sam 8h-20h",
     "visibleOnHome": "Visible sur l'accueil",
     "setAvailableToEnable": "Passez en « Disponible » pour activer",
-    "premiumVisibilityRadius": "Rayon de visibilité Premium",
-    "broadcastPriority": "Priorité de diffusion",
     "premiumSoon": "Les options Premium seront activées prochainement.",
     "tradesIntro": "Choisissez les métiers pour lesquels vous voulez recevoir des demandes, puis présentez-vous en quelques lignes.",
     "searchTrades": "Rechercher un métier",
@@ -1977,7 +1992,8 @@
     "comingSoon": "Cet écran sera enrichi dans la prochaine phase.",
     "loadError": "Impossible de charger votre profil. Vérifiez votre connexion.",
     "retry": "Réessayer",
-    "back": "Retour"
+    "back": "Retour",
+    "preferencesHint": "Ces réglages filtrent les demandes que vous recevez et celles affichées autour de vous."
   },
   "portfolioScreen": {
     "tabs": {
@@ -1986,7 +2002,6 @@
       "diplome": "Diplômes"
     },
     "title": "Portfolio",
-    "edit": "Modifier",
     "introTitle": "Vos réalisations, certifications et diplômes",
     "introDesc": "Montrez vos travaux pour rassurer les clients et améliorer votre Score Xeuy.",
     "featured": "Mise en avant",

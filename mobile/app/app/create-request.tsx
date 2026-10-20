@@ -49,7 +49,8 @@ const DRAFT_TTL_MS = 3 * 24 * 60 * 60 * 1000
 
 function CreateRequest() {
   const { colors, FALLBACK_CATS, s } = useStyles()
-  const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string; editId?: string }>()
+  const params = useLocalSearchParams<{ category?: string; subcategory?: string; urgent?: string; editId?: string; preferredProviderId?: string; preferredProviderName?: string }>()
+  const preferredProviderId = !params.editId && params.preferredProviderId ? String(params.preferredProviderId) : undefined
   const isEdit = !!params.editId
   const [isUrgent, setIsUrgent] = useState(params.urgent === 'true' || params.urgent === '1')
   const [step, setStep] = useState(isEdit ? 2 : (isUrgent && params.category ? 2 : 1))
@@ -401,6 +402,7 @@ function CreateRequest() {
           attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
           urgent: isUrgent,
           scheduledFor: !isUrgent && scheduledFor ? scheduledFor.toISOString() : undefined,
+          preferredProviderId,
         }, t('request.queuedOffline'))
         setQueued(res === null)
         const newId = (res as any)?.item?._id || (res as any)?.item?.id || ''
@@ -545,6 +547,15 @@ function CreateRequest() {
           <TouchableOpacity onPress={discardDraft} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
             <Text style={s.draftBannerAction}>{t('request.draftDiscard', { defaultValue: 'Recommencer' })}</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {preferredProviderId && (
+        <View style={s.preferredBanner} accessibilityRole="text">
+          <Send size={15} color={colors.primaryText} />
+          <Text style={s.preferredBannerText}>
+            {t('request.preferredProvider', { name: params.preferredProviderName || t('home.newProvider') })}
+          </Text>
         </View>
       )}
 
@@ -1168,6 +1179,8 @@ const useStyles = createThemedStyles(colors => {
     stepLabelActive: { fontSize: 13, fontWeight: typography.weight.bold as any, color: colors.ink },
     stepLine: { flex: 1, height: 2, backgroundColor: colors.bgDeep, borderRadius: 1, marginHorizontal: 6 },
     body: { padding: spacing.xl, paddingTop: 4, paddingBottom: 40 },
+    preferredBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.successLight, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginBottom: spacing.md },
+    preferredBannerText: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.successInk, fontWeight: '600' },
     stepTitle: { fontSize: 22, fontWeight: typography.weight.extrabold as any, color: colors.ink, letterSpacing: -0.4, lineHeight: 28 },
     stepSub: { fontSize: 13, color: colors.textMuted, marginTop: 6, marginBottom: 18, lineHeight: 19 },
     // Step 1 — recherche + grille

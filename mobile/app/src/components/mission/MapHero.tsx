@@ -167,7 +167,7 @@ export const MapHero: React.FC<Props> = ({
         {polylineCoords.length > 1 && (
           <Polyline
             coordinates={polylineCoords}
-            strokeColor="#0F7B4F"
+            strokeColor={colors.primary}
             strokeWidth={4}
             lineDashPattern={[0]}
           />
@@ -341,7 +341,7 @@ const useStyles = createThemedStyles(colors => {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2.5,

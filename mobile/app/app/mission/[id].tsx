@@ -2,11 +2,12 @@ import { createThemedStyles } from '../../src/theme'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Linking, Share, Dimensions, AppState } from 'react-native'
 
-import { router, useLocalSearchParams } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LiveRouteMap } from '../../src/components/LiveRouteMap'
 import { apiGet, apiPatch, apiPatchQueued, getBaseUrl } from '../../src/api'
 import { withScreenBoundary } from '../../src/components/withScreenBoundary'
+import { isMissionRated } from '../../src/rated-missions'
 import { connectSocket, joinRequestRoom, leaveRequestRoom, emitMissionStatus } from '../../src/socket'
 import { confirm, notify } from '../../src/confirm'
 import { humanErrorMessage } from '../../src/errorMessages'
@@ -62,6 +63,7 @@ const DISPUTE_REASONS = [
 function MissionDetail() {
   const { colors, PAYMENT_BADGE, s, formatElapsed } = useStyles()
   const { t, i18n } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id?: string | string[] }>()
   const requestId = normalizeId(id)
   const [item, setItem] = useState<any>(null)
@@ -106,10 +108,15 @@ function MissionDetail() {
     try {
       const r = await apiGet(`/api/services/requests/${requestId}`)
       setItem(r.item)
-      try {
-        const rev = await apiGet(`/api/services/reviews?requestId=${requestId}`)
-        setHasReview(rev?.count > 0)
-      } catch { setHasReview(false) }
+      // L'avis peut venir du détail (clientReview), de l'API avis ({ reviews, stats }) ou d'une note en file hors ligne
+      let reviewed = !!r.item?.clientReview || await isMissionRated(String(requestId))
+      if (!reviewed) {
+        try {
+          const rev = await apiGet(`/api/services/reviews?requestId=${requestId}`)
+          reviewed = (rev?.stats?.count ?? 0) > 0 || (Array.isArray(rev?.reviews) && rev.reviews.length > 0)
+        } catch { /* l'absence d'avis reste l'hypothèse par défaut */ }
+      }
+      setHasReview(reviewed)
     } catch (e: any) { setErr(humanErrorMessage(e)) }
     finally {
       if (isRefresh) setRefreshing(false)
@@ -118,6 +125,13 @@ function MissionDetail() {
   }, [requestId])
 
   useEffect(() => { load() }, [load])
+
+  // Retour depuis l'écran de notation (ou une autre page) : état à jour, sans indicateur plein écran
+  const firstFocus = useRef(true)
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return }
+    load(true)
+  }, [load]))
 
   useEffect(() => {
     if (!requestId) return
@@ -627,8 +641,8 @@ function MissionDetail() {
         )}
       </ScrollView>
 
-      {/* Action sticky contextuelle */}
-      <View style={s.footer}>
+      {/* Action sticky contextuelle — au-dessus de la barre système (gestes / boutons Android) */}
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom + 8, 14) }]}>
         {canValidate && (
           <Text style={s.autoValidateHint}>
             {t('mission.autoValidateHint', { defaultValue: 'Sans validation ni signalement de votre part, la mission sera validée automatiquement.' })}
@@ -775,8 +789,8 @@ const useStyles = createThemedStyles(colors => {
     footer: { paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 14, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.borderSoft },
     footerBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: radius.lg, paddingVertical: 14, minHeight: 50 },
     footerDark: { backgroundColor: colors.navy },
-    footerPrimary: { backgroundColor: colors.warning },
-    footerSuccess: { backgroundColor: colors.success, ...shadows.md },
+    footerPrimary: { backgroundColor: colors.primary, ...shadows.md },
+    footerSuccess: { backgroundColor: colors.primary, ...shadows.md },
     footerGhost: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
     footerText: { color: colors.onPrimary, fontSize: 14, fontWeight: typography.weight.extrabold as any },
     footerGhostText: { color: colors.text, fontSize: 14, fontWeight: typography.weight.bold as any },

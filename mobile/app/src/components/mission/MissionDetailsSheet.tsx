@@ -296,7 +296,7 @@ export function MissionDetailsSheet({
         <View style={s.techCell}>
           <Signal size={15} color={colors.primaryText} />
           <Text style={s.techLabel}>{t('providerMissionDetails.techConnection', { defaultValue: 'Connexion' })}</Text>
-          <Text style={[s.techValue, { color: socketConnected ? colors.primaryText : '#EF4444' }]} numberOfLines={1}>
+          <Text style={[s.techValue, { color: socketConnected ? colors.primaryText : colors.danger }]} numberOfLines={1}>
             {socketConnected
               ? t('providerMissionDetails.connectionActive', { defaultValue: 'Active' })
               : t('providerMissionDetails.connectionOffline', { defaultValue: 'Hors ligne' })}
@@ -353,23 +353,23 @@ export function MissionDetailsSheet({
         {onPause && (
               <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onPause() }} activeOpacity={0.8} accessibilityRole="button">
                 <View style={[s.actionIcon, { backgroundColor: colors.warnSoft }]}>
-                  <PauseIcon size={15} color="#D97706" />
+                  <PauseIcon size={15} color={colors.warnInk} />
                 </View>
-                <Text style={[s.actionLabel, { color: '#B45309' }]}>
+                <Text style={[s.actionLabel, { color: colors.warnInk }]}>
                   {t('providerMissionDetails.pauseAction', { defaultValue: 'Mettre en pause' })}
                 </Text>
-                <ChevronRight size={16} color="#D97706" />
+                <ChevronRight size={16} color={colors.warnInk} />
               </TouchableOpacity>
             )}
         {onDispute && (
           <TouchableOpacity style={s.actionRow} onPress={() => { onClose(); onDispute() }} activeOpacity={0.8} accessibilityRole="button">
             <View style={[s.actionIcon, { backgroundColor: colors.dangerSoft }]}>
-              <AlertTriangle size={15} color="#EF4444" />
+              <AlertTriangle size={15} color={colors.danger} />
             </View>
             <Text style={[s.actionLabel, { color: colors.dangerInk }]}>
               {t('providerMissionDetails.disputeAction', { defaultValue: 'Signaler un litige' })}
             </Text>
-            <ChevronRight size={16} color="#EF4444" />
+            <ChevronRight size={16} color={colors.danger} />
           </TouchableOpacity>
         )}
       </View>
@@ -399,8 +399,8 @@ const useStyles = createThemedStyles(colors => {
     lifeValue: { fontSize: 13, fontWeight: '700', color: colors.text },
     timelineRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     timelineRail: { width: 14, alignItems: 'center' },
-    timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#CBD5E1' },
-    timelineDotCurrent: { backgroundColor: '#0F7B4F', borderWidth: 3, borderColor: '#E6F4EC' },
+    timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.border },
+    timelineDotCurrent: { backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.primaryLight },
     timelineLine: { position: 'absolute', top: 12, width: 2, height: 24, backgroundColor: colors.bgDeep },
     timelineTime: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, width: 44 },
     timelineLabel: { flex: 1, fontSize: 13, color: colors.textSecondary },
@@ -419,7 +419,7 @@ const useStyles = createThemedStyles(colors => {
     actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     actionIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
     actionLabel: { flex: 1, fontSize: 14, fontWeight: '700' },
-    closeBtn: { backgroundColor: '#0F7B4F', borderRadius: 16, paddingVertical: 15, alignItems: 'center', marginBottom: 8 },
+    closeBtn: { backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 15, alignItems: 'center', marginBottom: 8 },
     closeBtnText: { fontSize: 15, fontWeight: '800', color: colors.onPrimary },
   })
   return { colors, s }

@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiPostQueued } from '../src/api'
 import { withScreenBoundary } from '../src/components/withScreenBoundary'
+import { markMissionRated } from '../src/rated-missions'
 import { humanErrorMessage } from '../src/errorMessages'
 import { useTranslation } from 'react-i18next'
 import { Star, PartyPopper, Check, Send } from 'lucide-react-native'
@@ -43,10 +44,17 @@ function RateMission() {
         comment: comment.trim() || undefined,
         tags: selectedTags,
       }, t('rating.queuedOffline'))
+      await markMissionRated(String(id))
       setSubmitted(true)
       hapticSuccess()
     } catch (e: any) {
-      setError(humanErrorMessage(e))
+      // Déjà noté (double appui, autre appareil) : ce n'est pas une erreur pour l'utilisateur
+      if (e?.status === 409 || /déjà not|déjà soumis/i.test(String(e?.message || ''))) {
+        await markMissionRated(String(id))
+        setSubmitted(true)
+      } else {
+        setError(humanErrorMessage(e))
+      }
     } finally {
       setLoading(false)
     }

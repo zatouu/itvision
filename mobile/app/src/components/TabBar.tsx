@@ -120,9 +120,10 @@ export default function TabBar({ active, mode = 'client' }: TabBarProps) {
 
 const useStyles = createThemedStyles(colors => {
   const s = StyleSheet.create({
+    // Toujours collée en bas, quelle que soit la mise en page de l'écran (contenu court, état d'erreur centré…)
     bar: isIOS
-      ? { flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator, paddingTop: 6 }
-      : { flexDirection: 'row', backgroundColor: colors.surface, paddingTop: 10, elevation: 8 },
+      ? { flexDirection: 'row', alignSelf: 'stretch', marginTop: 'auto', backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator, paddingTop: 6 }
+      : { flexDirection: 'row', alignSelf: 'stretch', marginTop: 'auto', backgroundColor: colors.surface, paddingTop: 10, elevation: 8 },
     item: { flex: 1, alignItems: 'center', minHeight: isIOS ? 48 : 56, justifyContent: 'center' },
     iconWrap: { position: 'relative', width: isIOS ? 32 : 60, height: isIOS ? 28 : 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     indicator: { backgroundColor: colors.brandSoft },

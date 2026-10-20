@@ -175,11 +175,13 @@ function Profile() {
 
   if (loadError && !u.name) {
     return (
-      <SafeAreaView style={[s.safe, { alignItems: 'center', justifyContent: 'center', padding: spacing.xl }]} edges={['top', 'left', 'right']}>
-        <Text style={{ fontSize: 15, color: colors.text, textAlign: 'center', marginBottom: spacing.md }}>{t('proProfile.loadError')}</Text>
-        <TouchableOpacity onPress={() => { setLoading(true); loadProfile() }} style={s.retryBtn} accessibilityRole="button">
-          <Text style={s.retryText}>{t('common.retry')}</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
+          <Text style={{ fontSize: 15, color: colors.text, textAlign: 'center', marginBottom: spacing.md }}>{t('proProfile.loadError')}</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); loadProfile() }} style={s.retryBtn} accessibilityRole="button">
+            <Text style={s.retryText}>{t('common.retry')}</Text>
+          </TouchableOpacity>
+        </View>
         <TabBar active="profile" mode="provider" />
       </SafeAreaView>
     )

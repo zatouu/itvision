@@ -16,6 +16,7 @@ import { spacing, radius, shadows, typography, getCategoryMeta } from '../../../
 import { apiGet } from '../../../src/api'
 import { loadCategories, getCategoryLabel } from '../../../src/categories'
 import { withScreenBoundary } from '../../../src/components/withScreenBoundary'
+import { getAuthUser, getUserIdFromToken } from '../../../src/auth'
 
 function ProviderDetail() {
   const { colors, s } = useStyles()
@@ -70,12 +71,14 @@ function ProviderDetail() {
   const phone = profile?.phone
   const initials = name.trim().split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || 'P'
 
+  // Demande adressée en priorité à ce prestataire (il est notifié tout de suite ; les autres restent sollicités)
+  const isSelf = String(id) === String(getAuthUser()?._id || getUserIdFromToken() || '')
   const chooseProvider = () => {
-    if (specialties[0]) {
-      router.push({ pathname: '/create-request', params: { category: specialties[0] } } as any)
-    } else {
-      router.push('/create-request' as any)
-    }
+    if (isSelf) return
+    router.push({
+      pathname: '/create-request',
+      params: { ...(specialties[0] ? { category: specialties[0] } : {}), preferredProviderId: String(id), preferredProviderName: name },
+    } as any)
   }
 
   const contactProvider = () => {
@@ -253,9 +256,11 @@ function ProviderDetail() {
         )}
       </ScrollView>
 
-      <StickyBottomBar>
-        <Button title={t('clientProvider.choose')} onPress={chooseProvider} size="lg" />
-      </StickyBottomBar>
+      {!isSelf && (
+        <StickyBottomBar>
+          <Button title={t('clientProvider.choose')} onPress={chooseProvider} size="lg" />
+        </StickyBottomBar>
+      )}
     </View>
   )
 }

@@ -153,6 +153,8 @@ services:
       STT_FALLBACK_API_URL: ${STT_FALLBACK_API_URL:-}
       STT_FALLBACK_API_KEY: ${STT_FALLBACK_API_KEY:-}
       STT_FALLBACK_MODEL: ${STT_FALLBACK_MODEL:-}
+      # Itinéraires (proxy /api/services/route). Facultatif : sans clé, repli automatique sur OSRM.
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       ALIEXPRESS_RAPIDAPI_KEY: ${ALIEXPRESS_RAPIDAPI_KEY:-}
       SOURCING_MARGIN_RATE: ${SOURCING_MARGIN_RATE:-15}
       # Worker agents (Chromium) : désactivé tant que la mémoire de l'EC2 n'est pas confirmée

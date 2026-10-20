@@ -79,6 +79,7 @@ function NearbyRequests() {
   const [err, setErr] = useState<string | null>(null)
   const [unlockEnabled, setUnlockEnabled] = useState(false)
   const [scopeFiltered, setScopeFiltered] = useState(false)
+  const [hiddenByPrefs, setHiddenByPrefs] = useState(0)
   const successScale = useRef(new Animated.Value(0))
 
   const openOfferSheet = useCallback((it: any) => {
@@ -181,6 +182,7 @@ function NearbyRequests() {
         key,
         () => apiGet(`/api/services/matching?lng=${target.lng}&lat=${target.lat}&radiusKm=${RADIUS_KM}&excludeMine=true`).then(r => {
           setScopeFiltered(r?.browseScope === 'category')
+          setHiddenByPrefs(Number(r?.hiddenByPreferences) || 0)
           return r.items || []
         }),
         (items) => {
@@ -346,6 +348,17 @@ function NearbyRequests() {
         <View style={s.scopeChip}>
           <Text style={s.scopeChipTxt}>{t('nearby.scopeFiltered', 'Demandes filtrées selon vos métiers')}</Text>
         </View>
+      )}
+
+      {hiddenByPrefs > 0 && (
+        <TouchableOpacity
+          style={s.scopeChip}
+          activeOpacity={0.7}
+          onPress={() => router.push('/profile-detail?section=preferences' as any)}
+          accessibilityRole="button"
+        >
+          <Text style={s.scopeChipTxt}>{t('nearby.hiddenByPreferences', { count: hiddenByPrefs })}</Text>
+        </TouchableOpacity>
       )}
 
       {/* Toggle Carte / Liste */}

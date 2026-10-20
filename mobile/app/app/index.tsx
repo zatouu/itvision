@@ -5,7 +5,7 @@ import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiGet } from '../src/api'
-import { getAuthUser, isLoggedIn } from '../src/auth'
+import { getAuthUser, getUserIdFromToken, isLoggedIn } from '../src/auth'
 import { isPhoneLike, formatPhone } from '../src/user-display'
 import { fetchWithCache } from '../src/storage'
 import { connectSocket, requestOnlineProviders, onOnlineProvidersCount, joinRequestRoom, leaveRequestRoom, onProviderLocation } from '../src/socket'
@@ -216,7 +216,11 @@ function Home() {
         } catch {}
       }
 
-      if (mounted) setLiveProviders(Array.from(merged.values()))
+      if (mounted) {
+        // Même si l'utilisateur est aussi prestataire en ligne, il ne doit pas se voir « autour de lui »
+        const selfId = String(getAuthUser()?._id || getUserIdFromToken() || '')
+        setLiveProviders(Array.from(merged.values()).filter(p => !selfId || String(p.providerId) !== selfId))
+      }
     }
     fetchLive()
     const interval = setInterval(fetchLive, 15000)

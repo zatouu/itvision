@@ -410,7 +410,8 @@
     "loadingEdit": "Mbindi laaj bi…",
     "budgetRequired": "Duggal mbay (amulu 0).",
     "draftRestored": "Brouillon restauré",
-    "draftDiscard": "Recommencer"
+    "draftDiscard": "Recommencer",
+    "preferredProvider": "Sa laaj dinañu ko jëkk yónnee {{name}}"
   },
   "schedule": {
     "whenLabel": "Kan ?",
@@ -1136,7 +1137,7 @@
     "recentReviews": "Avis yi yu bees",
     "contact": "Jëkkal",
     "offer": "Offre bi",
-    "choose": "Tànn liggéeykat bi",
+    "choose": "Yónnee ko laaj",
     "reviews": "avis",
     "client": "Kiliyaŋ",
     "noReviews": "Amul avis léegi"
@@ -1393,7 +1394,9 @@
     "unlockConfirmSub": "Kredi yi dinañu la jëli bu misiyoŋ bi bayyi bu gaañ walla fraud.",
     "insufficientCredits": "Kredi yi doo na",
     "insufficientCreditsMsg": "Njëg: {{cost}} kredi. Sa solde: {{balance}} kredi. Sokha kredi léegi ?",
-    "unlockError": "Njuumte ubbi: {{msg}}"
+    "unlockError": "Njuumte ubbi: {{msg}}",
+    "hiddenByPreferences_one": "{{count}} laaj nëbbu na ndax sa tànneef · Soppi",
+    "hiddenByPreferences_other": "{{count}} laaj nëbbu nañu ndax sa tànneef · Soppi"
   },
   "providerMissionCompleted": {
     "title": "Misiyoŋ bi pare",
@@ -1823,12 +1826,30 @@
     "title": "Badges",
     "unlocked": "badges débloqués",
     "items": {
-      "kyc": { "label": "Identité vérifiée", "desc": "KYC approuvé par l'équipe" },
-      "first": { "label": "Première mission", "desc": "Vous avez complété une mission" },
-      "rating": { "label": "5 étoiles", "desc": "Moyenne d'au moins 4.8 sur 5 avis" },
-      "fast": { "label": "Réactif", "desc": "Temps de réponse moyen < 15 min" },
-      "top": { "label": "Excellence", "desc": "Score Xeuy supérieur à 85" },
-      "missions": { "label": "100 missions", "desc": "100 missions terminées" }
+      "kyc": {
+        "label": "Identité vérifiée",
+        "desc": "KYC approuvé par l'équipe"
+      },
+      "first": {
+        "label": "Première mission",
+        "desc": "Vous avez complété une mission"
+      },
+      "rating": {
+        "label": "5 étoiles",
+        "desc": "Moyenne d'au moins 4.8 sur 5 avis"
+      },
+      "fast": {
+        "label": "Réactif",
+        "desc": "Temps de réponse moyen < 15 min"
+      },
+      "top": {
+        "label": "Excellence",
+        "desc": "Score Xeuy supérieur à 85"
+      },
+      "missions": {
+        "label": "100 missions",
+        "desc": "100 missions terminées"
+      }
     }
   },
   "calendarScreen": {
@@ -1903,8 +1924,7 @@
     "empty": "Aucun avis pour le moment.",
     "client": "Client",
     "missionFallback": "Mission",
-    "noComment": "Pas de commentaire",
-    "reply": "Répondre"
+    "noComment": "Pas de commentaire"
   },
   "profileDetailScreen": {
     "avail": {
@@ -1932,15 +1952,12 @@
       "default": "Paramètres"
     },
     "saveFailed": "Enregistrement impossible",
-    "visibilityRadius": "Rayon de visibilité",
     "maxDistance": "Distance maximale",
+    "noLimit": "Amul dig",
     "minAmount": "Montant minimum",
     "concurrentMissions": "Missions simultanées",
     "urgentMissions": "Missions urgentes",
     "plannedMissions": "Missions planifiées",
-    "similarMissions": "Recevoir des missions similaires",
-    "verifiedOnly": "Uniquement les missions vérifiées",
-    "escrowOnly": "Uniquement les missions à paiement sécurisé",
     "mainCity": "Ville principale",
     "interventionRadius": "Rayon d'intervention",
     "status": "Statut",
@@ -1948,8 +1965,6 @@
     "defaultHours": "Lun-Sam 8h-20h",
     "visibleOnHome": "Visible sur l'accueil",
     "setAvailableToEnable": "Passez en « Disponible » pour activer",
-    "premiumVisibilityRadius": "Rayon de visibilité Premium",
-    "broadcastPriority": "Priorité de diffusion",
     "premiumSoon": "Les options Premium seront activées prochainement.",
     "tradesIntro": "Choisissez les métiers pour lesquels vous voulez recevoir des demandes, puis présentez-vous en quelques lignes.",
     "searchTrades": "Rechercher un métier",
@@ -1977,7 +1992,8 @@
     "comingSoon": "Cet écran sera enrichi dans la prochaine phase.",
     "loadError": "Impossible de charger votre profil. Vérifiez votre connexion.",
     "retry": "Réessayer",
-    "back": "Retour"
+    "back": "Retour",
+    "preferencesHint": "Tànneef yii ñooy tànn laaj yi ngay jot ak yi ñu wone ci sa wet."
   },
   "portfolioScreen": {
     "tabs": {
@@ -1986,7 +2002,6 @@
       "diplome": "Diplômes"
     },
     "title": "Portfolio",
-    "edit": "Modifier",
     "introTitle": "Vos réalisations, certifications et diplômes",
     "introDesc": "Montrez vos travaux pour rassurer les clients et améliorer votre Score Xeuy.",
     "featured": "Mise en avant",

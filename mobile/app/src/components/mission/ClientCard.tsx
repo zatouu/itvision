@@ -66,9 +66,13 @@ export const ClientCard: React.FC<Props> = ({
     }
   }
 
+  const ratingValue = Number(clientRating)
+  const hasRating = Number.isFinite(ratingValue) && ratingValue > 0
   const subtitle = typeof missionCount === 'number'
     ? t('providerMissionAssigned.missionsCount', { count: missionCount, defaultValue: '{{count}} missions' })
-    : t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })
+    : isVerified
+      ? t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })
+      : ''
 
   return (
     <View style={[s.card, style]}>
@@ -98,16 +102,22 @@ export const ClientCard: React.FC<Props> = ({
         <Text style={s.name} numberOfLines={1}>
           {displayName}
         </Text>
-        <View style={s.metaRow}>
-          <Star size={12} color="#F59E0B" fill="#F59E0B" style={{ marginRight: 3 }} />
-          <Text style={s.ratingText}>
-            {Number(clientRating || 4.8).toFixed(1)}
-          </Text>
-          <Text style={s.bullet}>·</Text>
-          <Text style={s.verifiedText}>
-            {subtitle}
-          </Text>
-        </View>
+        {(hasRating || !!subtitle) && (
+          <View style={s.metaRow}>
+            {hasRating && (
+              <>
+                <Star size={12} color={colors.warning} fill={colors.warning} style={{ marginRight: 3 }} />
+                <Text style={s.ratingText}>{ratingValue.toFixed(1)}</Text>
+              </>
+            )}
+            {hasRating && !!subtitle && <Text style={s.bullet}>·</Text>}
+            {!!subtitle && (
+              <Text style={s.verifiedText} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={s.actionsRow}>
@@ -130,7 +140,7 @@ export const ClientCard: React.FC<Props> = ({
           accessibilityRole="button"
           accessibilityLabel={t('a11y.openChat')}
         >
-          <MessageSquare size={18} color="#2563EB" strokeWidth={2.2} />
+          <MessageSquare size={18} color={colors.info} strokeWidth={2.2} />
           {isTyping && <View style={s.typingDot} />}
         </TouchableOpacity>
       </View>
@@ -152,7 +162,7 @@ const useStyles = createThemedStyles(colors => {
       marginHorizontal: spacing.lg,
       marginBottom: spacing.md,
       borderWidth: 1,
-      borderColor: '#EEF2F6',
+      borderColor: colors.borderSoft,
       shadowColor: '#000000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.04,
@@ -190,7 +200,7 @@ const useStyles = createThemedStyles(colors => {
       width: 17,
       height: 17,
       borderRadius: 9,
-      backgroundColor: '#0F7B4F',
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
@@ -252,7 +262,7 @@ const useStyles = createThemedStyles(colors => {
       width: 8,
       height: 8,
       borderRadius: 4,
-      backgroundColor: '#2563EB',
+      backgroundColor: colors.info,
     },
   })
   return { colors, s }
