@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuthServer } from '@/lib/auth-server'
 import { checkAiEntitlement, refundAiCall } from '@/lib/ai/entitlement'
 import { applyRateLimit, aiRateLimiter } from '@/lib/rate-limiter'
+import { runMultipartRoute } from '@/lib/middleware/multipart-routes'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,7 +16,12 @@ const STT_PROMPT = 'Demande de service à domicile au Sénégal : plomberie, él
  * Service compatible OpenAI `/audio/transcriptions` : STT_API_URL (défaut OpenAI), STT_API_KEY
  * (ou OPENAI_API_KEY), STT_MODEL (défaut whisper-1). Facturé comme la reformulation de demande.
  */
+// Hors middleware (corps non cloné) : voir src/lib/middleware/multipart-routes.ts
 export async function POST(request: NextRequest) {
+  return runMultipartRoute(request, () => handleTranscribe(request))
+}
+
+async function handleTranscribe(request: NextRequest): Promise<Response> {
   const rateLimitResponse = await applyRateLimit(request, aiRateLimiter)
   if (rateLimitResponse) return rateLimitResponse
 

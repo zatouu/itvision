@@ -103,9 +103,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '150mb',
     },
-    // Le middleware s'applique à /api/upload : au-delà de cette taille Next tronque le corps
-    // (10 Mo par défaut) et formData() échoue (« Failed to parse body as FormData ») — vidéos mobiles.
-    // Doit rester ≥ limite vidéo de /api/upload (100 Mo) + enveloppe multipart.
+    // Corps des requêtes clonés pour le middleware (routes multipart restantes, ex. documents admin) :
+    // au-delà de cette taille Next tronque le corps (10 Mo par défaut) et formData() échoue.
+    // /api/upload et /api/ai/transcribe sont hors middleware (src/lib/middleware/multipart-routes.ts).
     middlewareClientMaxBodySize: '110mb',
   },
 
