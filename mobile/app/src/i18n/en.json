@@ -1817,6 +1817,7 @@
     }
   },
   "account": {
+    "switchError": "Could not switch mode, please try again.",
     "switchToClient": "Switch to client mode",
     "switchToProvider": "Switch to provider mode",
     "switchToClientSub": "Request a service for yourself",

@@ -332,8 +332,12 @@ function Home() {
     return () => { unsubs.forEach(u => u()) }
   }, [loadDashboard])
 
+  // Le montage charge déjà (effet ci-dessus) : le focus ne recharge qu'au retour sur l'écran,
+  // sinon chaque arrivée sur l'accueil lançait deux fois les 5 appels API.
+  const focusedOnce = useRef(false)
   useFocusEffect(
     useCallback(() => {
+      if (!focusedOnce.current) { focusedOnce.current = true; return }
       loadDashboard()
     }, [loadDashboard])
   )

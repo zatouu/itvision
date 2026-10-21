@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeftRight, LogOut } from 'lucide-react-native'
@@ -23,12 +24,23 @@ export default function AccountSection() {
   const { t } = useTranslation()
   const { preference, setPreference } = useTheme()
   const isProvider = getMode() === 'provider'
+  const [switching, setSwitching] = useState(false)
 
+  // La pile de navigation repart de zéro sur l'accueil du nouveau mode : l'accueil de l'ancien
+  // mode (cartes, sockets, minuteries) est démonté au lieu de rester en mémoire sous le nouveau.
   const switchMode = async () => {
+    if (switching) return
+    setSwitching(true)
     const next: AppMode = isProvider ? 'client' : 'provider'
     hapticSelect()
-    await setMode(next)
-    router.replace(homeRouteForMode(next) as any)
+    try {
+      await setMode(next)
+      if (router.canDismiss()) router.dismissAll()
+      router.replace(homeRouteForMode(next) as any)
+    } catch {
+      setSwitching(false)
+      toast.error(t('common.error'), t('account.switchError', { defaultValue: 'Changement de mode impossible, réessayez.' }))
+    }
   }
 
   const logout = async () => {
@@ -45,9 +57,12 @@ export default function AccountSection() {
   return (
     <View style={s.wrap}>
       {isProviderCapable() && (
-        <TouchableOpacity style={s.switchCard} onPress={switchMode} activeOpacity={0.8} accessibilityRole="button">
+        <TouchableOpacity style={[s.switchCard, switching && { opacity: 0.7 }]} onPress={switchMode} disabled={switching} activeOpacity={0.8}
+          accessibilityRole="button" accessibilityState={{ busy: switching, disabled: switching }}>
           <View style={s.switchIcon}>
-            <ArrowLeftRight size={18} color={colors.primaryText} />
+            {switching
+              ? <ActivityIndicator size="small" color={colors.primaryText} />
+              : <ArrowLeftRight size={18} color={colors.primaryText} />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.switchTitle}>

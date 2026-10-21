@@ -1,6 +1,6 @@
 import { createThemedStyles } from '../src/theme'
 import { Text, View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import * as Location from 'expo-location'
 import { router, useFocusEffect } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -138,8 +138,11 @@ function Home() {
     return () => { mounted = false; unsubscribe() }
   }, [])
 
+  // Le montage charge déjà (effet ci-dessous) : le focus ne recharge qu'au retour sur l'écran
+  const focusedOnce = useRef(false)
   useFocusEffect(
     useCallback(() => {
+      if (!focusedOnce.current) { focusedOnce.current = true; return }
       loadRecent()
     }, [loadRecent])
   )

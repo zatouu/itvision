@@ -2,27 +2,34 @@ import { createThemedStyles } from '../theme'
 import React, { forwardRef } from 'react'
 import { Platform, StyleSheet, View, Text } from 'react-native'
 import MapView from 'react-native-maps'
-import Constants from 'expo-constants'
+import { requireOptionalNativeModule } from 'expo'
 import { MapPin } from 'lucide-react-native'
 import { useTheme } from '../theme'
 
+let nativeKeyCache: boolean | undefined
+
 /**
- * Sans clé Google Maps dans le manifest Android (build sans
- * EXPO_PUBLIC_GOOGLE_MAPS_API_KEY), MapView crash l'app au montage.
- * Ce wrapper rend un placeholder neutre à la place — détecté côté JS,
- * donc corrigeable par OTA.
+ * Sans clé Google Maps dans l'AndroidManifest de l'APK installé, MapView plante l'app en natif
+ * au montage (« l'application a cessé de fonctionner »). Ce wrapper rend un encart à la place.
+ *
+ * La décision se fonde sur la config EMBARQUÉE dans l'APK (module natif ExponentConstants), pas
+ * sur Constants.expoConfig ni sur la variable inlinée : une OTA récente peut contenir la clé côté
+ * JS alors que l'APK du testeur a été compilé sans → crash à l'ouverture d'un écran avec carte.
+ * Marqueur `extra.nativeGoogleMapsKey` posé par app.config.js au build ; absent (APK plus ancien
+ * que ce marqueur) → carte désactivée par prudence, jusqu'à l'installation d'un APK récent.
  */
 export function hasGoogleMapsKey(): boolean {
   if (Platform.OS !== 'android') return true
-  // 1) Env inlinée par Metro au build (fiable : c'est la valeur utilisée par
-  //    le plugin withGoogleMapsApiKey pour la meta-data AndroidManifest).
-  const envKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-  if (typeof envKey === 'string' && envKey.length > 10) return true
-  // 2) Repli : config embarquée (peut ne pas contenir android.config.googleMaps
-  //    selon l'ordre d'évaluation d'app.config.js au build).
-  const key = (Constants?.expoConfig as any)?.android?.config?.googleMaps?.apiKey
-    || (Constants as any)?.manifest?.android?.config?.googleMaps?.apiKey
-  return typeof key === 'string' && key.length > 10
+  if (nativeKeyCache !== undefined) return nativeKeyCache
+  nativeKeyCache = false
+  try {
+    const raw = requireOptionalNativeModule<{ manifest?: unknown }>('ExponentConstants')?.manifest
+    const embedded = typeof raw === 'string' ? JSON.parse(raw) : raw
+    nativeKeyCache = (embedded as any)?.extra?.nativeGoogleMapsKey === true
+  } catch {
+    nativeKeyCache = false
+  }
+  return nativeKeyCache
 }
 
 interface Props extends React.ComponentProps<typeof MapView> {

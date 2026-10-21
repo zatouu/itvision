@@ -1,6 +1,6 @@
 import { createThemedStyles } from '../../theme'
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Platform, InteractionManager } from 'react-native'
 import { Circle, Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, MapPin, Power } from 'lucide-react-native'
@@ -52,7 +52,14 @@ export default function NearbyMapCard({ coords, radiusKm, items, todayCount, onl
   }, [coords?.lat, coords?.lng, radiusKm])
 
   const count = items.length
-  const canShowMap = Platform.OS !== 'web' && !!region
+  // La carte native (lourde) n'est montée qu'après l'animation d'arrivée sur l'écran : sur les
+  // téléphones modestes, la monter pendant la transition saccadait la bascule de mode.
+  const [mapMounted, setMapMounted] = useState(false)
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setMapMounted(true))
+    return () => task.cancel()
+  }, [])
+  const canShowMap = Platform.OS !== 'web' && !!region && mapMounted
 
   return (
     <TouchableOpacity style={[s.card, shadows.sm]} onPress={onPress} activeOpacity={0.9} accessibilityRole="button"
@@ -97,8 +104,12 @@ export default function NearbyMapCard({ coords, radiusKm, items, todayCount, onl
           </View>
         ) : (
           <View style={s.placeholder}>
-            <MapPin size={26} color={colors.textMuted} />
-            <Text style={s.placeholderText}>{t('proHome.mapNoGps')}</Text>
+            {!region && (
+              <>
+                <MapPin size={26} color={colors.textMuted} />
+                <Text style={s.placeholderText}>{t('proHome.mapNoGps')}</Text>
+              </>
+            )}
           </View>
         )}
 
