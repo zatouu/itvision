@@ -1,0 +1,32 @@
+# Secrets GitHub requis (Settings > Secrets > Actions) :
+#   APP_BASE_URL  — ex: https://market.itvisionplus.sn (sans slash final)
+#   CRON_SECRET   — même valeur que .env: CRON_SECRET=xxx
+#
+# Rapport finance hebdomadaire : CA par domaine (corporate, marketplace DDM+,
+# xeuy) + global consolidé sur les 7 derniers jours → email admin.
+# Mêmes agrégats que /api/admin/treasury (lib partagée domain-finance).
+
+name: Cron — Digest finance hebdo
+
+on:
+  schedule:
+    # Chaque lundi à 08h00 UTC (09h00 Dakar en hiver)
+    - cron: '0 8 * * 1'
+  workflow_dispatch: # Déclenchement manuel depuis l'UI GitHub
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Générer et envoyer le digest finance
+        run: |
+          RESPONSE=$(curl -s -o /tmp/digest.json -w "%{http_code}" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/finance-digest")
+          cat /tmp/digest.json
+          echo "HTTP status: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "ERREUR: Le digest a retourné HTTP $RESPONSE" >&2
+            exit 1
+          fi

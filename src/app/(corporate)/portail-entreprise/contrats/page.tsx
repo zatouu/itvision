@@ -93,7 +93,7 @@ export default async function ContratsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-stone-400">Tarif annuel</p>
-                    <p className="text-sm font-semibold text-emerald-800 tabular-nums mt-0.5">{fmtNum(c.annualPrice)} F</p>
+                    <p className="text-sm font-semibold text-emerald-800 tabular-nums mt-0.5">{c.annualPrice == null ? '—' : `${fmtNum(c.annualPrice)} F`}</p>
                   </div>
                   <div>
                     <p className="text-xs text-stone-400">Délai réponse</p>

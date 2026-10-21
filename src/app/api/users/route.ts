@@ -3,13 +3,14 @@ import bcrypt from 'bcryptjs'
 import User from '@/lib/models/User'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
+import { ADMIN_ROLES } from '@/lib/api-auth'
 import { createUserProfiles } from '@/lib/user-profiles'
 
-// Vérifier si l'utilisateur est admin (pour pouvoir attribuer des rôles)
+// Vérifier si l'utilisateur est admin (pour pouvoir attribuer des rôles) ; authentification facultative ici
 async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string }> {
   try {
     const { role, userId } = await requireAuth(request)
-    return { isAdmin: role === 'ADMIN', userId }
+    return { isAdmin: (ADMIN_ROLES as readonly string[]).includes(role), userId }
   } catch {
     return { isAdmin: false }
   }

@@ -1,91 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Order } from '@/lib/models/Order'
 import User from '@/lib/models/User'
-import Product from '@/lib/models/Product'
-import { type ShippingMethodId, type ShippingRate } from '@/lib/logistics'
-import { connectDB } from '@/lib/db'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
-import { readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
 import { calculateCartTotal } from '@/lib/pricing/cart-calculator'
-import { resolveProductPrice } from '@/lib/pricing/resolve-product-price'
-import { readPricingDefaults } from '@/lib/pricing/settings'
-import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
-import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
+import { buildSeaFreightMetrics, evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import crypto from 'crypto'
 import { emailService } from '@/lib/email-service'
-import { requireAuth } from '@/lib/jwt'
-import { maybeCreditGrainsForOrder, recordReferralFirstOrder, updateTierFromBalance, GRAIN_VALUE_FCFA, getGrainsBalance } from '@/lib/grains'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { GRAIN_VALUE_FCFA, getGrainsBalance } from '@/lib/grains'
 import PromoCode from '@/lib/models/PromoCode'
 import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import { syncUserToProfiles } from '@/lib/user-profiles'
-import mongoose from 'mongoose'
-import { checkStockAvailability, decrementProductStock } from '@/lib/inventory'
+import { decrementProductStock } from '@/lib/inventory'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { getRedisClient } from '@/lib/redis'
 import { orderCreateSchema, validate } from '@/lib/validation'
+import {
+  extractProductObjectId,
+  loadCartProducts,
+  buildCalculatorItems,
+  itemVariantIds,
+  resolveItemUnitPrice,
+  resolveItemVariants,
+  resolveShippingMethod,
+  isLocalShopProduct,
+  loadLocalDeliveryShops,
+  validatePromoCode,
+} from '@/lib/pricing/quote-cart'
+import { internalPost } from '@/lib/internal-auth'
+import mongoose from 'mongoose'
+import PickupPoint from '@/lib/models/PickupPoint'
+import { resolveReferral } from '@/lib/market/ambassador'
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-function extractProductObjectId(itemId: string): string | null {
-  if (!itemId) return null
-  // Composite IDs created by the frontend: productId[-variantKey][-shippingId]
-  // Examples: "69b2dafecd40b2d770a0a398-air_express" or "69b2dafecd40b2d770a0a398-v1+v2-air_express"
-  const parts = itemId.split('-')
-  for (const part of parts) {
-    if (mongoose.Types.ObjectId.isValid(part)) {
-      return part
-    }
-  }
-  return null
-}
 
-function buildSeaFreightMetrics(items: Array<{
-  qty?: number
-  weightKg?: number
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
-  volumeM3?: number
-}>, orderValueFcfa: number) {
-  let totalVolumeM3 = 0
-  let totalBilledWeightKg = 0
-  let hasDimensionsOrVolumeData = false
-
-  for (const item of items) {
-    const qty = Number(item.qty) > 0 ? Number(item.qty) : 1
-    const volume = typeof item.volumeM3 === 'number' && item.volumeM3 > 0 ? item.volumeM3 : 0
-    const hasDims =
-      typeof item.lengthCm === 'number' && item.lengthCm > 0 &&
-      typeof item.widthCm === 'number' && item.widthCm > 0 &&
-      typeof item.heightCm === 'number' && item.heightCm > 0
-
-    if (volume > 0 || hasDims) {
-      hasDimensionsOrVolumeData = true
-    }
-
-    totalVolumeM3 += volume * qty
-
-    const actualWeight = typeof item.weightKg === 'number' && item.weightKg > 0 ? item.weightKg : 0
-    const weightInfo = calculateBilledWeight({
-      actualWeightKg: actualWeight,
-      lengthCm: item.lengthCm,
-      widthCm: item.widthCm,
-      heightCm: item.heightCm,
-    })
-    totalBilledWeightKg += weightInfo.billedWeight * qty
-  }
-
-  return {
-    totalVolumeM3: Number(totalVolumeM3.toFixed(4)),
-    totalBilledWeightKg: Number(totalBilledWeightKg.toFixed(2)),
-    totalOrderValueFcfa: Math.round(orderValueFcfa || 0),
-    hasDimensionsOrVolumeData,
-  }
-}
 
 export async function POST(req: NextRequest) {
   let mongoConnected = false
+  // Verrou grains (double-dépense) — hissé hors du try pour le catch global
+  let grainsLockKey: string | null = null
+  let grainsLocked = false
+  // Promo consommé avant création — à restituer si la commande échoue ensuite
+  let promoConsumedCode: string | null = null
+  const releasePromo = async () => {
+    const code = promoConsumedCode
+    promoConsumedCode = null
+    if (!code) return
+    await PromoCode.updateOne(
+      { code, usedCount: { $gt: 0 } },
+      { $inc: { usedCount: -1 } }
+    ).catch(() => {})
+  }
 
   try {
     const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 5, keyPrefix: 'order:create' })
@@ -95,7 +63,8 @@ export async function POST(req: NextRequest) {
 
     // Checkout invité: l'auth n'est pas obligatoire pour une commande simple.
     // Si l'utilisateur est connecté, on lie la commande à son compte via clientId.
-    const auth = await requireAuth(req).catch(() => null)
+    const authResult = await verifyAuthServer(req).catch(() => null)
+    const userId = authResult?.isAuthenticated ? authResult.user?.id : undefined
 
     // Parser et valider les données
     const rawBody = await req.json()
@@ -116,103 +85,81 @@ export async function POST(req: NextRequest) {
     const trackingTokenTtlDays = (process.env.ORDER_TRACKING_TOKEN_TTL_DAYS ? Number(process.env.ORDER_TRACKING_TOKEN_TTL_DAYS) : NaN) || 90
     const trackingAccessTokenExpiresAt = new Date(Date.now() + trackingTokenTtlDays * 24 * 60 * 60 * 1000)
 
-    // Mapping des méthodes de livraison
-    const methodMap: Record<string, ShippingMethodId> = {
-      express_3j: 'air_express',
-      air_15j: 'air_15',
-      maritime_60j: 'sea_freight'
+    // Résolution de la méthode de livraison (module partagé)
+    const pricingSnapshot = await readSharedPricing()
+    const shippingRates = configuredShippingRates(pricingSnapshot.config)
+    const resolvedMethod = resolveShippingMethod(shippingMethod, shippingRates)
+    if ('error' in resolvedMethod) {
+      return NextResponse.json({ success: false, error: resolvedMethod.error }, { status: 400 })
     }
-
-    // Calculer les totaux avec le nouveau calculateur complet
-    const method = shippingMethod || 'air_15j'
-    const internalMethod = methodMap[method as string] || 'air_15'
-    const shippingRates = getConfiguredShippingRates()
-    const pricingDefaults = readPricingDefaults()
-    const rate: ShippingRate | undefined = shippingRates[internalMethod]
-
-    if (!rate) {
-      return NextResponse.json(
-        { success: false, error: 'Méthode de livraison invalide' },
-        { status: 400 }
-      )
-    }
+    let { clientMethod: method, internalMethod, rate } = resolvedMethod
+    const pricingDefaults = pricingSnapshot.config.defaults
 
     // Récupérer le tier marketplace de l'utilisateur authentifié
-    const userMarketplaceTier = auth?.marketplaceTier || 'standard'
+    const userMarketplaceTier = authResult?.user?.marketplaceTier || 'standard'
 
     // ─── Validation sécurité : re-vérifier les prix depuis la DB ──────────────
     // Le panier est stocké côté client (localStorage). Les prix ne doivent JAMAIS
     // être utilisés tels quels — on charge les vrais prix depuis MongoDB.
-    await connectDB()
+    // (module partagé avec /api/pricing/quote : mêmes règles, mêmes montants)
+    const loaded = await loadCartProducts(cart, { checkStock: true })
+    if (!loaded.ok) {
+      return NextResponse.json({ success: false, error: loaded.error }, { status: 400 })
+    }
     mongoConnected = true
+    const { itemProductIdMap, dbProductMap } = loaded.ctx
 
-    const itemProductIdMap = new Map<string, string>()
-    const cartProductIds = cart
-      .map((item: any) => {
-        const rawId = String(item.id || '')
-        const productId = extractProductObjectId(rawId)
-        if (productId) itemProductIdMap.set(rawId, productId)
-        return productId
-      })
-      .filter(Boolean)
+    // Produits boutique = stock local à Dakar → livraison coursier ≤24h.
+    // Panier 100% local : la méthode est forcée à `local_24h` ; panier mixte :
+    // le fret ne s'applique qu'aux articles importés, le forfait local couvre
+    // la jambe coursier des produits boutique.
+    const isLocalItem = (item: any) => {
+      const pid = itemProductIdMap.get(String(item?.id || ''))
+      return !!(pid && isLocalShopProduct(dbProductMap.get(pid)))
+    }
+    const allLocal = cart.length > 0 && cart.every(isLocalItem)
+    const hasLocal = cart.some(isLocalItem)
 
-    const dbProductMap = new Map<string, any>()
-    if (cartProductIds.length > 0) {
-      const dbProducts = await Product.find({
-        _id: { $in: cartProductIds },
-        isPublished: { $ne: false }
-      }).select('_id name price b2bPrice price1688 exchangeRate serviceFeeRate insuranceRate weightKg lengthCm widthCm heightCm volumeM3 grossWeightKg netWeightKg stockStatus stockQuantity baseCost marginRate requiresQuote').lean()
-      for (const p of dbProducts as any[]) {
-        dbProductMap.set(String(p._id), p)
-      }
+    if (!allLocal && internalMethod === 'local_24h') {
+      return NextResponse.json(
+        { success: false, error: 'La livraison locale 24h est réservée aux produits en stock à Dakar.' },
+        { status: 400 }
+      )
     }
 
-    for (const item of cart) {
-      const rawId = String(item.id || '')
-      const productId = itemProductIdMap.get(rawId)
-      const dbProduct = productId ? dbProductMap.get(productId) : null
-      if (!productId) {
-        return NextResponse.json(
-          { success: false, error: `Identifiant produit invalide: ${item.name || item.id}` },
-          { status: 400 }
-        )
+    // Point de retrait : uniquement pour les articles importés (les boutiques livrent elles-mêmes)
+    let pickupPoint: { id: string; name: string; neighborhood?: string; address?: string } | undefined
+    const pickupPointId = typeof rawBody?.pickupPointId === 'string' ? rawBody.pickupPointId.trim() : ''
+    if (pickupPointId && !allLocal) {
+      const point = mongoose.isValidObjectId(pickupPointId)
+        ? await PickupPoint.findOne({ _id: pickupPointId, active: true }).select('name neighborhood address').lean() as any
+        : null
+      if (!point) {
+        return NextResponse.json({ success: false, error: 'Ce point de retrait n\'est plus disponible, choisissez-en un autre' }, { status: 400 })
       }
-      if (!dbProduct) {
-        return NextResponse.json(
-          { success: false, error: `Produit introuvable ou non disponible: ${item.name || item.id}` },
-          { status: 400 }
-        )
-      }
-      const stockCheck = await checkStockAvailability(productId, item.qty || 1, item.variantIds)
-      if (!stockCheck.ok) {
-        return NextResponse.json(
-          { success: false, error: `${stockCheck.productName || dbProduct.name}: ${stockCheck.reason}` },
-          { status: 400 }
-        )
-      }
+      pickupPoint = { id: String(point._id), name: point.name, neighborhood: point.neighborhood, address: point.address }
     }
-    // ──────────────────────────────────────────────────────────────────────────
-
-    // Préparer les items pour le calculateur (prix issus de la DB, jamais du client)
-    const calculatorItems = cart.map((item: any) => {
-      const rawId = String(item.id || '')
-      const productId = itemProductIdMap.get(rawId)
-      const db = productId ? dbProductMap.get(productId) : null
-      return {
-        id: productId || String(item.id),
-        name: db?.name || item.name,
-        price: db?.price ?? db?.baseCost ?? 0,
-        b2bPrice: db?.b2bPrice,
-        price1688: db?.price1688,
-        qty: item.qty || 1,
-        weightKg: db?.weightKg ?? db?.grossWeightKg ?? db?.netWeightKg,
-        lengthCm: db?.lengthCm,
-        widthCm: db?.widthCm,
-        heightCm: db?.heightCm,
-        volumeM3: db?.volumeM3,
-        marketplaceTier: userMarketplaceTier
+    const referral = await resolveReferral(req, { userId, phone }, rawBody?.ref)
+    if (allLocal && internalMethod !== 'local_24h') {
+      const local = resolveShippingMethod('local_24h', shippingRates)
+      if ('error' in local) {
+        return NextResponse.json({ success: false, error: local.error }, { status: 400 })
       }
-    })
+      method = local.clientMethod
+      internalMethod = local.internalMethod
+      rate = local.rate
+    }
+
+    // Préparer les items pour le calculateur (prix issus de la DB, jamais du client).
+    // Même taux que l'affichage catalogue : le montant facturé = le prix affiché.
+    const exchangeRate = pricingDefaults.defaultExchangeRate
+    const calculatorItems = buildCalculatorItems(cart, loaded.ctx, userMarketplaceTier, exchangeRate)
+
+    // Forfait livraison locale PAR boutique (réglé par chaque vendeur).
+    const localDeliveryFlatFee = hasLocal ? shippingRates.local_24h.rate : 0
+    const localDeliveryShops = hasLocal
+      ? await loadLocalDeliveryShops(loaded.ctx, localDeliveryFlatFee)
+      : []
 
     // Calcul complet
     const calculation = await calculateCartTotal(
@@ -224,7 +171,11 @@ export async function POST(req: NextRequest) {
         label: rate.label
       },
       {
-        serviceFeeTiers: pricingDefaults.serviceFeeTiers
+        insuranceRate: pricingDefaults.defaultInsuranceRate,
+        serviceFeeTiers: pricingDefaults.serviceFeeTiers,
+        singleImportServiceFeeRate: pricingDefaults.singleImportServiceFeeRate,
+        localDeliveryFlatFee,
+        localDeliveryShops
       }
     )
 
@@ -243,9 +194,24 @@ export async function POST(req: NextRequest) {
     let validatedGrainsAmount = 0
     let validatedPromoDiscount = 0
 
-    if (grainsAmount && grainsAmount > 0) {
+    // Verrou anti double-dépense : le solde grains est un agrégat, le
+    // check-then-débit ci-dessous n'est pas atomique. Deux commandes
+    // concurrentes ne doivent pas passer toutes les deux la validation.
+    if (userId && grainsAmount && grainsAmount > 0) {
+      const redis = getRedisClient()
+      if (redis) {
+        grainsLockKey = `grains:order:${userId}`
+        grainsLocked = (await redis.set(grainsLockKey, '1', 'EX', 15, 'NX')) === 'OK'
+        if (!grainsLocked) {
+          return NextResponse.json(
+            { success: false, error: 'Une autre commande utilise vos grains. Réessayez dans un instant.' },
+            { status: 429 }
+          )
+        }
+      }
+
       const maxGrains = Math.floor(subtotal * 0.5 / GRAIN_VALUE_FCFA)
-      const balance = auth?.userId ? await getGrainsBalance(auth.userId) : 0
+      const balance = await getGrainsBalance(userId)
       validatedGrainsAmount = Math.max(0, Math.min(grainsAmount, maxGrains, balance))
     }
 
@@ -253,35 +219,36 @@ export async function POST(req: NextRequest) {
     grainsDiscount = Math.min(grainsDiscount, subtotal * 0.5)
 
     if (promo?.code) {
-      const promoDoc = await PromoCode.findOne({ code: promo.code.toUpperCase(), active: true })
-      const now = new Date()
-      if (
-        promoDoc &&
-        (!promoDoc.validFrom || promoDoc.validFrom <= now) &&
-        (!promoDoc.validUntil || promoDoc.validUntil >= now) &&
-        (promoDoc.usedCount || 0) < (promoDoc.maxUses || Infinity) &&
-        (subtotal >= (promoDoc.minOrderAmount || 0))
-      ) {
-        if (promoDoc.discountPercent) {
-          validatedPromoDiscount = Math.round(subtotal * (promoDoc.discountPercent / 100))
-        } else if (promoDoc.discountAmount) {
-          validatedPromoDiscount = promoDoc.discountAmount
+      const validatedPromo = await validatePromoCode(promo.code, subtotal, grainsDiscount)
+      if (validatedPromo.valid) {
+        // Consommer l'utilisation immédiatement et atomiquement — entre la
+        // validation et la création, un usage concurrent peut épuiser le code.
+        const inc = await PromoCode.updateOne(
+          { code: promo.code.toUpperCase(), $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] },
+          { $inc: { usedCount: 1 } }
+        )
+        if (inc.matchedCount === 0) {
+          if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+          return NextResponse.json(
+            { success: false, error: 'Ce code promo vient d\'être épuisé' },
+            { status: 409 }
+          )
         }
-        if (promoDoc.maxDiscountAmount) {
-          validatedPromoDiscount = Math.min(validatedPromoDiscount, promoDoc.maxDiscountAmount)
-        }
-        validatedPromoDiscount = Math.min(validatedPromoDiscount, subtotal - grainsDiscount)
+        promoConsumedCode = promo.code.toUpperCase()
+        validatedPromoDiscount = validatedPromo.discount
       }
     }
 
     const total = Math.max(0, calculatedTotal - grainsDiscount - validatedPromoDiscount)
 
     if (internalMethod === 'sea_freight') {
-      const seaFreightEligibility = readSeaFreightEligibilitySettings()
-      const seaMetrics = buildSeaFreightMetrics(calculatorItems, subtotal)
+      const seaFreightEligibility = pricingSnapshot.config.seaFreightEligibility
+      const seaMetrics = buildSeaFreightMetrics(calculatorItems.filter(i => !i.localDelivery), subtotal)
       const seaEligibility = evaluateSeaFreightEligibility(seaMetrics, seaFreightEligibility)
 
       if (!seaEligibility.eligible) {
+        if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+        await releasePromo()
         return NextResponse.json(
           {
             success: false,
@@ -297,6 +264,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!shipping) {
+      if (grainsLocked && grainsLockKey) await getRedisClient()?.del(grainsLockKey).catch(() => {})
+      await releasePromo()
       return NextResponse.json(
         { success: false, error: 'Impossible de calculer les frais de transport pour cette commande' },
         { status: 400 }
@@ -307,11 +276,12 @@ export async function POST(req: NextRequest) {
 
     const orderDoc = new Order({
       orderId,
+      pricingSnapshot,
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
 
-      clientId: auth?.userId ? (auth.userId as any) : undefined,
+      clientId: userId ? (userId as any) : undefined,
 
       trackingAccessTokenHash,
       trackingAccessTokenCreatedAt: new Date(),
@@ -325,18 +295,16 @@ export async function POST(req: NextRequest) {
         const rawId = String(item.id || '')
         const productId = itemProductIdMap.get(rawId)
         const db = productId ? dbProductMap.get(productId) : null
-        const resolved = resolveProductPrice({
-          price: db?.price ?? db?.baseCost ?? 0,
-          b2bPrice: db?.b2bPrice,
-          qty,
-          marketplaceTier: userMarketplaceTier,
-          totalCartQty: totalQuantity
-        })
+        const variantIds = itemVariantIds(item)
+        const resolved = resolveItemUnitPrice(db, qty, userMarketplaceTier, totalQuantity, exchangeRate, variantIds)
+        // Libellés dérivés du serveur — jamais du payload client.
+        const { variants: resolvedVariants } = resolveItemVariants(db, variantIds, exchangeRate)
+        const variantLabels = resolvedVariants.map((v) => `${v.groupName}: ${v.name}`)
         return {
           id: productId || String(item.id),
-          variantId: item.variantId,
-          variantIds: item.variantIds,
-          variantLabels: item.variantLabels,
+          variantId: variantIds[0],
+          variantIds: variantIds.length > 0 ? variantIds : undefined,
+          variantLabels: variantLabels.length > 0 ? variantLabels : undefined,
           name: db?.name || item.name,
           qty,
           price: resolved.appliedPrice,
@@ -357,6 +325,7 @@ export async function POST(req: NextRequest) {
         insuranceRate: fees.insuranceRate,
         insuranceAmount: fees.insuranceAmount,
         totalFees: fees.totalFees,
+        exchangeRate,
         quantityDiscount: quantityDiscount && quantityDiscount.amount > 0 ? {
           percent: quantityDiscount.percent,
           amount: quantityDiscount.amount,
@@ -370,19 +339,23 @@ export async function POST(req: NextRequest) {
         totalCost: shipping?.cost || 0,
         currency: 'FCFA',
         totalWeight: shipping?.actualWeight || 0,
-        totalVolume: cart.reduce((sum: number, item: any) => sum + ((item.unitVolumeM3 || item.volumeM3 || 0) * (item.qty || 1)), 0),
+        totalVolume: shipping?.billedVolumeM3 ?? cart.reduce((sum: number, item: any) => sum + ((item.unitVolumeM3 || item.volumeM3 || 0) * (item.qty || 1)), 0),
         weightDetails: shipping ? {
           actualWeight: shipping.actualWeight,
           volumetricWeight: shipping.volumetricWeight,
           billedWeight: shipping.billedWeight,
           billingMethod: shipping.billingMethod
-        } : undefined
+        } : undefined,
+        // Segments de livraison locale — un forfait par boutique
+        localShipments: shipping?.localShipments
       },
       grainsDiscount,
       promoDiscount: validatedPromoDiscount,
       promoCode: promo?.code || undefined,
       grainsUsed: validatedGrainsAmount,
       total,
+      referral,
+      pickupPoint,
       
       address: {
         street: address.street,
@@ -401,10 +374,10 @@ export async function POST(req: NextRequest) {
     await orderDoc.save()
 
     // Consommer les grains et incrémenter le promo dès la création de commande (restituer en cas d'annulation)
-    if (auth?.userId && validatedGrainsAmount > 0) {
+    if (userId && validatedGrainsAmount > 0) {
       try {
         await GrainsTransaction.create({
-          userId: auth.userId,
+          userId,
           amount: -validatedGrainsAmount,
           type: 'spent',
           source: 'order',
@@ -415,85 +388,45 @@ export async function POST(req: NextRequest) {
         console.error('[order] Erreur débit grains:', grainsErr)
       }
     }
-
-    if (validatedPromoDiscount > 0 && promo?.code) {
-      try {
-        await PromoCode.updateOne({ code: promo.code.toUpperCase() }, { $inc: { usedCount: 1 } })
-      } catch (promoErr) {
-        console.error('[order] Erreur incrément promo:', promoErr)
-      }
+    // Le débit est enregistré (ou a échoué) : le verrou peut être libéré
+    if (grainsLocked && grainsLockKey) {
+      await getRedisClient()?.del(grainsLockKey).catch(() => {})
+      grainsLocked = false
     }
 
-    // Décrémenter le stock et enregistrer les réservations d'inventaire (best effort, loggé si erreur)
+    // L'utilisation promo a déjà été consommée atomiquement en amont (fail-closed).
+
+    // Décrémenter le stock et enregistrer les réservations d'inventaire.
+    // Un échec ici = race entre le check amont et le décrément — la commande
+    // existe déjà : on la marque pour revue admin au lieu de la perdre.
     const reservations: any[] = []
+    const stockIssues: string[] = []
     for (const item of cart) {
       const rawId = String(item.id || '')
       const productId = itemProductIdMap.get(rawId)
       if (!productId) continue
       const qty = item.qty || 1
-      const variantIds = Array.isArray(item.variantIds) ? item.variantIds : undefined
-      const decrement = await decrementProductStock(productId, qty, variantIds)
+      const variantIds = itemVariantIds(item)
+      const decrement = await decrementProductStock(productId, qty, variantIds.length > 0 ? variantIds : undefined)
       if (decrement.ok) {
-        reservations.push({ productId, qty, variantIds, restored: false, decrementedAt: new Date() })
+        reservations.push({ productId, qty, variantIds: variantIds.length > 0 ? variantIds : undefined, restored: false, decrementedAt: new Date() })
       } else {
         console.error(`[order] Échec décrémentation stock commande ${orderId}, produit ${productId}:`, decrement.error)
+        stockIssues.push(`${productId} x${qty}: ${decrement.error || 'décrément impossible'}`)
       }
     }
-    if (reservations.length > 0) {
+    if (reservations.length > 0 || stockIssues.length > 0) {
       orderDoc.inventoryReservations = reservations
+      if (stockIssues.length > 0) {
+        orderDoc.internalNotes = [
+          `[STOCK] Décrément impossible après création — vérifier la disponibilité réelle :\n${stockIssues.join('\n')}`,
+          orderDoc.internalNotes,
+        ].filter(Boolean).join('\n')
+      }
       await orderDoc.save()
     }
 
-    // Incrémenter les stats marketplace de l'utilisateur authentifié
-    if (auth?.userId) {
-      try {
-        const updatedUser = await User.findByIdAndUpdate(
-          auth.userId,
-          {
-            $inc: {
-              totalMarketplacePurchases: total,
-              marketplaceOrderCount: 1
-            }
-          },
-          { new: true }
-        ).lean() as any
-
-        // Créditer les grains de fidélité (best effort)
-        try {
-          await maybeCreditGrainsForOrder(auth.userId, orderDoc._id, total)
-          await recordReferralFirstOrder(auth.userId, orderDoc._id)
-          await updateTierFromBalance(auth.userId)
-        } catch (grainsErr) {
-          console.error('[grains] Erreur crédit grains commande:', grainsErr)
-        }
-
-        // Synchroniser les stats vers le profil marketplace découplé
-        await syncUserToProfiles(auth.userId)
-
-        // Vérifier éligibilité Pro si encore standard
-        if (updatedUser && updatedUser.marketplaceTier === 'standard') {
-          const isEligible =
-            (updatedUser.totalMarketplacePurchases || 0) >= 150_000 ||
-            (updatedUser.marketplaceOrderCount || 0) >= 3
-          if (isEligible && !updatedUser.proRequestedAt) {
-            // Créer une notification in-app (best effort)
-            try {
-              const InAppNotification = (await import('@/lib/models/InAppNotification')).default
-              await InAppNotification.create({
-                userId: auth.userId,
-                type: 'info',
-                title: 'Compte Pro disponible',
-                message: 'Vous êtes éligible au compte Pro ! Accédez aux prix wholesale dès 1 pièce.',
-                actionUrl: '/compte/profil',
-                metadata: { proEligible: true }
-              })
-            } catch {}
-          }
-        }
-      } catch (err) {
-        console.error('Erreur mise à jour stats marketplace user:', err)
-      }
-    }
+    // Ventes vendeurs, statistiques client et garantie : uniquement au paiement (onMarketOrderPaid)
 
     // Envoyer le lien de suivi par email si fourni (best effort)
     if (email && typeof email === 'string' && email.includes('@')) {
@@ -602,28 +535,30 @@ export async function POST(req: NextRequest) {
         const dbItem = productId ? dbProductMap.get(productId) : null
         if (!dbItem) return
         try {
-          const baseUrl = req.nextUrl.origin
-          const accountingResponse = await fetch(
-            `${baseUrl}/api/accounting/record-sale`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                productId: item.id,
-                productName: dbItem.name || item.name,
-                orderId,
-                clientName: name,
-                quantity: item.qty || 1,
-                unitPrice: dbItem.price ?? dbItem.baseCost ?? 0, // Prix vérifié DB
-                shippingMethod: method,
-                shippingCost: transportCost,
-                transactionDate: new Date().toISOString()
-              })
+          const data = await internalPost(req, '/api/internal/accounting/record-sale', {
+            productId: item.id,
+            productName: dbItem.name || item.name,
+            orderId,
+            clientName: name,
+            quantity: item.qty || 1,
+            unitPrice: dbItem.price ?? dbItem.baseCost ?? 0, // Prix vérifié DB
+            shippingMethod: method,
+            shippingCost: transportCost,
+            transactionDate: new Date().toISOString(),
+            // Snapshot produit 1688 — le domaine compta n'importe pas Product
+            pricingSnapshot,
+            pricingSource: {
+              price1688: dbItem.price1688,
+              exchangeRate: dbItem.exchangeRate,
+              weightKg: dbItem.weightKg,
+              volumeM3: dbItem.volumeM3,
+              serviceFeeRate: dbItem.serviceFeeRate,
+              insuranceRate: dbItem.insuranceRate,
+              category: dbItem.category
             }
-          )
+          })
 
-          if (accountingResponse.ok) {
-            const data = await accountingResponse.json()
+          if (data) {
             accountingEntries.push(data)
           }
         } catch (err) {
@@ -676,12 +611,18 @@ export async function POST(req: NextRequest) {
           percent: quantityDiscount.percent,
           amount: quantityDiscount.amount
         } : null,
-        confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`
+        confirmationUrl: `/commandes/${orderId}?token=${encodeURIComponent(trackingToken)}`,
+        paymentUrl: `/paiement/checkout/${encodeURIComponent(orderId)}?token=${encodeURIComponent(trackingToken)}`,
+        trackingToken
       },
       { status: 201 }
     )
   } catch (e) {
     console.error('Erreur traitement commande:', e)
+    if (grainsLocked && grainsLockKey) {
+      await getRedisClient()?.del(grainsLockKey).catch(() => {})
+    }
+    await releasePromo()
     return NextResponse.json(
       {
         success: false,

@@ -17,6 +17,7 @@ const COLLECTIONS = {
   requests: 'servicerequests',
   offers: 'offers',
   chatMessages: 'chatmessages',
+  xeuyMessages: 'xeuy_messages',
   missionUnlocks: 'missionunlocks',
   visibilityDispatches: 'visibilitydispatches',
   scheduledTasks: 'scheduledtasks',
@@ -67,15 +68,20 @@ async function main() {
 
   const relatedFilters = requestIds.map(id => ({ requestId: id }))
   const orQuery = relatedFilters.length > 1 ? { $or: relatedFilters } : relatedFilters[0]
+  const queryFor = (name: string): Record<string, unknown> => {
+    if (name === 'xeuyMessages') {
+      return { threadType: { $in: ['mission', 'mission_dispute'] }, threadId: { $in: requestIds.map(String) } }
+    }
+    // Pour les paiements, ne supprimer que ceux liés à une demande Xeuy (requestId présent)
+    return name === 'payments' ? { ...orQuery, requestId: { $exists: true, $ne: null } } : orQuery
+  }
 
   const counts: Record<string, number> = {
     requests: requestIds.length,
   }
 
   for (const [name, collName] of Object.entries(COLLECTIONS).filter(([k]) => k !== 'requests')) {
-    // Pour les paiements, ne supprimer que ceux liés à une demande Xeuy (requestId présent)
-    const q = name === 'payments' ? { ...orQuery, requestId: { $exists: true, $ne: null } } : orQuery
-    counts[name] = await db.collection(collName).countDocuments(q)
+    counts[name] = await db.collection(collName).countDocuments(queryFor(name))
   }
 
   console.log('Compteurs :')
@@ -94,8 +100,7 @@ async function main() {
   await requestCol.deleteMany({ _id: { $in: requestIds } })
 
   for (const [name, collName] of Object.entries(COLLECTIONS).filter(([k]) => k !== 'requests')) {
-    const q = name === 'payments' ? { ...orQuery, requestId: { $exists: true, $ne: null } } : orQuery
-    const res = await db.collection(collName).deleteMany(q)
+    const res = await db.collection(collName).deleteMany(queryFor(name))
     console.log(`  ✓ ${name}: ${res.deletedCount} supprimé(s)`)
   }
 

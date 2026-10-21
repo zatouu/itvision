@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Bell, LogOut, Search, Menu } from 'lucide-react'
+import { LogOut, Search, Menu } from 'lucide-react'
+import NotificationCenter from '../NotificationCenter'
 
 const SHORTCUTS = [
   { label: 'Dashboard', href: '/admin' },
@@ -82,9 +83,7 @@ export default function AdminHeader() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-600" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </button>
+          <NotificationCenter />
           <button
             onClick={handleLogout}
             disabled={loggingOut}

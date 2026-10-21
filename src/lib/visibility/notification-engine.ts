@@ -10,6 +10,7 @@
  */
 
 import { sendPushToUsers } from '../push'
+import { approximateCoordinates } from '../request-privacy'
 import { DispatchRequestContext, WaveDispatchResult } from './types'
 
 export interface NotifyWaveInput {
@@ -20,6 +21,8 @@ export interface NotifyWaveInput {
 }
 
 function buildRealtimePayload(req: DispatchRequestContext, stage: number, radiusKm: number) {
+  // Même position approximative que /api/services/matching : jamais le domicile exact avant attribution
+  const [lng, lat] = approximateCoordinates(String(req.requestId), req.location.lng, req.location.lat)
   return {
     requestId: req.requestId,
     category: req.category,
@@ -27,7 +30,8 @@ function buildRealtimePayload(req: DispatchRequestContext, stage: number, radius
     budget: req.budget ?? null,
     location: {
       type: 'Point',
-      coordinates: [req.location.lng, req.location.lat],
+      coordinates: [lng, lat],
+      approximate: true,
     },
     createdAt: req.createdAt,
     _visibility: { stage, radiusKm },

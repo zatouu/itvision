@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { User, Wrench, Shield, ArrowRight, Eye, EyeOff, LogIn, Lock, ArrowLeft, Home } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Lock, ArrowLeft, Home } from 'lucide-react'
 
 interface LoginCredentials {
   email: string
   password: string
-  userType?: 'client' | 'technician' | 'admin'
 }
 
 export default function UnifiedLoginPage() {
@@ -18,13 +17,11 @@ export default function UnifiedLoginPage() {
     email: '',
     password: ''
   })
-  // Un seul formulaire: plus de sélection de profil
-  const [selectedUserType, setSelectedUserType] = useState<'client' | 'technician' | 'admin' | null>('client')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [remember, setRemember] = useState(false)
-  const [resetRequested, setResetRequested] = useState(false)
+
   const [mfaRequired, setMfaRequired] = useState<{ required: boolean, userId?: string }>({ required: false })
   const [mfaCode, setMfaCode] = useState('')
 
@@ -34,11 +31,6 @@ export default function UnifiedLoginPage() {
       const candidate = params.get('return') || params.get('redirect')
       if (candidate && candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://')) {
         setReturnTo(candidate)
-      }
-
-      const prefillType = params.get('type')
-      if (prefillType && userTypes.some(t => t.type === prefillType)) {
-        setSelectedUserType(prefillType as 'client' | 'technician' | 'admin')
       }
 
       const prefillEmail = params.get('email')
@@ -57,40 +49,8 @@ export default function UnifiedLoginPage() {
     }
   }, [])
 
-  const userTypes = [
-    {
-      type: 'client' as const,
-      title: 'Client',
-      description: 'Accès au portail client pour suivre vos projets',
-      icon: User,
-      color: 'from-emerald-500 to-emerald-600',
-      borderColor: 'border-blue-200 hover:border-blue-400',
-      bgColor: 'bg-emerald-50'
-    },
-    {
-      type: 'technician' as const,
-      title: 'Technicien',
-      description: 'Interface mobile pour rapports et interventions',
-      icon: Wrench,
-      color: 'from-green-500 to-green-600',
-      borderColor: 'border-green-200 hover:border-green-400',
-      bgColor: 'bg-green-50'
-    },
-    {
-      type: 'admin' as const,
-      title: 'Administrateur',
-      description: 'Dashboard de gestion et supervision',
-      icon: Shield,
-      color: 'from-red-500 to-red-600',
-      borderColor: 'border-red-200 hover:border-red-400',
-      bgColor: 'bg-red-50'
-    }
-  ]
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Plus de sélection obligatoire: un seul formulaire commun
-
     setIsLoading(true)
     setError('')
 
@@ -100,7 +60,7 @@ export default function UnifiedLoginPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ...credentials, userType: selectedUserType, remember })
+        body: JSON.stringify({ ...credentials, remember })
       })
 
       if (response.ok) {
@@ -110,26 +70,9 @@ export default function UnifiedLoginPage() {
           return
         }
         
-        // Redirection selon rôle, avec PRODUCT_MANAGER vers admin/produits
+        // Redirection automatique selon le rôle (déterminée côté API)
         if (data.user?.role) {
-          const role = String(data.user.role).toUpperCase()
-
-          if (returnTo) {
-            window.location.href = returnTo
-            return
-          }
-          
-          // Utiliser l'URL de redirection de l'API si disponible
-          const isEnterpriseClient = role === 'CLIENT' && (data.user?.companyClientId || data.user?.clientType === 'enterprise')
-          const redirectUrl = data.redirectUrl || (
-            role === 'PRODUCT_MANAGER' ? '/admin/produits' :
-            role === 'ADMIN' ? '/admin' :
-            role === 'TECHNICIAN' ? '/tech-interface' :
-            isEnterpriseClient ? '/portail-entreprise' :
-            '/compte'
-          )
-          
-          window.location.href = redirectUrl
+          window.location.href = returnTo || data.redirectUrl || '/compte'
         } else {
           router.push(returnTo || '/compte')
         }
@@ -148,8 +91,6 @@ export default function UnifiedLoginPage() {
       setIsLoading(false)
     }
   }
-
-  const selectedType = userTypes.find(type => type.type === selectedUserType)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
@@ -182,30 +123,7 @@ export default function UnifiedLoginPage() {
         {/* Formulaire de connexion */}
         {true && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            {/* Sélection du type de compte */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              {userTypes.map((type) => {
-                const Icon = type.icon
-                const isSelected = selectedUserType === type.type
-                return (
-                  <button
-                    key={type.type}
-                    type="button"
-                    onClick={() => setSelectedUserType(type.type)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
-                      isSelected
-                        ? 'bg-blue-50 border-blue-500 text-blue-700'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    <Icon className={`h-6 w-6 mb-2 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span className="text-sm font-semibold">{type.title}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Formulaire */}
+            {/* Formulaire — redirection automatique selon le rôle du compte */}
             {!mfaRequired.required ? (
             <form onSubmit={handleLogin} className="space-y-6">
               {error && (
@@ -281,9 +199,6 @@ export default function UnifiedLoginPage() {
                 </a>
               </div>
 
-              {resetRequested && (
-                <p className="text-xs text-green-600">Si l'email existe, un lien de réinitialisation a été généré (console dev).</p>
-              )}
             </form>
             ) : (
             <form onSubmit={async (e)=>{
@@ -296,13 +211,8 @@ export default function UnifiedLoginPage() {
               })
               if (res.ok) {
                 const data = await res.json()
-
-                if (returnTo) return router.push(returnTo)
-
-                const role = String(data.user?.role || '').toUpperCase()
-                if (role === 'ADMIN') return router.push('/admin-reports')
-                if (role === 'TECHNICIAN') return router.push('/tech-interface')
-                return router.push('/compte')
+                window.location.href = returnTo || data.redirectUrl || '/compte'
+                return
               } else {
                 const j = await res.json(); setError(j.error || 'Code invalide')
               }

@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { simulatePricing1688 } from '@/lib/pricing1688.refactored'
 import type { Pricing1688Input } from '@/lib/types/product.types'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { IProduct } from '@/lib/models/Product.validated'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
-import { readPricingDefaults } from '@/lib/pricing/settings'
+import Product, { IProduct } from '@/lib/models/Product'
+import { readSharedTariffs, configuredShippingRates } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/pricing/simulate
@@ -28,7 +27,8 @@ import { readPricingDefaults } from '@/lib/pricing/settings'
  */
 export async function POST(request: NextRequest) {
   try {
-    const defaults = readPricingDefaults()
+    const { pricing, costs } = await readSharedTariffs()
+    const defaults = pricing.config.defaults
     const body = await request.json()
     const {
       productId,
@@ -99,17 +99,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculer le pricing
-    const clientRates = getConfiguredShippingRates()
-    const result = simulatePricing1688(simulationInput, undefined, clientRates)
+    const clientRates = configuredShippingRates(pricing.config)
+    const result = simulatePricing1688(simulationInput, undefined, clientRates, defaults.singleImportServiceFeeRate, costs.costs)
 
     return NextResponse.json({
       success: true,
+      pricingVersion: pricing.version,
+      internalCostsVersion: costs.version,
       simulation: result
     })
   } catch (error: any) {
     console.error('Erreur simulation pricing:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Erreur lors de la simulation' },
+      { success: false, error: 'Erreur lors de la simulation' },
       { status: 500 }
     )
   }

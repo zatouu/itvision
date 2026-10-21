@@ -1,4 +1,6 @@
 import mongoose, { Schema, model, models, Document } from 'mongoose'
+import type { ShippingCosts } from '@/lib/logistics'
+import type { SharedPricingSnapshot } from '@/lib/pricing/shared-settings'
 
 /**
  * Configuration globale de l'application, pilotable sans redéploiement.
@@ -93,9 +95,11 @@ export type AiFeatureKey =
   | 'enhance_request'
   | 'photo_analysis'
   | 'analyze_request'
+  | 'mission_coach'
   | 'mission_help'
   | 'suggest_offer'
   | 'daily_tips'
+  | 'general_chat'
 
 /**
  * free              → toujours gratuit
@@ -131,10 +135,15 @@ export interface IAiConfig {
   maxImagesPerCall: number
 }
 
-export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_help', 'suggest_offer', 'daily_tips']
+export const AI_FEATURE_KEYS: AiFeatureKey[] = ['clarify_request', 'enhance_request', 'photo_analysis', 'analyze_request', 'mission_coach', 'mission_help', 'suggest_offer', 'daily_tips', 'general_chat']
+
+/** Fonctionnalités gratuites par défaut : déclenchées automatiquement par l'app (pas à la demande de l'utilisateur). */
+export const AI_AUTO_FEATURES: AiFeatureKey[] = ['mission_coach', 'daily_tips']
 
 export interface IAppConfig extends Document {
   key: string
+  shippingCosts?: { version: number; costs: ShippingCosts; updatedAt: Date }
+  marketPricing?: SharedPricingSnapshot
   autoImport: IAutoImportConfig
   ai: IAiConfig
   monetization: {
@@ -170,12 +179,39 @@ export interface IAppConfig extends Document {
     packs: ICreditPack[]
   }
   visibility: IVisibilityConfig
+  // Intégrations inter-produits pilotées depuis l'admin
+  integrations?: {
+    // Produits DDM+ dans Xeuy (fournitures, liens d'achat) : désactivé = affiché grisé « Bientôt »
+    ddmBridge?: { enabled: boolean }
+    // Paiement en ligne des missions (Wave, OM, séquestre) et achat de crédits : désactivé = espèces uniquement
+    onlinePayments?: { enabled: boolean }
+    // Relais WhatsApp des notifications importantes quand le push n'atteint aucun appareil
+    whatsappRelay?: { enabled: boolean; events?: Record<string, boolean> }
+    // « Trouvez-moi » : l'agent envoie lui-même la proposition si pertinence ≥ seuil et budget respecté
+    sourcingAutoSend?: { enabled: boolean; minRelevance?: number }
+  }
   updatedAt: Date
   createdAt: Date
 }
 
 const AppConfigSchema = new Schema<IAppConfig>({
   key: { type: String, required: true, unique: true, default: 'global' },
+  shippingCosts: {
+    type: new Schema({
+      version: { type: Number, required: true, min: 1 },
+      costs: { type: Schema.Types.Mixed, required: true },
+      updatedAt: { type: Date, required: true },
+    }, { _id: false }),
+    default: undefined,
+  },
+  marketPricing: {
+    type: new Schema({
+      version: { type: Number, required: true, min: 1 },
+      config: { type: Schema.Types.Mixed, required: true },
+      updatedAt: { type: Date, required: true },
+    }, { _id: false }),
+    default: undefined,
+  },
   monetization: {
     mode: { type: String, enum: ['free', 'points', 'commission'], default: 'free' },
     freeUntil: { type: Date },
@@ -283,8 +319,9 @@ const AppConfigSchema = new Schema<IAppConfig>({
     freeUntil: { type: Date },
     features: {
       type: Schema.Types.Mixed,
-      // daily_tips est déclenché automatiquement (1×/jour, mis en cache côté app) → gratuit pour ne pas manger le quota
-      default: () => Object.fromEntries(AI_FEATURE_KEYS.map(k => [k, { enabled: true, mode: k === 'daily_tips' ? 'free' : 'quota' }])),
+      // Les features automatiques (coach mission par étape, conseils du jour) sont gratuites par défaut :
+      // déclenchées par l'app et mises en cache, elles ne doivent pas manger le quota de l'utilisateur.
+      default: () => Object.fromEntries(AI_FEATURE_KEYS.map(k => [k, { enabled: true, mode: AI_AUTO_FEATURES.includes(k) ? 'free' : 'quota' }])),
     },
     eligibility: {
       minCompletedMissions: { type: Number, default: 10, min: 0 },
@@ -318,6 +355,22 @@ const AppConfigSchema = new Schema<IAppConfig>({
       urls: Number,
       errors: [String],
       _id: false,
+    },
+  },
+  integrations: {
+    ddmBridge: {
+      enabled: { type: Boolean, default: false },
+    },
+    onlinePayments: {
+      enabled: { type: Boolean, default: false },
+    },
+    whatsappRelay: {
+      enabled: { type: Boolean, default: false },
+      events: { type: Schema.Types.Mixed, default: {} },
+    },
+    sourcingAutoSend: {
+      enabled: { type: Boolean, default: false },
+      minRelevance: { type: Number, default: 0.8, min: 0.5, max: 1 },
     },
   },
 }, { timestamps: true })

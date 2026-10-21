@@ -5,11 +5,12 @@ import Payment from '@/lib/models/Payment'
 import Offer from '@/lib/models/Offer'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { initiatePayment, InitiateResult, PaymentProvider } from '@/lib/payment'
-import { getAppConfig, chargeEscrowPoints, refundEscrowPoints } from '@/lib/wallet'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { getAppConfig, chargeEscrowPoints, refundEscrowPoints, isOnlinePaymentsEnabled } from '@/lib/wallet'
+import { fulfillServicePayment } from '@/modules/xeuy/payments/mission-payment'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import { offerPaymentInitSchema, validate } from '@/lib/validation'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { sendManualReviewEmail } from '@/lib/payments/manual-review'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'cash', 'wave_qr']
 
@@ -25,8 +26,10 @@ function isMockMode(): boolean {
 
 const DEPOSIT_RATE = 0.25
 const MIN_DEPOSIT = 1000
+const PAYMENT_LOCK_MS = 30_000
 
 export async function POST(request: NextRequest) {
+  let lockedOfferId: unknown = null
   try {
     const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 5, keyPrefix: 'payments:initiate' })
     if (limit && !limit.ok) {
@@ -41,6 +44,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validated.error }, { status: 400 })
     }
     const { offerId, provider, clientPhone, phase } = validated.data
+
+    if (provider !== 'cash' && !(await isOnlinePaymentsEnabled())) {
+      return NextResponse.json({ error: 'Paiement en espèces uniquement pour le moment', code: 'ONLINE_PAYMENTS_DISABLED' }, { status: 409 })
+    }
 
     // Vérifier l'offre et la demande
     const offer = await Offer.findById(offerId)
@@ -85,6 +92,30 @@ export async function POST(request: NextRequest) {
     }
     if (sr.expiresAt && new Date(sr.expiresAt).getTime() < Date.now()) {
       return NextResponse.json({ error: 'Cette demande a expiré' }, { status: 410 })
+    }
+
+    // Sans verrou, deux requêtes simultanées passent le contrôle ci-dessous et débitent deux fois l'escrow
+    const now = new Date()
+    const locked = await Offer.findOneAndUpdate(
+      { _id: offer._id, $or: [{ paymentLockUntil: null }, { paymentLockUntil: { $lt: now } }] },
+      { $set: { paymentLockUntil: new Date(now.getTime() + PAYMENT_LOCK_MS) } }
+    )
+    if (!locked) {
+      return NextResponse.json({ error: 'Un paiement est déjà en cours d\'initiation pour cette offre' }, { status: 409 })
+    }
+    lockedOfferId = offer._id
+
+    // Un client qui paie deux offres de la même demande serait débité pour une mission qu'il n'aura pas
+    if (!isBalancePhase) {
+      const otherOfferPaid = await Payment.exists({
+        requestId: sr._id,
+        offerId: { $ne: offer._id },
+        status: { $in: ['pending', 'held'] },
+        phase: { $ne: 'balance' },
+      })
+      if (otherOfferPaid) {
+        return NextResponse.json({ error: 'Un paiement est déjà en cours pour une autre offre de cette demande' }, { status: 409 })
+      }
     }
 
     // Vérifier pas de double paiement
@@ -204,18 +235,27 @@ export async function POST(request: NextRequest) {
     }
 
     const isManual = !!result.manualConfirm
+    // Paiement manuel (QR/lien Wave marchand, pas d'API provider) : alerter
+    // l'admin comme DDM+ et les recharges — sinon il faudrait surveiller la file.
+    if (isManual && !isMockMode()) {
+      void sendManualReviewEmail({
+        kind: 'payment',
+        id: String(payment._id),
+        reference: payment.reference || `Mission ${String(sr._id).slice(-6)}`,
+        amount: amountToPayNow,
+        provider: payment.provider,
+        clientPhone: phone,
+      })
+    }
     if (!isManual && (isMockMode() || provider === 'cash')) {
       payment.status = 'held'
       payment.heldAt = new Date()
       await payment.save()
       if (phase !== 'balance') {
-        await acceptOfferForRequest({
-          serviceRequest: sr,
-          offer,
-          securePayment: useEscrow,
-          notifyClientPaymentHeld: useEscrow,
-          amount: amountToPayNow,
-        })
+        const fulfilled = await fulfillServicePayment(payment._id)
+        if (!fulfilled.accepted) {
+          return NextResponse.json({ error: 'Cette offre n’est plus disponible' }, { status: 409 })
+        }
       }
     }
 
@@ -235,5 +275,11 @@ export async function POST(request: NextRequest) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/payments/initiate]', e)
     return NextResponse.json({ error: 'Erreur paiement' }, { status: 500 })
+  } finally {
+    if (lockedOfferId) {
+      await Offer.updateOne({ _id: lockedOfferId }, { $unset: { paymentLockUntil: 1 } }).catch((err) => {
+        console.error('[payments/initiate] libération verrou offre', err)
+      })
+    }
   }
 }

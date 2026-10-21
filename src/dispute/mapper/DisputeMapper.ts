@@ -15,7 +15,7 @@ import type {
   DisputeDecisionDto,
 } from '../dto'
 import type { IDispute } from '../model/Dispute'
-import type { IDisputeMessage } from '../model/DisputeMessage'
+import type { ThreadMessageDoc } from '@/lib/messaging/thread-messages'
 import type { IDisputeEvidence } from '../model/DisputeEvidence'
 import type { IDisputeHistory } from '../model/DisputeHistory'
 import type { IDisputeDecision } from '../model/DisputeDecision'
@@ -82,13 +82,13 @@ export function toDisputeDto(entity: DisputeEntity): DisputeDto {
   }
 }
 
-export function toMessageProps(doc: IDisputeMessage): DisputeMessageProps {
+export function toMessageProps(doc: ThreadMessageDoc): DisputeMessageProps {
   return {
     id: stringId(doc._id) || undefined,
-    disputeId: stringId(doc.disputeId)!,
-    authorType: doc.authorType,
-    authorId: stringId(doc.authorId)!,
-    message: doc.message,
+    disputeId: doc.threadId,
+    authorType: doc.senderRole as DisputeMessageProps['authorType'],
+    authorId: doc.senderId || '',
+    message: doc.text,
     createdAt: doc.createdAt,
     readAt: doc.readAt ?? null,
   }

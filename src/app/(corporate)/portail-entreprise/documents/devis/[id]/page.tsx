@@ -1,26 +1,56 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import {
   FileText, Package, Loader2, AlertCircle,
   MessageSquare, Send, CheckCircle, Ban,
-  ArrowRight, Tag, MapPin, Building2, Clock
+  ArrowRight, Tag, MapPin, Building2, Clock,
+  Paperclip, Eye, ExternalLink, Download, X
 } from 'lucide-react'
-import { CARD, fmtDate, fmtNum, quoteStatus, quoteClientResponseShort, StatusBadge, DetailHeader } from '@/components/portal-ui'
+import { BTN_GHOST, CARD, fmtDate, fmtNum, quoteStatus, quoteClientResponseShort, StatusBadge, DetailHeader } from '@/components/portal-ui'
+import QuoteResponseModal, { type QuoteModalTab } from '@/components/portal/QuoteResponseModal'
 
 export default function QuoteDetailPage() {
   const { id } = useParams() as { id: string }
   const [q, setQ] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null)
+  const [modalTab, setModalTab] = useState<QuoteModalTab | null>(null)
+  const [canRespondRole, setCanRespondRole] = useState(true)
 
   useEffect(() => {
     fetch(`/api/client-enterprise/quotes/${id}`)
-      .then(r => { if (!r.ok) throw new Error('Introuvable'); return r.json() })
-      .then(d => { setQ(d.quote); setLoading(false) })
-      .catch(() => { setError('Impossible de charger le devis.'); setLoading(false) })
+      .then(async r => {
+        if (r.status === 403) throw new Error((await r.json().catch(() => null))?.error || 'Accès refusé.')
+        if (!r.ok) throw new Error('Impossible de charger le devis.')
+        return r.json()
+      })
+      .then(d => {
+        setQ(d.quote)
+        setLoading(false)
+        if (new URLSearchParams(window.location.search).get('repondre') === '1') setModalTab('action')
+      })
+      .catch((e: Error) => { setError(e.message); setLoading(false) })
   }, [id])
+
+  // Le rôle du membre peut interdire la réponse (capability 'quotes:respond' côté API)
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.capabilities)) setCanRespondRole(d.capabilities.includes('quotes:respond')) })
+      .catch(() => {})
+  }, [])
+
+  const handleAction = useCallback((updated: any) => {
+    setQ((prev: any) => ({
+      ...prev,
+      ...updated,
+      clientComments: Array.isArray(updated?.clientComments)
+        ? [...updated.clientComments].sort((a: any, b: any) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime())
+        : prev?.clientComments,
+    }))
+  }, [])
 
   if (loading) return <div className="p-6 flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-stone-300" /></div>
   if (error) return <div className="p-4 sm:p-6"><div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center"><AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" /><p className="text-sm text-red-700">{error}</p></div></div>
@@ -45,19 +75,36 @@ export default function QuoteDetailPage() {
           </>
         }
         meta={<>{q.numero ? <span className="font-mono">N° {q.numero}</span> : ''} · {fmtDate(q.date)}</>}
-      />
+      >
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a href={`/api/client-enterprise/quotes/${id}/pdf`} className={BTN_GHOST}>
+            <Download className="w-4 h-4" /> Télécharger le PDF
+          </a>
+          <a href={`/api/client-enterprise/quotes/${id}/pdf?inline=1`} target="_blank" rel="noopener noreferrer" className={BTN_GHOST}>
+            <Eye className="w-4 h-4" /> Aperçu
+          </a>
+          <button type="button" onClick={() => setModalTab('comments')} className={BTN_GHOST}>
+            <MessageSquare className="w-4 h-4" /> Poser une question
+          </button>
+        </div>
+      </DetailHeader>
 
       {/* Réponse client */}
       {canRespond && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-800">
             <Clock className="w-4 h-4 flex-shrink-0" />
-            <span>Ce devis attend votre réponse</span>
+            <span>
+              Ce devis attend votre réponse
+              {!canRespondRole && " : il faut le droit « Accepter ou refuser les devis », qu'un administrateur de votre espace peut vous accorder. Vous pouvez poser une question en attendant."}
+            </span>
           </div>
-          <Link href={`/portail-entreprise/documents?quote=${id}`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-800 text-white px-4 py-2 text-xs font-semibold hover:bg-emerald-900 transition-colors flex-shrink-0">
-            <Send className="w-3 h-3" /> Répondre
-          </Link>
+          {canRespondRole && (
+            <button type="button" onClick={() => setModalTab('action')}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-emerald-800 text-white px-4 py-2 text-xs font-semibold hover:bg-emerald-900 transition-colors flex-shrink-0">
+              <Send className="w-3 h-3" /> Répondre
+            </button>
+          )}
         </div>
       )}
 
@@ -149,6 +196,31 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
+      {/* Pièces jointes */}
+      {(q.attachments || []).length > 0 && (
+        <div className={`${CARD} p-5`}>
+          <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em] mb-3 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Pièces jointes ({q.attachments.length})</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {q.attachments.map((a: any, i: number) => {
+              const isPdf = (a.url || '').split('?')[0].toLowerCase().endsWith('.pdf')
+              return (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 p-3">
+                  <div className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center flex-shrink-0"><FileText className="w-4 h-4 text-emerald-700" /></div>
+                  <div className="flex-1 min-w-0">
+                    <button onClick={() => isPdf ? setPreview(a) : window.open(a.url, '_blank')} className="text-xs font-medium text-stone-900 hover:text-emerald-800 truncate block text-left w-full">{a.name}</button>
+                    <div className="flex items-center gap-2.5 mt-1">
+                      {isPdf && <button onClick={() => setPreview(a)} className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-800 hover:text-emerald-950"><Eye className="w-3 h-3" />Aperçu</button>}
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400 hover:text-stone-700"><ExternalLink className="w-3 h-3" />Ouvrir</a>
+                      <a href={a.url} download className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400 hover:text-stone-700"><Download className="w-3 h-3" /></a>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Historique réponse */}
       {q.clientResponse && q.clientResponse !== 'pending' && (
         <div className={`${CARD} p-5`}>
@@ -190,6 +262,32 @@ export default function QuoteDetailPage() {
                 <p className="text-sm text-stone-700">{c.message}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {/* Preview modal */}
+      {modalTab && (
+        <QuoteResponseModal
+          quote={q}
+          initialTab={modalTab}
+          canRespond={canRespondRole}
+          onAction={handleAction}
+          onClose={() => setModalTab(null)}
+        />
+      )}
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6" onClick={() => setPreview(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200">
+              <FileText className="w-5 h-5 text-emerald-700 flex-shrink-0" />
+              <p className="flex-1 min-w-0 text-sm font-semibold text-stone-900 truncate">{preview.name}</p>
+              <a href={preview.url} target="_blank" rel="noopener noreferrer" className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Ouvrir dans un nouvel onglet"><ExternalLink className="w-4 h-4" /></a>
+              <a href={preview.url} download className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Télécharger"><Download className="w-4 h-4" /></a>
+              <button onClick={() => setPreview(null)} className="p-2 text-stone-500 hover:bg-stone-100 rounded-lg" title="Fermer"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 min-h-0 bg-stone-100">
+              <iframe src={`${preview.url}#toolbar=1&view=FitH`} className="w-full h-full min-h-[70vh]" title={preview.name} />
+            </div>
           </div>
         </div>
       )}

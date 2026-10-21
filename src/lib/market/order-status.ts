@@ -1,7 +1,11 @@
 import { Order } from '@/lib/models/Order'
+import PromoCode from '@/lib/models/PromoCode'
 import { restoreProductStock } from '@/lib/inventory'
-import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
+import { reverseGrainsForOrder, refundSpentGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
 import { sendWebPushToOrder } from '@/lib/push-web'
+import { notifyAdmins } from '@/lib/notify'
+import { syncOrderGuarantee } from '@/lib/market/order-paid-effects'
+import { syncOrderCommission } from '@/lib/market/ambassador'
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
 
@@ -95,48 +99,20 @@ export async function updateOrderStatus(
   }
 
   const updated = (await Order.findOneAndUpdate(
-    { orderId },
+    { orderId, status: currentStatus },
     { $set: update },
     { new: true, runValidators: true, context: 'query' }
   ).lean()) as Record<string, unknown> | null
 
-  if (!updated) throw new Error('Commande introuvable')
+  if (!updated) throw new Error('Le statut de la commande a changé entre-temps')
 
   if (newStatus === 'cancelled') {
-    const reservations = Array.isArray(updated.inventoryReservations) ? updated.inventoryReservations : []
-    if (reservations.length > 0) {
-      for (const reservation of reservations as Array<Record<string, unknown>>) {
-        if (reservation.restored) continue
-        try {
-          const productId = String(reservation.productId || '')
-          const qty = typeof reservation.qty === 'number' ? reservation.qty : 0
-          const variantIds = Array.isArray(reservation.variantIds)
-            ? reservation.variantIds.map((v) => String(v))
-            : undefined
-          const result = await restoreProductStock(productId, qty, variantIds)
-          if (result.ok) {
-            reservation.restored = true
-          } else {
-            console.error(`[order-status] Échec restauration stock commande ${orderId}:`, result.error)
-          }
-        } catch (err) {
-          console.error(`[order-status] Exception restauration stock commande ${orderId}:`, err)
-        }
-      }
-      await Order.updateOne({ _id: updated._id }, { inventoryReservations: reservations })
-    }
-
-    const clientId = updated.clientId
-    if (clientId) {
-      try {
-        const clientIdString = typeof clientId === 'string' ? clientId : String(clientId)
-        await reverseGrainsForOrder(clientIdString, String(updated._id), 'commande annulée')
-        await updateTierFromBalance(clientIdString)
-      } catch (err) {
-        console.error('[order-status] Erreur reverse grains commande:', err)
-      }
-    }
+    await applyOrderCancellationEffects(updated, 'commande annulée')
   }
+  if (newStatus === 'delivered') {
+    await syncOrderCommission(orderId, 'delivered').catch((err) => console.error('[order-status] commission:', err))
+  }
+  await syncOrderGuarantee(updated, newStatus)
 
   void sendWebPushToOrder(orderId, {
     title: 'DDM+ - Statut commande mis à jour',
@@ -147,4 +123,79 @@ export async function updateOrderStatus(
   }).catch((err: Error) => console.error('[WebPush] order status push error:', err))
 
   return { order: updated, changed: true }
+}
+
+/**
+ * Effets de l'annulation d'une commande, à appeler une seule fois après la transition
+ * conditionnelle vers « cancelled » : stock, code promo, grains gagnés et utilisés,
+ * remboursement dû si la commande était payée.
+ */
+export async function applyOrderCancellationEffects(order: any, reason: string): Promise<void> {
+  if (!order) return
+
+  const reservations = Array.isArray(order.inventoryReservations) ? order.inventoryReservations : []
+  if (reservations.length > 0) {
+    for (const reservation of reservations) {
+      if (reservation.restored) continue
+      const remaining = (Number(reservation.qty) || 0) - (Number(reservation.restoredQty) || 0)
+      if (remaining <= 0) {
+        reservation.restored = true
+        continue
+      }
+      try {
+        const variantIds = Array.isArray(reservation.variantIds) ? reservation.variantIds.map((v: unknown) => String(v)) : undefined
+        const result = await restoreProductStock(String(reservation.productId || ''), remaining, variantIds)
+        if (result.ok) {
+          reservation.restoredQty = reservation.qty
+          reservation.restored = true
+        } else {
+          console.error(`[order-status] Échec restauration stock commande ${order.orderId}:`, result.error)
+        }
+      } catch (err) {
+        console.error(`[order-status] Exception restauration stock commande ${order.orderId}:`, err)
+      }
+    }
+    await Order.updateOne({ _id: order._id }, { inventoryReservations: reservations })
+  }
+
+  if (order.promoCode && (order.promoDiscount || 0) > 0) {
+    try {
+      const claimed = await Order.updateOne({ _id: order._id, promoRestored: { $ne: true } }, { $set: { promoRestored: true } })
+      if (claimed.modifiedCount === 1) {
+        await PromoCode.updateOne({ code: String(order.promoCode).toUpperCase(), usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } })
+      }
+    } catch (err) {
+      console.error('[order-status] Erreur restitution promo:', err)
+    }
+  }
+
+  if (order.clientId) {
+    const clientId = String(order.clientId)
+    try {
+      await reverseGrainsForOrder(clientId, order._id, reason)
+      if ((order.grainsUsed || 0) > 0) await refundSpentGrainsForOrder(clientId, order._id, order.orderId)
+      await updateTierFromBalance(clientId)
+    } catch (err) {
+      console.error('[order-status] Erreur grains commande annulée:', err)
+    }
+  }
+
+  await syncOrderCommission(String(order.orderId), 'cancelled').catch((err) => console.error('[order-status] commission:', err))
+
+  // Commande déjà encaissée : remboursement à effectuer et à tracer
+  if (order.paymentStatus === 'completed' && (order.total || 0) > 0) {
+    const queued = await Order.updateOne(
+      { _id: order._id, refundStatus: { $nin: ['pending', 'done'] } },
+      { $set: { refundStatus: 'pending', refundAmount: order.total } }
+    ).catch(() => null)
+    if (queued?.modifiedCount === 1) {
+      void notifyAdmins({
+        type: 'warning',
+        title: 'Remboursement commande à effectuer',
+        message: `Commande ${order.orderId} annulée après paiement : ${Math.round(order.total).toLocaleString('fr-FR')} FCFA à rembourser (${order.paymentMethod || 'moyen inconnu'}).`,
+        actionUrl: '/admin/marketplace/remboursements',
+        metadata: { orderId: order.orderId, amount: order.total },
+      })
+    }
+  }
 }

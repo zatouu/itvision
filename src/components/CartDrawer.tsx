@@ -40,53 +40,22 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   }
 
   const remove = (id: string) => {
-    const removed = items.find(i => i.id === id)
     const next = items.filter(i => i.id !== id)
     save(next)
-    trackEvent('remove_from_cart', {
-      currency,
-      value: removed ? (removed.price || 0) * removed.qty : 0,
-      items: removed ? [{
-        item_id: removed.id,
-        item_name: removed.name,
-        price: removed.price,
-        quantity: removed.qty,
-      }] : [],
-    })
+    trackEvent('remove_from_cart', { productId: id })
   }
 
   const total = useMemo(() => items.reduce((sum, i) => sum + (i.price || 0) * i.qty, 0), [items])
-  const currency = items[0]?.currency || 'XOF'
-  const analyticsItems = useMemo(() => items.map(i => ({
-    item_id: i.id,
-    item_name: i.name,
-    price: i.price,
-    quantity: i.qty,
-  })), [items])
-
-  useEffect(() => {
-    if (open && items.length > 0) {
-      trackEvent('view_cart', { currency, value: total, items: analyticsItems })
-    }
-  }, [open, items, total, currency, analyticsItems])
 
   const submitOrder = async () => {
     try {
-      trackEvent('begin_checkout', { currency, value: total, items: analyticsItems })
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cart: items, name, phone, address })
       })
       if (!res.ok) throw new Error('Order failed')
-      const data = await res.json().catch(() => ({}))
-      const transactionId = data.orderId || data.id || `T-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-      trackEvent('purchase', {
-        transaction_id: transactionId,
-        currency,
-        value: total,
-        items: analyticsItems,
-      })
+      trackEvent('order_submitted', { total, count: items.length })
       save([])
       onClose()
     } catch {
@@ -104,9 +73,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
       {/* Panel */}
       <div
-        className={`absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-950 shadow-2xl transition-transform flex flex-col ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-950 shadow-2xl transition-transform ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Votre Panier</h3>
           <button
             onClick={onClose}
@@ -118,7 +87,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         {/* Items */}
-        <div className="p-4 space-y-3 overflow-y-auto flex-1 min-h-0">
+        <div className="p-4 space-y-3 overflow-y-auto max-h-[55vh]">
           {items.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">Votre panier est vide.</p>}
           {items.map(item => (
             <div
@@ -146,7 +115,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3 shrink-0">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600 dark:text-gray-300">Total</span>
             <span className="text-lg font-bold text-gray-900 dark:text-white">{total.toLocaleString()} Fcfa</span>

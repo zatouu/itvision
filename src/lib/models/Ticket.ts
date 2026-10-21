@@ -30,6 +30,8 @@ export interface ITicketHistory {
 export interface ITicket extends Document {
   projectId?: mongoose.Types.ObjectId
   clientId: mongoose.Types.ObjectId
+  /** Société cliente (portail entreprise) — permet le partage entre membres de l'équipe. */
+  clientCompanyId?: mongoose.Types.ObjectId
   assignedTo: mongoose.Types.ObjectId[]
   watchers: mongoose.Types.ObjectId[]
   title: string
@@ -85,6 +87,7 @@ const TicketHistorySchema = new Schema<ITicketHistory>({
 const TicketSchema = new Schema<ITicket>({
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: false, },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
+  clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', required: false, },
   assignedTo: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
   watchers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   title: { type: String, required: true },
@@ -153,6 +156,7 @@ TicketSchema.pre('validate', function(next) {
 
 TicketSchema.index({ projectId: 1, createdAt: -1 })
 TicketSchema.index({ clientId: 1, createdAt: -1 })
+TicketSchema.index({ clientCompanyId: 1, createdAt: -1 })
 TicketSchema.index({ status: 1, priority: 1 })
 TicketSchema.index({ assignedTo: 1, status: 1 })
 

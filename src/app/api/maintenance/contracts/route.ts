@@ -3,44 +3,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import User from '@/lib/models/User'
 import { emitUserNotification } from '@/lib/socket-emit'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
-interface DecodedToken {
-  userId: string
-  role: string
-  email: string
-}
-
-async function verifyToken(request: NextRequest): Promise<DecodedToken> {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) {
-    throw new Error('Non authentifié')
-  }
-
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  
-  if (!payload.userId || !payload.role || !payload.email) {
-    throw new Error('Token invalide')
-  }
-  
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase(),
-    email: payload.email as string
-  }
+function errorResponse(error: unknown, context: string) {
+  const authRes = authErrorResponse(error)
+  if (authRes) return authRes
+  console.error(context, error)
+  return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
 }
 
 // GET - Liste des contrats
 export async function GET(request: NextRequest) {
   try {
-    const { userId, role } = await verifyToken(request)
+    const { userId, role } = await requireApiUser(request)
     
     await connectMongoose()
 
@@ -53,7 +32,10 @@ export async function GET(request: NextRequest) {
     // Si client, filtrer par son ID
     if (role === 'CLIENT') {
       query.clientId = userId
-    } else if (clientId && role === 'ADMIN') {
+    } else if (!['ADMIN', 'SUPER_ADMIN'].includes(String(role))) {
+      // Sans ce garde, tout compte connecté (technicien, acheteur DDM+, prestataire) listait tous les contrats
+      return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
+    } else if (clientId) {
       query.clientId = clientId
     }
     
@@ -89,18 +71,14 @@ export async function GET(request: NextRequest) {
       contracts: contractsWithFlags
     })
   } catch (error) {
-    console.error('Erreur récupération contrats:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur serveur' },
-      { status: 500 }
-    )
+    return errorResponse(error, 'Erreur récupération contrats:')
   }
 }
 
 // POST - Créer un contrat
 export async function POST(request: NextRequest) {
   try {
-    const { userId, role } = await verifyToken(request)
+    const { userId, role } = await requireApiUser(request)
     
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
@@ -171,18 +149,14 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Erreur création contrat:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur serveur' },
-      { status: 500 }
-    )
+    return errorResponse(error, 'Erreur création contrat:')
   }
 }
 
 // PATCH - Mettre à jour un contrat
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId, role } = await verifyToken(request)
+    const { userId, role } = await requireApiUser(request)
     
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
@@ -214,11 +188,7 @@ export async function PATCH(request: NextRequest) {
       message: 'Contrat mis à jour'
     })
   } catch (error) {
-    console.error('Erreur mise à jour contrat:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur serveur' },
-      { status: 500 }
-    )
+    return errorResponse(error, 'Erreur mise à jour contrat:')
   }
 }
 

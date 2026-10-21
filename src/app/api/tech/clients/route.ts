@@ -3,37 +3,60 @@ import { connectMongoose } from '@/lib/mongoose'
 import mongoose from 'mongoose'
 import Client from '@/lib/models/Client'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import Intervention from '@/lib/models/Intervention'
 import { requireAuth } from '@/lib/jwt'
+import { resolveTechnicianId } from '@/lib/interventions-access'
 
 type DecodedToken = {
   id: string
   role: string
+  email?: string
 }
 
-const ALLOWED_ROLES = new Set(['TECHNICIAN', 'ADMIN'])
+const ALLOWED_ROLES = new Set(['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'])
 
 async function requireTechnicianOrAdmin(request: NextRequest): Promise<DecodedToken> {
-  const { userId, role } = await requireAuth(request)
+  const { userId, role, email } = await requireAuth(request) as { userId: string; role: string; email?: string }
   if (!ALLOWED_ROLES.has(role)) {
     throw new Error('Accès non autorisé')
   }
-  return { id: userId, role }
+  return { id: userId, role, email }
 }
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    await requireTechnicianOrAdmin(request)
+    const auth = await requireTechnicianOrAdmin(request)
 
     const { searchParams } = new URL(request.url)
-    const q = (searchParams.get('q') || '').trim()
+    const q = (searchParams.get('q') || '').trim().slice(0, 80)
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50)
     const skip = Math.max(parseInt(searchParams.get('skip') || '0', 10), 0)
 
-    const query: Record<string, unknown> = {}
+    const query: Record<string, unknown> = { archivedAt: null }
+
+    // Un technicien ne voit que les clients de ses interventions
+    const visitsByClient = new Map<string, { count: number; last: Date | null; next: Date | null }>()
+    if (auth.role === 'TECHNICIAN') {
+      const techId = await resolveTechnicianId(auth.email)
+      if (!techId) return NextResponse.json({ success: true, clients: [], count: 0, total: 0 })
+      const tid = new mongoose.Types.ObjectId(techId)
+      const now = new Date()
+      const visits = await Intervention.aggregate([
+        { $match: { $or: [{ technicienId: tid }, { assignedTechnician: tid }], clientId: { $ne: null } } },
+        { $group: {
+          _id: '$clientId',
+          count: { $sum: 1 },
+          last: { $max: { $cond: [{ $lte: ['$date', now] }, '$date', null] } },
+          next: { $min: { $cond: [{ $and: [{ $gt: ['$date', now] }, { $in: ['$status', ['scheduled', 'pending']] }] }, '$date', null] } },
+        } },
+      ])
+      for (const v of visits) visitsByClient.set(String(v._id), { count: v.count, last: v.last, next: v.next })
+      query._id = { $in: visits.map(v => v._id) }
+    }
 
     if (q) {
-      const regex = new RegExp(q, 'i')
+      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
       query.$or = [
         { name: regex },
         { email: regex },
@@ -49,9 +72,9 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .lean(),
       Client.countDocuments(query),
-      Client.countDocuments({}),
-      Client.countDocuments({ isActive: true }),
-      Client.countDocuments({ 'permissions.canAccessPortal': true })
+      Client.countDocuments({ archivedAt: null }),
+      Client.countDocuments({ archivedAt: null, isActive: true }),
+      Client.countDocuments({ archivedAt: null, 'permissions.canAccessPortal': true })
     ])
 
     // Collecter tous les identifiants de contrats actifs pour une seule requête batch
@@ -113,9 +136,11 @@ export async function GET(request: NextRequest) {
         email: client.email,
         phone: client.phone,
         address: client.address,
+        city: (client as any).city,
         isActive: client.isActive,
         permissions: client.permissions,
-        activeContracts: contractsWithProject
+        activeContracts: contractsWithProject,
+        visits: visitsByClient.get(String(client._id)) || null
       }
     })
 

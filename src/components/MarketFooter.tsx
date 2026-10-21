@@ -14,6 +14,8 @@ const columns = [
       ['Accueil', '/market'],
       ['Catalogue', '/produits'],
       ['Achats groupés', '/achats-groupes'],
+      ['Comment ça marche', '/comment-ca-marche'],
+      ['Tarification', '/tarification'],
       ['Favoris', '/produits/favoris'],
       ['Comparer', '/produits/compare'],
     ],

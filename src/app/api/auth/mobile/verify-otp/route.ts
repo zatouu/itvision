@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         isNew: !!user.isNew,
         referralCode: user.referralCode,
         referralBalance: user.referralBalance || 0,
+        providerProfileId: user.providerProfileId,
       },
     })
   } catch (err) {

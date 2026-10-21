@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
@@ -7,6 +8,7 @@ import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { enqueueDispatch } from '@/lib/visibility'
+import { notifyWave } from '@/lib/visibility/notification-engine'
 import { getActiveCategorySlugs } from '@/lib/service-categories'
 
 const MAX_DESCRIPTION_LENGTH = 2000
@@ -16,9 +18,31 @@ const MAX_BUDGET = 10_000_000
 const REQUEST_TTL_HOURS = 2 // demande standard
 const REQUEST_TTL_URGENT_MIN = 45 // demande urgente
 
+const OPEN_LIST_STATUSES = ['created', 'pending_offers', 'broadcasted']
+const MEDIA_TYPES = ['image', 'video', 'audio', 'file']
+const UPLOAD_PATH = /^\/(api\/)?uploads\/[\w./-]+$/
+
+/** Média accepté : fichier téléversé sur la plateforme (chemin relatif, ou URL absolue de nos hôtes). */
+function isPlatformMediaUrl(url: string, request: NextRequest): boolean {
+  if (url.length > 500 || url.includes('..')) return false
+  if (url.startsWith('/')) return UPLOAD_PATH.test(url)
+  try {
+    const u = new URL(url)
+    const hosts = [request.headers.get('host'), process.env.APP_BASE_URL, process.env.NEXT_PUBLIC_APP_URL]
+      .filter((h): h is string => !!h)
+      .map(h => h.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase())
+    return ['http:', 'https:'].includes(u.protocol) && hosts.includes(u.host.toLowerCase()) && UPLOAD_PATH.test(u.pathname)
+  } catch {
+    return false
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
+    // Authentification obligatoire — le listing n'est plus public
+    const { userId, role } = await requireAuth(request)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || undefined
     const mine = searchParams.get('mine')
@@ -43,8 +67,15 @@ export async function GET(request: NextRequest) {
       ]
     }
     if (mine === '1') {
-      const { userId } = await requireAuth(request)
       q.clientId = userId
+    } else if (!isStaff) {
+      // Non-staff hors "mes demandes" : uniquement les demandes ouvertes aux offres
+      // (l'app mobile n'utilise que ?mine=1 et /api/services/matching)
+      if (status && !OPEN_LIST_STATUSES.includes(status)) {
+        return NextResponse.json({ items: [] })
+      }
+      q.status = status || { $in: OPEN_LIST_STATUSES }
+      delete q.$and
     }
 
     const items = await ServiceRequest.find(q).sort({ createdAt: -1 }).limit(100).lean()
@@ -96,14 +127,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const canSeeContact = isStaff || mine === '1'
       const enriched = items.map((item: any) => {
         const c = countsByRequest.get(String(item._id)) || { total: 0, pending: 0, unseen: 0 }
+        const acceptedOffer = acceptedByRequest.get(String(item._id))
+        // Le téléphone du prestataire n'est exposé qu'au client propriétaire et au staff
+        const safeOffer = !canSeeContact && acceptedOffer
+          ? { ...acceptedOffer, providerPhone: undefined }
+          : acceptedOffer
         return {
           ...item,
           offerCount: c.total,
           pendingOfferCount: c.pending,
           unseenOfferCount: c.unseen,
-          acceptedOffer: acceptedByRequest.get(String(item._id)),
+          acceptedOffer: safeOffer,
         }
       })
       return NextResponse.json({ items: enriched })
@@ -160,7 +197,16 @@ export async function POST(request: NextRequest) {
     // Validation budget
     const safeBudget = Number.isFinite(Number(budget)) && Number(budget) >= 0 ? Math.min(Number(budget), MAX_BUDGET) : undefined
     // Validation media
-    const safeMedia = Array.isArray(media) ? media.filter((m: any) => m && typeof m.url === 'string').slice(0, 10) : []
+    const safeMedia = Array.isArray(media)
+      ? media
+          .filter((m: any) => m && typeof m.url === 'string' && isPlatformMediaUrl(m.url, request))
+          .slice(0, 10)
+          .map((m: any) => ({
+            url: m.url,
+            type: MEDIA_TYPES.includes(m.type) ? m.type : 'image',
+            ...(typeof m.title === 'string' ? { title: m.title.slice(0, 120) } : {}),
+          }))
+      : []
     // Validation channel
     const safeChannel = ['web', 'mobile', 'callcenter'].includes(channel) ? channel : 'mobile'
     // Validation attributes
@@ -168,7 +214,26 @@ export async function POST(request: NextRequest) {
       ? Object.fromEntries(Object.entries(attributes).filter(([k, v]) => typeof k === 'string' && v !== undefined))
       : {}
 
+    // Clé d'idempotence (file offline mobile) : un replay avec la même clé
+    // renvoie la demande déjà créée au lieu d'en créer un doublon.
+    const clientOpId = typeof (body as any).clientOpId === 'string' && /^[\w-]{8,80}$/.test((body as any).clientOpId)
+      ? (body as any).clientOpId
+      : undefined
+    if (clientOpId) {
+      const dup = await ServiceRequest.findOne({ clientId: userId, idempotencyKey: clientOpId })
+        .select('_id status createdAt').lean()
+      if (dup) return NextResponse.json({ success: true, item: dup, deduplicated: true })
+    }
+
     const isUrgent = urgent === true || urgent === 'true' || urgent === 1
+
+    // Prestataire choisi depuis son profil : doit exister, être prestataire et ne pas être le client lui-même
+    let preferredProviderId: string | undefined
+    const rawPreferred = (body as any).preferredProviderId
+    if (typeof rawPreferred === 'string' && mongoose.Types.ObjectId.isValid(rawPreferred) && rawPreferred !== String(userId)) {
+      const isProvider = await ProviderProfile.exists({ userId: rawPreferred })
+      if (isProvider) preferredProviderId = rawPreferred
+    }
     // Réservation planifiée : créneau futur demandé par le client.
     // Mutuellement exclusif avec urgent (urgent = immédiat).
     let safeScheduledFor: Date | undefined
@@ -187,17 +252,29 @@ export async function POST(request: NextRequest) {
     const expiresAt = safeScheduledFor && safeScheduledFor.getTime() > defaultExpiry.getTime()
       ? safeScheduledFor
       : defaultExpiry
-    const created = await ServiceRequest.create({
-      clientId: userId, category,
-      urgent: isUrgent,
-      scheduledFor: safeScheduledFor,
-      subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
-      description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
-      media: safeMedia, location, budget: safeBudget, channel: safeChannel,
-      attributes: safeAttributes,
-      status: 'created',
-      expiresAt,
-    })
+    let created
+    try {
+      created = await ServiceRequest.create({
+        clientId: userId, category,
+        urgent: isUrgent,
+        scheduledFor: safeScheduledFor,
+        subcategory: typeof subcategory === 'string' && subcategory.trim() ? subcategory.trim() : undefined,
+        description: (description || '').slice(0, MAX_DESCRIPTION_LENGTH),
+        media: safeMedia, location, budget: safeBudget, channel: safeChannel,
+        attributes: safeAttributes,
+        status: 'created',
+        expiresAt,
+        idempotencyKey: clientOpId,
+        preferredProviderId,
+      })
+    } catch (createErr: any) {
+      // Race : un replay concurrent a créé la demande entre le check et l'insert
+      if (createErr?.code === 11000 && clientOpId) {
+        const existing = await ServiceRequest.findOne({ clientId: userId, idempotencyKey: clientOpId }).lean()
+        if (existing) return NextResponse.json({ success: true, item: existing, deduplicated: true })
+      }
+      throw createErr
+    }
 
     // Diffusion via le Visibility Engine + Visibility Scheduler (vague immédiate
     // puis escalade progressive du rayon si pas d'offre). Fire-and-forget : ne
@@ -205,6 +282,24 @@ export async function POST(request: NextRequest) {
     enqueueDispatch(String(created._id)).catch(err => {
       console.error('[POST /api/services/requests] enqueueDispatch failed:', err?.message)
     })
+
+    // Le prestataire choisi reçoit la demande tout de suite (temps réel + push), sans attendre les vagues
+    if (preferredProviderId) {
+      notifyWave({
+        request: {
+          requestId: String(created._id),
+          clientId: String(userId),
+          category,
+          location: { lat, lng },
+          budget: safeBudget ?? null,
+          description: created.description,
+          createdAt: created.createdAt,
+        },
+        stage: 0,
+        radiusKm: 0,
+        providerIds: [preferredProviderId],
+      }).catch(err => console.error('[POST /api/services/requests] preferred provider notify failed:', err?.message))
+    }
 
     return NextResponse.json({ success: true, item: created })
   } catch (e: any) {

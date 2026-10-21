@@ -21,30 +21,20 @@ import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import SourcingRequest from '@/lib/models/SourcingRequest'
 import User from '@/lib/models/User'
-import { requireAuth } from '@/lib/jwt'
-import { sendSms } from '@/lib/sms'
-import { MARKET_BRAND } from '@/lib/branding'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { deliverSourcingProposalNotification, pendingSourcingProposalNotification } from '@/lib/market/sourcing-proposal'
+import { SOURCE_CURRENCIES } from '@/lib/pricing/constants'
+import { getImportServiceFeeRate } from '@/lib/pricing/tiered-service-fees'
+import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 export const dynamic = 'force-dynamic'
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'])
 
-function buildBaseSiteUrl(request: NextRequest): string {
-  const fromEnv = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
-  if (fromEnv) return fromEnv.replace(/\/+$/, '')
-  const proto = request.headers.get('x-forwarded-proto') || 'https'
-  const host = (request.headers.get('host') || '').replace(/^market\./i, '')
-  return `${proto}://${host}`
-}
-
 function asNumber(v: unknown): number | undefined {
   if (v === undefined || v === null || v === '') return undefined
   const n = Number(v)
   return Number.isFinite(n) && n >= 0 ? n : undefined
-}
-
-function fmtFcfa(n: number): string {
-  return Math.round(n).toLocaleString('fr-FR') + ' FCFA'
 }
 
 export async function POST(
@@ -53,15 +43,15 @@ export async function POST(
 ) {
   const { id } = await params
   // Auth
-  let userId: string, role: string, name: string | undefined
+  let userId: string, name: string | undefined
   try {
-    const auth = await requireAuth(request)
-    if (!ADMIN_ROLES.has(String(auth.role).toUpperCase())) {
+    const auth = await verifyAuthServer(request)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    if (!ADMIN_ROLES.has(String(auth.user.role).toUpperCase())) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
-    userId = auth.userId
-    role = auth.role
-    name = auth.username
+    userId = auth.user.id
+    name = auth.user.name
   } catch {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
@@ -91,8 +81,8 @@ export async function POST(
   if (productCostFCFA === undefined) {
     return NextResponse.json({ error: 'Coût produit FCFA requis' }, { status: 400 })
   }
-  const serviceFeeRate = asNumber(p.serviceFeeRate)
-  if (serviceFeeRate === undefined || serviceFeeRate > 100) {
+  const requestedServiceFeeRate = asNumber(p.serviceFeeRate)
+  if (requestedServiceFeeRate === undefined || requestedServiceFeeRate > 100) {
     return NextResponse.json({ error: 'Taux frais service invalide' }, { status: 400 })
   }
   const insuranceRate = asNumber(p.insuranceRate)
@@ -110,6 +100,8 @@ export async function POST(
     return NextResponse.json({ error: 'Méthode transport invalide' }, { status: 400 })
   }
   const qty = Math.max(1, Math.floor(asNumber(p.qty) || 1))
+  const pricing = await readSharedPricing()
+  const serviceFeeRate = getImportServiceFeeRate(qty, requestedServiceFeeRate, pricing.config.defaults.singleImportServiceFeeRate)
   const deliveryDays = Math.max(1, Math.min(180, Math.floor(asNumber(p.deliveryDays) || 0)))
   if (!deliveryDays) {
     return NextResponse.json({ error: 'Délai de livraison invalide' }, { status: 400 })
@@ -126,7 +118,7 @@ export async function POST(
   await connectMongoose()
   const doc = await SourcingRequest.findById(id)
   if (!doc) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 })
-  if (['fulfilled', 'cancelled'].includes(doc.status)) {
+  if (!['new', 'searching', 'proposal_ready'].includes(doc.status)) {
     return NextResponse.json(
       { error: `Demande déjà ${doc.status}, modification interdite` },
       { status: 409 }
@@ -161,7 +153,11 @@ export async function POST(
     supplierUrl: p.supplierUrl?.toString().trim() || undefined,
     supplierName: p.supplierName?.toString().trim().slice(0, 200) || undefined,
     notes: p.notes?.toString().slice(0, 2000) || undefined,
+    sourcePlatform: ['1688', 'aliexpress', 'alibaba'].includes(p.sourcePlatform)
+      ? p.sourcePlatform
+      : undefined,
     price1688: asNumber(p.price1688),
+    sourceCurrency: SOURCE_CURRENCIES.includes(p.sourceCurrency) ? p.sourceCurrency : undefined,
     exchangeRate: asNumber(p.exchangeRate),
     productCostFCFA,
     serviceFeeRate,
@@ -189,23 +185,24 @@ export async function POST(
   if (send) {
     doc.status = 'proposal_sent'
     doc.proposalSentAt = new Date()
-
-    const baseUrl = buildBaseSiteUrl(request)
-    const trackUrl = `${baseUrl}/market/sourcing/${doc.publicToken}`
-    const sms =
-      `${MARKET_BRAND.name} — ${doc.reference} : votre proposition est prête. ` +
-      `${productName.slice(0, 40)} — ${fmtFcfa(totalClientPrice)} livré en ${deliveryDays}j. ` +
-      `Valider : ${trackUrl}`
-    try {
-      const ok = await sendSms(doc.contactPhone, sms)
-      if (!ok) console.warn('[sourcing] SMS proposition non envoyé pour', doc.reference)
-    } catch (err) {
-      console.warn('[sourcing] SMS proposition erreur:', err)
-    }
   } else {
     doc.status = 'proposal_ready'
   }
 
-  await doc.save()
-  return NextResponse.json({ success: true, request: doc.toObject() })
+  const saved = await SourcingRequest.findOneAndUpdate(
+    { _id: doc._id, updatedAt: doc.updatedAt, status: { $in: ['new', 'searching', 'proposal_ready'] } },
+    { $set: {
+      proposal: doc.proposal,
+      status: doc.status,
+      ...(send ? { proposalSentAt: doc.proposalSentAt, proposalNotification: pendingSourcingProposalNotification() } : {}),
+    } },
+    { new: true, runValidators: true }
+  )
+  if (!saved) return NextResponse.json({ error: 'Demande modifiée entre-temps, rechargez la fiche.' }, { status: 409 })
+  if (send) {
+    await deliverSourcingProposalNotification(id).catch(() => {
+      console.warn('[sourcing] notification persistée, en attente de reprise pour', id)
+    })
+  }
+  return NextResponse.json({ success: true, request: saved.toObject() })
 }

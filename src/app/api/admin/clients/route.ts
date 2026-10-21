@@ -43,13 +43,16 @@ export async function GET(request: NextRequest) {
     if (company) query.company = safeSearchRegex(company)
     if (status === 'active') query.isActive = true
     if (status === 'inactive') query.isActive = false
+    // Archivés masqués par défaut, consultables via status=archived
+    query.archivedAt = status === 'archived' ? { $ne: null } : null
+    const notArchived = { archivedAt: null }
 
     const [clientsRaw, total, totalClients, activeClients, portalEnabledClients] = await Promise.all([
       Client.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Client.countDocuments(query),
-      Client.countDocuments({}),
-      Client.countDocuments({ isActive: true }),
-      Client.countDocuments({ 'permissions.canAccessPortal': true })
+      Client.countDocuments(notArchived),
+      Client.countDocuments({ ...notArchived, isActive: true }),
+      Client.countDocuments({ ...notArchived, 'permissions.canAccessPortal': true })
     ])
 
     // Nombre de membres de l'équipe par société (comptes portail liés)

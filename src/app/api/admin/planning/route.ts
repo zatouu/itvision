@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
+    if (auth.role === 'TECHNICIAN') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    }
 
     await connectMongoose()
     const { searchParams } = new URL(request.url)

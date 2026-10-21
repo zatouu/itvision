@@ -8,6 +8,7 @@ export interface IProjectImage extends Document {
   description?: string
   isMain: boolean
   order: number
+  clientVisible?: boolean
   createdAt: Date
 }
 
@@ -18,7 +19,9 @@ const ProjectImageSchema = new Schema<IProjectImage>({
   title: { type: String },
   description: { type: String },
   isMain: { type: Boolean, default: false },
-  order: { type: Number, default: 0 }
+  order: { type: Number, default: 0 },
+  // Affichée sur le portail du client (les photos peuvent aussi servir à la vitrine, d'où le choix explicite)
+  clientVisible: { type: Boolean, default: false }
 }, { timestamps: { createdAt: true, updatedAt: false } })
 
 ProjectImageSchema.index({ projectId: 1, order: 1 })

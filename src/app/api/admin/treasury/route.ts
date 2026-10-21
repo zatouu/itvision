@@ -3,8 +3,12 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
-import Expense from '@/lib/models/Expense'
 import Project from '@/lib/models/Project'
+import { invoiceBalance } from '@/lib/finance/billing'
+import {
+  computeMarketplaceFinance, computeXeuyFinance, consolidateGlobal,
+  loadCorporateLedger, summarizeCorporate, invoiceCashEntries, expenseCashEntries, refundsInRange,
+} from '@/lib/finance/domain-finance'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,71 +37,36 @@ export async function GET(request: NextRequest) {
 
     const dateFilter = { $gte: startDate, $lte: endDate }
 
-    const [invoices, expenses, quotes, projects] = await Promise.all([
-      AdminInvoice.find({ date: dateFilter }).select({
-        numero: 1, date: 1, dueDate: 1, status: 1, total: 1, subtotal: 1, taxAmount: 1,
-        paymentDate: 1, paidAt: 1, projectId: 1, clientCompanyId: 1, client: 1
-      }).lean() as any,
-      Expense.find({ expenseDate: dateFilter }).lean() as any,
+    const [ledger, quotes, invoicedQuoteIds, projects, marketplace, xeuy] = await Promise.all([
+      // Factures/dépenses corporate : lib partagée avec le digest (encaissements en date de paiement)
+      loadCorporateLedger(dateFilter),
       AdminQuote.find({ date: dateFilter }).select({
         numero: 1, date: 1, status: 1, total: 1, projectId: 1, clientCompanyId: 1
       }).lean() as any,
-      Project.find().select({ name: 1, status: 1, value: 1, clientId: 1, clientCompanyId: 1 }).lean() as any
+      AdminInvoice.distinct('quoteId', { quoteId: { $exists: true, $ne: null }, status: { $ne: 'cancelled' } }),
+      Project.find().select({ name: 1, status: 1, value: 1, clientId: 1, clientCompanyId: 1 }).lean() as any,
+      // Finance isolée par domaine — lib partagée (source unique des agrégats)
+      computeMarketplaceFinance(dateFilter),
+      computeXeuyFinance(dateFilter)
     ])
-
-    // ========== REVENUS ==========
-    let revenueBilled = 0       // Total facturé (sent + paid + overdue)
-    let revenueCollected = 0    // Encaissé (paid)
-    let receivablesOpen = 0     // Créances ouvertes (sent + overdue)
-    let receivablesOverdue = 0  // En retard
+    const invoices = ledger.issuedInvoices
+    const expenses = ledger.expenses
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    for (const inv of invoices) {
-      const total = Number(inv.total || 0)
-      const status = String(inv.status || 'draft')
-      if (['sent', 'paid', 'overdue'].includes(status)) revenueBilled += total
-      if (status === 'paid') revenueCollected += total
-      if (status === 'sent' || status === 'overdue') {
-        receivablesOpen += total
-        const due = inv.dueDate ? new Date(inv.dueDate) : null
-        if (status === 'overdue' || (due && due < today)) receivablesOverdue += total
-      }
-    }
-
-    // ========== DÉPENSES ==========
-    let expensesTotal = 0       // Coût total TTC pour l'entreprise
-    let expensesPaid = 0        // Décaissé réel (net payable payé)
-    let payablesOpen = 0        // Reste à décaisser
-    let payablesOverdue = 0
-    let brsRetained = 0         // Total BRS retenu
-    let brsPending = 0          // BRS sur dettes non encore payées
-
-    for (const exp of expenses) {
-      if (exp.paymentStatus === 'cancelled') continue
-      const ttc = Number(exp.amountTTC || 0)
-      const paid = Number(exp.paidAmount || 0)
-      const net = Number(exp.netPayable ?? ttc)
-      const brs = Number(exp.brsAmount || 0)
-
-      expensesTotal += ttc
-      expensesPaid += paid
-      brsRetained += brs
-
-      const remaining = Math.max(0, net - paid)
-      if (exp.paymentStatus !== 'paid') {
-        payablesOpen += remaining
-        brsPending += brs
-        const due = exp.dueDate ? new Date(exp.dueDate) : null
-        if (due && due < today) payablesOverdue += remaining
-      }
-    }
+    // ========== REVENUS / DÉPENSES ==========
+    const s = summarizeCorporate(ledger, today)
+    const {
+      revenueBilled, revenueCollected, receivablesOpen, receivablesOverdue,
+      expensesTotal, expensesPaid, payablesOpen, payablesOverdue, brsRetained, brsPending,
+      creditNotesTotal, refundsPaid, refundsPending,
+    } = s
 
     // ========== TRÉSORERIE ==========
-    const treasuryBalance = revenueCollected - expensesPaid     // Cash réel
-    const projectedBalance = treasuryBalance + receivablesOpen - payablesOpen
-    const grossMargin = revenueBilled - expensesTotal
+    const treasuryBalance = revenueCollected - expensesPaid     // Flux de caisse net de la période
+    const projectedBalance = treasuryBalance + receivablesOpen - payablesOpen - refundsPending
+    const grossMargin = s.grossMargin                           // Base HT
 
     // ========== CASHFLOW MENSUEL ==========
     const cashflowMap = new Map<string, { period: string; revenue: number; expense: number; net: number }>()
@@ -105,18 +74,14 @@ export async function GET(request: NextRequest) {
       if (!cashflowMap.has(key)) cashflowMap.set(key, { period: key, revenue: 0, expense: 0, net: 0 })
       return cashflowMap.get(key)!
     }
-    for (const inv of invoices) {
-      if (inv.status !== 'paid') continue
-      const date = inv.paymentDate ? new Date(inv.paymentDate) : (inv.paidAt ? new Date(inv.paidAt) : new Date(inv.date))
-      if (isNaN(date.getTime())) continue
-      ensure(ymKey(date)).revenue += Number(inv.total || 0)
+    for (const inv of ledger.cashInvoices) {
+      for (const entry of invoiceCashEntries(inv, dateFilter)) ensure(ymKey(entry.date)).revenue += entry.amount
     }
-    for (const exp of expenses) {
-      if (exp.paymentStatus === 'cancelled') continue
-      const date = exp.paidAt ? new Date(exp.paidAt) : new Date(exp.expenseDate)
-      if (isNaN(date.getTime())) continue
-      // Décaissement réel
-      ensure(ymKey(date)).expense += Number(exp.paidAmount || 0)
+    for (const refund of refundsInRange(ledger)) {
+      ensure(ymKey(new Date(refund.refundedAt))).revenue -= Number(refund.refundAmount || 0)
+    }
+    for (const exp of ledger.paidExpenses) {
+      for (const entry of expenseCashEntries(exp, dateFilter)) ensure(ymKey(entry.date)).expense += entry.amount
     }
     const cashflow = Array.from(cashflowMap.values()).sort((a, b) => a.period.localeCompare(b.period))
     cashflow.forEach((c) => { c.net = c.revenue - c.expense })
@@ -124,7 +89,6 @@ export async function GET(request: NextRequest) {
     // ========== DÉPENSES PAR CATÉGORIE ==========
     const byCategoryMap = new Map<string, { category: string; total: number; paid: number; count: number }>()
     for (const exp of expenses) {
-      if (exp.paymentStatus === 'cancelled') continue
       const cat = exp.category || 'autre'
       const e = byCategoryMap.get(cat) || { category: cat, total: 0, paid: 0, count: 0 }
       e.total += Number(exp.amountTTC || 0)
@@ -141,8 +105,10 @@ export async function GET(request: NextRequest) {
       status?: string
       budget: number
       revenueBilled: number
+      revenueBilledHT: number
       revenueCollected: number
       expensesTotal: number
+      expensesHT: number
       expensesPaid: number
       margin: number
       marginPct: number
@@ -158,8 +124,10 @@ export async function GET(request: NextRequest) {
         status: p.status,
         budget: Number(p.value || 0),
         revenueBilled: 0,
+        revenueBilledHT: 0,
         revenueCollected: 0,
         expensesTotal: 0,
+        expensesHT: 0,
         expensesPaid: 0,
         margin: 0,
         marginPct: 0,
@@ -169,49 +137,47 @@ export async function GET(request: NextRequest) {
     }
 
     for (const inv of invoices) {
-      if (!inv.projectId) continue
-      const id = String(inv.projectId)
-      const e = projectMap.get(id)
+      const e = inv.projectId ? projectMap.get(String(inv.projectId)) : undefined
+      if (!e || !['sent', 'paid', 'overdue', 'partial'].includes(String(inv.status))) continue
+      e.revenueBilled += Number(inv.total || 0)
+      e.revenueBilledHT += Number(inv.subtotal || 0)
+      e.invoicesCount += 1
+    }
+    for (const inv of ledger.cashInvoices) {
+      const e = inv.projectId ? projectMap.get(String(inv.projectId)) : undefined
+      if (e) e.revenueCollected += invoiceCashEntries(inv, dateFilter).reduce((sum, entry) => sum + entry.amount, 0)
+    }
+    for (const cn of ledger.creditNotes) {
+      const e = cn.projectId ? projectMap.get(String(cn.projectId)) : undefined
       if (!e) continue
-      const total = Number(inv.total || 0)
-      const status = String(inv.status || 'draft')
-      if (['sent', 'paid', 'overdue'].includes(status)) {
-        e.revenueBilled += total
-        e.invoicesCount += 1
-      }
-      if (status === 'paid') e.revenueCollected += total
+      e.revenueBilled -= Number(cn.total || 0)
+      e.revenueBilledHT -= Number(cn.subtotal || cn.total || 0)
     }
 
     for (const exp of expenses) {
-      if (!exp.projectId || exp.paymentStatus === 'cancelled') continue
-      const id = String(exp.projectId)
-      const e = projectMap.get(id)
+      const e = exp.projectId ? projectMap.get(String(exp.projectId)) : undefined
       if (!e) continue
       e.expensesTotal += Number(exp.amountTTC || 0)
-      e.expensesPaid += Number(exp.paidAmount || 0)
+      e.expensesHT += Number(exp.amountHT || 0)
       e.expensesCount += 1
     }
-
-    // BRS par projet
-    const projectBRS = new Map<string, number>()
-    for (const exp of expenses) {
-      if (!exp.projectId || exp.paymentStatus === 'cancelled') continue
-      const id = String(exp.projectId)
-      projectBRS.set(id, (projectBRS.get(id) || 0) + Number(exp.brsAmount || 0))
+    for (const exp of ledger.paidExpenses) {
+      const e = exp.projectId ? projectMap.get(String(exp.projectId)) : undefined
+      if (e) e.expensesPaid += expenseCashEntries(exp, dateFilter).reduce((sum, entry) => sum + entry.amount, 0)
     }
 
     const projectsPL = Array.from(projectMap.values())
       .map((p) => {
-        const margin = p.revenueBilled - p.expensesTotal
-        const marginPct = p.revenueBilled > 0 ? (margin / p.revenueBilled) * 100 : 0
+        // Marge projet sur base HT (cohérente avec la marge globale)
+        const margin = p.revenueBilledHT - p.expensesHT
+        const marginPct = p.revenueBilledHT > 0 ? (margin / p.revenueBilledHT) * 100 : 0
         return { ...p, margin, marginPct }
       })
-      .filter((p) => p.revenueBilled > 0 || p.expensesTotal > 0)
+      .filter((p) => p.revenueBilled > 0 || p.expensesTotal > 0 || p.revenueCollected > 0 || p.expensesPaid > 0)
       .sort((a, b) => b.revenueBilled - a.revenueBilled)
 
-    // ========== TOP DÉPENSES À PAYER (urgent) ==========
-    const topPayables = expenses
-      .filter((e: any) => e.paymentStatus !== 'paid' && e.paymentStatus !== 'cancelled')
+    // ========== TOP DÉPENSES À PAYER (urgent, toutes périodes) ==========
+    const topPayables = ledger.openExpenses
       .map((e: any) => ({
         id: String(e._id),
         numero: e.numero,
@@ -219,7 +185,7 @@ export async function GET(request: NextRequest) {
         supplier: e.supplier?.name,
         amountTTC: e.amountTTC,
         paidAmount: e.paidAmount,
-        remaining: Math.max(0, Number(e.amountTTC || 0) - Number(e.paidAmount || 0)),
+        remaining: Math.max(0, Number(e.netPayable ?? e.amountTTC ?? 0) - Number(e.paidAmount || 0)),
         dueDate: e.dueDate,
         category: e.category,
         projectName: e.projectName
@@ -231,14 +197,13 @@ export async function GET(request: NextRequest) {
       })
       .slice(0, 10)
 
-    // ========== TOP CRÉANCES (factures à encaisser) ==========
-    const topReceivables = invoices
-      .filter((i: any) => ['sent', 'overdue'].includes(String(i.status)))
+    // ========== TOP CRÉANCES (factures à encaisser, toutes périodes) ==========
+    const topReceivables = ledger.openInvoices
       .map((i: any) => ({
         id: String(i._id),
         numero: i.numero,
         clientName: i.client?.name || i.client?.company,
-        total: i.total,
+        total: invoiceBalance(i),
         dueDate: i.dueDate,
         status: i.status,
         isOverdue: (i.status === 'overdue') || (i.dueDate && new Date(i.dueDate) < today)
@@ -251,13 +216,40 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
 
     // ========== PIPELINE COMMERCIAL ==========
+    // "Accepté" = accepté mais pas encore facturé (sinon double compte avec le facturé)
+    const invoicedQuotes = new Set((invoicedQuoteIds as unknown[]).map(String))
     let pipelineDraft = 0, pipelineSent = 0, pipelineAccepted = 0
     for (const q of quotes) {
       const total = Number(q.total || 0)
       if (q.status === 'draft') pipelineDraft += total
       else if (q.status === 'sent') pipelineSent += total
-      else if (q.status === 'accepted') pipelineAccepted += total
+      else if (q.status === 'accepted' && !invoicedQuotes.has(String(q._id))) pipelineAccepted += total
     }
+
+    // ========== FINANCE PAR DOMAINE ==========
+    // Blocs marketplace/xeuy calculés par la lib partagée (même source que le digest cron).
+
+    // — Corporate : bloc existant (factures/dépenses/devis) —
+    const corporate = {
+      revenueBilled,
+      revenueCollected,
+      receivablesOpen,
+      receivablesOverdue,
+      expensesTotal,
+      expensesPaid,
+      payablesOpen,
+      margin: grossMargin,
+      marginPct: s.grossMarginPct,
+      invoicesCount: invoices.length,
+      expensesCount: expenses.length,
+    }
+
+    // — Consolidation globale —
+    const global = consolidateGlobal(
+      { revenueBilled, revenueCollected, receivablesOpen, expensesPaid },
+      marketplace,
+      xeuy
+    )
 
     return NextResponse.json({
       range: {
@@ -276,11 +268,16 @@ export async function GET(request: NextRequest) {
         treasuryBalance,
         projectedBalance,
         grossMargin,
-        grossMarginPct: revenueBilled > 0 ? (grossMargin / revenueBilled) * 100 : 0,
+        grossMarginPct: s.grossMarginPct,
+        revenueBilledHT: s.revenueBilledHT,
+        expensesHT: s.expensesHT,
         invoicesCount: invoices.length,
         expensesCount: expenses.length,
         brsRetained,
-        brsPending
+        brsPending,
+        creditNotesTotal,
+        refundsPaid,
+        refundsPending
       },
       pipeline: {
         draft: pipelineDraft,
@@ -291,7 +288,10 @@ export async function GET(request: NextRequest) {
       expensesByCategory,
       projectsPL,
       topPayables,
-      topReceivables
+      topReceivables,
+      // Finance isolée par domaine + consolidation
+      domains: { corporate, marketplace, xeuy },
+      global,
     })
   } catch (error) {
     console.error('Erreur GET /api/admin/treasury:', error)

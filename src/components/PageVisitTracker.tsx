@@ -48,6 +48,20 @@ export default function PageVisitTracker() {
   return null
 }
 
+/** Identifiant aléatoire du navigateur (aucune donnée personnelle) : compte les visiteurs non connectés une seule fois. */
+function visitorId(): string | undefined {
+  try {
+    let id = localStorage.getItem('ddm_vid')
+    if (!id) {
+      id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+      localStorage.setItem('ddm_vid', id)
+    }
+    return id
+  } catch {
+    return undefined
+  }
+}
+
 function trackVisit(path: string, pageName: string) {
   try {
     // Récupérer les métriques de scroll et durée
@@ -82,7 +96,8 @@ function trackVisit(path: string, pageName: string) {
         duration,
         scrollDepth,
         interactions,
-        referrer: document.referrer
+        referrer: document.referrer,
+        visitorId: visitorId(),
       })
 
       if (navigator.sendBeacon) {

@@ -2,25 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase()
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const { role } = await verifyToken(request)
+    const { role } = await requireApiUser(request)
     if (!['ADMIN', 'TECHNICIAN'].includes(role)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
@@ -75,15 +61,16 @@ export async function GET(request: NextRequest) {
       }))
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur chargement activités maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, role } = await verifyToken(request)
+    const { userId, role } = await requireApiUser(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
@@ -155,9 +142,10 @@ export async function POST(request: NextRequest) {
       activityId: activity._id.toString()
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur publication activité maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

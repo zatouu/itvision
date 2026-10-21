@@ -13,6 +13,7 @@ export interface IOtpCode extends Document {
 const OtpCodeSchema = new Schema<IOtpCode>(
   {
     phone: { type: String, required: true, index: true },
+    // HMAC-SHA256 du code (jamais le code en clair)
     code: { type: String, required: true },
     role: { type: String, enum: ['CLIENT', 'PROVIDER'], required: true },
     expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },

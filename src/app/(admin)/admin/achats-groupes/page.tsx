@@ -29,6 +29,10 @@ import {
   Play,
   Pause
 } from 'lucide-react'
+import { groupAnnouncementText } from '@/lib/group-orders/announce-text'
+import { renderGroupVideo, canRenderGroupVideo } from '@/components/market/storefront/group-video'
+import { MARKET_BRAND } from '@/lib/branding'
+import FreightPanel from '@/components/admin/FreightPanel'
 
 interface GroupOrder {
   groupId: string
@@ -53,6 +57,12 @@ interface GroupOrder {
     qty: number
     unitPrice: number
     totalAmount: number
+    variantIds?: string[]
+    variantLabels?: string[]
+    pickupPoint?: { id: string; name: string; neighborhood?: string }
+    referral?: { code: string }
+    transport?: { amount: number; paymentStatus: string; paymentReference: string }
+    readyForPickupAt?: string
     paidAmount: number
     paymentStatus: string
     paymentReference?: string
@@ -64,6 +74,7 @@ interface GroupOrder {
   deadline: string
   shippingMethod?: string
   linkedOrderId?: string
+  freight?: { realWeightKg?: number; realVolumeM3?: number; totalCost?: number; measuredAt?: string }
   chinaPurchase?: {
     purchaseId: string
     status: string
@@ -124,6 +135,10 @@ export default function AdminGroupOrdersPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [waLink, setWaLink] = useState<string | null>(null)
+  const [kitNotice, setKitNotice] = useState('')
+  const [kitVideoProgress, setKitVideoProgress] = useState<number | null>(null)
+  const [kitVideoUrl, setKitVideoUrl] = useState<{ groupId: string; url: string; name: string } | null>(null)
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -140,8 +155,14 @@ export default function AdminGroupOrdersPage() {
   >(null)
   const [paymentLinksLoading, setPaymentLinksLoading] = useState<string | null>(null)
 
+  const [interests, setInterests] = useState<{ globalInterested: number; products: { productId: string; productName: string; interested: number; activeGroups: number }[] } | null>(null)
+
   useEffect(() => {
     fetchGroups()
+    fetch('/api/admin/group-orders/interests')
+      .then(r => r.json())
+      .then(d => { if (d?.success) setInterests(d) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -171,6 +192,46 @@ export default function AdminGroupOrdersPage() {
     setSelectedGroup(null)
     setDetailLoading(false)
     setDetailError(null)
+    setKitNotice('')
+    if (kitVideoUrl) URL.revokeObjectURL(kitVideoUrl.url)
+    setKitVideoUrl(null)
+  }
+
+  const copyAnnouncement = async (g: GroupOrder) => {
+    try {
+      await navigator.clipboard.writeText(groupAnnouncementText(g))
+      setKitNotice('Message copié : collez-le dans la Chaîne WhatsApp DDM+ avec le visuel ou la vidéo.')
+    } catch {
+      setKitNotice('Copie impossible : sélectionnez le texte manuellement.')
+    }
+  }
+
+  const makeKitVideo = async (g: GroupOrder) => {
+    if (kitVideoProgress !== null) return
+    setKitNotice('')
+    setKitVideoProgress(0)
+    try {
+      const tiers = [...(g.priceTiers || [])].sort((a, b) => a.minQty - b.minQty)
+      const file = await renderGroupVideo({
+        name: g.product.name,
+        unit: g.currentUnitPrice || g.product.basePrice,
+        base: g.product.basePrice,
+        tiers: tiers.map((t) => ({ minQty: t.minQty, price: t.price })),
+        currentQty: g.currentQty,
+        targetQty: g.targetQty,
+        participants: g.participants?.length || 0,
+        closeDate: g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '',
+        link: `${MARKET_BRAND.url}/achats-groupes/${g.groupId}?via=chaine`,
+        brand: MARKET_BRAND.name,
+        photoUrl: `/api/og/group/${encodeURIComponent(g.groupId)}?format=photo`,
+      }, setKitVideoProgress)
+      if (kitVideoUrl) URL.revokeObjectURL(kitVideoUrl.url)
+      setKitVideoUrl({ groupId: g.groupId, url: URL.createObjectURL(file), name: file.name })
+    } catch (e: any) {
+      setKitNotice(e?.message || 'Vidéo impossible sur ce navigateur (utilisez Chrome) : publiez le visuel.')
+    } finally {
+      setKitVideoProgress(null)
+    }
   }
 
   const refreshSelectedGroup = async (groupId: string) => {
@@ -231,6 +292,26 @@ export default function AdminGroupOrdersPage() {
     } finally {
       setActionLoading(null)
       setShowActionsMenu(null)
+    }
+  }
+
+  const saveWhatsappLink = async (groupId: string, url: string) => {
+    setActionLoading(groupId)
+    try {
+      const res = await fetch(`/api/group-orders/${groupId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ whatsappInviteUrl: url.trim() })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data?.success === false) throw new Error(data?.error || 'Erreur')
+      showNotification('success', url.trim() ? 'Lien WhatsApp enregistré : il apparaît sur la page du groupe' : 'Lien WhatsApp retiré')
+      setWaLink(null)
+      refreshSelectedGroup(groupId)
+    } catch (error: any) {
+      showNotification('error', error?.message || 'Erreur lors de l\'enregistrement')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -482,6 +563,53 @@ export default function AdminGroupOrdersPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto p-8">
+        {/* Demande latente — « Préviens-moi » par produit */}
+        {interests && (interests.products.length > 0 || interests.globalInterested > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border p-6 shadow-lg mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Demande latente</h2>
+                <p className="text-sm text-gray-500">Inscriptions « Préviens-moi » — produits à proposer en achat groupé</p>
+              </div>
+              {interests.globalInterested > 0 && (
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">
+                  {interests.globalInterested} abonné{interests.globalInterested > 1 ? 's' : ''} génériques
+                </span>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
+                    <th className="pb-2 pr-4 font-semibold">Produit</th>
+                    <th className="pb-2 pr-4 font-semibold">Intéressés</th>
+                    <th className="pb-2 font-semibold">Groupes actifs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {interests.products.slice(0, 10).map((p) => (
+                    <tr key={p.productId} className="border-b last:border-0">
+                      <td className="py-2.5 pr-4 font-semibold text-gray-900">{p.productName}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{p.interested}</span>
+                      </td>
+                      <td className="py-2.5">
+                        {p.activeGroups > 0
+                          ? <span className="text-xs font-semibold text-gray-600">{p.activeGroups} groupe{p.activeGroups > 1 ? 's' : ''}</span>
+                          : <span className="rounded-md bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">aucun</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
         {/* Filtres */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -821,6 +949,86 @@ export default function AdminGroupOrdersPage() {
                     {detailError}
                   </div>
                 )}
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <h3 className="text-sm font-bold text-stone-900">Groupe WhatsApp de discussion</h3>
+                  <p className="mt-0.5 text-xs text-stone-600">Créez le groupe dans WhatsApp (ou dans la Communauté DDM+), puis collez son lien d&apos;invitation : il s&apos;affiche sur la page et après chaque inscription.</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={waLink ?? ((selectedGroup as any).whatsappInviteUrl || '')}
+                      onChange={(e) => setWaLink(e.target.value)}
+                      placeholder="https://chat.whatsapp.com/…"
+                      className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => saveWhatsappLink(selectedGroup.groupId, waLink ?? ((selectedGroup as any).whatsappInviteUrl || ''))}
+                      disabled={actionLoading === selectedGroup.groupId || waLink === null}
+                      className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+                {['open', 'filled'].includes(selectedGroup.status) && (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                    <h3 className="text-sm font-bold text-stone-900">Kit de diffusion (Chaîne WhatsApp DDM+, statut, TikTok)</h3>
+                    <p className="mt-0.5 text-xs text-stone-600">WhatsApp ne permet pas de publier automatiquement dans une Chaîne : depuis le téléphone admin, ouvrez la Chaîne, joignez le visuel ou la vidéo et collez le message. Les abonnés aux alertes reçoivent déjà l&apos;annonce automatiquement (WhatsApp officiel ou SMS selon la configuration).</p>
+                    <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg border border-sky-100 bg-white p-3 text-xs text-stone-800">{groupAnnouncementText(selectedGroup)}</pre>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => copyAnnouncement(selectedGroup)}
+                        className="rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-800"
+                      >
+                        Copier le message
+                      </button>
+                      <a
+                        href={`/api/og/group/${encodeURIComponent(selectedGroup.groupId)}?format=story`}
+                        download={`ddm-${selectedGroup.groupId}-story.png`}
+                        className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                      >
+                        Visuel statut (vertical)
+                      </a>
+                      <a
+                        href={`/api/og/group/${encodeURIComponent(selectedGroup.groupId)}?format=card`}
+                        download={`ddm-${selectedGroup.groupId}.png`}
+                        className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                      >
+                        Visuel Chaîne (horizontal)
+                      </a>
+                      {canRenderGroupVideo() && (
+                        <button
+                          onClick={() => makeKitVideo(selectedGroup)}
+                          disabled={kitVideoProgress !== null}
+                          className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-60"
+                        >
+                          {kitVideoProgress !== null ? `Vidéo en cours… ${Math.round(kitVideoProgress)} %` : 'Créer la vidéo (10 s)'}
+                        </button>
+                      )}
+                      {kitVideoUrl?.groupId === selectedGroup.groupId && (
+                        <a
+                          href={kitVideoUrl.url}
+                          download={kitVideoUrl.name}
+                          className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+                        >
+                          Télécharger la vidéo
+                        </a>
+                      )}
+                    </div>
+                    {kitNotice && <p className="mt-2 text-xs text-sky-900">{kitNotice}</p>}
+                  </div>
+                )}
+                {['ordering', 'ordered', 'shipped', 'delivered'].includes(selectedGroup.status) && (
+                  <FreightPanel
+                    kind="group"
+                    id={selectedGroup.groupId}
+                    measured={selectedGroup.freight?.realWeightKg ? {
+                      realWeightKg: selectedGroup.freight.realWeightKg,
+                      realVolumeM3: selectedGroup.freight.realVolumeM3,
+                      label: `Lot pesé : ${selectedGroup.freight.realWeightKg} kg · transport ${formatCurrency(selectedGroup.freight.totalCost || 0)} · ${selectedGroup.participants.filter(p => p.transport?.paymentStatus === 'paid').length}/${selectedGroup.participants.filter(p => p.transport).length} réglés`,
+                    } : undefined}
+                    hasPickup={selectedGroup.participants.some(p => p.pickupPoint)}
+                    onDone={() => refreshSelectedGroup(selectedGroup.groupId)}
+                  />
+                )}
                 {selectedGroup.chinaPurchase && (
                   <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -882,7 +1090,23 @@ export default function AdminGroupOrdersPage() {
                       <tbody>
                         {selectedGroup.participants.map((p, i) => (
                           <tr key={i} className="border-b">
-                            <td className="px-4 py-3 font-semibold">{p.name}</td>
+                            <td className="px-4 py-3 font-semibold">
+                              {p.name}
+                              {p.variantLabels && p.variantLabels.length > 0 && (
+                                <p className="text-xs font-normal text-violet-600">{p.variantLabels.join(' · ')}</p>
+                              )}
+                              {p.pickupPoint && (
+                                <p className="text-xs font-normal text-emerald-700">Retrait : {p.pickupPoint.name}</p>
+                              )}
+                              {p.referral && (
+                                <p className="text-xs font-normal text-stone-500">Ambassadeur {p.referral.code}</p>
+                              )}
+                              {p.transport && (
+                                <p className={`text-xs font-normal ${p.transport.paymentStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                  Transport {formatCurrency(p.transport.amount)} · {p.transport.paymentStatus === 'paid' ? 'réglé' : 'à régler'}
+                                </p>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <p>{p.phone}</p>
                               {p.email && <p className="text-xs text-stone-500">{p.email}</p>}

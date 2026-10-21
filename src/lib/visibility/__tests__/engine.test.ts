@@ -14,6 +14,7 @@ import assert from 'node:assert'
 import { DEFAULT_VISIBILITY_CONFIG, mergeVisibilityConfig } from '../config'
 import { scoreProvider, rankProviders, FACTORS } from '../ranking'
 import { isEligible, filterAndRank, selectStageProviders, shouldStopBeforeStage, buildNotificationPlan } from '../engine'
+import { normalizeMissionPreferences, preferenceRejection } from '../preferences'
 import { ProviderCandidate, DispatchRequestContext } from '../types'
 
 const config = DEFAULT_VISIBILITY_CONFIG
@@ -38,6 +39,9 @@ function makeCandidate(over: Partial<ProviderCandidate> = {}): ProviderCandidate
     distanceKm: 5,
     kycVerified: true,
     categories: ['plomberie'],
+    secondaryCategories: [],
+    availabilityStatus: 'Disponible',
+    available: true,
     presenceStatus: 'available',
     currentLoad: 0,
     maxConcurrentMissions: 3,
@@ -212,6 +216,53 @@ console.log('▶ VisibilityEngine tests')
   assert.ok(plan.waves[0].providerIds.includes('unlimited'))
   assert.ok(plan.waves[0].providerIds.includes('free'))
   console.log('  ✔ unlimited tier: included in wave, boost applied via score')
+}
+
+// ─── Préférences missions du profil ───
+
+console.log('▶ Préférences missions tests')
+
+{
+  assert.deepStrictEqual(normalizeMissionPreferences(undefined), { maxDistanceKm: null, minAmount: null, acceptUrgent: true, acceptPlanned: true })
+  assert.deepStrictEqual(normalizeMissionPreferences({ maxDistanceKm: '15', minAmount: 0, urgent: false }), { maxDistanceKm: 15, minAmount: null, acceptUrgent: false, acceptPlanned: true })
+  assert.strictEqual(normalizeMissionPreferences({ maxDistanceKm: 100 }).maxDistanceKm, null, '100 km = sans limite')
+  console.log('  ✔ normalisation (absent = aucun filtre)')
+}
+
+{
+  const prefs = normalizeMissionPreferences({ maxDistanceKm: 8, minAmount: 30000, urgent: false, planned: false })
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 9 }), 'max_distance')
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 5, budget: 20000 }), 'min_amount')
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 5, budget: null }), null, 'budget inconnu jamais exclu')
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 5, urgent: true }), 'urgent_off')
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 5, scheduled: true }), 'planned_off')
+  assert.strictEqual(preferenceRejection(prefs, { distanceKm: 5, budget: 40000 }), null)
+  console.log('  ✔ règles distance / montant / urgentes / planifiées')
+}
+
+{
+  const picky = makeCandidate({ providerId: 'picky', preferences: normalizeMissionPreferences({ minAmount: 50000 }) })
+  const open = makeCandidate({ providerId: 'open' })
+  assert.strictEqual(isEligible(picky, req, config), false, 'budget 25000 < min 50000')
+  assert.strictEqual(isEligible(open, req, config), true)
+  const { ranked, reasons } = filterAndRank([picky, open], req, config)
+  assert.deepStrictEqual(ranked.map(r => r.providerId), ['open'])
+  assert.strictEqual(reasons.picky, 'preferences:min_amount')
+  const near = makeCandidate({ providerId: 'near', distanceKm: 3, preferences: normalizeMissionPreferences({ maxDistanceKm: 4 }) })
+  const tooFar = makeCandidate({ providerId: 'tooFar', distanceKm: 6, preferences: normalizeMissionPreferences({ maxDistanceKm: 4 }) })
+  assert.deepStrictEqual(filterAndRank([near, tooFar], req, config).ranked.map(r => r.providerId), ['near'])
+  const noUrgent = makeCandidate({ providerId: 'noUrgent', preferences: normalizeMissionPreferences({ urgent: false }) })
+  assert.strictEqual(isEligible(noUrgent, { ...req, urgent: true }, config), false)
+  assert.strictEqual(isEligible(noUrgent, req, config), true)
+  console.log('  ✔ diffusion : préférences appliquées par le moteur')
+}
+
+{
+  // Un client qui est aussi prestataire ne reçoit pas sa propre demande
+  const self = makeCandidate({ providerId: req.clientId })
+  assert.strictEqual(isEligible(self, req, config), false)
+  assert.strictEqual(filterAndRank([self], req, config).reasons[req.clientId], 'own_request')
+  console.log('  ✔ le client n\'est jamais notifié de sa propre demande')
 }
 
 console.log('\n✅ Tous les tests du Visibility Engine passent.')

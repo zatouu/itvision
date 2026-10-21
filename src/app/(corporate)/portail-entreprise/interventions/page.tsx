@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { getEnterpriseSession } from '@/lib/enterprise-auth'
+import { getEnterpriseSession, sessionCan } from '@/lib/enterprise-auth'
 import { companyScope } from '@/lib/domain-access'
 import { Wrench, Calendar, MapPin, CheckCircle, Clock, Shield, ChevronRight } from 'lucide-react'
 import Intervention from '@/lib/models/Intervention'
 import RequestInterventionButton from '@/components/client/RequestInterventionButton'
 import InterventionFeedback from '@/components/client/InterventionFeedback'
 import InterventionsView from '@/components/portal/InterventionsView'
+import QuickRating from '@/components/portal/QuickRating'
 import {
   PageHeader,
   BackLink,
@@ -20,7 +21,8 @@ import {
 } from '@/components/portal-ui'
 
 export default async function InterventionsPage() {
-  const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/interventions')
+  const session = await getEnterpriseSession('/portail-entreprise/interventions')
+  const { userId, companyId } = session
 
   const interventions = await Intervention.find({ ...companyScope({ userId, companyId }) })
     .sort({ date: -1, createdAt: -1 })
@@ -28,6 +30,10 @@ export default async function InterventionsPage() {
 
   const upcoming = interventions.filter(i => i.date && new Date(i.date) >= new Date() && !['completed', 'cancelled'].includes(i.status || ''))
   const past = interventions.filter(i => !upcoming.includes(i))
+  const rateSince = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const toRate = sessionCan(session, 'interventions:feedback')
+    ? interventions.filter(i => i.status === 'completed' && !i.clientFeedback?.rating && i.date && new Date(i.date).getTime() >= rateSince).slice(0, 3)
+    : []
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
@@ -37,9 +43,19 @@ export default async function InterventionsPage() {
         title="Fiches d'intervention"
         subtitle={`${interventions.length} intervention${interventions.length > 1 ? 's' : ''}${upcoming.length > 0 ? ` · ${upcoming.length} à venir` : ''}`}
       >
-        <RequestInterventionButton />
+        <RequestInterventionButton canRequest={sessionCan(session, 'maintenance:request')} />
         <BackLink />
       </PageHeader>
+
+      {toRate.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-[11px] font-semibold text-stone-400 uppercase tracking-[0.12em]">Votre avis compte</h2>
+          {toRate.map(i => (
+            <QuickRating key={String(i._id)} interventionId={String(i._id)}
+              heading={`${i.title || 'Intervention'} du ${fmtDate(i.date)} : qu’en avez-vous pensé ?`} />
+          ))}
+        </section>
+      )}
 
       {interventions.length === 0 && (
         <EmptyState

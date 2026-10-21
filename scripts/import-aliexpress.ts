@@ -208,7 +208,7 @@ Commandes: ${item.orders ?? 'n/a'}`
     return { status: 'updated' as const }
   }
 
-  await Product.create(payload)
+  await Product.create({ ...payload, isPublished: false })
   if (options.verbose) {
     console.log(`Produit créé: ${title}`)
   }

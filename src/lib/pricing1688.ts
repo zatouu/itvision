@@ -1,4 +1,4 @@
-import type { IProduct } from './models/Product.validated'
+import type { IProduct } from './models/Product'
 import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingMethodId, type ShippingRate } from './logistics'
 
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_INSURANCE_RATE } from './pricing/constants'
@@ -125,7 +125,9 @@ function calculateClientShippingCost(
 
   let billedAmount = 0
 
-  if (clientRate.billing === 'per_cubic_meter') {
+  if (clientRate.billing === 'flat') {
+    billedAmount = clientRate.rate
+  } else if (clientRate.billing === 'per_cubic_meter') {
     if (typeof volumeM3 === 'number' && volumeM3 > 0) {
       billedAmount = volumeM3 * clientRate.rate
     }

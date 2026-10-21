@@ -1,4 +1,4 @@
-name: Build Expo Apps (EAS)
+name: Build Expo App (EAS)
 
 on:
   push:
@@ -19,8 +19,8 @@ on:
           - production
 
 jobs:
-  build-consumer:
-    name: Build Consumer APK
+  build-app:
+    name: Build Xeuy Bi APK (app unifiée)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,35 +38,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        working-directory: mobile/consumer
+        working-directory: mobile/app
         run: npm ci
 
-      - name: Build Android (Consumer)
-        working-directory: mobile/consumer
-        run: eas build --platform android --profile ${{ github.event.inputs.profile || 'ec2' }} --non-interactive --no-wait
-
-  build-provider:
-    name: Build Provider APK
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Install dependencies
-        working-directory: mobile/provider
-        run: npm ci
-
-      - name: Build Android (Provider)
-        working-directory: mobile/provider
+      - name: Build Android
+        working-directory: mobile/app
         run: eas build --platform android --profile ${{ github.event.inputs.profile || 'ec2' }} --non-interactive --no-wait

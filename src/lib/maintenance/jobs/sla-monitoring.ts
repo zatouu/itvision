@@ -4,6 +4,7 @@ import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import { emailService } from '@/lib/email-service'
 import { addNotification } from '@/lib/notifications-memory'
 import { CORPORATE_BRAND } from '@/lib/branding'
+import { parseResponseHours as parseResponseTime } from '@/lib/portal/contract-sla'
 
 export const JOB_NAME = 'maintenance.sla-monitoring'
 
@@ -11,12 +12,6 @@ interface SLAResult {
   breachesDetected: number
   escalations: number
   errors: string[]
-}
-
-function parseResponseTime(responseTime?: string): number {
-  if (!responseTime) return 24
-  const match = responseTime.match(/(\d+)/)
-  return match ? parseInt(match[1], 10) : 24
 }
 
 /**

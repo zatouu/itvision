@@ -14,6 +14,7 @@ export interface StructuredDataProductInput {
   salePrice?: number
   availability: 'InStock' | 'PreOrder' | 'OutOfStock'
   url: string
+  priceValidUntil?: string
   sku?: string
   brand?: string
   condition?: 'New' | 'Used' | 'Refurbished'
@@ -80,6 +81,7 @@ export function buildProductJsonLd(input: StructuredDataProductInput) {
     salePrice,
     availability,
     url,
+    priceValidUntil,
     sku,
     brand = 'DDM+',
     condition = 'New',
@@ -94,8 +96,10 @@ export function buildProductJsonLd(input: StructuredDataProductInput) {
   const offer = {
     '@type': 'Offer',
     url,
-    priceCurrency: currency,
+    // Google n'accepte que les codes ISO 4217 : le franc CFA d'Afrique de l'Ouest est XOF
+    priceCurrency: /^(F?CFA|F)$/i.test(currency) ? 'XOF' : currency,
     price: String(salePrice ?? price),
+    ...(priceValidUntil ? { priceValidUntil } : {}),
     availability: `https://schema.org/${availability}`,
     itemCondition: `https://schema.org/${condition}Condition`,
     seller: {

@@ -63,7 +63,7 @@ async function updateAdminPassword() {
     
     // D'abord, vérifier si l'utilisateur existe
     const checkUser = await execPromise(
-      'docker exec itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db itvision_db --quiet --eval "db.users.findOne({email: \\"admin@itvision.sn\\"})"'
+      `docker exec itvision-mongodb mongosh -u itvision_app -p "${process.env.DB_PASS ?? ''}" --authenticationDatabase itvision_db itvision_db --quiet --eval "db.users.findOne({email: \\"admin@itvision.sn\\"})"`
     );
     
     // Demander le nouveau mot de passe
@@ -96,7 +96,7 @@ async function updateAdminPassword() {
     
     // Exécuter via docker
     const { stdout, stderr } = await execPromise(
-      `docker exec -i itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db itvision_db < ${tmpFile}`
+      `docker exec -i itvision-mongodb mongosh -u itvision_app -p "${process.env.DB_PASS ?? ''}" --authenticationDatabase itvision_db itvision_db < ${tmpFile}`
     );
     
     console.log(stdout);

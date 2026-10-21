@@ -61,6 +61,6 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
-        env: { DISABLE_RATE_LIMIT: 'true' },
+        env: { DISABLE_RATE_LIMIT: 'true', CRON_SECRET: process.env.CRON_SECRET || 'e2e-cron-secret' },
       },
 })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { verifyAuthServer } from '@/lib/auth-server'
 import { Conversation } from '@/lib/models/Conversation'
-import { Message } from '@/lib/models/Message'
+import { listThreadMessages, markThreadRead, postMessage, toConversationMessageDto, EmptyMessageError } from '@/lib/messaging/thread-messages'
 import { getIO } from '@/lib/socket-emit'
 
 async function requireAuth(request: NextRequest) {
@@ -48,28 +48,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const before = searchParams.get('before')
     const beforeDate = before ? new Date(before) : null
 
-    const query: any = { conversationId }
-    if (beforeDate && !Number.isNaN(beforeDate.getTime())) {
-      query.createdAt = { $lt: beforeDate }
+    const messages = await listThreadMessages('conversation', conversationId, { limit, before: beforeDate })
+
+    // Accusés de lecture : seulement à l'ouverture du fil (pas lors du chargement de l'historique)
+    if (!beforeDate) {
+      const newlyRead = await markThreadRead('conversation', conversationId, currentUserId)
+      const io = getIO()
+      if (newlyRead > 0 && io) {
+        for (const participantId of (conversation.participants || []).map(p => String(p))) {
+          io.to(`user-${participantId}`).emit('conversation-read', { conversationId, readerId: currentUserId, at: new Date() })
+        }
+      }
     }
 
-    const messages = await Message.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
-
-    const ordered = messages.slice().reverse()
-
     return NextResponse.json({
-      messages: ordered.map(m => ({
-        id: String(m._id),
-        conversationId: String(m.conversationId),
-        senderId: String(m.senderId),
-        senderRole: String(m.senderRole || ''),
-        text: String(m.text || ''),
-        createdAt: m.createdAt,
-        updatedAt: m.updatedAt
-      }))
+      messages: messages.map(toConversationMessageDto)
     })
   } catch (error) {
     console.error('Erreur GET messages:', error)
@@ -86,7 +79,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json().catch(() => ({}))
     const text = typeof body.text === 'string' ? body.text.trim() : ''
 
-    if (!text) {
+    if (!text && !Array.isArray(body.attachments)) {
       return NextResponse.json({ error: 'Message vide' }, { status: 400 })
     }
 
@@ -103,27 +96,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
-    const created = await Message.create({
-      conversationId,
+    const created = await postMessage({
+      threadType: 'conversation',
+      threadId: String(conversation._id),
       senderId: currentUserId,
       senderRole: auth.user.role,
-      text
+      text,
+      attachments: body.attachments
     })
 
     conversation.lastMessageAt = created.createdAt
-    conversation.lastMessageText = text.slice(0, 500)
-    conversation.lastMessageSenderId = created.senderId as any
+    conversation.lastMessageText = (created.text || 'Pièce jointe').slice(0, 500)
+    conversation.lastMessageSenderId = currentUserId as any
     conversation.lastMessageId = created._id as any
     await conversation.save()
 
+    const dto = toConversationMessageDto(created)
     const payload = {
       conversationId: String(conversation._id),
       message: {
-        id: String(created._id),
-        senderId: String(created.senderId),
-        senderRole: String(created.senderRole || ''),
-        text: String(created.text || ''),
-        createdAt: created.createdAt
+        id: dto.id,
+        senderId: dto.senderId,
+        senderRole: dto.senderRole,
+        text: dto.text,
+        attachments: dto.attachments,
+        createdAt: dto.createdAt
       },
       timestamp: new Date()
     }
@@ -137,18 +134,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
     }
 
-    return NextResponse.json({
-      message: {
-        id: String(created._id),
-        conversationId: String(created.conversationId),
-        senderId: String(created.senderId),
-        senderRole: String(created.senderRole || ''),
-        text: String(created.text || ''),
-        createdAt: created.createdAt,
-        updatedAt: created.updatedAt
-      }
-    })
+    return NextResponse.json({ message: dto })
   } catch (error) {
+    if (error instanceof EmptyMessageError) {
+      return NextResponse.json({ error: 'Message vide' }, { status: 400 })
+    }
     console.error('Erreur POST message:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
