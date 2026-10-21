@@ -1817,6 +1817,7 @@
     }
   },
   "account": {
+    "switchError": "Mënuñu soppi mode bi, jéemaatal.",
     "switchToClient": "Passer en mode client",
     "switchToProvider": "Passer en mode prestataire",
     "switchToClientSub": "Demander un service pour vous-même",

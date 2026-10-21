@@ -1,6 +1,6 @@
 import { log } from '../src/log'
-import { useEffect, useState, useRef } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState } from 'react-native'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform, AppState, InteractionManager } from 'react-native'
 import { Stack, router, useSegments } from 'expo-router'
 import * as Updates from 'expo-updates'
 import * as Location from 'expo-location'
@@ -191,9 +191,10 @@ function AppLayout(){
       if (gpsInterval.current) { clearInterval(gpsInterval.current); gpsInterval.current = null }
       return
     }
-    sendGps('initial')
+    // Après l'animation de bascule de mode : le relevé GPS ne doit pas la saccader
+    const firstFix = InteractionManager.runAfterInteractions(() => sendGps('initial'))
     gpsInterval.current = setInterval(() => sendGps('interval'), 10_000)
-    return () => { if (gpsInterval.current) clearInterval(gpsInterval.current) }
+    return () => { firstFix.cancel(); if (gpsInterval.current) clearInterval(gpsInterval.current) }
   }, [providerActive])
 
   // Émettre dès le retour au premier plan + quand le provider passe en ligne
@@ -211,12 +212,15 @@ function AppLayout(){
   const providerInClientMode = loggedIn && isProviderCapable() && mode === 'client'
   useEffect(() => {
     if (!providerInClientMode) return
-    sendGps('client-mode', 'offline')
+    const firstFix = InteractionManager.runAfterInteractions(() => sendGps('client-mode', 'offline'))
     const sub = AppState.addEventListener('change', next => {
       if (next === 'active') sendGps('client-mode-active', 'offline')
     })
-    return () => sub.remove()
+    return () => { firstFix.cancel(); sub.remove() }
   }, [providerInClientMode])
+
+  // Options stables : un changement de mode re-rend la racine sans réappliquer les options de tous les écrans
+  const stackOptions = useMemo(() => ({ headerShown: false, contentStyle: { backgroundColor: colors.bg }, navigationBarColor: colors.bg }), [colors.bg])
 
   if (!ready || !themeReady) {
     return (
@@ -232,7 +236,7 @@ function AppLayout(){
   return (
     <SafeAreaProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.bg} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, navigationBarColor: colors.bg }} />
+      <Stack screenOptions={stackOptions} />
       <ToastHost />
       <OptionSheetHost />
     </SafeAreaProvider>

@@ -236,6 +236,8 @@ function OnboardingProvider() {
     if (target === 'kyc') {
       router.push('/kyc' as any)
     } else {
+      // Arrivée sur l'accueil prestataire : on ne garde pas l'accueil client monté en dessous
+      if (target === 'home' && router.canDismiss()) router.dismissAll()
       router.replace((target === 'kit' ? '/starter-kit' : '/pro-home') as any)
     }
   }
