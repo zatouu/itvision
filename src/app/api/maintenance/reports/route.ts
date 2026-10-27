@@ -16,6 +16,7 @@ import Intervention from '@/lib/models/Intervention'
 import '@/lib/models/Client' // registration nécessaire pour .populate('clientId')
 import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import { resolveTechnicianId, isAssignedTechnician } from '@/lib/interventions-access'
+import { projectTechRole } from '@/lib/projects/team'
 import { advanceIntervention } from '@/lib/interventions/lifecycle'
 import { isOwnUploadUrl } from '@/lib/maintenance/report-rules'
 
@@ -458,12 +459,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Si clientId fourni sans projectId, on tente de récupérer un projet actif du client
+    // Client sans projet précisé : en priorité le projet en cours dont le technicien est dans l'équipe,
+    // sinon le projet en cours le plus récent (puis le plus récent tout court) — jamais un projet arbitraire
     if (clientId && !projectId) {
-      const project = await Project.findOne({ clientId: new mongoose.Types.ObjectId(clientId) }).select('_id').lean() as any
-      if (project?._id) {
-        projectId = project._id.toString()
-      }
+      const projects = await Project.find({ clientId: new mongoose.Types.ObjectId(clientId) })
+        .select('_id status leadTechnicianId technicianIds')
+        .sort({ updatedAt: -1 })
+        .limit(30)
+        .lean() as any[]
+      const active = projects.filter(p => !['completed', 'maintenance', 'cancelled'].includes(String(p.status)))
+      const mine = active.filter(p => projectTechRole(p, technicianId))
+      const pick = mine[0] || active[0] || projects[0]
+      if (pick) projectId = String(pick._id)
     }
 
     if (!clientId || !projectId) {

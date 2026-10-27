@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import Technician from '@/lib/models/Technician'
 import User from '@/lib/models/User'
 import InAppNotification from '@/lib/models/InAppNotification'
-import { emitUserNotification } from '@/lib/socket-emit'
+import { emitUserNotification, getIO } from '@/lib/socket-emit'
 import { sendWebPushToUser } from '@/lib/push-web'
 
 interface TechnicianNotifyInput {
@@ -23,6 +23,17 @@ async function technicianUserId(technicianId: unknown): Promise<{ userId: string
   const user = await User.findOne({ email: String(tech.email).toLowerCase() }).select('_id').lean() as any
   if (!user?._id) return null
   return { userId: String(user._id), push: tech.preferences?.notifications?.push !== false }
+}
+
+/** Événement namespacé temps réel vers le compte d'un technicien (room user-*). Jamais bloquant. */
+export async function emitToTechnician(technicianId: unknown, event: 'corp:project:assigned', data: Record<string, unknown>): Promise<void> {
+  try {
+    const target = await technicianUserId(technicianId)
+    const io = getIO()
+    if (target && io) io.to(`user-${target.userId}`).emit(event, { ...data, timestamp: new Date() })
+  } catch (e) {
+    console.error('[emitToTechnician]', e)
+  }
 }
 
 /** Notification persistée (cloche), temps réel et push au technicien. Jamais bloquant. */

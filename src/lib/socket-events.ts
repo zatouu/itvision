@@ -86,6 +86,9 @@ export const NAMESPACED_EVENTS = [
   'corp:ticket:message',    // nouveau message dans un ticket support
   'corp:intervention:updated',
   'corp:quote:updated',
+  'corp:project:updated',   // tâches / jalons / progression d'un projet (room project-*)
+  'corp:project:journal',   // nouvelle entrée au journal de chantier (room project-*)
+  'corp:project:assigned',  // affectation d'un technicien à un projet (room user-*)
 ] as const
 
 /** Domaine d'un événement legacy ; null si inconnu/non déclaré. */

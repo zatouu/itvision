@@ -7,6 +7,7 @@ import {
   CheckCircle2, AlertCircle, Wrench, Shield, Star, TrendingUp,
   Navigation, Settings, User, Key, Upload, Briefcase
 } from 'lucide-react'
+import TechnicianProjects from '@/components/admin/projects/TechnicianProjects'
 
 interface Technician {
   _id: string
@@ -764,6 +765,8 @@ export default function TechnicianManagement() {
                       </div>
                     </div>
                   )}
+
+                  <TechnicianProjects technicianId={selectedTech._id} />
 
                   {/* Certifications */}
                   {selectedTech.certifications && selectedTech.certifications.length > 0 && (

@@ -1,122 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
-import { ADMIN_ROLES, authErrorResponse, requireApiUser } from '@/lib/api-auth'
-import { projectsCollection } from '@/lib/projects/persistence'
+import { ApiAuthError, authErrorResponse } from '@/lib/api-auth'
+import Technician from '@/lib/models/Technician'
+import type { ProjectTask } from '@/lib/projects/workflow'
 import {
-  isTaskPriority,
-  isTaskStatus,
-  tasksProgress,
-  TASK_STATUSES,
-  type ProjectTask,
-} from '@/lib/projects/workflow'
+  assertProjectRead,
+  canAdvanceTask,
+  canManageProject,
+  projectTeamIds,
+  resolveProjectActor,
+  type ProjectAccess,
+} from '@/lib/projects/team'
+import { loadProjectState, MAX_TASKS, mutateProject, ProjectError, sanitizeTask, type JournalAuthor, type ProjectState } from '@/lib/projects/tasks'
+import { notifyTechnician } from '@/lib/tech/notify-technician'
 
 export const dynamic = 'force-dynamic'
 
-const MAX_TASKS = 300
+/** Champs qu'un membre (non responsable) peut changer sur sa tâche : il la fait avancer, il ne la réorganise pas. */
+const MEMBER_FIELDS = ['status', 'order'] as const
 
-function toDate(v: unknown): Date | null {
-  if (!v) return null
-  const d = new Date(String(v))
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
-function sanitize(raw: any, base?: ProjectTask): ProjectTask {
-  const now = new Date()
-  const status = isTaskStatus(raw?.status) ? raw.status : base?.status || 'todo'
-  return {
-    id: base?.id || new mongoose.Types.ObjectId().toString(),
-    title: String(raw?.title ?? base?.title ?? '').trim().slice(0, 200),
-    description: raw?.description !== undefined ? String(raw.description || '').slice(0, 4000) : base?.description,
-    status,
-    priority: isTaskPriority(raw?.priority) ? raw.priority : base?.priority || 'medium',
-    assignee: raw?.assignee !== undefined ? String(raw.assignee || '').trim().slice(0, 120) || undefined : base?.assignee,
-    dueDate: raw?.dueDate !== undefined ? toDate(raw.dueDate) : base?.dueDate ?? null,
-    milestoneId: raw?.milestoneId !== undefined ? String(raw.milestoneId || '') || undefined : base?.milestoneId,
-    order: Number.isFinite(Number(raw?.order)) ? Number(raw.order) : base?.order ?? 0,
-    createdAt: base?.createdAt || now,
-    updatedAt: now,
-    completedAt: status === 'done' ? (base?.status === 'done' ? base.completedAt || now : now) : null,
-  }
-}
-
-async function loadTasks(id: string) {
-  const project = await projectsCollection().findOne({ _id: new mongoose.Types.ObjectId(id) }, { projection: { tasks: 1, tasksVersion: 1 } }) as any
-  if (!project) return null
-  return { tasks: (project.tasks || []) as ProjectTask[], version: Number(project.tasksVersion || 0) }
-}
-
-class TaskError extends Error {
-  constructor(message: string, readonly status: number) { super(message) }
-}
-
-/**
- * Applique une modification au tableau avec verrou optimiste (tasksVersion) : en cas d'écriture
- * concurrente (deux déplacements rapprochés, deux admins), la modification est rejouée sur l'état frais.
- */
-async function mutateTasks(id: string, change: (tasks: ProjectTask[]) => ProjectTask[]) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const current = await loadTasks(id)
-    if (!current) throw new TaskError('Projet introuvable', 404)
-    const ordered = [...change(current.tasks)].sort((a, b) => TASK_STATUSES.indexOf(a.status) - TASK_STATUSES.indexOf(b.status) || a.order - b.order)
-    const progress = tasksProgress(ordered)
-    const res = await projectsCollection().updateOne(
-      { _id: new mongoose.Types.ObjectId(id), ...(current.version ? { tasksVersion: current.version } : { tasksVersion: { $exists: false } }) },
-      {
-        $set: {
-          tasks: ordered,
-          tasksVersion: current.version + 1,
-          'metrics.tasksTotal': ordered.length,
-          'metrics.tasksCompleted': ordered.filter(t => t.status === 'done').length,
-          ...(progress !== null ? { progress } : {}),
-          updatedAt: new Date(),
-        },
-      }
-    )
-    if (res.matchedCount) return { tasks: ordered, progress }
-  }
-  throw new TaskError('Le tableau a été modifié simultanément, rechargez', 409)
-}
-
-async function guard(request: NextRequest, params: Promise<{ id: string }>, roles: readonly string[]) {
-  await requireApiUser(request, roles)
+async function guard(request: NextRequest, params: Promise<{ id: string }>) {
+  const actor = await resolveProjectActor(request)
   const { id } = await params
-  if (!mongoose.isValidObjectId(id)) throw new TaskError('Projet invalide', 400)
+  if (!mongoose.isValidObjectId(id)) throw new ProjectError('Projet invalide', 400)
   await connectMongoose()
-  return id
+  const state = await loadProjectState(id)
+  if (!state) throw new ProjectError('Projet introuvable', 404)
+  return { id, state, access: assertProjectRead(actor, state) }
+}
+
+function requireWrite(access: ProjectAccess) {
+  if (access.actor.kind === 'reader') throw new ApiAuthError('Lecture seule', 403)
+}
+
+function requireManage(access: ProjectAccess) {
+  if (!canManageProject(access)) throw new ApiAuthError('Réservé à l’administrateur ou au responsable du projet', 403)
+}
+
+async function teamNames(state: Pick<ProjectState, 'leadTechnicianId' | 'technicianIds'>) {
+  const ids = projectTeamIds(state).filter(x => mongoose.isValidObjectId(x))
+  const techs = ids.length ? await Technician.find({ _id: { $in: ids } }).select('name').lean() as any[] : []
+  return new Map<string, string>(techs.map(t => [String(t._id), t.name]))
+}
+
+function authorOf(access: ProjectAccess): JournalAuthor {
+  const { actor } = access
+  return actor.kind === 'technician'
+    ? { name: actor.name, role: 'TECHNICIAN', technicianId: actor.techId }
+    : { name: actor.name, role: 'ADMIN' }
+}
+
+/** Prévient le technicien à qui l'on vient d'attribuer une tâche (sauf s'il se l'attribue lui-même). */
+function notifyAssignments(id: string, projectName: string | undefined, before: ProjectTask[], after: ProjectTask[], access: ProjectAccess) {
+  const self = access.actor.kind === 'technician' ? access.actor.techId : ''
+  const prev = new Map(before.map(t => [t.id, t.assigneeId]))
+  for (const t of after) {
+    if (!t.assigneeId || t.assigneeId === self || prev.get(t.id) === t.assigneeId) continue
+    void notifyTechnician(t.assigneeId, {
+      title: `Nouvelle tâche : ${t.title}`,
+      message: `Projet ${projectName || ''}`.trim(),
+      actionUrl: `/tech-interface?tab=projets&projet=${id}`,
+      metadata: { projectId: id, taskId: t.id },
+    })
+  }
 }
 
 function fail(error: any, fallback: string) {
   const authRes = authErrorResponse(error)
   if (authRes) return authRes
-  if (error instanceof TaskError) return NextResponse.json({ error: error.message }, { status: error.status })
+  if (error instanceof ProjectError) return NextResponse.json({ error: error.message }, { status: error.status })
   console.error(fallback, error)
   return NextResponse.json({ error: fallback }, { status: 500 })
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = await guard(request, params, [...ADMIN_ROLES, 'ACCOUNTANT', 'TECHNICIAN'])
-    const current = await loadTasks(id)
-    if (!current) throw new TaskError('Projet introuvable', 404)
-    return NextResponse.json({ success: true, tasks: current.tasks })
+    const { state } = await guard(request, params)
+    return NextResponse.json({ success: true, tasks: state.tasks })
   } catch (error) {
     return fail(error, 'Erreur de chargement des tâches')
   }
 }
 
-/** POST { title, description?, status?, priority?, assignee?, dueDate?, milestoneId? } */
+/** POST { title, description?, status?, priority?, assigneeId?, dueDate?, milestoneId? } — admin ou responsable */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = await guard(request, params, ADMIN_ROLES)
+    const { id, state, access } = await guard(request, params)
+    requireManage(access)
     const body = await request.json().catch(() => ({}))
-    const task = sanitize(body)
-    if (!task.title) throw new TaskError('Titre requis', 400)
-    const saved = await mutateTasks(id, tasks => {
-      if (tasks.length >= MAX_TASKS) throw new TaskError(`Limite de ${MAX_TASKS} tâches atteinte`, 409)
-      task.order = Math.max(0, ...tasks.filter(t => t.status === task.status).map(t => t.order + 1))
-      return [...tasks, task]
-    })
+    const team = await teamNames(state)
+    const task = sanitizeTask(body, undefined, team)
+    if (!task.title) throw new ProjectError('Titre requis', 400)
+    const saved = await mutateProject(id, s => {
+      if (s.tasks.length >= MAX_TASKS) throw new ProjectError(`Limite de ${MAX_TASKS} tâches atteinte`, 409)
+      task.order = Math.max(0, ...s.tasks.filter(t => t.status === task.status).map(t => t.order + 1))
+      return { tasks: [...s.tasks, task] }
+    }, authorOf(access))
+    notifyAssignments(id, state.name, state.tasks, saved.tasks, access)
     return NextResponse.json({ success: true, task, ...saved }, { status: 201 })
   } catch (error) {
     return fail(error, 'Création de la tâche impossible')
@@ -126,42 +107,68 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 /**
  * PATCH { taskId, ...champs } — modifie une tâche
  * PATCH { moves: [{ id, status, order }] } — déplacement Kanban (colonnes et ordre)
+ *
+ * Membre de l'équipe : uniquement statut/ordre de ses tâches ; une tâche non attribuée qu'il fait avancer lui revient.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = await guard(request, params, ADMIN_ROLES)
+    const { id, state, access } = await guard(request, params)
+    requireWrite(access)
+    const manage = canManageProject(access)
+    const selfId = access.actor.kind === 'technician' ? access.actor.techId : undefined
     const body = await request.json().catch(() => ({}))
-    const saved = await mutateTasks(id, tasks => {
+    const team = await teamNames(state)
+
+    const advance = (t: ProjectTask, patch: Record<string, unknown>) => {
+      if (!canAdvanceTask(access, t)) throw new ProjectError(`« ${t.title} » est attribuée à un autre technicien`, 403)
+      const allowed = manage ? patch : Object.fromEntries(MEMBER_FIELDS.filter(k => patch[k] !== undefined).map(k => [k, patch[k]]))
+      const next = sanitizeTask(allowed, t, team)
+      // Un membre qui fait avancer une tâche libre la prend en charge
+      if (!manage && selfId && !t.assigneeId && next.status !== t.status) {
+        next.assigneeId = selfId
+        next.assignee = team.get(selfId)
+      }
+      return next
+    }
+
+    const saved = await mutateProject(id, s => {
       if (Array.isArray(body?.moves)) {
         const moves = new Map<string, { status?: string; order?: number }>(
           body.moves.slice(0, MAX_TASKS).map((m: any) => [String(m?.id || ''), m])
         )
-        return tasks.map(t => {
-          const m = moves.get(t.id)
-          return m ? sanitize({ status: m.status, order: m.order }, t) : t
-        })
+        return {
+          tasks: s.tasks.map(t => {
+            const m = moves.get(t.id)
+            if (!m) return t
+            // Réordonner une colonne touche les tâches voisines : seul le changement de statut est contrôlé
+            if (!manage && (!m.status || m.status === t.status)) return { ...t, order: Number(m.order) || 0 }
+            return advance(t, { status: m.status, order: m.order })
+          }),
+        }
       }
       const taskId = String(body?.taskId || '')
-      const current = tasks.find(t => t.id === taskId)
-      if (!current) throw new TaskError('Tâche introuvable', 404)
-      const updated = sanitize(body, current)
-      if (!updated.title) throw new TaskError('Titre requis', 400)
-      return tasks.map(t => (t.id === taskId ? updated : t))
-    })
+      const current = s.tasks.find(t => t.id === taskId)
+      if (!current) throw new ProjectError('Tâche introuvable', 404)
+      const updated = advance(current, body)
+      if (!updated.title) throw new ProjectError('Titre requis', 400)
+      return { tasks: s.tasks.map(t => (t.id === taskId ? updated : t)) }
+    }, authorOf(access))
+    notifyAssignments(id, state.name, state.tasks, saved.tasks, access)
     return NextResponse.json({ success: true, ...saved })
   } catch (error) {
     return fail(error, 'Mise à jour de la tâche impossible')
   }
 }
 
-/** DELETE ?taskId=… */
+/** DELETE ?taskId=… — admin ou responsable */
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = await guard(request, params, ADMIN_ROLES)
+    const { id, access } = await guard(request, params)
+    requireManage(access)
     const taskId = new URL(request.url).searchParams.get('taskId') || ''
-    const saved = await mutateTasks(id, tasks => {
-      if (!tasks.some(t => t.id === taskId)) throw new TaskError('Tâche introuvable', 404)
-      return tasks.filter(t => t.id !== taskId)
+    const saved = await mutateProject(id, s => {
+      if (!s.tasks.some(t => t.id === taskId)) throw new ProjectError('Tâche introuvable', 404)
+      return { tasks: s.tasks.filter(t => t.id !== taskId) }
     })
     return NextResponse.json({ success: true, ...saved })
   } catch (error) {

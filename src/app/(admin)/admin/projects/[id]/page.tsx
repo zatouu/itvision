@@ -9,7 +9,7 @@ import {
   FolderKanban, MessageSquare, Flag, Layers, BarChart3, Zap, Trash2,
   Plus, X, ExternalLink, Download, Lock, Unlock, Play, Check,
   ChevronRight, Calendar, MapPin, Phone, Mail, Building2, User,
-  DollarSign, Package, Wrench, Eye, ClipboardCheck
+  DollarSign, Package, Wrench, Eye, ClipboardCheck, NotebookPen
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import WorkflowMiniPanel from '@/components/WorkflowMiniPanel'
@@ -17,10 +17,12 @@ import MilestoneDetailView from '@/components/admin/MilestoneDetailView'
 import ProjectPipeline from '@/components/admin/projects/ProjectPipeline'
 import ProjectTaskBoard from '@/components/admin/projects/ProjectTaskBoard'
 import ProjectFinancePanel from '@/components/admin/projects/ProjectFinancePanel'
+import ProjectTeamCard from '@/components/admin/projects/ProjectTeamCard'
+import ProjectJournal from '@/components/projects/ProjectJournal'
 import FileDropZone from '@/components/ui/FileDropZone'
 import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
-import { allowedTransitions, normalizeProjectStatus, PROJECT_STATUSES, PROJECT_STATUS_META } from '@/lib/projects/workflow'
+import { allowedTransitions, normalizeProjectStatus, PROJECT_STATUSES, PROJECT_STATUS_META, type ProjectTask, type ProjectTeamMember } from '@/lib/projects/workflow'
 import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 interface Project {
@@ -39,7 +41,6 @@ interface Project {
   clientSnapshot?: { company: string; contact: string; phone: string; email: string }
   value?: number
   margin?: number
-  assignedTo?: string[]
   milestones?: Array<{
     id: string; name: string; status: 'pending' | 'in_progress' | 'completed' | 'delayed'
     dueDate?: string; description?: string; completedDate?: string
@@ -74,11 +75,12 @@ interface ProjectImage {
   _id: string; filename: string; url: string; title?: string; description?: string; isMain: boolean; order: number; createdAt: string; clientVisible?: boolean
 }
 
-type TabKey = 'overview' | 'tasks' | 'finance' | 'edit' | 'milestones' | 'notes' | 'expenses' | 'documents' | 'photos' | 'timeline' | 'workflow' | 'cashflow'
+type TabKey = 'overview' | 'tasks' | 'journal' | 'finance' | 'edit' | 'milestones' | 'notes' | 'expenses' | 'documents' | 'photos' | 'timeline' | 'workflow' | 'cashflow'
 
 const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: FolderKanban },
   { key: 'tasks', label: 'Tâches', icon: Layers },
+  { key: 'journal', label: 'Journal de chantier', icon: NotebookPen },
   { key: 'finance', label: 'Devis & factures', icon: DollarSign },
   { key: 'edit', label: 'Édition', icon: Edit3 },
   { key: 'milestones', label: 'Jalons', icon: Flag },
@@ -137,6 +139,33 @@ export default function ProjectDetailPage() {
   const [workflowKey, setWorkflowKey] = useState(0)
   const [uploadingDocs, setUploadingDocs] = useState(false)
 
+  // Équipe terrain, tâches partagées entre le Kanban et le journal de chantier
+  const [team, setTeam] = useState<ProjectTeamMember[]>([])
+  const [tasks, setTasks] = useState<ProjectTask[]>([])
+  const [tasksKey, setTasksKey] = useState(0)
+
+  // Les jalons suivent leurs tâches côté serveur : on les relit pour que l'onglet Édition n'écrase pas l'état réel
+  const syncMilestones = async () => {
+    try {
+      const res = await fetch(`/api/projects?id=${id}`, { credentials: 'include' })
+      const fresh = ((await readJsonResponse(res)).projects || []).find((x: any) => String(x._id || x.id) === id)
+      if (!fresh) return
+      setProject(prev => prev ? { ...prev, milestones: fresh.milestones, progress: fresh.progress } : prev)
+      setEditing(prev => ({ ...prev, milestones: fresh.milestones, progress: fresh.progress }))
+    } catch { /* l'affichage reste celui du dernier chargement */ }
+  }
+
+  useEffect(() => {
+    fetch(`/api/projects/${id}/team`, { credentials: 'include' })
+      .then(readJsonResponse)
+      .then(d => setTeam(d.team || []))
+      .catch(() => {})
+    fetch(`/api/projects/${id}/tasks`, { credentials: 'include' })
+      .then(readJsonResponse)
+      .then(d => setTasks(d.tasks || []))
+      .catch(() => {})
+  }, [id])
+
   const loadProject = async () => {
     setLoading(true)
     try {
@@ -188,8 +217,7 @@ export default function ProjectDetailPage() {
           value: editing.value,
           serviceType: editing.serviceType,
           milestones: editing.milestones,
-          clientAccess: editing.clientAccess,
-          assignedTo: editing.assignedTo
+          clientAccess: editing.clientAccess
         })
       })
       if (!res.ok) {
@@ -602,22 +630,7 @@ export default function ProjectDetailPage() {
 
               {/* Sidebar */}
               <div className="space-y-6">
-                <SectionCard title="Équipe" icon={User}>
-                  {(project.assignedTo || []).length === 0 ? (
-                    <p className="text-sm text-stone-500">Aucun technicien assigné</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {project.assignedTo!.map((t, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-                            {t.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="text-stone-700">{t}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </SectionCard>
+                <ProjectTeamCard projectId={project._id} team={team} onChanged={t => { setTeam(t); setTasksKey(k => k + 1) }} />
 
                 <SectionCard title="Métriques" icon={BarChart3}>
                   <div className="space-y-3 text-sm">
@@ -640,14 +653,35 @@ export default function ProjectDetailPage() {
           <ProjectTaskBoard
             projectId={project._id}
             milestones={(project.milestones || []).map(m => ({ id: m.id, name: m.name }))}
-            team={project.assignedTo || []}
+            team={team}
+            onTasks={setTasks}
+            refreshKey={tasksKey}
             onProgress={p => {
               if (p === null) return
               // L'onglet Édition renvoie la progression : la garder alignée sur les tâches
               setProject(prev => prev ? { ...prev, progress: p } : prev)
               setEditing(prev => ({ ...prev, progress: p }))
+              void syncMilestones()
             }}
           />
+        )}
+
+        {/* JOURNAL DE CHANTIER */}
+        {activeTab === 'journal' && (
+          <div className="mx-auto max-w-3xl">
+            <ProjectJournal
+              projectId={project._id}
+              mode="admin"
+              tasks={tasks}
+              team={team}
+              canManage
+              onMutated={m => {
+                if (m.tasks) setTasks(m.tasks)
+                setTasksKey(k => k + 1)
+                void syncMilestones()
+              }}
+            />
+          </div>
         )}
 
         {/* DEVIS & FACTURES */}

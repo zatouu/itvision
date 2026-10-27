@@ -108,6 +108,7 @@ const AUTH_HELPERS = [
   'withAuth', 'authenticateRequest', 'getAuthUser', 'getAuthenticatedUser',
   'getCurrentUser', 'verifyToken', 'requireProvider', 'requireStaff',
   'jwtVerify', 'requireValidSession', 'getToken', 'verifySession',
+  'resolveProjectActor', // src/lib/projects/team.ts → requireApiUser + rattachement fiche technicien
 ]
 // Fichiers « alias » (export { X } from '...') : la garde vit dans la cible.
 const ALIAS_ONLY = /^\s*(export\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?\s*)+$/

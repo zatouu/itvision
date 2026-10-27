@@ -5,18 +5,21 @@ import Project, { IProject } from '@/lib/models/Project'
 import Ticket from '@/lib/models/Ticket'
 import User, { IUser } from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
+import { resolveTechnicianId } from '@/lib/interventions-access'
+import { loadProjectTeam, projectTechRole } from '@/lib/projects/team'
 
 type DecodedToken = {
   userId: string
   role: string
+  email?: string
 }
 
 async function extractToken(request: NextRequest): Promise<DecodedToken> {
-  const { userId, role } = await requireAuth(request)
+  const { userId, role, email } = await requireAuth(request)
   if (!userId) {
     throw new Error('Token invalide')
   }
-  return { userId, role }
+  return { userId, role, email }
 }
 
 export async function GET(request: NextRequest, context: any) {
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest, context: any) {
     await connectMongoose()
 
     const params = await context.params
-    const { userId, role } = await extractToken(request)
+    const { userId, role, email } = await extractToken(request)
     const projectId = params.id
 
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
@@ -42,18 +45,8 @@ export async function GET(request: NextRequest, context: any) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
-    if (role === 'TECHNICIAN') {
-      const assigned = Array.isArray(project.assignedTo) ? project.assignedTo : []
-      const matchesAssignment = assigned.some((value) => {
-        if (!value) return false
-        if (value === userId) return true
-        if (mongoose.Types.ObjectId.isValid(value) && value === userId) return true
-        return false
-      })
-
-      if (!matchesAssignment) {
-        return NextResponse.json({ error: 'Accès réservé aux techniciens assignés' }, { status: 403 })
-      }
+    if (role === 'TECHNICIAN' && !projectTechRole(project, await resolveTechnicianId(email))) {
+      return NextResponse.json({ error: 'Accès réservé aux techniciens assignés' }, { status: 403 })
     }
 
     const timeline = (project.timeline || [])
@@ -77,10 +70,7 @@ export async function GET(request: NextRequest, context: any) {
     const ticketQuery = { projectId: project._id }
     const tickets = await Ticket.find(ticketQuery).sort({ createdAt: -1 }).limit(20).lean()
 
-    const assignedTechnicianIds = (project.assignedTo || []).filter((value) => mongoose.Types.ObjectId.isValid(value)) as string[]
-    const assignedTechnicians = assignedTechnicianIds.length > 0
-      ? await User.find({ _id: { $in: assignedTechnicianIds } }, { passwordHash: 0 }).lean()
-      : []
+    const assignedTechnicians = await loadProjectTeam(project)
 
     let clientProfile = project.clientSnapshot
     if (!clientProfile) {
@@ -142,8 +132,8 @@ export async function GET(request: NextRequest, context: any) {
         sla: ticket.sla
       })),
       assignedTechnicians: assignedTechnicians.map((tech) => ({
-        id: String(tech._id),
-        name: tech.name || tech.username || tech.email,
+        id: tech.id,
+        name: tech.name,
         email: tech.email,
         phone: tech.phone,
         role: tech.role

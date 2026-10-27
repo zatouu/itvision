@@ -58,6 +58,8 @@
     "migrate:market-pricing:dry": "tsx scripts/migrate-shipping-costs.ts --dry-run",
     "migrate:projects-workflow": "tsx scripts/migrate-projects-workflow.ts --apply",
     "migrate:projects-workflow:dry": "tsx scripts/migrate-projects-workflow.ts --dry-run",
+    "migrate:project-team": "tsx scripts/migrate-project-team.ts --apply",
+    "migrate:project-team:dry": "tsx scripts/migrate-project-team.ts --dry-run",
     "migrate:order-domain": "tsx scripts/migrate-order-domain.ts",
     "migrate:order-domain:dry": "tsx scripts/migrate-order-domain.ts --dry-run",
     "migrate:user-profiles": "tsx scripts/migrate-user-profiles.ts",

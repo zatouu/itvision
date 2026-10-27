@@ -53,6 +53,29 @@ Le filet corporate vit dans `tests/corporate/` :
 portail → `/api/internal/market/sourcing-request` → `AgentJob sourcing_request`).
 Le serveur de test reçoit `CRON_SECRET=e2e-cron-secret` via `playwright.config.ts`
 (indispensable pour les appels `/api/internal/*`).
+`project-team` couvre l'équipe terrain des projets (affectation, portail tech, droits
+membre/responsable/admin, journal de chantier, publication client).
+
+### Poste Windows avec `node_modules` Linux (D:\itvision)
+
+Les `node_modules` sont installés pour Linux (esbuild `linux-x64`) : `npm run test:*` /
+`tsx` échouent sous Windows. Lancer les scripts via WSL (distribution par défaut, Node 20) :
+`wsl -e sh -c "cd /mnt/d/itvision && node node_modules/tsx/dist/cli.mjs scripts/validate-domains.ts"`.
+`tsc` marche sous Windows : `node node_modules/typescript/bin/tsc --noEmit`.
+E2E : démarrer `next dev` dans WSL (`MONGODB_URI=mongodb://127.0.0.1:27018/itvision`, ~75 s
+de démarrage, compilation à froid lente sur `/mnt/d`) puis lancer Playwright avec `--timeout=180000`.
+`tests/maintenance/flow.spec.ts` échoue déjà sur HEAD (texte « Portail Technicien » absent du
+portail tech → redémarrage du worker → perte de `interventionId` en cascade).
+
+## Projets corporate — équipe terrain
+
+Règle unique : `src/lib/projects/team.ts` (`resolveProjectActor`, `assertProjectRead`,
+`canManageProject`, `canAdvanceTask`). Admin = tous les droits, avec ou sans équipe (il peut
+consigner au journal pour le compte d'un technicien). Responsable (`leadTechnicianId`) = organise
+toutes les tâches. Membre (`technicianIds`) = fait avancer ses tâches et les tâches libres (qu'il prend).
+Toute écriture tâches/jalons/journal passe par `mutateProject()` (`src/lib/projects/tasks.ts`,
+verrou optimiste `tasksVersion`, progression + jalons recalculés). `Project.assignedTo` est
+déprécié (`npm run migrate:project-team:dry`).
 
 ## Migrations de données
 
@@ -61,6 +84,7 @@ Toujours additives et idempotentes, avec un mode `--dry-run` :
 ```bash
 npm run migrate:ticket-company:dry   # Ticket.clientCompanyId (tickets portail legacy)
 npm run migrate:user-profiles:dry    # profils par domaine
+npm run migrate:project-team:dry     # Project.assignedTo → technicianIds / tasks.assigneeId
 ```
 
 ## IA — gateway unique et agents corporate

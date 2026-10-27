@@ -10,14 +10,15 @@ import {
   TASK_STATUSES,
   TASK_STATUS_META,
   type ProjectTask,
+  type ProjectTeamMember,
   type TaskStatus,
 } from '@/lib/projects/workflow'
 
 interface Milestone { id: string; name: string }
 
-type Draft = { taskId?: string; title: string; description: string; status: TaskStatus; priority: ProjectTask['priority']; assignee: string; dueDate: string; milestoneId: string }
+type Draft = { taskId?: string; title: string; description: string; status: TaskStatus; priority: ProjectTask['priority']; assigneeId: string; legacyAssignee?: string; dueDate: string; milestoneId: string }
 
-const emptyDraft = (status: TaskStatus = 'todo'): Draft => ({ title: '', description: '', status, priority: 'medium', assignee: '', dueDate: '', milestoneId: '' })
+const emptyDraft = (status: TaskStatus = 'todo'): Draft => ({ title: '', description: '', status, priority: 'medium', assigneeId: '', dueDate: '', milestoneId: '' })
 const dateInput = (d?: string | Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : '')
 
 export default function ProjectTaskBoard({
@@ -25,11 +26,17 @@ export default function ProjectTaskBoard({
   milestones = [],
   team = [],
   onProgress,
+  onTasks,
+  refreshKey = 0,
 }: {
   projectId: string
   milestones?: Milestone[]
-  team?: string[]
+  team?: ProjectTeamMember[]
   onProgress?: (progress: number | null) => void
+  /** Tâches à jour (partagées avec le journal de chantier). */
+  onTasks?: (tasks: ProjectTask[]) => void
+  /** Rechargement demandé de l'extérieur (journal, autre écran). */
+  refreshKey?: number
 }) {
   const toast = useToastContext()
   const [tasks, setTasks] = useState<ProjectTask[]>([])
@@ -44,13 +51,13 @@ export default function ProjectTaskBoard({
     try {
       const res = await fetch(`/api/projects/${projectId}/tasks`, { credentials: 'include', cache: 'no-store' })
       const data = await readJsonResponse(res)
-      if (res.ok && data.success) setTasks(data.tasks || [])
+      if (res.ok && data.success) { setTasks(data.tasks || []); onTasks?.(data.tasks || []) }
     } finally {
       setLoading(false)
     }
-  }, [projectId])
+  }, [projectId, onTasks])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshKey])
 
   const call = async (method: 'POST' | 'PATCH' | 'DELETE', body?: unknown, query = '') => {
     const res = await fetch(`/api/projects/${projectId}/tasks${query}`, {
@@ -62,6 +69,7 @@ export default function ProjectTaskBoard({
     const data = await readJsonResponse(res)
     if (!res.ok || !data.success) throw new Error(apiErrorMessage(res, data, 'Opération impossible'))
     setTasks(data.tasks || [])
+    onTasks?.(data.tasks || [])
     onProgress?.(data.progress ?? null)
     return data
   }
@@ -109,7 +117,8 @@ export default function ProjectTaskBoard({
         description: draft.description,
         status: draft.status,
         priority: draft.priority,
-        assignee: draft.assignee,
+        // Sans choix dans l'équipe, un nom saisi avant la mise en place des équipes reste tel quel
+        ...(draft.assigneeId || !draft.legacyAssignee ? { assigneeId: draft.assigneeId } : {}),
         dueDate: draft.dueDate || null,
         milestoneId: draft.milestoneId,
       }
@@ -183,7 +192,7 @@ export default function ProjectTaskBoard({
                   >
                     <div className="flex items-start gap-1.5">
                       <GripVertical className="mt-0.5 hidden h-4 w-4 flex-shrink-0 cursor-grab text-stone-300 md:block" aria-hidden="true" />
-                      <button type="button" onClick={() => setDraft({ taskId: task.id, title: task.title, description: task.description || '', status: task.status, priority: task.priority, assignee: task.assignee || '', dueDate: dateInput(task.dueDate), milestoneId: task.milestoneId || '' })}
+                      <button type="button" onClick={() => setDraft({ taskId: task.id, title: task.title, description: task.description || '', status: task.status, priority: task.priority, assigneeId: task.assigneeId || '', legacyAssignee: task.assigneeId ? undefined : task.assignee, dueDate: dateInput(task.dueDate), milestoneId: task.milestoneId || '' })}
                         className="min-w-0 flex-1 text-left text-sm font-medium text-stone-900 hover:text-blue-700">
                         {task.title}
                       </button>
@@ -241,9 +250,11 @@ export default function ProjectTaskBoard({
                     {TASK_PRIORITIES.map(p => <option key={p} value={p}>{TASK_PRIORITY_META[p].label}</option>)}
                   </select>
                 </label>
-                <label className="block text-xs font-medium text-stone-600">Responsable
-                  <input list="project-team" value={draft.assignee} onChange={e => setDraft({ ...draft, assignee: e.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm" placeholder="Nom" />
-                  <datalist id="project-team">{team.map(t => <option key={t} value={t} />)}</datalist>
+                <label className="block text-xs font-medium text-stone-600">Attribuée à
+                  <select value={draft.assigneeId} onChange={e => setDraft({ ...draft, assigneeId: e.target.value, legacyAssignee: undefined })} className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm">
+                    <option value="">{draft.legacyAssignee ? `${draft.legacyAssignee} (saisie libre)` : team.length ? 'Personne (libre pour l’équipe)' : 'Admin (pas d’équipe)'}</option>
+                    {team.map(m => <option key={m.id} value={m.id}>{m.name}{m.role === 'lead' ? ' (responsable)' : ''}</option>)}
+                  </select>
                 </label>
                 <label className="block text-xs font-medium text-stone-600">Échéance
                   <input type="date" value={draft.dueDate} onChange={e => setDraft({ ...draft, dueDate: e.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm" />

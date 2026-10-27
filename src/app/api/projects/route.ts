@@ -17,6 +17,8 @@ import {
 } from '@/lib/projects/workflow'
 import { MIGRATION_REQUIRED_MESSAGE, updateProjectFields } from '@/lib/projects/persistence'
 import { computeProjectFinance, syncProjectFinance } from '@/lib/finance/project-finance'
+import { resolveTechnicianId } from '@/lib/interventions-access'
+import { technicianProjectFilter } from '@/lib/projects/team'
 
 const verifyToken = (request: NextRequest) => requireApiUser(request)
 
@@ -69,7 +71,7 @@ function normalizeValueForDb(value: any, fallback: any = 0): number {
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    const { userId, role } = await verifyToken(request)
+    const { userId, role, email } = await verifyToken(request)
     const { searchParams } = new URL(request.url)
     
     const status = searchParams.get('status')
@@ -79,17 +81,23 @@ export async function GET(request: NextRequest) {
     // Construction du filtre selon le rôle
     const where: any = {}
     
+    const query: any = {}
     if (role === 'CLIENT') {
       // Les clients ne voient que leurs projets
       where.clientId = userId
+    } else if (role === 'TECHNICIAN') {
+      // Un technicien ne voit que les projets de son équipe
+      const techId = await resolveTechnicianId(email)
+      if (!techId) return NextResponse.json({ success: true, projects: [], pagination: { total: 0, page: 1, limit, hasMore: false } })
+      Object.assign(query, technicianProjectFilter(techId))
+    } else if (isAdminRole(role) && mongoose.isValidObjectId(searchParams.get('technicianId') || '')) {
+      Object.assign(query, technicianProjectFilter(String(searchParams.get('technicianId'))))
     }
-    // Les admins et techniciens voient tous les projets
     
     const statusQuery = buildStatusQuery(status)
     if (statusQuery) where.status = statusQuery
     
     // Récupération des projets (Mongoose)
-    const query: any = {}
     if (where.clientId) query.clientId = where.clientId
     if (where.status) query.status = where.status
     const idParam = searchParams.get('id')

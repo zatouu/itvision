@@ -34,7 +34,11 @@ export interface IProject extends Document {
       availability?: string
     }>
   }
+  /** @deprecated noms libres / User._id mélangés — remplacé par leadTechnicianId + technicianIds (migrate:project-team) */
   assignedTo?: string[]
+  // Équipe terrain (fiches Technician) : un responsable + des membres. Facultative : l'admin pilote seul s'il le faut.
+  leadTechnicianId?: mongoose.Types.ObjectId | null
+  technicianIds?: mongoose.Types.ObjectId[]
   value?: number
   margin?: number
   milestones?: Array<{
@@ -128,6 +132,7 @@ export interface IProject extends Document {
     status: 'todo' | 'in_progress' | 'review' | 'done'
     priority: 'low' | 'medium' | 'high'
     assignee?: string
+    assigneeId?: string
     dueDate?: Date | null
     milestoneId?: string
     order: number
@@ -135,6 +140,24 @@ export interface IProject extends Document {
     updatedAt?: Date
     completedAt?: Date | null
   }>
+  // Journal de chantier : ce que l'équipe (ou l'admin pour son compte) consigne (cf. src/lib/projects/journal.ts)
+  journal?: Array<{
+    id: string
+    date: Date
+    kind: 'progress' | 'blocker' | 'note' | 'task' | 'report'
+    message: string
+    technicianId?: string
+    authorName: string
+    authorRole: 'ADMIN' | 'TECHNICIAN'
+    onBehalfOf?: string
+    taskIds?: string[]
+    photos?: string[]
+    hours?: number
+    clientVisible: boolean
+    resolvedAt?: Date | null
+    reportId?: string
+  }>
+  lastActivityAt?: Date
   clientAccess?: boolean
   reception?: {
     requestedAt?: Date
@@ -195,6 +218,8 @@ const ProjectSchema = new Schema<IProject>({
     default: () => ({ name: '', address: '', access: '', constraints: [], contacts: [] })
   },
   assignedTo: [String],
+  leadTechnicianId: { type: Schema.Types.ObjectId, ref: 'Technician', default: null },
+  technicianIds: [{ type: Schema.Types.ObjectId, ref: 'Technician' }],
   value: { type: Number, default: 0 },
   margin: { type: Number, default: 0 },
   milestones: [{
@@ -316,6 +341,7 @@ const ProjectSchema = new Schema<IProject>({
     status: { type: String, enum: ['todo', 'in_progress', 'review', 'done'], default: 'todo' },
     priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
     assignee: String,
+    assigneeId: String,
     dueDate: Date,
     milestoneId: String,
     order: { type: Number, default: 0 },
@@ -323,6 +349,24 @@ const ProjectSchema = new Schema<IProject>({
     updatedAt: Date,
     completedAt: Date
   }],
+  journal: [{
+    _id: false,
+    id: { type: String, required: true },
+    date: { type: Date, default: Date.now },
+    kind: { type: String, enum: ['progress', 'blocker', 'note', 'task', 'report'], default: 'note' },
+    message: { type: String, maxlength: 4000 },
+    technicianId: String,
+    authorName: String,
+    authorRole: { type: String, enum: ['ADMIN', 'TECHNICIAN'] },
+    onBehalfOf: String,
+    taskIds: [String],
+    photos: [String],
+    hours: Number,
+    clientVisible: { type: Boolean, default: false },
+    resolvedAt: Date,
+    reportId: String
+  }],
+  lastActivityAt: Date,
   clientAccess: { type: Boolean, default: false },
   // PV de réception signé par le client depuis le portail ; la garantie court à partir de la signature
   reception: {
@@ -345,5 +389,7 @@ const ProjectSchema = new Schema<IProject>({
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })
 ProjectSchema.index({ clientCompanyId: 1, createdAt: -1 })
+ProjectSchema.index({ leadTechnicianId: 1 })
+ProjectSchema.index({ technicianIds: 1 })
 
 export default mongoose.models.Project || mongoose.model<IProject>('Project', ProjectSchema)

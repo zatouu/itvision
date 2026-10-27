@@ -10,6 +10,7 @@ import Client from '@/lib/models/Client'
 import Technician from '@/lib/models/Technician'
 import Intervention from '@/lib/models/Intervention'
 import Project from '@/lib/models/Project'
+import ProjectImage from '@/lib/models/ProjectImage'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import AdminQuote from '@/lib/models/AdminQuote'
@@ -343,6 +344,61 @@ export async function createCorporateCatalogFixtures(): Promise<{ itvProductId: 
 export async function cleanupCorporateCatalogFixtures(): Promise<void> {
   await connectMongoose()
   await Product.deleteMany({ name: /^E2E-CAT-/ })
+}
+
+/** Technicien de test (fiche Technician + compte User liés par email). */
+export async function ensureTechnician(opts: { email: string; name: string }): Promise<TestUser & { techId: string }> {
+  await connectMongoose()
+  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12)
+  let tech = await Technician.findOne({ email: opts.email }).lean() as any
+  if (!tech) {
+    tech = await Technician.create({
+      technicianId: `TECH-${opts.email.split('@')[0].toUpperCase()}`,
+      name: opts.name,
+      email: opts.email,
+      phone: '770000009',
+      passwordHash,
+      isActive: true,
+      isAvailable: true,
+    })
+  }
+  let user = await User.findOne({ email: opts.email }).lean() as any
+  if (!user) {
+    user = await User.create({ email: opts.email, username: opts.email.split('@')[0], name: opts.name, passwordHash, role: 'TECHNICIAN', isActive: true })
+  } else {
+    await User.updateOne({ _id: user._id }, { $set: { passwordHash, role: 'TECHNICIAN', isActive: true } })
+  }
+  return { email: opts.email, password: DEFAULT_PASSWORD, role: 'TECHNICIAN', userId: String(user._id), techId: String(tech._id) }
+}
+
+/** Projet en réalisation sans équipe, rattaché au client E2E (équipe terrain, journal de chantier). */
+export async function createTeamProjectFixture(): Promise<string> {
+  await connectMongoose()
+  const clientUser = await User.findOne({ email: 'e2e-client@itvision.sn' }).lean() as any
+  const company = await Client.findOne({ email: 'e2e-client@itvision.sn' }).lean() as any
+  if (!clientUser || !company) throw new Error('Fixtures E2E manquantes — ensureTestUsers() d’abord')
+  await Project.deleteMany({ name: /^E2E-TEAM / })
+  const project = await Project.create({
+    name: 'E2E-TEAM Chantier vidéosurveillance',
+    address: 'Site E2E-TEAM, Dakar',
+    clientId: clientUser._id,
+    clientCompanyId: company._id,
+    status: 'in_progress',
+    startDate: new Date(),
+    milestones: [{ id: 'm-pose', name: 'Pose des caméras', status: 'pending' }],
+  })
+  return String(project._id)
+}
+
+export async function cleanupTeamProjectFixture(): Promise<void> {
+  await connectMongoose()
+  const ids = (await Project.find({ name: /^E2E-TEAM / }).select('_id').lean() as any[]).map(p => p._id)
+  if (ids.length) await ProjectImage.deleteMany({ projectId: { $in: ids } })
+  await Project.deleteMany({ name: /^E2E-TEAM / })
+  await Promise.all([
+    Technician.deleteMany({ email: /^e2e-team-/ }),
+    User.deleteMany({ email: /^e2e-team-/ }),
+  ])
 }
 
 /**

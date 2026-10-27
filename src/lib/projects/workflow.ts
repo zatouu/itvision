@@ -172,7 +172,10 @@ export interface ProjectTask {
   description?: string
   status: TaskStatus
   priority: TaskPriority
+  /** Nom affiché (dénormalisé depuis la fiche technicien, ou saisie libre historique). */
   assignee?: string
+  /** Fiche Technician responsable de la tâche. */
+  assigneeId?: string
   dueDate?: string | Date | null
   milestoneId?: string
   order: number
@@ -193,4 +196,78 @@ export function isTaskPriority(v: unknown): v is TaskPriority {
 export function tasksProgress(tasks: Array<{ status: string }>) {
   if (!tasks.length) return null
   return Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100)
+}
+
+type MilestoneLike = { id?: string; status?: string; completedDate?: Date | string | null; [key: string]: any }
+
+/**
+ * Jalons pilotés par leurs tâches : toutes terminées → jalon terminé ; une tâche entamée → jalon en cours ;
+ * une tâche rouverte sur un jalon terminé → retour en cours. Un jalon sans tâche reste piloté à la main.
+ */
+export function syncMilestonesWithTasks<M extends MilestoneLike>(milestones: M[], tasks: Array<{ status: string; milestoneId?: string }>, now = new Date()) {
+  let changed = false
+  const next = milestones.map(m => {
+    const linked = tasks.filter(t => m.id && t.milestoneId === m.id)
+    if (!linked.length) return m
+    const allDone = linked.every(t => t.status === 'done')
+    const started = linked.some(t => t.status !== 'todo')
+    let status = m.status
+    let completedDate = m.completedDate ?? null
+    if (allDone) { status = 'completed'; completedDate = completedDate || now }
+    else if (m.status === 'completed') { status = 'in_progress'; completedDate = null }
+    else if (started && m.status === 'pending') status = 'in_progress'
+    if (status === m.status && completedDate === (m.completedDate ?? null)) return m
+    changed = true
+    return { ...m, status, completedDate }
+  })
+  return { milestones: next, changed }
+}
+
+// ─── Journal de chantier ──────────────────────────────────────────────────────
+
+export const JOURNAL_KINDS = ['progress', 'blocker', 'note', 'task', 'report'] as const
+export type JournalKind = typeof JOURNAL_KINDS[number]
+/** Types qu'un humain peut saisir (task/report sont générés). */
+export const JOURNAL_INPUT_KINDS = ['progress', 'blocker', 'note'] as const
+
+export const JOURNAL_KIND_META: Record<JournalKind, { label: string; color: string }> = {
+  progress: { label: 'Avancement', color: 'bg-emerald-50 text-emerald-700' },
+  blocker: { label: 'Blocage', color: 'bg-red-50 text-red-700' },
+  note: { label: 'Note', color: 'bg-stone-100 text-stone-600' },
+  task: { label: 'Tâche', color: 'bg-sky-50 text-sky-700' },
+  report: { label: 'Rapport', color: 'bg-indigo-50 text-indigo-700' },
+}
+
+export interface ProjectJournalEntry {
+  id: string
+  date: string | Date
+  kind: JournalKind
+  message: string
+  /** Technicien à qui l'entrée est attribuée (auteur réel, ou personne pour qui l'admin consigne). */
+  technicianId?: string
+  authorName: string
+  authorRole: 'ADMIN' | 'TECHNICIAN'
+  /** Nom du technicien quand l'admin consigne pour son compte. */
+  onBehalfOf?: string
+  taskIds?: string[]
+  photos?: string[]
+  hours?: number
+  clientVisible: boolean
+  resolvedAt?: string | Date | null
+  reportId?: string
+}
+
+/** Rôle d'un technicien dans l'équipe d'un projet. */
+export type ProjectTeamRole = 'lead' | 'member'
+
+export interface ProjectTeamMember {
+  id: string
+  name: string
+  phone?: string
+  email?: string
+  specialties?: string[]
+  role: ProjectTeamRole
+  isActive?: boolean
+  openTasks?: number
+  lastActivityAt?: string | Date | null
 }

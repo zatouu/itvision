@@ -4,21 +4,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Home, CalendarDays, FileText, Building2, UserRound, Briefcase, Wrench, Wifi, WifiOff, LogOut, Loader2,
-  AlertTriangle, ChevronRight, Star, Phone, Mail, Navigation, Search, RefreshCw, CheckCircle2, Clock, Sparkles,
+  AlertTriangle, ChevronRight, Star, Phone, Mail, Navigation, Search, RefreshCw, CheckCircle2, Clock, Sparkles, FolderKanban,
 } from 'lucide-react'
 import NotificationCenter from '@/components/NotificationCenter'
 import TechnicianMarketplace from '@/components/TechnicianMarketplace'
 import InterventionCard, { type TechInterventionItem } from './InterventionCard'
 import InterventionSheet, { type ReportDraftContext } from './InterventionSheet'
 import ReportsTab from './ReportsTab'
+import ProjectsTab from './ProjectsTab'
 import { dayKey, dayLabel, mapsUrl, shortDate, telUrl, todayStr } from './tech-ui'
 import { OUTBOX_EVENT, flushOutbox, listOutbox, type FlushResult } from '@/lib/tech/offline-outbox'
 
-type Tab = 'today' | 'planning' | 'rapports' | 'clients' | 'profil' | 'missions'
+type Tab = 'today' | 'planning' | 'projets' | 'rapports' | 'clients' | 'profil' | 'missions'
 
 const NAV: Array<{ id: Tab; label: string; icon: typeof Home; mobile: boolean }> = [
   { id: 'today', label: 'Accueil', icon: Home, mobile: true },
   { id: 'planning', label: 'Planning', icon: CalendarDays, mobile: true },
+  { id: 'projets', label: 'Projets', icon: FolderKanban, mobile: true },
   { id: 'rapports', label: 'Rapports', icon: FileText, mobile: true },
   { id: 'clients', label: 'Clients', icon: Building2, mobile: true },
   { id: 'missions', label: 'Missions', icon: Briefcase, mobile: false },
@@ -53,6 +55,7 @@ export default function TechApp() {
   const [sheetId, setSheetId] = useState<string | null>(null)
   const [compose, setCompose] = useState<ReportDraftContext | null>(null)
   const [openReportId, setOpenReportId] = useState<string | null>(null)
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [clients, setClients] = useState<any[]>([])
   const [outboxCount, setOutboxCount] = useState(0)
@@ -100,6 +103,7 @@ export default function TechApp() {
     if (p.get('view') === 'reports') setTab('rapports')
     if (p.get('intervention')) setSheetId(p.get('intervention'))
     if (p.get('rapport')) { setTab('rapports'); setOpenReportId(p.get('rapport')) }
+    if (p.get('projet')) { setTab('projets'); setOpenProjectId(p.get('projet')) }
   }, [])
 
   useEffect(() => {
@@ -136,6 +140,7 @@ export default function TechApp() {
   const writeReport = useCallback((ctx: ReportDraftContext) => { setSheetId(null); setCompose(ctx); setTab('rapports') }, [])
   const openReport = useCallback((reportId: string) => { setSheetId(null); setOpenReportId(reportId); setTab('rapports') }, [])
   const consumed = useCallback(() => { setCompose(null); setOpenReportId(null) }, [])
+  const projectOpened = useCallback(() => setOpenProjectId(null), [])
 
   const badges: Partial<Record<Tab, number>> = { rapports: me?.counts.rejected || 0, today: me?.counts.inProgress || 0 }
   const tech = me?.technician
@@ -210,6 +215,7 @@ export default function TechApp() {
         )}
         {tab === 'today' && <TodayTab me={me} refreshKey={refreshKey} onOpen={setSheetId} onTab={setTab} onOpenReport={openReport} onAvailability={loadMe} />}
         {tab === 'planning' && <PlanningTab refreshKey={refreshKey} onOpen={setSheetId} />}
+        {tab === 'projets' && <ProjectsTab refreshKey={refreshKey} openId={openProjectId} onOpened={projectOpened} />}
         {tab === 'rapports' && <ReportsTab compose={compose} openReportId={openReportId} clients={clients} onConsumed={consumed} onChanged={loadMe} />}
         {tab === 'clients' && <ClientsTab initial={clients} />}
         {tab === 'missions' && <TechnicianMarketplace technicianId={tech?.id} />}
@@ -218,7 +224,7 @@ export default function TechApp() {
 
       {/* Barre d'onglets mobile */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <div className="grid grid-cols-5">
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${NAV.filter(n => n.mobile).length}, minmax(0, 1fr))` }}>
           {NAV.filter(n => n.mobile).map(n => {
             const Icon = n.icon
             const active = tab === n.id

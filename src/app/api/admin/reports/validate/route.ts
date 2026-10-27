@@ -13,6 +13,7 @@ import { getClientContactEmails } from '@/lib/client-contacts'
 import { emailService } from '@/lib/email-service'
 import { getBrandFromHost, type BrandConfig } from '@/lib/branding'
 import { escapeHtml } from '@/lib/html-escape'
+import { appendJournal, journalEntry } from '@/lib/projects/tasks'
 
 // Un rapport validé est publié au client sauf désactivation explicite (relecture manuelle)
 const AUTO_PUBLISH = process.env.AUTO_PUBLISH_VALIDATED_REPORTS !== 'false'
@@ -146,6 +147,21 @@ export async function POST(request: NextRequest) {
     if (action === 'approved' && report.interventionId) {
       await advanceIntervention(report.interventionId, 'completed', userId)
         .catch(e => console.error('[Report] Clôture intervention impossible:', e))
+    }
+
+    // Le rapport validé rejoint le journal de chantier du projet (attribué à son technicien)
+    if (action === 'approved' && report.projectId) {
+      const tech = report.technicianId as any
+      const tasksDone = (report.tasksPerformed || []).filter((t: string) => String(t || '').trim()).slice(0, 5)
+      await appendJournal(String(report.projectId?._id || report.projectId), [journalEntry(
+        { name: tech?.name || 'Technicien', role: 'TECHNICIAN', technicianId: tech?._id ? String(tech._id) : undefined },
+        {
+          kind: 'report',
+          message: [`Rapport ${report.reportId} validé — ${report.site}`, ...tasksDone.map((t: string) => `• ${t}`)].join('\n'),
+          reportId: String(report._id),
+          ...(report.totalDuration ? { hours: Number(report.totalDuration) || undefined } : {}),
+        }
+      )]).catch(e => console.error('[Report] Journal projet:', e))
     }
 
     // Temps réel + audit
