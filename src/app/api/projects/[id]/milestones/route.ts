@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Project from '@/lib/models/Project'
 import { requireAuth } from '@/lib/jwt'
-import { notifyProjectChange, notifyProjectPlanning } from '@/lib/portal/project-notify'
+import { notifyProjectChange, shareProjectPlanning } from '@/lib/portal/project-notify'
 
 async function requireAdmin(request: NextRequest) {
   const { role } = await requireAuth(request)
@@ -15,6 +15,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await requireAdmin(request)
     const body = await request.json()
     const { id } = await params
+
+    // Action explicite « Envoyer le planning au client » : mail aux contacts + notif portail, une seule fois
+    if (body?.action === 'share-planning') {
+      const project = await Project.findById(id).lean() as any
+      if (!project) return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
+      if (!(project.milestones || []).length) return NextResponse.json({ error: 'Aucun jalon à envoyer' }, { status: 400 })
+      const result = await shareProjectPlanning(project)
+      return NextResponse.json({ success: true, ...result })
+    }
+
     const milestone = body?.milestone
     if (!id || !milestone?.id || !milestone?.name) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
 
@@ -24,7 +34,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { new: true }
     )
     if (!updated) return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
-    void notifyProjectPlanning(updated.toObject(), (updated.milestones || []).length).catch(e => console.error('[milestones] notification planning:', e))
     return NextResponse.json({ success: true, project: updated })
   } catch (e) {
     return NextResponse.json({ error: 'Erreur ajout jalon' }, { status: 500 })

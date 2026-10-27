@@ -1,5 +1,11 @@
 import { notifyCompany } from '@/lib/portal/company-notify'
 import { detectDomain, ITV_DOMAINS, projectStage } from '@/lib/portal/project-view'
+import { getClientContactEmails } from '@/lib/client-contacts'
+import { connectMongoose } from '@/lib/mongoose'
+import User from '@/lib/models/User'
+import emailService from '@/lib/email-service'
+import { escapeHtml } from '@/lib/html-escape'
+import { CORPORATE_BRAND } from '@/lib/branding'
 
 type ProjectLike = {
   _id?: unknown
@@ -9,7 +15,7 @@ type ProjectLike = {
   serviceType?: string
   clientAccess?: boolean
   clientCompanyId?: unknown
-  milestones?: Array<{ id?: string; name?: string; status?: string }>
+  milestones?: Array<{ id?: string; name?: string; status?: string; dueDate?: string | Date | null }>
 }
 
 const VISIBLE_STATUSES = ['approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold']
@@ -41,6 +47,86 @@ export async function notifyProjectPlanning(project: ProjectLike, milestoneCount
     message: `${milestoneCount} étape${milestoneCount > 1 ? 's' : ''} planifiée${milestoneCount > 1 ? 's' : ''} — consultez les jalons et leurs échéances.`,
     metadata: { projectId: String(project._id) },
   })
+}
+
+const fmtPlanningDate = (d?: string | Date | null) => {
+  if (!d) return ''
+  const date = new Date(d)
+  return isNaN(date.getTime()) ? '' : date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/**
+ * « Envoyer le planning au client » : mail aux contacts de l'entreprise (BCC contact interne automatique)
+ * + notification portail si le projet y est visible. Le mail part même si le portail n'est pas encore
+ * adopté/partagé — les deux canaux vivent en parallèle.
+ */
+export async function shareProjectPlanning(project: ProjectLike): Promise<{ emailed: number; notified: boolean }> {
+  const companyId = project.clientCompanyId
+  if (!companyId) return { emailed: 0, notified: false }
+  await connectMongoose()
+
+  const milestones = (project.milestones || []).filter(m => m?.name)
+  if (!milestones.length) return { emailed: 0, notified: false }
+
+  // Destinataires : contacts de l'entreprise (Client + fiches Contact) et membres portail actifs
+  const emails = new Set(await getClientContactEmails(String(companyId)))
+  const members = await User.find({ companyClientId: companyId, isActive: { $ne: false }, companyInvitePending: { $ne: true } })
+    .select('email').limit(50).lean() as any[]
+  for (const m of members) {
+    const e = String(m?.email || '').toLowerCase().trim()
+    if (e.includes('@')) emails.add(e)
+  }
+
+  const name = project.name || 'Votre projet'
+  const brand = CORPORATE_BRAND
+  const visible = !!project.clientAccess || VISIBLE_STATUSES.includes(String(project.status))
+  const link = `${brand.url}/portail-entreprise/projets/${String(project._id)}`
+  const rows = milestones.map(m => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#1F2937;font-size:14px">${escapeHtml(String(m.name))}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#6B7280;font-size:13px;white-space:nowrap;text-align:right">${escapeHtml(fmtPlanningDate(m.dueDate)) || '—'}</td>
+    </tr>`).join('')
+
+  const text = [
+    `Planning de votre chantier : ${name}`,
+    '',
+    ...milestones.map((m, i) => `${i + 1}. ${m.name}${fmtPlanningDate(m.dueDate) ? ` — ${fmtPlanningDate(m.dueDate)}` : ''}`),
+    '',
+    visible ? `Suivez l'avancement en temps réel : ${link}` : 'Votre espace client en ligne vous permettra bientôt de suivre ce planning en temps réel.',
+    `L'équipe ${brand.name}`,
+  ].join('\n')
+
+  let emailed = 0
+  if (emails.size) {
+    const ok = await emailService.sendEmail({
+      to: Array.from(emails).join(', '),
+      fromName: brand.name,
+      brand,
+      subject: `Planning de votre chantier : ${name} — ${brand.name}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#fff">
+          <div style="background-color:${brand.primaryColor || '#30326B'};padding:24px;text-align:center">
+            <h1 style="color:${brand.secondaryColor || '#FFC800'};margin:0;font-size:22px;letter-spacing:1px">${escapeHtml(brand.name)}</h1>
+          </div>
+          <div style="padding:28px;border:1px solid #e5e7eb;border-top:none">
+            <h2 style="color:#1F2937;margin:0 0 8px;font-size:18px">Planning de votre chantier : ${escapeHtml(name)}</h2>
+            <p style="color:#6B7280;font-size:14px;line-height:1.6">Voici les étapes prévues et leurs échéances. Nous vous tiendrons informé de l'avancement.</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">${rows}</table>
+            ${visible ? `<p style="margin:24px 0;text-align:center"><a href="${link}" style="background-color:#065f46;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px">Suivre mon projet en ligne</a></p>` : `<p style="color:#6B7280;font-size:13px;line-height:1.6">Votre espace client en ligne vous permettra bientôt de suivre ce planning et l'avancement en temps réel.</p>`}
+            <p style="color:#6B7280;font-size:13px;border-top:1px solid #f3f4f6;padding-top:16px;margin-top:8px">L'équipe ${escapeHtml(brand.name)}</p>
+          </div>
+        </div>`,
+      text,
+    })
+    if (ok) emailed = emails.size
+  }
+
+  let notified = false
+  if (visible) {
+    await notifyProjectPlanning(project, milestones.length)
+    notified = true
+  }
+  return { emailed, notified }
 }
 
 /**

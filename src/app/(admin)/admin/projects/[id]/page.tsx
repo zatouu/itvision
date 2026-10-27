@@ -316,6 +316,26 @@ export default function ProjectDetailPage() {
     } finally { setMsSaving(false) }
   }
 
+  const sharePlanning = async () => {
+    if (!project?._id) return
+    setMsSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${project._id}/milestones`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ action: 'share-planning' }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Envoi impossible')
+      toast.success('Planning envoyé', {
+        description: data.emailed
+          ? `Mail envoyé à ${data.emailed} destinataire(s)${data.notified ? ' + notification portail' : ''}.`
+          : 'Aucun email client trouvé — notification portail uniquement.',
+      })
+    } catch (e: any) {
+      toast.error(e?.message || 'Envoi du planning impossible')
+    } finally { setMsSaving(false) }
+  }
+
   const handleRemoveMilestone = async (mid: string) => {
     if (!project?._id) return
     setMsSaving(true)
@@ -786,6 +806,14 @@ export default function ProjectDetailPage() {
         {/* MILESTONES */}
         {activeTab === 'milestones' && (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-stone-200 rounded-2xl px-4 py-3">
+              <p className="text-xs text-stone-500 flex-1 min-w-[200px]">Chaque jalon est enregistré automatiquement. Le client le voit sur son portail dès que le projet est partagé.</p>
+              <button onClick={sharePlanning} disabled={msSaving || !(editing.milestones || []).length}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                {msSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                Envoyer le planning au client
+              </button>
+            </div>
             <div className="bg-white border border-stone-200 rounded-2xl p-4">
               <div className="flex items-end gap-3">
                 <div className="flex-1">
