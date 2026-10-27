@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChevronRight, Crown, FolderKanban, Loader2, MapPin, Navigation, Phone, Plus, Users,
+  AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChevronRight, Crown, FolderKanban, Loader2, LogIn, LogOut, MapPin, Navigation, Phone, Plus, Users,
 } from 'lucide-react'
 import ProjectJournal from '@/components/projects/ProjectJournal'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
@@ -26,6 +26,8 @@ interface ProjectItem {
   endDate: string | null
   role: 'lead' | 'member'
   myOpenTasks: number
+  myTasks?: Array<{ id: string; title: string; status: string; dueDate: string | null }>
+  overdueTasks?: number
   freeTasks: number
   tasksDone: number
   tasksTotal: number
@@ -52,6 +54,21 @@ interface Detail {
 
 const MILESTONE_LABEL: Record<string, string> = { pending: 'À venir', in_progress: 'En cours', completed: 'Terminé', delayed: 'En retard' }
 
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
+const isLate = (d?: string | Date | null) => !!d && new Date(d) < startOfToday()
+
+/** Position de l'appareil pour le pointage ; jamais bloquant (refus ou délai = pas de position). */
+function currentPosition(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null)
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 60_000 }
+    )
+  })
+}
+
 /** Onglet « Projets » du portail technicien : projets de son équipe, ses tâches, le journal de chantier. */
 export default function ProjectsTab({ refreshKey, openId, onOpened }: { refreshKey: number; openId: string | null; onOpened: () => void }) {
   const [items, setItems] = useState<ProjectItem[] | null>(null)
@@ -76,6 +93,13 @@ export default function ProjectsTab({ refreshKey, openId, onOpened }: { refreshK
     if (openId) { setSelected(openId); onOpened() }
   }, [openId, onOpened])
 
+  const agenda = useMemo(() => (items || [])
+    .filter(p => p.active)
+    .flatMap(p => (p.myTasks || []).map(t => ({ ...t, pid: p.id, pname: p.name })))
+    .sort((a, b) => Number(isLate(b.dueDate)) - Number(isLate(a.dueDate))
+      || new Date(a.dueDate || 8.64e15).getTime() - new Date(b.dueDate || 8.64e15).getTime())
+    .slice(0, 8), [items])
+
   if (selected) return <ProjectSheet id={selected} refreshKey={refreshKey} onBack={() => setSelected(null)} />
 
   const active = (items || []).filter(p => p.active)
@@ -99,6 +123,29 @@ export default function ProjectsTab({ refreshKey, openId, onOpened }: { refreshK
         </div>
       ) : (
         <>
+          {agenda.length > 0 && (
+            <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">À faire en priorité</h3>
+              <ul className="divide-y divide-stone-100">
+                {agenda.map(t => (
+                  <li key={`${t.pid}-${t.id}`}>
+                    <button onClick={() => setSelected(t.pid)} className="flex w-full items-center gap-2 py-2 text-left">
+                      <span className={`h-2 w-2 flex-shrink-0 rounded-full ${isLate(t.dueDate) ? 'bg-red-500' : 'bg-sky-500'}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-stone-800">{t.title}</span>
+                        <span className="block truncate text-xs text-stone-400">{t.pname}</span>
+                      </span>
+                      {isLate(t.dueDate) ? (
+                        <span className="flex-shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">En retard</span>
+                      ) : t.dueDate ? (
+                        <span className="flex-shrink-0 text-[11px] text-stone-400">{shortDate(t.dueDate)}</span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <ul className="space-y-2">{active.map(p => <ProjectCard key={p.id} p={p} onOpen={() => setSelected(p.id)} />)}</ul>
           {closed.length > 0 && (
             <>
@@ -134,6 +181,7 @@ function ProjectCard({ p, onOpen }: { p: ProjectItem; onOpen: () => void }) {
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
           {p.myOpenTasks > 0 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800">{p.myOpenTasks} tâche{p.myOpenTasks > 1 ? 's' : ''} pour vous</span>}
+          {!!p.overdueTasks && <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-700">{p.overdueTasks} en retard</span>}
           {p.freeTasks > 0 && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-600">{p.freeTasks} libre{p.freeTasks > 1 ? 's' : ''}</span>}
           {p.openBlockers > 0 && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-700"><AlertTriangle className="h-3 w-3" />{p.openBlockers} blocage{p.openBlockers > 1 ? 's' : ''}</span>}
           {p.nextMilestone && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-700">Jalon : {p.nextMilestone.name}{p.nextMilestone.dueDate ? ` · ${shortDate(p.nextMilestone.dueDate)}` : ''}</span>}
@@ -210,6 +258,25 @@ function ProjectSheet({ id, refreshKey, onBack }: { id: string; refreshKey: numb
     }
   }
 
+  const pointe = async (dir: 'in' | 'out') => {
+    setBusy('presence'); setNotice('')
+    try {
+      const geo = await currentPosition()
+      const res = await fetch(`/api/projects/${id}/journal`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presence: dir, ...(geo ? { geo } : {}) }),
+      })
+      const d = await readJsonResponse(res)
+      if (!res.ok || !d.success) throw new Error(apiErrorMessage(res, d, 'Pointage impossible'))
+      setNotice(dir === 'in' ? 'Arrivée pointée. Bon chantier !' : 'Départ pointé. À bientôt.')
+      await load()
+    } catch (e: any) {
+      setNotice(e.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
   if (error) return (
     <div className="space-y-3">
       <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500"><ArrowLeft className="h-4 w-4" />Mes projets</button>
@@ -220,6 +287,7 @@ function ProjectSheet({ id, refreshKey, onBack }: { id: string; refreshKey: numb
 
   const p = data.project
   const lead = data.team.find(m => m.role === 'lead')
+  const onSite = !!data.team.find(m => m.id === me)?.onSite
 
   return (
     <div className="space-y-4">
@@ -237,6 +305,11 @@ function ProjectSheet({ id, refreshKey, onBack }: { id: string; refreshKey: numb
           <span className="text-sm font-bold tabular-nums">{p.progress} %</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={() => pointe(onSite ? 'out' : 'in')} disabled={busy === 'presence'}
+            className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ring-white/15 ${onSite ? 'bg-emerald-300/20 text-emerald-100' : 'bg-white/10'}`}>
+            {busy === 'presence' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : onSite ? <LogOut className="h-3.5 w-3.5" /> : <LogIn className="h-3.5 w-3.5" />}
+            {onSite ? 'Pointer le départ' : 'Pointer l’arrivée'}
+          </button>
           {p.address && <a href={mapsUrl(p.site?.address || p.address)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/15"><Navigation className="h-3.5 w-3.5" />Itinéraire</a>}
           {lead && lead.id !== me && lead.phone && <a href={telUrl(lead.phone)} className="inline-flex items-center gap-1 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/15"><Phone className="h-3.5 w-3.5" />Responsable</a>}
         </div>
@@ -279,7 +352,11 @@ function ProjectSheet({ id, refreshKey, onBack }: { id: string; refreshKey: numb
                         {t.description && <p className="mt-0.5 line-clamp-2 text-xs text-stone-500">{t.description}</p>}
                         <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-stone-400">
                           {t.assignee && g.key !== 'mine' && <span className="inline-flex items-center gap-0.5"><Users className="h-3 w-3" />{t.assignee}</span>}
-                          {t.dueDate && <span className="inline-flex items-center gap-0.5"><CalendarDays className="h-3 w-3" />{shortDate(t.dueDate)}</span>}
+                          {t.dueDate && (
+                            <span className={`inline-flex items-center gap-0.5 ${t.status !== 'done' && isLate(t.dueDate) ? 'font-semibold text-red-600' : ''}`}>
+                              <CalendarDays className="h-3 w-3" />{shortDate(t.dueDate)}{t.status !== 'done' && isLate(t.dueDate) ? ' · en retard' : ''}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -350,7 +427,12 @@ function ProjectSheet({ id, refreshKey, onBack }: { id: string; refreshKey: numb
             <ul className="space-y-2">
               {data.team.map(m => (
                 <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="flex items-center gap-1.5">{m.role === 'lead' && <Crown className="h-3.5 w-3.5 text-amber-500" />}{m.id === me ? `${m.name} (vous)` : m.name}</span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {m.role === 'lead' && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+                    {m.id === me ? `${m.name} (vous)` : m.name}
+                    {m.onSite && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />sur site</span>}
+                    {!!m.hoursTotal && <span className="text-xs text-stone-400">· {m.hoursTotal} h consignées</span>}
+                  </span>
                   {m.phone && m.id !== me && <a href={telUrl(m.phone)} aria-label={`Appeler ${m.name}`} className="rounded-lg p-1.5 text-emerald-700 hover:bg-emerald-50"><Phone className="h-4 w-4" /></a>}
                 </li>
               ))}

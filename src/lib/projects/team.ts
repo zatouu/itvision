@@ -111,17 +111,24 @@ export function withoutFinance<T extends Record<string, any>>(project: T): T {
 /** Fiches techniciens de l'équipe, enrichies de la charge et de la dernière activité consignée. */
 export async function loadProjectTeam(project: TeamLike & {
   tasks?: Array<{ status: string; assigneeId?: string }>
-  journal?: Array<{ technicianId?: string; date: Date | string }>
+  journal?: Array<{ technicianId?: string; date: Date | string; presence?: 'in' | 'out'; hours?: number }>
 }): Promise<ProjectTeamMember[]> {
   const ids = projectTeamIds(project).filter(id => mongoose.isValidObjectId(id))
   if (!ids.length) return []
   const techs = await Technician.find({ _id: { $in: ids } }).select('name phone email specialties isActive').lean() as any[]
   const byId = new Map(techs.map(t => [String(t._id), t]))
   const lastActivity = new Map<string, Date>()
+  const lastPresence = new Map<string, { d: Date; v: 'in' | 'out' }>()
+  const hoursTotal = new Map<string, number>()
   for (const e of project.journal || []) {
     if (!e.technicianId) continue
     const d = new Date(e.date)
     if (!lastActivity.has(e.technicianId) || lastActivity.get(e.technicianId)! < d) lastActivity.set(e.technicianId, d)
+    if (e.presence) {
+      const cur = lastPresence.get(e.technicianId)
+      if (!cur || cur.d < d) lastPresence.set(e.technicianId, { d, v: e.presence })
+    }
+    if (Number(e.hours) > 0) hoursTotal.set(e.technicianId, (hoursTotal.get(e.technicianId) || 0) + Number(e.hours))
   }
   return ids.flatMap(id => {
     const t = byId.get(id)
@@ -136,6 +143,8 @@ export async function loadProjectTeam(project: TeamLike & {
       role: projectTechRole(project, id) as ProjectTeamRole,
       openTasks: (project.tasks || []).filter(x => x.assigneeId === id && x.status !== 'done').length,
       lastActivityAt: lastActivity.get(id) || null,
+      onSite: lastPresence.get(id)?.v === 'in',
+      hoursTotal: hoursTotal.get(id) || 0,
     }]
   })
 }

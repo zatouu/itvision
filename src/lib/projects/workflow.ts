@@ -225,14 +225,15 @@ export function syncMilestonesWithTasks<M extends MilestoneLike>(milestones: M[]
 
 // ─── Journal de chantier ──────────────────────────────────────────────────────
 
-export const JOURNAL_KINDS = ['progress', 'blocker', 'note', 'task', 'report'] as const
+export const JOURNAL_KINDS = ['progress', 'blocker', 'note', 'presence', 'task', 'report'] as const
 export type JournalKind = typeof JOURNAL_KINDS[number]
-/** Types qu'un humain peut saisir (task/report sont générés). */
+/** Types qu'un humain peut saisir (task/report sont générés, presence passe par le pointage). */
 export const JOURNAL_INPUT_KINDS = ['progress', 'blocker', 'note'] as const
 
 export const JOURNAL_KIND_META: Record<JournalKind, { label: string; color: string }> = {
   progress: { label: 'Avancement', color: 'bg-emerald-50 text-emerald-700' },
   blocker: { label: 'Blocage', color: 'bg-red-50 text-red-700' },
+  presence: { label: 'Présence', color: 'bg-teal-50 text-teal-700' },
   note: { label: 'Note', color: 'bg-stone-100 text-stone-600' },
   task: { label: 'Tâche', color: 'bg-sky-50 text-sky-700' },
   report: { label: 'Rapport', color: 'bg-indigo-50 text-indigo-700' },
@@ -252,6 +253,10 @@ export interface ProjectJournalEntry {
   taskIds?: string[]
   photos?: string[]
   hours?: number
+  /** Pointage : arrivée ou départ du chantier (kind `presence`). */
+  presence?: 'in' | 'out'
+  /** Position de l'appareil au pointage, si le technicien l'a autorisée. */
+  geo?: { lat: number; lng: number }
   clientVisible: boolean
   resolvedAt?: string | Date | null
   reportId?: string
@@ -270,4 +275,8 @@ export interface ProjectTeamMember {
   isActive?: boolean
   openTasks?: number
   lastActivityAt?: string | Date | null
+  /** Actuellement pointé sur le chantier (dernier pointage = arrivée). */
+  onSite?: boolean
+  /** Heures cumulées consignées au journal du projet. */
+  hoursTotal?: number
 }

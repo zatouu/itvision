@@ -110,9 +110,13 @@ export default function ProjectTeamCard({ projectId, team, onChanged }: {
                 <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-stone-900">
                   <span className="truncate">{m.name}</span>
                   {m.role === 'lead' && <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"><Crown className="h-3 w-3" />Responsable</span>}
+                  {m.onSite && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />sur site</span>}
                   {m.isActive === false && <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">Désactivé</span>}
                 </p>
-                <p className="text-xs text-stone-500">{m.openTasks ? `${m.openTasks} tâche(s) ouverte(s)` : 'Aucune tâche ouverte'} · {since(m.lastActivityAt)}</p>
+                <p className="text-xs text-stone-500">
+                  {m.openTasks ? `${m.openTasks} tâche(s) ouverte(s)` : 'Aucune tâche ouverte'} · {since(m.lastActivityAt)}
+                  {m.hoursTotal ? ` · ${m.hoursTotal} h consignées` : ''}
+                </p>
               </div>
               {m.phone && (
                 <a href={`tel:${m.phone.replace(/[^\d+]/g, '')}`} aria-label={`Appeler ${m.name}`} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700">

@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       .toArray() as any[]
 
     const closed = ['completed', 'maintenance', 'cancelled']
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     const projects = docs.map(p => {
       const status = normalizeProjectStatus(p.status)
       const tasks = (p.tasks || []) as any[]
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
         endDate: p.endDate || null,
         role: projectTechRole(p, actor.techId),
         myOpenTasks: tasks.filter(t => t.assigneeId === actor.techId && t.status !== 'done').length,
+        myTasks: tasks
+          .filter(t => t.assigneeId === actor.techId && t.status !== 'done')
+          .map(t => ({ id: t.id, title: t.title, status: t.status, dueDate: t.dueDate || null })),
+        overdueTasks: tasks.filter(t => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < today).length,
         freeTasks: tasks.filter(t => !t.assigneeId && t.status !== 'done').length,
         tasksDone: tasks.filter(t => t.status === 'done').length,
         tasksTotal: tasks.length,

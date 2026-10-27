@@ -25,6 +25,7 @@ const CLIENT_TITLES: Record<JournalKind, string> = {
   progress: 'Avancement du chantier',
   blocker: 'Point d’attention',
   note: 'Point d’étape',
+  presence: 'Pointage chantier',
   task: 'Tâche réalisée',
   report: 'Rapport d’intervention',
 }
@@ -83,15 +84,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!canWriteJournal(access)) throw new ApiAuthError('Réservé à l’équipe du projet', 403)
     const body = await request.json().catch(() => ({}))
 
-    const kind = (JOURNAL_INPUT_KINDS as readonly string[]).includes(body?.kind) ? body.kind as JournalKind : 'note'
+    const presence = body?.presence === 'in' || body?.presence === 'out' ? body.presence as 'in' | 'out' : undefined
+    const kind: JournalKind = presence ? 'presence' : (JOURNAL_INPUT_KINDS as readonly string[]).includes(body?.kind) ? body.kind as JournalKind : 'note'
     const message = String(body?.message || '').trim().slice(0, 4000)
     const photos = (Array.isArray(body?.photos) ? body.photos : []).filter(isUrl).slice(0, 12) as string[]
     const hoursRaw = Number(body?.hours)
     const hours = Number.isFinite(hoursRaw) && hoursRaw > 0 ? Math.min(Math.round(hoursRaw * 4) / 4, 24) : undefined
+    const geoRaw = body?.geo
+    const geo = geoRaw && Number.isFinite(Number(geoRaw.lat)) && Number.isFinite(Number(geoRaw.lng))
+      ? { lat: Number(geoRaw.lat), lng: Number(geoRaw.lng) } : undefined
     const updates = (Array.isArray(body?.taskUpdates) ? body.taskUpdates : [])
       .filter((u: any) => u?.taskId && isTaskStatus(u?.status))
       .slice(0, 100) as Array<{ taskId: string; status: string }>
-    if (!message && !updates.length && !photos.length) throw new ProjectError('Décrivez ce qui a été fait, ou cochez une tâche', 400)
+    if (!presence && !message && !updates.length && !photos.length) throw new ProjectError('Décrivez ce qui a été fait, ou cochez une tâche', 400)
 
     // Auteur : le technicien lui-même, ou l'admin (éventuellement pour le compte d'un membre)
     let author: JournalAuthor
@@ -106,7 +111,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const entry = journalEntry(author, {
       kind,
-      message: message || (updates.length ? 'Avancement des tâches' : 'Photos du chantier'),
+      message: message || (presence ? (presence === 'in' ? 'Arrivée sur le chantier' : 'Départ du chantier') : updates.length ? 'Avancement des tâches' : 'Photos du chantier'),
+      ...(presence ? { presence } : {}),
+      ...(geo ? { geo } : {}),
       ...(updates.length ? { taskIds: updates.map(u => String(u.taskId)) } : {}),
       ...(photos.length ? { photos } : {}),
       ...(hours ? { hours } : {}),

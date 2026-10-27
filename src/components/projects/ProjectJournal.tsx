@@ -15,13 +15,14 @@ import {
   type TaskStatus,
 } from '@/lib/projects/workflow'
 
-type Filter = 'all' | 'blocker' | 'progress' | 'task'
+type Filter = 'all' | 'blocker' | 'progress' | 'task' | 'presence'
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'all', label: 'Tout' },
   { id: 'progress', label: 'Avancement' },
   { id: 'blocker', label: 'Blocages' },
   { id: 'task', label: 'Tâches' },
+  { id: 'presence', label: 'Présences' },
 ]
 
 const PLACEHOLDER: Record<string, string> = {
@@ -278,6 +279,12 @@ export default function ProjectJournal({ projectId, mode, tasks, team, techId, c
                   {e.kind === 'blocker' && e.resolvedAt && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Levé</span>}
                 </div>
                 <p className={`mt-1.5 whitespace-pre-wrap text-sm ${e.kind === 'task' ? 'text-stone-600' : 'text-stone-800'}`}>{e.message}</p>
+                {e.geo && (
+                  <a href={`https://www.google.com/maps?q=${e.geo.lat},${e.geo.lng}`} target="_blank" rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-teal-700 hover:underline">
+                    Position au pointage
+                  </a>
+                )}
                 {e.kind !== 'task' && !!e.taskIds?.length && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {e.taskIds.map(id => taskTitle.get(id) && (
