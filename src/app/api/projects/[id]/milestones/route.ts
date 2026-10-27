@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Project from '@/lib/models/Project'
 import { requireAuth } from '@/lib/jwt'
-import { notifyProjectChange } from '@/lib/portal/project-notify'
+import { notifyProjectChange, notifyProjectPlanning } from '@/lib/portal/project-notify'
 
 async function requireAdmin(request: NextRequest) {
   const { role } = await requireAuth(request)
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { new: true }
     )
     if (!updated) return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 })
+    void notifyProjectPlanning(updated.toObject(), (updated.milestones || []).length).catch(e => console.error('[milestones] notification planning:', e))
     return NextResponse.json({ success: true, project: updated })
   } catch (e) {
     return NextResponse.json({ error: 'Erreur ajout jalon' }, { status: 500 })

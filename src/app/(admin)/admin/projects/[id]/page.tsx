@@ -124,6 +124,7 @@ export default function ProjectDetailPage() {
 
   // Milestones
   const [newMilestone, setNewMilestone] = useState({ name: '', dueDate: '' })
+  const [msSaving, setMsSaving] = useState(false)
 
   // Notes
   const [newNote, setNewNote] = useState('')
@@ -267,22 +268,65 @@ export default function ProjectDetailPage() {
     } catch { toast.error('Modification impossible') } finally { setSharing(false) }
   }
 
-  const handleAddMilestone = () => {
-    if (!newMilestone.name.trim()) return
-    const m = { id: Date.now().toString(), name: newMilestone.name.trim(), status: 'pending' as const, dueDate: newMilestone.dueDate || undefined }
-    setEditing(prev => ({ ...prev, milestones: [...(prev.milestones || []), m] }))
-    setNewMilestone({ name: '', dueDate: '' })
+  const applyMilestones = (data: any) => {
+    const ms = data?.project?.milestones || []
+    setProject(prev => prev ? { ...prev, milestones: ms } : prev)
+    setEditing(prev => ({ ...prev, milestones: ms }))
   }
 
-  const handleMilestoneStatus = (mid: string, status: 'pending' | 'in_progress' | 'completed' | 'delayed') => {
-    setEditing(prev => ({
-      ...prev,
-      milestones: (prev.milestones || []).map(m => m.id === mid ? { ...m, status } : m)
-    }))
+  // Jalons persistés immédiatement (l'onglet n'a pas de bouton « Sauvegarder »)
+  const handleAddMilestone = async () => {
+    if (!newMilestone.name.trim() || !project?._id) return
+    setMsSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${project._id}/milestones`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          milestone: {
+            id: `ms-${Date.now()}`,
+            name: newMilestone.name.trim(),
+            status: 'pending',
+            ...(newMilestone.dueDate ? { dueDate: newMilestone.dueDate } : {}),
+          },
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Ajout impossible')
+      applyMilestones(data)
+      setNewMilestone({ name: '', dueDate: '' })
+      toast.success('Jalon ajouté', { description: 'Visible sur le portail client si le projet est partagé.' })
+    } catch (e: any) {
+      toast.error(e?.message || 'Ajout du jalon impossible')
+    } finally { setMsSaving(false) }
   }
 
-  const handleRemoveMilestone = (mid: string) => {
-    setEditing(prev => ({ ...prev, milestones: (prev.milestones || []).filter(m => m.id !== mid) }))
+  const handleMilestoneStatus = async (mid: string, status: 'pending' | 'in_progress' | 'completed' | 'delayed') => {
+    if (!project?._id) return
+    setMsSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${project._id}/milestones`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ milestoneId: mid, updates: { status, ...(status === 'completed' ? { completedDate: new Date().toISOString() } : {}) } }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Mise à jour impossible')
+      applyMilestones(data)
+    } catch (e: any) {
+      toast.error(e?.message || 'Mise à jour du jalon impossible')
+    } finally { setMsSaving(false) }
+  }
+
+  const handleRemoveMilestone = async (mid: string) => {
+    if (!project?._id) return
+    setMsSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${project._id}/milestones?milestoneId=${encodeURIComponent(mid)}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Suppression impossible')
+      applyMilestones(data)
+    } catch (e: any) {
+      toast.error(e?.message || 'Suppression du jalon impossible')
+    } finally { setMsSaving(false) }
   }
 
   const handleAddNote = async () => {
@@ -752,8 +796,8 @@ export default function ProjectDetailPage() {
                   <label className="block text-sm font-medium text-stone-700 mb-1">Échéance</label>
                   <input type="date" value={newMilestone.dueDate} onChange={e => setNewMilestone({ ...newMilestone, dueDate: e.target.value })} className="input" />
                 </div>
-                <button onClick={handleAddMilestone} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700">
-                  <Plus className="w-4 h-4" />
+                <button onClick={handleAddMilestone} disabled={msSaving || !newMilestone.name.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                  {msSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -765,10 +809,10 @@ export default function ProjectDetailPage() {
                     {m.dueDate && <p className="text-xs text-stone-500 mt-0.5">Échéance : {fd(m.dueDate)}</p>}
                   </div>
                   <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <select value={m.status} onChange={e => handleMilestoneStatus(m.id, e.target.value as any)} className="text-xs border border-stone-200 rounded-lg px-2 py-1">
+                    <select value={m.status} disabled={msSaving} onChange={e => handleMilestoneStatus(m.id, e.target.value as any)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 disabled:opacity-50">
                       {Object.keys(MSTATUS_LABELS).map(s => <option key={s} value={s}>{MSTATUS_LABELS[s]}</option>)}
                     </select>
-                    <button onClick={() => handleRemoveMilestone(m.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleRemoveMilestone(m.id)} disabled={msSaving} className="p-1 text-red-500 hover:bg-red-50 rounded disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}

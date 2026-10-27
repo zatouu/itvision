@@ -29,6 +29,20 @@ export async function notifyProjectDocument(project: ProjectLike, doc: { name?: 
   })
 }
 
+/** Prévient l'entreprise que le planning de son projet (jalons) vient d'être défini ou complété. */
+export async function notifyProjectPlanning(project: ProjectLike, milestoneCount: number) {
+  const companyId = project.clientCompanyId
+  if (!companyId) return
+  if (!project.clientAccess && !VISIBLE_STATUSES.includes(String(project.status))) return
+  return notifyCompany({
+    companyId: String(companyId), category: 'project',
+    actionUrl: `/portail-entreprise/projets/${String(project._id)}`,
+    title: `${project.name || 'Votre projet'} : planning mis à jour`,
+    message: `${milestoneCount} étape${milestoneCount > 1 ? 's' : ''} planifiée${milestoneCount > 1 ? 's' : ''} — consultez les jalons et leurs échéances.`,
+    metadata: { projectId: String(project._id) },
+  })
+}
+
 /**
  * Prévient l'entreprise cliente d'une évolution visible de son projet (une seule notification par mise à jour) :
  * étape terminée, changement de phase, ou palier d'avancement franchi.
