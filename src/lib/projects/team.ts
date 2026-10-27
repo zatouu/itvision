@@ -86,6 +86,28 @@ export function canWriteJournal(access: ProjectAccess) {
   return access.actor.kind === 'admin' || !!access.teamRole
 }
 
+const FINANCIAL_DOC_TYPES = ['quote', 'invoice', 'contract']
+
+/**
+ * Vue d'un projet sans aucune donnée financière (montant, marge, devis, prix du matériel, budget,
+ * documents devis/factures/contrats) — règle commerciale : un technicien ne voit jamais les montants.
+ */
+export function withoutFinance<T extends Record<string, any>>(project: T): T {
+  const { value, margin, quote, ...rest } = project as Record<string, any>
+  const out: Record<string, any> = { ...rest }
+  if (Array.isArray(rest.products)) {
+    out.products = rest.products.map(({ unitPrice, totalPrice, supplier, ...p }: any) => p)
+  }
+  if (rest.metrics) {
+    const { budgetPlanned, budgetUsed, ...metrics } = rest.metrics
+    out.metrics = metrics
+  }
+  if (Array.isArray(rest.documents)) {
+    out.documents = rest.documents.filter((d: any) => !FINANCIAL_DOC_TYPES.includes(String(d?.type)))
+  }
+  return out as T
+}
+
 /** Fiches techniciens de l'équipe, enrichies de la charge et de la dernière activité consignée. */
 export async function loadProjectTeam(project: TeamLike & {
   tasks?: Array<{ status: string; assigneeId?: string }>

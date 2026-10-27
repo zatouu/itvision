@@ -18,7 +18,7 @@ import {
 import { MIGRATION_REQUIRED_MESSAGE, updateProjectFields } from '@/lib/projects/persistence'
 import { computeProjectFinance, syncProjectFinance } from '@/lib/finance/project-finance'
 import { resolveTechnicianId } from '@/lib/interventions-access'
-import { technicianProjectFilter } from '@/lib/projects/team'
+import { technicianProjectFilter, withoutFinance } from '@/lib/projects/team'
 
 const verifyToken = (request: NextRequest) => requireApiUser(request)
 
@@ -114,12 +114,16 @@ export async function GET(request: NextRequest) {
       Project.countDocuments(query)
     ])
     
-    const normalizedProjects = projects.map((project: any) => ({
-      ...project,
-      status: normalizeProjectStatusForUi(project?.status),
-      serviceType: normalizeServiceType(project?.serviceType ?? project?.type),
-      value: typeof project?.value === 'string' ? (parseFloat(project.value) || 0) : Number(project?.value || 0)
-    }))
+    const normalizedProjects = projects.map((project: any) => {
+      const normalized = {
+        ...project,
+        status: normalizeProjectStatusForUi(project?.status),
+        serviceType: normalizeServiceType(project?.serviceType ?? project?.type),
+        value: typeof project?.value === 'string' ? (parseFloat(project.value) || 0) : Number(project?.value || 0)
+      }
+      // Un technicien ne voit jamais les montants du projet
+      return role === 'TECHNICIAN' ? withoutFinance(normalized) : normalized
+    })
 
     logDataAccess('projects', 'read', request, userId, { count: normalizedProjects.length })
     

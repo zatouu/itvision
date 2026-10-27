@@ -6,7 +6,7 @@ import Ticket from '@/lib/models/Ticket'
 import User, { IUser } from '@/lib/models/User'
 import { requireAuth } from '@/lib/jwt'
 import { resolveTechnicianId } from '@/lib/interventions-access'
-import { loadProjectTeam, projectTechRole } from '@/lib/projects/team'
+import { loadProjectTeam, projectTechRole, withoutFinance } from '@/lib/projects/team'
 
 type DecodedToken = {
   userId: string
@@ -49,11 +49,14 @@ export async function GET(request: NextRequest, context: any) {
       return NextResponse.json({ error: 'Accès réservé aux techniciens assignés' }, { status: 403 })
     }
 
+    // Un technicien ne voit jamais les montants (valeur, marge, budget, devis/factures)
+    const finance = role === 'TECHNICIAN' ? withoutFinance(project as any) : project
+
     const timeline = (project.timeline || [])
       .filter((event) => role === 'CLIENT' ? event.clientVisible : true)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    const documents = (project.documents || [])
+    const documents = ((finance.documents || []) as NonNullable<IProject['documents']>)
       .filter((doc) => role === 'CLIENT' ? doc.clientVisible : true)
       .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
 
@@ -88,8 +91,7 @@ export async function GET(request: NextRequest, context: any) {
 
     const stats = {
       progress: Number(project.progress ?? 0),
-      margin: project.margin ?? 0,
-      value: project.value ?? 0,
+      ...(role === 'TECHNICIAN' ? {} : { margin: project.margin ?? 0, value: project.value ?? 0 }),
       tasksTotal: project.metrics?.tasksTotal ?? milestoneList.length,
       tasksCompleted: project.metrics?.tasksCompleted ?? milestoneList.filter((m) => m.status === 'completed').length,
       satisfactionScore: project.metrics?.satisfactionScore ?? null
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest, context: any) {
         clientSnapshot: clientProfile,
         nextMaintenance: project.nextMaintenance ?? null,
         maintenanceWindow: project.maintenanceWindow ?? null,
-        metrics: project.metrics ?? null
+        metrics: finance.metrics ?? null
       },
       stats,
       timeline,

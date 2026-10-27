@@ -85,6 +85,31 @@ test('le projet apparaît dans le portail du technicien, pas chez un technicien 
   expect((list.projects || []).some((p: any) => String(p._id) === projectId)).toBeFalsy()
 })
 
+test('un technicien ne voit jamais les montants du projet', async () => {
+  const MONEY = ['value', 'margin', 'quote']
+  const list = await (await memberCtx.get(`/api/projects?id=${projectId}`)).json()
+  const p = list.projects.find((x: any) => String(x._id) === projectId)
+  expect(p).toBeTruthy()
+  for (const k of MONEY) expect(p[k], k).toBeUndefined()
+  expect(p.products[0].unitPrice).toBeUndefined()
+  expect(p.products[0].totalPrice).toBeUndefined()
+  expect(p.metrics?.budgetPlanned).toBeUndefined()
+  expect(p.documents.map((d: any) => d.type)).toEqual(['technical'])
+
+  const summary = await (await memberCtx.get(`/api/projects/${projectId}/summary`)).json()
+  expect(summary.stats.value).toBeUndefined()
+  expect(summary.stats.margin).toBeUndefined()
+  expect(summary.project.metrics?.budgetPlanned).toBeUndefined()
+  expect(summary.documents.some((d: any) => d.type === 'quote')).toBeFalsy()
+
+  const sheet = JSON.stringify(await (await memberCtx.get(`/api/tech/projects/${projectId}`)).json())
+  for (const needle of ['1500000', '300000', '85000', 'totalTTC', 'unitPrice']) expect(sheet.includes(needle), needle).toBeFalsy()
+
+  // L'admin, lui, garde les montants
+  const admin = (await (await adminCtx.get(`/api/projects?id=${projectId}`)).json()).projects[0]
+  expect(admin.value).toBe(1500000)
+})
+
 test('un membre fait avancer sa tâche, pas celle du responsable ; la progression suit', async () => {
   const forLead = await (await adminCtx.post(`/api/projects/${projectId}/tasks`, { data: { title: 'E2E pose baie', assigneeId: leadId } })).json()
   const forMember = await (await adminCtx.post(`/api/projects/${projectId}/tasks`, { data: { title: 'E2E tirage câbles', assigneeId: memberId, milestoneId: 'm-pose' } })).json()

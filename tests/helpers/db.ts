@@ -386,6 +386,16 @@ export async function createTeamProjectFixture(): Promise<string> {
     status: 'in_progress',
     startDate: new Date(),
     milestones: [{ id: 'm-pose', name: 'Pose des caméras', status: 'pending' }],
+    // Données financières : ne doivent jamais parvenir à un technicien
+    value: 1500000,
+    margin: 300000,
+    quote: { id: 'DEV-E2E-TEAM', version: 1, totalHT: 1271186, totalTTC: 1500000, margin: 300000, validUntil: new Date(), status: 'approved' },
+    products: [{ productId: 'p1', name: 'Caméra IP', quantity: 4, unitPrice: 85000, totalPrice: 340000, status: 'planned', supplier: 'Fournisseur E2E' }],
+    documents: [
+      { id: 'doc-devis', name: 'Devis signé', type: 'quote', url: '/e2e/devis.pdf', uploadDate: new Date() },
+      { id: 'doc-plan', name: 'Plan d’implantation', type: 'technical', url: '/e2e/plan.pdf', uploadDate: new Date() },
+    ],
+    metrics: { budgetPlanned: 900000, budgetUsed: 200000 },
   })
   return String(project._id)
 }
