@@ -80,7 +80,7 @@ export async function shareProjectPlanning(project: ProjectLike): Promise<{ emai
   const name = project.name || 'Votre projet'
   const brand = CORPORATE_BRAND
   const visible = !!project.clientAccess || VISIBLE_STATUSES.includes(String(project.status))
-  const link = `${brand.url}/portail-entreprise/projets/${String(project._id)}`
+  const link = visible ? `${brand.url}/portail-entreprise/projets/${String(project._id)}` : `${brand.url}/portail-entreprise`
   const rows = milestones.map(m => `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#1F2937;font-size:14px">${escapeHtml(String(m.name))}</td>
@@ -92,7 +92,8 @@ export async function shareProjectPlanning(project: ProjectLike): Promise<{ emai
     '',
     ...milestones.map((m, i) => `${i + 1}. ${m.name}${fmtPlanningDate(m.dueDate) ? ` — ${fmtPlanningDate(m.dueDate)}` : ''}`),
     '',
-    visible ? `Suivez l'avancement en temps réel : ${link}` : 'Votre espace client en ligne vous permettra bientôt de suivre ce planning en temps réel.',
+    `Suivez ce chantier en temps réel — avancement, jalons, photos et documents partagés — dans votre espace client : ${link}`,
+    'Pas encore d’identifiants ? Répondez à ce mail : nous activons votre espace gratuitement.',
     `L'équipe ${brand.name}`,
   ].join('\n')
 
@@ -112,7 +113,11 @@ export async function shareProjectPlanning(project: ProjectLike): Promise<{ emai
             <h2 style="color:#1F2937;margin:0 0 8px;font-size:18px">Planning de votre chantier : ${escapeHtml(name)}</h2>
             <p style="color:#6B7280;font-size:14px;line-height:1.6">Voici les étapes prévues et leurs échéances. Nous vous tiendrons informé de l'avancement.</p>
             <table style="width:100%;border-collapse:collapse;margin:16px 0">${rows}</table>
-            ${visible ? `<p style="margin:24px 0;text-align:center"><a href="${link}" style="background-color:#065f46;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px">Suivre mon projet en ligne</a></p>` : `<p style="color:#6B7280;font-size:13px;line-height:1.6">Votre espace client en ligne vous permettra bientôt de suivre ce planning et l'avancement en temps réel.</p>`}
+            <div style="background-color:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px 16px;margin-top:20px">
+              <p style="color:#065f46;font-size:14px;line-height:1.6;margin:0 0 4px"><strong>Suivez ce chantier en temps réel</strong> — avancement, jalons, photos et documents partagés — depuis votre espace client.</p>
+              <p style="margin:10px 0 4px"><a href="${link}" style="color:#065f46;font-weight:bold;font-size:14px">${visible ? 'Accéder à mon projet en ligne' : 'Découvrir mon espace client'} →</a></p>
+              <p style="color:#6B7280;font-size:12px;margin:0">Pas encore d’identifiants ? Répondez simplement à ce mail : nous activons votre espace gratuitement.</p>
+            </div>
             <p style="color:#6B7280;font-size:13px;border-top:1px solid #f3f4f6;padding-top:16px;margin-top:8px">L'équipe ${escapeHtml(brand.name)}</p>
           </div>
         </div>`,
