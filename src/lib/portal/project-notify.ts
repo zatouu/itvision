@@ -81,7 +81,11 @@ export async function shareProjectPlanning(project: ProjectLike): Promise<{ emai
   const brand = CORPORATE_BRAND
   const visible = !!project.clientAccess || VISIBLE_STATUSES.includes(String(project.status))
   const link = visible ? `${brand.url}/portail-entreprise/projets/${String(project._id)}` : `${brand.url}/portail-entreprise`
-  const rows = milestones.map(m => `
+  const rows = `
+    <tr>
+      <th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6B7280;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:left">Étape</th>
+      <th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6B7280;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:right">Échéance</th>
+    </tr>` + milestones.map(m => `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#1F2937;font-size:14px">${escapeHtml(String(m.name))}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;color:#6B7280;font-size:13px;white-space:nowrap;text-align:right">${escapeHtml(fmtPlanningDate(m.dueDate)) || '—'}</td>
