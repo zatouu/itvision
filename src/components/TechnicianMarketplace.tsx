@@ -21,6 +21,8 @@ import {
 
 interface MarketplaceActivity {
   id: string
+  title?: string
+  description?: string
   visitId?: string
   contractId?: string
   contractName?: string
@@ -300,7 +302,7 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
                     )}
                   </div>
                   <h3 className="font-bold text-gray-900 mb-1">
-                    {activity.productName || activity.contractName || 'Mission'}
+                    {activity.title || activity.productName || activity.contractName || 'Mission'}
                   </h3>
                   {activity.clientName && (
                     <p className="text-sm text-gray-600 flex items-center gap-1">
@@ -380,7 +382,8 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
 
             {/* Détails mission */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2 text-sm">
-              <div className="font-semibold text-gray-900">{selectedActivity.productName || 'Mission'}</div>
+              <div className="font-semibold text-gray-900">{selectedActivity.title || selectedActivity.productName || 'Mission'}</div>
+              {selectedActivity.description && <p className="mt-1 text-sm text-gray-600 whitespace-pre-line">{selectedActivity.description}</p>}
               <div className="text-gray-600">{selectedActivity.clientName}</div>
               {selectedActivity.site && (
                 <div className="text-gray-600 flex items-center gap-1">

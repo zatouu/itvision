@@ -77,15 +77,16 @@ export async function PATCH(
       const date = activity.date || new Date()
       const dateString = date.toISOString().split('T')[0]
       const typeIntervention = activity.category === 'product_install' ? 'installation' : 'maintenance'
-      const title = activity.productName
-        ? `Installation — ${activity.productName}`
-        : (activity.contractName
-            ? `Intervention ${activity.contractName}`
-            : `Intervention ${activity.category}`)
+      const title = activity.title
+        || (activity.productName
+          ? `Installation — ${activity.productName}`
+          : (activity.contractName
+              ? `Intervention ${activity.contractName}`
+              : `Intervention ${activity.category}`))
 
       intervention = await Intervention.create({
         title,
-        description: `Affectée depuis l'activité ${activity._id} et l'offre ${bid._id}`,
+        description: activity.description || `Affectée depuis l'activité ${activity._id} et l'offre ${bid._id}`,
         clientId: activity.clientId || undefined,
         maintenanceContractId: activity.contractId || undefined,
         maintenanceActivityId: activity._id,

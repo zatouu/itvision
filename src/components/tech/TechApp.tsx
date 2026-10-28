@@ -23,7 +23,7 @@ const NAV: Array<{ id: Tab; label: string; icon: typeof Home; mobile: boolean }>
   { id: 'projets', label: 'Projets', icon: FolderKanban, mobile: true },
   { id: 'rapports', label: 'Rapports', icon: FileText, mobile: true },
   { id: 'clients', label: 'Clients', icon: Building2, mobile: true },
-  { id: 'missions', label: 'Missions', icon: Briefcase, mobile: false },
+  { id: 'missions', label: 'Missions', icon: Briefcase, mobile: true },
   { id: 'profil', label: 'Profil', icon: UserRound, mobile: true },
 ]
 

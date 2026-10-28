@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import Technician from '@/lib/models/Technician'
 import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
+import { notifyTechnician } from '@/lib/tech/notify-technician'
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,6 +35,8 @@ export async function GET(request: NextRequest) {
       success: true,
       activities: activities.map((activity) => ({
         id: activity._id.toString(),
+        title: activity.title,
+        description: activity.description,
         visitId: activity.visitId,
         contractId: activity.contractId?.toString(),
         contractName: activity.contractName,
@@ -78,6 +82,8 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const {
+      title,
+      description,
       visitId,
       contractId,
       contractName,
@@ -117,6 +123,8 @@ export async function POST(request: NextRequest) {
     }
 
     const activity = await MaintenanceActivity.create({
+      title: title ? String(title).slice(0, 160) : undefined,
+      description: description ? String(description).slice(0, 2000) : undefined,
       visitId,
       contractId: contractId || undefined,
       contractName,
@@ -136,6 +144,22 @@ export async function POST(request: NextRequest) {
       status: 'open',
       createdBy: userId
     })
+
+    // Publication ouverte : prévenir les techs (push web — reçu même portail fermé)
+    if (activity.allowMarketplace) {
+      const label = activity.title || activity.productName || activity.contractName || `Mission ${activity.clientName}`
+      const slot = activity.date ? new Date(activity.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Africa/Dakar' }) : ''
+      const payload = {
+        title: `Nouvelle mission : ${label}`,
+        message: `${activity.clientName}${activity.site ? ` · ${activity.site}` : ''}${slot ? ` · le ${slot}` : ''}. Proposez votre disponibilité et votre prix.`,
+        actionUrl: '/tech-interface?tab=missions',
+        metadata: { activityId: String(activity._id) },
+      }
+      const targets = Array.isArray(activity.preferredTechnicians) && activity.preferredTechnicians.length
+        ? activity.preferredTechnicians
+        : (await Technician.find({ isActive: { $ne: false } }).select('_id').limit(200).lean() as any[]).map(t => t._id)
+      void Promise.allSettled(targets.map((t: unknown) => notifyTechnician(t, payload)))
+    }
 
     return NextResponse.json({
       success: true,
