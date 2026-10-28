@@ -256,7 +256,7 @@ const DynamicSchedulingSystem = ({
         ])
         if (tRes.ok) {
           const tJson = await tRes.json()
-          const list: Technician[] = (tJson.technicians || []).map((t: any) => ({
+          const list: Technician[] = (tJson.technicians || []).filter(Boolean).map((t: any) => ({
             id: t._id || t.id,
             name: t.name,
             email: t.email,
@@ -419,8 +419,8 @@ const publishActivityPayload = (
   contractId: visit.contractId,
   contractName: visit.title,
   clientId: visit.clientId,
-  clientName: visit.client.name,
-  site: visit.client.address,
+  clientName: visit.client?.name || 'Client',
+  site: visit.client?.address || '',
   date: visit.scheduledDate,
   category: visit.isContractual ? 'contract_visit' : 'ad_hoc',
   isContractual: options?.overrideReason ? false : Boolean(visit.isContractual),
@@ -843,7 +843,7 @@ const publishVisitToMarketplace = async (
                   >
                     <div>
                       <p className="text-sm font-semibold text-emerald-800">{visit.title}</p>
-                      <p className="text-xs text-emerald-600">{visit.client.name} • {visit.client.address}</p>
+                      <p className="text-xs text-emerald-600">{visit.client?.name || 'Client'} • {visit.client?.address || ''}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         {visit.scheduledDate} • {visit.estimatedDuration}h prévues
                       </p>

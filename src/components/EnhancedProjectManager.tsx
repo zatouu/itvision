@@ -133,7 +133,7 @@ export default function EnhancedProjectManager() {
     if (selectedQuoteId && quotes.length > 0) {
       const q = quotes.find(q => q._id === selectedQuoteId)
       if (q) {
-        const clientId = typeof q.clientId === 'object' ? q.clientId._id : q.clientId
+        const clientId = q.clientId && typeof q.clientId === 'object' ? q.clientId._id : q.clientId
         setEditing({
           name: `Projet depuis devis ${q._id}`,
           address: '',
@@ -343,7 +343,7 @@ export default function EnhancedProjectManager() {
             ) : (
               items.map(p => {
                 const assignedCount = Array.isArray(p.assignedTo) ? p.assignedTo.length : 0
-                const client = typeof p.clientId === 'object' ? p.clientId.name : clients.find(c => c.id === p.clientId)?.name || p.clientId
+                const client = p.clientId && typeof p.clientId === 'object' ? p.clientId.name : clients.find(c => c.id === p.clientId)?.name || '—'
                 return (
                   <tr key={p._id} className="border-t hover:bg-gray-50">
                     <td className="p-3 font-medium text-gray-900">{p.name}</td>
