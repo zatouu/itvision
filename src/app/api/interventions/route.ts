@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
@@ -304,6 +305,35 @@ export async function PUT(request: NextRequest) {
       updatePayload.heureDebut = scheduledTime
       const durationHours = Number(intervention.estimatedDuration) || 2
       updatePayload.heureFin = computeEndTime(scheduledTime, durationHours)
+    }
+
+    // Champs éditables par l'admin (le technicien est déjà restreint plus haut)
+    if (access.role !== 'TECHNICIAN') {
+      if (body.title !== undefined) updatePayload.title = String(body.title).slice(0, 200)
+      if (body.description !== undefined) updatePayload.description = String(body.description).slice(0, 5000)
+      if (body.service !== undefined) updatePayload.service = String(body.service).slice(0, 80)
+      if (body.site !== undefined) updatePayload.site = String(body.site).slice(0, 300)
+      if (body.typeIntervention !== undefined && ['maintenance', 'preventive', 'installation', 'repair', 'inspection', 'emergency'].includes(body.typeIntervention)) {
+        updatePayload.typeIntervention = body.typeIntervention
+      }
+      if (body.priority !== undefined && ['low', 'medium', 'high', 'critical', 'urgent'].includes(body.priority)) {
+        updatePayload.priority = body.priority
+      }
+      if (body.estimatedDuration !== undefined && Number.isFinite(Number(body.estimatedDuration)) && Number(body.estimatedDuration) > 0) {
+        updatePayload.estimatedDuration = Number(body.estimatedDuration)
+      }
+      if (Array.isArray(body.requiredSkills)) updatePayload.requiredSkills = body.requiredSkills.map((s: any) => String(s).slice(0, 60)).slice(0, 20)
+      if (body.client && typeof body.client === 'object') {
+        updatePayload.client = {
+          name: String(body.client.name || intervention.client?.name || '').slice(0, 160),
+          address: String(body.client.address || intervention.client?.address || '').slice(0, 300),
+          phone: String(body.client.phone || intervention.client?.phone || '').slice(0, 40),
+          zone: String(body.client.zone || intervention.client?.zone || '').slice(0, 80),
+        }
+      }
+      if (body.clientId !== undefined && (body.clientId === null || mongoose.isValidObjectId(body.clientId))) {
+        updatePayload.clientId = body.clientId || undefined
+      }
     }
 
     // Transition de statut explicite

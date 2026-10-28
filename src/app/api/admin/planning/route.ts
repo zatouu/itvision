@@ -3,6 +3,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Technician from '@/lib/models/Technician'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
+import { projectsCollection } from '@/lib/projects/persistence'
 import { requireInterventionAccess } from '@/lib/interventions-access'
 
 // GET — Planning admin unifié (calendrier + liste)
@@ -22,7 +24,65 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get('to')
     const status = searchParams.get('status')
     const technicianId = searchParams.get('technicianId')
-    const view = searchParams.get('view') || 'list' // 'list' | 'calendar'
+    const view = searchParams.get('view') || 'list' // 'list' | 'calendar' | 'agenda'
+
+    // Agenda unifié : interventions + missions (activités) + jalons et tâches de projet, triés par jour
+    if (view === 'agenda') {
+      const today = new Date().toISOString().slice(0, 10)
+      const fromS = (from || today).slice(0, 10)
+      const toS = (to || '2099-12-31').slice(0, 10)
+      const events: any[] = []
+      const techName = new Map<string, string>()
+
+      const [intvs, acts, projects] = await Promise.all([
+        Intervention.find({}).sort({ date: 1 }).limit(500)
+          .select('title status priority typeIntervention service date scheduledDate scheduledTime heureDebut site client technicienId assignedTechnician').lean(),
+        MaintenanceActivity.find({}).sort({ date: 1 }).limit(300)
+          .select('title clientName site date status category').lean(),
+        projectsCollection().find({}, { projection: { name: 1, milestones: 1, tasks: 1 } }).limit(300).toArray(),
+      ])
+
+      const techIds = intvs.map(i => i.assignedTechnician || i.technicienId).filter(Boolean).map(String)
+      if (techIds.length) {
+        const techs = await Technician.find({ _id: { $in: techIds } }).select('name').lean() as any[]
+        for (const t of techs) techName.set(String(t._id), t.name)
+      }
+      const inRange = (d: string | null | undefined) => !!d && d >= fromS && d <= toS
+
+      for (const i of intvs) {
+        const d = i.scheduledDate || (i.date ? new Date(i.date).toISOString().slice(0, 10) : '')
+        if (!inRange(d)) continue
+        events.push({
+          kind: 'intervention', id: String(i._id), date: d,
+          time: i.scheduledTime || i.heureDebut || '', title: i.title,
+          status: i.status, site: i.site || '', client: i.client?.name || '',
+          tech: techName.get(String(i.assignedTechnician || i.technicienId || '')) || '',
+          interventionId: String(i._id),
+        })
+      }
+      for (const a of acts) {
+        const d = a.date ? new Date(a.date).toISOString().slice(0, 10) : ''
+        if (!inRange(d)) continue
+        events.push({
+          kind: 'mission', id: String(a._id), date: d, title: a.title || a.clientName || 'Mission',
+          status: a.status, site: a.site || '', client: a.clientName || '', href: '/admin/marketplace',
+        })
+      }
+      for (const p of projects) {
+        for (const m of p.milestones || []) {
+          const d = m.dueDate ? new Date(m.dueDate).toISOString().slice(0, 10) : ''
+          if (!inRange(d) || m.status === 'completed') continue
+          events.push({ kind: 'milestone', id: `${p._id}-${m.id}`, date: d, title: `${p.name} — ${m.name}`, status: m.status, href: `/admin/projects/${p._id}` })
+        }
+        for (const t of p.tasks || []) {
+          const d = t.dueDate ? new Date(t.dueDate).toISOString().slice(0, 10) : ''
+          if (!inRange(d) || t.status === 'done') continue
+          events.push({ kind: 'task', id: `${p._id}-${t.id}`, date: d, title: `${p.name} — ${t.title}`, status: t.status, href: `/admin/projects/${p._id}` })
+        }
+      }
+      events.sort((a, b) => a.date === b.date ? String(a.time || '').localeCompare(String(b.time || '')) : a.date < b.date ? -1 : 1)
+      return NextResponse.json({ success: true, view, events })
+    }
 
     const query: any = {}
     if (from || to) {

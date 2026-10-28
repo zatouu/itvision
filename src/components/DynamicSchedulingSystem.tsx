@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   Calendar,
+  List,
+  Loader2,
   Clock,
   MapPin,
   User,
@@ -108,7 +110,10 @@ const DynamicSchedulingSystem = ({
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [showVisitsPanel, setShowVisitsPanel] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [viewMode, setViewMode] = useState<'calendar' | 'list' | 'technicians'>(defaultViewMode)
+  const [viewMode, setViewMode] = useState<'calendar' | 'list' | 'technicians' | 'agenda'>(defaultViewMode)
+  const [agenda, setAgenda] = useState<any[] | null>(null)
+  const [agendaLoading, setAgendaLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [filterService, setFilterService] = useState<string>('all')
   const [filterZone, setFilterZone] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -144,6 +149,40 @@ const DynamicSchedulingSystem = ({
     setNewInterventionForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Vue « Agenda » : tout ce qui vient, toutes sources confondues
+  useEffect(() => {
+    if (viewMode !== 'agenda') return
+    setAgendaLoading(true)
+    const from = new Date().toISOString().slice(0, 10)
+    const to = new Date(Date.now() + 60 * 86400_000).toISOString().slice(0, 10)
+    fetch(`/api/admin/planning?view=agenda&from=${from}&to=${to}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setAgenda(d.events || []))
+      .catch(() => setAgenda([]))
+      .finally(() => setAgendaLoading(false))
+  }, [viewMode])
+
+  // Édition : préremplit la modale existante, qui bascule en PUT
+  const openEditIntervention = (i: any) => {
+    setEditingId(i.id)
+    setNewInterventionForm({
+      title: i.title || '',
+      service: i.service || 'maintenance',
+      priority: i.priority || 'medium',
+      estimatedDuration: i.estimatedDuration || 2,
+      description: i.description || '',
+      clientName: i.client?.name || '',
+      clientPhone: i.client?.phone || '',
+      clientZone: i.client?.zone || 'Dakar',
+      clientAddress: i.client?.address || i.site || '',
+      clientEmail: i.client?.email || '',
+      scheduledDate: i.scheduledDate || '',
+      scheduledTime: i.scheduledTime || '',
+    })
+    setNewInterventionError(null)
+    setShowNewInterventionModal(true)
+  }
+
   const handleCreateNewIntervention = async () => {
     if (!newInterventionForm.title.trim() || !newInterventionForm.clientName.trim()) {
       setNewInterventionError('Merci de renseigner un titre et un client.')
@@ -170,14 +209,26 @@ const DynamicSchedulingSystem = ({
         scheduledTime: newInterventionForm.scheduledTime || undefined
       }
       const res = await fetch('/api/interventions', {
-        method: 'POST',
+        method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(editingId ? { interventionId: editingId, ...payload } : payload)
       })
       const data = await res.json()
-      if (!res.ok || !data?.intervention) {
-        throw new Error(data.error || 'Création impossible')
+      if (!res.ok || (!editingId && !data?.intervention)) {
+        throw new Error(data.error || (editingId ? 'Modification impossible' : 'Création impossible'))
+      }
+      if (editingId) {
+        setInterventions(prev => prev.map(x => x.id === editingId ? {
+          ...x,
+          title: payload.title, service: payload.service, priority: payload.priority as any,
+          estimatedDuration: payload.estimatedDuration, description: payload.description,
+          scheduledDate: payload.scheduledDate, scheduledTime: payload.scheduledTime,
+          client: payload.client as any,
+        } : x))
+        setEditingId(null)
+        setShowNewInterventionModal(false)
+        return
       }
       const normalized = normalizeInterventionFromApi(data.intervention)
       normalized.client = normalized.client || payload.client
@@ -740,6 +791,17 @@ const publishVisitToMarketplace = async (
               Calendrier
             </button>
             <button
+              onClick={() => setViewMode('agenda')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'agenda' 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <List className="h-4 w-4 inline mr-2" />
+              Agenda
+            </button>
+            <button
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 viewMode === 'list' 
@@ -768,7 +830,7 @@ const publishVisitToMarketplace = async (
             </button>
             {showNewInterventionShortcut && (
               <button
-                onClick={() => setShowNewInterventionModal(true)}
+                onClick={() => { setEditingId(null); setShowNewInterventionModal(true) }}
                 className="px-4 py-2 rounded-lg font-medium bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
               >
                 <Plus className="h-4 w-4 inline mr-2" />
@@ -896,7 +958,7 @@ const publishVisitToMarketplace = async (
                 Interventions en attente ({visibleInterventions.filter(i => i.status === 'pending').length})
               </h2>
               <button
-                onClick={() => setShowNewInterventionModal(true)}
+                onClick={() => { setEditingId(null); setShowNewInterventionModal(true) }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 <Plus className="h-4 w-4 inline mr-2" />
@@ -1324,6 +1386,57 @@ const publishVisitToMarketplace = async (
         )}
       </div>
     </div>
+      {/* AGENDA — toutes les tâches à venir, toutes sources */}
+      {viewMode === 'agenda' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Agenda — tout ce qui vient (60 jours)</h2>
+          {agendaLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+          ) : !(agenda || []).length ? (
+            <p className="py-8 text-center text-sm text-gray-500">Rien de planifié sur la période.</p>
+          ) : (
+            <div className="space-y-5">
+              {Object.entries((agenda || []).reduce((g: Record<string, any[]>, e: any) => { (g[e.date] = g[e.date] || []).push(e); return g }, {})).map(([day, evts]) => (
+                <div key={day}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {day === new Date().toISOString().slice(0, 10) && <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">AUJOURD'HUI</span>}
+                  </p>
+                  <ul className="space-y-1.5">
+                    {evts.map((e: any) => {
+                      const KIND: Record<string, { l: string; c: string }> = {
+                        intervention: { l: 'Intervention', c: 'bg-blue-50 text-blue-700' },
+                        mission: { l: 'Mission', c: 'bg-amber-50 text-amber-700' },
+                        milestone: { l: 'Jalon projet', c: 'bg-indigo-50 text-indigo-700' },
+                        task: { l: 'Tâche', c: 'bg-stone-100 text-stone-600' },
+                      }
+                      const k = KIND[e.kind] || KIND.task
+                      const intv = e.interventionId ? interventions.find(x => x.id === e.interventionId) : null
+                      return (
+                        <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${k.c}`}>{k.l}</span>
+                          {e.time && <span className="text-xs tabular-nums text-gray-400">{e.time}</span>}
+                          <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{e.title}</span>
+                          <span className="truncate text-xs text-gray-400">{[e.client, e.site, e.tech].filter(Boolean).join(' · ')}</span>
+                          {intv && (
+                            <button onClick={() => openEditIntervention(intv)}
+                              className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                              Modifier
+                            </button>
+                          )}
+                          {e.href && (
+                            <a href={e.href} className="rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50">Ouvrir</a>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     {showNewInterventionModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100">
