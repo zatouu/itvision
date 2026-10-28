@@ -206,7 +206,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention', index: true },
   technicianId: { type: Schema.Types.ObjectId, ref: 'Technician', required: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project' },
   
   interventionDate: { type: Date, required: true },
   startTime: { type: String, required: true },
