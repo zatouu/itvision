@@ -67,6 +67,26 @@ export async function GET(
         quantity: equipment?.quantity,
         location: equipment?.location
       })),
+      pricing: {
+        annualAmount: contract.annualPrice,
+        frequency: contract.paymentFrequency,
+        currency: 'FCFA',
+      },
+      // Sites : noms déclarés → équipements associés par location ; sinon grouping par location
+      sites: (() => {
+        const eq = (contract.equipment || []).map((e: any) => ({ type: e?.type, quantity: e?.quantity, location: e?.location }))
+        const names: string[] = contract.coverage?.sitesCovered || []
+        if (!names.length) return undefined
+        const sites = names.map((name: string) => ({
+          name,
+          equipment: eq
+            .filter((e: any) => (names.length === 1 && !e.location) || String(e.location || '').toLowerCase() === String(name).toLowerCase())
+            .map((e: any) => ({ type: e.type, quantity: e.quantity })),
+        }))
+        const orphan = eq.filter((e: any) => e.location && !names.some((n: string) => String(n).toLowerCase() === String(e.location).toLowerCase()))
+        if (orphan.length) sites.push({ name: orphan[0].location, equipment: orphan.map((e: any) => ({ type: e.type, quantity: e.quantity })) } as any)
+        return sites
+      })(),
       notes: contract.notes,
       preferredTechnicians: Array.isArray(contract.preferredTechnicians)
         ? (contract.preferredTechnicians as any[]).map((tech) => ({
