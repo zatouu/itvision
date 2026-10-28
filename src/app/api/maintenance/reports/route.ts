@@ -473,9 +473,9 @@ export async function POST(request: NextRequest) {
       if (pick) projectId = String(pick._id)
     }
 
-    if (!clientId || !projectId) {
+    if (!clientId) {
       return NextResponse.json(
-        { error: 'Aucun projet n’est rattaché à ce client : demandez au planning de lier l’intervention à un projet.' },
+        { error: 'Client introuvable pour ce rapport : renseignez le client de l’intervention.' },
         { status: 400 }
       )
     }
@@ -529,7 +529,7 @@ export async function POST(request: NextRequest) {
     const newReport = new MaintenanceReport({
       technicianId,
       clientId: new mongoose.Types.ObjectId(clientId),
-      projectId: new mongoose.Types.ObjectId(projectId),
+      projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
       interventionId: interventionId ? new mongoose.Types.ObjectId(interventionId) : undefined,
       interventionDate,
       startTime,
