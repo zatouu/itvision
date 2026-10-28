@@ -125,6 +125,8 @@ export default function ProjectDetailPage() {
   // Milestones
   const [newMilestone, setNewMilestone] = useState({ name: '', dueDate: '' })
   const [msSaving, setMsSaving] = useState(false)
+  const [dragMilestoneId, setDragMilestoneId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   // Notes
   const [newNote, setNewNote] = useState('')
@@ -829,25 +831,76 @@ export default function ProjectDetailPage() {
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(editing.milestones || []).map(m => (
-                <div key={m.id} className="bg-white border border-stone-200 rounded-xl p-4 flex items-start justify-between gap-3 group hover:shadow-sm transition-shadow cursor-pointer" onClick={() => setSelectedMilestone(m)}>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-stone-900 text-sm">{m.name}</p>
-                    {m.dueDate && <p className="text-xs text-stone-500 mt-0.5">Échéance : {fd(m.dueDate)}</p>}
-                  </div>
-                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <select value={m.status} disabled={msSaving} onChange={e => handleMilestoneStatus(m.id, e.target.value as any)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 disabled:opacity-50">
-                      {Object.keys(MSTATUS_LABELS).map(s => <option key={s} value={s}>{MSTATUS_LABELS[s]}</option>)}
-                    </select>
-                    <button onClick={() => handleRemoveMilestone(m.id)} disabled={msSaving} className="p-1 text-red-500 hover:bg-red-50 rounded disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
+            {/* Kanban des jalons — glisser-déposer entre colonnes (statut enregistré aussitôt) */}
+            {(() => {
+              const cols: Array<{ key: 'pending' | 'in_progress' | 'delayed' | 'completed'; dot: string; tint: string }> = [
+                { key: 'pending', dot: 'bg-stone-400', tint: 'bg-stone-50' },
+                { key: 'in_progress', dot: 'bg-blue-500', tint: 'bg-blue-50/60' },
+                { key: 'delayed', dot: 'bg-orange-500', tint: 'bg-orange-50/60' },
+                { key: 'completed', dot: 'bg-emerald-500', tint: 'bg-emerald-50/60' },
+              ]
+              const ms = editing.milestones || []
+              const today = new Date(); today.setHours(0, 0, 0, 0)
+              return (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {cols.map(col => {
+                    const cards = ms.filter(m => m.status === col.key)
+                    return (
+                      <div key={col.key}
+                        onDragOver={e => { e.preventDefault(); if (dragOverCol !== col.key) setDragOverCol(col.key) }}
+                        onDragLeave={() => setDragOverCol(o => o === col.key ? null : o)}
+                        onDrop={e => { e.preventDefault(); if (dragMilestoneId) handleMilestoneStatus(dragMilestoneId, col.key); setDragMilestoneId(null); setDragOverCol(null) }}
+                        className={`flex-1 min-w-[240px] rounded-2xl border p-3 transition-colors ${dragOverCol === col.key ? 'border-blue-400 bg-blue-50/70' : `border-stone-200 ${col.tint}`}`}>
+                        <div className="mb-3 flex items-center gap-2 px-1">
+                          <span className={`h-2.5 w-2.5 rounded-full ${col.dot}`} />
+                          <span className="text-xs font-semibold uppercase tracking-wider text-stone-600">{MSTATUS_LABELS[col.key]}</span>
+                          <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-stone-500 ring-1 ring-stone-200">{cards.length}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {cards.map(m => {
+                            const late = m.status !== 'completed' && m.dueDate && new Date(m.dueDate) < today
+                            return (
+                              <div key={m.id} draggable
+                                onDragStart={e => { setDragMilestoneId(m.id); e.dataTransfer.effectAllowed = 'move' }}
+                                onDragEnd={() => { setDragMilestoneId(null); setDragOverCol(null) }}
+                                onClick={() => setSelectedMilestone(m)}
+                                className={`group cursor-grab rounded-xl border bg-white p-3 shadow-sm transition hover:shadow-md active:cursor-grabbing ${late ? 'border-red-200' : 'border-stone-200'} ${dragMilestoneId === m.id ? 'opacity-40' : ''}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className={`min-w-0 flex-1 text-sm font-semibold ${m.status === 'completed' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{m.name}</p>
+                                  <button onClick={e => { e.stopPropagation(); handleRemoveMilestone(m.id) }} disabled={msSaving}
+                                    aria-label="Supprimer le jalon"
+                                    className="flex-shrink-0 rounded p-1 text-stone-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 disabled:opacity-50">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                                  {m.dueDate && (
+                                    <span className={`inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-medium ${late ? 'bg-red-50 text-red-700' : m.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
+                                      <Calendar className="h-3 w-3" />{fd(m.dueDate)}{late ? ' · en retard' : ''}
+                                    </span>
+                                  )}
+                                  <select value={m.status} disabled={msSaving}
+                                    onChange={e => handleMilestoneStatus(m.id, e.target.value as any)}
+                                    aria-label="Changer le statut"
+                                    className="ml-auto cursor-pointer rounded-lg border border-stone-200 bg-white px-1.5 py-0.5 text-[11px] text-stone-500 disabled:opacity-50">
+                                    {Object.keys(MSTATUS_LABELS).map(s => <option key={s} value={s}>{MSTATUS_LABELS[s]}</option>)}
+                                  </select>
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {cards.length === 0 && (
+                            <p className={`rounded-xl border border-dashed py-6 text-center text-xs ${dragOverCol === col.key ? 'border-blue-400 text-blue-500' : 'border-stone-200 text-stone-400'}`}>
+                              {dragMilestoneId ? 'Déposer ici' : 'Aucun jalon'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-              {(editing.milestones || []).length === 0 && (
-                <div className="text-center py-10 text-stone-500 bg-white border border-stone-200 rounded-xl"><Flag className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">Aucun jalon</p></div>
-              )}
-            </div>
+              )
+            })()}
           </div>
         )}
 
