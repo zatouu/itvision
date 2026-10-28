@@ -430,31 +430,35 @@ const publishActivityPayload = (
 })
 
   // Algorithme d'affectation automatique
+  // Match flou : « maintenance » doit aussi reconnaître « Maintenance », « maintenance préventive », etc.
+  const skillMatches = (skill: string, skills: string[] = []) => {
+    const s = String(skill || '').toLowerCase().trim()
+    if (!s) return false
+    return skills.some(t => {
+      const x = String(t || '').toLowerCase().trim()
+      return !!x && (x === s || x.includes(s) || s.includes(x))
+    })
+  }
+
   const findBestTechnician = (intervention: Intervention): Technician | null => {
     const targetZone = intervention.client?.zone
-    const availableTechnicians = technicians.filter(tech => {
-      // Vérifier les compétences requises
-      const hasRequiredSkills = intervention.requiredSkills.every(skill => 
-        tech.skills.includes(skill)
-      )
-      
-      // Vérifier la zone (priorité aux techniciens de la même zone)
-      const sameZone = targetZone ? tech.zone === targetZone : false
-      
-      // Vérifier la charge de travail (ne pas dépasser 90%)
-      const notOverloaded = tech.currentLoad < 90
-      
-      return hasRequiredSkills && notOverloaded
-    })
+    const required = intervention.requiredSkills || []
+    const notOverloaded = (tech: Technician) => tech.currentLoad < 90
 
-    if (availableTechnicians.length === 0) return null
+    // Pool 1 : compétences requises (match flou) ; Pool 2 : repli sur tout tech disponible
+    const skilled = technicians.filter(t => notOverloaded(t) && required.every(skill => skillMatches(skill, t.skills || [])))
+    const pool = skilled.length ? skilled : technicians.filter(notOverloaded)
+    if (pool.length === 0) return null
 
     // Scoring pour choisir le meilleur technicien
-    const scoredTechnicians = availableTechnicians.map(tech => {
+    const scoredTechnicians = pool.map(tech => {
       let score = 0
       
       // Bonus pour la même zone
       if (targetZone && tech.zone === targetZone) score += 30
+      
+      // Bonus par compétence requise reconnue (favorise les profils les plus proches)
+      score += required.filter(skill => skillMatches(skill, tech.skills || [])).length * 50
       
       // Bonus pour charge de travail faible
       score += (100 - tech.currentLoad) * 0.3
