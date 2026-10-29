@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Users,
   Clock,
+  Eye,
   FileText,
   PieChart,
   Calendar,
@@ -24,6 +25,7 @@ import {
   Download
 } from 'lucide-react'
 import MaintenanceContractModal from './MaintenanceContractModal'
+import ContractDetailDrawer from './ContractDetailDrawer'
 
 type MaintenanceContract = {
   _id: string
@@ -206,6 +208,7 @@ export default function MaintenanceCenter() {
   const [portalFilter, setPortalFilter] = useState<'all' | 'portal' | 'noPortal'>('all')
   const [viewMode, setViewMode] = useState<'clients' | 'contracts'>('clients')
   const [showContractModal, setShowContractModal] = useState(false)
+  const [detailContract, setDetailContract] = useState<any | null>(null)
   const handleExportContract = (contractId: string, format: 'pdf' | 'docx') => {
     const url = `/api/maintenance/contracts/${contractId}/export?format=${format}`
     window.open(url, '_blank')
@@ -248,6 +251,9 @@ export default function MaintenanceCenter() {
             status: String(contract.status || 'draft').toLowerCase(),
             annualPrice: contract.annualPrice || 0,
             paymentFrequency: contract.paymentFrequency,
+            paymentTerms: contract.paymentTerms,
+            notes: contract.notes,
+            services: Array.isArray(contract.services) ? contract.services.map((s: any) => ({ name: s?.name, description: s?.description, frequency: s?.frequency })) : [],
             autoBilling: !!contract.autoBilling,
             startDate: contract.startDate,
             endDate: contract.endDate,
@@ -752,6 +758,14 @@ export default function MaintenanceCenter() {
               <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
                 <button
                   type="button"
+                  onClick={() => setDetailContract(contract)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  <Eye className="h-3 w-3" />
+                  Voir
+                </button>
+                <button
+                  type="button"
                   onClick={() =>
                     handleExportContract(contract._id || contract.contractNumber || contract.name, 'pdf')
                   }
@@ -879,6 +893,14 @@ export default function MaintenanceCenter() {
           </span>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+          <button
+            type="button"
+            onClick={() => setDetailContract(contract)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            <Eye className="h-3 w-3" />
+            Voir
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -1136,6 +1158,11 @@ export default function MaintenanceCenter() {
         projects={projects}
         technicians={technicians}
         onCreated={loadData}
+      />
+      <ContractDetailDrawer
+        contract={detailContract}
+        onClose={() => setDetailContract(null)}
+        onSaved={() => { setDetailContract(null); loadData() }}
       />
     </div>
   )

@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx'
 
 export type ContractSiteEquipment = { type: string; quantity: number }
@@ -253,8 +253,7 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
     doc.text(site.name.toUpperCase(), 40, y)
     y += 8
     para(`Il est rappelé que le système de vidéosurveillance installé dans les locaux de ${site.name} comprend les appareils suivants :`, 9)
-    // @ts-expect-error autotable
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [["Nature de l'appareil", 'Marque / Modèle', 'Quantité']],
       body: site.equipment.map(e => {
@@ -265,7 +264,8 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
       headStyles: { fillColor: [16, 185, 129] },
       margin: { left: 40, right: 40 },
     })
-    y = ((doc as any).lastAutoTable?.finalY || y + 40) + 14
+    const tableResult: any = (doc as any).lastAutoTable
+    y = ((tableResult?.finalY || y + 40) + 14)
     if (site.annualAmount) para(`Montant ${site.name} : ${formatAmount(site.annualAmount)} / an`, 9.5, true, 8)
   }
 
