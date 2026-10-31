@@ -35,7 +35,8 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 async function createAdminUser() {
   try {
     // Connexion à MongoDB
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://itvision_app:AppPassword123@localhost:27017/itvision_db?authSource=itvision_db';
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) throw new Error('MONGODB_URI requis');
     console.log('🔌 Connexion à MongoDB...');
     await mongoose.connect(mongoUri);
     console.log('✅ Connecté à MongoDB');

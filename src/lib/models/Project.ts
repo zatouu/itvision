@@ -8,7 +8,7 @@ export interface IProject extends Document {
   clientId: mongoose.Types.ObjectId
   // Optionnel: rattacher un projet à une entreprise (Client) pour visibilité multi-utilisateurs
   clientCompanyId?: mongoose.Types.ObjectId
-  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold'
+  status: 'lead' | 'quoted' | 'negotiation' | 'approved' | 'in_progress' | 'testing' | 'completed' | 'maintenance' | 'on_hold' | 'cancelled'
   startDate: Date
   endDate?: Date | null
   // Champs UI supplémentaires
@@ -34,7 +34,11 @@ export interface IProject extends Document {
       availability?: string
     }>
   }
+  /** @deprecated noms libres / User._id mélangés — remplacé par leadTechnicianId + technicianIds (migrate:project-team) */
   assignedTo?: string[]
+  // Équipe terrain (fiches Technician) : un responsable + des membres. Facultative : l'admin pilote seul s'il le faut.
+  leadTechnicianId?: mongoose.Types.ObjectId | null
+  technicianIds?: mongoose.Types.ObjectId[]
   value?: number
   margin?: number
   milestones?: Array<{
@@ -120,7 +124,57 @@ export interface IProject extends Document {
     budgetUsed?: number
     satisfactionScore?: number
   }
+  // Tableau Kanban des tâches du projet (cf. src/lib/projects/workflow.ts)
+  tasks?: Array<{
+    id: string
+    title: string
+    description?: string
+    status: 'todo' | 'in_progress' | 'review' | 'done'
+    priority: 'low' | 'medium' | 'high'
+    assignee?: string
+    assigneeId?: string
+    dueDate?: Date | null
+    milestoneId?: string
+    order: number
+    createdAt?: Date
+    updatedAt?: Date
+    completedAt?: Date | null
+  }>
+  // Journal de chantier : ce que l'équipe (ou l'admin pour son compte) consigne (cf. src/lib/projects/journal.ts)
+  journal?: Array<{
+    id: string
+    date: Date
+    kind: 'progress' | 'blocker' | 'note' | 'task' | 'report'
+    message: string
+    technicianId?: string
+    authorName: string
+    authorRole: 'ADMIN' | 'TECHNICIAN'
+    onBehalfOf?: string
+    taskIds?: string[]
+    photos?: string[]
+    hours?: number
+    clientVisible: boolean
+    resolvedAt?: Date | null
+    reportId?: string
+  }>
+  lastActivityAt?: Date
   clientAccess?: boolean
+  reception?: {
+    requestedAt?: Date
+    requestedBy?: string
+    warrantyMonths?: number
+    signedAt?: Date
+    decision?: 'accepted' | 'reserves'
+    reserves?: string
+    signature?: string
+    signatureName?: string
+    signatureTitle?: string
+    signedByUserId?: mongoose.Types.ObjectId
+    ip?: string
+    userAgent?: string
+    warrantyEnd?: Date
+    reservesLiftedAt?: Date
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -132,7 +186,7 @@ const ProjectSchema = new Schema<IProject>({
   projectId: { type: String, index: true },
   clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', },
-  status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'], default: 'lead', index: true },
+  status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold', 'cancelled'], default: 'lead', index: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
   currentPhase: { type: String, default: '' },
@@ -164,6 +218,8 @@ const ProjectSchema = new Schema<IProject>({
     default: () => ({ name: '', address: '', access: '', constraints: [], contacts: [] })
   },
   assignedTo: [String],
+  leadTechnicianId: { type: Schema.Types.ObjectId, ref: 'Technician', default: null },
+  technicianIds: [{ type: Schema.Types.ObjectId, ref: 'Technician' }],
   value: { type: Number, default: 0 },
   margin: { type: Number, default: 0 },
   milestones: [{
@@ -239,7 +295,7 @@ const ProjectSchema = new Schema<IProject>({
     }],
     statusHistory: [{
       date: Date,
-      status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold'] },
+      status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold', 'cancelled'] },
       author: String,
       note: String
     }],
@@ -277,10 +333,63 @@ const ProjectSchema = new Schema<IProject>({
       budgetUsed: Number,
       satisfactionScore: Number
     },
+  tasks: [{
+    _id: false,
+    id: { type: String, required: true },
+    title: { type: String, required: true, maxlength: 200 },
+    description: { type: String, maxlength: 4000 },
+    status: { type: String, enum: ['todo', 'in_progress', 'review', 'done'], default: 'todo' },
+    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    assignee: String,
+    assigneeId: String,
+    dueDate: Date,
+    milestoneId: String,
+    order: { type: Number, default: 0 },
+    createdAt: Date,
+    updatedAt: Date,
+    completedAt: Date
+  }],
+  journal: [{
+    _id: false,
+    id: { type: String, required: true },
+    date: { type: Date, default: Date.now },
+    kind: { type: String, enum: ['progress', 'blocker', 'note', 'task', 'report'], default: 'note' },
+    message: { type: String, maxlength: 4000 },
+    technicianId: String,
+    authorName: String,
+    authorRole: { type: String, enum: ['ADMIN', 'TECHNICIAN'] },
+    onBehalfOf: String,
+    taskIds: [String],
+    photos: [String],
+    hours: Number,
+    clientVisible: { type: Boolean, default: false },
+    resolvedAt: Date,
+    reportId: String
+  }],
+  lastActivityAt: Date,
   clientAccess: { type: Boolean, default: false },
+  // PV de réception signé par le client depuis le portail ; la garantie court à partir de la signature
+  reception: {
+    requestedAt: Date,
+    requestedBy: String,
+    warrantyMonths: Number,
+    signedAt: Date,
+    decision: { type: String, enum: ['accepted', 'reserves'] },
+    reserves: String,
+    signature: String,
+    signatureName: String,
+    signatureTitle: String,
+    signedByUserId: { type: Schema.Types.ObjectId, ref: 'User' },
+    ip: String,
+    userAgent: String,
+    warrantyEnd: Date,
+    reservesLiftedAt: Date,
+  },
 }, { timestamps: true })
 
 ProjectSchema.index({ clientId: 1, createdAt: -1 })
 ProjectSchema.index({ clientCompanyId: 1, createdAt: -1 })
+ProjectSchema.index({ leadTechnicianId: 1 })
+ProjectSchema.index({ technicianIds: 1 })
 
 export default mongoose.models.Project || mongoose.model<IProject>('Project', ProjectSchema)

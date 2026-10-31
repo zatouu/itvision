@@ -1,0 +1,664 @@
+import { createThemedStyles } from '../../theme'
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Linking } from 'react-native'
+import { Image } from 'expo-image'
+import { useTranslation } from 'react-i18next'
+import { Star, Check, Clock, MessageCircle, CalendarClock, Sparkles } from 'lucide-react-native'
+import { spacing, radius, typography, shadows } from '../../design'
+import { hapticSuccess } from '../../haptics'
+import { formatSlot } from '../SchedulePicker'
+import { marketLinks } from '../../links'
+
+export type Offer = {
+  _id: string
+  providerId: string
+  providerName?: string
+  providerAvatar?: string
+  providerVerified?: boolean
+  providerRating?: { avg?: number; count?: number }
+  price: number
+  etaMinutes?: number
+  proposedTime?: string
+  message?: string
+  experienceYears?: number
+  materialIncluded?: boolean
+  materials?: Array<{ name: string; qty: number; byClient?: boolean; product?: { name?: string; priceFcfa?: number; local?: boolean; link?: string } }>
+  distanceKm?: number
+  isNew?: boolean
+  status?: 'submitted' | 'withdrawn' | 'accepted' | 'rejected' | 'expired'
+  clientCounterPrice?: number
+  clientCounterStatus?: 'pending' | 'accepted' | 'rejected'
+}
+
+type Props = {
+  offer: Offer
+  isBest: boolean
+  /** Score de compatibilité 0-100 (normalisé par l'écran parent) */
+  matchScore?: number
+  /** Offre la moins chère de la liste → chip « Meilleur prix » */
+  isCheapest?: boolean
+  budget?: number
+  /** Intégration DDM+ active (admin) ; `false` = mention grisée « Bientôt » */
+  ddmEnabled?: boolean
+  /** Créneau demandé par le client (request.scheduledFor, ISO) */
+  scheduledFor?: string
+  onChoose: (offer: Offer) => void
+  onNegotiate: (offer: Offer) => void
+  disabled?: boolean
+  hasAcceptedOffer?: boolean
+}
+
+function BudgetDeltaChip({ price, budget }: { price: number; budget?: number }) {
+  const { s } = useStyles()
+  const { t } = useTranslation()
+  if (!budget) return null
+  const delta = price - budget
+  if (delta === 0) return null
+  const deltaK = Math.round(Math.abs(delta) / 1000)
+  const isLess = delta < 0
+  return (
+    <Text style={[s.delta, isLess ? s.deltaGreen : s.deltaOrange]}>
+      {isLess
+        ? t('clientOffers.againstBudgetLess', { amount: deltaK })
+        : t('clientOffers.againstBudgetMore', { amount: deltaK })
+      }
+    </Text>
+  )
+}
+
+export default function OfferCard({ offer, isBest, matchScore, isCheapest, budget, ddmEnabled, scheduledFor, onChoose, onNegotiate, disabled, hasAcceptedOffer }: Props) {
+  const { colors, s } = useStyles()
+  const { t, i18n } = useTranslation()
+  const slideAnim = useRef(new Animated.Value(offer.isNew ? 50 : 0)).current
+  const fadeAnim = useRef(new Animated.Value(offer.isNew ? 0 : 1)).current
+  const [showNewBadge, setShowNewBadge] = useState(!!offer.isNew)
+
+  useEffect(() => {
+    if (offer.isNew) {
+      hapticSuccess()
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start()
+      const timer = setTimeout(() => setShowNewBadge(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [offer.isNew, slideAnim, fadeAnim])
+
+  const initials = offer.providerName?.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'P'
+  const hasRating = Number.isFinite(offer.providerRating?.avg) && (offer.providerRating?.avg || 0) > 0
+
+  return (
+    <Animated.View
+      style={[
+        s.card,
+        isBest && s.cardBest,
+        { transform: [{ translateY: slideAnim }], opacity: fadeAnim },
+      ]}
+    >
+      {isBest && (
+        <View style={s.bestRibbon}>
+          <Sparkles size={11} color={colors.onPrimary} />
+          <Text style={s.bestRibbonText}>{t('clientOffers.bestChoice')}</Text>
+        </View>
+      )}
+      {showNewBadge && !isBest && (
+        <View style={s.newBadge}>
+          <Text style={s.newBadgeText}>{t('clientOffers.newBadge')}</Text>
+        </View>
+      )}
+
+      {/* Provider row */}
+      <View style={s.headerRow}>
+        <View style={s.avatarWrap}>
+          {offer.providerAvatar ? (
+            <Image
+              source={{ uri: offer.providerAvatar }}
+              style={s.avatarImg}
+              contentFit="cover"
+              placeholder={require('../../../assets/icon.png')}
+              transition={200}
+            />
+          ) : (
+            <View style={[s.avatarImg, s.avatarFallback]}>
+              <Text style={s.avatarInitials}>{initials}</Text>
+            </View>
+          )}
+          {offer.providerVerified && (
+            <View style={s.verifiedBadge}>
+              <Check size={10} color={colors.onPrimary} strokeWidth={3} />
+            </View>
+          )}
+        </View>
+
+        <View style={s.providerInfo}>
+          <Text style={s.providerName} numberOfLines={1}>{offer.providerName || '—'}</Text>
+          <View style={s.ratingRow}>
+            <Star size={13} color={colors.warning} fill={colors.warning} />
+            <Text style={s.rating}>
+              {hasRating
+                ? `${offer.providerRating?.avg} ${t('clientOffers.reviews', { count: offer.providerRating?.count || 0 })}`
+                : t('clientOffers.noRating')
+              }
+            </Text>
+          </View>
+        </View>
+
+        <View style={s.priceCol}>
+          <Text style={s.priceValue}>{offer.price.toLocaleString('fr-FR')}</Text>
+          <Text style={s.priceCurrency}>FCFA</Text>
+          <BudgetDeltaChip price={offer.price} budget={budget} />
+        </View>
+      </View>
+
+      {/* Pills row */}
+      <View style={s.pillsRow}>
+        {matchScore != null && (
+          <View style={s.pillMatch}>
+            <Sparkles size={10} color={colors.brandInk} />
+            <Text style={s.pillMatchText}>{t('clientOffers.matchPercent', { percent: matchScore, defaultValue: '{{percent}}% match' })}</Text>
+          </View>
+        )}
+        {offer.providerVerified && (
+          <View style={s.pillVerified}>
+            <Check size={10} color={colors.primaryText} />
+            <Text style={s.pillVerifiedText}>{t('clientOffers.verified')}</Text>
+          </View>
+        )}
+        {offer.experienceYears != null && offer.experienceYears > 0 && (
+          <View style={s.pill}>
+            <Text style={s.pillText}>{t('clientOffers.experienceYears', { years: offer.experienceYears })}</Text>
+          </View>
+        )}
+        {offer.materialIncluded && (
+          <View style={s.pill}>
+            <Text style={s.pillText}>{t('clientOffers.materialIncluded')}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Message quote */}
+      {offer.message ? (
+        <View style={s.messageBox}>
+          <Text style={s.message} numberOfLines={3}>« {offer.message} »</Text>
+        </View>
+      ) : null}
+
+      {/* Matériel à prévoir par le client : DDM+ n'est qu'une option parmi d'autres */}
+      {(offer.materials || []).some(m => m.byClient !== false) && (
+        <View style={s.materialsBox}>
+          <Text style={s.materialsTitle}>{t('clientOffers.materialsToProvide')}</Text>
+          {(offer.materials || []).filter(m => m.byClient !== false).map((m, i) => (
+            <View key={`${m.name}-${i}`} style={s.materialRow}>
+              <Text style={s.materialName} numberOfLines={1}>{m.qty > 1 ? `${m.qty} × ` : ''}{m.name}</Text>
+              {m.product?.link ? (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(marketLinks.path(m.product!.link!)).catch(() => {})}
+                  accessibilityRole="link"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={s.materialLink}>
+                    {m.product.priceFcfa ? `${m.product.priceFcfa.toLocaleString('fr-FR')} F · ` : ''}{t('clientOffers.seeOnDdm')}
+                  </Text>
+                  <Text style={s.materialDelay}>{t(m.product.local ? 'clientOffers.deliveryLocal' : 'clientOffers.deliveryImport')}</Text>
+                </TouchableOpacity>
+              ) : m.product && ddmEnabled === false ? (
+                <View style={s.soonTag}>
+                  <Text style={s.soonTagText}>DDM+ · {t('common.soon')}</Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
+          <Text style={s.materialsHint}>{t(ddmEnabled === false ? 'clientOffers.materialsHintSoon' : 'clientOffers.materialsHint')}</Text>
+        </View>
+      )}
+
+      {/* Méta chips : ETA + meilleur prix */}
+      <View style={s.pillsRow}>
+        {offer.etaMinutes != null && (
+          <View style={s.metaChip}>
+            <Clock size={11} color={colors.text} />
+            <Text style={s.metaChipText}>{t('clientOffers.minEta', { minutes: offer.etaMinutes })}</Text>
+          </View>
+        )}
+        {isCheapest && (
+          <View style={s.metaChipGreen}>
+            <Text style={s.metaChipGreenText}>{t('clientOffers.bestPrice', { defaultValue: 'Meilleur prix' })}</Text>
+          </View>
+        )}
+        {offer.distanceKm != null && offer.distanceKm < 99 && (
+          <View style={s.metaChip}>
+            <Text style={s.metaChipText}>{offer.distanceKm < 1 ? `${Math.round(offer.distanceKm * 1000)} m` : `${offer.distanceKm.toFixed(1)} km`}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Créneau : engagement / contre-proposition horaire */}
+      {(() => {
+        const reqMs = scheduledFor ? new Date(scheduledFor).getTime() : null
+        const offMs = offer.proposedTime ? new Date(offer.proposedTime).getTime() : null
+        const counter = reqMs != null && offMs != null && Math.abs(offMs - reqMs) > 60 * 1000
+        if (counter) {
+          return (
+            <View style={s.slotWarn}>
+              <CalendarClock size={13} color={colors.warnInk} />
+              <Text style={s.slotWarnText}>
+                {t('clientOffers.proposesSlot', { slot: formatSlot(offer.proposedTime!, i18n.language) })}
+                {'  ·  '}
+                <Text style={{ color: colors.textMuted }}>{t('clientOffers.askedSlot', { slot: formatSlot(scheduledFor!, i18n.language) })}</Text>
+              </Text>
+            </View>
+          )
+        }
+        if (reqMs != null) {
+          return (
+            <View style={s.slotOk}>
+              <CalendarClock size={13} color={colors.primaryText} />
+              <Text style={s.slotOkText}>{t('clientOffers.confirmsSlot', { slot: formatSlot(scheduledFor!, i18n.language) })}</Text>
+            </View>
+          )
+        }
+        if (offMs != null) {
+          return (
+            <View style={s.slotInfo}>
+              <CalendarClock size={13} color={colors.info} />
+              <Text style={s.slotInfoText}>{t('clientOffers.proposesSlot', { slot: formatSlot(offer.proposedTime!, i18n.language) })}</Text>
+            </View>
+          )
+        }
+        return null
+      })()}
+
+      {/* Contre-offre status badge */}
+      {offer.clientCounterStatus === 'pending' && (
+        <View style={s.counterBadge}>
+          <Text style={s.counterBadgeText}>{t('clientOffers.counterPending', { price: offer.clientCounterPrice?.toLocaleString('fr-FR') })}</Text>
+        </View>
+      )}
+      {offer.clientCounterStatus === 'accepted' && (
+        <View style={s.counterBadgeAccepted}>
+          <Text style={s.counterBadgeTextAccepted}>{t('clientOffers.counterAccepted', { price: offer.price?.toLocaleString('fr-FR') })}</Text>
+          {offer.status !== 'accepted' && (
+            <Text style={[s.counterBadgeTextAccepted, { fontWeight: '500', marginTop: 2 }]}>{t('clientOffers.counterAcceptedHint')}</Text>
+          )}
+        </View>
+      )}
+      {offer.clientCounterStatus === 'rejected' && (
+        <View style={s.counterBadge}>
+          <Text style={s.counterBadgeText}>{t('clientOffers.counterRejected', { price: offer.price?.toLocaleString('fr-FR') })}</Text>
+        </View>
+      )}
+
+      {/* Action buttons */}
+      <View style={s.actions}>
+        {offer.status === 'accepted' ? (
+          <View style={s.acceptedRow}>
+            <Check size={18} color={colors.success} strokeWidth={3} />
+            <Text style={s.acceptedText}>{t('clientOffers.accepted', { defaultValue: 'Accepté' })}</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[s.negotiateBtn, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
+              onPress={() => onNegotiate(offer)}
+              activeOpacity={0.85}
+              disabled={disabled || hasAcceptedOffer}
+            >
+              <Text style={s.negotiateBtnText}>{t('clientOffers.negotiate')}</Text>
+              <MessageCircle size={16} color={colors.primaryText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.chooseBtn, { backgroundColor: isBest ? colors.primary : colors.navy }, (disabled || hasAcceptedOffer) && { opacity: 0.4 }]}
+              onPress={() => onChoose(offer)}
+              activeOpacity={0.85}
+              disabled={disabled || hasAcceptedOffer}
+            >
+              <Text style={s.chooseBtnText}>{t('clientOffers.choose')}</Text>
+              <Check size={16} color={colors.onPrimary} strokeWidth={3} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </Animated.View>
+  )
+}
+
+
+
+const useStyles = createThemedStyles(colors => {
+  const s = StyleSheet.create({
+    materialsBox: { marginTop: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.bg, gap: 6 },
+    materialsTitle: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.ink },
+    materialRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, minHeight: 28 },
+    materialName: { flex: 1, fontSize: 13, color: colors.text },
+    materialLink: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.primaryText },
+    materialDelay: { fontSize: 10.5, color: colors.textMuted, textAlign: 'right' },
+    materialsHint: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
+    soonTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full, backgroundColor: colors.bgDeep, opacity: 0.8 },
+    soonTagText: { fontSize: 10.5, fontWeight: typography.weight.bold as any, color: colors.textMuted },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...shadows.sm,
+    },
+    cardBest: {
+      borderColor: colors.primary,
+      borderWidth: 1.5,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.12,
+      shadowRadius: 14,
+      elevation: 4,
+    },
+    bestRibbon: {
+      position: 'absolute',
+      top: -10,
+      left: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.primary,
+      borderRadius: radius.pill,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      zIndex: 2,
+    },
+    bestRibbonText: {
+      fontSize: 10,
+      color: colors.onPrimary,
+      fontWeight: typography.weight.extrabold as any,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    newBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.warning,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      marginBottom: spacing.sm,
+    },
+    newBadgeText: {
+      fontSize: 10,
+      color: colors.onPrimary,
+      fontWeight: typography.weight.bold as any,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    avatarWrap: { position: 'relative' },
+    avatarImg: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+    },
+    avatarFallback: {
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarInitials: {
+      fontSize: 16,
+      fontWeight: typography.weight.extrabold as any,
+      color: colors.primaryText,
+    },
+    verifiedBadge: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.success,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    providerInfo: { flex: 1 },
+    providerName: {
+      fontSize: typography.base.fontSize,
+      fontWeight: typography.weight.bold as any,
+      color: colors.text,
+    },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      marginTop: 2,
+    },
+    rating: {
+      fontSize: typography.sm.fontSize,
+      color: colors.textSecondary,
+    },
+    priceCol: { alignItems: 'flex-end' },
+    priceValue: {
+      fontSize: typography.xl.fontSize,
+      fontWeight: typography.weight.extrabold as any,
+      color: colors.text,
+    },
+    priceCurrency: {
+      fontSize: typography.xs.fontSize,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    delta: {
+      fontSize: 11,
+      fontWeight: typography.weight.semibold as any,
+      marginTop: 2,
+    },
+    deltaGreen: { color: colors.success },
+    deltaOrange: { color: colors.warning },
+    pillsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      flexWrap: 'wrap',
+      marginTop: spacing.sm,
+    },
+    pill: {
+      backgroundColor: colors.bg,
+      borderRadius: radius.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    pillText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontWeight: typography.weight.medium as any,
+    },
+    pillMatch: {
+      backgroundColor: colors.brandTint,
+      borderRadius: radius.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: colors.brandSoft,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    pillMatchText: {
+      fontSize: 11,
+      color: colors.brandInk,
+      fontWeight: typography.weight.extrabold as any,
+    },
+    pillVerified: {
+      backgroundColor: colors.primaryLight,
+      borderRadius: radius.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: '#BBF7D0',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    pillVerifiedText: {
+      fontSize: 11,
+      color: colors.primaryText,
+      fontWeight: typography.weight.semibold as any,
+    },
+    messageBox: {
+      marginTop: spacing.md,
+      backgroundColor: colors.bg,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 10,
+    },
+    message: {
+      fontSize: typography.sm.fontSize,
+      color: colors.text,
+      fontStyle: 'italic',
+      lineHeight: 18,
+    },
+    metaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.bgDeep,
+      borderRadius: radius.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    metaChipText: {
+      fontSize: 10.5,
+      color: colors.text,
+      fontWeight: typography.weight.bold as any,
+    },
+    metaChipGreen: {
+      backgroundColor: colors.brandSoft,
+      borderRadius: radius.sm,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    metaChipGreenText: {
+      fontSize: 10.5,
+      color: colors.brandInk,
+      fontWeight: typography.weight.bold as any,
+    },
+    etaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: spacing.sm,
+    },
+    etaText: {
+      fontSize: typography.sm.fontSize,
+      color: colors.textSecondary,
+    },
+    slotWarn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: spacing.sm,
+      backgroundColor: colors.warnSoft,
+      borderRadius: radius.md,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    },
+    slotWarnText: { fontSize: 12, fontWeight: typography.weight.bold as any, color: colors.warnInk, flex: 1 },
+    slotOk: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    slotOkText: { fontSize: 12.5, fontWeight: typography.weight.semibold as any, color: colors.brandInk },
+    slotInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    slotInfoText: { fontSize: 12.5, fontWeight: typography.weight.semibold as any, color: colors.info },
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.md,
+    },
+    negotiateBtn: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    negotiateBtnText: {
+      fontSize: typography.base.fontSize,
+      color: colors.primaryText,
+      fontWeight: typography.weight.bold as any,
+    },
+    chooseBtn: {
+      flex: 1,
+      borderRadius: radius.lg,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      ...shadows.sm,
+    },
+    chooseBtnText: {
+      fontSize: typography.base.fontSize,
+      color: colors.onPrimary,
+      fontWeight: typography.weight.bold as any,
+    },
+    counterBadge: {
+      backgroundColor: colors.warningLight,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    counterBadgeText: {
+      fontSize: 12,
+      color: colors.warning,
+      fontWeight: typography.weight.semibold as any,
+    },
+    counterBadgeAccepted: {
+      backgroundColor: colors.successLight,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    counterBadgeTextAccepted: {
+      fontSize: 12,
+      color: colors.success,
+      fontWeight: typography.weight.semibold as any,
+    },
+    acceptedRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      backgroundColor: colors.successLight,
+      borderRadius: radius.lg,
+    },
+    acceptedText: {
+      fontSize: typography.base.fontSize,
+      color: colors.success,
+      fontWeight: typography.weight.extrabold as any,
+    },
+  })
+  return { colors, s }
+})

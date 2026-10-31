@@ -3,28 +3,14 @@ import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import User from '@/lib/models/User'
 import { generateMaintenanceContractDocx, generateMaintenanceContractPdf } from '@/lib/contracts/export'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyAdmin(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  if ((payload.role as string)?.toUpperCase() !== 'ADMIN') {
-    throw new Error('Accès réservé aux administrateurs')
-  }
-  return { userId: payload.userId as string }
-}
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await verifyAdmin(request)
+    await requireApiUser(request, ADMIN_ROLES)
     await connectMongoose()
 
     const { id } = await params
@@ -81,6 +67,26 @@ export async function GET(
         quantity: equipment?.quantity,
         location: equipment?.location
       })),
+      pricing: {
+        annualAmount: contract.annualPrice,
+        frequency: contract.paymentFrequency,
+        currency: 'FCFA',
+      },
+      // Sites : noms déclarés → équipements associés par location ; sinon grouping par location
+      sites: (() => {
+        const eq = (contract.equipment || []).map((e: any) => ({ type: e?.type, quantity: e?.quantity, location: e?.location }))
+        const names: string[] = contract.coverage?.sitesCovered || []
+        if (!names.length) return undefined
+        const sites = names.map((name: string) => ({
+          name,
+          equipment: eq
+            .filter((e: any) => (names.length === 1 && !e.location) || String(e.location || '').toLowerCase() === String(name).toLowerCase())
+            .map((e: any) => ({ type: e.type, quantity: e.quantity })),
+        }))
+        const orphan = eq.filter((e: any) => e.location && !names.some((n: string) => String(n).toLowerCase() === String(e.location).toLowerCase()))
+        if (orphan.length) sites.push({ name: orphan[0].location, equipment: orphan.map((e: any) => ({ type: e.type, quantity: e.quantity })) } as any)
+        return sites
+      })(),
       notes: contract.notes,
       preferredTechnicians: Array.isArray(contract.preferredTechnicians)
         ? (contract.preferredTechnicians as any[]).map((tech) => ({
@@ -113,10 +119,10 @@ export async function GET(
       }
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur export contrat maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    const status = message.toLowerCase().includes('accès') ? 403 : 500
-    return NextResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

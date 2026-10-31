@@ -89,6 +89,7 @@ type FormState = {
   startDate: string
   endDate: string
   autoRenewal: boolean
+  autoBilling: boolean
   coverage: CoverageState
   services: MaintenanceTemplateService[]
   equipment: Array<{ type: string; quantity: number; location?: string; description?: string }>
@@ -197,6 +198,7 @@ export default function MaintenanceContractModal({
       startDate: today,
       endDate: addMonths(today, tmpl.durationMonths),
       autoRenewal: true,
+      autoBilling: false,
       coverage: { ...tmpl.coverage },
       services: tmpl.services,
       equipment: flattenEquipment(tmpl.sites),
@@ -406,6 +408,7 @@ export default function MaintenanceContractModal({
           description: equipment.description
         })),
         autoRenewal: formState.autoRenewal,
+        autoBilling: formState.autoBilling,
         paymentTerms: formState.paymentTerms,
         specialConditions: formState.paymentTerms,
         notes: contractText,
@@ -597,6 +600,29 @@ export default function MaintenanceContractModal({
                   rows={2}
                   className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                 />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-stone-500">Échéances de facturation</label>
+                  <select
+                    value={formState.paymentFrequency}
+                    onChange={(e) => updateFormState('paymentFrequency', e.target.value)}
+                    className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="monthly">Mensuelle</option>
+                    <option value="quarterly">Trimestrielle</option>
+                    <option value="annual">Annuelle</option>
+                  </select>
+                </div>
+                <label className="flex items-start gap-2 text-sm text-stone-700 md:mt-6">
+                  <input
+                    type="checkbox"
+                    checked={formState.autoBilling}
+                    onChange={(e) => updateFormState('autoBilling', e.target.checked)}
+                    className="mt-0.5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>Facturation automatique<span className="block text-xs text-stone-500">Une facture brouillon est préparée à chaque échéance ; vous la relisez avant envoi.</span></span>
+                </label>
               </div>
             </section>
 

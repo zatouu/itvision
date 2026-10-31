@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, companyScope, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
+import { computeContractSla } from '@/lib/portal/contract-sla'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireDomainAccess(request, 'corporate')
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .select('interventionNumber title typeIntervention priority status date site cost notes createdAt updatedAt')
     .lean() as any[]
 
+  const canFinance = access.isAdmin || canCompany(access, 'finance:view')
+  const sla = await computeContractSla(contract, companyId ? { clientCompanyId: new mongoose.Types.ObjectId(String(companyId)) } : undefined)
+    .catch(() => null)
+
   const data = {
     _id: String(contract._id),
     contractNumber: contract.contractNumber,
@@ -46,7 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     status: contract.status,
     startDate: contract.startDate,
     endDate: contract.endDate,
-    annualPrice: contract.annualPrice,
+    annualPrice: canFinance ? contract.annualPrice : null,
     description: contract.description,
     autoRenewal: !!contract.autoRenewal,
     coverage: contract.coverage || {},
@@ -72,7 +77,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       action: h.action,
       note: h.note,
     })),
-    stats: contract.stats || {},
+    stats: canFinance ? (contract.stats || {}) : { ...(contract.stats || {}), totalCost: undefined },
+    sla,
     interventions: interventions.map(i => ({
       _id: String(i._id),
       interventionNumber: i.interventionNumber,
@@ -82,7 +88,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       status: i.status,
       date: i.date,
       site: i.site,
-      cost: i.cost,
+      cost: canFinance ? i.cost : undefined,
       notes: i.notes,
       createdAt: i.createdAt,
       updatedAt: i.updatedAt,

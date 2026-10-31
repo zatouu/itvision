@@ -1,27 +1,23 @@
 import { connectMongoose } from '@/lib/mongoose'
 import Payment from '@/lib/models/Payment'
-import ServiceRequest from '@/lib/models/ServiceRequest'
-import Offer from '@/lib/models/Offer'
 import { checkPaymentStatus } from '@/lib/payment'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { fulfillServicePayment, isMissionPayment } from '@/modules/xeuy/payments/mission-payment'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
+import { confirmPayment as fulfillPayment } from '@/lib/payment-fulfillment'
 
 /**
  * Payment Sweeper — server-side reconciliation for pending payments.
  *
  * Runs every 2 minutes (called from instrumentation.ts).
- * For each pending payment:
- * - If older than 3 minutes: query provider API
- *   - If succeeded → transition to held + accept offer
- *   - If failed → mark failed + refund escrow
- *   - If unknown (no API / QR manual) and older than 5 minutes → trust-based confirm
- * - If older than 30 minutes and still pending → mark failed + refund
+ * For each pending payment older than 3 minutes, query the provider API:
+ * - succeeded → held + attribution de l'offre (ou remboursement si elle n'est plus disponible)
+ * - failed (ou expiré selon le fournisseur après 30 min) → failed + points escrow rendus
+ * - unknown après 30 min → file de vérification manuelle (jamais confirmé ni échoué sans preuve)
  */
 
 const SWEEP_INTERVAL_MS = 2 * 60 * 1000
 const QUERY_AFTER_MS = 3 * 60 * 1000
-const TRUST_CONFIRM_AFTER_MS = 5 * 60 * 1000
 const FAIL_AFTER_MS = 30 * 60 * 1000
 
 let sweepRunning = false
@@ -36,64 +32,59 @@ export async function sweepPendingPayments(): Promise<void> {
     const pendingPayments = await Payment.find({ status: 'pending' }).lean()
 
     for (const payment of pendingPayments as any[]) {
+      // Paiements manuels (lien/QR Wave marchand) : confirmation admin uniquement.
+      // Sans cette exclusion, le trust-confirm >5min marquerait « held » un
+      // paiement jamais reçu — et pour une commande marketplace, laisserait la
+      // commande à pending alors que le Payment dit held (état incohérent).
+      if (payment.manualConfirm) continue
+
       const ageMs = now - new Date(payment.createdAt).getTime()
+      const mission = isMissionPayment(payment)
 
       try {
-        // Too old → fail + refund
-        if (ageMs > FAIL_AFTER_MS) {
+        // DDM+ (commandes, achats groupés) : expiration à 30 min, le client relance depuis son lien de paiement
+        if (!mission && ageMs > FAIL_AFTER_MS) {
           await Payment.updateOne(
+            { _id: payment._id, status: 'pending' },
+            { $set: { status: 'failed', failedAt: new Date(), failReason: 'Sweeper: payment expired (30min)', confirmedBy: 'system_reconcile' } },
+          )
+          continue
+        }
+        if (ageMs <= QUERY_AFTER_MS) continue
+        const checkResult = await checkPaymentStatus(payment.provider, payment.externalId)
+
+        if (checkResult.status === 'succeeded') {
+          await confirmPayment(payment, 'system_reconcile')
+          console.log(`[sweeper] Payment ${payment._id} confirmed via provider API`)
+          continue
+        }
+
+        if (checkResult.status === 'failed' || (ageMs > FAIL_AFTER_MS && checkResult.status !== 'unknown')) {
+          const failed = await Payment.updateOne(
             { _id: payment._id, status: 'pending' },
             {
               $set: {
                 status: 'failed',
                 failedAt: new Date(),
-                failReason: 'Sweeper: payment expired (30min)',
+                failReason: checkResult.status === 'failed' ? 'Sweeper: provider returned failed' : 'Sweeper: payment expired (30min)',
                 confirmedBy: 'system_reconcile',
               },
             },
           )
-          if (payment.escrowPointsCharged > 0) {
+          if (failed.modifiedCount > 0 && payment.escrowPointsCharged > 0) {
             await refundEscrowPoints(String(payment.clientId), String(payment.requestId), payment.escrowPointsCharged).catch(() => {})
           }
-          console.warn(`[sweeper] Payment ${payment._id} expired (30min) → failed`)
           continue
         }
 
-        // Query provider API after 3 minutes
-        if (ageMs > QUERY_AFTER_MS) {
-          const checkResult = await checkPaymentStatus(payment.provider, payment.externalId)
-
-          if (checkResult.status === 'succeeded') {
-            await confirmPayment(payment, 'system_reconcile')
-            console.log(`[sweeper] Payment ${payment._id} confirmed via provider API`)
-            continue
-          }
-
-          if (checkResult.status === 'failed') {
-            await Payment.updateOne(
-              { _id: payment._id, status: 'pending' },
-              {
-                $set: {
-                  status: 'failed',
-                  failedAt: new Date(),
-                  failReason: `Sweeper: provider returned failed`,
-                  confirmedBy: 'system_reconcile',
-                },
-              },
-            )
-            if (payment.escrowPointsCharged > 0) {
-              await refundEscrowPoints(String(payment.clientId), String(payment.requestId), payment.escrowPointsCharged).catch(() => {})
-            }
-            console.warn(`[sweeper] Payment ${payment._id} failed via provider API`)
-            continue
-          }
-
-          // Unknown (no API / QR manual) → trust-based confirm after 5 minutes
-          if (checkResult.status === 'unknown' && ageMs > TRUST_CONFIRM_AFTER_MS) {
-            await confirmPayment(payment, 'system_reconcile')
-            console.log(`[sweeper] Payment ${payment._id} trust-confirmed (unknown status, >5min)`)
-            continue
-          }
+        // Mission Xeuy au statut inconnu après 30 min : ni confirmée sans preuve, ni échouée à l'aveugle (le client a peut-être payé).
+        // Le paiement rejoint la file de vérification manuelle (relevé du compte marchand).
+        if (mission && ageMs > FAIL_AFTER_MS) {
+          await Payment.updateOne(
+            { _id: payment._id, status: 'pending', manualConfirm: { $ne: true } },
+            { $set: { manualConfirm: true, failReason: 'Statut fournisseur inconnu après 30 min : à vérifier' } },
+          )
+          console.warn(`[sweeper] Payment ${payment._id} statut inconnu → vérification manuelle`)
         }
       } catch (err) {
         console.error(`[sweeper] Error processing payment ${payment._id}:`, err)
@@ -120,22 +111,27 @@ async function confirmPayment(payment: any, confirmedBy: string): Promise<void> 
   )
   if (!updated) return
 
-  if (payment.phase !== 'balance' && payment.requestId) {
-    const sr = await ServiceRequest.findById(payment.requestId)
-    const offer = await Offer.findById(payment.offerId)
-    if (sr && offer) {
+  // DDM+ (commande ou participation d'achat groupé) : fulfillment canonique — statut de commande,
+  // grains, emails (idempotent). Jamais de notification « mission » pour un achat marketplace.
+  if (!isMissionPayment(payment)) {
+    if (payment.orderId) {
       try {
-        await acceptOfferForRequest({
-          serviceRequest: sr,
-          offer,
-          securePayment: payment.useEscrow !== false,
-          notifyClientPaymentHeld: payment.useEscrow !== false,
+        await fulfillPayment({
+          reference: String(payment.orderId),
           amount: payment.amount,
+          provider: payment.provider as any,
+          transactionId: payment.externalId || `SWEEP-${payment._id}`,
         })
       } catch (err) {
-        console.error(`[sweeper] acceptOfferForRequest failed for ${payment._id}:`, err)
+        console.error(`[sweeper] fulfillPayment failed for order ${payment.orderId}:`, err)
       }
     }
+    return
+  }
+
+  if (payment.phase !== 'balance' && payment.requestId) {
+    const fulfilled = await fulfillServicePayment(payment._id)
+    if (!fulfilled.accepted) return
   }
 
   void sendPushToUser(String(payment.clientId), {

@@ -37,6 +37,10 @@ export type PaymentSettings = {
       orangeMerchantPhone: string
       freeMoneyMerchantPhone: string
       instructions: string
+      // Coordonnées bancaires pour le virement (optionnel — masqué si absent)
+      bankName: string
+      bankAccountName: string
+      bankIban: string
     },
     gateway: {
       active: boolean
@@ -49,6 +53,35 @@ export type PaymentSettings = {
       enabled: boolean
       holdPercentage: number
     }
+  }
+}
+
+export type CheckoutPaymentSettings = {
+  providers: {
+    manual: PaymentSettings['providers']['manual']
+    gateway: Pick<PaymentSettings['providers']['gateway'], 'active' | 'provider'>
+    escrow: PaymentSettings['providers']['escrow']
+  }
+}
+
+export function toCheckoutPaymentSettings(settings: PaymentSettings): CheckoutPaymentSettings {
+  const { manual, gateway, escrow } = settings.providers
+  return {
+    providers: {
+      manual: {
+        waveMerchantPhone: manual.waveMerchantPhone,
+        waveQrUrl: manual.waveQrUrl,
+        wavePayUrl: manual.wavePayUrl,
+        orangeMerchantPhone: manual.orangeMerchantPhone,
+        freeMoneyMerchantPhone: manual.freeMoneyMerchantPhone,
+        instructions: manual.instructions,
+        bankName: manual.bankName,
+        bankAccountName: manual.bankAccountName,
+        bankIban: manual.bankIban,
+      },
+      gateway: { active: gateway.active, provider: gateway.provider },
+      escrow: { enabled: escrow.enabled, holdPercentage: escrow.holdPercentage },
+    },
   }
 }
 
@@ -150,12 +183,17 @@ const DEFAULT_SETTINGS: PaymentSettings = {
   providers: {
     mockEnabled: false,
     manual: {
-      waveMerchantPhone: '+221770000000',
+      // Vide par défaut : une méthode sans numéro configuré n'est pas affichée
+      // aux clients (pas de coordonnées factices en production).
+      waveMerchantPhone: '',
       waveQrUrl: '',
       wavePayUrl: '',
-      orangeMerchantPhone: '+221760000000',
-      freeMoneyMerchantPhone: '+221780000000',
-      instructions: "Paiement à la livraison ou retrait au bureau."
+      orangeMerchantPhone: '',
+      freeMoneyMerchantPhone: '',
+      instructions: "Paiement à la livraison ou retrait au bureau.",
+      bankName: '',
+      bankAccountName: '',
+      bankIban: ''
     },
     gateway: {
       active: false,
@@ -172,9 +210,15 @@ const DEFAULT_SETTINGS: PaymentSettings = {
 }
 
 function ensureFile() {
-  const dir = path.dirname(FILE_PATH)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2))
+  try {
+    const dir = path.dirname(FILE_PATH)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(FILE_PATH)) fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_SETTINGS, null, 2))
+  } catch (e) {
+    // Volume non inscriptible (ex. permissions) : l'app continue sur les
+    // défauts/env plutôt que de planter au premier accès aux réglages.
+    console.warn('[payment-settings] data/ non inscriptible — réglages en lecture seule :', e instanceof Error ? e.message : e)
+  }
 }
 
 /**
@@ -223,10 +267,15 @@ export function readPaymentSettings(): PaymentSettings {
         rules: sanitizeGroupOrderRules(parsed?.groupOrders?.rules, DEFAULT_GROUP_ORDER_RULES)
       },
       providers: {
-        // Priorité : fichier admin > env PAYMENTS_MOCK > défaut (false)
-        mockEnabled: typeof parsed?.providers?.mockEnabled === 'boolean'
-          ? parsed.providers.mockEnabled
-          : process.env.PAYMENTS_MOCK === 'true',
+        // En production, le mode mock est verrouillé sur la variable d'env :
+        // le toggle admin (fichier) ne doit jamais pouvoir désactiver la
+        // vérification des signatures webhook ni auto-valider les paiements.
+        // En dev : priorité fichier admin > env > défaut (false).
+        mockEnabled: process.env.NODE_ENV === 'production'
+          ? process.env.PAYMENTS_MOCK === 'true'
+          : (typeof parsed?.providers?.mockEnabled === 'boolean'
+              ? parsed.providers.mockEnabled
+              : process.env.PAYMENTS_MOCK === 'true'),
         manual: {
           // Priorité : valeur saisie par l'admin (fichier) > variable d'env > défaut.
           // Avant : l'env écrasait la config admin, ce qui faisait "sauter" le numéro marchand.
@@ -235,7 +284,10 @@ export function readPaymentSettings(): PaymentSettings {
           wavePayUrl: parsed?.providers?.manual?.wavePayUrl || process.env.WAVE_PAY_URL || DEFAULT_SETTINGS.providers.manual.wavePayUrl,
           orangeMerchantPhone: parsed?.providers?.manual?.orangeMerchantPhone || process.env.ORANGE_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.orangeMerchantPhone,
           freeMoneyMerchantPhone: parsed?.providers?.manual?.freeMoneyMerchantPhone || process.env.FREE_MONEY_MERCHANT_PHONE || DEFAULT_SETTINGS.providers.manual.freeMoneyMerchantPhone,
-          instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions
+          instructions: parsed?.providers?.manual?.instructions ?? DEFAULT_SETTINGS.providers.manual.instructions,
+          bankName: parsed?.providers?.manual?.bankName || process.env.BANK_NAME || DEFAULT_SETTINGS.providers.manual.bankName,
+          bankAccountName: parsed?.providers?.manual?.bankAccountName || process.env.BANK_ACCOUNT_NAME || DEFAULT_SETTINGS.providers.manual.bankAccountName,
+          bankIban: parsed?.providers?.manual?.bankIban || process.env.BANK_IBAN || DEFAULT_SETTINGS.providers.manual.bankIban
         },
         gateway: resolveGatewayConfig(parsed),
         escrow: {
@@ -277,7 +329,10 @@ export function writePaymentSettings(payload: Partial<PaymentSettings>): Payment
           wavePayUrl: payload.providers?.manual?.wavePayUrl ?? current.providers.manual.wavePayUrl,
         orangeMerchantPhone: payload.providers?.manual?.orangeMerchantPhone ?? current.providers.manual.orangeMerchantPhone,
         freeMoneyMerchantPhone: payload.providers?.manual?.freeMoneyMerchantPhone ?? current.providers.manual.freeMoneyMerchantPhone,
-        instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions
+        instructions: payload.providers?.manual?.instructions ?? current.providers.manual.instructions,
+        bankName: payload.providers?.manual?.bankName ?? current.providers.manual.bankName,
+        bankAccountName: payload.providers?.manual?.bankAccountName ?? current.providers.manual.bankAccountName,
+        bankIban: payload.providers?.manual?.bankIban ?? current.providers.manual.bankIban
       },
       gateway: {
         active: typeof payload.providers?.gateway?.active === 'boolean' ? payload.providers.gateway.active : current.providers.gateway.active,

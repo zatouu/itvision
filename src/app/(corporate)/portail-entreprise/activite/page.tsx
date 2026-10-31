@@ -11,8 +11,10 @@ import {
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
 import Project from '@/lib/models/Project'
+import { clientProjectFilter } from '@/lib/portal/project-view'
 import AdminQuote from '@/lib/models/AdminQuote'
 import AdminInvoice from '@/lib/models/AdminInvoice'
+import { CLIENT_VISIBLE_QUOTE, CLIENT_VISIBLE_INVOICE } from '@/lib/client-documents'
 import Ticket from '@/lib/models/Ticket'
 import AuditLog from '@/lib/models/AuditLog'
 
@@ -34,6 +36,29 @@ const AUDIT_HREF: Record<string, string> = {
   Client: '/portail-entreprise/profil',
 }
 
+const TYPE_FILTERS = [
+  { id: 'all', label: 'Tout' },
+  { id: 'documents', label: 'Devis & factures' },
+  { id: 'intervention', label: 'Interventions' },
+  { id: 'ticket', label: 'Support' },
+  { id: 'project', label: 'Projets' },
+  { id: 'contract', label: 'Contrats' },
+  { id: 'audit', label: 'Journal' },
+] as const
+type TypeFilter = (typeof TYPE_FILTERS)[number]['id']
+
+const PERIOD_FILTERS = [
+  { id: '7', label: '7 jours' },
+  { id: '30', label: '30 jours' },
+  { id: '90', label: '3 mois' },
+  { id: 'all', label: 'Tout' },
+] as const
+
+// Sans filtre : aperçu de chaque type ; filtré : historique plus profond du type choisi
+const LIMIT_OVERVIEW = 10
+const LIMIT_FOCUSED = 60
+const MAX_EVENTS = 80
+
 type TimelineEvent = {
   id: string
   date: Date
@@ -49,31 +74,43 @@ type TimelineEvent = {
   urgent?: boolean
 }
 
-export default async function ActivitePage() {
+export default async function ActivitePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; period?: string }>
+}) {
   const { userId, companyId } = await getEnterpriseSession('/portail-entreprise/activite')
+  const params = await searchParams
+  const typeFilter: TypeFilter = TYPE_FILTERS.some(t => t.id === params.type) ? (params.type as TypeFilter) : 'all'
+  const period = PERIOD_FILTERS.some(p => p.id === params.period) ? params.period! : 'all'
+  const since = period === 'all' ? null : new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000)
+
+  const wants = (t: TypeFilter) => typeFilter === 'all' || typeFilter === t
+  const limit = typeFilter === 'all' ? LIMIT_OVERVIEW : LIMIT_FOCUSED
+  const none = Promise.resolve([] as any[])
 
   const [contracts, interventions, projects, quotes, invoices, tickets, auditLogs] = await Promise.all([
-    MaintenanceContract.find({ ...companyScope({ userId, companyId }) })
-      .sort({ updatedAt: -1 }).limit(10)
-      .select('name status type createdAt updatedAt endDate').lean() as Promise<any[]>,
-    Intervention.find({ ...companyScope({ userId, companyId }) })
-      .sort({ date: -1, createdAt: -1 }).limit(10)
-      .select('title typeIntervention priority status date createdAt').lean() as Promise<any[]>,
-    Project.find(companyScope({ userId, companyId }))
-      .sort({ updatedAt: -1 }).limit(10)
-      .select('name status progress serviceType createdAt updatedAt').lean() as Promise<any[]>,
-    AdminQuote.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] })
-      .sort({ updatedAt: -1 }).limit(10)
-      .select('numero title total status clientResponse clientRespondedAt clientComments createdAt updatedAt sentAt').lean() as Promise<any[]>,
-    AdminInvoice.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] })
-      .sort({ updatedAt: -1 }).limit(10)
-      .select('numero total status dueDate paidAt createdAt updatedAt sentAt').lean() as Promise<any[]>,
-    Ticket.find({ ...companyScope({ userId, companyId }) })
-      .sort({ updatedAt: -1 }).limit(10)
-      .select('title category priority status createdAt updatedAt').lean() as Promise<any[]>,
-    AuditLog.find(companyId ? { clientCompanyId: companyId } : { userId })
-      .sort({ createdAt: -1 }).limit(15)
-      .select('entityType action changedFields metadata createdAt').lean() as Promise<any[]>,
+    wants('contract') ? MaintenanceContract.find({ ...companyScope({ userId, companyId }) })
+      .sort({ updatedAt: -1 }).limit(limit)
+      .select('name status type createdAt updatedAt endDate').lean() as Promise<any[]> : none,
+    wants('intervention') ? Intervention.find({ ...companyScope({ userId, companyId }) })
+      .sort({ date: -1, createdAt: -1 }).limit(limit)
+      .select('title typeIntervention priority status date createdAt').lean() as Promise<any[]> : none,
+    wants('project') ? Project.find(clientProjectFilter(companyScope({ userId, companyId })))
+      .sort({ updatedAt: -1 }).limit(limit)
+      .select('name status progress serviceType createdAt updatedAt').lean() as Promise<any[]> : none,
+    wants('documents') ? AdminQuote.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], ...CLIENT_VISIBLE_QUOTE })
+      .sort({ updatedAt: -1 }).limit(limit)
+      .select('numero title total status clientResponse clientRespondedAt clientComments createdAt updatedAt sentAt').lean() as Promise<any[]> : none,
+    wants('documents') ? AdminInvoice.find({ $or: [{ clientUserId: userId }, { clientCompanyId: companyId }], ...CLIENT_VISIBLE_INVOICE })
+      .sort({ updatedAt: -1 }).limit(limit)
+      .select('numero total status dueDate paidAt createdAt updatedAt sentAt').lean() as Promise<any[]> : none,
+    wants('ticket') ? Ticket.find({ ...companyScope({ userId, companyId }) })
+      .sort({ updatedAt: -1 }).limit(limit)
+      .select('title category priority status createdAt updatedAt').lean() as Promise<any[]> : none,
+    wants('audit') ? AuditLog.find(companyId ? { clientCompanyId: companyId } : { userId })
+      .sort({ createdAt: -1 }).limit(typeFilter === 'all' ? 15 : LIMIT_FOCUSED)
+      .select('entityType entityId action changedFields metadata createdAt').lean() as Promise<any[]> : none,
   ])
 
   const events: TimelineEvent[] = []
@@ -87,7 +124,7 @@ export default async function ActivitePage() {
       type: 'contract',
       title: c.name,
       subtitle: `Contrat ${c.type} · Statut : ${c.status === 'active' ? 'Actif' : c.status}`,
-      href: '/portail-entreprise/contrats',
+      href: `/portail-entreprise/contrats/${c._id}`,
       icon: ic.icon,
       color: ic.color,
       badge: c.status === 'active' ? 'Actif' : c.status,
@@ -104,7 +141,7 @@ export default async function ActivitePage() {
       type: 'intervention',
       title: i.title,
       subtitle: `${i.typeIntervention || 'Intervention'} · ${i.status === 'completed' ? 'Terminée' : i.status === 'in_progress' ? 'En cours' : 'Planifiée'}`,
-      href: '/portail-entreprise/interventions',
+      href: `/portail-entreprise/interventions/${i._id}`,
       icon: ic.icon,
       color: ic.color,
       badge: i.priority === 'urgent' || i.priority === 'critical' ? i.priority : undefined,
@@ -122,7 +159,7 @@ export default async function ActivitePage() {
       type: 'project',
       title: p.name,
       subtitle: `${p.serviceType || 'Projet'} · ${statusDef(projectStatus, p.status).label}${p.progress != null ? ` · ${p.progress}%` : ''}`,
-      href: '/portail-entreprise/projets',
+      href: `/portail-entreprise/projets/${p._id}`,
       icon: ic.icon,
       color: ic.color,
     })
@@ -142,7 +179,7 @@ export default async function ActivitePage() {
         q.clientResponse === 'rejected' ? 'Vous avez refusé ce devis' :
         q.clientResponse === 'counter_proposed' ? 'Contre-proposition envoyée' :
         `Statut : ${q.status}`,
-      href: '/portail-entreprise/documents',
+      href: `/portail-entreprise/documents/devis/${q._id}`,
       icon: ic.icon,
       color: needsAction ? 'bg-amber-50 text-amber-700' : ic.color,
       badge: needsAction ? 'Action requise' : undefined,
@@ -159,7 +196,7 @@ export default async function ActivitePage() {
           type: 'comment',
           title: `Commentaire sur devis #${q.numero}`,
           subtitle: `${cm.authorRole === 'CLIENT' ? 'Vous' : 'IT Vision'} : ${cm.message.slice(0, 80)}${cm.message.length > 80 ? '...' : ''}`,
-          href: '/portail-entreprise/documents',
+          href: `/portail-entreprise/documents/devis/${q._id}`,
           icon: icm.icon,
           color: icm.color,
         })
@@ -184,7 +221,7 @@ export default async function ActivitePage() {
         : isDueSoon
         ? `À régler dans ${Math.floor((new Date(inv.dueDate).getTime() - Date.now()) / 86400000)} jour(s)`
         : `À régler · Échéance ${new Date(inv.dueDate || inv.date).toLocaleDateString('fr-FR')}`,
-      href: '/portail-entreprise/documents',
+      href: `/portail-entreprise/documents/factures/${inv._id}`,
       icon: ic.icon,
       color: isOverdue ? 'bg-red-50 text-red-700' : ic.color,
       badge: isOverdue ? 'En retard' : inv.status === 'paid' ? 'Payée' : undefined,
@@ -203,7 +240,7 @@ export default async function ActivitePage() {
       type: 'ticket',
       title: t.title,
       subtitle: `${t.category} · ${t.status === 'open' ? 'Ouvert' : t.status === 'in_progress' ? 'En traitement' : t.status === 'resolved' ? 'Résolu' : t.status}`,
-      href: '/portail-entreprise/support',
+      href: `/portail-entreprise/support/${t._id}`,
       icon: ic.icon,
       color: isUrgent && t.status !== 'resolved' ? 'bg-red-50 text-red-700' : ic.color,
       badge: isUrgent && !['resolved', 'closed'].includes(t.status) ? 'Urgent' : undefined,
@@ -226,7 +263,9 @@ export default async function ActivitePage() {
       type: 'audit',
       title: AUDIT_LABEL[a.action] || a.action,
       subtitle: `${target}${a.changedFields?.length ? ` · ${a.changedFields.length} champ${a.changedFields.length > 1 ? 's' : ''} modifié${a.changedFields.length > 1 ? 's' : ''}` : ''}`,
-      href: AUDIT_HREF[a.entityType] || '/portail-entreprise/activite',
+      href: a.entityId && a.entityType === 'AdminQuote' ? `/portail-entreprise/documents/devis/${a.entityId}`
+        : a.entityId && a.entityType === 'Ticket' ? `/portail-entreprise/support/${a.entityId}`
+        : AUDIT_HREF[a.entityType] || '/portail-entreprise/activite',
       icon: ic.icon,
       color: ic.color,
       badge: 'Journal',
@@ -234,14 +273,15 @@ export default async function ActivitePage() {
     })
   }
 
-  // Trier par date desc
+  // Trier par date desc, puis appliquer la période
   events.sort((a, b) => b.date.getTime() - a.date.getTime())
+  const visible = since ? events.filter(e => e.date >= since) : events
 
   // Grouper par jour
   type GroupedEvents = { dayLabel: string; events: TimelineEvent[] }[]
   const grouped: GroupedEvents = []
   let currentDay = ''
-  for (const ev of events.slice(0, 50)) {
+  for (const ev of visible.slice(0, MAX_EVENTS)) {
     const day = ev.date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     if (day !== currentDay) {
       grouped.push({ dayLabel: day, events: [] })
@@ -250,7 +290,18 @@ export default async function ActivitePage() {
     grouped[grouped.length - 1].events.push(ev)
   }
 
-  const urgentCount = events.filter(e => e.urgent).length
+  const urgentCount = visible.filter(e => e.urgent).length
+  const filterHref = (type: string, per: string) => {
+    const qs = new URLSearchParams()
+    if (type !== 'all') qs.set('type', type)
+    if (per !== 'all') qs.set('period', per)
+    const s = qs.toString()
+    return `/portail-entreprise/activite${s ? `?${s}` : ''}`
+  }
+  const chip = (active: boolean) =>
+    `rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+      active ? 'bg-emerald-800 text-white' : 'border border-stone-200 bg-white text-stone-500 hover:border-emerald-300 hover:text-emerald-800'
+    }`
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-6">
@@ -272,11 +323,31 @@ export default async function ActivitePage() {
         <BackLink />
       </PageHeader>
 
-      {events.length === 0 ? (
+      {/* Filtres */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1.5">
+          {TYPE_FILTERS.map(t => (
+            <Link key={t.id} href={filterHref(t.id, period)} className={chip(typeFilter === t.id)} scroll={false}>
+              {t.label}
+            </Link>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {PERIOD_FILTERS.map(p => (
+            <Link key={p.id} href={filterHref(typeFilter, p.id)} className={chip(period === p.id)} scroll={false}>
+              {p.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
         <EmptyState
           soft
-          title="Aucune activité pour l'instant"
-          message="Les nouveaux événements (tickets, devis, factures, interventions) apparaîtront ici automatiquement."
+          title={events.length === 0 ? "Aucune activité pour l'instant" : 'Aucun événement pour ce filtre'}
+          message={events.length === 0
+            ? 'Les nouveaux événements (tickets, devis, factures, interventions) apparaîtront ici automatiquement.'
+            : 'Élargissez la période ou choisissez un autre type.'}
         />
       ) : (
         <div className="space-y-6">

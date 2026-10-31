@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import PromoCode from '@/lib/models/PromoCode'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
+    // Anti brute-force : codes promo énumérables sans limite
+    const limit = await rateLimitRequest(req, { windowMs: 60_000, max: 15, keyPrefix: 'promo:validate' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     const { code, subtotal } = await req.json()
 
     if (!code || typeof code !== 'string') {

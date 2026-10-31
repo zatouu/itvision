@@ -2,27 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import AuditLog from '@/lib/models/AuditLog'
-import { verifyJwtPayload } from '@/lib/jwt'
-
-async function verifyAdminToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.cookies.get('admin-auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const normalizedRole = String((payload as any).role || '').toUpperCase()
-  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
-    throw new Error('Accès non autorisé')
-  }
-  return payload
-}
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
 
 // GET — Audit trail avec filtres
 export async function GET(request: NextRequest) {
   try {
-    await verifyAdminToken(request)
+    await requireApiUser(request, ADMIN_ROLES)
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
@@ -45,8 +30,10 @@ export async function GET(request: NextRequest) {
     ])
 
     return NextResponse.json({ success: true, logs, total, limit, skip })
-  } catch (error: any) {
-    const status = error.message === 'Accès non autorisé' || error.message === 'Token manquant' ? 403 : 500
-    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status })
+  } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
+    console.error('[GET /api/admin/audit]', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

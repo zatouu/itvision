@@ -3,6 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import TopupPayment from '@/lib/models/TopupPayment'
 import { creditPoints } from '@/lib/wallet'
 import { verifyWebhookSignature } from '@/lib/webhook-verify'
+import { claimPendingTopup } from '@/lib/payments/transition'
 
 /**
  * Webhook endpoint for Mobile Money topup confirmations.
@@ -50,9 +51,9 @@ export async function POST(request: NextRequest) {
     const isFailed = ['failed', 'cancelled', 'expired', 'FAILED'].includes(status)
 
     if (isSuccess) {
-      topup.status = 'successful'
-      topup.completedAt = new Date()
-      await topup.save()
+      // Webhook rejoué en parallèle : un seul appel crédite les points
+      const claimed = await claimPendingTopup(topup._id, { status: 'successful', completedAt: new Date() })
+      if (!claimed) return NextResponse.json({ received: true, alreadyProcessed: true })
 
       // Credit bonus points first if any
       const bonusCredits = topup.bonusCredits || 0
@@ -83,10 +84,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (isFailed) {
-      topup.status = 'failed'
-      topup.completedAt = new Date()
-      topup.failReason = payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status
-      await topup.save()
+      const claimed = await claimPendingTopup(topup._id, {
+        status: 'failed',
+        completedAt: new Date(),
+        failReason: payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status,
+      })
+      if (!claimed) return NextResponse.json({ received: true, alreadyProcessed: true })
 
       const { sendPushToUser } = await import('@/lib/push')
       await sendPushToUser(topup.userId, {

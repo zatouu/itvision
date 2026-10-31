@@ -48,7 +48,7 @@ export interface IEscrowTransaction extends Document {
   // Liens vers les entités
   groupOrderId?: mongoose.Types.ObjectId
   orderId?: mongoose.Types.ObjectId
-  userId: mongoose.Types.ObjectId
+  userId?: mongoose.Types.ObjectId
   
   // Informations client
   client: {
@@ -137,7 +137,7 @@ const EscrowTransactionSchema = new Schema<IEscrowTransaction>({
   
   groupOrderId: { type: Schema.Types.ObjectId, ref: 'GroupOrder' },
   orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User' },
   
   client: {
     name: { type: String, required: true },

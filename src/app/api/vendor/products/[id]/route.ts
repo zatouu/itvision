@@ -3,11 +3,13 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireRole } from '@/lib/auth-server'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Product from '@/lib/models/Product'
+import StockMovement from '@/lib/models/StockMovement'
 import { z } from 'zod'
 
 const updateSchema = z.object({
   stockQuantity: z.number().int().min(0).optional(),
   stockStatus: z.enum(['in_stock', 'preorder', 'out_of_stock']).optional(),
+  minOrderQty: z.number().int().min(1).max(10000).optional(),
 })
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,8 +39,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const data = parsed.data
+    const previousQty = product.stockQuantity ?? 0
     if (data.stockQuantity !== undefined) product.stockQuantity = data.stockQuantity
     if (data.stockStatus !== undefined) product.stockStatus = data.stockStatus
+    if (data.minOrderQty !== undefined) product.minOrderQty = data.minOrderQty
 
     // Auto-adjust stockStatus if quantity set to zero and not provided
     if (data.stockQuantity === 0 && !data.stockStatus) product.stockStatus = 'out_of_stock'
@@ -47,6 +51,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await product.save()
+
+    // Journal de stock — audit des ajustements manuels
+    if (data.stockQuantity !== undefined) {
+      const delta = data.stockQuantity - previousQty
+      if (delta !== 0) {
+        await StockMovement.create({
+          vendorId: vendor._id,
+          productId: product._id,
+          productName: product.name,
+          delta,
+          reason: delta > 0 ? 'restock' : 'adjust',
+          stockAfter: product.stockQuantity,
+          createdBy: String(auth.user.id),
+        }).catch(err => console.error('[vendor] StockMovement log failed:', err))
+      }
+    }
 
     return NextResponse.json({
       success: true,

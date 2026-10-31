@@ -12,6 +12,12 @@ export interface IVendorProfile extends Document {
   verified: boolean
   rating: number
   commissionRate: number
+  /**
+   * Montant des retraits engagés (pending/approved/paid), miroir du total des
+   * VendorPayout. Sert de réservation atomique pour empêcher deux demandes
+   * concurrentes d'engager le même solde. Décrémenté quand un retrait est rejeté.
+   */
+  payoutsCommitted: number
   createdAt: Date
   updatedAt: Date
 }
@@ -38,6 +44,7 @@ const VendorProfileSchema = new Schema<IVendorProfile>({
   verified: { type: Boolean, default: false },
   rating: { type: Number, default: 0, min: 0, max: 5 },
   commissionRate: { type: Number, default: 0, min: 0, max: 100 },
+  payoutsCommitted: { type: Number, default: 0, min: 0 },
 }, { timestamps: true })
 
 VendorProfileSchema.pre('save', async function (next) {

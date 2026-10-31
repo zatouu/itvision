@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE } from '@/lib/client-documents'
 import emailService from '@/lib/email-service'
 import { notifyQuoteWorkflowEvent } from '@/lib/quote-notifications'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
 import { applyRateLimit, quoteActionRateLimiter } from '@/lib/rate-limiter'
 import { logAuditEvent } from '@/lib/audit'
+import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-access'
+import { escapeHtml as esc } from '@/lib/html-escape'
+import { syncProjectWithQuoteDecision } from '@/lib/finance/billing'
 
 function fmt(v: number) { return Math.round(v).toLocaleString('fr-FR') }
-
-function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 function normalizeQuoteForResponse(quote: any) {
   if (!quote) return quote
@@ -104,25 +98,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   const brand = getBrandFromHost(request.nextUrl.host)
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  const accessResult = await requireDomainAccess(request, 'corporate')
+  if (!accessResult.ok) return accessResult.response
+  const { access } = accessResult
+
+  const body = await request.json().catch(() => ({}))
+  const { action, message, counterAmount, signature, signatureName } = body
+  const trimmedMessage = typeof message === 'string' ? message.trim().slice(0, 2000) : ''
+
+  // Décider (accepter, refuser, contre-proposer) engage l'entreprise : droit 'quotes:respond' accordé dans l'espace.
+  // Commenter reste ouvert à tout membre ayant accès au devis.
+  if (action !== 'comment') {
+    const denied = requireCompanyCapability(access, 'quotes:respond')
+    if (denied) return denied
   }
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = new mongoose.Types.ObjectId(access.profiles.companyClientId!)
 
   const quote = await AdminQuote.findOne({
     _id: id,
-    $or: [{ clientUserId: userId }, { clientCompanyId: companyId }]
+    $or: [{ clientUserId: userId }, { clientCompanyId: companyId }],
+    ...CLIENT_VISIBLE_QUOTE,
   })
 
   if (!quote) return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
-
-  const body = await request.json()
-  const { action, message, counterAmount, signature, signatureName } = body
-  const trimmedMessage = typeof message === 'string' ? message.trim() : ''
 
   // Signature électronique : data URL PNG, taille raisonnable
   const sig = typeof signature === 'string' && signature.startsWith('data:image/png;base64,') && signature.length < 600_000
@@ -142,6 +143,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Le montant de contre-proposition est requis' }, { status: 400 })
   }
 
+  // Une décision (accepter / refuser / contre-proposer) n'a de sens que sur un devis envoyé et pas encore tranché
+  const isDecision = action !== 'comment'
+  if (isDecision && quote.status !== 'sent') {
+    return NextResponse.json({
+      error: quote.status === 'accepted' ? 'Ce devis a déjà été accepté' : quote.status === 'rejected' ? 'Ce devis a déjà été refusé' : 'Ce devis ne peut pas encore recevoir de réponse'
+    }, { status: 409 })
+  }
+
   const now = new Date()
 
   // Mettre à jour le statut du devis
@@ -154,7 +163,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (sig) {
         setUpdate.clientSignature = {
           signature: sig,
-          name: sigName || auth.user.name || auth.user.email || 'Client',
+          name: sigName || access.email || 'Client',
           signedAt: now,
           ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '',
           userAgent: (request.headers.get('user-agent') || '').slice(0, 300),
@@ -164,7 +173,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       setUpdate.status = 'rejected'
       setUpdate.rejectedAt = now
     } else if (action === 'counter_proposed') {
-      setUpdate.clientCounterAmount = counterAmount
+      setUpdate.clientCounterAmount = Number(counterAmount)
     }
   }
 
@@ -189,14 +198,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     mongoUpdate.$push = pushUpdate
   }
 
-  await AdminQuote.updateOne({ _id: quote._id }, mongoUpdate)
+  // Condition sur le statut : deux clics simultanés (accepter puis refuser) ne peuvent pas tous deux passer
+  const applied = await AdminQuote.updateOne(
+    isDecision ? { _id: quote._id, status: 'sent' } : { _id: quote._id },
+    mongoUpdate
+  )
+  if (isDecision && applied.modifiedCount === 0) {
+    return NextResponse.json({ error: 'Le devis a été modifié entre-temps, rechargez la page' }, { status: 409 })
+  }
 
   const updatedQuote = await AdminQuote.findById(quote._id).lean()
   const normalizedQuote = normalizeQuoteForResponse(updatedQuote)
 
+  if (action === 'accepted' || action === 'rejected') {
+    await syncProjectWithQuoteDecision(quote, action, access.email || 'Client').catch((err) =>
+      console.error('Synchro projet après décision devis:', err)
+    )
+  }
+
   // Emails
-  const clientName = auth.user.name || auth.user.email || 'Client'
-  const clientEmail = auth.user.email || quote.client?.email
+  const clientName = access.email || 'Client'
+  const clientEmail = access.email || quote.client?.email
   const adminEmail = process.env.ADMIN_EMAIL || brand.contactEmail
 
   await Promise.allSettled([
@@ -233,18 +255,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     actorName: clientName,
     message: trimmedMessage,
     counterAmount: Number(counterAmount || 0) || undefined,
-    clientUserId: auth.user.id,
-    clientCompanyId: auth.user.companyClientId
+    clientUserId: access.userId,
+    clientCompanyId: access.profiles.companyClientId
   })
 
   void logAuditEvent({
     entityType: 'AdminQuote',
     entityId: quote._id,
     action: `client_${action}`,
-    userId: auth.user.id,
+    userId: access.userId,
     userRole: 'CLIENT',
-    clientCompanyId: auth.user.companyClientId,
-    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage, signed: !!sig },
+    clientCompanyId: access.profiles.companyClientId,
+    metadata: { numero: quote.numero, counterAmount: Number(counterAmount || 0) || undefined, hasMessage: !!trimmedMessage, signed: !!sig, companyRole: access.companyRole },
   })
 
   return NextResponse.json({ success: true, action, quote: normalizedQuote })

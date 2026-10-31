@@ -2,6 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Icon } from '@/components/market/storefront/Icon'
+import { Button } from '@/components/market/storefront/Button'
+import { Card } from '@/components/market/storefront/Card'
+
+const inputCls =
+  'mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500'
 
 export default function RecoverOrderPage() {
   const [email, setEmail] = useState('')
@@ -44,67 +50,74 @@ export default function RecoverOrderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-4 pb-12">
-      <div className="max-w-lg mx-auto pt-8 md:pt-12">
-        <div className="rounded-2xl border border-gray-200 bg-white/80 backdrop-blur p-6 shadow-lg">
-          <h1 className="text-2xl font-bold text-gray-900">Retrouver ma commande</h1>
-          <p className="text-sm text-gray-600 mt-2">
+    <div className="min-h-full bg-slate-50 px-4 py-8 dark:bg-slate-950 md:py-12">
+      <div className="mx-auto max-w-lg">
+        <Card className="p-5 md:p-6">
+          <h1 className="text-[20px] font-extrabold text-slate-900 dark:text-white">Retrouver ma commande</h1>
+          <p className="mt-2 text-[13px] text-slate-500 dark:text-slate-400">
             Entrez l&apos;email utilisé lors de votre commande. Si vos informations sont correctes, nous vous enverrons
             un ou plusieurs liens de suivi.
           </p>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Email</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email</span>
               <input
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 type="email"
-                placeholder="ex: nom@domaine.com"
-                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                autoComplete="email"
+                placeholder="ex : nom@domaine.com"
+                className={inputCls}
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Téléphone (optionnel, recommandé)</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Téléphone (optionnel, recommandé)</span>
               <input
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 type="tel"
-                placeholder="ex: 77 123 45 67"
-                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                inputMode="tel"
+                autoComplete="tel-national"
+                placeholder="ex : 77 123 45 67"
+                className={inputCls}
               />
-              <p className="mt-1 text-xs text-gray-500">Astuce: vous pouvez saisir seulement les derniers chiffres.</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Astuce : vous pouvez saisir seulement les derniers chiffres.</p>
             </label>
 
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               disabled={status === 'sending'}
               onClick={submit}
-              className="w-full rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 disabled:opacity-60"
+              className="w-full"
             >
               {status === 'sending' ? 'Envoi…' : status === 'sent' ? 'Demande envoyée' : 'Envoyer le lien de suivi'}
-            </button>
+            </Button>
 
             {message && (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-900">
+              <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[12px] font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <Icon name="checkCircle" size={16} className="mt-px flex-shrink-0" />
                 {message}
               </div>
             )}
           </div>
 
-          <div className="mt-6 flex items-center justify-between text-sm">
-            <Link href="/" className="text-gray-700 hover:text-gray-900 underline">
+          <div className="mt-6 flex items-center justify-between text-[13px]">
+            <Link href="/" className="font-semibold text-slate-600 underline dark:text-slate-300">
               Retour à l&apos;accueil
             </Link>
-            <Link href="/contact" className="text-gray-700 hover:text-gray-900 underline">
+            <Link href="/contact" className="font-semibold text-slate-600 underline dark:text-slate-300">
               Contacter le support
             </Link>
           </div>
-        </div>
+        </Card>
 
-        <div className="mt-4 text-xs text-gray-500">
+        <p className="mt-4 flex items-start gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+          <Icon name="shield" size={13} className="mt-px flex-shrink-0" />
           Pour votre sécurité, nous n&apos;affichons jamais vos commandes directement sur cette page.
-        </div>
+        </p>
       </div>
     </div>
   )

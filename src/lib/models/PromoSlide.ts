@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface IPromoSlide {
   title: string
   subtitle?: string
+  /** Pastille courte au-dessus du titre (« -20 % », « Nouveau ») */
+  badge?: string
   ctaText: string
   ctaLink: string
   bgColor?: string
@@ -21,6 +23,7 @@ const PromoSlideSchema = new Schema<IPromoSlideDoc>(
   {
     title: { type: String, required: true },
     subtitle: { type: String },
+    badge: { type: String, maxlength: 40 },
     ctaText: { type: String, default: 'En savoir plus' },
     ctaLink: { type: String, default: '/produits' },
     bgColor: { type: String, default: 'from-amber-50 via-yellow-50 to-orange-50' },

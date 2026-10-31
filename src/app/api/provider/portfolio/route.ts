@@ -1,35 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import ProviderPortfolio from '@/lib/models/ProviderPortfolio'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-interface DecodedToken {
-  userId: string
-  role: string
-  email: string
-}
-
-async function verifyToken(request: NextRequest): Promise<DecodedToken> {
-  const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-
-  if (!payload.userId || !payload.role || !payload.email) throw new Error('Token invalide')
-
-  return {
-    userId: payload.userId as string,
-    role: payload.role as string,
-    email: payload.email as string,
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
-    const decoded = await verifyToken(request)
+    const decoded = await requireApiUser(request)
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || undefined
 
@@ -55,15 +32,18 @@ export async function GET(request: NextRequest) {
       items,
       counts,
     })
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 401 })
+  } catch (err) {
+    const authRes = authErrorResponse(err)
+    if (authRes) return authRes
+    console.error('[GET /api/provider/portfolio]', err)
+    return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    const decoded = await verifyToken(request)
+    const decoded = await requireApiUser(request)
     const body = await request.json()
 
     const {
@@ -100,6 +80,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, item })
   } catch (err: any) {
+    const authRes = authErrorResponse(err)
+    if (authRes) return authRes
     return NextResponse.json({ success: false, error: err.message }, { status: 400 })
   }
 }

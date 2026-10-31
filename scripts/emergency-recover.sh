@@ -4,6 +4,8 @@
 
 set -e
 
+DB_PASS="${DB_PASS:?Variable DB_PASS requise (mot de passe MongoDB itvision_app)}"
+
 echo "🔴 DIAGNOSTIC URGENCE - $(date)"
 echo "================================"
 
@@ -41,8 +43,8 @@ docker volume ls | grep -E "(mongodb|itvision)" || echo "Aucun volume trouvé"
 # 4. Test MongoDB
 echo ""
 echo "🗄️  Test connexion MongoDB:"
-if docker exec itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db --eval "db.stats()" --quiet 2>/dev/null | grep -q "collections"; then
-    COUNT=$(docker exec itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db --eval "db.products.countDocuments()" --quiet 2>/dev/null | tr -d '[:space:]')
+if docker exec itvision-mongodb mongosh -u itvision_app -p "$DB_PASS" --authenticationDatabase itvision_db --eval "db.stats()" --quiet 2>/dev/null | grep -q "collections"; then
+    COUNT=$(docker exec itvision-mongodb mongosh -u itvision_app -p "$DB_PASS" --authenticationDatabase itvision_db --eval "db.products.countDocuments()" --quiet 2>/dev/null | tr -d '[:space:]')
     echo -e "${GREEN}✅ MongoDB OK - $COUNT produits trouvés${NC}"
 else
     echo -e "${RED}❌ MongoDB inaccessible${NC}"
@@ -74,7 +76,7 @@ echo ""
 
 if docker ps | grep -q "itvision-mongodb.*Up"; then
     echo -e "${GREEN}1. MongoDB tourne - tes données sont probablement là${NC}"
-    echo "   Vérifier: docker exec itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db --eval 'db.products.find().count()'"
+    echo "   Vérifier: docker exec itvision-mongodb mongosh -u itvision_app -p \$DB_PASS --authenticationDatabase itvision_db --eval 'db.products.find().count()'"
 else
     echo -e "${RED}1. MongoDB est arrêté${NC}"
     echo "   Redémarrer: docker-compose up -d mongodb"

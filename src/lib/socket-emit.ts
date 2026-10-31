@@ -213,6 +213,16 @@ export function emitCompanyEvent(companyId: string, event: string, data: Record<
 }
 
 /**
+ * Événement namespacé `corp:project:*` vers la room d'un projet (fiche admin, portail tech ouverts)
+ */
+export function emitProjectEvent(projectId: string, event: 'corp:project:updated' | 'corp:project:journal', data: Record<string, any>) {
+  const io = getIO()
+  if (!io) return
+
+  io.to(`project-${projectId}`).emit(event, { projectId, ...data, timestamp: new Date() })
+}
+
+/**
  * Notification in-app en temps réel vers une entreprise cliente
  */
 export function emitCompanyNotification(companyId: string, notification: {

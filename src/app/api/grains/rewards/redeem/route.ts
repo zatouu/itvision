@@ -5,6 +5,7 @@ import Reward from '@/lib/models/Reward'
 import GrainsTransaction from '@/lib/models/GrainsTransaction'
 import UserReward from '@/lib/models/UserReward'
 import { getGrainsBalance } from '@/lib/grains'
+import { getRedisClient } from '@/lib/redis'
 
 function generateCode() {
   return 'DDM-' + Math.random().toString(36).slice(2, 8).toUpperCase()
@@ -21,53 +22,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'rewardId requis' }, { status: 400 })
     }
 
-    const reward = await Reward.findById(rewardId).lean() as any
-    if (!reward || !reward.active) {
-      return NextResponse.json({ success: false, error: 'Récompense introuvable' }, { status: 404 })
+    // Verrou par utilisateur — évite le double débit si deux requêtes concurrentes
+    // passent le check de solde en même temps (check-then-act non atomique).
+    const redis = getRedisClient()
+    const lockKey = `grains:redeem:${auth.userId}`
+    let locked = false
+    if (redis) {
+      locked = (await redis.set(lockKey, '1', 'EX', 10, 'NX')) === 'OK'
+      if (!locked) {
+        return NextResponse.json({ success: false, error: 'Une opération est déjà en cours, réessayez' }, { status: 409 })
+      }
     }
 
-    const balance = await getGrainsBalance(auth.userId)
-    if (balance < reward.cost) {
-      return NextResponse.json({ success: false, error: 'Solde insuffisant' }, { status: 400 })
+    try {
+      const reward = await Reward.findById(rewardId).lean() as any
+      if (!reward || !reward.active) {
+        return NextResponse.json({ success: false, error: 'Récompense introuvable' }, { status: 404 })
+      }
+
+      const balance = await getGrainsBalance(auth.userId)
+      if (balance < reward.cost) {
+        return NextResponse.json({ success: false, error: 'Solde insuffisant' }, { status: 400 })
+      }
+
+      const existingCount = await UserReward.countDocuments({
+        userId: auth.userId,
+        rewardId: reward._id,
+        status: 'active',
+      })
+
+      if (reward.maxPerUser && existingCount >= reward.maxPerUser) {
+        return NextResponse.json({ success: false, error: 'Limite par utilisateur atteinte' }, { status: 400 })
+      }
+
+      const code = generateCode()
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + (reward.validForDays || 30))
+
+      let rewardDoc
+      try {
+        rewardDoc = await UserReward.create({
+          userId: auth.userId,
+          rewardId: reward._id,
+          code,
+          status: 'active',
+          expiresAt,
+        })
+      } catch (createErr) {
+        throw createErr
+      }
+
+      try {
+        await GrainsTransaction.create({
+          userId: auth.userId,
+          amount: -reward.cost,
+          type: 'spent',
+          source: 'redemption',
+          sourceId: reward._id,
+          description: `Échange : ${reward.title}`,
+        })
+      } catch (debitErr) {
+        // Rollback : supprimer la récompense si le débit échoue
+        await UserReward.deleteOne({ _id: rewardDoc._id }).catch(() => {})
+        throw debitErr
+      }
+
+      return NextResponse.json({
+        success: true,
+        code,
+        expiresAt,
+        balance: await getGrainsBalance(auth.userId),
+      })
+    } finally {
+      if (locked) await redis!.del(lockKey).catch(() => {})
     }
-
-    const existingCount = await UserReward.countDocuments({
-      userId: auth.userId,
-      rewardId: reward._id,
-      status: 'active',
-    })
-
-    if (reward.maxPerUser && existingCount >= reward.maxPerUser) {
-      return NextResponse.json({ success: false, error: 'Limite par utilisateur atteinte' }, { status: 400 })
-    }
-
-    const code = generateCode()
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + (reward.validForDays || 30))
-
-    await GrainsTransaction.create({
-      userId: auth.userId,
-      amount: -reward.cost,
-      type: 'spent',
-      source: 'redemption',
-      sourceId: reward._id,
-      description: `Échange : ${reward.title}`,
-    })
-
-    await UserReward.create({
-      userId: auth.userId,
-      rewardId: reward._id,
-      code,
-      status: 'active',
-      expiresAt,
-    })
-
-    return NextResponse.json({
-      success: true,
-      code,
-      expiresAt,
-      balance: await getGrainsBalance(auth.userId),
-    })
   } catch (err: any) {
     if (err?.status === 401 || err?.message?.includes('authentifié')) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })

@@ -1,4 +1,8 @@
 import { computeProductPricing, type ShippingMethodId, type ShippingRate } from './logistics'
+import { getPlatformExchangeRate } from './pricing/platform-rate'
+import { resolveDisplayPrice } from './pricing/display-price'
+import type { PricingDefaults } from './pricing/settings'
+
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
 const normalizeGallery = (product: any): string[] => {
@@ -26,36 +30,55 @@ const normalizeGallery = (product: any): string[] => {
   }
 
 // Normalise les variantes avec prix (style 1688)
-const normalizeVariantGroups = (product: any) => {
+export const normalizeVariantGroups = (product: any, defaultExchangeRate = getPlatformExchangeRate()) => {
   if (!Array.isArray(product.variantGroups) || product.variantGroups.length === 0) {
     return []
   }
-  
-  return product.variantGroups.map((group: any) => ({
+
+  // Prix client affiché par variante = coût sourcing variante × (1 + marge) —
+  // même formule que le salePrice produit, mêmes règles que le devis serveur.
+  const marginRate = typeof product.marginRate === 'number' && product.marginRate > 0 ? product.marginRate : 0
+  const exchangeRate = typeof product.exchangeRate === 'number' && product.exchangeRate > 0 ? product.exchangeRate : defaultExchangeRate
+  const variantSourcingFcfa = (v: any): number | null =>
+    typeof v?.priceFCFA === 'number' && v.priceFCFA > 0 ? v.priceFCFA
+      : typeof v?.price1688 === 'number' && v.price1688 > 0 ? Math.round(v.price1688 * exchangeRate)
+      : null
+
+  return product.variantGroups.map((group: any, gIdx: number) => ({
     name: group.name || 'Option',
-    variants: Array.isArray(group.variants) ? group.variants.map((v: any) => ({
-      id: v.id || `var_${Math.random().toString(36).slice(2)}`,
-      name: v.name || 'Variante',
-      sku: v.sku || undefined,
-      image: v.image || undefined,
-      // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
-      priceFCFA: v.priceFCFA ?? undefined,
-      stock: v.stock ?? 0,
-      isDefault: v.isDefault ?? false
-    })) : []
+    variants: Array.isArray(group.variants) ? group.variants.map((v: any, vIdx: number) => {
+      const sourcing = variantSourcingFcfa(v)
+      return {
+        id: v.id || `var_${gIdx}_${vIdx}`,
+        name: v.name || 'Variante',
+        sku: v.sku || undefined,
+        image: v.image || undefined,
+        // Le prix source (price1688) n'est pas exposé au client, seulement priceFCFA
+        priceFCFA: v.priceFCFA ?? undefined,
+        // Prix unitaire client de la variante (marge incluse) — undefined = prix produit
+        price: sourcing !== null ? Math.round(sourcing * (1 + marginRate / 100)) : undefined,
+        stock: typeof v.stock === 'number' ? v.stock : undefined,
+        isDefault: v.isDefault ?? false
+      }
+    }) : []
   })).filter((g: any) => g.variants.length > 0)
 }
 
 export const formatProductDetail = (
   product: any,
-  shippingRates?: Record<ShippingMethodId, ShippingRate>
+  shippingRates?: Record<ShippingMethodId, ShippingRate>,
+  defaults?: PricingDefaults
 ) => {
-  const pricing = computeProductPricing(product, shippingRates)
+  const pricing = computeProductPricing(product, shippingRates, undefined, defaults?.singleImportServiceFeeRate, defaults)
+
+  // Les produits à variantes chiffrées sont éligibles : le join porte la
+  // sélection de variante et les paliers sont mis à l'échelle du prix variante.
+  const groupBuyEligible = product.groupBuyEnabled ?? false
 
   // Achat groupé: calcul du meilleur prix et discount (si activé)
   let groupBuyBestPrice: number | null = null
   let groupBuyDiscount: number | null = null
-  if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+  if (groupBuyEligible && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
     const basePrice = pricing.salePrice ?? pricing.baseCost ?? product.price ?? 0
     const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => (typeof t?.price === 'number' ? t.price : Infinity)))
     if (Number.isFinite(bestTierPrice) && bestTierPrice < Infinity && basePrice > 0) {
@@ -79,7 +102,7 @@ export const formatProductDetail = (
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
     // Variantes avec prix et images (style 1688)
-    variantGroups: normalizeVariantGroups(product),
+    variantGroups: normalizeVariantGroups(product, defaults?.defaultExchangeRate),
     requiresQuote: product.requiresQuote ?? false,
     currency: pricing.currency,
     pricing,
@@ -92,6 +115,7 @@ export const formatProductDetail = (
     },
     logistics: {
       weightKg: product.weightKg ?? product.grossWeightKg ?? null,
+      weightEstimated: !!product.weightEstimated,
       packagingWeightKg: product.packagingWeightKg ?? null,
       volumeM3: product.volumeM3 ?? null,
       dimensions: product.lengthCm && product.widthCm && product.heightCm
@@ -108,24 +132,18 @@ export const formatProductDetail = (
       grossWeightKg: product.grossWeightKg ?? product.weightKg ?? null,
       packagingWeightKg: product.packagingWeightKg ?? null
     },
-    // Note: Les informations de sourcing et prix source ne sont pas exposées au client
-    // Seul indicateur: si le produit est importé
+    // Note: Les détails de sourcing restent internes ; on expose uniquement un indicateur d'import
     isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
-    // Exposer les infos simplifiées pour le simulateur 1688 si disponibles
-    pricing1688: product.price1688 ? {
-      price1688: product.price1688,
-      price1688Currency: 'CNY', // ou product.currencySource
-      exchangeRate: product.exchangeRate || 100, // Fallback safe
-      serviceFeeRate: product.serviceFeeRate || 10,
-      insuranceRate: product.insuranceRate || 0
-    } : null,
+    // Données de sourcing source réservées aux outils admin ; on ne les expose pas au client
     // Achat groupé (front)
-    groupBuyEnabled: product.groupBuyEnabled ?? false,
+    groupBuyEnabled: groupBuyEligible,
     groupBuyBestPrice,
     groupBuyDiscount,
     priceTiers: product.priceTiers ?? [],
     groupBuyMinQty: product.groupBuyMinQty ?? null,
     groupBuyTargetQty: product.groupBuyTargetQty ?? null,
+    // Quantité minimum par commande standard (MOQ)
+    minOrderQty: typeof product.minOrderQty === 'number' && product.minOrderQty > 0 ? product.minOrderQty : 1,
     // Prix wholesale B2B (activé à 5+ pcs ou compte Pro)
     b2bPrice: typeof product.b2bPrice === 'number' && product.b2bPrice > 0 ? product.b2bPrice : null,
     // Espace vendeur / storefront public
@@ -140,10 +158,11 @@ export const formatProductDetail = (
 
 export const formatSimilarProducts = (
   products: any[],
-  shippingRates?: Record<ShippingMethodId, ShippingRate>
+  shippingRates?: Record<ShippingMethodId, ShippingRate>,
+  defaults?: PricingDefaults
 ) => {
   return products.map((item) => {
-    const pricing = computeProductPricing(item, shippingRates)
+    const pricing = computeProductPricing(item, shippingRates, undefined, defaults?.singleImportServiceFeeRate, defaults)
     const bestShipping = pricing.shippingOptions.length > 0
       ? pricing.shippingOptions.reduce((prev, current) => (prev.total <= current.total ? prev : current))
       : null
@@ -157,8 +176,9 @@ export const formatSimilarProducts = (
         tags: normalizeTags(item),
       image: normalizeGallery(item)[0] ?? '/placeholder.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
-      // Listing: afficher uniquement le prix source (baseCost) si présent, sinon fallback sur salePrice
-      priceAmount: !item.requiresQuote ? (pricing.baseCost ?? pricing.salePrice) : null,
+      // Prix tout compris (marchandise + frais de service + assurance), cohérent
+      // avec le catalogue et le devis serveur — `baseCost` seul sous-affichait.
+      priceAmount: !item.requiresQuote ? resolveDisplayPrice(pricing, item.price) || null : null,
       currency: pricing.currency,
       requiresQuote: item.requiresQuote ?? false,
       availabilityStatus: item.stockStatus ?? 'preorder',

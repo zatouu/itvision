@@ -3,9 +3,10 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { initiatePayment, PaymentProvider } from '@/lib/payment'
-import { creditPoints, getAppConfig, getOrCreateWallet } from '@/lib/wallet'
+import { creditPoints, getAppConfig, getOrCreateWallet, isOnlinePaymentsEnabled } from '@/lib/wallet'
 import TopupPayment from '@/lib/models/TopupPayment'
 import { readPaymentSettings } from '@/lib/payments/settings'
+import { sendManualReviewEmail } from '@/lib/payments/manual-review'
 
 const VALID_PROVIDERS: PaymentProvider[] = ['wave', 'orange_money', 'free_money', 'wave_qr']
 const MIN_POINTS = 10
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     const { userId } = await requireAuth(request)
+    if (!(await isOnlinePaymentsEnabled())) {
+      return NextResponse.json({ error: 'Achat de crédits bientôt disponible', code: 'ONLINE_PAYMENTS_DISABLED' }, { status: 409 })
+    }
 
     const body = await request.json().catch(() => null)
     if (!body || typeof body !== 'object') {
@@ -124,6 +128,19 @@ export async function POST(request: NextRequest) {
       phone: payPhone,
     })
     const wallet = await getOrCreateWallet(String(userId))
+
+    // Recharge manuelle (pas d'API provider) : alerter l'admin pour vérification.
+    if (topup.manualConfirm) {
+      void sendManualReviewEmail({
+        kind: 'topup',
+        id: String(topup._id),
+        reference: topup.reference || String(topup._id),
+        amount: amountFcfa,
+        provider,
+        clientPhone: payPhone,
+      })
+    }
+
     return NextResponse.json({
       success: true,
       confirmed: false,

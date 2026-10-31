@@ -2,6 +2,8 @@ import { getRedisClient } from './redis'
 
 const CATALOG_PRODUCTS_PREFIX = 'catalog:v1:'
 const CATEGORIES_KEY = 'catalog:categories:v1'
+const CATEGORY_HIGHLIGHTS_KEY = 'catalog:category-highlights:v1'
+const GROUP_ORDERS_PREFIX = 'mkt:group-orders:v1:'
 const PRODUCT_CATEGORIES_KEY = 'catalog:product-categories:v1'
 const PRODUCT_CATEGORIES_TTL = 300 // 5 min
 
@@ -33,6 +35,7 @@ export async function invalidateCatalogCache(): Promise<void> {
   try {
     await redis.del(CATEGORIES_KEY)
     await redis.del(PRODUCT_CATEGORIES_KEY)
+    await redis.del(CATEGORY_HIGHLIGHTS_KEY)
 
     let cursor = '0'
     do {
@@ -42,7 +45,34 @@ export async function invalidateCatalogCache(): Promise<void> {
         await redis.unlink(keys)
       }
     } while (cursor !== '0')
+
+    cursor = '0'
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${GROUP_ORDERS_PREFIX}*`, 'COUNT', 100)
+      cursor = nextCursor
+      if (keys.length > 0) {
+        await redis.unlink(keys)
+      }
+    } while (cursor !== '0')
   } catch (e) {
     console.error('[catalog-cache] invalidateCatalogCache error', e)
+  }
+}
+
+/** Invalide la liste publique des achats groupés (join/create/statut). */
+export async function invalidateGroupOrdersCache(): Promise<void> {
+  const redis = getRedisClient()
+  if (!redis || redis.status !== 'ready') return
+  try {
+    let cursor = '0'
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${GROUP_ORDERS_PREFIX}*`, 'COUNT', 100)
+      cursor = nextCursor
+      if (keys.length > 0) {
+        await redis.unlink(keys)
+      }
+    } while (cursor !== '0')
+  } catch {
+    // ignore
   }
 }

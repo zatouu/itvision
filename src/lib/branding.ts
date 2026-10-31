@@ -74,6 +74,12 @@ export const XEUY_BRAND: BrandConfig = {
   secondaryColor: '#0891b2',
 }
 
+/** Lien wa.me généré depuis le numéro de la marque ('+221 77 413 34 40' → https://wa.me/221774133440) */
+export function brandWhatsAppUrl(brand: BrandConfig = MARKET_BRAND, text?: string): string {
+  const digits = brand.whatsapp.replace(/\D/g, '')
+  return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`
+}
+
 const MARKET_HOSTS = ['market.itvisionplus.sn', 'ddmplus.sn', 'ddm.itvisionplus.sn', 'market']
 const CORPORATE_HOSTS = ['itvisionplus.sn', 'www.itvisionplus.sn', 'staging.itvisionplus.sn', 'admin.itvisionplus.sn']
 const XEUY_HOSTS = ['xeuy.sn', 'www.xeuy.sn', 'app.xeuy.sn']

@@ -19,6 +19,7 @@ export interface IClient extends Document {
   notes?: string
   logo?: string
   brandColor?: string
+  lastMonthlyReportAt?: Date
   tags?: string[]
   category?: string
   rating?: number
@@ -26,6 +27,9 @@ export interface IClient extends Document {
   
   // Statut
   isActive: boolean
+  // Archivage : remplace la suppression dès qu'il existe un historique (factures, devis, interventions...)
+  archivedAt?: Date
+  archivedBy?: string
   
   // Permissions
   permissions: {
@@ -131,6 +135,7 @@ const ClientSchema = new Schema<IClient>({
     type: String,
     trim: true
   },
+  lastMonthlyReportAt: { type: Date },
   tags: [{
     type: String,
     trim: true
@@ -154,6 +159,8 @@ const ClientSchema = new Schema<IClient>({
     type: Boolean,
     default: true
   },
+  archivedAt: { type: Date, index: true },
+  archivedBy: { type: String },
   
   // Permissions
   permissions: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Script from 'next/script'
@@ -59,8 +59,12 @@ function getPasswordStrength(v: ReturnType<typeof validatePassword>) {
 
 export default function MarketCreateAccountPage() {
   const router = useRouter()
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  // Clé publique lue à l'exécution (GET /api/auth/register?captcha=1) ; repli sur la valeur de build
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '')
   const captchaContainerId = 'turnstile-market-register-form'
+  // Anti-robot : heure d'affichage du formulaire et champ piège invisible
+  const formLoadTime = useRef(0)
+  const [honeypot, setHoneypot] = useState('')
 
   const [returnTo, setReturnTo] = useState<string | null>(null)
   const [referralCode, setReferralCode] = useState<string | undefined>(undefined)
@@ -84,6 +88,14 @@ export default function MarketCreateAccountPage() {
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaWidgetId, setCaptchaWidgetId] = useState<string | number | null>(null)
   const [captchaError, setCaptchaError] = useState('')
+
+  useEffect(() => {
+    formLoadTime.current = Date.now()
+    fetch('/api/auth/register?captcha=1', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => { if (data?.siteKey) setTurnstileSiteKey(String(data.siteKey)) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     try {
@@ -215,6 +227,8 @@ export default function MarketCreateAccountPage() {
           password: formData.password,
           role: 'CLIENT',
           captchaToken,
+          website: honeypot,
+          formLoadTime: formLoadTime.current,
           ...(referralCode ? { referredBy: referralCode } : {})
         })
       })
@@ -375,6 +389,11 @@ export default function MarketCreateAccountPage() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Champ piège : invisible pour un humain, rempli par les robots */}
+                <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
+                  <label htmlFor="register-website">Site web</label>
+                  <input id="register-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e => setHoneypot(e.target.value)} />
+                </div>
             <div>
               <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-700">Nom complet *</label>
               <div className="relative">

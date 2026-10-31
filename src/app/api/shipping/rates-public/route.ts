@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { connectDB } from '@/lib/db'
+import { connectMongoose } from '@/lib/mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { shippingTolerance } from '@/lib/shipping/freight'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,9 +15,10 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   try {
-    await connectDB()
+    await connectMongoose()
 
-    const rates = getConfiguredShippingRates()
+    const pricing = await readSharedPricing()
+    const rates = configuredShippingRates(pricing.config)
     const now = new Date()
 
     // Produit de référence moyen pour estimation simulateur
@@ -40,6 +42,11 @@ export async function GET() {
         const totalCost = Math.max(method.minimumCharge || 0, billed)
         costPerUnit = Math.round(totalCost / referenceQty)
         unit = 'F/kg'
+      } else if (method.billing === 'flat') {
+        // Forfait (livraison locale) : le tarif est le coût total, indépendant
+        // du poids/volume — pas de « coût par unité » à extrapoler.
+        costPerUnit = 0
+        unit = 'forfait'
       } else {
         // per_cubic_meter
         const billed = referenceVolumeM3 * method.rate
@@ -100,7 +107,9 @@ export async function GET() {
       success: true,
       rates: mapped,
       defaults,
-    })
+      adjustTolerance: shippingTolerance(pricing.config),
+      pricingVersion: pricing.version,
+    }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     console.error('GET /api/shipping/rates-public error:', error)
     return NextResponse.json({

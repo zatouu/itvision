@@ -1,8 +1,8 @@
-import AuditLog from '@/lib/models/AuditLog'
+import AuditLog, { type IAuditLog } from '@/lib/models/AuditLog'
 import mongoose from 'mongoose'
 
 interface AuditOptions {
-  entityType: 'Intervention' | 'MaintenanceReport' | 'MaintenanceContract' | 'Technician' | 'User' | 'AdminQuote' | 'Ticket' | 'Client'
+  entityType: IAuditLog['entityType']
   entityId: string | mongoose.Types.ObjectId
   action: string
   previousState?: Record<string, any>

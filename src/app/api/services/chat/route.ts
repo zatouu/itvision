@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import ChatMessage from '@/lib/models/ChatMessage'
+import { listThreadMessages, postMessage, toMissionMessageDto, EmptyMessageError } from '@/lib/messaging/thread-messages'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import { requireAuth } from '@/lib/jwt'
 import { sendPushToUser } from '@/lib/push'
+import { contactMaskingEnabled, maskContactInfo } from '@/lib/messaging/contact-masking'
+import { getMissionQuickReplies } from '@/lib/messaging/quick-replies'
 
-// GET /api/services/chat?requestId=xxx — historique des messages
+// GET /api/services/chat?requestId=xxx[&limit=50&before=ISO] — historique des messages (les plus récents d'abord chargés)
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
@@ -17,11 +19,20 @@ export async function GET(request: NextRequest) {
     // Vérifier que l'utilisateur est participant de cette mission
     const sr = await ServiceRequest.findById(requestId).lean() as any
     if (!sr) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 })
-    const isParticipant = String(sr.clientId) === String(userId) || String(sr.assignedProviderId) === String(userId)
+    const isClientViewer = String(sr.clientId) === String(userId)
+    const isParticipant = isClientViewer || String(sr.assignedProviderId) === String(userId)
     if (!isParticipant) return NextResponse.json({ error: 'Interdit' }, { status: 403 })
 
-    const messages = await ChatMessage.find({ requestId }).sort({ createdAt: 1 }).limit(200).lean()
-    return NextResponse.json({ messages })
+    // Sans `limit`, les anciennes versions de l'application gardent les 200 derniers messages
+    const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 200, 1), 200)
+    const beforeRaw = searchParams.get('before')
+    const before = beforeRaw ? new Date(beforeRaw) : null
+    const messages = await listThreadMessages('mission', requestId, { limit, before })
+    return NextResponse.json({
+      messages: messages.map(toMissionMessageDto),
+      hasMore: messages.length === limit,
+      quickReplies: getMissionQuickReplies(String(sr.status), isClientViewer ? 'client' : 'provider'),
+    })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[GET /api/services/chat]', e)
@@ -37,9 +48,10 @@ export async function POST(request: NextRequest) {
 
     let body: any
     try { body = await request.json() } catch { body = {} }
-    const { requestId, text } = body
+    const { requestId, text, attachments } = body
 
-    if (!requestId || !text || typeof text !== 'string' || text.trim().length === 0) {
+    const hasText = typeof text === 'string' && text.trim().length > 0
+    if (!requestId || (!hasText && !Array.isArray(attachments))) {
       return NextResponse.json({ error: 'requestId et text requis' }, { status: 400 })
     }
 
@@ -56,11 +68,14 @@ export async function POST(request: NextRequest) {
     }
 
     const senderRole = isClient ? 'client' : 'provider'
-    const msg = await ChatMessage.create({
-      requestId,
-      senderId: userId,
+    const masking = contactMaskingEnabled() && hasText ? maskContactInfo(text) : null
+    const msg = await postMessage({
+      threadType: 'mission',
+      threadId: String(requestId),
+      senderId: String(userId),
       senderRole,
-      text: text.trim().slice(0, 1000),
+      text: masking ? masking.text : text,
+      attachments,
     })
 
     // Mettre à jour la fraîcheur de la mission
@@ -74,30 +89,25 @@ export async function POST(request: NextRequest) {
     // Émettre via WebSocket
     const io = (global as any).io
     if (io) {
-      const payload = {
-        _id: msg._id,
-        requestId,
-        senderId: userId,
-        senderRole,
-        text: msg.text,
-        createdAt: msg.createdAt,
-      }
+      const payload = toMissionMessageDto(msg)
       io.to(`mission-${requestId}`).emit('chat:message', payload)
       // Émettre aussi dans la room personnelle du destinataire pour les notifications in-app
       // même lorsque l'utilisateur n'est pas sur l'écran de chat
       io.to(`${isClient ? 'provider' : 'user'}-${recipientId}`).emit('chat:message', payload)
     }
     if (recipientId) {
+      const preview = msg.text || (msg.attachments?.[0]?.type === 'audio' ? 'Message vocal' : 'Pièce jointe')
       await sendPushToUser(recipientId, {
-        title: `💬 ${isClient ? 'Client' : 'Prestataire'}: ${msg.text.slice(0, 50)}`,
-        body: msg.text.slice(0, 100),
+        title: `💬 ${isClient ? 'Client' : 'Prestataire'}: ${preview.slice(0, 50)}`,
+        body: preview.slice(0, 100),
         data: { type: 'chat:message', requestId, senderRole },
         appType: recipientAppType as 'consumer' | 'provider',
       })
     }
 
-    return NextResponse.json({ success: true, message: msg })
+    return NextResponse.json({ success: true, message: toMissionMessageDto(msg), contactMasked: !!masking?.masked })
   } catch (e: any) {
+    if (e instanceof EmptyMessageError) return NextResponse.json({ error: 'requestId et text requis' }, { status: 400 })
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[POST /api/services/chat]', e)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

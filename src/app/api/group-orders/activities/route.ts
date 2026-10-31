@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import { maskParticipantName } from '@/lib/group-orders/public-group'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export async function GET() {
       status: { $in: ['open', 'filled'] },
       'participants.joinedAt': { $gte: oneDayAgo }
     })
-      .select('groupId product.name participants.name participants.joinedAt createdAt createdBy')
+      .select('groupId product.name participants.name participants.joinedAt createdAt createdBy.name')
       .sort({ 'participants.joinedAt': -1 })
       .limit(10)
       .lean()
@@ -34,7 +35,7 @@ export async function GET() {
       for (const p of participants.slice(-2)) {
         activities.push({
           type: 'group_joined',
-          userName: p.name || 'Un acheteur',
+          userName: maskParticipantName(p.name),
           groupId: g.groupId,
           productName: g.product?.name || 'Produit',
           createdAt: p.joinedAt
@@ -47,7 +48,7 @@ export async function GET() {
       status: { $in: ['open', 'filled'] },
       createdAt: { $gte: oneDayAgo }
     })
-      .select('groupId product.name createdAt createdBy')
+      .select('groupId product.name createdAt createdBy.name')
       .sort({ createdAt: -1 })
       .limit(5)
       .lean()
@@ -55,7 +56,7 @@ export async function GET() {
     for (const g of recentCreated as any[]) {
       activities.push({
         type: 'group_created',
-        userName: g.createdBy?.name || 'Un acheteur',
+        userName: maskParticipantName(g.createdBy?.name),
         groupId: g.groupId,
         productName: g.product?.name || 'Produit',
         createdAt: g.createdAt

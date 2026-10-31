@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import User from '@/lib/models/User'
-import Client from '@/lib/models/Client'
-import { requireAuth } from '@/lib/jwt'
+import { verifyAuthServer } from '@/lib/auth-server'
 import { creditGrainsForFavorite, updateTierFromBalance } from '@/lib/grains'
 
 function normalizeIds(input: unknown): string[] {
@@ -20,19 +19,18 @@ function normalizeIds(input: unknown): string[] {
   return out
 }
 
+// Le JWT market n'est émis que pour des comptes User — pas de fallback Client.
 async function loadAccountModel(userId: string) {
-  const user = await User.findById(userId)
-  if (user) return user
-  const client = await Client.findById(userId)
-  return client
+  return User.findById(userId)
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth(req)
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     await connectDB()
 
-    const account: any = await loadAccountModel(String(auth.userId))
+    const account: any = await loadAccountModel(String(auth.user.id))
     if (!account) {
       return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
     }
@@ -41,13 +39,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, favorites })
   } catch {
-    return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const auth = await requireAuth(req)
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     await connectDB()
 
     const body = await req.json().catch(() => ({}))
@@ -56,7 +55,7 @@ export async function PUT(req: NextRequest) {
     // garde-fou
     const limited = favorites.slice(0, 500)
 
-    const account: any = await loadAccountModel(String(auth.userId))
+    const account: any = await loadAccountModel(String(auth.user.id))
     if (!account) {
       return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
     }
@@ -66,13 +65,14 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ success: true, favorites: limited })
   } catch {
-    return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(req)
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     await connectDB()
 
     const body = await req.json().catch(() => ({}))
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'productId requis' }, { status: 400 })
     }
 
-    const account: any = await loadAccountModel(String(auth.userId))
+    const account: any = await loadAccountModel(String(auth.user.id))
     if (!account) {
       return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
     }
@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
     // Créditer les grains de fidélité (best effort)
     try {
       if (isNewFavorite) {
-        await creditGrainsForFavorite(auth.userId, productId)
-        await updateTierFromBalance(auth.userId)
+        await creditGrainsForFavorite(auth.user.id, productId)
+        await updateTierFromBalance(auth.user.id)
       }
     } catch (grainsErr) {
       console.error('[grains] Erreur crédit grains favori:', grainsErr)
@@ -107,13 +107,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, favorites: next })
   } catch {
-    return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth(req)
+    const auth = await verifyAuthServer(req)
+    if (!auth.isAuthenticated || !auth.user) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     await connectDB()
 
     const { searchParams } = new URL(req.url)
@@ -122,19 +123,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'productId requis' }, { status: 400 })
     }
 
-    const account: any = await loadAccountModel(String(auth.userId))
+    const account = await User.findByIdAndUpdate(auth.user.id, { $pull: { favoriteProductIds: productId } }, { new: true }).select('favoriteProductIds')
     if (!account) {
       return NextResponse.json({ success: false, error: 'Compte introuvable' }, { status: 404 })
     }
 
-    const current: string[] = Array.isArray(account.favoriteProductIds) ? account.favoriteProductIds : []
-    const next = current.filter((id: string) => id !== productId)
-
-    account.favoriteProductIds = next
-    await account.save()
-
-    return NextResponse.json({ success: true, favorites: next })
+    return NextResponse.json({ success: true, favorites: account.favoriteProductIds || [] })
   } catch {
-    return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
+    return NextResponse.json({ success: false, error: 'Favoris temporairement indisponibles' }, { status: 503 })
   }
 }

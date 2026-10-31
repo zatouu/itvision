@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Fraunces, Plus_Jakarta_Sans, Caveat } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import PageVisitTracker from '@/components/PageVisitTracker'
 import AnalyticsScripts from '@/components/AnalyticsScripts'
@@ -7,25 +7,28 @@ import SkipLink from '@/components/a11y/SkipLink'
 import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import { buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/structured-data'
 
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['800', '900'],
+// Fontes self-hostées (fontes variables Google téléchargées dans
+// public/fonts/) — zéro fetch réseau au build, plus rapide au runtime.
+const fraunces = localFont({
+  src: '../../public/fonts/fraunces-var.woff2',
+  weight: '100 900',
   variable: '--font-fraunces',
   display: 'swap',
 })
 
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+const jakarta = localFont({
+  src: '../../public/fonts/jakarta-var.woff2',
+  weight: '100 900',
   variable: '--font-jakarta',
   display: 'swap',
 })
 
-const caveat = Caveat({
-  subsets: ['latin'],
-  weight: ['500', '700'],
+const caveat = localFont({
+  src: '../../public/fonts/caveat-var.woff2',
+  weight: '100 900',
   variable: '--font-caveat',
   display: 'swap',
 })
@@ -63,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className={`${fraunces.variable} ${jakarta.variable} ${caveat.variable}`}>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Préconnexion aux CDN d'images pour réduire le TTFB des images produits */}
         <link rel="dns-prefetch" href="https://img.alicdn.com" />
         <link rel="preconnect" href="https://img.alicdn.com" crossOrigin="anonymous" />
@@ -73,25 +77,6 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.className} antialiased`}>
         <SkipLink />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  const theme = localStorage.getItem('theme')
-                  const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-                  if (isDark) {
-                    document.documentElement.classList.add('dark')
-                    document.documentElement.style.colorScheme = 'dark'
-                  } else {
-                    document.documentElement.classList.remove('dark')
-                    document.documentElement.style.colorScheme = 'light'
-                  }
-                } catch (e) {}
-              })()
-            `,
-          }}
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

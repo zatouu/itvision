@@ -85,6 +85,10 @@ export default function AdminMarketplaceManager() {
   const [loadingReturns, setLoadingReturns] = useState(false)
   const [recentChatMessages, setRecentChatMessages] = useState<any[]>([])
   const [loadingChat, setLoadingChat] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [clientOptions, setClientOptions] = useState<Array<{ id: string; name: string }> | null>(null)
+  const [mission, setMission] = useState({ clientId: '', title: '', site: '', date: '', description: '' })
 
   const loadActivities = async () => {
     try {
@@ -153,6 +157,47 @@ export default function AdminMarketplaceManager() {
     loadReturnRequests()
     loadRecentChatMessages()
   }, [filter])
+
+  const openCreate = () => {
+    setMission({ clientId: '', title: '', site: '', date: '', description: '' })
+    setShowCreate(true)
+    if (!clientOptions) {
+      fetch('/api/admin/clients?limit=200', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => setClientOptions((d.clients || []).map((c: any) => ({ id: c.id || c._id, name: c.name || c.company || c.username || 'Client' }))))
+        .catch(() => setClientOptions([]))
+    }
+  }
+
+  const createMission = async () => {
+    const client = (clientOptions || []).find(c => c.id === mission.clientId)
+    if (!client || !mission.title.trim() || !mission.date) return
+    setCreating(true)
+    try {
+      const res = await fetch('/api/maintenance/activities', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: mission.title.trim(),
+          description: mission.description.trim() || undefined,
+          clientId: mission.clientId,
+          clientName: client.name,
+          site: mission.site.trim() || undefined,
+          date: mission.date,
+          category: 'ad_hoc',
+          isContractual: false,
+          allowMarketplace: true,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Création impossible')
+      setShowCreate(false)
+      await loadActivities()
+    } catch (e: any) {
+      alert(e?.message || 'Création de la mission impossible')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const loadBids = async (activityId: string) => {
     try {
@@ -453,6 +498,12 @@ export default function AdminMarketplaceManager() {
           >
             Affectées ({activities.filter(a => a.status === 'assigned').length})
           </button>
+          <button
+            onClick={openCreate}
+            className="ml-auto px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            + Nouvelle mission
+          </button>
         </div>
       </div>
 
@@ -722,6 +773,66 @@ export default function AdminMarketplaceManager() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale nouvelle mission ad hoc */}
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b p-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">Nouvelle mission</h3>
+                <p className="text-xs text-gray-500">Publiée aux techniciens — ils répondent par disponibilité et prix.</p>
+              </div>
+              <button onClick={() => setShowCreate(false)} aria-label="Fermer" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Entreprise cliente *</label>
+                {clientOptions === null ? (
+                  <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
+                ) : (
+                  <select value={mission.clientId} onChange={e => setMission(m => ({ ...m, clientId: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="">Choisir…</option>
+                    {clientOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Titre de la mission *</label>
+                <input value={mission.title} onChange={e => setMission(m => ({ ...m, title: e.target.value }))}
+                  placeholder="Maintenance et remise en état — Rivonia" className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Site / adresse</label>
+                  <input value={mission.site} onChange={e => setMission(m => ({ ...m, site: e.target.value }))}
+                    placeholder="Rivonia, Dakar" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date souhaitée *</label>
+                  <input type="date" value={mission.date} onChange={e => setMission(m => ({ ...m, date: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description du besoin</label>
+                <textarea value={mission.description} onChange={e => setMission(m => ({ ...m, description: e.target.value }))} rows={4}
+                  placeholder="Équipements défectueux à remettre en état, accès, contraintes horaires…"
+                  className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t p-4">
+              <button onClick={() => setShowCreate(false)} className="rounded-lg border px-4 py-2 text-sm">Annuler</button>
+              <button onClick={createMission} disabled={creating || !mission.clientId || !mission.title.trim() || !mission.date}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                Publier aux techniciens
+              </button>
             </div>
           </div>
         </div>

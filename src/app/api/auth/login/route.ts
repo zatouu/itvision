@@ -7,6 +7,7 @@ import { logLoginAttempt } from '@/lib/security-logger'
 import { applyRateLimit, authRateLimiter } from '@/lib/rate-limiter'
 import { signAuthTokenWithExpiry, verifyJwtPayload } from '@/lib/jwt'
 import { resolveUserCategory } from '@/lib/user-segmentation'
+import { getPostLoginRedirect } from '@/lib/auth-redirect'
 import { setAuthCookie } from '@/lib/auth-server'
 
 export async function POST(request: NextRequest) {
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
         if (techPasswordValid) {
           // Synchroniser le hash du Technician vers le User
           await User.updateOne({ _id: user._id }, { $set: { passwordHash: tech.passwordHash, loginAttempts: 0 } })
+          user.passwordHash = tech.passwordHash
           isValidPassword = true
         }
       }
@@ -130,7 +132,8 @@ export async function POST(request: NextRequest) {
     if (user.twoFactorEnabled) {
       const code = Math.floor(100000 + Math.random() * 900000).toString()
       const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 min
-      await User.updateOne({ _id: user._id }, { $set: { twoFactorCode: code, twoFactorExpires: expires } })
+      const challenge = await User.updateOne({ _id: user._id, passwordHash: user.passwordHash }, { $set: { twoFactorCode: code, twoFactorExpires: expires } })
+      if (challenge.matchedCount !== 1) return NextResponse.json({ error: 'Votre compte a changé. Reconnectez-vous.' }, { status: 401 })
       return NextResponse.json({ mfa_required: true, userId: String(user._id) })
     }
 
@@ -141,6 +144,7 @@ export async function POST(request: NextRequest) {
     const token = await signAuthTokenWithExpiry(
       {
         userId: String(user._id),
+        sessionVersion: user.sessionVersion ?? 0,
         email: user.email,
         role: normalizedRole,
         username: user.username,
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       user: userData,
-      redirectUrl: getRedirectUrl(user.role, companyClientId)
+      redirectUrl: getPostLoginRedirect(user.role, companyClientId)
     })
 
     setAuthCookie(response, token)
@@ -189,23 +193,6 @@ export async function POST(request: NextRequest) {
       { error: 'Erreur interne du serveur' },
       { status: 500 }
     )
-  }
-}
-
-// Fonction pour déterminer l'URL de redirection selon le rôle
-function getRedirectUrl(role: string, companyClientId?: string): string {
-  const normalized = String(role).toUpperCase()
-  switch (normalized) {
-    case 'PRODUCT_MANAGER':
-      return '/admin/produits'
-    case 'ADMIN':
-      return '/admin'
-    case 'TECHNICIAN':
-      return '/tech-interface'
-    case 'CLIENT':
-      return companyClientId ? '/portail-entreprise' : '/compte'
-    default:
-      return '/compte'
   }
 }
 

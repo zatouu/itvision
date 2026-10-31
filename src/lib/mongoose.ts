@@ -1,7 +1,9 @@
 import mongoose from 'mongoose'
 
 /**
- * Synchronise les indexes de tous les modèles Mongoose enregistrés.
+ * Crée les index manquants de tous les modèles Mongoose enregistrés.
+ * createIndexes et non syncIndexes : ce dernier supprime les index absents du schéma
+ * actif, or server.js enregistre des schémas minimaux sans index sous les mêmes noms.
  * Idempotent et non-bloquant : logge les erreurs sans faire planter l'app.
  */
 async function syncAllIndexes() {
@@ -9,12 +11,12 @@ async function syncAllIndexes() {
     const modelNames = mongoose.modelNames()
     for (const name of modelNames) {
       try {
-        await mongoose.model(name).syncIndexes()
+        await mongoose.model(name).createIndexes()
       } catch (err) {
-        console.warn(`[MongoDB] syncIndexes("${name}") failed:`, err instanceof Error ? err.message : err)
+        console.warn(`[MongoDB] createIndexes("${name}") failed:`, err instanceof Error ? err.message : err)
       }
     }
-    console.log(`[MongoDB] ✅ Indexes synchronisés (${modelNames.length} modèles)`)
+    console.log(`[MongoDB] ✅ Indexes vérifiés (${modelNames.length} modèles)`)
   } catch (err) {
     console.warn('[MongoDB] syncAllIndexes global error:', err instanceof Error ? err.message : err)
   }

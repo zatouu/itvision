@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { qwenChat, qwenVision } from '@/lib/ai/qwen'
+import { canonicalSource, estimateWeightKg, findImportedProduct, importPricing } from '@/lib/market/catalog-import'
+import { localizeProductImages } from '@/lib/agents/sourcing/localize-images'
+import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/admin/products/smart-import
@@ -25,13 +28,15 @@ import { qwenChat, qwenVision } from '@/lib/ai/qwen'
  *     sourcePlatform?: string      // '1688' | 'aliexpress' | 'taobao'
  *   }>
  *   options?: {
- *     exchangeRate?: number        // Defaut: 85 FCFA/CNY
- *     serviceFeeRate?: number      // Defaut: 10%
+ *     marginRate?: number          // Défaut : SOURCING_MARGIN_RATE (15 %)
+ *     serviceFeeRate?: number      // Défaut : 10 %
  *     b2bDiscountPercent?: number  // Defaut: 15%
- *     reformatDescriptions?: boolean // Utiliser OpenAI pour reformater (defaut: true si OPENAI_API_KEY set)
+ *     reformatDescriptions?: boolean // Traduction et mise en forme par le gateway IA (défaut : true)
  *     filterImages?: boolean       // Filtrer les images polluees (defaut: true)
  *     autoPublish?: boolean        // Publier directement (defaut: false)
  *   }
+ *
+ * Une offre déjà importée (même identifiant ou URL source) n'est pas recréée : seul son prix est mis à jour.
  */
 
 // Patterns d'images a exclure (logos boutique, promos, icones paiement)
@@ -204,7 +209,7 @@ function buildEnrichmentPrompt(categoriesList: string): string {
   return `Tu es un assistant e-commerce pour un marketplace d'import Chine destiné à l'Afrique de l'Ouest francophone (Sénégal, Côte d'Ivoire).
 Tu reçois les données brutes d'un produit importé depuis 1688 ou AliExpress.
 Nettoie-les et retourne UNIQUEMENT un JSON valide sans markdown avec cette structure exacte :
-{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."] }
+{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."], "estimatedWeightKg": 0.5 }
 
 Règles :
 - name : nom produit propre et vendeur en français (max 80 caractères). Traduis depuis le chinois/anglais. Conserve marque et modèle. Supprime spam, emojis excessifs, mentions vendeur/promo.
@@ -214,6 +219,7 @@ ${categoriesList}
 - description : 3-5 phrases claires en français, vendeuses, sans jargon inutile.
 - features : 4-8 bullet points courts en français.
 - tags : 3-6 tags pertinents en minuscules, en français.
+- estimatedWeightKg : poids d'expédition probable d'une unité emballée, en kg (nombre).
 Ne traduis pas les noms de marque. Supprime les infos inutiles (politique retour vendeur chinois, etc).`
 }
 
@@ -230,42 +236,15 @@ function parseEnrichmentJson(content: string, fallback: { name: string; descript
       description: parsed.description || fallback.description,
       features: Array.isArray(parsed.features) ? parsed.features : fallback.features,
       tags: Array.isArray(parsed.tags) ? parsed.tags : fallback.tags,
+      estimatedWeightKg: parsed.estimatedWeightKg,
     }
   } catch {
     return fallback
   }
 }
 
-async function callOpenAiEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY not configured')
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: buildEnrichmentPrompt(categoriesList) },
-        {
-          role: 'user',
-          content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 700,
-    }),
-  })
-
-  if (!response.ok) throw new Error(`OpenAI API error ${response.status}`)
-  const data = await response.json()
-  return data.choices?.[0]?.message?.content?.trim() || ''
-}
-
-async function callQwenEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
+// qwenChat passe par le gateway (DeepSeek, puis QwenCloud, puis Ollama)
+async function callGatewayEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
   const result = await qwenChat([
     { role: 'system', content: buildEnrichmentPrompt(categoriesList) },
     {
@@ -278,7 +257,7 @@ async function callQwenEnrich(rawName: string, rawDescription: string, raw: Reco
 
 async function enrichProduct(
   raw: Record<string, unknown>
-): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[] }> {
+): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[]; estimatedWeightKg?: unknown }> {
   const rawName = String(raw.name || '')
   const rawDescription = String(raw.description || '')
   const fallback = {
@@ -295,28 +274,11 @@ async function enrichProduct(
     .join('\n')
 
   let content = ''
-
-  // Priorité Qwen (ton modèle disponible), fallback OpenAI
   try {
-    if (process.env.QWEN_CLOUD_API_KEY || process.env.DASHSCOPE_API_KEY) {
-      content = await callQwenEnrich(rawName, rawDescription, raw, categoriesList)
-    } else if (process.env.OPENAI_API_KEY) {
-      content = await callOpenAiEnrich(rawName, rawDescription, raw, categoriesList)
-    } else {
-      return fallback
-    }
+    content = await callGatewayEnrich(rawName, rawDescription, raw, categoriesList)
   } catch (err) {
     console.error('Erreur enrichissement IA:', err)
-    // Dernier essai OpenAI si Qwen a échoué
-    try {
-      if (process.env.OPENAI_API_KEY) {
-        content = await callOpenAiEnrich(rawName, rawDescription, raw, categoriesList)
-      }
-    } catch (err2) {
-      console.error('Fallback OpenAI échoué:', err2)
-      return fallback
-    }
-    if (!content) return fallback
+    return fallback
   }
 
   if (!content) return fallback
@@ -377,10 +339,11 @@ export async function POST(req: NextRequest) {
     }
 
     const opts = body.options || {}
-    const exchangeRate = opts.exchangeRate || 85
-    const serviceFeeRate = opts.serviceFeeRate || 10
-    const b2bDiscountPercent = opts.b2bDiscountPercent || 15
-    const shouldEnrich = opts.reformatDescriptions !== false && !!process.env.OPENAI_API_KEY
+    const pricingSettings = await readSharedPricing()
+    const marginRate = typeof opts.marginRate === 'number' && opts.marginRate >= 0 ? opts.marginRate : undefined
+    const serviceFeeRate = typeof opts.serviceFeeRate === 'number' && opts.serviceFeeRate >= 0 ? opts.serviceFeeRate : undefined
+    const b2bDiscountPercent = opts.b2bDiscountPercent ?? pricingSettings.config.defaults.defaultB2BDiscountPercent
+    const shouldEnrich = opts.reformatDescriptions !== false
     const shouldFilterImages = opts.filterImages !== false
     const autoPublish = opts.autoPublish === true
 
@@ -391,6 +354,7 @@ export async function POST(req: NextRequest) {
       name: string
       success: boolean
       productId?: string
+      updated?: boolean
       imagesOriginal?: number
       imagesFiltered?: number
       descriptionReformatted?: boolean
@@ -459,6 +423,36 @@ export async function POST(req: NextRequest) {
           continue
         }
 
+        const rawSourceUrl = typeof raw.sourceUrl === 'string' ? raw.sourceUrl : undefined
+        const source = canonicalSource(rawSourceUrl, typeof raw.sourcePlatform === 'string' ? raw.sourcePlatform : undefined)
+        const sourcePrice = toPositiveNumber(raw.price1688) || 0
+        const sourceCurrency = typeof raw.price1688Currency === 'string' ? raw.price1688Currency
+          : source.platform === 'aliexpress' && !raw.price1688 ? 'USD' : 'CNY'
+        const priced = sourcePrice > 0
+          ? importPricing({ sourcePrice, currency: sourceCurrency, platform: source.platform, marginRate, serviceFeeRate }, pricingSettings.config)
+          : null
+
+        // Offre déjà au catalogue : on rafraîchit son prix, sans toucher au contenu relu par l'équipe
+        const existing = await findImportedProduct(source, rawSourceUrl)
+        if (existing) {
+          if (priced?.price) {
+            await Product.updateOne({ _id: existing._id }, {
+              $set: {
+                price1688: sourcePrice,
+                price1688Currency: priced.price1688Currency,
+                exchangeRate: priced.exchangeRate,
+                price: priced.price,
+                b2bPrice: Math.round(priced.price * (1 - b2bDiscountPercent / 100)),
+                lastPriceCheckAt: new Date(),
+                ...(source.externalId ? { 'sourcing.externalId': source.externalId } : {}),
+              },
+              $push: { priceHistory: { $each: [{ date: new Date(), price1688: sourcePrice, exchangeRate: priced.exchangeRate, source: 'import' }], $slice: -50 } },
+            })
+          }
+          results.push({ index: i, name: raw.name, success: true, updated: true, productId: String(existing._id) })
+          continue
+        }
+
         // 1. Filtrer les images
         const variantGroups = normalizeVariantGroups(raw.variantGroups, raw.variants)
         const variantImages = variantGroups.flatMap(group => group.variants.map(v => v.image).filter(Boolean))
@@ -482,8 +476,9 @@ export async function POST(req: NextRequest) {
           visionFilteredImages = await selectProductImagesWithVision(cleanImages)
         }
 
-        // Limiter a 10 images max
-        const finalImages = visionFilteredImages.slice(0, 10)
+        // Limiter a 10 images max ; rapatriées chez nous (les CDN chinois bloquent le hotlink)
+        const localized = await localizeProductImages({ gallery: visionFilteredImages.slice(0, 10) })
+        const finalImages = localized.gallery
         const cleanDescriptionImages = filterProductImages(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []).slice(0, 30)
 
         // 2. Enrichissement IA (nom + catégorie + description + features + tags)
@@ -493,6 +488,7 @@ export async function POST(req: NextRequest) {
         let tags = Array.isArray(raw.tags) ? raw.tags : ['import-chine']
         let category = raw.category || undefined
         let enriched = false
+        let aiWeight: unknown
 
         if (shouldEnrich) {
           const enrichedData = await enrichProduct(raw)
@@ -501,7 +497,8 @@ export async function POST(req: NextRequest) {
           features = enrichedData.features.length > 0 ? enrichedData.features : features
           tags = enrichedData.tags.length > 0 ? enrichedData.tags : tags
           category = enrichedData.category || category
-          enriched = true
+          aiWeight = enrichedData.estimatedWeightKg
+          enriched = enrichedData.name !== String(raw.name || '') || enrichedData.description !== String(raw.description || '')
         }
 
         // Fallback classification par mots-clés si pas de catégorie
@@ -515,28 +512,14 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 3. Calculer le pricing
-        const price1688 = toPositiveNumber(raw.price1688) || 0
-        let baseCost: number | undefined
-        let price: number = 0
-        let b2bPrice: number = 0
+        // 3. Prix catalogue : coût source + marge + frais, transport exclu (choisi au checkout, ajusté à la pesée)
+        let price = priced?.price || 0
+        if (!price) price = toPositiveNumber(raw.price) || 0
+        const b2bPrice = price > 0 ? Math.round(price * (1 - b2bDiscountPercent / 100)) : 0
 
-        if (price1688 > 0) {
-          baseCost = Math.round(price1688 * exchangeRate)
-          // Prix retail = baseCost + frais de service + assurance
-          const serviceFee = Math.round(baseCost * (serviceFeeRate / 100))
-          const insurance = Math.round(baseCost * 0.025) // 2.5% assurance
-          price = baseCost + serviceFee + insurance
-          b2bPrice = Math.round(price * (1 - b2bDiscountPercent / 100))
-        } else {
-          const parsedPrice = toPositiveNumber(raw.price)
-          if (parsedPrice) {
-            price = parsedPrice
-            b2bPrice = Math.round(price * (1 - b2bDiscountPercent / 100))
-          }
-        }
-
-        const weightKg = toPositiveNumber(raw.weightKg)
+        const sourceWeight = toPositiveNumber(raw.weightKg)
+        const weightEstimated = !sourceWeight
+        const weightKg = sourceWeight || estimateWeightKg(`${productName} ${category || ''}`, aiWeight)
         const lengthCm = toPositiveNumber(raw.lengthCm)
         const widthCm = toPositiveNumber(raw.widthCm)
         const heightCm = toPositiveNumber(raw.heightCm)
@@ -546,9 +529,8 @@ export async function POST(req: NextRequest) {
           ? Number((((lengthCm as number) * (widthCm as number) * (heightCm as number)) / 1_000_000).toFixed(3))
           : undefined
         const volumeM3 = explicitVolume || computedVolume
-        const hasImportLogistics = Boolean(weightKg && (volumeM3 || hasCompleteDimensions))
-        const sourcePlatform = typeof raw.sourcePlatform === 'string' ? raw.sourcePlatform.toLowerCase() : '1688'
-        const requiresQuote = Boolean(raw.requiresQuote) || !hasImportLogistics || price <= 0
+        // Sans volume ni poids réel, le transport est facturé après pesée : seul un prix absent impose le devis
+        const requiresQuote = Boolean(raw.requiresQuote) || price <= 0
 
         // 4. Creer le produit
         const productData: any = {
@@ -561,29 +543,35 @@ export async function POST(req: NextRequest) {
           gallery: finalImages,
           descriptionImages: cleanDescriptionImages,
           price,
-          baseCost,
           b2bPrice,
-          price1688: price1688 > 0 ? price1688 : undefined,
-          price1688Currency: 'CNY',
-          exchangeRate,
-          serviceFeeRate,
-          insuranceRate: 2.5,
+          price1688: sourcePrice > 0 ? sourcePrice : undefined,
+          price1688Currency: priced?.price1688Currency || 'CNY',
+          exchangeRate: priced?.exchangeRate,
+          marginRate: priced?.marginRate,
+          serviceFeeRate: priced?.serviceFeeRate,
+          insuranceRate: priced?.insuranceRate,
           currency: 'FCFA',
           condition: 'new',
           stockStatus: 'preorder',
           requiresQuote,
           isPublished: autoPublish,
           weightKg,
+          weightEstimated: weightEstimated || !volumeM3,
           lengthCm: hasCompleteDimensions ? lengthCm : undefined,
           widthCm: hasCompleteDimensions ? widthCm : undefined,
           heightCm: hasCompleteDimensions ? heightCm : undefined,
           volumeM3,
           specifications: (raw.specifications && typeof raw.specifications === 'object') ? raw.specifications : undefined,
           sourcing: {
-            platform: sourcePlatform,
-            productUrl: raw.sourceUrl || undefined,
+            platform: source.platform,
+            productUrl: source.url || rawSourceUrl,
+            externalId: source.externalId,
             supplierName: raw.supplierName || undefined,
           },
+          ...(sourcePrice > 0 ? {
+            priceHistory: [{ date: new Date(), price1688: sourcePrice, exchangeRate: priced?.exchangeRate, source: 'import' }],
+            lastPriceCheckAt: new Date(),
+          } : {}),
         }
 
         // Variantes si presentes

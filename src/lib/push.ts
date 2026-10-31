@@ -171,7 +171,7 @@ function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provi
     case 'offer:new':
       return {
         kind: 'offer-received' as AppNotificationKind,
-        link: role === 'consumer' && requestId ? link('/request-offers', { id: requestId }) : undefined,
+        link: role === 'consumer' && requestId ? link(`/offers/${requestId}`) : undefined,
       }
     case 'offer:accepted':
     case 'payment:held':
@@ -179,9 +179,19 @@ function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provi
         kind: 'request-assigned' as AppNotificationKind,
         link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
       }
-    case 'request:status-changed':
+    // La contre-offre ne crée pas la mission : le client doit encore accepter l'offre.
     case 'offer:counter-accepted':
     case 'offer:counter-rejected':
+      return {
+        kind: 'offer-counter' as AppNotificationKind,
+        link: requestId ? link(role === 'provider' ? '/my-offers' : `/offers/${requestId}`) : undefined,
+      }
+    case 'mission:validation-reminder':
+      return {
+        kind: 'mission-update' as AppNotificationKind,
+        link: requestId ? link(`/mission/${requestId}`) : undefined,
+      }
+    case 'request:status-changed':
       return {
         kind: 'request-status-changed' as AppNotificationKind,
         link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
@@ -196,13 +206,20 @@ function buildAppNotification(message: PushMessage, appType: 'consumer' | 'provi
     case 'offer:rejected':
       return { kind: 'offer-rejected' as AppNotificationKind, link: role === 'provider' ? link('/my-offers') : undefined }
     case 'offer:counter':
-      return { kind: 'offer-counter' as AppNotificationKind, link: role === 'provider' ? link('/my-offers') : undefined }
+      return { kind: 'offer-counter' as AppNotificationKind, link: role === 'provider' ? link('/my-offers', { filter: 'counter' }) : undefined }
     default:
       return {
         kind: 'mission-update' as AppNotificationKind,
         link: requestId ? link(role === 'provider' ? `/active-mission/${requestId}` : `/mission/${requestId}`) : undefined,
       }
   }
+}
+
+/** Relais WhatsApp en tâche de fond : n'allonge jamais l'envoi push ni ne le fait échouer. */
+function relayAfterPush(userId: string, message: PushMessage, delivered: number) {
+  import('./whatsapp-relay')
+    .then(m => m.relayToWhatsApp(userId, message, delivered))
+    .catch(err => console.warn('[Push] relais WhatsApp impossible:', err instanceof Error ? err.message : err))
 }
 
 /**
@@ -236,10 +253,12 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
     }
 
     const query: any = { userId }
-    if (message.appType) query.appType = message.appType
+    // 'unified' = app fusionnée : ses tokens reçoivent les push des deux audiences
+    if (message.appType) query.appType = { $in: [message.appType, 'unified'] }
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
       console.warn(`[Push] sendPushToUser(${userId}/${message.appType || 'any'}): aucun token enregistré`)
+      relayAfterPush(userId, message, 0)
       return { success: false, tokenCount: 0, deliveredCount: 0, error: 'Aucun token enregistré pour cet utilisateur' }
     }
     console.log(`[Push] → user ${userId} (${message.appType || 'any'}): ${tokens.length} token(s) — "${message.title}"`)
@@ -248,7 +267,8 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
       to: t.token,
       title: message.title,
       body: message.body,
-      data: message.data || {},
+      // audience permet à l'app fusionnée de résoudre le lien vers le bon côté (client/provider)
+      data: { ...(message.data || {}), audience: message.appType },
       sound: message.sound ?? 'default',
       badge: message.badge,
       channelId: message.channelId || 'default',
@@ -258,6 +278,7 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
     const chunks = chunkArray(messages, 100)
     let delivered = 0
     for (const chunk of chunks) delivered += await sendExpoBatch(chunk)
+    relayAfterPush(userId, message, delivered)
     return { success: delivered > 0, tokenCount: tokens.length, deliveredCount: delivered }
   } catch (err: any) {
     console.error('[Push] sendPushToUser error:', err)
@@ -280,7 +301,7 @@ export async function sendPushToUsers(userIds: string[], message: PushMessage): 
 export async function sendPushToAllProviders(message: PushMessage, excludeUserId?: string): Promise<PushResult> {
   try {
     await connectMongoose()
-    const query: any = { appType: 'provider' }
+    const query: any = { appType: { $in: ['provider', 'unified'] } }
     if (excludeUserId) query.userId = { $ne: excludeUserId }
     const tokens = await PushToken.find(query).select('token').lean()
     if (!tokens.length) {
@@ -293,7 +314,8 @@ export async function sendPushToAllProviders(message: PushMessage, excludeUserId
       to: t.token,
       title: message.title,
       body: message.body,
-      data: message.data || {},
+      // audience 'provider' explicite pour l'app fusionnée
+      data: { ...(message.data || {}), audience: 'provider' },
       sound: message.sound ?? 'default',
       channelId: message.channelId || 'services',
       priority: 'high',

@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = request.nextUrl
     const status = searchParams.get('status')
-    if (status && status !== 'all') q.status = status
+    if (status && status !== 'all') {
+      const list = status.split(',').filter(Boolean)
+      q.status = list.length > 1 ? { $in: list } : list[0]
+    }
 
     // Filtre période : date exacte ou plage [from, to]
     const date = searchParams.get('date')
@@ -60,22 +63,25 @@ export async function GET(request: NextRequest) {
     if (and.length) q.$and = and
 
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
+    const order = searchParams.get('sort') === 'desc' ? -1 : 1
 
     const items = await Intervention.find(q)
-      .select('title description status priority type typeIntervention date scheduledDate scheduledTime heureDebut heureFin estimatedDuration client clientId photosAvant photosApres signatures observations activites tasks materialsUsed')
+      .select('interventionNumber title description status priority type typeIntervention date scheduledDate scheduledTime heureDebut heureFin estimatedDuration site client clientId photosAvant photosApres signatures observations activites tasks materialsUsed')
       .populate('clientId', 'name company address city phone email')
-      .sort({ date: 1, heureDebut: 1 })
+      .sort({ date: order, heureDebut: order })
       .limit(limit)
       .lean() as any[]
 
     return NextResponse.json({
       interventions: items.map(i => ({
         id: String(i._id),
+        number: i.interventionNumber || null,
         title: i.title,
         description: i.description,
         status: i.status,
         priority: i.priority,
         type: i.typeIntervention || i.type,
+        site: i.site || '',
         date: i.date,
         scheduledDate: i.scheduledDate,
         heureDebut: i.heureDebut || i.scheduledTime,
@@ -87,7 +93,7 @@ export async function GET(request: NextRequest) {
           address: (i.clientId as any).address,
           city: (i.clientId as any).city,
           phone: (i.clientId as any).phone,
-        } : (i.client ? { name: i.client } : null),
+        } : (i.client?.name ? { name: i.client.name, address: i.client.address, phone: i.client.phone } : null),
         report: {
           photosAvant: (i.photosAvant || []).length,
           photosApres: (i.photosApres || []).length,

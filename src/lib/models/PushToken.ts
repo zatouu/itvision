@@ -4,7 +4,8 @@ export interface IPushToken extends Document {
   userId: string
   token: string
   platform: 'ios' | 'android' | 'web'
-  appType: 'consumer' | 'provider'
+  /** 'unified' = app fusionnée client+provider : reçoit les push des deux audiences */
+  appType: 'consumer' | 'provider' | 'unified'
   createdAt: Date
   updatedAt: Date
 }
@@ -14,7 +15,7 @@ const PushTokenSchema = new Schema<IPushToken>(
     userId: { type: String, required: true, },
     token: { type: String, required: true, unique: true },
     platform: { type: String, enum: ['ios', 'android', 'web'], default: 'android' },
-    appType: { type: String, enum: ['consumer', 'provider'], default: 'consumer' },
+    appType: { type: String, enum: ['consumer', 'provider', 'unified'], default: 'consumer' },
   },
   { timestamps: true }
 )
