@@ -182,8 +182,8 @@ export async function POST(request: NextRequest) {
     
     const projectData = await request.json()
     
-    // Validation des données requises
-    const requiredFields = ['name', 'address', 'clientId', 'startDate']
+    // Validation des données requises — clientId facultatif si un client libre (particulier) est renseigné
+    const requiredFields = ['name', 'address', 'startDate']
     for (const field of requiredFields) {
       if (!projectData[field]) {
         return NextResponse.json(
@@ -192,7 +192,25 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    
+    const clientSnapshot = projectData.clientSnapshot && typeof projectData.clientSnapshot === 'object'
+      ? {
+          company: String(projectData.clientSnapshot.company || projectData.clientSnapshot.name || '').slice(0, 160),
+          contact: String(projectData.clientSnapshot.contact || '').slice(0, 160),
+          phone: String(projectData.clientSnapshot.phone || '').slice(0, 40),
+          email: String(projectData.clientSnapshot.email || '').slice(0, 160),
+        }
+      : (projectData.clientName
+          ? { company: String(projectData.clientName).slice(0, 160), contact: '', phone: String(projectData.clientPhone || '').slice(0, 40), email: String(projectData.clientEmail || '').slice(0, 160) }
+          : null)
+    const hasFreeClient = !!clientSnapshot?.company
+
+    if (!projectData.clientId && !hasFreeClient) {
+      return NextResponse.json(
+        { error: 'Client requis : sélectionnez une entreprise ou renseignez un particulier.' },
+        { status: 400 }
+      )
+    }
+
     // Vérification que le client existe
     // clientId peut être un User._id (compte client) ou un Client._id (entreprise)
     const resolvedClientId = asObjectIdString(projectData.clientId)
@@ -211,16 +229,15 @@ export async function POST(request: NextRequest) {
           resolvedClient = await User.findOne({ companyClientId: resolvedCompanyId, role: 'CLIENT' }).lean()
         }
       }
+      if (!resolvedClient) {
+        return NextResponse.json(
+          { error: 'Client non trouvé. Assurez-vous que le client a un compte utilisateur actif.' },
+          { status: 404 }
+        )
+      }
     }
 
-    if (!resolvedClient) {
-      return NextResponse.json(
-        { error: 'Client non trouvé. Assurez-vous que le client a un compte utilisateur actif.' },
-        { status: 404 }
-      )
-    }
-
-    const finalClientId = String(resolvedClient._id)
+    const finalClientId = resolvedClient ? String(resolvedClient._id) : null
 
     if (resolvedCompanyId) {
       const company = await Client.findById(resolvedCompanyId).select({ _id: 1 }).lean() as any
@@ -239,7 +256,8 @@ export async function POST(request: NextRequest) {
       description: projectData.description || '',
       address: projectData.address,
       projectId: projectId.toString(),
-      clientId: new mongoose.Types.ObjectId(finalClientId),
+      clientId: finalClientId ? new mongoose.Types.ObjectId(finalClientId) : undefined,
+      clientSnapshot: clientSnapshot || undefined,
       clientCompanyId: resolvedCompanyId ? new mongoose.Types.ObjectId(resolvedCompanyId) : undefined,
       // Un projet naît en phase commerciale ; la suite passe par le workflow (devis accepté…)
       status: ['lead', 'quoted', 'negotiation'].includes(normalizeProjectStatusForDb(projectData.status || 'lead'))
@@ -251,7 +269,6 @@ export async function POST(request: NextRequest) {
       progress: normalizeProgressForDb(projectData.progress || 0),
       serviceType,
       type: serviceType,
-      clientSnapshot: projectData.clientSnapshot || { company: '', contact: '', phone: '', email: '' },
       site: projectData.site || { name: '', address: '', access: '', constraints: [], contacts: [] },
       assignedTo: projectData.assignedTo || [],
       value: normalizeValueForDb(projectData.value || 0),

@@ -183,11 +183,24 @@ export default function EnhancedProjectManager() {
   }
 
   const onSave = async () => {
-    if (!editing || !editing.name || !editing.address || !editing.clientId) {
-      toast.warning('Champs requis manquants', { description: 'Nom, adresse et client doivent être renseignés.' })
+    const freeClient = (editing as any)?.clientId === '__external'
+    if (!editing || !editing.name || !editing.address || (!editing.clientId && !freeClient) || (freeClient && !String((editing as any).clientSnapshot?.company || '').trim())) {
+      toast.warning('Champs requis manquants', { description: 'Nom, adresse et client (entreprise ou particulier) doivent être renseignés.' })
       return
     }
-    const editingSnapshot = { ...editing }
+    const editingSnapshot: any = { ...editing }
+    if (freeClient) {
+      const snap = (editing as any).clientSnapshot || {}
+      editingSnapshot.clientSnapshot = {
+        company: String(snap.company || '').trim(),
+        contact: String(snap.contact || '').trim(),
+        phone: String(snap.phone || '').trim(),
+        email: String(snap.email || '').trim(),
+      }
+      editingSnapshot.clientId = undefined
+    } else {
+      editingSnapshot.clientSnapshot = undefined
+    }
     try {
       const method = editingSnapshot._id ? 'PUT' : 'POST'
       const body = editingSnapshot._id ? { id: editingSnapshot._id, ...editingSnapshot } : editingSnapshot
@@ -427,12 +440,41 @@ export default function EnhancedProjectManager() {
                       <UserPlus className="h-4 w-4" />
                     </button>
                   </div>
-                  <select value={String(editing.clientId)} onChange={e => setEditing({ ...editing, clientId: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1">
+                  <select value={String(editing.clientId) || ((editing as any).clientSnapshot?.company ? '__external' : '')} onChange={e => setEditing({ ...editing, clientId: e.target.value })} className="w-full border rounded-lg px-3 py-2 mt-1">
                     <option value="">Sélectionner</option>
+                    <option value="__external">— Particulier / hors annuaire —</option>
                     {filteredClients.slice(0, 10).map(c => (
                       <option key={c.id} value={c.id}>{c.name} {c.email && `(${c.email})`}</option>
                     ))}
                   </select>
+                  {String(editing.clientId) === '__external' && (
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 p-3">
+                      <input
+                        placeholder="Nom du particulier ou entreprise *"
+                        value={(editing as any).clientSnapshot?.company || ''}
+                        onChange={e => setEditing({ ...editing, clientSnapshot: { ...(editing as any).clientSnapshot, company: e.target.value } } as any)}
+                        className="border rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        placeholder="Contact (prénom nom)"
+                        value={(editing as any).clientSnapshot?.contact || ''}
+                        onChange={e => setEditing({ ...editing, clientSnapshot: { ...(editing as any).clientSnapshot, contact: e.target.value } } as any)}
+                        className="border rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        placeholder="Téléphone"
+                        value={(editing as any).clientSnapshot?.phone || ''}
+                        onChange={e => setEditing({ ...editing, clientSnapshot: { ...(editing as any).clientSnapshot, phone: e.target.value } } as any)}
+                        className="border rounded-lg px-3 py-2 text-sm"
+                      />
+                      <input
+                        placeholder="Email (optionnel)"
+                        value={(editing as any).clientSnapshot?.email || ''}
+                        onChange={e => setEditing({ ...editing, clientSnapshot: { ...(editing as any).clientSnapshot, email: e.target.value } } as any)}
+                        className="border rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>

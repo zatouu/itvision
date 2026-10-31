@@ -119,6 +119,29 @@ export default function ProjectDetailPage() {
 
   // Associated data
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
+  const [newExpense, setNewExpense] = useState({ label: '', amountTTC: '', category: 'materiel', expenseDate: '', paymentStatus: 'unpaid' })
+  const [savingExpense, setSavingExpense] = useState(false)
+
+  const handleAddExpense = async () => {
+    const amount = Number(String(newExpense.amountTTC).replace(/\s/g, ''))
+    if (!newExpense.label.trim() || !Number.isFinite(amount) || amount <= 0) return
+    setSavingExpense(true)
+    try {
+      const res = await fetch('/api/admin/expenses', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ projectId: id, label: newExpense.label.trim(), amountTTC: amount, category: newExpense.category, expenseDate: newExpense.expenseDate || undefined, paymentStatus: newExpense.paymentStatus }),
+      })
+      const d = await res.json().catch(() => null)
+      if (!res.ok || !d?.success) throw new Error(d?.error || 'Ajout impossible')
+      const eRes = await fetch(`/api/admin/expenses?projectId=${id}`, { credentials: 'include' })
+      if (eRes.ok) { const ed = await eRes.json(); setExpenses(ed.expenses || []) }
+      setNewExpense({ label: '', amountTTC: '', category: 'materiel', expenseDate: '', paymentStatus: 'unpaid' })
+    } catch (e: any) {
+      toast.error(e?.message || 'Ajout de la dépense impossible')
+    } finally {
+      setSavingExpense(false)
+    }
+  }
   const [images, setImages] = useState<ProjectImage[]>([])
   const [loadingAssoc, setLoadingAssoc] = useState(false)
 
@@ -940,6 +963,40 @@ export default function ProjectDetailPage() {
                 <KpiCardMini label="Payé" value={fmt(cashflow.totalPaid)} color="emerald" />
                 <KpiCardMini label="Reste" value={fmt(cashflow.totalExpenses - cashflow.totalPaid)} color="red" />
                 <KpiCardMini label="Nombre" value={`${cashflow.count}`} color="blue" />
+              </div>
+            </div>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+                <div className="col-span-2 md:col-span-2">
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Libellé</label>
+                  <input value={newExpense.label} onChange={e => setNewExpense(v => ({ ...v, label: e.target.value }))} placeholder="Câble CAT6, main d'œuvre…" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Montant TTC</label>
+                  <input type="number" min={0} value={newExpense.amountTTC} onChange={e => setNewExpense(v => ({ ...v, amountTTC: e.target.value }))} placeholder="0" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Catégorie</label>
+                  <select value={newExpense.category} onChange={e => setNewExpense(v => ({ ...v, category: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="materiel">Matériel</option>
+                    <option value="deplacement">Déplacement</option>
+                    <option value="sous_traitance">Sous-traitance</option>
+                    <option value="honoraires">Honoraires</option>
+                    <option value="autre">Autre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Statut</label>
+                  <select value={newExpense.paymentStatus} onChange={e => setNewExpense(v => ({ ...v, paymentStatus: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm">
+                    <option value="unpaid">À payer</option>
+                    <option value="paid">Payée</option>
+                    <option value="partial">Partiel</option>
+                  </select>
+                </div>
+                <button onClick={handleAddExpense} disabled={savingExpense || !newExpense.label.trim() || !Number(newExpense.amountTTC)}
+                  className="col-span-2 md:col-span-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {savingExpense ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
+                </button>
               </div>
             </div>
             {loadingAssoc ? (
