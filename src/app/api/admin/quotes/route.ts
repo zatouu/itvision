@@ -123,16 +123,23 @@ export async function POST(request: NextRequest) {
       title: body.title,
       date: body.date ? new Date(body.date) : new Date(),
       client: body.client,
-      products: totals.products.map(p => ({
-        productId: asObjectIdString(p.productId) || undefined,
-        description: p.description,
-        quantity: p.quantity,
-        unitPrice: p.unitPrice,
-        netUnitPrice: p.netUnitPrice,
-        taxable: p.taxable,
-        isLabor: p.isLabor,
-        total: p.total,
-      })),
+      products: totals.products.map((p, i) => {
+        const cost = Number((body.products || [])[i]?.unitCost)
+        return {
+          productId: asObjectIdString(p.productId) || undefined,
+          description: p.description,
+          quantity: p.quantity,
+          unitPrice: p.unitPrice,
+          netUnitPrice: p.netUnitPrice,
+          taxable: p.taxable,
+          isLabor: p.isLabor,
+          unitCost: Number.isFinite(cost) && cost > 0 ? cost : undefined,
+          total: p.total,
+        }
+      }),
+      depositPercent: Number.isFinite(Number(body.depositPercent)) && body.depositPercent !== '' && body.depositPercent !== null
+        ? Math.min(100, Math.max(0, Math.round(Number(body.depositPercent))))
+        : undefined,
       subtotal: totals.subtotal,
       applyBRS: Boolean(body.applyBRS),
       brsThreshold: Number(body.brsThreshold ?? 25000),

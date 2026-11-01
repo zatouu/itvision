@@ -181,6 +181,10 @@ export async function mutateProject(
     void notifyProjectChange(current as any, after as any).catch(e => console.error('[projects] notification client:', e))
     emitProjectEvent(id, 'corp:project:updated', { progress: after.progress ?? null })
     if (journal.length) emitProjectEvent(id, 'corp:project:journal', { count: journal.length })
+    // Dernière tâche terminée : proposer la facture du reliquat (import dynamique, jamais bloquant)
+    if (progress === 100 && Number(current.progress ?? 0) < 100) {
+      void import('@/lib/workflow/triggers').then(m => m.onProjectWorksDone(id)).catch(e => console.error('[projects] fin de travaux:', e))
+    }
     return { tasks: ordered, progress, milestones, journal }
   }
   throw new ProjectError('Le projet a été modifié simultanément, rechargez', 409)

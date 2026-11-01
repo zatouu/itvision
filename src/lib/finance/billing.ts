@@ -270,6 +270,7 @@ export async function syncProjectWithQuoteDecision(
   decision: 'accepted' | 'rejected',
   author: string
 ) {
+  if (decision === 'accepted') triggerAcceptedWorkflow(quote._id)
   if (!quote.projectId) return
   const project = await Project.findById(quote.projectId).select('status').lean() as { status?: string } | null
   if (!project) return
@@ -293,4 +294,9 @@ export async function syncProjectWithQuoteDecision(
   }
   await updateProjectFields(String(quote.projectId), set, { push })
   await syncProjectFinance(quote.projectId)
+}
+
+/** Suite du workflow à l'acceptation (acompte + budget) — import dynamique : approvals dépend de billing. */
+function triggerAcceptedWorkflow(quoteId: unknown) {
+  void import('@/lib/workflow/triggers').then(m => m.onQuoteAccepted(String(quoteId))).catch(e => console.error('[billing] workflow acceptation:', e))
 }

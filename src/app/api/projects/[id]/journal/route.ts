@@ -161,6 +161,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
+    // Note libre (sans tâches cochées) : proposer au pilote l'avancement qu'elle décrit — en tâche de fond
+    if (message && !updates.length && (kind === 'progress' || kind === 'note')) {
+      void import('@/lib/workflow/journal-progress')
+        .then(m => m.proposeProgressFromNote(id, entry.id, message, author.onBehalfOf || author.name))
+        .catch(e => console.error('[journal] proposition d’avancement:', e))
+    }
+
     return NextResponse.json({ success: true, entry, ...saved }, { status: 201 })
   } catch (error) {
     return fail(error, 'Enregistrement au journal impossible')

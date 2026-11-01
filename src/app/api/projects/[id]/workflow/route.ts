@@ -146,6 +146,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
 
     void notifyProjectChange(loaded.project, { ...loaded.project, status: to }).catch(e => console.error('[workflow] notification:', e))
+    if (to === 'testing' || to === 'completed') {
+      void import('@/lib/workflow/triggers').then(m => m.onProjectWorksDone(id)).catch(e => console.error('[workflow] reliquat:', e))
+    }
 
     return NextResponse.json({
       success: true,

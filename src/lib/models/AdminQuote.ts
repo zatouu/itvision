@@ -10,6 +10,8 @@ export interface IAdminQuoteProduct {
   taxable: boolean
   // Ligne de main-d'œuvre : seule assiette de la BRS (5 %)
   isLabor?: boolean
+  /** Prix d'achat unitaire estimé (interne, jamais montré au client) — base du budget projet. */
+  unitCost?: number
   total: number
 }
 
@@ -65,6 +67,8 @@ export interface IAdminQuote extends Document {
   dateLivraison?: string
   pointExpedition?: string
   conditions?: string
+  /** % d'acompte convenu (facturé à l'acceptation, le reliquat à la livraison). */
+  depositPercent?: number
   createdBy?: string
   createdAt: Date
   updatedAt: Date
@@ -99,6 +103,7 @@ const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
   netUnitPrice: { type: Number, min: 0 },
   taxable: { type: Boolean, default: true },
   isLabor: { type: Boolean, default: false },
+  unitCost: { type: Number, min: 0 },
   total: { type: Number, required: true, min: 0 }
 })
 
@@ -154,6 +159,7 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   dateLivraison: { type: String },
   pointExpedition: { type: String },
   conditions: { type: String },
+  depositPercent: { type: Number, min: 0, max: 100 },
   createdBy: { type: String },
   clientResponse: { type: String, enum: ['pending', 'accepted', 'rejected', 'counter_proposed'], default: 'pending' },
   clientRespondedAt: { type: Date },

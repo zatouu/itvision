@@ -39,6 +39,8 @@ interface QuoteProduct {
   taxable: boolean
   total: number
   isLabor?: boolean
+  /** Prix d'achat unitaire estimé — interne, jamais sur le PDF ni le portail */
+  unitCost?: number
 }
 
 interface QuoteClient {
@@ -72,6 +74,7 @@ interface Quote {
   dateLivraison?: string
   pointExpedition?: string
   conditions?: string
+  depositPercent?: number
   clientResponse?: 'pending' | 'accepted' | 'rejected' | 'counter_proposed'
   clientRespondedAt?: string
   clientCounterAmount?: number
@@ -167,6 +170,7 @@ export default function AdminQuoteGenerator() {
             netUnitPrice: p?.netUnitPrice != null ? Number(p.netUnitPrice) : undefined,
             taxable: Boolean(p?.taxable),
             isLabor: Boolean(p?.isLabor),
+            unitCost: p?.unitCost != null ? Number(p.unitCost) : undefined,
             total: Number(p?.total || 0)
           }))
         : [],
@@ -183,6 +187,7 @@ export default function AdminQuoteGenerator() {
       dateLivraison: q?.dateLivraison,
       pointExpedition: q?.pointExpedition,
       conditions: q?.conditions,
+      depositPercent: q?.depositPercent != null ? Number(q.depositPercent) : undefined,
       clientResponse: q?.clientResponse,
       clientRespondedAt: q?.clientRespondedAt,
       clientCounterAmount: q?.clientCounterAmount ? Number(q.clientCounterAmount) : undefined,
@@ -1393,6 +1398,7 @@ export default function AdminQuoteGenerator() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Quantité</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Description</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-stone-700 uppercase">Prix unitaire</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-amber-700 uppercase" title="Interne : jamais affiché au client">Prix d’achat (interne)</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Imposable?</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-stone-700 uppercase">Main-d'œuvre?</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-stone-700 uppercase">Montant</th>
@@ -1434,6 +1440,21 @@ export default function AdminQuoteGenerator() {
                             {product.netUnitPrice != null && product.unitPrice !== product.netUnitPrice && (
                               <div className="text-[11px] text-orange-700 mt-1">
                                 Facturé {product.unitPrice.toLocaleString('fr-FR')} (BRS incluse)
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="0"
+                              value={product.unitCost ?? ''}
+                              placeholder={product.isLabor ? 'coût M.O.' : 'achat'}
+                              onChange={(e) => updateProduct(product.id, 'unitCost', e.target.value === '' ? undefined : Number(e.target.value))}
+                              className="w-28 px-2 py-1 border border-amber-200 bg-amber-50/40 rounded focus:ring-2 focus:ring-amber-400"
+                            />
+                            {!!product.unitCost && (product.netUnitPrice ?? product.unitPrice) > 0 && (
+                              <div className={`text-[11px] mt-1 ${(product.netUnitPrice ?? product.unitPrice) >= product.unitCost ? 'text-emerald-700' : 'text-red-600'}`}>
+                                marge {Math.round((((product.netUnitPrice ?? product.unitPrice) - product.unitCost) / (product.netUnitPrice ?? product.unitPrice)) * 100)} %
                               </div>
                             )}
                           </td>
@@ -1538,6 +1559,44 @@ export default function AdminQuoteGenerator() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Acompte + marge interne */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-lg border border-stone-200 p-4">
+                <label className="block text-sm font-medium text-stone-700 mb-2">Acompte à la commande (%)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} max={100} value={currentQuote.depositPercent ?? ''} placeholder="ex. 50"
+                    onChange={(e) => setCurrentQuote({ ...currentQuote, depositPercent: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    className="w-24 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                  <span className="text-sm text-stone-500">
+                    {currentQuote.depositPercent
+                      ? `${Math.round(currentQuote.total * currentQuote.depositPercent / 100).toLocaleString('fr-FR')} CFA à l’acceptation, reliquat à la livraison`
+                      : 'Facture d’acompte proposée automatiquement à l’acceptation'}
+                  </span>
+                </div>
+              </div>
+              {(() => {
+                const sale = currentQuote.products.reduce((s, p) => s + (p.netUnitPrice ?? p.unitPrice) * p.quantity, 0)
+                const costed = currentQuote.products.filter(p => p.unitCost != null && p.unitCost > 0)
+                const cost = costed.reduce((s, p) => s + (p.unitCost || 0) * p.quantity, 0)
+                if (!costed.length) return (
+                  <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50/40 p-4 text-sm text-amber-800">
+                    Renseignez les prix d’achat pour voir la marge prévue et préremplir le budget du projet.
+                  </div>
+                )
+                const margin = sale - cost
+                return (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-4 text-sm">
+                    <p className="font-medium text-amber-900">Marge prévue (interne)</p>
+                    <p className="mt-1 text-stone-700">Achat estimé {cost.toLocaleString('fr-FR')} · Vente {sale.toLocaleString('fr-FR')} CFA</p>
+                    <p className={`mt-1 text-lg font-bold ${margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                      {margin.toLocaleString('fr-FR')} CFA {sale > 0 && <span className="text-sm font-medium">({Math.round(margin / sale * 100)} %)</span>}
+                    </p>
+                    {costed.length < currentQuote.products.length && <p className="mt-1 text-xs text-amber-700">{currentQuote.products.length - costed.length} ligne(s) sans prix d’achat</p>}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Notes */}

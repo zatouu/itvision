@@ -93,7 +93,7 @@ const FINANCIAL_DOC_TYPES = ['quote', 'invoice', 'contract']
  * documents devis/factures/contrats) — règle commerciale : un technicien ne voit jamais les montants.
  */
 export function withoutFinance<T extends Record<string, any>>(project: T): T {
-  const { value, margin, quote, ...rest } = project as Record<string, any>
+  const { value, margin, quote, budgetLines, ...rest } = project as Record<string, any>
   const out: Record<string, any> = { ...rest }
   if (Array.isArray(rest.products)) {
     out.products = rest.products.map(({ unitPrice, totalPrice, supplier, ...p }: any) => p)

@@ -157,6 +157,20 @@ export interface IProject extends Document {
     resolvedAt?: Date | null
     reportId?: string
   }>
+  /** Budget prévisionnel issu du devis accepté : achat estimé vs revente, converti en dépense réelle à l'achat. */
+  budgetLines?: Array<{
+    id: string
+    quoteId?: string
+    label: string
+    quantity: number
+    unitCost: number
+    unitPrice: number
+    isLabor: boolean
+    status: 'planned' | 'purchased' | 'cancelled'
+    actualUnitCost?: number
+    expenseId?: string
+    purchasedAt?: Date
+  }>
   lastActivityAt?: Date
   clientAccess?: boolean
   reception?: {
@@ -366,6 +380,20 @@ const ProjectSchema = new Schema<IProject>({
     clientVisible: { type: Boolean, default: false },
     resolvedAt: Date,
     reportId: String
+  }],
+  budgetLines: [{
+    _id: false,
+    id: { type: String, required: true },
+    quoteId: String,
+    label: String,
+    quantity: Number,
+    unitCost: Number,
+    unitPrice: Number,
+    isLabor: Boolean,
+    status: { type: String, enum: ['planned', 'purchased', 'cancelled'], default: 'planned' },
+    actualUnitCost: Number,
+    expenseId: String,
+    purchasedAt: Date
   }],
   lastActivityAt: Date,
   clientAccess: { type: Boolean, default: false },

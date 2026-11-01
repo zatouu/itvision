@@ -18,7 +18,8 @@ function normalizeQuoteForResponse(quote: any) {
   if (!quote) return quote
   return {
     ...quote,
-    products: Array.isArray(quote.products) ? quote.products : [],
+    // Le prix d'achat interne ne sort jamais vers le client
+    products: Array.isArray(quote.products) ? quote.products.map(({ unitCost: _cost, ...p }: any) => p) : [],
     clientComments: Array.isArray(quote.clientComments)
       ? [...quote.clientComments].sort((a: any, b: any) => {
           const at = new Date(a?.createdAt || 0).getTime()

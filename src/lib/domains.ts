@@ -71,6 +71,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/portail-entreprise', domain: 'corporate', access: { profile: 'companyClient' }, note: 'Portail client entreprise — le portail B2B officiel' },
   { prefix: '/tech-interface', domain: 'corporate', access: { staffRoles: ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'] } },
   { prefix: '/validation-rapports', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
+  { prefix: '/validation', domain: 'corporate', access: 'public', note: 'Validation pilote depuis un mail — protégée par jeton à usage unique (WorkflowApproval)' },
   { prefix: '/workflow-engine', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] }, review: true },
   { prefix: '/workflows', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN'] } },
 
@@ -176,6 +177,7 @@ export const API_RULES: RouteRule[] = [
   { prefix: '/api/scheduling', domain: 'corporate', access: 'auth' },
   { prefix: '/api/technicians', domain: 'corporate', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'TECHNICIAN'] } },
   { prefix: '/api/tech', domain: 'corporate', access: { staffRoles: ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'] } },
+  { prefix: '/api/approvals', domain: 'corporate', access: 'public', note: 'Décision de validation pilote — protégée par jeton à usage unique dans le handler' },
   { prefix: '/api/projects', domain: 'corporate', access: 'auth' },
   { prefix: '/api/workflows', domain: 'corporate', access: 'auth' },
   { prefix: '/api/tickets', domain: 'corporate', access: 'auth' },
@@ -278,6 +280,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   Installation: 'corporate',
   AccountingEntry: 'corporate',
   Expense: 'corporate',
+  WorkflowApproval: 'corporate',
   Realization: 'corporate',
   Workflow: 'corporate',
   ArchivedDocument: 'corporate',

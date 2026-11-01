@@ -17,6 +17,7 @@ import MilestoneDetailView from '@/components/admin/MilestoneDetailView'
 import ProjectPipeline from '@/components/admin/projects/ProjectPipeline'
 import ProjectTaskBoard from '@/components/admin/projects/ProjectTaskBoard'
 import ProjectFinancePanel from '@/components/admin/projects/ProjectFinancePanel'
+import ProjectBudgetPanel from '@/components/admin/projects/ProjectBudgetPanel'
 import ProjectTeamCard from '@/components/admin/projects/ProjectTeamCard'
 import ProjectJournal from '@/components/projects/ProjectJournal'
 import FileDropZone from '@/components/ui/FileDropZone'
@@ -1061,6 +1062,7 @@ export default function ProjectDetailPage() {
         {/* EXPENSES */}
         {activeTab === 'expenses' && (
           <div className="space-y-4">
+            <ProjectBudgetPanel projectId={project._id} onExpensesChanged={reloadExpenses} />
             <div className="bg-white border border-stone-200 rounded-2xl p-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KpiCardMini label="Total dépenses" value={fmt(cashflow.totalExpenses)} color="orange" />
