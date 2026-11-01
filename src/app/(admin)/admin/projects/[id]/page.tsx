@@ -136,7 +136,7 @@ export default function ProjectDetailPage() {
 
   // Associated data
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
-  const [newExpense, setNewExpense] = useState({ label: '', amountTTC: '', category: 'materiel', expenseDate: '', paymentStatus: 'unpaid' })
+  const [newExpense, setNewExpense] = useState({ label: '', amountTTC: '', category: 'achat_materiel', expenseDate: '', paymentStatus: 'unpaid' })
   const [savingExpense, setSavingExpense] = useState(false)
 
   const handleAddExpense = async () => {
@@ -146,13 +146,13 @@ export default function ProjectDetailPage() {
     try {
       const res = await fetch('/api/admin/expenses', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ projectId: id, label: newExpense.label.trim(), amountTTC: amount, category: newExpense.category, expenseDate: newExpense.expenseDate || undefined, paymentStatus: newExpense.paymentStatus }),
+        body: JSON.stringify({ projectId: id, label: newExpense.label.trim(), amountHT: amount, taxRate: 0, category: newExpense.category, expenseDate: newExpense.expenseDate || undefined, paymentStatus: newExpense.paymentStatus }),
       })
       const d = await res.json().catch(() => null)
       if (!res.ok || !d?.success) throw new Error(d?.error || 'Ajout impossible')
       const eRes = await fetch(`/api/admin/expenses?projectId=${id}`, { credentials: 'include' })
       if (eRes.ok) { const ed = await eRes.json(); setExpenses(ed.expenses || []) }
-      setNewExpense({ label: '', amountTTC: '', category: 'materiel', expenseDate: '', paymentStatus: 'unpaid' })
+      setNewExpense({ label: '', amountTTC: '', category: 'achat_materiel', expenseDate: '', paymentStatus: 'unpaid' })
     } catch (e: any) {
       toast.error(e?.message || 'Ajout de la dépense impossible')
     } finally {
@@ -1035,16 +1035,18 @@ export default function ProjectDetailPage() {
                   <input value={newExpense.label} onChange={e => setNewExpense(v => ({ ...v, label: e.target.value }))} placeholder="Câble CAT6, main d'œuvre…" className="w-full border rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-500 mb-1">Montant TTC</label>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Montant (FCFA)</label>
                   <input type="number" min={0} value={newExpense.amountTTC} onChange={e => setNewExpense(v => ({ ...v, amountTTC: e.target.value }))} placeholder="0" className="w-full border rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-stone-500 mb-1">Catégorie</label>
                   <select value={newExpense.category} onChange={e => setNewExpense(v => ({ ...v, category: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="materiel">Matériel</option>
-                    <option value="deplacement">Déplacement</option>
+                    <option value="achat_materiel">Achat matériel</option>
+                    <option value="transport">Transport / déplacement</option>
                     <option value="sous_traitance">Sous-traitance</option>
-                    <option value="honoraires">Honoraires</option>
+                    <option value="salaire">Main-d’œuvre</option>
+                    <option value="logistique">Logistique</option>
+                    <option value="services">Services</option>
                     <option value="autre">Autre</option>
                   </select>
                 </div>
