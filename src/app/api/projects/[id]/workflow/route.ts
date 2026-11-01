@@ -9,19 +9,22 @@ import {
   checkProjectTransition,
   nextActions,
   normalizeProjectStatus,
+  projectHealth,
   PROJECT_STATUSES,
   PROJECT_STATUS_META,
   type ProjectStatus,
   type WorkflowContext,
 } from '@/lib/projects/workflow'
 import { notifyProjectChange } from '@/lib/portal/project-notify'
+import AdminQuote from '@/lib/models/AdminQuote'
+import User from '@/lib/models/User'
 
 export const dynamic = 'force-dynamic'
 
 async function loadContext(id: string) {
   const project = await projectsCollection().findOne(
     { _id: new mongoose.Types.ObjectId(id) },
-    { projection: { status: 1, tasks: 1, milestones: 1, reception: 1, clientCompanyId: 1, name: 1, clientAccess: 1, startedAt: 1 } }
+    { projection: { status: 1, tasks: 1, milestones: 1, reception: 1, clientCompanyId: 1, clientId: 1, clientSnapshot: 1, name: 1, clientAccess: 1, startedAt: 1, startDate: 1, endDate: 1, leadTechnicianId: 1, technicianIds: 1 } }
   ) as any
   if (!project) return null
   const finance = await computeProjectFinance(id)
@@ -46,8 +49,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     await connectMongoose()
     const loaded = await loadContext(id)
     if (!loaded) return NextResponse.json({ error: 'Projet introuvable' }, { status: 404 })
-    const { status, ctx, finance } = loaded
+    const { status, ctx, finance, project } = loaded
+    const [clientUser, quoteClients] = await Promise.all([
+      project.clientId ? User.findById(project.clientId).select('name company').lean() as Promise<any> : Promise.resolve(null),
+      AdminQuote.find({ projectId: project._id, status: { $in: ['sent', 'accepted'] } }).select('client.name').lean() as Promise<any[]>,
+    ])
+    const health = projectHealth({
+      status,
+      hasClientAccount: !!clientUser,
+      clientAccountName: clientUser ? [clientUser.company, clientUser.name].filter(Boolean).join(' / ') : undefined,
+      freeClientName: [project.clientSnapshot?.company, project.clientSnapshot?.contact].filter(Boolean).join(' '),
+      quoteClientNames: quoteClients.map(q => q?.client?.name).filter(Boolean),
+      startDate: project.startDate,
+      endDate: project.endDate,
+      leadTechnicianId: project.leadTechnicianId,
+      technicianIds: project.technicianIds,
+      tasks: project.tasks || [],
+      milestones: project.milestones || [],
+      acceptedQuotes: ctx.acceptedQuotes,
+      sentQuotes: ctx.sentQuotes,
+      contracted: finance.contracted,
+      invoiced: finance.invoiced,
+    })
     return NextResponse.json({
+      health,
       success: true,
       status,
       // Statut stocké au format historique (pending…) : la migration n'a pas été lancée

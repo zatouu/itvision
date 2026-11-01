@@ -456,6 +456,34 @@ export async function PUT(request: NextRequest) {
       setData.clientCompanyId = new mongoose.Types.ObjectId(nextCompanyId)
     }
 
+    if (updateData.startDate) {
+      const start = new Date(updateData.startDate)
+      if (!Number.isNaN(start.getTime())) setData.startDate = start
+    }
+
+    // Changement de client : compte (User CLIENT ou entreprise → son compte) ou particulier hors annuaire (clientId: null)
+    if (updateData.clientId === null) {
+      if (!String(setData.clientSnapshot?.company || setData.clientSnapshot?.contact || '').trim()) {
+        return NextResponse.json({ error: 'Renseignez le nom du particulier' }, { status: 400 })
+      }
+      setData.clientId = null
+      setData.clientCompanyId = null
+    } else if (updateData.clientId !== undefined) {
+      const cid = asObjectIdString(updateData.clientId)
+      let account: any = cid ? await User.findOne({ _id: cid, role: 'CLIENT' }).select('_id companyClientId').lean() : null
+      let companyId: string | null = account?.companyClientId ? String(account.companyClientId) : null
+      if (!account && cid) {
+        const company = await Client.findById(cid).select('_id').lean() as any
+        if (company?._id) {
+          companyId = String(company._id)
+          account = await User.findOne({ companyClientId: company._id, role: 'CLIENT' }).select('_id').lean()
+        }
+      }
+      if (!account) return NextResponse.json({ error: 'Client introuvable ou sans compte actif' }, { status: 404 })
+      setData.clientId = new mongoose.Types.ObjectId(String(account._id))
+      if (companyId) setData.clientCompanyId = new mongoose.Types.ObjectId(companyId)
+    }
+
     const statusChanged = setData.status !== currentStatus
     const { legacy: legacyStorage } = await updateProjectFields(
       existingProject._id as any,

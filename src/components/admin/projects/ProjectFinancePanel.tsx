@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, ExternalLink, FileText, Link2, Loader2, Plus, Receipt, Unlink, X } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
+import QuoteDecisionDialog from '@/components/admin/QuoteDecisionDialog'
 
 interface FinanceQuote { id: string; numero: string; title?: string; status: string; version: number; date?: string; total: number; invoiced: number }
 interface FinanceInvoice { id: string; numero: string; status: string; date?: string; dueDate?: string; quoteId?: string; total: number; credited: number; paid: number; balance: number }
@@ -51,6 +52,7 @@ export default function ProjectFinancePanel({ projectId, onChanged }: { projectI
   const [busy, setBusy] = useState<string | null>(null)
   const [linking, setLinking] = useState<{ quotes: Candidate[]; invoices: Candidate[] } | null>(null)
   const [invoiceFor, setInvoiceFor] = useState<{ quote: FinanceQuote; mode: 'full' | 'deposit' | 'balance'; percent: number } | null>(null)
+  const [deciding, setDeciding] = useState<{ quote: FinanceQuote; decision: 'accepted' | 'rejected' } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -202,6 +204,19 @@ export default function ProjectFinancePanel({ projectId, onChanged }: { projectI
                   </div>
                   <p className="text-sm font-semibold text-stone-900 sm:w-36 sm:text-right">{fmt(q.total)}</p>
                   <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                    {q.status === 'sent' && (
+                      <>
+                        <button type="button" onClick={() => setDeciding({ quote: q, decision: 'accepted' })}
+                          title="Accord obtenu par téléphone, WhatsApp, bon de commande signé…"
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />Client a accepté
+                        </button>
+                        <button type="button" onClick={() => setDeciding({ quote: q, decision: 'rejected' })}
+                          className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-red-50 hover:text-red-700">
+                          <X className="h-3.5 w-3.5" />Refusé
+                        </button>
+                      </>
+                    )}
                     {q.status === 'accepted' && remaining > 0 && (
                       <button type="button" onClick={() => setInvoiceFor({ quote: q, mode: q.invoiced > 0 ? 'balance' : 'full', percent: 30 })}
                         className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
@@ -318,6 +333,21 @@ export default function ProjectFinancePanel({ projectId, onChanged }: { projectI
             </div>
           </div>
         </div>
+      )}
+
+      {deciding && (
+        <QuoteDecisionDialog
+          quote={deciding.quote}
+          decision={deciding.decision}
+          onClose={() => setDeciding(null)}
+          onDone={async ({ status }) => {
+            setDeciding(null)
+            toast.success(status === 'accepted' ? `Devis ${deciding.quote.numero} accepté` : `Devis ${deciding.quote.numero} refusé`,
+              status === 'accepted' ? { description: 'Projet validé, montant contractuel mis à jour. Vous pouvez facturer l’acompte.' } : undefined)
+            await load()
+            onChanged?.()
+          }}
+        />
       )}
     </div>
   )

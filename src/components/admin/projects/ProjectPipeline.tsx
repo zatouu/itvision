@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { AlertTriangle, ArrowRight, Check, ChevronRight, Loader2, PauseCircle, XCircle } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
 import { readJsonResponse, apiErrorMessage } from '@/lib/http/read-json'
-import { PIPELINE, PROJECT_STATUS_META, type NextAction, type ProjectStatus } from '@/lib/projects/workflow'
+import { PIPELINE, PROJECT_STATUS_META, type HealthIssue, type NextAction, type ProjectStatus } from '@/lib/projects/workflow'
 
 interface Transition {
   to: ProjectStatus
@@ -20,6 +20,7 @@ interface WorkflowState {
   migrationRequired: boolean
   transitions: Transition[]
   nextActions: NextAction[]
+  health?: HealthIssue[]
   finance: { contracted: number; invoiced: number; paid: number; outstanding: number; remainingToInvoice: number; coherent: boolean; warnings: string[] }
 }
 
@@ -129,6 +130,26 @@ export default function ProjectPipeline({
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           Base non migrée : les phases détaillées ne sont pas encore conservées. Lancez la migration « migrate-projects-workflow ».
         </p>
+      )}
+
+      {!!state.health?.length && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-800">
+            <AlertTriangle className="h-3.5 w-3.5" />À corriger pour un projet cohérent ({state.health.length})
+          </p>
+          <ul className="space-y-1">
+            {[...state.health].sort((a, b) => ['error', 'warning', 'info'].indexOf(a.level) - ['error', 'warning', 'info'].indexOf(b.level)).map(h => (
+              <li key={h.key}>
+                <button type="button" onClick={() => h.tab && onNavigate?.(h.tab)} disabled={!h.tab}
+                  className="group flex w-full items-start gap-2 rounded-lg px-1.5 py-1 text-left text-xs hover:bg-white/70">
+                  <span className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${h.level === 'error' ? 'bg-red-500' : h.level === 'warning' ? 'bg-amber-500' : 'bg-sky-400'}`} />
+                  <span className={`flex-1 ${h.level === 'error' ? 'font-semibold text-red-800' : 'text-stone-700'}`}>{h.label}</span>
+                  {h.tab && <ArrowRight className="mt-0.5 h-3 w-3 flex-shrink-0 text-stone-400 group-hover:text-stone-700" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">

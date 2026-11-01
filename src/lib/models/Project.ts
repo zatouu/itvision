@@ -184,7 +184,8 @@ const ProjectSchema = new Schema<IProject>({
   description: { type: String },
   address: { type: String, required: true },
   projectId: { type: String, index: true },
-  clientId: { type: Schema.Types.ObjectId, ref: 'User', required: true, },
+  // Facultatif : un particulier hors annuaire n'a pas de compte (voir clientSnapshot)
+  clientId: { type: Schema.Types.ObjectId, ref: 'User' },
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', },
   status: { type: String, enum: ['lead', 'quoted', 'negotiation', 'approved', 'in_progress', 'testing', 'completed', 'maintenance', 'on_hold', 'cancelled'], default: 'lead', index: true },
   startDate: { type: Date, required: true },

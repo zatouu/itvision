@@ -58,6 +58,8 @@ export interface IAdminQuote extends Document {
   sentAt?: Date
   acceptedAt?: Date
   rejectedAt?: Date
+  /** Décision du client enregistrée par l'admin (accord hors portail : téléphone, WhatsApp, BC papier…). */
+  offlineDecision?: { channel: string; note?: string; reference?: string; decidedAt: Date; recordedBy?: string }
   notes?: string
   bonCommande?: string
   dateLivraison?: string
@@ -143,6 +145,10 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   sentAt: { type: Date },
   acceptedAt: { type: Date },
   rejectedAt: { type: Date },
+  offlineDecision: {
+    type: { channel: String, note: String, reference: String, decidedAt: Date, recordedBy: String },
+    default: undefined,
+  },
   notes: { type: String },
   bonCommande: { type: String },
   dateLivraison: { type: String },

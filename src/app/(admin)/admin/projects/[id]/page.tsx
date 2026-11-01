@@ -116,6 +116,23 @@ export default function ProjectDetailPage() {
 
   // Edit state
   const [editing, setEditing] = useState<Partial<Project>>({})
+  type ClientEdit = { mode: 'account' | 'external'; id: string; snapshot: { company: string; contact: string; phone: string; email: string }; dirty: boolean }
+  const [clientEdit, setClientEdit] = useState<ClientEdit | null>(null)
+  const [clientOptions, setClientOptions] = useState<Array<{ id: string; name: string }> | null>(null)
+
+  useEffect(() => {
+    if (activeTab !== 'edit' || !project) return
+    const cid = project.clientId && typeof project.clientId === 'object' ? String((project.clientId as any)._id || '') : String(project.clientId || '')
+    const snap = project.clientSnapshot || { company: '', contact: '', phone: '', email: '' }
+    setClientEdit({ mode: cid ? 'account' : 'external', id: cid, snapshot: { company: snap.company || '', contact: snap.contact || '', phone: snap.phone || '', email: snap.email || '' }, dirty: false })
+    if (!clientOptions) {
+      fetch('/api/admin/clients?limit=300', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => setClientOptions((d.clients || []).map((c: any) => ({ id: String(c.id || c._id), name: [c.company, c.name].filter(Boolean).join(' — ') || c.email || 'Client' }))))
+        .catch(() => setClientOptions([]))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, project?._id])
 
   // Associated data
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
@@ -239,11 +256,16 @@ export default function ProjectDetailPage() {
           status: editing.status,
           progress: editing.progress,
           currentPhase: editing.currentPhase,
+          startDate: (editing as any).startDate || undefined,
           endDate: editing.endDate || null,
           value: editing.value,
           serviceType: editing.serviceType,
-          milestones: editing.milestones,
-          clientAccess: editing.clientAccess
+          clientAccess: editing.clientAccess,
+          ...(clientEdit?.dirty
+            ? clientEdit.mode === 'external'
+              ? { clientId: null, clientSnapshot: clientEdit.snapshot }
+              : { clientId: clientEdit.id, clientSnapshot: clientEdit.snapshot }
+            : {}),
         })
       })
       if (!res.ok) {
@@ -254,6 +276,7 @@ export default function ProjectDetailPage() {
       const updated = data.project as Project
       setProject(updated)
       setEditing({ ...updated })
+      setClientEdit(c => c && { ...c, dirty: false })
       setWorkflowKey(k => k + 1)
       toast.success('Projet mis à jour', { description: data.warning || updated.name })
     } catch (err: any) {
@@ -781,6 +804,43 @@ export default function ProjectDetailPage() {
         {/* EDIT */}
         {activeTab === 'edit' && (
           <div className="bg-white border border-stone-200 rounded-2xl p-6 space-y-5">
+            {clientEdit && (
+              <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-stone-900">Client du projet</p>
+                  <div className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5 text-xs">
+                    {(['account', 'external'] as const).map(m => (
+                      <button key={m} type="button" onClick={() => setClientEdit({ ...clientEdit, mode: m, dirty: true })}
+                        className={`rounded-md px-3 py-1.5 font-medium ${clientEdit.mode === m ? 'bg-emerald-600 text-white' : 'text-stone-600 hover:bg-stone-50'}`}>
+                        {m === 'account' ? 'Compte client / entreprise' : 'Particulier (hors annuaire)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {clientEdit.mode === 'account' ? (
+                  <div className="mt-3">
+                    {clientOptions === null ? <Loader2 className="h-4 w-4 animate-spin text-stone-400" /> : (
+                      <select value={clientEdit.id} onChange={e => setClientEdit({ ...clientEdit, id: e.target.value, dirty: true })} className="input">
+                        <option value="">Choisir un client…</option>
+                        {clientEdit.id && !clientOptions.some(c => c.id === clientEdit.id) && <option value={clientEdit.id}>Compte actuel</option>}
+                        {clientOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    )}
+                    <p className="mt-1 text-xs text-stone-500">Le projet sera visible dans le portail de ce client selon les règles de partage.</p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-stone-500">Pas de compte portail : le client est suivi par téléphone/email (coordonnées ci-dessous).</p>
+                )}
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {([['company', 'Nom / entreprise'], ['contact', 'Contact'], ['phone', 'Téléphone'], ['email', 'Email']] as const).map(([k, label]) => (
+                    <input key={k} placeholder={label} value={clientEdit.snapshot[k]}
+                      onChange={e => setClientEdit({ ...clientEdit, snapshot: { ...clientEdit.snapshot, [k]: e.target.value }, dirty: true })}
+                      className="input" />
+                  ))}
+                </div>
+                {clientEdit.dirty && <p className="mt-2 text-xs font-medium text-amber-700">Client modifié : cliquez sur « Sauvegarder » pour appliquer.</p>}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Field label="Nom">
                 <input value={editing.name || ''} onChange={e => setEditing({ ...editing, name: e.target.value })} className="input" />
@@ -798,8 +858,11 @@ export default function ProjectDetailPage() {
               <Field label="Phase actuelle">
                 <input value={editing.currentPhase || ''} onChange={e => setEditing({ ...editing, currentPhase: e.target.value })} className="input" />
               </Field>
-              <Field label="Date de fin">
-                <input type="date" value={editing.endDate?.slice(0, 10) || ''} onChange={e => setEditing({ ...editing, endDate: e.target.value || undefined })} className="input" />
+              <Field label="Date de début">
+                <input type="date" value={String((editing as any).startDate || '').slice(0, 10)} onChange={e => setEditing({ ...editing, startDate: e.target.value } as any)} className="input" />
+              </Field>
+              <Field label="Date de fin prévisionnelle">
+                <input type="date" value={editing.endDate?.slice(0, 10) || ''} min={String((editing as any).startDate || '').slice(0, 10) || undefined} onChange={e => setEditing({ ...editing, endDate: e.target.value || undefined })} className="input" />
               </Field>
               <Field label="Montant (FCFA)">
                 <input type="number" value={editing.value || 0} onChange={e => setEditing({ ...editing, value: Number(e.target.value) })} className="input" />

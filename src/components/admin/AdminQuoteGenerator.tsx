@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import FileDropZone from '@/components/ui/FileDropZone'
+import QuoteDecisionDialog from '@/components/admin/QuoteDecisionDialog'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 
@@ -129,6 +130,7 @@ export default function AdminQuoteGenerator() {
   const [listFilter, setListFilter] = useState('all')
   const [loadingList, setLoadingList] = useState(true)
   const [menu, setMenu] = useState<{ id: string; top: number; right: number } | null>(null)
+  const [decisionFor, setDecisionFor] = useState<{ quote: Quote; decision: 'accepted' | 'rejected' } | null>(null)
   const [invoicedQuoteIds, setInvoicedQuoteIds] = useState<Map<string, string>>(new Map())
   // État du devis à l'ouverture de l'édition, pour confirmer l'abandon de modifications
   const editSnapshot = useRef<{ id: string; json: string } | null>(null)
@@ -877,6 +879,8 @@ export default function AdminQuoteGenerator() {
 
   const quoteActions = (q: Quote) => [
     ['draft', 'sent'].includes(q.status) && { label: 'Modifier', icon: Edit3, run: () => editQuote(q) },
+    q.status === 'sent' && { label: 'Le client a accepté', icon: CheckCircle, run: () => setDecisionFor({ quote: q, decision: 'accepted' }) },
+    q.status === 'sent' && { label: 'Le client a refusé', icon: X, run: () => setDecisionFor({ quote: q, decision: 'rejected' }) },
     q.status === 'sent' && { label: 'Renvoyer par email', icon: Send, run: () => openSendModal(q) },
     ['sent', 'accepted', 'rejected'].includes(q.status) && { label: 'Nouvelle version', icon: CopyPlus, run: () => createNewVersion(q) },
     q.status === 'accepted' && !invoicedQuoteIds.has(q.id) && { label: 'Créer la facture', icon: Receipt, run: () => convertToInvoice(q) },
@@ -1102,6 +1106,19 @@ export default function AdminQuoteGenerator() {
               ))}
             </div>
           </>
+        )}
+
+        {decisionFor && (
+          <QuoteDecisionDialog
+            quote={decisionFor.quote}
+            decision={decisionFor.decision}
+            onClose={() => setDecisionFor(null)}
+            onDone={async ({ status }) => {
+              addToast(status === 'accepted' ? `Devis ${decisionFor.quote.numero} accepté` : `Devis ${decisionFor.quote.numero} refusé`, 'success')
+              setDecisionFor(null)
+              await loadQuotes()
+            }}
+          />
         )}
 
         {/* Contenu Création/Édition */}

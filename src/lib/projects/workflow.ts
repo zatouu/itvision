@@ -107,8 +107,95 @@ export interface NextAction {
   key: string
   label: string
   /** Onglet de la fiche projet ou lien. */
-  tab?: 'finance' | 'tasks' | 'documents' | 'milestones' | 'overview'
+  tab?: 'finance' | 'tasks' | 'documents' | 'milestones' | 'overview' | 'edit'
   href?: string
+}
+
+// ─── Bilan de cohérence (fiche projet) ───────────────────────────────────────
+
+export interface HealthIssue {
+  key: string
+  level: 'error' | 'warning' | 'info'
+  label: string
+  tab?: NextAction['tab']
+}
+
+export interface HealthInput {
+  status: ProjectStatus
+  hasClientAccount: boolean
+  clientAccountName?: string
+  freeClientName?: string
+  quoteClientNames: string[]
+  startDate?: Date | string | null
+  endDate?: Date | string | null
+  leadTechnicianId?: unknown
+  technicianIds?: unknown[]
+  tasks: Array<{ status?: string; assigneeId?: unknown; dueDate?: unknown }>
+  milestones: Array<{ status?: string }>
+  acceptedQuotes: number
+  sentQuotes: number
+  contracted: number
+  invoiced: number
+}
+
+const norm = (s?: string) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const sameParty = (a?: string, b?: string) => {
+  const x = norm(a), y = norm(b)
+  if (!x || !y) return true
+  return x.includes(y) || y.includes(x) || x.split(' ').some(w => w.length > 3 && y.split(' ').includes(w))
+}
+
+/** Points à corriger pour qu'un projet soit cohérent de bout en bout (client, devis, planning, équipe, facturation). */
+export function projectHealth(p: HealthInput): HealthIssue[] {
+  const issues: HealthIssue[] = []
+  const active = ['approved', 'in_progress', 'testing'].includes(p.status)
+  const closed = ['completed', 'maintenance', 'cancelled'].includes(p.status)
+
+  if (!p.hasClientAccount && !norm(p.freeClientName)) {
+    issues.push({ key: 'client', level: 'error', label: 'Client non renseigné : choisissez un compte ou saisissez un particulier', tab: 'edit' })
+  }
+  const projectClient = p.hasClientAccount ? p.clientAccountName : p.freeClientName
+  const mismatch = p.quoteClientNames.find(n => norm(n) && !sameParty(n, projectClient))
+  if (mismatch && projectClient) {
+    issues.push({ key: 'client-mismatch', level: 'error', label: `Le devis est au nom de « ${mismatch} » mais le projet est rattaché à « ${projectClient} » : vérifiez le client (risque de visibilité dans le mauvais portail)`, tab: 'edit' })
+  }
+
+  if (!closed) {
+    if (p.acceptedQuotes === 0 && p.sentQuotes > 0 && (active || p.status === 'quoted' || p.status === 'negotiation')) {
+      issues.push({ key: 'quote-accept', level: active ? 'error' : 'info', label: active ? 'Projet démarré mais devis toujours « envoyé » : enregistrez l’accord du client' : 'Accord obtenu par téléphone ou BC papier ? Enregistrez-le sur le devis', tab: 'finance' })
+    } else if (p.acceptedQuotes + p.sentQuotes === 0 && p.status !== 'lead') {
+      issues.push({ key: 'quote-missing', level: 'warning', label: 'Aucun devis lié au projet', tab: 'finance' })
+    }
+  }
+
+  if (active) {
+    const start = p.startDate ? new Date(p.startDate) : null
+    const end = p.endDate ? new Date(p.endDate) : null
+    if (!end || (start && end.getTime() <= start.getTime())) {
+      issues.push({ key: 'end-date', level: 'warning', label: 'Date de fin prévisionnelle à définir (identique ou antérieure au début)', tab: 'edit' })
+    }
+    if (!p.leadTechnicianId && !(p.technicianIds || []).length) {
+      issues.push({ key: 'team', level: 'warning', label: 'Aucun technicien affecté : composez l’équipe terrain', tab: 'overview' })
+    }
+    if (!p.milestones.length) {
+      issues.push({ key: 'milestones', level: 'warning', label: 'Aucun jalon : le client n’a pas de planning à suivre', tab: 'milestones' })
+    }
+    const open = p.tasks.filter(t => t.status !== 'done')
+    if (!p.tasks.length) {
+      issues.push({ key: 'tasks', level: 'info', label: 'Aucune tâche : la progression ne peut pas être calculée', tab: 'tasks' })
+    } else {
+      const unassigned = open.filter(t => !t.assigneeId).length
+      if (unassigned && (p.leadTechnicianId || (p.technicianIds || []).length)) {
+        issues.push({ key: 'unassigned', level: 'info', label: `${unassigned} tâche(s) ouverte(s) sans responsable`, tab: 'tasks' })
+      }
+      const undated = open.filter(t => !t.dueDate).length
+      if (undated) issues.push({ key: 'undated', level: 'info', label: `${undated} tâche(s) sans échéance`, tab: 'tasks' })
+    }
+    if (p.contracted > 0 && p.invoiced === 0 && p.status !== 'approved') {
+      issues.push({ key: 'deposit', level: 'info', label: 'Travaux en cours sans aucune facture : pensez à l’acompte', tab: 'finance' })
+    }
+  }
+  return issues
 }
 
 export function nextActions(status: ProjectStatus, ctx: WorkflowContext & { projectId: string }): NextAction[] {
