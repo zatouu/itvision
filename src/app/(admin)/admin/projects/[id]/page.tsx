@@ -138,6 +138,26 @@ export default function ProjectDetailPage() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
   const [newExpense, setNewExpense] = useState({ label: '', amountTTC: '', category: 'achat_materiel', expenseDate: '', paymentStatus: 'unpaid' })
   const [savingExpense, setSavingExpense] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null)
+  const emptyExpense = { label: '', amountTTC: '', category: 'achat_materiel', expenseDate: '', paymentStatus: 'unpaid' }
+
+  const reloadExpenses = async () => {
+    const eRes = await fetch(`/api/admin/expenses?projectId=${id}`, { credentials: 'include' })
+    if (eRes.ok) { const ed = await eRes.json(); setExpenses(ed.expenses || []) }
+  }
+
+  const startEditExpense = (e: ExpenseItem) => {
+    setEditingExpense(e)
+    setNewExpense({
+      label: e.label || '',
+      amountTTC: String(e.amountTTC || ''),
+      category: e.category || 'autre',
+      expenseDate: e.expenseDate ? String(e.expenseDate).slice(0, 10) : '',
+      paymentStatus: ['paid', 'partial'].includes(e.paymentStatus) ? e.paymentStatus : 'unpaid',
+    })
+  }
+
+  const cancelEditExpense = () => { setEditingExpense(null); setNewExpense(emptyExpense) }
 
   const handleAddExpense = async () => {
     const amount = Number(String(newExpense.amountTTC).replace(/\s/g, ''))
@@ -146,17 +166,38 @@ export default function ProjectDetailPage() {
     try {
       const res = await fetch('/api/admin/expenses', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ projectId: id, label: newExpense.label.trim(), amountHT: amount, taxRate: 0, category: newExpense.category, expenseDate: newExpense.expenseDate || undefined, paymentStatus: newExpense.paymentStatus }),
+        body: JSON.stringify({
+          ...(editingExpense ? { _id: editingExpense._id } : {}),
+          projectId: id, label: newExpense.label.trim(), amountHT: amount, taxRate: 0, category: newExpense.category,
+          expenseDate: newExpense.expenseDate || undefined, paymentStatus: newExpense.paymentStatus,
+          // Un règlement partiel déjà saisi est conservé
+          ...(editingExpense && newExpense.paymentStatus === 'partial' ? { paidAmount: editingExpense.paidAmount } : {}),
+        }),
       })
       const d = await res.json().catch(() => null)
-      if (!res.ok || !d?.success) throw new Error(d?.error || 'Ajout impossible')
-      const eRes = await fetch(`/api/admin/expenses?projectId=${id}`, { credentials: 'include' })
-      if (eRes.ok) { const ed = await eRes.json(); setExpenses(ed.expenses || []) }
-      setNewExpense({ label: '', amountTTC: '', category: 'achat_materiel', expenseDate: '', paymentStatus: 'unpaid' })
+      if (!res.ok || !d?.success) throw new Error(d?.error || (editingExpense ? 'Modification impossible' : 'Ajout impossible'))
+      await reloadExpenses()
+      toast.success(editingExpense ? 'Dépense modifiée' : 'Dépense ajoutée')
+      setEditingExpense(null)
+      setNewExpense(emptyExpense)
     } catch (e: any) {
-      toast.error(e?.message || 'Ajout de la dépense impossible')
+      toast.error(e?.message || 'Enregistrement de la dépense impossible')
     } finally {
       setSavingExpense(false)
+    }
+  }
+
+  const handleDeleteExpense = async (e: ExpenseItem) => {
+    if (!confirm(`Supprimer la dépense « ${e.label} » ?`)) return
+    try {
+      const res = await fetch(`/api/admin/expenses?id=${e._id}`, { method: 'DELETE', credentials: 'include' })
+      const d = await res.json().catch(() => null)
+      if (!res.ok || !d?.success) throw new Error(d?.error || 'Suppression impossible')
+      if (editingExpense?._id === e._id) cancelEditExpense()
+      await reloadExpenses()
+      toast.success('Dépense supprimée')
+    } catch (err: any) {
+      toast.error(err?.message || 'Suppression impossible')
     }
   }
   const [images, setImages] = useState<ProjectImage[]>([])
@@ -1028,8 +1069,14 @@ export default function ProjectDetailPage() {
                 <KpiCardMini label="Nombre" value={`${cashflow.count}`} color="blue" />
               </div>
             </div>
-            <div className="bg-white border border-stone-200 rounded-2xl p-4">
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
+            <div className={`border rounded-2xl p-4 ${editingExpense ? 'bg-amber-50/50 border-amber-300' : 'bg-white border-stone-200'}`}>
+              {editingExpense && (
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-amber-800">Modification de {editingExpense.numero}</span>
+                  <button type="button" onClick={cancelEditExpense} className="text-stone-500 hover:text-stone-800">Annuler</button>
+                </div>
+              )}
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-2 items-end">
                 <div className="col-span-2 md:col-span-2">
                   <label className="block text-xs font-medium text-stone-500 mb-1">Libellé</label>
                   <input value={newExpense.label} onChange={e => setNewExpense(v => ({ ...v, label: e.target.value }))} placeholder="Câble CAT6, main d'œuvre…" className="w-full border rounded-lg px-3 py-2 text-sm" />
@@ -1058,9 +1105,13 @@ export default function ProjectDetailPage() {
                     <option value="partial">Partiel</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Date</label>
+                  <input type="date" value={newExpense.expenseDate} onChange={e => setNewExpense(v => ({ ...v, expenseDate: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                </div>
                 <button onClick={handleAddExpense} disabled={savingExpense || !newExpense.label.trim() || !Number(newExpense.amountTTC)}
                   className="col-span-2 md:col-span-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-                  {savingExpense ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter
+                  {savingExpense ? <Loader2 className="w-4 h-4 animate-spin" /> : editingExpense ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />} {editingExpense ? 'Enregistrer' : 'Ajouter'}
                 </button>
               </div>
             </div>
@@ -1069,9 +1120,9 @@ export default function ProjectDetailPage() {
             ) : expenses.length === 0 ? (
               <div className="text-center py-10 bg-white border border-stone-200 rounded-xl text-stone-500"><TrendingDown className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">Aucune dépense liée</p></div>
             ) : (
-              <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
+              <div className="bg-white border border-stone-200 rounded-2xl overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-stone-50 border-b border-stone-200"><tr><th className="text-left px-4 py-3 font-semibold text-stone-700">N°</th><th className="text-left px-4 py-3 font-semibold text-stone-700">Libellé</th><th className="text-left px-4 py-3 font-semibold text-stone-700">Date</th><th className="text-right px-4 py-3 font-semibold text-stone-700">Montant</th><th className="text-center px-4 py-3 font-semibold text-stone-700">Statut</th></tr></thead>
+                  <thead className="bg-stone-50 border-b border-stone-200"><tr><th className="text-left px-4 py-3 font-semibold text-stone-700">N°</th><th className="text-left px-4 py-3 font-semibold text-stone-700">Libellé</th><th className="text-left px-4 py-3 font-semibold text-stone-700">Date</th><th className="text-right px-4 py-3 font-semibold text-stone-700">Montant</th><th className="text-center px-4 py-3 font-semibold text-stone-700">Statut</th><th className="px-2 py-3"><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody className="divide-y divide-stone-100">
                     {expenses.map(e => (
                       <tr key={e._id} className="hover:bg-stone-50">
@@ -1083,6 +1134,10 @@ export default function ProjectDetailPage() {
                           <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${e.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : e.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700'}`}>
                             {e.paymentStatus === 'paid' ? 'Payée' : e.paymentStatus === 'partial' ? 'Partiel' : 'À payer'}
                           </span>
+                        </td>
+                        <td className="px-2 py-3 text-right whitespace-nowrap">
+                          <button type="button" onClick={() => startEditExpense(e)} aria-label={`Modifier ${e.label}`} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700"><Edit3 className="h-4 w-4" /></button>
+                          <button type="button" onClick={() => handleDeleteExpense(e)} aria-label={`Supprimer ${e.label}`} className="rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600"><X className="h-4 w-4" /></button>
                         </td>
                       </tr>
                     ))}

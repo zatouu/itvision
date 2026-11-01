@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import { requireAdminApi } from '@/lib/api-auth'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
 import Project from '@/lib/models/Project'
+import Expense from '@/lib/models/Expense'
 import { invoiceBalance } from '@/lib/finance/billing'
 import {
   computeMarketplaceFinance, computeXeuyFinance, consolidateGlobal,
@@ -166,15 +168,69 @@ export async function GET(request: NextRequest) {
       if (e) e.expensesPaid += expenseCashEntries(exp, dateFilter).reduce((sum, entry) => sum + entry.amount, 0)
     }
 
+    // Prévu (devis acceptés) vs réel (dépenses) sur toute la vie du projet — indépendant de la période
+    const projectIds = Array.from(projectMap.keys()).map(id => new mongoose.Types.ObjectId(id))
+    const [acceptedQuotes, costRows] = await Promise.all([
+      AdminQuote.find({ projectId: { $in: projectIds }, status: 'accepted' }).select({ projectId: 1, products: 1, subtotal: 1 }).lean() as any,
+      Expense.aggregate([
+        { $match: { projectId: { $in: projectIds }, paymentStatus: { $ne: 'cancelled' } } },
+        { $group: { _id: { p: '$projectId', c: '$category' }, ht: { $sum: { $ifNull: ['$amountHT', '$amountTTC'] } } } },
+      ]),
+    ])
+    const plan = new Map<string, { quoted: number; quotedMaterial: number; quotedLabor: number; costMaterial: number; costLabor: number; costOther: number }>()
+    const planFor = (id: string) => {
+      if (!plan.has(id)) plan.set(id, { quoted: 0, quotedMaterial: 0, quotedLabor: 0, costMaterial: 0, costLabor: 0, costOther: 0 })
+      return plan.get(id)!
+    }
+    for (const q of acceptedQuotes) {
+      const e = planFor(String(q.projectId))
+      let lines = 0
+      for (const l of q.products || []) {
+        const amount = Number(l.netUnitPrice ?? l.unitPrice ?? 0) * Number(l.quantity || 0)
+        lines += amount
+        if (l.isLabor) e.quotedLabor += amount
+        else e.quotedMaterial += amount
+      }
+      e.quoted += Number(q.subtotal || lines)
+    }
+    for (const r of costRows) {
+      const e = planFor(String(r._id.p))
+      const cat = String(r._id.c || 'autre')
+      if (cat === 'achat_materiel') e.costMaterial += r.ht
+      else if (cat === 'salaire' || cat === 'sous_traitance') e.costLabor += r.ht
+      else e.costOther += r.ht
+    }
+
     const projectsPL = Array.from(projectMap.values())
       .map((p) => {
         // Marge projet sur base HT (cohérente avec la marge globale)
         const margin = p.revenueBilledHT - p.expensesHT
         const marginPct = p.revenueBilledHT > 0 ? (margin / p.revenueBilledHT) * 100 : 0
-        return { ...p, margin, marginPct }
+        const pl = plan.get(p.projectId) || { quoted: 0, quotedMaterial: 0, quotedLabor: 0, costMaterial: 0, costLabor: 0, costOther: 0 }
+        const costTotal = pl.costMaterial + pl.costLabor + pl.costOther
+        // Marge prévisionnelle : contrat (devis acceptés HT) − coûts réels engagés
+        const expectedMargin = pl.quoted - costTotal
+        return {
+          ...p, margin, marginPct, ...pl, costTotal,
+          materialGap: pl.quotedMaterial - pl.costMaterial,
+          expectedMargin,
+          expectedMarginPct: pl.quoted > 0 ? (expectedMargin / pl.quoted) * 100 : 0,
+        }
       })
-      .filter((p) => p.revenueBilled > 0 || p.expensesTotal > 0 || p.revenueCollected > 0 || p.expensesPaid > 0)
-      .sort((a, b) => b.revenueBilled - a.revenueBilled)
+      .filter((p) => p.revenueBilled > 0 || p.expensesTotal > 0 || p.revenueCollected > 0 || p.expensesPaid > 0 || p.quoted > 0 || p.costTotal > 0)
+      .sort((a, b) => (b.quoted || b.revenueBilled) - (a.quoted || a.revenueBilled))
+
+    // Frais généraux : dépenses de la période non rattachées à un projet
+    let overheadHT = 0
+    const overheadByCategory = new Map<string, number>()
+    for (const exp of expenses) {
+      if (exp.projectId) continue
+      const ht = Number(exp.amountHT ?? exp.amountTTC ?? 0)
+      overheadHT += ht
+      const cat = exp.category || 'autre'
+      overheadByCategory.set(cat, (overheadByCategory.get(cat) || 0) + ht)
+    }
+    const projectsMarginHT = projectsPL.reduce((sum, p) => sum + p.margin, 0)
 
     // ========== TOP DÉPENSES À PAYER (urgent, toutes périodes) ==========
     const topPayables = ledger.openExpenses
@@ -287,6 +343,13 @@ export async function GET(request: NextRequest) {
       cashflow,
       expensesByCategory,
       projectsPL,
+      // Résultat de l'entreprise : marges projets − frais généraux (HT)
+      result: {
+        projectsMarginHT,
+        overheadHT,
+        netResultHT: projectsMarginHT - overheadHT,
+        overheadByCategory: Array.from(overheadByCategory, ([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total),
+      },
       topPayables,
       topReceivables,
       // Finance isolée par domaine + consolidation

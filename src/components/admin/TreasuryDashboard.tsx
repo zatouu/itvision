@@ -47,7 +47,23 @@ interface TreasuryData {
     marginPct: number
     invoicesCount: number
     expensesCount: number
+    quoted?: number
+    quotedMaterial?: number
+    quotedLabor?: number
+    costMaterial?: number
+    costLabor?: number
+    costOther?: number
+    costTotal?: number
+    materialGap?: number
+    expectedMargin?: number
+    expectedMarginPct?: number
   }>
+  result?: {
+    projectsMarginHT: number
+    overheadHT: number
+    netResultHT: number
+    overheadByCategory: Array<{ category: string; total: number }>
+  }
   topPayables: Array<any>
   topReceivables: Array<any>
   domains?: {
@@ -538,6 +554,98 @@ export default function TreasuryDashboard() {
           )}
         </div>
       </div>
+
+      {/* Résultat de l'entreprise */}
+      {data.result && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-stone-500">Marge des projets (HT, facturé − dépenses)</p>
+            <p className={`mt-1 text-xl font-bold ${data.result.projectsMarginHT >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCompact(data.result.projectsMarginHT)}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-stone-500">Frais généraux (dépenses hors projet)</p>
+            <p className="mt-1 text-xl font-bold text-orange-700">− {fmtCompact(data.result.overheadHT)}</p>
+            {data.result.overheadByCategory.length > 0 && (
+              <p className="mt-1 truncate text-[11px] text-stone-400">
+                {data.result.overheadByCategory.slice(0, 3).map(c => `${CATEGORY_LABELS[c.category] || c.category} ${fmtCompact(c.total)}`).join(' · ')}
+              </p>
+            )}
+          </div>
+          <div className={`rounded-2xl border p-4 shadow-sm ${data.result.netResultHT >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+            <p className="text-xs text-stone-600">Résultat net de l’entreprise (HT)</p>
+            <p className={`mt-1 text-2xl font-extrabold ${data.result.netResultHT >= 0 ? 'text-emerald-800' : 'text-red-700'}`}>{fmtCompact(data.result.netResultHT)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Prévu vs réel par projet */}
+      {data.projectsPL.some(p => (p.quoted || 0) > 0 || (p.costTotal || 0) > 0) && (
+        <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-1 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-stone-900">Compta par projet : prévu (devis) vs réel (dépenses)</h3>
+              <p className="text-xs text-stone-500">Montants HT sur toute la vie du projet. Écart matériel = matériel vendu sur devis − achats matériel réels.</p>
+            </div>
+          </div>
+          {/* Mobile : cartes */}
+          <div className="divide-y divide-stone-100 md:hidden">
+            {data.projectsPL.map(p => (
+              <Link key={p.projectId} href={`/admin/projects/${p.projectId}`} className="block p-4 hover:bg-stone-50">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-semibold text-stone-900">{p.projectName}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${(p.expectedMargin || 0) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    {(p.expectedMarginPct || 0).toFixed(0)} %
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div><p className="text-stone-400">Devis acceptés</p><p className="font-semibold">{fmtCompact(p.quoted || 0)}</p></div>
+                  <div><p className="text-stone-400">Coûts réels</p><p className="font-semibold text-orange-700">{fmtCompact(p.costTotal || 0)}</p></div>
+                  <div><p className="text-stone-400">Matériel devis / achat</p><p className="font-semibold">{fmtCompact(p.quotedMaterial || 0)} / {fmtCompact(p.costMaterial || 0)}</p></div>
+                  <div><p className="text-stone-400">Facturé / encaissé</p><p className="font-semibold">{fmtCompact(p.revenueBilled)} / {fmtCompact(p.revenueCollected)}</p></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          {/* Desktop : tableau */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500">
+                <tr>
+                  <th className="px-4 py-2.5 font-semibold">Projet</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Devis acceptés</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Matériel devis</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Achats matériel</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Écart matériel</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">M.O. / autres coûts</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Facturé / encaissé</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Bénéfice prévu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {data.projectsPL.map(p => (
+                  <tr key={p.projectId} className="hover:bg-stone-50">
+                    <td className="max-w-[220px] px-4 py-2.5">
+                      <Link href={`/admin/projects/${p.projectId}`} className="block truncate font-medium text-stone-900 hover:text-emerald-700">{p.projectName}</Link>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{fmtCompact(p.quoted || 0)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact(p.quotedMaterial || 0)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-orange-700">{fmtCompact(p.costMaterial || 0)}</td>
+                    <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${(p.materialGap || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {(p.costMaterial || 0) > 0 || (p.quotedMaterial || 0) > 0 ? fmtCompact(p.materialGap || 0) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact((p.costLabor || 0) + (p.costOther || 0))}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact(p.revenueBilled)} / {fmtCompact(p.revenueCollected)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className={`font-bold tabular-nums ${(p.expectedMargin || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCompact(p.expectedMargin || 0)}</span>
+                      {(p.quoted || 0) > 0 && <span className="ml-1 text-xs text-stone-400">{(p.expectedMarginPct || 0).toFixed(0)} %</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Échéances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
