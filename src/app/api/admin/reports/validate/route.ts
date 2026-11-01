@@ -317,23 +317,43 @@ async function notifyTechnicianValidation(report: any, action: string, comments:
 
 async function notifyClientReportAvailable(report: any, brand: BrandConfig) {
   const companyId = await resolveClientCompanyId(report.clientId?._id || report.clientId)
-  if (!companyId) return
   const dateStr = report.interventionDate ? new Date(report.interventionDate).toLocaleDateString('fr-FR') : ''
   const actionUrl = `/portail-entreprise/rapports?rapport=${report._id}`
-  await notifyCompany({
-    companyId,
-    category: 'report',
-    requires: 'reports:view',
-    title: `Rapport d\u2019intervention disponible : ${report.reportId}`,
-    message: `${report.site || 'Votre site'}${dateStr ? ` · ${dateStr}` : ''}. Merci d\u2019en accuser réception.`,
-    actionUrl,
-    metadata: { reportId: String(report._id) },
-  })
 
+  // Client entreprise : notification dans le portail (cloche + push) pour les membres habilités
+  if (companyId) {
+    await notifyCompany({
+      companyId,
+      category: 'report',
+      requires: 'reports:view',
+      title: `Rapport d\u2019intervention disponible : ${report.reportId}`,
+      message: `${report.site || 'Votre site'}${dateStr ? ` · ${dateStr}` : ''}. Merci d\u2019en accuser réception.`,
+      actionUrl,
+      metadata: { reportId: String(report._id) },
+    })
+  }
+
+  // Mail : contacts de l'entreprise le cas échéant, sinon le client particulier du rapport
   try {
-    const emails = await getClientContactEmails(companyId)
+    const emailSet = new Set<string>()
+    if (companyId || report.clientId) {
+      for (const e of await getClientContactEmails(String(companyId || report.clientId?._id || report.clientId))) emailSet.add(e)
+    }
+    const contactEmail = report.clientContact?.email
+    if (contactEmail && String(contactEmail).includes('@')) emailSet.add(String(contactEmail).toLowerCase().trim())
+    const emails = [...emailSet]
     if (!emails.length) return
+
     const link = `${brand.url}${actionUrl}`
+    const portalNote = companyId
+      ? `<p>Il a été relu et validé par nos équipes. Vous pouvez le consulter et en accuser réception dans votre espace.</p>
+         <p style="margin:20px 0"><a href="${link}" style="background:#065f46;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Consulter le rapport</a></p>`
+      : `<p>Il a été relu et validé par nos équipes. Une copie vous est adressée par ce message ; n'hésitez pas à répondre pour toute question.</p>`
+    const tasksDone = (report.tasksPerformed || []).filter((t: string) => String(t || '').trim()).slice(0, 6)
+    const tasksHtml = tasksDone.length
+      ? `<p style="margin:16px 0 6px"><strong>Travaux réalisés :</strong></p><ul style="margin:0;padding-left:18px;color:#374151">${tasksDone.map((t: string) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`
+      : ''
+
     await emailService.sendEmail({
       to: emails.join(', '),
       fromName: brand.name,
@@ -344,11 +364,11 @@ async function notifyClientReportAvailable(report: any, brand: BrandConfig) {
           <h2 style="color:#065f46;margin:0 0 12px">Votre rapport d'intervention est disponible</h2>
           <p>Référence : <strong>${escapeHtml(report.reportId)}</strong></p>
           <p>Site : ${escapeHtml(report.site || '')}${dateStr ? ` · ${dateStr}` : ''}</p>
-          <p>Il a été relu et validé par nos équipes. Vous pouvez le consulter et en accuser réception dans votre espace.</p>
-          <p style="margin:20px 0"><a href="${link}" style="background:#065f46;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Consulter le rapport</a></p>
+          ${portalNote}
+          ${tasksHtml}
           <p style="color:#6b7280;font-size:13px">L'équipe ${escapeHtml(brand.name)}</p>
         </div>`,
-      text: `Rapport d'intervention ${report.reportId} disponible.\nSite : ${report.site || ''} ${dateStr}\nConsulter : ${link}`,
+      text: `Rapport d'intervention ${report.reportId} disponible.\nSite : ${report.site || ''} ${dateStr}${companyId ? `\nConsulter : ${link}` : ''}`,
     })
   } catch (e) {
     console.error('[Report] Email client:', e)

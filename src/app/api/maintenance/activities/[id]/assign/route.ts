@@ -6,6 +6,7 @@ import Intervention from '@/lib/models/Intervention'
 import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
 import { notifyTechnician, notifyTechnicianOfChange } from '@/lib/tech/notify-technician'
+import { onTechniciansAssigned } from '@/lib/tech/assignment'
 
 /**
  * PATCH /api/maintenance/activities/[id]/assign
@@ -103,6 +104,7 @@ export async function PATCH(
         site: activity.site || 'Site client',
         technicienId: bid.technicianId,
         assignedTechnician: bid.technicianId,
+        technicianIds: [bid.technicianId],
         client: activity.clientId
           ? undefined
           : {
@@ -116,6 +118,7 @@ export async function PATCH(
     } else {
       intervention.technicienId = bid.technicianId
       intervention.assignedTechnician = bid.technicianId
+      intervention.technicianIds = [...new Set([String(bid.technicianId), ...(intervention.technicianIds || []).map(String)])] as any
       if (intervention.status === 'pending') {
         intervention.status = 'scheduled'
       }
@@ -131,6 +134,7 @@ export async function PATCH(
     const after = intervention.toObject()
     void notifyInterventionChange(before, after).catch(e => console.error('[activity assign] notification client:', e))
     void notifyTechnicianOfChange(before, after)
+    const techAccess = await onTechniciansAssigned(before, after)
     for (const techId of otherBidders) {
       if (String(techId) === String(bid.technicianId)) continue
       void notifyTechnician(techId, { title: 'Offre non retenue', message: `${intervention.title} a été confiée à un autre technicien.`, actionUrl: '/tech-interface?tab=missions' })
@@ -139,6 +143,7 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       message: 'Offre affectée avec succès',
+      techAccess,
       activity: {
         id: activity._id.toString(),
         status: activity.status,

@@ -94,7 +94,8 @@ export async function GET(request: NextRequest) {
     if (technicianId && technicianId !== 'all') {
       query.$or = [
         { technicienId: technicianId },
-        { assignedTechnician: technicianId }
+        { assignedTechnician: technicianId },
+        { technicianIds: technicianId }
       ]
     }
 

@@ -5,7 +5,7 @@ import Client from '@/lib/models/Client'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Intervention from '@/lib/models/Intervention'
 import { requireAuth } from '@/lib/jwt'
-import { resolveTechnicianId } from '@/lib/interventions-access'
+import { resolveTechnicianId, assignedToTechnician } from '@/lib/interventions-access'
 
 type DecodedToken = {
   id: string
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       const tid = new mongoose.Types.ObjectId(techId)
       const now = new Date()
       const visits = await Intervention.aggregate([
-        { $match: { $or: [{ technicienId: tid }, { assignedTechnician: tid }], clientId: { $ne: null } } },
+        { $match: { ...assignedToTechnician(tid), clientId: { $ne: null } } },
         { $group: {
           _id: '$clientId',
           count: { $sum: 1 },

@@ -5,7 +5,7 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
 import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
-import { resolveTechnicianId } from '@/lib/interventions-access'
+import { resolveTechnicianId, assignedToTechnician } from '@/lib/interventions-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     if (!techId) return NextResponse.json({ error: 'Fiche technicien introuvable' }, { status: 404 })
 
     const tid = new mongoose.Types.ObjectId(techId)
-    const mine = { $or: [{ technicienId: tid }, { assignedTechnician: tid }] }
+    const mine = assignedToTechnician(tid)
     const today = dakarDay()
     const in7 = dakarDay(7)
     const since30 = new Date(Date.now() - 30 * DAY)

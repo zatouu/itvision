@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
+import { assignedToTechnician } from '@/lib/interventions-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     const q: any = {}
     const and: any[] = []
     if (techId && mongoose.Types.ObjectId.isValid(techId)) {
-      and.push({ $or: [{ technicienId: techId }, { assignedTechnician: techId }] })
+      and.push(assignedToTechnician(techId))
     }
 
     const { searchParams } = request.nextUrl

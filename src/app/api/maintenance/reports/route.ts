@@ -427,9 +427,10 @@ export async function POST(request: NextRequest) {
     let interventionDate = new Date(reportData.interventionDate)
     let site = reportData.site
     let interventionType = INTERVENTION_TYPES.has(String(reportData.interventionType)) ? reportData.interventionType : 'maintenance'
+    let intervention: any = null
 
     if (interventionId) {
-      const intervention = await Intervention.findById(interventionId).lean() as any
+      intervention = await Intervention.findById(interventionId).lean() as any
       if (!intervention) {
         return NextResponse.json({ error: 'Intervention introuvable' }, { status: 404 })
       }
@@ -473,9 +474,20 @@ export async function POST(request: NextRequest) {
       if (pick) projectId = String(pick._id)
     }
 
-    if (!clientId) {
+    // Client hors annuaire : on conserve ses coordonnées pour l'envoi du rapport par mail
+    const clientContact = (() => {
+      const src = reportData.clientContact || reportData.client || (intervention as any)?.client || {}
+      const c = {
+        name: toNonEmptyString(src.name),
+        email: toNonEmptyString(src.email)?.toLowerCase(),
+        phone: toNonEmptyString(src.phone),
+      }
+      return (c.name || c.email || c.phone) ? c : undefined
+    })()
+
+    if (!clientId && !clientContact?.email) {
       return NextResponse.json(
-        { error: 'Client introuvable pour ce rapport : renseignez le client de l’intervention.' },
+        { error: 'Client introuvable pour ce rapport : renseignez le client de l’intervention (compte ou email).' },
         { status: 400 }
       )
     }
@@ -528,7 +540,8 @@ export async function POST(request: NextRequest) {
     // Création du rapport avec valeurs par défaut compatibles schéma
     const newReport = new MaintenanceReport({
       technicianId,
-      clientId: new mongoose.Types.ObjectId(clientId),
+      clientId: clientId ? new mongoose.Types.ObjectId(clientId) : undefined,
+      clientContact,
       projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
       interventionId: interventionId ? new mongoose.Types.ObjectId(interventionId) : undefined,
       interventionDate,

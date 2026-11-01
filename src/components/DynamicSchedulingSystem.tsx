@@ -71,6 +71,9 @@ interface Intervention {
   scheduledDate?: string
   scheduledTime?: string
   assignedTechnician?: string
+  technicianIds?: string[]
+  typeIntervention?: string
+  site?: string
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   createdAt: string
   urgency: boolean
@@ -130,20 +133,45 @@ const DynamicSchedulingSystem = ({
   const [showNewInterventionModal, setShowNewInterventionModal] = useState(false)
   const [newInterventionSubmitting, setNewInterventionSubmitting] = useState(false)
   const [newInterventionError, setNewInterventionError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [clientOptions, setClientOptions] = useState<{ id: string; name: string; email?: string; phone?: string; address?: string }[]>([])
   const [newInterventionForm, setNewInterventionForm] = useState({
     title: '',
     service: 'maintenance',
+    typeIntervention: 'maintenance',
     priority: 'medium',
     estimatedDuration: 2,
     description: '',
+    clientId: '',
     clientName: '',
     clientPhone: '',
     clientZone: 'Dakar-Centre',
     clientAddress: '',
     clientEmail: '',
+    technicianIds: [] as string[],
     scheduledDate: '',
     scheduledTime: ''
   })
+
+  // Bandeau d'information auto-masqué (ex. invitation envoyée à un technicien)
+  useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(() => setNotice(null), 8000)
+    return () => clearTimeout(t)
+  }, [notice])
+
+  // Clients entreprises chargés à l'ouverture de la modale
+  useEffect(() => {
+    if (!showNewInterventionModal || clientOptions.length) return
+    fetch('/api/admin/clients?limit=200', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setClientOptions((d.clients || []).map((c: any) => ({
+        id: String(c._id || c.id || ''),
+        name: c.name || c.company || 'Client',
+        email: c.email, phone: c.phone, address: c.address,
+      })).filter((c: any) => c.id)))
+      .catch(() => {})
+  }, [showNewInterventionModal, clientOptions.length])
 
   const updateNewInterventionField = (field: keyof typeof newInterventionForm, value: string | number) => {
     setNewInterventionForm((prev) => ({ ...prev, [field]: value }))
@@ -168,14 +196,17 @@ const DynamicSchedulingSystem = ({
     setNewInterventionForm({
       title: i.title || '',
       service: i.service || 'maintenance',
+      typeIntervention: i.typeIntervention || 'maintenance',
       priority: i.priority || 'medium',
       estimatedDuration: i.estimatedDuration || 2,
       description: i.description || '',
+      clientId: i.clientId || '',
       clientName: i.client?.name || '',
       clientPhone: i.client?.phone || '',
       clientZone: i.client?.zone || 'Dakar',
       clientAddress: i.client?.address || i.site || '',
       clientEmail: i.client?.email || '',
+      technicianIds: (i.technicianIds?.length ? i.technicianIds : (i.assignedTechnician ? [i.assignedTechnician] : [])).map(String),
       scheduledDate: i.scheduledDate || '',
       scheduledTime: i.scheduledTime || '',
     })
@@ -198,6 +229,9 @@ const DynamicSchedulingSystem = ({
         priority: newInterventionForm.priority,
         estimatedDuration: Number(newInterventionForm.estimatedDuration) || 2,
         requiredSkills: [newInterventionForm.service],
+        typeIntervention: newInterventionForm.typeIntervention,
+        clientId: newInterventionForm.clientId || undefined,
+        technicianIds: newInterventionForm.technicianIds,
         client: {
           name: newInterventionForm.clientName,
           address: newInterventionForm.clientAddress || 'Site client',
@@ -218,14 +252,19 @@ const DynamicSchedulingSystem = ({
       if (!res.ok || (!editingId && !data?.intervention)) {
         throw new Error(data.error || (editingId ? 'Modification impossible' : 'Création impossible'))
       }
+      const invited = (data.techAccess || []).filter((t: any) => t.status === 'invited').map((t: any) => t.name)
+      if (invited.length) {
+        setNotice(`Accès portail créé et mail d'activation envoyé à : ${invited.join(', ')}.`)
+      }
       if (editingId) {
-        setInterventions(prev => prev.map(x => x.id === editingId ? {
+        const fresh = data.intervention ? normalizeInterventionFromApi(data.intervention) : null
+        setInterventions(prev => prev.map(x => x.id === editingId ? (fresh || {
           ...x,
           title: payload.title, service: payload.service, priority: payload.priority as any,
           estimatedDuration: payload.estimatedDuration, description: payload.description,
           scheduledDate: payload.scheduledDate, scheduledTime: payload.scheduledTime,
           client: payload.client as any,
-        } : x))
+        }) : x))
         setEditingId(null)
         setShowNewInterventionModal(false)
         return
@@ -239,14 +278,17 @@ const DynamicSchedulingSystem = ({
       setNewInterventionForm({
         title: '',
         service: 'maintenance',
+        typeIntervention: 'maintenance',
         priority: 'medium',
         estimatedDuration: 2,
         description: '',
+        clientId: '',
         clientName: '',
         clientPhone: '',
         clientZone: 'Dakar-Centre',
         clientAddress: '',
         clientEmail: '',
+        technicianIds: [],
         scheduledDate: '',
         scheduledTime: ''
       })
@@ -652,6 +694,9 @@ const normalizeInterventionFromApi = (payload: any): Intervention => ({
   scheduledDate: payload.scheduledDate,
   scheduledTime: payload.scheduledTime,
   assignedTechnician: payload.assignedTechnician,
+  technicianIds: Array.isArray(payload.technicianIds) ? payload.technicianIds.map(String) : (payload.assignedTechnician ? [String(payload.assignedTechnician)] : []),
+  typeIntervention: payload.typeIntervention,
+  site: payload.site,
   status: payload.status || 'pending',
   createdAt: payload.createdAt || new Date().toISOString(),
   urgency: payload.priority === 'urgent',
@@ -770,6 +815,11 @@ const publishVisitToMarketplace = async (
 
   return (
     <>
+    {notice && (
+      <div className="fixed bottom-4 right-4 z-[60] max-w-sm bg-emerald-700 text-white text-sm px-4 py-3 rounded-xl shadow-lg">
+        {notice}
+      </div>
+    )}
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -1442,9 +1492,9 @@ const publishVisitToMarketplace = async (
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-gray-100">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
-                <p className="text-xs uppercase text-emerald-600 font-semibold">Nouvelle intervention hors contrat</p>
-                <h3 className="text-lg font-semibold text-gray-900">Publier une intervention ponctuelle</h3>
-                <p className="text-sm text-gray-500">Idéal pour les dépannages ou maintenances isolées non couvertes.</p>
+                <p className="text-xs uppercase text-emerald-600 font-semibold">{editingId ? "Modifier l'intervention" : 'Nouvelle intervention hors contrat'}</p>
+                <h3 className="text-lg font-semibold text-gray-900">{editingId ? 'Mettre à jour la fiche' : 'Publier une intervention ponctuelle'}</h3>
+                <p className="text-sm text-gray-500">Maintenance, dépannage ou installation — avec ou sans projet ni contrat.</p>
               </div>
               <button
                 onClick={() => setShowNewInterventionModal(false)}
@@ -1476,6 +1526,21 @@ const publishVisitToMarketplace = async (
                         {service.name}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Type</label>
+                  <select
+                    value={newInterventionForm.typeIntervention}
+                    onChange={(e) => updateNewInterventionField('typeIntervention', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    <option value="maintenance">Maintenance</option>
+                    <option value="preventive">Préventive</option>
+                    <option value="installation">Installation</option>
+                    <option value="repair">Réparation / dépannage</option>
+                    <option value="inspection">Inspection / diagnostic</option>
+                    <option value="emergency">Urgence</option>
                   </select>
                 </div>
                 <div>
@@ -1512,6 +1577,37 @@ const publishVisitToMarketplace = async (
                   placeholder="Contexte, symptômes, périmètre attendu…"
                 />
               </div>
+              <div>
+                <label className="text-xs text-gray-500">Client</label>
+                <select
+                  value={newInterventionForm.clientId}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    const c = clientOptions.find(o => o.id === id)
+                    setNewInterventionForm(prev => ({
+                      ...prev,
+                      clientId: id,
+                      ...(c ? {
+                        clientName: c.name,
+                        clientPhone: c.phone || prev.clientPhone,
+                        clientEmail: c.email || prev.clientEmail,
+                        clientAddress: c.address || prev.clientAddress,
+                      } : {}),
+                    }))
+                  }}
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="">— Particulier / hors annuaire —</option>
+                  {clientOptions.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {newInterventionForm.clientId
+                    ? 'Le client suivra l\u2019intervention et recevra le rapport dans son portail.'
+                    : 'Le rapport pourra être envoyé par mail si un email est renseigné.'}
+                </p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-gray-500">Client / site</label>
@@ -1529,6 +1625,16 @@ const publishVisitToMarketplace = async (
                     onChange={(e) => updateNewInterventionField('clientPhone', e.target.value)}
                     className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
                     placeholder="+221..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Email client (rapport)</label>
+                  <input
+                    type="email"
+                    value={newInterventionForm.clientEmail}
+                    onChange={(e) => updateNewInterventionField('clientEmail', e.target.value)}
+                    className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                    placeholder="client@exemple.com"
                   />
                 </div>
                 <div>
@@ -1554,6 +1660,33 @@ const publishVisitToMarketplace = async (
                     ))}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Technicien(s) affecté(s) — le 1er coché est le responsable{newInterventionForm.technicianIds.length ? ` (${newInterventionForm.technicianIds.length})` : ''}</label>
+                <div className="mt-1 border border-gray-200 rounded-xl px-3 py-2 max-h-36 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {technicians.length === 0 && <p className="text-xs text-gray-400 py-1">Chargement…</p>}
+                  {technicians.map(t => {
+                    const checked = newInterventionForm.technicianIds.includes(t.id)
+                    return (
+                      <label key={t.id} className={`flex items-center gap-2 text-sm px-2 py-1 rounded-lg cursor-pointer ${checked ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-gray-50'}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setNewInterventionForm(prev => ({
+                            ...prev,
+                            technicianIds: checked
+                              ? prev.technicianIds.filter(id => id !== t.id)
+                              : [...prev.technicianIds, t.id],
+                          }))}
+                          className="accent-emerald-600"
+                        />
+                        <span className="truncate">{t.name}</span>
+                        {newInterventionForm.technicianIds[0] === t.id && <span className="text-[10px] font-semibold text-emerald-600">Resp.</span>}
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Sans compte portail, le technicien reçoit un mail pour activer son accès.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1591,7 +1724,7 @@ const publishVisitToMarketplace = async (
                 disabled={newInterventionSubmitting}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
               >
-                {newInterventionSubmitting ? 'Création...' : 'Créer & publier'}
+                {newInterventionSubmitting ? 'Enregistrement...' : editingId ? 'Enregistrer' : 'Créer & publier'}
               </button>
             </div>
           </div>

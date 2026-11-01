@@ -68,7 +68,9 @@ export interface IMaintenanceReport extends Document {
   reportId: string
   interventionId?: mongoose.Types.ObjectId
   technicianId: mongoose.Types.ObjectId
-  clientId: mongoose.Types.ObjectId
+  clientId?: mongoose.Types.ObjectId
+  /** Client hors annuaire (particulier) : suffit à l'envoi du rapport par mail. */
+  clientContact?: { name?: string; email?: string; phone?: string }
   projectId: mongoose.Types.ObjectId
   /** Devis généré depuis ce rapport (route admin ou agent quote_draft). */
   quoteGenerated?: boolean
@@ -205,7 +207,12 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   reportId: { type: String, required: true, unique: true },
   interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention', index: true },
   technicianId: { type: Schema.Types.ObjectId, ref: 'Technician', required: true },
-  clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
+  clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: false },
+  clientContact: {
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String }
+  },
   projectId: { type: Schema.Types.ObjectId, ref: 'Project' },
   
   interventionDate: { type: Date, required: true },

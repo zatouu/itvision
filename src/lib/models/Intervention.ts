@@ -86,6 +86,8 @@ export interface IIntervention extends Document {
   // Statut et workflow
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   assignedTechnician?: mongoose.Types.ObjectId
+  /** Équipe affectée (le responsable reste technicienId). Tous voient l'intervention dans leur portail. */
+  technicianIds?: mongoose.Types.ObjectId[]
   
   // Devis lié
   quoteId?: mongoose.Types.ObjectId
@@ -220,6 +222,7 @@ const InterventionSchema = new Schema<IIntervention>({
 
   },
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
+  technicianIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Technician' }], default: undefined },
   
   // Devis lié
   quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
@@ -246,6 +249,7 @@ const InterventionSchema = new Schema<IIntervention>({
 
 // Index composites pour les requêtes fréquentes
 InterventionSchema.index({ technicienId: 1, date: -1 })
+InterventionSchema.index({ technicianIds: 1, date: -1 })
 InterventionSchema.index({ clientId: 1, date: -1 })
 InterventionSchema.index({ status: 1, date: -1 })
 InterventionSchema.index({ 'client.zone': 1 })

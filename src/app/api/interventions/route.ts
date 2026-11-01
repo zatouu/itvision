@@ -5,7 +5,8 @@ import Intervention from '@/lib/models/Intervention'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
 import Technician from '@/lib/models/Technician'
 import { requireAuth } from '@/lib/jwt'
-import { requireInterventionAccess, resolveTechnicianId, isAssignedTechnician, TECHNICIAN_TRANSITIONS } from '@/lib/interventions-access'
+import { onTechniciansAssigned } from '@/lib/tech/assignment'
+import { requireInterventionAccess, resolveTechnicianId, isAssignedTechnician, assignedToTechnician, interventionTechnicianIds, TECHNICIAN_TRANSITIONS } from '@/lib/interventions-access'
 import { emitInterventionUpdate, emitUserNotification } from '@/lib/socket-emit'
 import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
 import { notifyTechnicianOfChange } from '@/lib/tech/notify-technician'
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (access.role === 'TECHNICIAN') {
       const ownTechId = await resolveTechnicianId(access.email)
       if (!ownTechId) return NextResponse.json({ success: true, interventions: [], total: 0 })
-      query.$or = [{ technicienId: ownTechId }, { assignedTechnician: ownTechId }]
+      Object.assign(query, assignedToTechnician(ownTechId))
     } else if (technicianId) {
       query.technicienId = technicianId
     }
@@ -118,11 +119,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Un technicien ne crée que pour lui-même
-    let technicienId = body.technicienId
+    // Un technicien ne crée que pour lui-même ; l'admin peut affecter une équipe (le premier = responsable)
+    const teamIds = (Array.isArray(body.technicianIds) ? body.technicianIds : [])
+      .map((t: unknown) => String(t || '')).filter((t: string) => mongoose.isValidObjectId(t))
+    let technicienId = body.technicienId || teamIds[0]
     if (access.role === 'TECHNICIAN') {
       technicienId = await resolveTechnicianId(access.email) || undefined
     }
+    const technicianIds = access.role === 'TECHNICIAN'
+      ? undefined
+      : [...new Set([technicienId, ...teamIds].filter(Boolean).map(String))]
 
     const scheduledDateString = scheduledDate.toISOString().split('T')[0]
 
@@ -145,6 +151,8 @@ export async function POST(request: NextRequest) {
       clientId: body.clientId || undefined,
       technicienId: technicienId || undefined,
       assignedTechnician: technicienId || undefined,
+      technicianIds: technicianIds?.length ? technicianIds : undefined,
+      site: body.site || body.client?.address || undefined,
       maintenanceContractId,
       isCoveredByContract
     })
@@ -182,9 +190,13 @@ export async function POST(request: NextRequest) {
       }
     } catch (e) { console.error('[Intervention] Realtime/audit error:', e) }
 
+    // Accès portail des techniciens affectés (invitation par mail s'ils n'en ont pas)
+    const techAccess = access.role === 'TECHNICIAN' ? [] : await onTechniciansAssigned(null, created.toObject ? created.toObject() : created)
+
     return NextResponse.json({
       success: true,
       intervention: created,
+      techAccess,
       ...(overageAlert && { warning: 'Plafond interventions du contrat atteint. Intervention hors contrat.' })
     }, { status: 201 })
 
@@ -256,8 +268,13 @@ export async function PUT(request: NextRequest) {
         const requiredSkills = (intervention.requiredSkills || []) as string[]
         const specialties = (tech.specialties || []) as string[]
         if (requiredSkills.length > 0) {
+          // Correspondance souple (identique au planning) : « vidéosurveillance » matche « Vidéosurveillance & alarme »
+          const matches = (skill: string, spec: string) => {
+            const a = skill.toLowerCase(), b = spec.toLowerCase()
+            return a === b || a.includes(b) || b.includes(a)
+          }
           const hasRequiredSkills = requiredSkills.every((skill: string) =>
-            specialties.some((s: string) => s.toLowerCase() === skill.toLowerCase())
+            specialties.some((s: string) => matches(skill, s))
           )
           if (!hasRequiredSkills) {
             return NextResponse.json(
@@ -333,6 +350,17 @@ export async function PUT(request: NextRequest) {
       }
       if (body.clientId !== undefined && (body.clientId === null || mongoose.isValidObjectId(body.clientId))) {
         updatePayload.clientId = body.clientId || undefined
+      }
+      // Équipe : le responsable reste en tête ; s'il n'en fait plus partie, le premier de la liste le devient
+      if (Array.isArray(body.technicianIds)) {
+        const team = [...new Set(body.technicianIds.map((t: unknown) => String(t || '')).filter((t: string) => mongoose.isValidObjectId(t)))] as string[]
+        const currentLead = updatePayload.technicienId !== undefined ? String(updatePayload.technicienId || '') : String(intervention.technicienId || '')
+        const lead = team.includes(currentLead) ? currentLead : team[0]
+        updatePayload.technicianIds = team.length ? [lead, ...team.filter(t => t !== lead)] : []
+        updatePayload.technicienId = lead || null
+        updatePayload.assignedTechnician = lead || null
+        if (lead && intervention.status === 'pending') updatePayload.status = 'scheduled'
+        if (!lead && ['scheduled'].includes(intervention.status)) updatePayload.status = 'pending'
       }
     }
 
@@ -419,7 +447,11 @@ export async function PUT(request: NextRequest) {
       }
     } catch (e) { console.error('[Intervention] Realtime/audit error:', e) }
 
-    return NextResponse.json({ success: true, intervention: updated })
+    // Accès portail + notification des techniciens nouvellement affectés
+    const techAccess = access.role === 'TECHNICIAN' ? []
+      : await onTechniciansAssigned(previousState as any, (updated as any)?.toObject ? (updated as any).toObject() : updated)
+
+    return NextResponse.json({ success: true, intervention: updated, techAccess })
 
   } catch (error) {
     console.error('Erreur mise à jour intervention:', error)

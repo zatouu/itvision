@@ -26,11 +26,22 @@ export async function resolveTechnicianId(email?: string | null): Promise<string
 }
 
 export function isAssignedTechnician(
-  intervention: { technicienId?: unknown; assignedTechnician?: unknown },
+  intervention: { technicienId?: unknown; assignedTechnician?: unknown; technicianIds?: unknown[] },
   technicianId: string | null
 ): boolean {
   if (!technicianId) return false
-  return [intervention.technicienId, intervention.assignedTechnician].some(x => x && String(x) === technicianId)
+  return [intervention.technicienId, intervention.assignedTechnician, ...(intervention.technicianIds || [])]
+    .some(x => x && String(x) === technicianId)
+}
+
+/** Filtre Mongo « interventions de ce technicien » : responsable, affecté ou membre de l'équipe. */
+export function assignedToTechnician(techId: unknown) {
+  return { $or: [{ technicienId: techId }, { assignedTechnician: techId }, { technicianIds: techId }] }
+}
+
+/** Ensemble des techniciens d'une intervention (responsable en premier, sans doublon). */
+export function interventionTechnicianIds(i: { technicienId?: unknown; assignedTechnician?: unknown; technicianIds?: unknown[] }): string[] {
+  return [...new Set([i.technicienId, i.assignedTechnician, ...(i.technicianIds || [])].filter(Boolean).map(String))]
 }
 
 /** Seules transitions ouvertes au technicien : démarrer puis terminer. */
