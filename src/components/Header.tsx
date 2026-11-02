@@ -180,18 +180,16 @@ const Header = () => {
           {/* Menu desktop - spacieux et moderne */}
           <div className="hidden lg:flex items-center flex-1 justify-between ml-6 xl:ml-14">
             <div className="flex items-center space-x-1 flex-1">
-              {/* Liens principaux avec icônes à gauche */}
+              {/* Liens principaux — texte seul : le conteneur 1280px ne peut pas accueillir les icônes */}
               {navigation.map((item) => {
-                const Icon = item.icon
                 const isServices = item.name === 'Services'
                 if (isServices) {
                   return (
                     <div className="relative group flex-1" key={item.name}>
                       <Link
                         href={item.href}
-                        className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-2 xl:px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl w-full justify-start group"
+                        className="flex items-center gap-1 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl w-full justify-start group"
                       >
-                        <Icon className="hidden xl:block h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                         <span className="whitespace-nowrap">{item.name}</span>
                         <ChevronDown className="ml-auto h-4 w-4 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                       </Link>
@@ -319,9 +317,8 @@ const Header = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-2 xl:px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl flex-1 justify-start group"
+                    className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl flex-1 justify-start group"
                   >
-                    <Icon className="hidden xl:block h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                     <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
                 )
@@ -340,6 +337,7 @@ const Header = () => {
               >
                 <UserPlus className="h-4 w-4" />
                 <span className="hidden xl:inline">Espace client</span>
+                <span className="sr-only xl:hidden">Espace client</span>
               </Link>
               {/* Bouton "Connexion" (Admin / Général) */}
               <UnifiedLoginButton variant="header" />
