@@ -155,7 +155,7 @@ const Header = () => {
       {/* Navigation principale - optimisée */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-0">
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
             <Link href="/" className="flex items-center gap-3 shrink-0">
               {/* Texte bleu nuit sur header clair / blanc sur header sombre — largeur fixe pour ne jamais empiéter sur le menu */}
               <Image
@@ -178,7 +178,7 @@ const Header = () => {
           </div>
 
           {/* Menu desktop - spacieux et moderne */}
-          <div className="hidden lg:flex items-center flex-1 justify-between ml-10 lg:ml-14">
+          <div className="hidden lg:flex items-center flex-1 justify-between ml-6 xl:ml-14">
             <div className="flex items-center space-x-1 flex-1">
               {/* Liens principaux avec icônes à gauche */}
               {navigation.map((item) => {
@@ -189,9 +189,9 @@ const Header = () => {
                     <div className="relative group flex-1" key={item.name}>
                       <Link
                         href={item.href}
-                        className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl w-full justify-start group"
+                        className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-2 xl:px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl w-full justify-start group"
                       >
-                        <Icon className="h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
+                        <Icon className="hidden xl:block h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                         <span className="whitespace-nowrap">{item.name}</span>
                         <ChevronDown className="ml-auto h-4 w-4 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                       </Link>
@@ -319,9 +319,9 @@ const Header = () => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl flex-1 justify-start group"
+                    className="flex items-center gap-3 text-stone-700 dark:text-stone-200 hover:text-emerald-600 px-2 xl:px-3 py-1 text-sm font-medium transition-all duration-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-xl flex-1 justify-start group"
                   >
-                    <Icon className="h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
+                    <Icon className="hidden xl:block h-5 w-5 text-stone-400 dark:text-stone-500 group-hover:text-emerald-500 transition-colors" />
                     <span className="whitespace-nowrap">{item.name}</span>
                   </Link>
                 )
@@ -329,17 +329,17 @@ const Header = () => {
             </div>
 
             {/* Séparateur */}
-            <div className="h-8 w-px bg-stone-200 dark:bg-slate-700 mx-4"></div>
+            <div className="h-8 w-px bg-stone-200 dark:bg-slate-700 mx-2 xl:mx-4"></div>
             
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 xl:gap-3">
               <ThemeToggle />
               <Link
                 href="/portail-entreprise"
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-stone-700 dark:text-stone-200 hover:text-emerald-600 hover:bg-stone-50 dark:hover:bg-slate-900 rounded-lg transition-all duration-300"
+                className="hidden sm:inline-flex items-center gap-2 px-2 xl:px-4 py-2 text-sm font-semibold text-stone-700 dark:text-stone-200 hover:text-emerald-600 hover:bg-stone-50 dark:hover:bg-slate-900 rounded-lg transition-all duration-300"
               >
                 <UserPlus className="h-4 w-4" />
-                Espace client
+                <span className="hidden xl:inline">Espace client</span>
               </Link>
               {/* Bouton "Connexion" (Admin / Général) */}
               <UnifiedLoginButton variant="header" />
