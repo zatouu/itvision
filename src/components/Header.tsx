@@ -157,12 +157,21 @@ const Header = () => {
         <div className="flex justify-between items-center py-0">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-3 shrink-0">
+              {/* Texte bleu nuit sur header clair / blanc sur header sombre — largeur fixe pour ne jamais empiéter sur le menu */}
+              <Image
+                src="/logo-header-dark-text.png"
+                alt="IT Vision"
+                width={554}
+                height={100}
+                className="w-[150px] sm:w-[175px] lg:w-[200px] h-auto object-contain dark:hidden"
+                priority
+              />
               <Image
                 src="/Complet transparent vert.png"
                 alt="IT Vision"
-                width={200}
-                height={80}
-                className="h-10 sm:h-12 lg:h-14 w-auto object-contain"
+                width={554}
+                height={100}
+                className="hidden dark:block w-[150px] sm:w-[175px] lg:w-[200px] h-auto object-contain"
                 priority
               />
             </Link>
@@ -339,8 +348,8 @@ const Header = () => {
 
           {/* Supprimer le CTA devis redondant pour aérer la barre */}
 
-          {/* Menu mobile */}
-          <div className="md:hidden">
+          {/* Menu mobile — visible jusqu'à lg (le menu desktop n'apparaît qu'en lg) */}
+          <div className="lg:hidden">
             <button
               ref={buttonRef}
               aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
@@ -356,7 +365,7 @@ const Header = () => {
 
           {/* Menu mobile dropdown - amélioré */}
         {isMenuOpen && (
-          <div ref={menuRef} className="md:hidden">
+          <div ref={menuRef} className="lg:hidden">
             <div className="px-2 pt-2 pb-4 space-y-2 bg-white dark:bg-slate-950 border-t border-stone-100 dark:border-slate-800 shadow-lg">
               {/* Accueil */}
               <Link
