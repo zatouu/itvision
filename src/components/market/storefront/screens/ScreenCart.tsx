@@ -127,7 +127,7 @@ export default function ScreenCart() {
     setItems((cur) => {
       const next = cur.map((it) =>
         lineKey(it) === key
-          ? { ...it, qty: Math.max(it.minOrderQty ?? 1, it.qty + delta) }
+          ? { ...it, qty: Math.max(1, it.qty + delta) }
           : it
       );
       saveCart(next);
@@ -172,11 +172,20 @@ export default function ScreenCart() {
     return { sub, savings, service, insurance, shipping, promoDiscount, total, groupSavingsPotential, groupItemsCount };
   }, [items, quote, totalQty]);
 
-  const belowMOQ = items.filter((it) => it.qty < it.minOrderQty);
+  // Lot minimum : appliqué au TOTAL par produit — les variantes se cumulent
+  // (20 rouges + 30 bleus = 50). Une ligne seule peut donc être sous le lot.
+  const qtyByProduct = new Map<string, number>();
+  const minByProduct = new Map<string, number>();
+  for (const it of items) {
+    qtyByProduct.set(it.id, (qtyByProduct.get(it.id) || 0) + it.qty);
+    minByProduct.set(it.id, Math.max(minByProduct.get(it.id) || 1, it.minOrderQty ?? 1));
+  }
+  const missingFor = (it: CartItem) => Math.max(0, (minByProduct.get(it.id) || 1) - (qtyByProduct.get(it.id) || 0));
+  const belowMOQ = items.filter((it) => missingFor(it) > 0);
   const canCheckout = belowMOQ.length === 0;
 
   const CartItemCard = ({ it }: { it: CartItem }) => {
-    const isBelow = it.qty < it.minOrderQty;
+    const isBelow = missingFor(it) > 0;
     const nextTierDelta = it.nextTier ? it.nextTier.at - it.qty : 0;
     return (
       <Card className={cn("overflow-hidden", isBelow && "border-amber-400 dark:border-amber-700")}>
@@ -198,7 +207,7 @@ export default function ScreenCart() {
             </div>
             <div className="mt-3 flex items-end justify-between gap-2">
               <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
-                <button aria-label="Diminuer la quantité" onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= it.minOrderQty} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
+                <button aria-label="Diminuer la quantité" onClick={() => updateQty(lineKey(it), -1)} disabled={it.qty <= 1} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={14}/></button>
                 <span className="w-8 text-center text-sm font-extrabold text-slate-900 dark:text-white tabular-nums">{it.qty}</span>
                 <button aria-label="Augmenter la quantité" onClick={() => updateQty(lineKey(it), 1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={14}/></button>
               </div>
@@ -216,9 +225,9 @@ export default function ScreenCart() {
             <div className="flex items-start gap-2">
               <Icon name="info" size={14} className="mt-0.5 flex-shrink-0 text-amber-700 dark:text-amber-300"/>
               <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
-                Ajoutez <b className="tabular-nums">{it.minOrderQty - it.qty}</b> unités pour atteindre le lot minimum de {it.minOrderQty}
+                Ajoutez <b className="tabular-nums">{missingFor(it)}</b> unités <b>au total</b> pour atteindre le lot minimum de {minByProduct.get(it.id)}
               </p>
-              <button onClick={() => updateQty(lineKey(it), it.minOrderQty - it.qty)} className="ml-auto rounded-md bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700 flex-shrink-0">
+              <button onClick={() => updateQty(lineKey(it), missingFor(it))} className="ml-auto rounded-md bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700 flex-shrink-0">
                 Ajouter
               </button>
             </div>
@@ -333,7 +342,7 @@ export default function ScreenCart() {
             <div className="flex items-start gap-2">
               <Icon name="info" size={16} className="mt-0.5 text-amber-700 dark:text-amber-300"/>
               <p className="text-[12px] font-semibold text-amber-900 dark:text-amber-200">
-                <b>{belowMOQ.length} article{belowMOQ.length > 1 ? 's' : ''}</b> {belowMOQ.length > 1 ? 'sont' : 'est'} en dessous du lot minimum. Complétez pour passer à la caisse — c&apos;est un import direct usine.
+                <b>{new Set(belowMOQ.map(it => it.id)).size} produit{new Set(belowMOQ.map(it => it.id)).size > 1 ? 's' : ''}</b> en dessous du lot minimum (total par produit, variantes cumulées). Complétez pour passer à la caisse — c&apos;est un import direct usine.
               </p>
             </div>
           </div>

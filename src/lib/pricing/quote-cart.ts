@@ -267,6 +267,8 @@ export async function loadCartProducts(
     for (const p of dbProducts as any[]) dbProductMap.set(String(p._id), p)
   }
 
+  const qtyByProduct = new Map<string, number>()
+
   for (const item of cart) {
     const rawId = String(item.id || '')
     const productId = itemProductIdMap.get(rawId)
@@ -290,20 +292,25 @@ export async function loadCartProducts(
       return { ok: false, error: `${dbProduct.name}: veuillez sélectionner une variante` }
     }
 
-    // Lot minimum (MOQ) : appliqué à la quantité commandée, jamais au prix.
-    // Bloque le checkout comme l'affichage du panier (message actionnable).
-    const minOrderQty = Number(dbProduct.minOrderQty) > 0 ? Math.floor(Number(dbProduct.minOrderQty)) : 1
-    if (minOrderQty > 1 && (item.qty || 1) < minOrderQty) {
-      return {
-        ok: false,
-        error: `${dbProduct.name}: lot minimum de ${minOrderQty} unités (quantité actuelle : ${item.qty || 1})`,
-      }
-    }
+    // Lot minimum (MOQ) : cumulé par produit — le total toutes variantes
+    // confondues doit atteindre le minimum (ex. 20 rouges + 30 bleus = 50 ok).
+    qtyByProduct.set(productId, (qtyByProduct.get(productId) || 0) + (item.qty || 1))
 
     if (opts.checkStock) {
       const stockCheck = await checkStockAvailability(productId, item.qty || 1, requestedVariantIds)
       if (!stockCheck.ok) {
         return { ok: false, error: `${stockCheck.productName || dbProduct.name}: ${stockCheck.reason}` }
+      }
+    }
+  }
+
+  for (const [productId, totalQty] of qtyByProduct) {
+    const dbProduct = dbProductMap.get(productId)
+    const minOrderQty = Number(dbProduct?.minOrderQty) > 0 ? Math.floor(Number(dbProduct.minOrderQty)) : 1
+    if (minOrderQty > 1 && totalQty < minOrderQty) {
+      return {
+        ok: false,
+        error: `${dbProduct.name}: lot minimum de ${minOrderQty} unités au total (quantité actuelle : ${totalQty})`,
       }
     }
   }

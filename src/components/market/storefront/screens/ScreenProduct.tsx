@@ -195,7 +195,7 @@ export default function ScreenProduct() {
   const distanceToNext = nextTier ? nextTier.from - qty : 0;
 
   const inc = () => setQty((q: number) => Math.min(selection.maxQuantity, q + 1));
-  const dec = () => setQty((q: number) => Math.max(p.minOrderQty, q - 1));
+  const dec = () => setQty((q: number) => Math.max(1, q - 1));
 
   const buildCartItem = () => ({
     id: p.id,
@@ -220,7 +220,7 @@ export default function ScreenProduct() {
     setCartError('');
     setCartNotice('');
     const latest = productSelection(p, variantIds, loadCart());
-    if (purchaseBlocked || qty > latest.maxQuantity || !Number.isSafeInteger(qty) || qty < p.minOrderQty) {
+    if (purchaseBlocked || qty > latest.maxQuantity || !Number.isSafeInteger(qty) || qty < 1) {
       setCartError(purchaseReason || 'Cette quantité dépasse le stock disponible.');
       return false;
     }
@@ -468,7 +468,7 @@ export default function ScreenProduct() {
                       </button>
                       {showMoqExplain && (
                         <div className="mt-2 rounded-xl bg-slate-50 p-3 text-[12px] text-slate-600 dark:bg-slate-800 dark:text-slate-300 leading-relaxed">
-                          La quantité minimale configurée pour ce produit s'applique à chaque combinaison de variantes commandée.
+                          La quantité minimale s'applique au <b>total des variantes choisies</b> : couleurs et modèles se cumulent (ex. 20 rouges + 30 bleus = 50). Elle est vérifiée au panier.
                         </div>
                       )}
                     </>
@@ -481,7 +481,7 @@ export default function ScreenProduct() {
                       <legend className="mb-2 text-sm font-bold text-slate-900 dark:text-white">{group.name}</legend>
                       <VariantPicker variants={group.variants} value={variantIds.find(optionId => group.variants.some(option => option.id === optionId)) || ''}
                         onChange={optionId => { setVariantIds(current => [...current.filter(value => !group.variants.some(option => option.id === value)), optionId]); setActiveImg(0); setCartNotice(''); setCartError(''); }}
-                        productPrice={p.price} size="md" trackStock={p.availabilityStatus === 'in_stock'} minQuantity={p.minOrderQty} />
+                        productPrice={p.price} size="md" trackStock={p.availabilityStatus === 'in_stock'} minQuantity={1} />
                     </fieldset>
                   ))}
 
@@ -489,8 +489,8 @@ export default function ScreenProduct() {
                     <p className="mb-2 text-[13px] md:text-xs font-bold text-slate-900 dark:text-white">Quantité</p>
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-                        <button aria-label="Diminuer la quantité" onClick={dec} disabled={qty<=p.minOrderQty} className="grid h-11 w-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={16}/></button>
-                        <input aria-label="Quantité" inputMode="numeric" value={qty} onChange={event => { if (/^\d*$/.test(event.target.value)) setQty(Math.min(10000, Number(event.target.value))); }} onBlur={() => setQty(value => Math.max(p.minOrderQty, value))} className="h-11 w-14 bg-transparent text-center text-base font-extrabold text-slate-900 dark:text-white tabular-nums"/>
+                        <button aria-label="Diminuer la quantité" onClick={dec} disabled={qty<=1} className="grid h-11 w-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="minus" size={16}/></button>
+                        <input aria-label="Quantité" inputMode="numeric" value={qty} onChange={event => { if (/^\d*$/.test(event.target.value)) setQty(Math.min(10000, Number(event.target.value))); }} onBlur={() => setQty(value => Math.max(1, value))} className="h-11 w-14 bg-transparent text-center text-base font-extrabold text-slate-900 dark:text-white tabular-nums"/>
                         <button aria-label="Augmenter la quantité" onClick={inc} disabled={qty >= selection.maxQuantity || !selection.complete} className="grid h-11 w-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"><Icon name="plus" size={16}/></button>
                       </div>
                       <div>
@@ -514,8 +514,8 @@ export default function ScreenProduct() {
                   <div className="fixed inset-x-0 bottom-[calc(var(--mkt-bottom-nav-h,64px)+8px)] z-40 border-y border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 md:static md:mt-4 md:border-0 md:p-0">
                     <p className="mb-2 text-xs text-slate-600 dark:text-slate-300 md:hidden">{p.requiresQuote ? 'Sur devis' : `Total hors transport : ${formatFcfa(currentUnit * qty)}`} · {qty} pcs</p>
                     <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
-                      <Button variant="primary" size="md" className="min-w-0 w-full !rounded-lg" disabled={purchaseBlocked || qty < p.minOrderQty} onClick={handleAddToCart}><Icon name="cart" size={16}/><span className="md:hidden">Ajouter</span><span className="hidden md:inline">Ajouter au panier</span></Button>
-                      <Button variant="outline" size="md" className="min-w-0 w-full !rounded-lg" disabled={purchaseBlocked || qty < p.minOrderQty} onClick={handleBuyNow}><span className="md:hidden">Acheter</span><span className="hidden md:inline">Acheter maintenant</span></Button>
+                      <Button variant="primary" size="md" className="min-w-0 w-full !rounded-lg" disabled={purchaseBlocked || qty < 1} onClick={handleAddToCart}><Icon name="cart" size={16}/><span className="md:hidden">Ajouter</span><span className="hidden md:inline">Ajouter au panier</span></Button>
+                      <Button variant="outline" size="md" className="min-w-0 w-full !rounded-lg" disabled={purchaseBlocked || qty < 1} onClick={handleBuyNow}><span className="md:hidden">Acheter</span><span className="hidden md:inline">Acheter maintenant</span></Button>
                     </div>
                     {cartNotice && <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300 md:hidden">Ajout confirmé · <Link href="/panier" className="underline">Voir le panier</Link></p>}
                   </div>
@@ -533,7 +533,7 @@ export default function ScreenProduct() {
                       <Button variant="ghost" size="md" className="min-w-0 !h-auto min-h-11 !whitespace-normal" onClick={() => window.open(brandWhatsAppUrl(undefined, `Bonjour, j'ai une question sur ${p.name} (ref: ${p.id})`), '_blank')}><Icon name="whatsapp" size={16}/>Question</Button>
                     </div>
                   </div>
-                  <ProductShippingEstimate key={`${p.id}:${qty}:${[...variantIds].sort().join(',')}`} productId={p.id} qty={qty} variantIds={variantIds} disabled={!!purchaseBlocked || qty < p.minOrderQty} />
+                  <ProductShippingEstimate key={`${p.id}:${qty}:${[...variantIds].sort().join(',')}`} productId={p.id} qty={qty} variantIds={variantIds} disabled={!!purchaseBlocked || qty < 1} />
                   {p.availabilityNote && <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">{p.availabilityNote}</p>}
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
                     <Link href="/cgv" className="inline-flex min-h-11 items-center underline">Retours et conditions de vente</Link>
