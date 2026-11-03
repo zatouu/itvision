@@ -10,7 +10,7 @@ set -e
 # ─── Config ───────────────────────────────────────────────────────────────────
 DOMAIN="itvisionplus.sn"
 WWW_DOMAIN="www.itvisionplus.sn"
-MARKET_DOMAIN="market.itvisionplus.sn"
+MARKET_DOMAIN="ddm.sn"
 APP_PORT=3000
 APP_DIR="/home/admin/itvision"
 SSH_USER="admin"
@@ -80,7 +80,7 @@ limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
 
 server {
     listen 80;
-    server_name itvisionplus.sn www.itvisionplus.sn market.itvisionplus.sn;
+    server_name itvisionplus.sn www.itvisionplus.sn market.itvisionplus.sn ddm.sn www.ddm.sn;
 
     # Health check
     location /health {
@@ -204,7 +204,7 @@ echo "     $WWW_DOMAIN     → A → $(curl -s ifconfig.me)"
 echo "     $MARKET_DOMAIN  → A → $(curl -s ifconfig.me)"
 echo ""
 echo "  2. Générer SSL (après propagation DNS) :"
-echo "     certbot --nginx -d $DOMAIN -d $WWW_DOMAIN -d $MARKET_DOMAIN --email contact@$DOMAIN --agree-tos --no-eff-email --redirect"
+echo "     certbot --nginx -d $DOMAIN -d $WWW_DOMAIN -d $MARKET_DOMAIN -d www.ddm.sn --email contact@$DOMAIN --agree-tos --no-eff-email --redirect"
 echo ""
 echo "  3. Configurer les secrets GitHub (Settings → Secrets → Actions)"
 echo "     SSH_HOST, SSH_USER, SSH_KEY, MONGO_ROOT_PASSWORD, etc."
