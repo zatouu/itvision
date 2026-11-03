@@ -11,9 +11,11 @@ const columns = [
   {
     title: 'Acheter',
     links: [
-      ['Accueil', '/market'],
+      ['Accueil', '/'],
       ['Catalogue', '/produits'],
       ['Achats groupés', '/achats-groupes'],
+      ['Comment ça marche', '/comment-ca-marche'],
+      ['Tarification', '/tarification'],
       ['Favoris', '/produits/favoris'],
       ['Comparer', '/produits/compare'],
     ],
@@ -90,7 +92,7 @@ export default function MarketFooter() {
         <div className="grid gap-8 lg:grid-cols-12">
           {/* Brand & assurance */}
           <div className="lg:col-span-4">
-            <Link href="/market" className="inline-flex items-center gap-3">
+            <Link href="/" className="inline-flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-violet-600 shadow-lg shadow-green-500/20">
                 <ShoppingBag className="h-5 w-5 text-white" />
               </div>

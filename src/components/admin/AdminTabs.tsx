@@ -18,7 +18,7 @@ const tabsByContext: Record<Props['context'], Tab[]> = {
   ],
   devis: [
     { label: 'Devis', href: '/admin/devis' },
-    { label: 'Projets', href: '/admin/planning' }
+    { label: 'Projets', href: '/admin/projects' }
   ],
   team: [
     { label: 'Planning', href: '/admin/planning' },

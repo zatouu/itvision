@@ -1,36 +1,12 @@
-import type { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
-
-export const metadata: Metadata = {
-  title: 'Catalogue Produits | DDM+ — Import Chine & Sécurité Électronique',
+export const metadata = pageMetadata({
+  path: '/produits',
+  title: 'Catalogue import Chine : prix usine livrés au Sénégal | DDM+',
   description:
-    'Découvrez notre catalogue de produits importés directement de Chine : caméras IP, contrôle d\'accès, alarmes, domotique, réseau. Livraison Sénégal. Achats groupés disponibles.',
-  keywords: [
-    'produits sécurité',
-    'import Chine Sénégal',
-    'caméra IP Hikvision',
-    'contrôle accès',
-    'alarme',
-    'domotique',
-    'achat groupé',
-    'DDM+',
-    'Dakar',
-  ],
-  alternates: { canonical: `${SITE_URL}/produits` },
-  openGraph: {
-    title: 'Catalogue Produits — DDM+',
-    description:
-      'Import direct Chine, livraison Sénégal. Caméras, alarmes, contrôle d\'accès, réseau. Achats groupés pour payer moins cher.',
-    url: `${SITE_URL}/produits`,
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Catalogue Produits — DDM+',
-    description: 'Import direct Chine, livraison Sénégal. Achats groupés pour payer moins cher.',
-  }
-}
+    'Tout le catalogue DDM+ importé de Chine : électronique, maison, mode, beauté, auto, sport. Prix affichés tout compris, achats groupés et livraison suivie à Dakar et en régions.',
+  siteName: 'DDM+ Marketplace',
+})
 
 export default function ProduitsLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>

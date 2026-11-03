@@ -142,6 +142,7 @@ export default function DigitalHomepage() {
       <div className="min-h-screen bg-white dark:bg-black">
         {/* Hero Carousel Section */}
         <section className="relative page-content">
+          <h1 className="sr-only">IT Vision Plus — sécurité électronique, vidéosurveillance et contrôle d&apos;accès à Dakar</h1>
           <HeroCarousel />
         </section>
 

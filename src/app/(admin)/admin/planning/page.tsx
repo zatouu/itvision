@@ -12,21 +12,19 @@ function PlanningContent() {
   const view = searchParams.get('view')
   const isMarketplaceView = view === 'marketplace'
   const isInstallationsView = view === 'installations'
-  const showProjects = !isMarketplaceView && !isInstallationsView
+  // L'éditeur de projets (ouvert depuis /admin/projects) n'encombre plus le planning
+  const showProjects = view === 'projets' || searchParams.has('editProject')
   const defaultViewMode = isMarketplaceView || isInstallationsView ? 'list' : 'calendar'
   const filterMode = isMarketplaceView ? 'marketplace' : isInstallationsView ? 'installations' : 'all'
 
+  if (showProjects) return <EnhancedProjectManager />
+
   return (
-    <>
-      {showProjects && <EnhancedProjectManager />}
-      <div className="mt-8">
-        <DynamicSchedulingSystem
-          defaultViewMode={defaultViewMode}
-          filterMode={filterMode}
-          showNewInterventionShortcut
-        />
-      </div>
-    </>
+    <DynamicSchedulingSystem
+      defaultViewMode={defaultViewMode}
+      filterMode={filterMode}
+      showNewInterventionShortcut
+    />
   )
 }
 

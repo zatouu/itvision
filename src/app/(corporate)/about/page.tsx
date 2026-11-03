@@ -3,11 +3,13 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { Shield, Users, Award, Clock, CheckCircle, Target, Heart, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
+import { corporatePage } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'À propos - IT Vision',
-  description: 'Découvrez IT Vision, experts en sécurité électronique, domotique et digitalisation des processus PME depuis 2019.',
-}
+export const metadata: Metadata = corporatePage(
+  '/about',
+  'À propos : intégrateur sécurité depuis 2019',
+  'Découvrez IT Vision Plus, intégrateur en sécurité électronique, domotique et digitalisation des PME à Dakar depuis 2019 : équipe, valeurs et engagements.',
+)
 
 export default function AboutPage() {
   const stats = [

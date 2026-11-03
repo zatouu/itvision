@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import { MARKET_SITE_URL } from '@/lib/branding'
+import { SITE_OG_IMAGES } from '@/lib/seo'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
+const SITE_URL = MARKET_SITE_URL
 
 export const metadata: Metadata = {
   title: 'Achats Groupés | DDM+ — Import Chine à prix groupe',
@@ -22,6 +24,9 @@ export const metadata: Metadata = {
       'Importez en groupe, économisez ensemble. Jusqu\'à -45% sur vos commandes import Chine.',
     url: `${SITE_URL}/achats-groupes`,
     type: 'website',
+    siteName: 'DDM+ Marketplace',
+    locale: 'fr_SN',
+    images: SITE_OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
