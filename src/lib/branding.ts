@@ -34,7 +34,7 @@ export const MARKET_BRAND: BrandConfig = {
   contactEmail: 'contact@itvisionplus.sn',
   supportEmail: 'support@itvisionplus.sn',
   // Domaine conservé tel quel (pas de domaine DDM dédié pour l'instant)
-  url: 'https://market.itvisionplus.sn',
+  url: 'https://ddm.sn',
   whatsapp: '+221 77 413 34 40',
   address: 'Parcelles Assainies, Unité 25 – Dakar, Sénégal',
   hashtag: '#DDM',
@@ -80,7 +80,7 @@ export function brandWhatsAppUrl(brand: BrandConfig = MARKET_BRAND, text?: strin
   return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`
 }
 
-const MARKET_HOSTS = ['market.itvisionplus.sn', 'ddmplus.sn', 'ddm.itvisionplus.sn', 'market']
+const MARKET_HOSTS = ['ddm.sn', 'market.itvisionplus.sn', 'ddmplus.sn', 'ddm.itvisionplus.sn', 'market']
 const CORPORATE_HOSTS = ['itvisionplus.sn', 'www.itvisionplus.sn', 'staging.itvisionplus.sn', 'admin.itvisionplus.sn']
 const XEUY_HOSTS = ['xeuy.sn', 'www.xeuy.sn', 'app.xeuy.sn']
 

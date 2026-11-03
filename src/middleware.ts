@@ -87,7 +87,9 @@ export async function middleware(request: NextRequest) {
       const rule = getPageRule(pathname)
       if (rule && rule.access === 'public') {
         const mainUrl = new URL(pathname + request.nextUrl.search, request.url)
-        mainUrl.hostname = host.split(':')[0].replace(/^market\./, '')
+        const bare = host.split(':')[0].replace(/^www\./, '')
+        // market.itvisionplus.sn → itvisionplus.sn ; ddm.sn → itvisionplus.sn
+        mainUrl.hostname = bare.startsWith('market.') ? bare.slice('market.'.length) : 'itvisionplus.sn'
         mainUrl.port = ''
         return NextResponse.redirect(mainUrl)
       }
@@ -100,7 +102,7 @@ export async function middleware(request: NextRequest) {
   if (!onMarketDomain) {
     if (isMarketplaceRoute(pathname)) {
       const marketUrl = new URL(pathname, request.url)
-      marketUrl.hostname = `market.${host.split(':')[0].replace(/^www\./, '')}`
+      marketUrl.hostname = 'ddm.sn'
       marketUrl.port = ''
       return NextResponse.redirect(marketUrl)
     }

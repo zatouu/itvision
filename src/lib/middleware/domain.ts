@@ -6,8 +6,12 @@ export function getHost(request: NextRequest): string {
   return request.headers.get('host') || request.nextUrl.host || ''
 }
 
+// Domaines servant la marketplace DDM (domaine dédié + sous-domaines historiques)
+const MARKET_DOMAINS = ['ddm.sn', 'ddmplus.sn', 'ddm.itvisionplus.sn']
+
 export function isMarketDomain(request: NextRequest): boolean {
-  return getHost(request).startsWith('market.')
+  const host = getHost(request).toLowerCase().split(':')[0].replace(/^www\./, '')
+  return host.startsWith('market.') || MARKET_DOMAINS.some(d => host === d || host.endsWith('.' + d))
 }
 
 export function isServicesDomain(request: NextRequest): boolean {
