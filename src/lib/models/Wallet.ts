@@ -21,6 +21,8 @@ const WalletSchema = new Schema({
   lifetimePointsEarned: { type: Number, default: 0, min: 0 },
   lifetimePointsSpent: { type: Number, default: 0, min: 0 },
   txns: { type: [WalletTxnSchema], default: [] },
+  // Clés des derniers crédits appliqués : un reversement rejoué (retry, double appel) n'est jamais crédité deux fois
+  opsApplied: { type: [String], default: [], select: false },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: false, updatedAt: 'updatedAt' } })
 

@@ -5,17 +5,17 @@ import {
   parseInvoiceFromText,
   type ExtractedInvoice
 } from '@/lib/invoice-extractor'
-import { requireAuth } from '@/lib/jwt'
+import { ADMIN_ROLES, authErrorResponse, requireApiUser } from '@/lib/api-auth'
+import { aiStructureDocument, IMPORT_MAX_BYTES, SCANNED_PDF_ERROR } from '@/lib/document-ai-extract'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
-  let user
   try {
-    user = await requireAuth(request)
-  } catch {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-  }
-  if (user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+    await requireApiUser(request, [...ADMIN_ROLES, 'ACCOUNTANT'])
+  } catch (error) {
+    return authErrorResponse(error) || NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
 
   try {
@@ -24,14 +24,43 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 })
     }
+    if (file.size > IMPORT_MAX_BYTES) {
+      return NextResponse.json({ error: 'Fichier trop volumineux (15 Mo max)' }, { status: 413 })
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const filename = file.name.toLowerCase()
     let extracted: ExtractedInvoice
 
-    if (filename.endsWith('.pdf')) {
+    if (filename.endsWith('.pdf') || file.type === 'application/pdf') {
       const text = await extractTextFromPDF(buffer)
+      if (text.replace(/\s/g, '').length < 20) {
+        return NextResponse.json({ error: SCANNED_PDF_ERROR }, { status: 422 })
+      }
       extracted = parseInvoiceFromText(text)
+      if (extracted.items.length === 0) {
+        const ai = await aiStructureDocument(text, 'invoice')
+        if (ai) {
+          extracted = {
+            ...extracted,
+            numero: extracted.numero || ai.numero,
+            date: extracted.date || ai.date,
+            dueDate: extracted.dueDate || ai.dueDate,
+            client: { ...ai.client, ...Object.fromEntries(Object.entries(extracted.client || {}).filter(([, v]) => v)) },
+            items: ai.lines.map(l => ({
+              description: l.description,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              totalPrice: Math.round(l.quantity * l.unitPrice),
+              category: l.isLabor ? 'services' : undefined,
+            })),
+            subtotal: undefined,
+            taxAmount: ai.taxAmount ?? extracted.taxAmount,
+            total: undefined,
+            notes: extracted.notes || ai.notes,
+          }
+        }
+      }
     } else if (filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.endsWith('.csv')) {
       extracted = extractInvoiceFromExcel(buffer)
     } else {

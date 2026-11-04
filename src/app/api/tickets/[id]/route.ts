@@ -6,6 +6,7 @@ import Ticket from '@/lib/models/Ticket'
 import { TicketService, getTicketById } from '@/lib/services/tickets'
 import { requireAuth } from '@/lib/jwt'
 import { emitNewMessage, emitUserNotification } from '@/lib/socket-emit'
+import { notifyCompany, resolveClientCompanyId } from '@/lib/portal/company-notify'
 
 async function verify(request: NextRequest) {
   const decoded = await requireAuth(request)
@@ -112,13 +113,23 @@ export async function POST(request: NextRequest, context: any) {
         message: lastMsg.message,
         createdAt: lastMsg.createdAt,
       })
-      if (role !== 'CLIENT' && ticket.clientId) {
+      if (role !== 'CLIENT' && ticket.clientId && !internal) {
         emitUserNotification(String(ticket.clientId), {
           type: 'info',
           title: 'Réponse à votre ticket',
           message: ticket.title,
-          data: { actionUrl: '/portail-entreprise/support' },
+          data: { actionUrl: `/portail-entreprise/support/${String(ticket._id)}` },
         })
+        const companyId = await resolveClientCompanyId(ticket.clientId)
+        if (companyId) {
+          void notifyCompany({
+            companyId, category: 'ticket',
+            title: `Réponse du support : ${ticket.title}`,
+            message: String(lastMsg.message || '').slice(0, 160),
+            actionUrl: `/portail-entreprise/support/${String(ticket._id)}`,
+            metadata: { ticketId: String(ticket._id) },
+          })
+        }
       }
     }
 

@@ -1,16 +1,38 @@
 /**
- * Qwen AI client — hybrid: QwenCloud API (primary) + Ollama local (fallback)
- * OpenAI-compatible endpoint: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+ * Client IA du dépôt — délègue au gateway LLM (src/lib/ai/gateway.ts).
+ *
+ * L'API publique ne change pas (qwenChat / qwenVision / checkAiAvailability…)
+ * mais l'ordre des fournisseurs est désormais centralisé :
+ *   texte  : DeepSeek → QwenCloud → Ollama local
+ *   vision : Qwen-VL → Ollama (llava)
+ * Voir gateway.ts pour les variables d'environnement (DEEPSEEK_API_KEY…).
  */
 
-const QWEN_CLOUD_BASE = process.env.QWEN_CLOUD_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-const QWEN_CLOUD_KEY = process.env.QWEN_CLOUD_API_KEY || process.env.DASHSCOPE_API_KEY || ''
-const QWEN_MODEL = process.env.QWEN_MODEL || 'qwen-turbo'
-const QWEN_VL_MODEL = process.env.QWEN_VL_MODEL || 'qwen-vl-max'
+import {
+  textProviders,
+  visionProviders,
+  callTextProvider,
+  callVisionProvider,
+  checkOllamaAvailable,
+  OLLAMA_BASE,
+  OLLAMA_MODEL,
+  OLLAMA_VL_MODEL,
+  QWEN_CLOUD_BASE,
+  QWEN_CLOUD_KEY,
+  QWEN_MODEL,
+  QWEN_VL_MODEL,
+  DEEPSEEK_BASE,
+  DEEPSEEK_KEY,
+  DEEPSEEK_MODEL,
+  type LlmProviderId,
+} from './gateway'
 
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen3:8b'
-const OLLAMA_VL_MODEL = process.env.OLLAMA_VL_MODEL || 'llava:13b'
+// Ré-exports pour compatibilité (d'autres modules peuvent s'y référer)
+export {
+  OLLAMA_BASE, OLLAMA_MODEL, OLLAMA_VL_MODEL,
+  QWEN_CLOUD_BASE, QWEN_CLOUD_KEY, QWEN_MODEL, QWEN_VL_MODEL,
+  DEEPSEEK_BASE, DEEPSEEK_KEY, DEEPSEEK_MODEL,
+}
 
 const TIMEOUT_MS = 15_000
 const VISION_TIMEOUT_MS = 35_000
@@ -31,13 +53,13 @@ export interface VisionMessage {
 
 export interface QwenResult {
   text: string
-  source: 'qwencloud' | 'ollama'
+  source: LlmProviderId
   model: string
 }
 
 export class AiConfigMissingError extends Error {
   constructor() {
-    super('QWEN_CLOUD_API_KEY not configured')
+    super('Aucun fournisseur LLM configuré (DEEPSEEK_API_KEY / QWEN_CLOUD_API_KEY / Ollama)')
     this.name = 'AiConfigMissingError'
   }
 }
@@ -56,141 +78,24 @@ export class AiVisionServiceUnavailableError extends Error {
   }
 }
 
-type ChatCompletionResponse = {
-  choices?: Array<{ message?: { content?: string } }>
-  message?: { content?: string }
-}
-
-async function callWithTimeout<T = ChatCompletionResponse>(url: string, body: { _payload: Record<string, unknown>; _authHeader?: Record<string, string> }, timeoutMs: number): Promise<T> {
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(body._authHeader || {}) },
-      body: JSON.stringify(body._payload),
-      signal: controller.signal,
-    })
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      throw new Error(`HTTP ${res.status}: ${errBody.slice(0, 200)}`)
-    }
-    return await res.json()
-  } finally {
-    clearTimeout(id)
-  }
-}
-
-async function callQwenCloud(messages: ChatMessage[], maxTokens = 800): Promise<QwenResult> {
-  if (!QWEN_CLOUD_KEY) throw new AiConfigMissingError()
-  const payload = {
-    model: QWEN_MODEL,
-    messages,
-    temperature: 0.7,
-    max_tokens: maxTokens,
-    enable_thinking: false,
-  }
-  const data = await callWithTimeout<ChatCompletionResponse>(
-    `${QWEN_CLOUD_BASE}/chat/completions`,
-    { _payload: payload, _authHeader: { Authorization: `Bearer ${QWEN_CLOUD_KEY}` } },
-    TIMEOUT_MS,
-  )
-  const text = data?.choices?.[0]?.message?.content || ''
-  if (!text) throw new Error('Empty response from QwenCloud')
-  return { text, source: 'qwencloud', model: QWEN_MODEL }
-}
-
-async function callOllama(messages: ChatMessage[], maxTokens = 800): Promise<QwenResult> {
-  const payload = {
-    model: OLLAMA_MODEL,
-    messages,
-    stream: false,
-    options: { temperature: 0.7, num_predict: maxTokens },
-  }
-  const data = await callWithTimeout<ChatCompletionResponse>(
-    `${OLLAMA_BASE}/api/chat`,
-    { _payload: payload },
-    TIMEOUT_MS,
-  )
-  const text = data?.message?.content || ''
-  if (!text) throw new Error('Empty response from Ollama')
-  return { text, source: 'ollama', model: OLLAMA_MODEL }
-}
-
 /**
- * Call Qwen with fallback: QwenCloud → Ollama → throw
+ * Appel texte : premier fournisseur configuré qui répond.
+ * DeepSeek → QwenCloud → Ollama.
  */
 export async function qwenChat(messages: ChatMessage[], maxTokens?: number): Promise<QwenResult> {
-  let configError: AiConfigMissingError | undefined
+  const providers = textProviders()
+  let lastError: Error | undefined
 
-  // Try QwenCloud first
-  try {
-    return await callQwenCloud(messages, maxTokens)
-  } catch (cloudErr) {
-    if (cloudErr instanceof AiConfigMissingError) {
-      configError = cloudErr
+  for (const provider of providers) {
+    try {
+      return await callTextProvider(provider, messages, maxTokens, TIMEOUT_MS)
+    } catch (err) {
+      lastError = err as Error
+      console.warn(`[LLM] ${provider.label} indisponible:`, lastError.message)
     }
-    console.warn('[Qwen] Cloud failed, trying Ollama:', (cloudErr as Error).message)
   }
 
-  // Fallback to Ollama local
-  try {
-    return await callOllama(messages, maxTokens)
-  } catch (ollamaErr) {
-    console.warn('[Qwen] Ollama also failed:', (ollamaErr as Error).message)
-    throw configError || new AiServiceUnavailableError()
-  }
-}
-
-async function callQwenVision(messages: VisionMessage[]): Promise<QwenResult> {
-  if (!QWEN_CLOUD_KEY) throw new AiConfigMissingError()
-  const payload = {
-    model: QWEN_VL_MODEL,
-    messages,
-    temperature: 0.3,
-    max_tokens: 1200,
-  }
-  const data = await callWithTimeout<ChatCompletionResponse>(
-    `${QWEN_CLOUD_BASE}/chat/completions`,
-    { _payload: payload, _authHeader: { Authorization: `Bearer ${QWEN_CLOUD_KEY}` } },
-    VISION_TIMEOUT_MS,
-  )
-  const text = data?.choices?.[0]?.message?.content || ''
-  if (!text) throw new Error('Empty response from QwenCloud vision')
-  return { text, source: 'qwencloud', model: QWEN_VL_MODEL }
-}
-
-async function callOllamaVision(messages: VisionMessage[]): Promise<QwenResult> {
-  const payload = {
-    model: OLLAMA_VL_MODEL,
-    messages: messages.map(m => ({
-      role: m.role,
-      content: m.content.map(c => {
-        if (c.type === 'text') return c.text
-        if (c.type === 'image_url') {
-          const url = c.image_url.url
-          if (url.startsWith('data:')) return url
-          // Ollama ne supporte pas les URLs distantes en natif, il faut base64
-          throw new Error('Ollama vision requires base64 images')
-        }
-        return ''
-      }).join('\n'),
-      images: m.content
-        .filter((c): c is { type: 'image_url'; image_url: { url: string } } => c.type === 'image_url')
-        .map(c => c.image_url.url)
-        .filter(url => url.startsWith('data:')),
-    })),
-    stream: false,
-    options: { temperature: 0.3, num_predict: 1200 },
-  }
-  const data = await callWithTimeout<ChatCompletionResponse>(
-    `${OLLAMA_BASE}/api/chat`,
-    { _payload: payload },
-    VISION_TIMEOUT_MS,
-  )
-  const text = data?.message?.content || ''
-  if (!text) throw new Error('Empty response from Ollama vision')
-  return { text, source: 'ollama', model: OLLAMA_VL_MODEL }
+  throw lastError ? new AiServiceUnavailableError() : new AiConfigMissingError()
 }
 
 const MAX_DATA_URI_LENGTH = 5 * 1024 * 1024 // 5 MB
@@ -334,7 +239,7 @@ function normalizeImageUrl(url: string): string {
 }
 
 /**
- * Vision Qwen: analyse une ou plusieurs images avec un prompt.
+ * Vision: analyse une ou plusieurs images avec un prompt.
  * Les images peuvent être des URLs publiques ou des data URIs base64.
  */
 export async function qwenVision(prompt: string, images: string[]): Promise<QwenResult> {
@@ -350,34 +255,28 @@ export async function qwenVision(prompt: string, images: string[]): Promise<Qwen
   if (content.length === 1) throw new Error('No valid image URLs provided')
 
   const messages: VisionMessage[] = [{ role: 'user', content }]
-  let configError: AiConfigMissingError | undefined
+  const providers = visionProviders()
+  let lastError: Error | undefined
 
-  try {
-    return await callQwenVision(messages)
-  } catch (cloudErr) {
-    if (cloudErr instanceof AiConfigMissingError) {
-      configError = cloudErr
+  for (const provider of providers) {
+    try {
+      return await callVisionProvider(provider, messages, 1200, VISION_TIMEOUT_MS)
+    } catch (err) {
+      lastError = err as Error
+      console.warn(`[LLM] vision ${provider.label} indisponible:`, lastError.message)
     }
-    console.warn('[Qwen Vision] Cloud failed, trying Ollama:', (cloudErr as Error).message)
   }
 
-  try {
-    return await callOllamaVision(messages)
-  } catch (ollamaErr) {
-    console.warn('[Qwen Vision] Ollama also failed:', (ollamaErr as Error).message)
-    throw configError || new AiVisionServiceUnavailableError()
-  }
+  throw lastError ? new AiVisionServiceUnavailableError() : new AiConfigMissingError()
 }
 
 /**
  * Check if AI is available (either cloud or local)
  */
 export async function checkAiAvailability(): Promise<{ available: boolean; provider: string }> {
-  if (QWEN_CLOUD_KEY) return { available: true, provider: 'qwencloud' }
-  try {
-    const res = await fetch(`${OLLAMA_BASE}/api/tags`, { signal: AbortSignal.timeout(3000) })
-    if (res.ok) return { available: true, provider: 'ollama' }
-  } catch { /* ignore */ }
+  const provider = textProviders().find(p => p.id !== 'ollama')
+  if (provider) return { available: true, provider: provider.id }
+  if (await checkOllamaAvailable()) return { available: true, provider: 'ollama' }
   return { available: false, provider: 'none' }
 }
 
@@ -385,10 +284,8 @@ export async function checkAiAvailability(): Promise<{ available: boolean; provi
  * Check if vision AI is available
  */
 export async function checkVisionAvailability(): Promise<{ available: boolean; provider: string }> {
-  if (QWEN_CLOUD_KEY) return { available: true, provider: 'qwencloud' }
-  try {
-    const res = await fetch(`${OLLAMA_BASE}/api/tags`, { signal: AbortSignal.timeout(3000) })
-    if (res.ok) return { available: true, provider: 'ollama' }
-  } catch { /* ignore */ }
+  const provider = visionProviders().find(p => p.id !== 'ollama')
+  if (provider) return { available: true, provider: provider.id }
+  if (await checkOllamaAvailable()) return { available: true, provider: 'ollama' }
   return { available: false, provider: 'none' }
 }

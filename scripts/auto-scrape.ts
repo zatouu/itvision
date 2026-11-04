@@ -244,6 +244,7 @@ async function getAdminToken(token?: string): Promise<string> {
   const t = await signAuthTokenWithExpiry(
     {
       userId: 'cron-auto-import',
+      tokenUse: 'service',
       email: 'cron@itvision.local',
       username: 'Auto Import',
       role: 'ADMIN',

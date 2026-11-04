@@ -12,26 +12,17 @@ export class MongooseEscrowAdapter implements EscrowPort {
     return payment ? String(payment._id) : null
   }
 
-  async holdPayment(paymentId: string): Promise<void> {
-    if (!mongoose.isValidObjectId(paymentId)) return
-    await Payment.updateOne(
-      { _id: paymentId },
-      { $set: { status: 'held', heldAt: new Date() } }
-    )
+  // Le gel passe par le verrou de la mission (escrowLocked) : remettre un paiement en 'held'
+  // pourrait réactiver un paiement déjà reversé (double reversement) ou jamais encaissé.
+  async holdPayment(_paymentId: string): Promise<void> {}
+
+  // Les mouvements d'argent d'un litige (reversement, remboursement, commission) sont faits
+  // par mission-lifecycle.resolveDispute : changer seulement le statut ferait disparaître les fonds.
+  async releasePayment(_paymentId: string): Promise<void> {
+    throw new Error('Utiliser mission-lifecycle.resolveDispute pour libérer un séquestre')
   }
 
-  async releasePayment(paymentId: string): Promise<void> {
-    if (!mongoose.isValidObjectId(paymentId)) return
-    await Payment.updateOne(
-      { _id: paymentId },
-      { $set: { status: 'released', releasedAt: new Date() } }
-    )
-  }
-
-  async refundPayment(paymentId: string, amount?: number): Promise<void> {
-    if (!mongoose.isValidObjectId(paymentId)) return
-    const update: any = { $set: { status: 'refunded', refundedAt: new Date() } }
-    if (amount) update.$set.refundAmount = amount
-    await Payment.updateOne({ _id: paymentId }, update)
+  async refundPayment(_paymentId: string, _amount?: number): Promise<void> {
+    throw new Error('Utiliser mission-lifecycle.resolveDispute pour rembourser un séquestre')
   }
 }

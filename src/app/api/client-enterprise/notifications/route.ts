@@ -1,73 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, companyCapabilities } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import InAppNotification from '@/lib/models/InAppNotification'
 
-export async function GET(request: NextRequest) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
-  await connectDB()
-
-  const userId = auth.user.id
-  const companyClientId = auth.user.companyClientId
-  const visibilityFilter = {
+// Une notification ciblée (personne ou entreprise) n'est jamais visible via le seul rôle : sinon fuite entre clients
+function visibilityFilterFor(userId: string, role: string, companyClientId?: string) {
+  return {
     $or: [
       { userId },
-      { roles: auth.user.role },
       ...(companyClientId ? [{ teamId: companyClientId }] : []),
+      { roles: role, userId: { $exists: false }, teamId: { $exists: false } },
       { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
     ]
   }
+}
 
-  const notifs = await InAppNotification.find({
+export async function GET(request: NextRequest) {
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
+
+  await connectDB()
+
+  const userId = access.userId
+  const docs = await InAppNotification.find({
     deletedBy: { $ne: userId },
-    ...visibilityFilter
+    ...visibilityFilterFor(userId, access.role, access.profiles.companyClientId)
   })
     .sort({ createdAt: -1 })
-    .limit(30)
-    .lean()
+    .limit(60)
+    .lean() as any[]
+
+  // Droit requis (ex. factures réservées aux membres ayant accès aux finances)
+  const caps = companyCapabilities(access)
+  const notifs = docs
+    .filter(n => access.isAdmin || !n.metadata?.requires || caps.has(n.metadata.requires))
+    .slice(0, 40)
 
   return NextResponse.json(notifs)
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
 
   const body = await request.json()
   await connectDB()
 
-  const userId = auth.user.id
-  const companyClientId = auth.user.companyClientId
-  const visibilityFilter = {
-    $or: [
-      { userId },
-      { roles: auth.user.role },
-      ...(companyClientId ? [{ teamId: companyClientId }] : []),
-      { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
-    ]
+  const userId = access.userId
+  const filter = {
+    deletedBy: { $ne: userId },
+    ...visibilityFilterFor(userId, access.role, access.profiles.companyClientId)
   }
 
   if (body.all) {
     await InAppNotification.updateMany(
-      {
-        deletedBy: { $ne: userId },
-        readBy: { $ne: userId },
-        ...visibilityFilter
-      },
+      { ...filter, readBy: { $ne: userId } },
       { $addToSet: { readBy: userId } }
     )
   } else if (body.id) {
     await InAppNotification.updateOne(
-      {
-        _id: body.id,
-        deletedBy: { $ne: userId },
-        ...visibilityFilter
-      },
+      { _id: body.id, ...filter },
       { $addToSet: { readBy: userId } }
     )
   }
@@ -76,31 +70,21 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  }
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
 
   const body = await request.json()
   if (!body.id) return NextResponse.json({ error: 'id requis' }, { status: 400 })
 
   await connectDB()
-  const companyClientId = auth.user.companyClientId
-  const visibilityFilter = {
-    $or: [
-      { userId: auth.user.id },
-      { roles: auth.user.role },
-      ...(companyClientId ? [{ teamId: companyClientId }] : []),
-      { roles: { $exists: false }, userId: { $exists: false }, teamId: { $exists: false } }
-    ]
-  }
 
   await InAppNotification.updateOne(
     {
       _id: body.id,
-      ...visibilityFilter
+      ...visibilityFilterFor(access.userId, access.role, access.profiles.companyClientId)
     },
-    { $addToSet: { deletedBy: auth.user.id } }
+    { $addToSet: { deletedBy: access.userId } }
   )
 
   return NextResponse.json({ ok: true })

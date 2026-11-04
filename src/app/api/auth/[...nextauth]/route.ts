@@ -4,6 +4,8 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import User from '@/lib/models/User'
 import { authRateLimiter } from '@/lib/rate-limiter'
+import { connectMongoose } from '@/lib/mongoose'
+import { assertCurrentSession } from '@/lib/auth-session'
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -20,6 +22,7 @@ const authOptions: NextAuthOptions = {
         }
 
         try {
+          await connectMongoose()
           const user = await User.findOne({
             $or: [
               { username: credentials.username },
@@ -27,7 +30,7 @@ const authOptions: NextAuthOptions = {
             ]
           })
 
-          if (!user) {
+          if (!user || user.isActive === false || user.deletedAt) {
             console.warn('[AUTH] Tentative de connexion avec utilisateur inexistant:', credentials.username)
             return null
           }
@@ -58,6 +61,7 @@ const authOptions: NextAuthOptions = {
             email: user.email,
             username: user.username,
             role: user.role,
+            sessionVersion: user.sessionVersion ?? 0,
           }
         } catch (error) {
           console.error('Auth error:', error)
@@ -79,7 +83,9 @@ const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.username = user.username
+        token.sessionVersion = (user as typeof user & { sessionVersion?: number }).sessionVersion ?? 0
       }
+      await assertCurrentSession({ sub: token.sub, sessionVersion: token.sessionVersion })
       return token
     },
     async session({ session, token }) {

@@ -8,7 +8,8 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME
 export GRADLE_OPTS="-Xmx3g -XX:MaxMetaspaceSize=1g"
 
 export EXPO_PUBLIC_API_BASE_URL=https://itvisionplus.sn
-export EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyAkh3v595UpJH-hbBB1rpLyasGTWrHLmpE
+: "${EXPO_PUBLIC_GOOGLE_MAPS_API_KEY:?Cle Google Maps requise dans l'environnement}"
+export EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
 
 BUILD_DIR=/home/cheo/itvision-1/mobile
 

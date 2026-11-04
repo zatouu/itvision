@@ -68,6 +68,8 @@ export interface IExpense extends Document {
   paymentMethod?: string // 'virement', 'especes', 'cheque', 'mobile_money', 'carte', 'autre'
   paidAmount: number
   paidAt?: Date
+  // Historique des décaissements (la trésorerie compte chaque paiement à sa date)
+  payments?: Array<{ amount: number; date: Date; method?: string; note?: string; recordedBy?: string }>
   dueDate?: Date
 
   // Refacturation (récupérable côté client)
@@ -146,6 +148,14 @@ const ExpenseSchema = new Schema<IExpense>({
   paymentMethod: { type: String },
   paidAmount: { type: Number, default: 0 },
   paidAt: { type: Date },
+  // Montant négatif = correction d'un paiement saisi en trop
+  payments: [{
+    amount: { type: Number, required: true },
+    date: { type: Date, required: true },
+    method: { type: String },
+    note: { type: String },
+    recordedBy: { type: String },
+  }],
   dueDate: { type: Date },
 
   isBillable: { type: Boolean, default: false, index: true },
@@ -164,26 +174,19 @@ ExpenseSchema.index({ expenseDate: -1 })
 ExpenseSchema.index({ projectId: 1, expenseDate: -1 })
 ExpenseSchema.index({ category: 1, expenseDate: -1 })
 ExpenseSchema.index({ paymentStatus: 1, dueDate: 1 })
+ExpenseSchema.index({ 'payments.date': 1 })
 
 ExpenseSchema.pre('save', async function (next) {
   const doc = this as unknown as IExpense & { isNew: boolean }
 
-  // Génération du numéro si absent
+  // Numéro attribué par compteur atomique (import différé : billing importe les modèles)
   if (!doc.numero) {
-    const year = new Date().getFullYear()
-    const prefix = `DEP-${year}-`
-    const Model = mongoose.models.Expense as mongoose.Model<IExpense>
-    const last = await Model.findOne({ numero: { $regex: `^${prefix}` } })
-      .sort({ createdAt: -1 })
-      .select({ numero: 1 })
-      .lean() as any
-    const lastNumero = String(last?.numero || '')
-    const m = lastNumero.match(/-(\d{3,})$/)
-    const nextNum = m?.[1] ? Number(m[1]) + 1 : 1
-    doc.numero = `${prefix}${String(nextNum).padStart(4, '0')}`
+    const { nextExpenseNumero } = await import('@/lib/finance/billing')
+    doc.numero = await nextExpenseNumero()
   }
 
-  // Calcul TVA (0 pour l'instant)
+  // BRS et TVA s'excluent : un prestataire soumis à la retenue ne facture pas de TVA
+  if (doc.brsApplicable) doc.taxRate = 0
   const ht = Number(doc.amountHT || 0)
   const rate = Number(doc.taxRate || 0)
   doc.taxAmount = Math.round(ht * rate) / 100

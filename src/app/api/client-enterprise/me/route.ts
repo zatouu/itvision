@@ -1,29 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
 import CorporateProfile from '@/lib/models/CorporateProfile'
 import { loadUserWithProfiles } from '@/lib/user-profiles'
-import { resolveUserAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability, companyCapabilities, companyRoleOf } from '@/lib/domain-access'
 import { logAuditEvent } from '@/lib/audit'
+import { sanitizeBrandColor, sanitizeNotifyMuted } from '@/lib/company-rights'
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await verifyAuthServer(request)
-    if (!auth.isAuthenticated || !auth.user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
-    if (auth.user.role !== 'CLIENT') {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
-    }
+    const result = await requireDomainAccess(request, 'corporate')
+    if (!result.ok) return result.response
+    const { access } = result
 
     await connectDB()
 
-    const access = await resolveUserAccess({ userId: auth.user.id, role: auth.user.role, email: auth.user.email, companyClientId: auth.user.companyClientId })
-    const companyClientId = access?.profiles.companyClientId
-    const profileData = await loadUserWithProfiles(auth.user.id)
+    const companyClientId = access.profiles.companyClientId
+    const profileData = await loadUserWithProfiles(access.userId)
     const corporateProfile = profileData?.corporateProfile
 
     if (!companyClientId) {
@@ -34,15 +29,17 @@ export async function GET(request: NextRequest) {
       .select('name company email phone address city country contactPerson notes logo brandColor preferences permissions')
       .lean() as any
 
-    const dbUser = profileData?.user || (await User.findById(auth.user.id)
-      .select('name email phone companyClientId')
+    const dbUser = profileData?.user || (await User.findById(access.userId)
+      .select('name email phone companyClientId companyRole')
       .lean() as any)
+    const prefsUser = await User.findById(access.userId).select('portalNotifyMuted').lean() as any
 
     return NextResponse.json({
       isEnterprise: true,
-      userId: auth.user.id,
-      userName: dbUser?.name || auth.user.name || auth.user.email,
-      userEmail: dbUser?.email || auth.user.email,
+      userId: access.userId,
+      notifyMuted: sanitizeNotifyMuted(prefsUser?.portalNotifyMuted),
+      userName: dbUser?.name || access.email,
+      userEmail: dbUser?.email || access.email,
       userPhone: dbUser?.phone || null,
       companyClientId,
       companyName: company?.company || company?.name || corporateProfile?.company || 'Votre entreprise',
@@ -54,7 +51,8 @@ export async function GET(request: NextRequest) {
       companyContactPerson: company?.contactPerson || null,
       companyNotes: company?.notes || null,
       companyLogo: company?.logo || null,
-    companyRole: dbUser?.companyRole || 'owner',
+      companyRole: companyRoleOf(access),
+      capabilities: Array.from(companyCapabilities(access)),
       companyBrandColor: company?.brandColor || null,
       preferences: company?.preferences || { emailNotifications: true, smsNotifications: false, reportFormat: 'web', language: 'fr' },
       permissions: company?.permissions || { canViewReports: true, canRequestMaintenance: true, canAccessPortal: true },
@@ -67,19 +65,29 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await verifyAuthServer(request)
-    if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT') {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-    }
+    const result = await requireDomainAccess(request, 'corporate')
+    if (!result.ok) return result.response
+    const { access } = result
 
     const body = await request.json()
     await connectDB()
 
-    const userId = auth.user.id
-    const access = await resolveUserAccess({ userId, role: auth.user.role, email: auth.user.email, companyClientId: auth.user.companyClientId })
-    const companyClientId = access?.profiles.companyClientId
+    const userId = access.userId
+    const companyClientId = access.profiles.companyClientId
     const profileData = await loadUserWithProfiles(userId)
     const corporateProfile = profileData?.corporateProfile
+
+    // Champs « société » : réservés owner/admin. Les champs personnels (nom,
+    // téléphone) restent modifiables par tout membre pour son propre compte.
+    const COMPANY_FIELDS = [
+      'companyName', 'companyEmail', 'companyPhone', 'companyAddress', 'companyCity',
+      'companyCountry', 'companyContactPerson', 'companyNotes', 'companyLogo', 'companyBrandColor', 'preferences',
+    ]
+    const touchesCompany = COMPANY_FIELDS.some(f => body[f] !== undefined)
+    if (touchesCompany) {
+      const denied = requireCompanyCapability(access, 'company:manage')
+      if (denied) return denied
+    }
 
     const userUpdates: any = {}
     const userUnsets: Record<string, 1> = {}
@@ -89,6 +97,10 @@ export async function PUT(request: NextRequest) {
       if (body.userPhone) userUpdates.phone = body.userPhone
       else userUnsets.phone = 1
       auditFields.push('phone')
+    }
+    if (body.notifyMuted !== undefined) {
+      userUpdates.portalNotifyMuted = sanitizeNotifyMuted(body.notifyMuted)
+      auditFields.push('notifyMuted')
     }
     if (Object.keys(userUpdates).length > 0 || Object.keys(userUnsets).length > 0) {
       const update: any = {}
@@ -108,7 +120,15 @@ export async function PUT(request: NextRequest) {
       if (body.companyCountry !== undefined) companyUpdates.country = body.companyCountry
       if (body.companyContactPerson !== undefined) companyUpdates.contactPerson = body.companyContactPerson
       if (body.companyNotes !== undefined) companyUpdates.notes = body.companyNotes
-      if (body.preferences !== undefined) companyUpdates.preferences = body.preferences
+      if (body.preferences && typeof body.preferences === 'object') {
+        const p = body.preferences
+        companyUpdates.preferences = {
+          emailNotifications: p.emailNotifications !== false,
+          smsNotifications: p.smsNotifications === true,
+          reportFormat: p.reportFormat === 'pdf' ? 'pdf' : 'web',
+          language: p.language === 'en' ? 'en' : 'fr',
+        }
+      }
 
       // Logo : n'accepter que des chemins d'upload locaux
       const companyUnsets: Record<string, 1> = {}
@@ -118,6 +138,14 @@ export async function PUT(request: NextRequest) {
         } else if (body.companyLogo === null || body.companyLogo === '') {
           companyUnsets.logo = 1
         }
+      }
+
+      // Couleur de l'espace : hex #RRGGBB uniquement (injectée en variables CSS)
+      if (body.companyBrandColor !== undefined) {
+        const color = sanitizeBrandColor(body.companyBrandColor)
+        if (color) companyUpdates.brandColor = color
+        else if (body.companyBrandColor === null || body.companyBrandColor === '') companyUnsets.brandColor = 1
+        else return NextResponse.json({ error: 'Couleur invalide' }, { status: 400 })
       }
 
       // Ne jamais ecrire de null (validator $jsonSchema eventuel)

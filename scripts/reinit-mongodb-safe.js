@@ -1,7 +1,7 @@
 /**
  * Script sécurisé pour réexécuter init.js sans erreurs
  * Gère les cas où les données existent déjà
- * Usage: docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/reinit-mongodb-safe.js
+ * Usage: docker exec -i itvision-mongodb sh -c 'mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin' < scripts/reinit-mongodb-safe.js
  */
 
 print('🚀 Réinitialisation sécurisée de la base de données IT Vision...');
@@ -13,7 +13,7 @@ db = db.getSiblingDB('itvision_db');
 try {
   db.createUser({
     user: 'itvision_app',
-    pwd: process.env.MONGO_APP_PASSWORD || 'AppPassword123',
+    pwd: process.env.MONGO_APP_PASSWORD,
     roles: [
       {
         role: 'readWrite',

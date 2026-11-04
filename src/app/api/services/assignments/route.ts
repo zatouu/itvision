@@ -8,7 +8,10 @@ import { requireAdminApi } from '@/lib/api-auth'
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    await requireAdminApi(request) // côté admin/back-office ou logique serveur (pas exposé public)
+    const auth = await requireAdminApi(request) // réservé admin/back-office
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
     const body = await request.json()
     const { requestId, offerId } = body || {}
     if (!requestId || !offerId) return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })

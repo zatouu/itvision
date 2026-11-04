@@ -5,44 +5,19 @@ import mongoose from 'mongoose'
 import User from '@/lib/models/User'
 import { Order } from '@/lib/models/Order'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import ProductValidated from '@/lib/models/Product.validated'
+import ProductValidated from '@/lib/models/Product'
 import GrainsTransaction, { getGrainsBalance } from '@/lib/models/GrainsTransaction'
+import { GRAIN_TIERS, getTierFromBalance, nextTierInfo, type GrainTierName } from '@/lib/grains'
 import Activity from '@/lib/models/Activity'
 import Reward from '@/lib/models/Reward'
-
-const DEFAULT_REWARDS = [
-  { title: '-5% sur votre prochaine commande', description: 'Remise immédiate à la caisse', icon: '🎟️', cost: 100, type: 'discount', value: { percent: 5 }, active: true, validForDays: 30 },
-  { title: '-10% sur votre prochaine commande', description: 'Remise immédiate à la caisse', icon: '🎟️', cost: 300, type: 'discount', value: { percent: 10 }, active: true, validForDays: 30 },
-  { title: 'Livraison gratuite', description: 'Frais de port offerts sur votre prochaine commande', icon: '🚚', cost: 500, type: 'free_shipping', value: {}, active: true, validForDays: 30 },
-  { title: 'Bonus achat groupé -15%', description: 'Réduction supplémentaire sur un achat groupé', icon: '🤝', cost: 1000, type: 'group_buy_bonus', value: { percent: 15 }, active: true, validForDays: 60 },
-  { title: 'Cadeau surprise', description: 'Un produit gratuit sélectionné par nos équipes', icon: '🎁', cost: 2000, type: 'gift', value: {}, active: true, validForDays: 90 },
-]
-
-function getTierFromBalance(balance: number): 'Bronze' | 'Argent' | 'Or' | 'Platine' {
-  if (balance >= 2000) return 'Platine'
-  if (balance >= 1000) return 'Or'
-  if (balance >= 500) return 'Argent'
-  return 'Bronze'
-}
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
 
 function tierThreshold(tier: string): number {
-  switch (tier) {
-    case 'Bronze': return 0
-    case 'Argent': return 500
-    case 'Or': return 1000
-    case 'Platine': return 2000
-    default: return 0
-  }
+  return GRAIN_TIERS.find((t) => t.name === tier)?.min ?? 0
 }
 
 function nextTier(tier: string): string {
-  switch (tier) {
-    case 'Bronze': return 'Argent'
-    case 'Argent': return 'Or'
-    case 'Or': return 'Platine'
-    case 'Platine': return 'Platine'
-    default: return 'Argent'
-  }
+  return nextTierInfo(tier as GrainTierName).name
 }
 
 function initials(name?: string): string {
@@ -53,6 +28,7 @@ function initials(name?: string): string {
 export async function GET() {
   try {
     const auth = await verifyAuthServer()
+    if (auth.unavailable) return NextResponse.json({ success: false, error: 'Service temporairement indisponible' }, { status: 503 })
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 })
     }
@@ -65,10 +41,15 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Utilisateur introuvable' }, { status: 404 })
     }
 
-    // Ensure default rewards exist
-    const existingRewards = await Reward.countDocuments({ active: true })
-    if (existingRewards === 0) {
-      await Reward.insertMany(DEFAULT_REWARDS)
+    // Self-healing : boutique créée par un admin (ownerEmail) sans VendorProfile
+    // → provisionne le profil + rôle VENDOR, sinon l'espace vendeur reste invisible.
+    let healedVendor = false
+    try {
+      const rec = await reconcileVendorAccount(String(user._id))
+      healedVendor = !!rec?.healed
+      if (healedVendor) user.role = 'VENDOR'
+    } catch (e) {
+      console.error('[dashboard] vendor reconcile failed:', e)
     }
 
     const [orders, groups, favoriteIds, openGroups, activities, grainsBalance, rewards] = await Promise.all([
@@ -159,12 +140,13 @@ export async function GET() {
         firstName: user.name?.split(' ')[0] || user.username || 'Utilisateur',
         lastName: user.name?.split(' ').slice(1).join(' ') || '',
         email: user.email,
+        role: user.role || '',
         avatarUrl: user.avatarUrl,
         initial: initials(user.name || user.username),
         status: user.isActive ? 'active' : 'inactive',
         tier,
         grainsBalance,
-        referralCode: user.referralCode || 'ADMIN2024',
+        referralCode: user.referralCode || null,
         referrals: {
           count: user.referralCount || user.referrals?.length || 0,
           totalEarned: user.referralBalance || 0,
@@ -179,7 +161,6 @@ export async function GET() {
         activeGroupBuys,
         almostCompleteGroups: almostComplete,
         totalSavings,
-        totalSavingsTrend: 12,
         openClaims: 0,
       },
       cart: {
@@ -188,11 +169,46 @@ export async function GET() {
         items: [] as any[],
       },
       activeGroups,
+      orders: orders.map((o: any) => ({
+        id: o.orderId,
+        orderId: o.orderId,
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        total: o.total,
+        createdAt: o.createdAt,
+        items: o.items?.map((it: any) => ({
+          name: it.productName || it.name || 'Article',
+          qty: it.quantity || it.qty || 1,
+          unit: it.price || it.unitPrice || it.unit || 0,
+          image: it.productImage || it.image || '/placeholder.svg',
+        })) || [],
+        shipping: o.shipping?.method || o.shipping?.label || (typeof o.shipping === 'string' ? o.shipping : undefined) || o.shippingMethod || 'Standard aérien',
+        trackingNumber: o.trackingNumber || o.delivery?.trackingNumber || '',
+        eta: o.delivery?.estimatedDeliveryDate || o.delivery?.eta || o.eta || '',
+      })),
+      orderSteps: [
+        { key: 'ordered', label: 'Commande confirmée', desc: 'Paiement validé' },
+        { key: 'sourcing', label: 'Sourcing en Chine', desc: 'Recherche du fournisseur' },
+        { key: 'china', label: 'Inspection qualité', desc: 'Contrôle qualité en Chine' },
+        { key: 'in_transit', label: 'En transit', desc: 'Transport international' },
+        { key: 'delivered', label: 'Livrée', desc: 'Livraison à l\'adresse' },
+      ],
       latestOrder: latestOrder ? {
         id: latestOrder.orderId,
+        orderId: latestOrder.orderId,
         status: latestOrder.status,
+        paymentStatus: latestOrder.paymentStatus,
         total: latestOrder.total,
         createdAt: latestOrder.createdAt,
+        items: latestOrder.items?.map((it: any) => ({
+          name: it.productName || it.name || 'Article',
+          qty: it.quantity || it.qty || 1,
+          unit: it.price || it.unitPrice || it.unit || 0,
+          image: it.productImage || it.image || '/placeholder.svg',
+        })) || [],
+        shipping: latestOrder.shipping?.method || latestOrder.shipping?.label || (typeof latestOrder.shipping === 'string' ? latestOrder.shipping : undefined) || latestOrder.shippingMethod || 'Standard aérien',
+        trackingNumber: latestOrder.trackingNumber || latestOrder.delivery?.trackingNumber || '',
+        eta: latestOrder.delivery?.estimatedDeliveryDate || latestOrder.delivery?.eta || latestOrder.eta || '',
       } : null,
       activities: activities.map((a: any) => ({
         _id: String(a._id),
@@ -234,7 +250,9 @@ export async function GET() {
       })),
     }
 
-    return NextResponse.json({ success: true, dashboard })
+    const response = NextResponse.json({ success: true, dashboard })
+    if (healedVendor) await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
+    return response
   } catch (err) {
     console.error('Dashboard error:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess } from '@/lib/domain-access'
+import { requireDomainAccess, requireCompanyCapability } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import AdminInvoice from '@/lib/models/AdminInvoice'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE, CLIENT_VISIBLE_INVOICE } from '@/lib/client-documents'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
   if (!result.ok) return result.response
   const { access } = result
 
+  // Export comptable : réservé aux rôles qui voient les finances (owner/admin/finance/viewer)
+  const denied = requireCompanyCapability(access, 'finance:view')
+  if (denied) return denied
+
   await connectDB()
   const userId = access.userId
   const companyId = access.profiles.companyClientId
@@ -25,14 +30,14 @@ export async function GET(request: NextRequest) {
   const type = new URL(request.url).searchParams.get('type') || 'invoices'
 
   if (type === 'quotes') {
-    const quotes = await AdminQuote.find(filter)
+    const quotes = await AdminQuote.find({ ...filter, ...CLIENT_VISIBLE_QUOTE })
       .sort({ date: -1 })
       .select('numero title date status subtotal total client')
       .lean()
     return NextResponse.json({ type, rows: quotes })
   }
 
-  const invoices = await AdminInvoice.find(filter)
+  const invoices = await AdminInvoice.find({ ...filter, ...CLIENT_VISIBLE_INVOICE })
     .sort({ date: -1 })
     .select('numero date dueDate status subtotal total paidAt paymentMethod client')
     .lean()

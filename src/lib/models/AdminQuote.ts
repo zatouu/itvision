@@ -5,7 +5,13 @@ export interface IAdminQuoteProduct {
   description: string
   quantity: number
   unitPrice: number
+  // Prix saisi (net voulu) ; unitPrice = prix affiché, majoré de la BRS sur la main-d'œuvre
+  netUnitPrice?: number
   taxable: boolean
+  // Ligne de main-d'œuvre : seule assiette de la BRS (5 %)
+  isLabor?: boolean
+  /** Prix d'achat unitaire estimé (interne, jamais montré au client) — base du budget projet. */
+  unitCost?: number
   total: number
 }
 
@@ -46,15 +52,23 @@ export interface IAdminQuote extends Document {
   taxAmount: number
   other: number
   total: number
-  status: 'draft' | 'sent' | 'accepted' | 'rejected'
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'superseded'
+  // Versions : un devis émis ne se modifie pas, il est remplacé par une nouvelle version
+  version?: number
+  previousVersionId?: mongoose.Types.ObjectId
+  supersededById?: mongoose.Types.ObjectId
   sentAt?: Date
   acceptedAt?: Date
   rejectedAt?: Date
+  /** Décision du client enregistrée par l'admin (accord hors portail : téléphone, WhatsApp, BC papier…). */
+  offlineDecision?: { channel: string; note?: string; reference?: string; decidedAt: Date; recordedBy?: string }
   notes?: string
   bonCommande?: string
   dateLivraison?: string
   pointExpedition?: string
   conditions?: string
+  /** % d'acompte convenu (facturé à l'acceptation, le reliquat à la livraison). */
+  depositPercent?: number
   createdBy?: string
   createdAt: Date
   updatedAt: Date
@@ -86,7 +100,10 @@ const AdminQuoteProductSchema = new Schema<IAdminQuoteProduct>({
   description: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, min: 0 },
+  netUnitPrice: { type: Number, min: 0 },
   taxable: { type: Boolean, default: true },
+  isLabor: { type: Boolean, default: false },
+  unitCost: { type: Number, min: 0 },
   total: { type: Number, required: true, min: 0 }
 })
 
@@ -126,15 +143,23 @@ const AdminQuoteSchema = new Schema<IAdminQuote>({
   taxAmount: { type: Number, default: 0 },
   other: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
-  status: { type: String, enum: ['draft', 'sent', 'accepted', 'rejected'], default: 'draft', index: true },
+  status: { type: String, enum: ['draft', 'sent', 'accepted', 'rejected', 'superseded'], default: 'draft', index: true },
+  version: { type: Number, default: 1 },
+  previousVersionId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
+  supersededById: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
   sentAt: { type: Date },
   acceptedAt: { type: Date },
   rejectedAt: { type: Date },
+  offlineDecision: {
+    type: { channel: String, note: String, reference: String, decidedAt: Date, recordedBy: String },
+    default: undefined,
+  },
   notes: { type: String },
   bonCommande: { type: String },
   dateLivraison: { type: String },
   pointExpedition: { type: String },
   conditions: { type: String },
+  depositPercent: { type: Number, min: 0, max: 100 },
   createdBy: { type: String },
   clientResponse: { type: String, enum: ['pending', 'accepted', 'rejected', 'counter_proposed'], default: 'pending' },
   clientRespondedAt: { type: Date },

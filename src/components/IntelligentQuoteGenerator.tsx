@@ -943,7 +943,8 @@ export default function IntelligentQuoteGenerator() {
 
     const discountAmount = 0 // À implémenter selon règles
     const totalHT = subtotalHT - discountAmount
-    const taxAmount = totalHT * 0.18 // TVA 18%
+    // Régime BRS (exclusif de la TVA) : la retenue éventuelle est appliquée au devis définitif
+    const taxAmount = 0
     const totalTTC = totalHT + taxAmount
     const margin = subtotalHT > 0 ? (marginAmount / subtotalHT) * 100 : 0
 
@@ -1406,13 +1407,8 @@ export default function IntelligentQuoteGenerator() {
                     <span className="font-medium">{formatCurrency(currentQuote.totals.totalHT)}</span>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">TVA (18%):</span>
-                    <span className="font-medium">{formatCurrency(currentQuote.totals.taxAmount)}</span>
-                  </div>
-                  
                   <div className="flex justify-between pt-3 border-t border-gray-200">
-                    <span className="font-bold text-lg">Total TTC:</span>
+                    <span className="font-bold text-lg">Total estimé:</span>
                     <span className="font-bold text-lg text-green-600">{formatCurrency(currentQuote.totals.totalTTC)}</span>
                   </div>
                   

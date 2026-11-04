@@ -38,6 +38,16 @@ export function DDMLogo({
   const dims = sizeBySize[size] || sizeBySize.md
   const src = srcByVariant[variant] || srcByVariant.primary
 
+  if (variant === 'horizontal') {
+    const height = Math.round(dims.width * (showTagline ? 60 / 280 : 56 / 164))
+    return (
+      <div className={`flex max-w-full items-center justify-center ${className}`} style={{ width: dims.width }}>
+        <Image src={`${src}${showTagline ? '' : '#compact'}`} alt="DDM+ — Dieund Dal Ma" width={dims.width} height={height} priority={priority} unoptimized className="h-auto w-full dark:hidden" />
+        <Image src={`${src}#${showTagline ? 'dark' : 'compact-dark'}`} alt="DDM+ — Dieund Dal Ma" width={dims.width} height={height} priority={priority} unoptimized className="hidden h-auto w-full dark:block" />
+      </div>
+    )
+  }
+
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <Image

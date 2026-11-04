@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import FileDropZone from '@/components/ui/FileDropZone'
 import {
   RefreshCw,
   Loader2,
@@ -424,6 +425,7 @@ export default function AdminImageEmbeddingsPage() {
           {/* Colonne gauche : upload + paramètres */}
           <div>
             {!preview ? (
+              <FileDropZone accept="image/*" maxSizeMb={5} onFiles={files => onPickFile(files[0])} overlayLabel="Déposez l’image à rechercher">
               <label className="flex h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-slate-700 dark:bg-slate-800/40 dark:hover:bg-emerald-900/10">
                 <input
                   ref={fileInputRef}
@@ -437,10 +439,11 @@ export default function AdminImageEmbeddingsPage() {
                 />
                 <Upload className="h-7 w-7 text-stone-400" />
                 <div className="text-sm font-medium text-stone-700 dark:text-stone-200">
-                  Cliquez pour sélectionner une image
+                  Glissez une image ou cliquez pour la sélectionner
                 </div>
                 <div className="text-xs text-stone-400">JPG / PNG / WebP · max 5 Mo</div>
               </label>
+              </FileDropZone>
             ) : (
               <div className="space-y-3">
                 <div className="relative aspect-video overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-slate-700 dark:bg-slate-800">

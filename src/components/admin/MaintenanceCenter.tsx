@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Users,
   Clock,
+  Eye,
   FileText,
   PieChart,
   Calendar,
@@ -24,6 +25,7 @@ import {
   Download
 } from 'lucide-react'
 import MaintenanceContractModal from './MaintenanceContractModal'
+import ContractDetailDrawer from './ContractDetailDrawer'
 
 type MaintenanceContract = {
   _id: string
@@ -33,6 +35,7 @@ type MaintenanceContract = {
   status: string
   annualPrice?: number
   paymentFrequency?: string
+  autoBilling?: boolean
   startDate?: string
   endDate?: string
   daysUntilExpiration?: number | null
@@ -205,9 +208,25 @@ export default function MaintenanceCenter() {
   const [portalFilter, setPortalFilter] = useState<'all' | 'portal' | 'noPortal'>('all')
   const [viewMode, setViewMode] = useState<'clients' | 'contracts'>('clients')
   const [showContractModal, setShowContractModal] = useState(false)
+  const [detailContract, setDetailContract] = useState<any | null>(null)
   const handleExportContract = (contractId: string, format: 'pdf' | 'docx') => {
     const url = `/api/maintenance/contracts/${contractId}/export?format=${format}`
     window.open(url, '_blank')
+  }
+
+  const toggleAutoBilling = async (contract: MaintenanceContract) => {
+    const next = !contract.autoBilling
+    setContracts(list => list.map(c => (c._id === contract._id ? { ...c, autoBilling: next } : c)))
+    const res = await fetch('/api/maintenance/contracts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ contractId: contract._id, autoBilling: next }),
+    }).catch(() => null)
+    if (!res?.ok) {
+      setContracts(list => list.map(c => (c._id === contract._id ? { ...c, autoBilling: !next } : c)))
+      setError('Impossible de modifier la facturation automatique')
+    }
   }
 
   const loadData = async () => {
@@ -232,6 +251,10 @@ export default function MaintenanceCenter() {
             status: String(contract.status || 'draft').toLowerCase(),
             annualPrice: contract.annualPrice || 0,
             paymentFrequency: contract.paymentFrequency,
+            paymentTerms: contract.paymentTerms,
+            notes: contract.notes,
+            services: Array.isArray(contract.services) ? contract.services.map((s: any) => ({ name: s?.name, description: s?.description, frequency: s?.frequency })) : [],
+            autoBilling: !!contract.autoBilling,
             startDate: contract.startDate,
             endDate: contract.endDate,
             daysUntilExpiration: typeof contract.daysUntilExpiration === 'number' ? contract.daysUntilExpiration : null,
@@ -735,6 +758,14 @@ export default function MaintenanceCenter() {
               <div className="flex flex-wrap gap-2 mt-3 text-[11px] font-semibold">
                 <button
                   type="button"
+                  onClick={() => setDetailContract(contract)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  <Eye className="h-3 w-3" />
+                  Voir
+                </button>
+                <button
+                  type="button"
                   onClick={() =>
                     handleExportContract(contract._id || contract.contractNumber || contract.name, 'pdf')
                   }
@@ -864,6 +895,14 @@ export default function MaintenanceCenter() {
         <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
           <button
             type="button"
+            onClick={() => setDetailContract(contract)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            <Eye className="h-3 w-3" />
+            Voir
+          </button>
+          <button
+            type="button"
             onClick={() =>
               handleExportContract(contract._id || contract.contractNumber || contract.name, 'pdf')
             }
@@ -947,6 +986,15 @@ export default function MaintenanceCenter() {
             <Calendar className="h-3.5 w-3.5" />
             {contract.paymentFrequency || 'Annuel'}
           </span>
+          <button
+            type="button"
+            onClick={() => toggleAutoBilling(contract)}
+            title="Facture brouillon préparée à chaque échéance"
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full ${contract.autoBilling ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-stone-100 text-stone-500'}`}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {contract.autoBilling ? 'Facturation auto' : 'Facturation manuelle'}
+          </button>
         </div>
         <div className="pt-3 border-t border-stone-100 space-y-2">
           <p className="text-xs font-semibold text-stone-500">Techniciens attitrés</p>
@@ -1110,6 +1158,11 @@ export default function MaintenanceCenter() {
         projects={projects}
         technicians={technicians}
         onCreated={loadData}
+      />
+      <ContractDetailDrawer
+        contract={detailContract}
+        onClose={() => setDetailContract(null)}
+        onSaved={() => { setDetailContract(null); loadData() }}
       />
     </div>
   )

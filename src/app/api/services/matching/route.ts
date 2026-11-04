@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+import { APPROXIMATION_MAX_METERS, approximateCoordinates, publicArea } from '@/lib/request-privacy'
 import { connectMongoose } from '@/lib/mongoose'
 import ServiceRequest from '@/lib/models/ServiceRequest'
 import Offer from '@/lib/models/Offer'
@@ -6,7 +8,7 @@ import MissionUnlock from '@/lib/models/MissionUnlock'
 import ProviderProfile from '@/lib/models/ProviderProfile'
 import { requireAuth } from '@/lib/jwt'
 import { computeUnlockCost } from '@/lib/credit-cost'
-import { getVisibilityConfig } from '@/lib/visibility'
+import { getVisibilityConfig, normalizeMissionPreferences, preferenceRejection } from '@/lib/visibility'
 
 const REQUEST_TTL_HOURS = 2 // doit rester aligné avec /api/services/requests
 
@@ -48,20 +50,43 @@ function score(distanceMeters: number, createdAt: Date): number {
   return Number((distScore * 0.6 + recency * 0.4).toFixed(6))
 }
 
+const MATCHING_RATE_LIMITS = [
+  { windowMs: 60_000, max: 40, keyPrefix: 'xeuy:matching:min' },
+  { windowMs: 3_600_000, max: 600, keyPrefix: 'xeuy:matching:hour' },
+]
+
 export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
     const { userId } = await requireAuth(request)
+
+    // Limite par compte (pas par IP : les opérateurs mobiles partagent les IP). Usage normal de l'app :
+    // quelques appels par minute ; au-delà, c'est un balayage de la carte pour localiser des clients.
+    for (const rule of MATCHING_RATE_LIMITS) {
+      const limit = await rateLimitRequest(request, { ...rule, identifier: String(userId) })
+      if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+    }
+
     const q = parseNearQuery(request)
     if (!q) return NextResponse.json({ error: 'Paramètres géo invalides' }, { status: 400 })
 
-    console.log(`[MATCHING] user=${userId} lng=${q.lng} lat=${q.lat} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
+    console.log(`[MATCHING] user=${userId} radius=${q.radiusKm}km excludeMine=${q.excludeMine}`)
 
+    const radiusMeters = (q.radiusKm || 5) * 1000
+    // Préférences missions du profil (distance max, montant min, urgentes/planifiées) :
+    // même règle que la diffusion, pour que le réglage ait un effet visible dans la liste.
+    const config = await getVisibilityConfig()
+    const profile = await ProviderProfile.findOne({ userId })
+      .select('serviceCategories secondaryCategories preferences')
+      .lean() as any
+    const prefs = normalizeMissionPreferences(profile?.preferences)
+    // Recherche élargie de la marge de floutage : l'appartenance au rayon est ensuite décidée sur la
+    // position floutée, ce qui empêche de retrouver la vraie position en sondant la limite du rayon.
     const geoFilter: any = {
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [q.lng, q.lat] },
-          $maxDistance: (q.radiusKm || 5) * 1000
+          $maxDistance: radiusMeters + APPROXIMATION_MAX_METERS
         }
       }
     }
@@ -78,17 +103,14 @@ export async function GET(request: NextRequest) {
     // Portée de navigation pilotée par l'admin (visibility.browseScope) :
     // 'category' = le prestataire ne voit que les demandes de ses métiers (catégories principales + secondaires)
     if (!q.category) {
-      const config = await getVisibilityConfig()
       if (config.browseScope === 'category') {
-        const profile = await ProviderProfile.findOne({ userId })
-          .select('serviceCategories secondaryCategories')
-          .lean() as any
         scopeCategories = [
           ...(profile?.serviceCategories || []),
           ...(profile?.secondaryCategories || []),
         ].filter(Boolean)
         if (scopeCategories.length > 0) {
-          catFilter = { category: { $in: scopeCategories } }
+          // Une demande qui m'est adressée par le client (« choisir ce prestataire ») reste visible hors de mes métiers
+          catFilter = { $and: [{ $or: [{ category: { $in: scopeCategories } }, { preferredProviderId: userId }] }] }
         }
       }
     }
@@ -98,7 +120,7 @@ export async function GET(request: NextRequest) {
     console.log(`[MATCHING] total requests in DB (status created/pending): ${totalCount}`)
 
     const items = await ServiceRequest.find({ ...geoFilter, ...statusFilter, ...expiryFilter, ...catFilter, ...mineFilter })
-      .select({ clientId: 1, category: 1, subCategory: 1, title: 1, description: 1, location: 1, address: 1, budget: 1, media: 1, status: 1, createdAt: 1, urgent: 1, scheduledFor: 1 })
+      .select({ clientId: 1, category: 1, subCategory: 1, title: 1, description: 1, location: 1, address: 1, budget: 1, media: 1, status: 1, createdAt: 1, urgent: 1, scheduledFor: 1, preferredProviderId: 1 })
       .limit(50)
       .lean()
 
@@ -120,6 +142,7 @@ export async function GET(request: NextRequest) {
     }).select('requestId price etaMinutes comment validityMinutes validUntil createdAt updatedAt status').lean()
     const myOfferMap = new Map(myOffers.map((o: any) => [String(o.requestId), o]))
 
+    let hiddenByPreferences = 0
     const withScore = await Promise.all(items.map(async (it: any) => {
       const [lng, lat] = (it.location?.coordinates || [q.lng, q.lat])
       const distMeters = haversineMeters(q.lat, q.lng, lat, lng)
@@ -136,10 +159,40 @@ export async function GET(request: NextRequest) {
       const hasPhoto = (it.media || []).some((m: any) => m.type === 'image')
       const hasVideo = (it.media || []).some((m: any) => m.type === 'video')
       const myOffer = myOfferMap.get(String(it._id)) || null
+      // Seule une position approximative sort d'ici ; distance et score affichés en dérivent aussi
+      // (une distance exacte permettrait de retrouver l'adresse par triangulation).
+      const hasCoords = it.location?.coordinates?.length === 2
+      const [approxLng, approxLat] = hasCoords ? approximateCoordinates(String(it._id), lng, lat) : [lng, lat]
+      const shownDistance = haversineMeters(q.lat, q.lng, approxLat, approxLng)
+      // Adresse réduite au quartier : le repère précis (immeuble, porte…) n'est donné qu'au prestataire retenu
+      const area = publicArea(it.location?.address || it.address)
+      // Hors du rayon une fois floutée : on l'écarte (l'appartenance ne dépend pas de la vraie position)
+      if (hasCoords && shownDistance > radiusMeters) return null
+      const preferredForMe = it.preferredProviderId != null && String(it.preferredProviderId) === String(userId)
+      // Restent visibles malgré les préférences : les demandes déjà proposées (suivi de l'offre)
+      // et celles que le client m'a adressées directement.
+      if (!myOffer && !preferredForMe && preferenceRejection(prefs, {
+        distanceKm: hasCoords ? shownDistance / 1000 : null,
+        budget: it.budget,
+        urgent: !!it.urgent,
+        scheduled: !!it.scheduledFor,
+      })) {
+        hiddenByPreferences++
+        return null
+      }
+      const location = hasCoords
+        ? { type: 'Point', coordinates: [approxLng, approxLat], address: area || undefined, approximate: true }
+        : { address: area || undefined }
+      // L'identifiant du prestataire choisi ne sort pas : seul le booléen me concernant est exposé
+      const publicFields = { ...it }
+      delete publicFields.preferredProviderId
       return {
-        ...it,
-        _score: score(distMeters, it.createdAt),
-        _distance: Math.round(distMeters),
+        ...publicFields,
+        address: area,
+        location,
+        _preferredForMe: preferredForMe,
+        _score: score(shownDistance, it.createdAt),
+        _distance: Math.round(shownDistance / 100) * 100,
         _unlockCost: cost.cost,
         _unlockedByMe: unlockedSet.has(String(it._id)),
         _hasOffered: !!myOffer,
@@ -151,9 +204,10 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json({
-      items: withScore,
+      items: withScore.filter(Boolean),
       browseScope: (q.category || scopeCategories.length > 0) ? 'category' : 'all',
       scopeCategories,
+      hiddenByPreferences,
     })
   } catch (e: any) {
     console.error('MATCHING ERROR:', e)

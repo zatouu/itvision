@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { requireDomainAccess, requireCompanyCapability, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import AdminQuote from '@/lib/models/AdminQuote'
+import { CLIENT_VISIBLE_QUOTE } from '@/lib/client-documents'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await verifyAuthServer(request)
-  if (!auth.isAuthenticated || !auth.user || auth.user.role !== 'CLIENT' || !auth.user.companyClientId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  const result = await requireDomainAccess(request, 'corporate')
+  if (!result.ok) return result.response
+  const { access } = result
+  // Un membre qui doit répondre au devis peut le lire, même sans accès aux finances
+  const denied = requireCompanyCapability(access, canCompany(access, 'quotes:respond') ? 'quotes:respond' : 'finance:view')
+  if (denied) return denied
+
+  const companyClientId = access.profiles.companyClientId
+  if (!companyClientId) {
+    return NextResponse.json({ error: 'Pas de société liée' }, { status: 403 })
   }
 
   const { id } = await params
@@ -16,13 +24,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   await connectDB()
-  const userId = new mongoose.Types.ObjectId(auth.user.id)
-  const companyId = new mongoose.Types.ObjectId(auth.user.companyClientId)
+  const userId = new mongoose.Types.ObjectId(access.userId)
+  const companyId = new mongoose.Types.ObjectId(companyClientId)
   const userFilter = { $or: [{ clientUserId: userId }, { clientCompanyId: companyId }] }
 
   const quote = await AdminQuote.findOne({
     _id: new mongoose.Types.ObjectId(id),
     ...userFilter,
+    ...CLIENT_VISIBLE_QUOTE,
   }).lean() as any
 
   if (!quote) {
@@ -53,6 +62,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     dateLivraison: quote.dateLivraison,
     pointExpedition: quote.pointExpedition,
     conditions: quote.conditions,
+    attachments: (quote.attachments || []).map((a: any) => ({
+      name: a.name,
+      url: a.url,
+      type: a.type,
+      size: a.size,
+      uploadedAt: a.uploadedAt,
+      category: a.category,
+    })),
     clientResponse: quote.clientResponse,
     clientRespondedAt: quote.clientRespondedAt,
     clientCounterAmount: quote.clientCounterAmount,

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Payment from '@/lib/models/Payment'
-import { Order } from '@/lib/models/Order'
-import ServiceRequest from '@/lib/models/ServiceRequest'
-import Offer from '@/lib/models/Offer'
 import { sendPushToUser } from '@/lib/push'
 import { refundEscrowPoints } from '@/lib/wallet'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { fulfillServicePayment, isMissionPayment } from '@/modules/xeuy/payments/mission-payment'
 import { verifyWebhookSignature } from '@/lib/webhook-verify'
+import { claimPendingPayment } from '@/lib/payments/transition'
+import { confirmPayment } from '@/lib/payment-fulfillment'
 
 /**
  * Webhook endpoint for Mobile Money providers.
@@ -48,42 +47,37 @@ export async function POST(request: NextRequest) {
     const isSuccess = ['successful', 'succeeded', 'completed', 'SUCCEEDED', 'paid'].includes(status)
     const isFailed = ['failed', 'cancelled', 'expired', 'FAILED'].includes(status)
 
-    if (isSuccess && payment.status === 'pending') {
-      // Payment held successfully
-      payment.status = 'held'
-      payment.heldAt = new Date()
-      payment.confirmedBy = 'webhook'
-      await payment.save()
+    // Succès tardif sur un paiement de mission expiré : l'argent est reçu, il doit servir ou être rendu (Xeuy).
+    // Les commandes DDM+ gardent leur propre flux (confirmPayment) et ne sont pas concernées.
+    const lateMissionSuccess = payment.status === 'failed' && isMissionPayment(payment)
+    if (isSuccess && (payment.status === 'pending' || lateMissionSuccess)) {
+      const claimed = payment.status === 'pending'
+        ? await claimPendingPayment(payment._id, { status: 'held', heldAt: new Date(), confirmedBy: 'webhook' })
+        : await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'failed' },
+            { $set: { status: 'held', heldAt: new Date(), confirmedBy: 'webhook', failReason: `${payment.failReason || ''} (paiement reçu ensuite)`.trim() } },
+            { new: true }
+          )
+      if (!claimed) return NextResponse.json({ received: true })
 
       if (payment.orderId) {
-        // Marketplace order payment
-        const order = await Order.findOne({ orderId: payment.orderId })
-        if (order) {
-          order.paymentStatus = 'completed'
-          order.status = 'confirmed'
-          order.confirmedAt = new Date()
-          order.transactionId = payment.externalId || order.transactionId
-          await order.save()
+        // Commande marketplace ou participation d'achat groupé : flux canonique (grains, emails, parrainage)
+        const conf = await confirmPayment({
+          reference: String(payment.orderId),
+          amount: payment.amount,
+          provider: payment.provider as any,
+          transactionId: payment.externalId || `WEBHOOK-${payment._id}`,
+        })
+        if (!conf.found) {
+          console.error(`[Webhook] Commande introuvable pour payment ${payment._id} (orderId=${payment.orderId})`)
         }
       } else {
-        // Services offer payment
-        const sr = await ServiceRequest.findById(payment.requestId)
-        const offer = await Offer.findById(payment.offerId)
-        if (sr && offer) {
-          await acceptOfferForRequest({
-            serviceRequest: sr,
-            offer,
-            securePayment: payment.useEscrow !== false,
-            notifyClientPaymentHeld: payment.useEscrow !== false,
-            amount: payment.amount,
-          })
-        }
+        await fulfillServicePayment(payment._id)
       }
     } else if (isFailed && payment.status === 'pending') {
-      payment.status = 'failed'
-      payment.failedAt = new Date()
-      payment.failReason = payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status
-      await payment.save()
+      const failReason = payload.last_payment_error?.code || payload.failure_reason || payload.error || body.error || status
+      const claimed = await claimPendingPayment(payment._id, { status: 'failed', failedAt: new Date(), failReason })
+      if (!claimed) return NextResponse.json({ received: true })
 
       // Rembourser les points escrow prélevés
       try {

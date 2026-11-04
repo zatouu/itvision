@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { GroupOrder } from '@/lib/models/GroupOrder'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { tokenizeQuery, expandToken, expandQuery } from '@/lib/search/synonyms'
+import { accentInsensitiveRegex } from '@/lib/search/accents'
 import { buildFacetStages, formatFacets } from '@/lib/search/facets'
 import { getRedisClient } from '@/lib/redis'
 import mongoose from 'mongoose'
@@ -23,10 +24,21 @@ const asNumber = (value: string | null) => {
   return Number.isFinite(n) ? n : undefined
 }
 
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// Le schéma ne déclare pas d'index texte : il peut exister (créé hors schéma)
+// ou pas. Détecté une fois par process ; absent → on bascule sur le regex
+// accent-insensible au lieu d'échouer en 500.
+let textIndexProbe: Promise<boolean> | null = null
+function hasCatalogTextIndex() {
+  if (!textIndexProbe) {
+    textIndexProbe = Product.collection.indexes()
+      .then((indexes: any[]) => indexes.some((i) => i?.key?._fts === 'text'))
+      .catch(() => false)
+  }
+  return textIndexProbe
+}
 
 const CATALOG_CACHE_TTL = 60 // secondes
-const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
+const CATALOG_CACHE_HEADERS = { 'Cache-Control': 'no-store' }
 
 function sortedCatalogCacheKey(searchParams: URLSearchParams): string {
   const sorted = new URLSearchParams()
@@ -75,7 +87,8 @@ export async function GET(request: NextRequest) {
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
-    const cacheKey = sortedCatalogCacheKey(searchParams)
+    const pricingSettings = await readSharedPricing()
+    const cacheKey = `${sortedCatalogCacheKey(searchParams)}:pricing:${pricingSettings.version}`
     const cached = await getCatalogCache(cacheKey)
     if (cached) return NextResponse.json(cached, { headers: CATALOG_CACHE_HEADERS })
 
@@ -105,6 +118,8 @@ export async function GET(request: NextRequest) {
     const onlyGroupBuy = asBool(searchParams.get('onlyGroupBuy'))
     const onlyPrice = asBool(searchParams.get('onlyPrice'))
     const onlyQuote = asBool(searchParams.get('onlyQuote'))
+    // Mode compact : listes/cartes — retire les champs lourds (description, galerie, features)
+    const compact = asBool(searchParams.get('compact'))
 
     const minPrice = asNumber(searchParams.get('minPrice'))
     const maxPrice = asNumber(searchParams.get('maxPrice'))
@@ -170,22 +185,35 @@ export async function GET(request: NextRequest) {
       match.requiresQuote = true
     }
 
+    // Filtre lot minimum (MOQ) — `moq=lot` = produits vendus par lots (> 1),
+    // `minMoq=N` = seuil explicite. Alimente le CTA « Voir les produits en lot ».
+    const moqParam = (searchParams.get('moq') || '').trim().toLowerCase()
+    if (moqParam === 'lot' || moqParam === 'true') {
+      match.minOrderQty = { $gt: 1 }
+    }
+    const minMoq = asNumber(searchParams.get('minMoq'))
+    if (typeof minMoq === 'number' && minMoq > 1) {
+      match.minOrderQty = { $gte: Math.floor(minMoq) }
+    }
+
     // Server-side search: $text index quand possible, regex fallback pour tokens courts
     let useTextSearch = false
     let regexSearchMatch: any = null
     if (!isIdLookup && q) {
       const tokens = tokenizeQuery(q).filter(Boolean)
       const allLong = tokens.length > 0 && tokens.every((t: string) => t.length >= 3)
-      if (allLong) {
+      if (allLong && (await hasCatalogTextIndex())) {
+        // expandToken émet déjà la variante désaccentuée : couvre les index
+        // diacritic-sensitive comme insensibles.
         const terms = [...new Set(tokens.flatMap((t: string) => expandToken(t)).filter((t: string) => t.length >= 2))].slice(0, 30)
         match.$text = { $search: terms.join(' ') }
         useTextSearch = true
       } else if (tokens.length > 0) {
         const terms = [...new Set(expandQuery(q).filter((t: string) => t.length >= 1))].slice(0, 20)
         const clauses = terms.flatMap((term: string) => [
-          { name: { $regex: escapeRegex(term), $options: 'i' } },
-          { tagline: { $regex: escapeRegex(term), $options: 'i' } },
-          { tags: { $regex: escapeRegex(term), $options: 'i' } },
+          { name: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
+          { tagline: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
+          { tags: { $regex: accentInsensitiveRegex(term), $options: 'i' } },
         ])
         regexSearchMatch = clauses.length === 1 ? clauses[0] : { $or: clauses }
       }
@@ -389,16 +417,20 @@ export async function GET(request: NextRequest) {
      const rawFacets = includeFacets ? agg?.[0]?.facets?.[0] : undefined
      const facets = rawFacets ? formatFacets(rawFacets) : undefined
 
-     const shippingRates = getConfiguredShippingRates()
+    const shippingRates = configuredShippingRates(pricingSettings.config)
 
      const payload = data.map((product: any) => {
-       const pricing = computeProductPricing(product, shippingRates)
+      const pricing = computeProductPricing(product, shippingRates, undefined, pricingSettings.config.defaults.singleImportServiceFeeRate, pricingSettings.config.defaults)
+
+       // Les produits à variantes chiffrées restent éligibles : le join porte
+       // la sélection de variante et les paliers sont mis à l'échelle.
+       const groupBuyEligible = product.groupBuyEnabled ?? false
 
        // Calcul du meilleur prix et discount pour l'achat groupé
        let groupBuyBestPrice: number | undefined
        let groupBuyDiscount: number | undefined
 
-       if (product.groupBuyEnabled && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
+       if (groupBuyEligible && Array.isArray(product.priceTiers) && product.priceTiers.length > 0) {
          // Aligner le discount sur le prix affiché au catalogue (baseCost si dispo, sinon prix calculé)
          const basePrice = product.baseCost ?? pricing.salePrice ?? product.price ?? 0
          const bestTierPrice = Math.min(...product.priceTiers.map((t: any) => t.price || Infinity))
@@ -448,6 +480,9 @@ export async function GET(request: NextRequest) {
          },
          pricing,
          b2bPrice: product.b2bPrice ?? null,
+         // Une sélection de variante est obligatoire côté serveur avant devis :
+         // la carte doit renvoyer vers la fiche plutôt que proposer un ajout direct.
+         hasVariants: Array.isArray(product.variantGroups) && product.variantGroups.length > 0,
          // Backwards compat for older consumers
          price: pricing.salePrice ?? product.price ?? product.baseCost ?? null,
          weightKg,
@@ -456,12 +491,14 @@ export async function GET(request: NextRequest) {
          // Seul indicateur: si le produit est importé (pour affichage badge "Import")
          isImported: !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'xianyu', 'idlefish'].includes(product.sourcing.platform))),
          // Configuration achat groupé
-         groupBuyEnabled: product.groupBuyEnabled ?? false,
+         groupBuyEnabled: groupBuyEligible,
          groupBuyBestPrice,
          groupBuyDiscount,
          priceTiers: product.priceTiers ?? [],
          groupBuyMinQty: product.groupBuyMinQty,
          groupBuyTargetQty: product.groupBuyTargetQty,
+         // Lot minimum par commande standard (MOQ) — pilier « prix par palier »
+         minOrderQty: typeof product.minOrderQty === 'number' && product.minOrderQty > 0 ? product.minOrderQty : 1,
          sellerName: product.sellerName ?? null,
          sellerSlug: product.sellerSlug ?? null,
          sellerVerified: product.sellerVerified ?? false,
@@ -473,6 +510,19 @@ export async function GET(request: NextRequest) {
         reviewCount: typeof product.__reviewCount === 'number' ? product.__reviewCount : 0
        }
      })
+
+    // Mode compact : les cartes produit n'ont pas besoin de description/features/galerie —
+    // réduit fortement le payload (~10 KB/produit en brut).
+    if (compact) {
+      for (const p of payload as any[]) {
+        delete p.description
+        delete p.features
+        delete p.gallery
+        delete p.logistics
+        delete p.tagline
+        delete p.b2bPrice
+      }
+    }
 
     if (includeGroupStats && payload.length > 0) {
       const now = new Date()

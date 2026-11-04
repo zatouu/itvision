@@ -1,16 +1,23 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Upload, X, Image, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { X, Image as ImageIcon } from 'lucide-react'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { IMAGE_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 
 interface ImageUploadProps {
   onUpload: (url: string, filename: string) => void
-  onRemove?: (filename: string) => void
+  onRemove?: (url: string) => void
   maxFiles?: number
   type?: string
   existingImages?: string[]
   disabled?: boolean
+  onError?: (message: string) => void
+  /** Masque la grille d'aperçu (quand l'image est déjà affichée ailleurs, ex. avatar). */
+  hidePreview?: boolean
 }
+
+const MAX_MB = 10
 
 export default function ImageUpload({
   onUpload,
@@ -18,144 +25,69 @@ export default function ImageUpload({
   maxFiles = 5,
   type = 'general',
   existingImages = [],
-  disabled = false
+  disabled = false,
+  onError,
+  hidePreview = false,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState('')
+  // Une seule image : un nouveau dépôt remplace l'actuelle (avatar, logo)
+  const replaceMode = maxFiles === 1
+  const remaining = replaceMode ? 1 : Math.max(0, maxFiles - existingImages.length)
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return
+  const report = (message: string) => {
+    setError(message)
+    onError?.(message)
+  }
 
-    const remainingSlots = maxFiles - existingImages.length
-    const filesToUpload = Array.from(files).slice(0, remainingSlots)
-
+  const handleFiles = async (files: File[]) => {
+    setError('')
     setUploading(true)
-
     try {
-      for (const file of filesToUpload) {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('type', type)
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        const result = await response.json().catch(() => ({ success: false, error: 'Réponse serveur invalide (taille trop grande ?)' }))
-
-        if (result.success) {
-          onUpload(result.url, result.filename)
-        } else {
-          const msg = result.error || 'Erreur inconnue'
-          // Afficher une alerte plus visible ou un toast
-          alert(`Erreur upload ${file.name}: ${msg}`)
-        }
+      for (const file of files.slice(0, remaining)) {
+        const uploaded = await uploadFile(file, { endpoint: '/api/upload', fields: { type } })
+        onUpload(uploaded.url, uploaded.filename)
       }
-    } catch (error) {
-      console.error('Erreur upload:', error)
-      alert('Erreur lors de l\'upload des images')
+    } catch (err) {
+      report(err instanceof Error ? err.message : 'Erreur lors de l’envoi de l’image')
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-
-    if (disabled) return
-
-    const files = e.dataTransfer.files
-    handleFileUpload(files)
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileUpload(e.target.files)
-  }
-
-  const canUploadMore = existingImages.length < maxFiles
-
   return (
-    <div className="space-y-4">
-      {/* Zone d'upload */}
-      {canUploadMore && !disabled && (
-        <div
-          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-            dragActive
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleInputChange}
-            className="hidden"
-          />
-
-          {uploading ? (
-            <div className="flex flex-col items-center">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-2" />
-              <p className="text-gray-600">Upload en cours...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              <Upload className="h-8 w-8 text-gray-400 mb-2" />
-              <p className="text-gray-600 mb-2">
-                Glissez vos images ici ou{' '}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-blue-500 hover:text-blue-600 font-medium"
-                >
-                  parcourez
-                </button>
-              </p>
-              <p className="text-sm text-gray-500">
-                PNG, JPG, WEBP jusqu'à 5MB ({existingImages.length}/{maxFiles})
-              </p>
-            </div>
-          )}
-        </div>
+    <div className="space-y-3">
+      {remaining > 0 && !disabled && (
+        <FileDropZone
+          onFiles={handleFiles}
+          accept={IMAGE_ACCEPT}
+          multiple={!replaceMode}
+          maxFiles={remaining}
+          maxSizeMb={MAX_MB}
+          busy={uploading}
+          compact={replaceMode}
+          onError={report}
+          label={replaceMode
+            ? (existingImages.length ? 'Remplacer l’image (glisser ou cliquer)' : 'Glissez une image ou cliquez')
+            : 'Glissez vos images ici ou cliquez pour parcourir'}
+          hint={`PNG, JPG, WEBP, GIF — ${MAX_MB} Mo max (${existingImages.length}/${maxFiles})`}
+        />
       )}
+      {error && <p role="alert" className="text-xs font-medium text-red-600">{error}</p>}
 
-      {/* Images existantes */}
-      {existingImages.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {!hidePreview && existingImages.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {existingImages.map((imageUrl, index) => (
-            <div key={index} className="relative group">
-              <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                <img
-                  src={imageUrl}
-                  alt={`Image ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
+            <div key={`${imageUrl}-${index}`} className="group relative">
+              <div className="aspect-square overflow-hidden rounded-lg bg-stone-100">
+                <img src={imageUrl} alt={`Image ${index + 1}`} className="h-full w-full object-cover" />
               </div>
-              
               {onRemove && !disabled && (
                 <button
                   type="button"
                   onClick={() => onRemove(imageUrl)}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                  aria-label="Retirer l’image"
+                  className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white shadow-lg transition-opacity hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -165,10 +97,10 @@ export default function ImageUpload({
         </div>
       )}
 
-      {existingImages.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <Image className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <p>Aucune image ajoutée</p>
+      {!hidePreview && existingImages.length === 0 && !replaceMode && (
+        <div className="py-6 text-center text-stone-500">
+          <ImageIcon className="mx-auto mb-2 h-10 w-10 opacity-50" />
+          <p className="text-sm">Aucune image ajoutée</p>
         </div>
       )}
     </div>

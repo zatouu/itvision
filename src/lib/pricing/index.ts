@@ -36,6 +36,16 @@ export {
   type ResolvedPrice
 } from './resolve-product-price'
 
+// Prix « tout compris » affiché au client (marchandise + frais + assurance)
+export {
+  resolveDisplayPrice,
+  feeMultiplier,
+  toAllIn,
+  describeIncludedFees,
+  type DisplayFees,
+  type DisplayPricingInput
+} from './display-price'
+
 // Réduction par paliers de quantité
 export {
   applyTierDiscount,

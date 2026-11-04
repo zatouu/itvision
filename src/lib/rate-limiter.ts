@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getRedisClient } from '@/lib/redis'
+import { getClientIp } from '@/lib/client-ip'
 
 interface RateLimitStore {
   [key: string]: {
@@ -26,10 +27,7 @@ export class RateLimiter {
   }
 
   private getKey(request: NextRequest): string {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               request.headers.get('x-real-ip') || 
-               request.headers.get('cf-connecting-ip') || // Cloudflare
-               'unknown'
+    const ip = getClientIp(request)
     if (this.keyByIpOnly) {
       return ip
     }

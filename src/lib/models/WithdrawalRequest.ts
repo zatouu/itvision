@@ -12,6 +12,7 @@ export interface IWithdrawalRequest extends Document {
   processedAt?: Date
   processedBy?: mongoose.Types.ObjectId
   rejectionReason?: string
+  payoutReference?: string
   createdAt: Date
 }
 
@@ -24,11 +25,17 @@ const WithdrawalRequestSchema = new Schema<IWithdrawalRequest>({
   processedAt: { type: Date },
   processedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   rejectionReason: { type: String },
+  payoutReference: { type: String },
   createdAt: { type: Date, default: Date.now },
 }, { timestamps: { createdAt: 'createdAt', updatedAt: false } })
 
 WithdrawalRequestSchema.index({ userId: 1, createdAt: -1 })
 WithdrawalRequestSchema.index({ status: 1, createdAt: -1 })
+// Une seule demande "pending" par utilisateur — contrainte DB anti-double-retrait
+WithdrawalRequestSchema.index(
+  { userId: 1 },
+  { unique: true, partialFilterExpression: { status: 'pending' } }
+)
 
 const WithdrawalRequest = (models.WithdrawalRequest as mongoose.Model<IWithdrawalRequest>) ||
   model<IWithdrawalRequest>('WithdrawalRequest', WithdrawalRequestSchema)

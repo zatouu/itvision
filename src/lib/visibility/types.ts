@@ -6,6 +6,8 @@
  * ce qui rend la logique métier testable unitairement et remplaçable.
  */
 
+import type { ProviderMissionPreferences } from './preferences'
+
 export interface GeoPoint {
   lat: number
   lng: number
@@ -45,6 +47,8 @@ export interface ProviderCandidate {
   visibilityRadiusKm: number // rayon de visibilité effectif ; -1 = illimité
   priorityLevel: number
   boostMultiplier: number
+  // Préférences missions du profil (distance max, montant min, urgentes/planifiées)
+  preferences?: ProviderMissionPreferences | null
 }
 
 export interface RankedProvider extends ProviderCandidate {
@@ -78,6 +82,8 @@ export interface DispatchRequestContext {
   budget?: number | null
   description?: string | null
   createdAt: Date
+  urgent?: boolean
+  scheduled?: boolean
 }
 
 /** Résultat d'exécution d'une vague par le NotificationEngine. */

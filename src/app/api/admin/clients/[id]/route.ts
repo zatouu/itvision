@@ -3,15 +3,23 @@ import { connectMongoose } from '@/lib/mongoose'
 import Client from '@/lib/models/Client'
 import Contact from '@/lib/models/Contact'
 import User from '@/lib/models/User'
+import AdminInvoice from '@/lib/models/AdminInvoice'
+import AdminQuote from '@/lib/models/AdminQuote'
+import MaintenanceContract from '@/lib/models/MaintenanceContract'
+import Intervention from '@/lib/models/Intervention'
+import Project from '@/lib/models/Project'
+import Ticket from '@/lib/models/Ticket'
 import { requireAuth } from '@/lib/jwt'
 import emailService from '@/lib/email-service'
 import { getBrandFromHost } from '@/lib/branding'
 import crypto from 'crypto'
+import mongoose from 'mongoose'
 
 function requireAdmin(request: NextRequest) {
-  return requireAuth(request).then(({ role }) => {
-    const r = String(role || '').toUpperCase()
+  return requireAuth(request).then((user) => {
+    const r = String(user.role || '').toUpperCase()
     if (!['ADMIN', 'SUPER_ADMIN'].includes(r)) throw new Error('Accès non autorisé')
+    return user
   })
 }
 
@@ -126,6 +134,8 @@ export async function PUT(
     if (country !== undefined) updateData.country = country
     if (notes !== undefined) updateData.notes = notes
     if (isActive !== undefined) updateData.isActive = isActive
+    // Réactivation = sortie d'archive
+    if (isActive === true) { updateData.archivedAt = null; updateData.archivedBy = null }
     if (tags !== undefined) updateData.tags = tags
     if (category !== undefined) updateData.category = category
     if (rating !== undefined) updateData.rating = rating
@@ -179,9 +189,12 @@ export async function DELETE(
 ) {
   try {
     await connectMongoose()
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
 
     const { id } = await params
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ success: false, error: 'ID invalide' }, { status: 400 })
+    }
 
     // Vérifier si le client existe
     const client = await Client.findById(id)
@@ -192,7 +205,33 @@ export async function DELETE(
       }, { status: 404 })
     }
 
-    // Nettoyer les données liées
+    // Historique comptable ou opérationnel : on archive, on ne supprime jamais
+    const cid = new mongoose.Types.ObjectId(id)
+    const byCompany = { $or: [{ clientId: cid }, { clientCompanyId: cid }] }
+    const linked = await Promise.all([
+      AdminInvoice.exists({ clientCompanyId: cid }),
+      AdminQuote.exists({ clientCompanyId: cid }),
+      MaintenanceContract.exists({ clientId: cid }),
+      Intervention.exists({ clientId: cid }),
+      Project.exists(byCompany),
+      Ticket.exists({ clientCompanyId: cid }),
+    ])
+
+    if (linked.some(Boolean)) {
+      await Client.updateOne(
+        { _id: cid },
+        { $set: { isActive: false, 'permissions.canAccessPortal': false, archivedAt: new Date(), archivedBy: admin.email || admin.userId } }
+      )
+      // Les membres perdent l'accès mais restent rattachés : l'historique reste lisible côté admin
+      await User.updateMany({ companyClientId: cid }, { $set: { isActive: false } })
+      return NextResponse.json({
+        success: true,
+        archived: true,
+        message: 'Client archivé : il possède un historique (factures, devis, contrats ou interventions) qui est conservé.'
+      })
+    }
+
+    // Aucun historique (doublon, saisie erronée) : suppression définitive
     await Contact.deleteMany({ clientId: id })
 
     // Dissocier et désactiver les utilisateurs liés à ce client entreprise
@@ -206,6 +245,7 @@ export async function DELETE(
 
     return NextResponse.json({ 
       success: true,
+      archived: false,
       message: 'Client supprimé avec succès'
     })
   } catch (error) {

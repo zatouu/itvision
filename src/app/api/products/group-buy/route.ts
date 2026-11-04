@@ -7,6 +7,7 @@ import Product from '@/lib/models/Product'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
 
+
 export async function GET(req: NextRequest) {
   try {
     await connectDB()
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const products = await Product.find(query)
-      .select('name slug category mainImage gallery pricing price baseCost marginRate currency priceTiers groupBuyMinQty groupBuyTargetQty')
+      .select('name slug category mainImage gallery pricing price baseCost marginRate currency priceTiers groupBuyMinQty groupBuyTargetQty variantGroups')
       .sort({ updatedAt: -1 })
       .limit(limit)
       .lean()

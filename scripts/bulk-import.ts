@@ -11,7 +11,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { BrowserScraper } from '../src/lib/browser-scraper'
 import { connectMongoose } from '../src/lib/mongoose'
-import Product from '../src/lib/models/Product.validated'
+import Product from '../src/lib/models/Product'
 
 interface ImportResult {
   url: string

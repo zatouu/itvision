@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -37,6 +38,7 @@ import {
   Wrench
 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
+import { readJsonResponse } from '@/lib/http/read-json'
 import { useCsrf } from '@/hooks/useCsrf'
 import { getUserCategoryLabel, resolveUserCategory, type UserCategory } from '@/lib/user-segmentation'
 
@@ -104,7 +106,8 @@ const UserFormFields = memo(function UserFormFields({
   isEdit,
   onSubmit,
   onCancel,
-  isSubmitting
+  isSubmitting,
+  submitError
 }: {
   initialData: UserFormData
   companyOptions: CompanyOption[]
@@ -112,6 +115,7 @@ const UserFormFields = memo(function UserFormFields({
   onSubmit: (data: UserFormData) => void
   onCancel: () => void
   isSubmitting: boolean
+  submitError?: string
 }) {
   const [formData, setFormData] = useState<UserFormData>(initialData)
   const [showPassword, setShowPassword] = useState(false)
@@ -128,7 +132,7 @@ const UserFormFields = memo(function UserFormFields({
       <div className="space-y-5">
         {/* Avatar */}
         <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-xl">
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <div className="h-16 w-16 rounded-full overflow-hidden bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
               {formData.avatarUrl ? (
                 <img src={formData.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
@@ -136,14 +140,25 @@ const UserFormFields = memo(function UserFormFields({
                 <User className="h-8 w-8 text-white" />
               )}
             </div>
+            {formData.avatarUrl && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, avatarUrl: '' }))}
+                aria-label="Retirer la photo"
+                className="absolute -right-1 -top-1 rounded-full bg-white p-1 text-red-600 shadow ring-1 ring-stone-200 hover:bg-red-50"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-stone-700 mb-2">Photo de profil</p>
             <ImageUpload
               onUpload={(url) => setFormData(prev => ({ ...prev, avatarUrl: url }))}
               maxFiles={1}
               type="avatars"
               existingImages={formData.avatarUrl ? [formData.avatarUrl] : []}
+              hidePreview
             />
           </div>
         </div>
@@ -340,7 +355,10 @@ const UserFormFields = memo(function UserFormFields({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
+      {submitError && (
+        <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</p>
+      )}
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
         <button
           type="button"
           onClick={onCancel}
@@ -553,6 +571,7 @@ export default function UserManagementInterface() {
   const [success, setSuccess] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
+  const [domainCounts, setDomainCounts] = useState<Record<string, number>>({})
   const usersPerPage = 10
 
   // Init filters from URL query once (e.g. /admin/users?userCategory=MARKETPLACE_CLIENT)
@@ -602,6 +621,7 @@ export default function UserManagementInterface() {
       if (data.success) {
         setUsers(data.users)
         setTotalUsers(data.total)
+        if (data.domainCounts) setDomainCounts(data.domainCounts)
       } else {
         setError(data.error || 'Erreur lors du chargement')
       }
@@ -701,8 +721,9 @@ export default function UserManagementInterface() {
           id: selectedUser._id,
           name: formData.name,
           phone: formData.phone,
-          avatarUrl: formData.avatarUrl,
-          role: formData.role,
+          avatarUrl: formData.avatarUrl || '',
+          // Le rôle n'est envoyé que s'il change : la route réserve l'attribution des rôles admin au Super Admin
+          role: formData.role !== selectedUser.role ? formData.role : undefined,
           company: formData.company,
           address: formData.address,
           city: formData.city,
@@ -712,9 +733,9 @@ export default function UserManagementInterface() {
         })
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setSuccess('Utilisateur modifié avec succès')
         setShowEditModal(false)
         setSelectedUser(null)
@@ -982,13 +1003,13 @@ export default function UserManagementInterface() {
           )}
         </AnimatePresence>
 
-        {/* Onglets de filtrage par entité — regroupés par domaine */}
+        {/* Onglets de filtrage par domaine — compta/utilisateurs isolés par produit */}
         <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2">
           {[
-            { key: 'all', label: 'Tous', color: 'bg-stone-100 text-stone-700 border-stone-300', activeColor: 'bg-stone-700 text-white border-stone-700' },
-            { key: 'ENTERPRISE_CLIENT', label: 'Entreprise', color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
-            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace', color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
-            { key: 'PLATFORM_USER', label: 'Staff & Admin', color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
+            { key: 'all', label: 'Tous', count: null as number | null, color: 'bg-stone-100 text-stone-700 border-stone-300', activeColor: 'bg-stone-700 text-white border-stone-700' },
+            { key: 'ENTERPRISE_CLIENT', label: 'Corporate', count: domainCounts.ENTERPRISE_CLIENT ?? null, color: 'bg-blue-50 text-blue-700 border-blue-300', activeColor: 'bg-blue-600 text-white border-blue-600' },
+            { key: 'MARKETPLACE_CLIENT', label: 'Marketplace DDM+', count: domainCounts.MARKETPLACE_CLIENT ?? null, color: 'bg-purple-50 text-purple-700 border-purple-300', activeColor: 'bg-purple-600 text-white border-purple-600' },
+            { key: 'PLATFORM_USER', label: 'Staff & Admin', count: domainCounts.PLATFORM_USER ?? null, color: 'bg-slate-50 text-slate-700 border-slate-300', activeColor: 'bg-slate-700 text-white border-slate-700' },
           ].map(tab => {
             const isActiveTab = userCategoryFilter === tab.key || (tab.key === 'all' && userCategoryFilter === 'all')
             return (
@@ -998,9 +1019,14 @@ export default function UserManagementInterface() {
                   setUserCategoryFilter(tab.key as 'all' | UserCategory)
                   setCurrentPage(1)
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
               >
                 {tab.label}
+                {tab.count !== null && (
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
+                    {tab.count}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -1008,11 +1034,11 @@ export default function UserManagementInterface() {
           {/* Groupe isolé : comptes de l'app mobile Xeuy Bi (migration prévue) */}
           <div className="flex items-center gap-2 pl-3 ml-1 border-l-2 border-dashed border-amber-300">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 whitespace-nowrap">
-              App mobile — migration prévue
+              Xeuy Bi — app mobile
             </span>
             {[
-              { key: 'XEUY_PROVIDER', label: 'Prestataires Xeuy', color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
-              { key: 'XEUY_CLIENT', label: 'Clients Xeuy', color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
+              { key: 'XEUY_PROVIDER', label: 'Prestataires', count: domainCounts.XEUY_PROVIDER ?? null, color: 'bg-teal-50 text-teal-700 border-teal-300', activeColor: 'bg-teal-600 text-white border-teal-600' },
+              { key: 'XEUY_CLIENT', label: 'Clients', count: domainCounts.XEUY_CLIENT ?? null, color: 'bg-cyan-50 text-cyan-700 border-cyan-300', activeColor: 'bg-cyan-600 text-white border-cyan-600' },
             ].map(tab => {
               const isActiveTab = userCategoryFilter === tab.key
               return (
@@ -1022,9 +1048,14 @@ export default function UserManagementInterface() {
                     setUserCategoryFilter(tab.key as 'all' | UserCategory)
                     setCurrentPage(1)
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all inline-flex items-center gap-1.5 ${isActiveTab ? tab.activeColor : tab.color + ' hover:opacity-80'}`}
                 >
                   {tab.label}
+                  {tab.count !== null && (
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${isActiveTab ? 'bg-white/20' : 'bg-black/5'}`}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -1043,6 +1074,23 @@ export default function UserManagementInterface() {
               </p>
             </div>
           </div>
+        )}
+
+        {/* Outils métier liés à la catégorie active (hors sidebar, accès contextuel) */}
+        {userCategoryFilter === 'ENTERPRISE_CLIENT' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/clients" className="font-semibold text-blue-600 hover:underline">contrats & suivi clients B2B →</Link>
+          </p>
+        )}
+        {userCategoryFilter === 'PLATFORM_USER' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/technicians" className="font-semibold text-blue-600 hover:underline">planning & compétences techniciens →</Link>
+          </p>
+        )}
+        {userCategoryFilter === 'MARKETPLACE_CLIENT' && (
+          <p className="mb-4 text-xs text-stone-500">
+            Outil lié : <Link href="/admin/marketplace/comptes-pro" className="font-semibold text-blue-600 hover:underline">validation des comptes pro →</Link>
+          </p>
         )}
 
         {/* Filtres */}
@@ -1336,6 +1384,7 @@ export default function UserManagementInterface() {
           onSubmit={handleCreateUser}
           onCancel={() => setShowCreateModal(false)}
           isSubmitting={isSubmitting}
+          submitError={error}
         />
       </SimpleModal>
 
@@ -1369,6 +1418,7 @@ export default function UserManagementInterface() {
             onSubmit={handleUpdateUser}
             onCancel={() => { setShowEditModal(false); setSelectedUser(null); }}
             isSubmitting={isSubmitting}
+            submitError={error}
           />
         )}
       </SimpleModal>

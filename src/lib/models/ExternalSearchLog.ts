@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface IExternalSearchLog extends Document {
   imageUrl: string
   description?: string
-  platform: '1688' | 'aliexpress'
+  platform: '1688' | 'aliexpress' | 'alibaba'
   status: 'success' | 'blocked' | 'no_results' | 'error'
   resultsCount: number
   results?: Array<{
@@ -24,7 +24,7 @@ const ExternalSearchLogSchema = new Schema<IExternalSearchLog>(
   {
     imageUrl: { type: String, required: true },
     description: { type: String },
-    platform: { type: String, enum: ['1688', 'aliexpress'], default: '1688' },
+    platform: { type: String, enum: ['1688', 'aliexpress', 'alibaba'], default: '1688' },
     status: { type: String, enum: ['success', 'blocked', 'no_results', 'error'], required: true },
     resultsCount: { type: Number, default: 0 },
     results: [

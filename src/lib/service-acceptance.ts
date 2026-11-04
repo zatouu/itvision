@@ -1,6 +1,6 @@
 import Offer from './models/Offer'
 import ServiceRequest from './models/ServiceRequest'
-import ChatMessage from './models/ChatMessage'
+import { postMessage, threadHasMessages, toMissionMessageDto } from './messaging/thread-messages'
 import { sendPushToUser, sendPushToUsers } from './push'
 import { confirmMissionReservation, getAppConfig, releaseMissionReservation, spendOnWonMission } from './wallet'
 
@@ -97,11 +97,12 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
   let initialChatMessage: any = null
   const description = sr.description?.trim()
   if (description) {
-    const existing = await ChatMessage.findOne({ requestId: sr._id }).lean()
-    if (!existing) {
-      initialChatMessage = await ChatMessage.create({
-        requestId: sr._id,
-        senderId: clientId,
+    const alreadyStarted = await threadHasMessages('mission', String(sr._id))
+    if (!alreadyStarted) {
+      initialChatMessage = await postMessage({
+        threadType: 'mission',
+        threadId: String(sr._id),
+        senderId: String(clientId),
         senderRole: 'client',
         text: description,
       })
@@ -115,14 +116,7 @@ export async function acceptOfferForRequest(args: AcceptOfferArgs): Promise<{ po
 
   if (io) {
     if (initialChatMessage) {
-      const payload = {
-        _id: String(initialChatMessage._id),
-        requestId,
-        senderId: clientId,
-        senderRole: 'client',
-        text: initialChatMessage.text,
-        createdAt: initialChatMessage.createdAt,
-      }
+      const payload = toMissionMessageDto(initialChatMessage)
       io.to(`mission-${requestId}`).emit('chat:message', payload)
       io.to(`provider-${providerId}`).emit('chat:message', payload)
     }

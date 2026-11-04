@@ -71,8 +71,18 @@ export function getServiceFeeTier(orderAmount: number, tiers?: ServiceFeeTier[])
 /**
  * Calcule le taux de frais de service applicable
  */
-export function calculateServiceFeeRate(orderAmount: number, tiers?: ServiceFeeTier[]): number {
-  return getServiceFeeTier(orderAmount, tiers).feeRate
+export const DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE = 15
+
+export function getImportServiceFeeRate(importQuantity: number, standardRate = SERVICE_FEE_TIERS[0].feeRate, singleImportServiceFeeRate = DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE): number {
+  const singleRate = Number.isFinite(singleImportServiceFeeRate) && singleImportServiceFeeRate >= 0 && singleImportServiceFeeRate <= 100
+    ? singleImportServiceFeeRate
+    : DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE
+  return importQuantity === 1 ? Math.max(singleRate, standardRate) : standardRate
+}
+
+export function calculateServiceFeeRate(orderAmount: number, tiers?: ServiceFeeTier[], importQuantity?: number, singleImportServiceFeeRate?: number): number {
+  const standardRate = getServiceFeeTier(orderAmount, tiers).feeRate
+  return importQuantity === undefined ? standardRate : getImportServiceFeeRate(importQuantity, standardRate, singleImportServiceFeeRate)
 }
 
 /**
@@ -82,7 +92,9 @@ export function calculateServiceFee(
   productCost: number,
   orderAmount: number,
   customRate?: number,
-  tiers?: ServiceFeeTier[]
+  tiers?: ServiceFeeTier[],
+  importQuantity?: number,
+  singleImportServiceFeeRate?: number
 ): {
   baseAmount: number
   feeRate: number
@@ -92,7 +104,8 @@ export function calculateServiceFee(
 } {
   const resolvedTiers = resolveServiceFeeTiers(tiers)
   const tier = getServiceFeeTier(orderAmount, resolvedTiers)
-  const feeRate = customRate ?? tier.feeRate
+  const standardOrCustomRate = customRate ?? tier.feeRate
+  const feeRate = importQuantity === undefined ? standardOrCustomRate : getImportServiceFeeRate(importQuantity, standardOrCustomRate, singleImportServiceFeeRate)
   const feeAmount = Math.round(productCost * (feeRate / 100))
   
   // Calcul de l'économie vs taux standard (premier palier)
@@ -139,6 +152,8 @@ export function calculateCompleteFees(
     serviceFeeRate?: number // Force un taux personnalisé
     insuranceRate?: number
     serviceFeeTiers?: ServiceFeeTier[]
+    importQuantity?: number
+    singleImportServiceFeeRate?: number
   } = {}
 ): CompleteFeesBreakdown {
   const insuranceRate = options.insuranceRate ?? 2.5
@@ -147,7 +162,9 @@ export function calculateCompleteFees(
     productCost,
     orderAmount,
     options.serviceFeeRate,
-    options.serviceFeeTiers
+    options.serviceFeeTiers,
+    options.importQuantity,
+    options.singleImportServiceFeeRate
   )
   
   const insuranceFeeAmount = Math.round(productCost * (insuranceRate / 100))

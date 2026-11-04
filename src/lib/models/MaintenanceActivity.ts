@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document, Types } from 'mongoose'
 
 export interface IMaintenanceActivity extends Document {
+  title?: string
+  description?: string
   category: 'contract_visit' | 'ad_hoc' | 'product_install'
   visitId?: string
   contractId?: Types.ObjectId | null
@@ -38,6 +40,8 @@ export interface IMaintenanceActivity extends Document {
 }
 
 const MaintenanceActivitySchema = new Schema<IMaintenanceActivity>({
+  title: { type: String },
+  description: { type: String },
   category: {
     type: String,
     enum: ['contract_visit', 'ad_hoc', 'product_install'],

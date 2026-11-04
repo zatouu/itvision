@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
+import { GroupOrder } from '@/lib/models/GroupOrder'
 import { computeProductPricing } from '@/lib/logistics'
-import { getConfiguredShippingRates } from '@/lib/shipping/settings'
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
+import { accentInsensitiveRegex, stripAccents } from '@/lib/search/accents'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,26 +29,44 @@ export async function GET(request: NextRequest) {
     }
 
     let suggestions: any[] = []
+    let groups: any[] = []
 
     if (q.length >= 2) {
-      const regex = { $regex: escapeRegex(q), $options: 'i' }
+      const regex = { $regex: accentInsensitiveRegex(q), $options: 'i' }
+      const qFolded = stripAccents(q)
       const suggestionQuery = {
         isPublished: { $ne: false },
         $or: [
           { name: regex },
           { tagline: regex },
-          { tags: { $in: [q] } },
+          { tags: { $in: qFolded !== q ? [q, qFolded] : [q] } },
           { 'sourcing.title': regex },
         ],
       }
 
-      const docs = await Product.find(suggestionQuery)
-        .select(projection)
-        .sort({ isFeatured: -1, soldCount: -1, viewCount: -1, createdAt: -1 })
-        .limit(limit)
-        .lean()
+      const [docs, groupDocs] = await Promise.all([
+        Product.find(suggestionQuery)
+          .select(projection)
+          .sort({ isFeatured: -1, soldCount: -1, viewCount: -1, createdAt: -1 })
+          .limit(limit)
+          .lean(),
+        GroupOrder.find({ status: 'open', deadline: { $gt: new Date() }, 'product.name': regex })
+          .select('groupId product.name product.image currentUnitPrice currentQty targetQty deadline')
+          .sort({ deadline: 1 })
+          .limit(3)
+          .lean(),
+      ])
 
       suggestions = docs
+      groups = (groupDocs as any[]).map(g => ({
+        groupId: g.groupId,
+        name: g.product?.name || 'Achat groupé',
+        image: g.product?.image || '/placeholder.svg',
+        price: g.currentUnitPrice ?? null,
+        currentQty: g.currentQty || 0,
+        targetQty: g.targetQty || 0,
+        deadline: g.deadline,
+      }))
     }
 
     // Trending: produits populaires / vedettes pour affichage quand le champ est vide
@@ -59,10 +77,11 @@ export async function GET(request: NextRequest) {
       .limit(trendingLimit)
       .lean()
 
-    const shippingRates = getConfiguredShippingRates()
+    const pricingSettings = await readSharedPricing()
+    const shippingRates = configuredShippingRates(pricingSettings.config)
 
     const mapProduct = (p: any) => {
-      const pricing = computeProductPricing(p, shippingRates)
+      const pricing = computeProductPricing(p, shippingRates, undefined, pricingSettings.config.defaults.singleImportServiceFeeRate, pricingSettings.config.defaults)
       return {
         id: String(p._id),
         slug: p.slug || String(p._id),
@@ -78,12 +97,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       query: q,
       suggestions: suggestions.map(mapProduct),
+      groups,
       trending: trendingDocs.map(mapProduct),
     })
   } catch (error) {
     console.error('[Search Suggestions] error:', error)
     return NextResponse.json(
-      { query: '', suggestions: [], trending: [] },
+      { query: '', suggestions: [], groups: [], trending: [] },
       { status: 500 }
     )
   }

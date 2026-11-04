@@ -1,0 +1,191 @@
+import { Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
+
+const TOKEN_KEY = 'authToken'
+const REFRESH_TOKEN_KEY = 'authRefreshToken'
+const DEVICE_ID_KEY = 'authDeviceId'
+const USER_KEY = 'authUser'
+const isWeb = Platform.OS === 'web'
+
+// SecureStore can crash on some Android devices ("invalid key provided to secure store")
+// After first failure, disable it and use AsyncStorage for all subsequent calls
+let secureStoreAvailable = !isWeb
+
+// Secrets (access token, refresh token, deviceId) → SecureStore sur natif,
+// AsyncStorage sur web ou en repli dégradé. Le refresh token ne doit JAMAIS
+// rester en clair dans AsyncStorage quand SecureStore fonctionne.
+async function readSecure(key: string): Promise<string | null> {
+  try {
+    if (isWeb || !secureStoreAvailable) return await AsyncStorage.getItem(key)
+    let t: string | null = null
+    try {
+      t = await SecureStore.getItemAsync(key)
+    } catch {
+      secureStoreAvailable = false
+    }
+    if (t) return t
+    // Repli : valeur encore présente en AsyncStorage (migration) → on la remonte
+    // dans SecureStore puis on nettoie le stockage non chiffré.
+    const fallback = await AsyncStorage.getItem(key)
+    if (fallback && secureStoreAvailable) {
+      try { await SecureStore.setItemAsync(key, fallback) } catch { secureStoreAvailable = false }
+      await AsyncStorage.removeItem(key).catch(() => {})
+    }
+    return fallback
+  } catch {
+    return null
+  }
+}
+
+async function writeSecure(key: string, value: string): Promise<void> {
+  if (isWeb || !secureStoreAvailable) { await AsyncStorage.setItem(key, value); return }
+  try {
+    await SecureStore.setItemAsync(key, value)
+    // Ne pas laisser de copie en clair dans AsyncStorage
+    await AsyncStorage.removeItem(key).catch(() => {})
+  } catch {
+    secureStoreAvailable = false
+    await AsyncStorage.setItem(key, value)
+  }
+}
+
+async function deleteSecure(key: string): Promise<void> {
+  if (isWeb || !secureStoreAvailable) { await AsyncStorage.removeItem(key); return }
+  await Promise.all([
+    SecureStore.deleteItemAsync(key).catch(() => { secureStoreAvailable = false }),
+    AsyncStorage.removeItem(key).catch(() => {}),
+  ])
+}
+
+async function readToken(): Promise<string | null> {
+  const t = await readSecure(TOKEN_KEY)
+  if (t) return t
+  // Migration depuis anciennes clés (auth:token)
+  const legacy = await AsyncStorage.getItem('auth:token')
+  if (legacy) {
+    if (secureStoreAvailable) {
+      try { await SecureStore.setItemAsync(TOKEN_KEY, legacy) } catch { secureStoreAvailable = false }
+    }
+    await AsyncStorage.removeItem('auth:token').catch(() => {})
+  }
+  return legacy
+}
+
+const writeToken = (token: string) => writeSecure(TOKEN_KEY, token)
+const deleteToken = () => deleteSecure(TOKEN_KEY)
+
+export interface AuthUser {
+  _id: string
+  name: string
+  phone: string
+  role: string
+  isNew?: boolean
+  referralCode?: string
+  referralBalance?: number
+  avatarUrl?: string
+  /** Présent quand l'utilisateur a un profil prestataire (capacité, pas un rôle) */
+  providerProfileId?: string
+  /** Identité vérifiée (KYC) — affiché dans le profil */
+  kycVerified?: boolean
+  createdAt?: string
+}
+
+let _token: string | null = null
+let _refreshToken: string | null = null
+let _deviceId: string | null = null
+let _user: AuthUser | null = null
+const listeners: Set<(loggedIn: boolean) => void> = new Set()
+
+function notify() {
+  const loggedIn = !!_token
+  listeners.forEach(fn => fn(loggedIn))
+}
+
+export function subscribeAuth(fn: (loggedIn: boolean) => void) {
+  listeners.add(fn)
+  return () => { listeners.delete(fn) }
+}
+
+export function getAuthToken(): string | null { return _token }
+export function getRefreshToken(): string | null { return _refreshToken }
+export function getDeviceId(): string | null { return _deviceId }
+export function getAuthUser(): AuthUser | null { return _user }
+export function isLoggedIn(): boolean { return !!_token }
+
+/** Decode userId from the current JWT token (source of truth for backend auth). */
+export function getUserIdFromToken(): string | null {
+  if (!_token) return null
+  try {
+    const payload = _token.split('.')[1]
+    if (!payload) return null
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const obj = JSON.parse(decoded) as { userId?: string; id?: string; sub?: string }
+    return obj.userId || obj.id || obj.sub || null
+  } catch {
+    return null
+  }
+}
+
+/** Charger le token depuis AsyncStorage au démarrage */
+export async function loadAuth(): Promise<boolean> {
+  try {
+    const [t, rt, did, u] = await Promise.all([
+      readToken(),
+      readSecure(REFRESH_TOKEN_KEY),
+      readSecure(DEVICE_ID_KEY),
+      AsyncStorage.getItem(USER_KEY),
+    ])
+    _token = t
+    _refreshToken = rt
+    _deviceId = did
+    _user = u ? (JSON.parse(u) as AuthUser) : null
+    notify()
+    return !!_token
+  } catch {
+    return false
+  }
+}
+
+/** Stocker le token + user après login OTP */
+export async function setAuth(token: string, user: AuthUser, refreshToken?: string, deviceId?: string): Promise<void> {
+  _token = token
+  _user = user
+  if (refreshToken) {
+    _refreshToken = refreshToken
+  }
+  if (deviceId) {
+    _deviceId = deviceId
+  }
+  const payload = user ? JSON.stringify(user) : ''
+  await Promise.all([
+    writeToken(token),
+    refreshToken ? writeSecure(REFRESH_TOKEN_KEY, refreshToken) : Promise.resolve(),
+    deviceId ? writeSecure(DEVICE_ID_KEY, deviceId) : Promise.resolve(),
+    AsyncStorage.setItem(USER_KEY, payload),
+  ])
+  notify()
+}
+
+export async function updateAuthUser(partial: Partial<AuthUser>): Promise<AuthUser | null> {
+  if (!_user) return null
+  _user = { ..._user, ...partial }
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(_user))
+  notify()
+  return _user
+}
+
+/** Déconnexion */
+export async function clearAuth(): Promise<void> {
+  _token = null
+  _refreshToken = null
+  _deviceId = null
+  _user = null
+  await Promise.all([
+    deleteToken(),
+    deleteSecure(REFRESH_TOKEN_KEY),
+    deleteSecure(DEVICE_ID_KEY),
+    AsyncStorage.removeItem(USER_KEY),
+  ])
+  notify()
+}

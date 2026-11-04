@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { GroupOrder } from '@/lib/models/GroupOrder'
+import GroupInterest from '@/lib/models/GroupInterest'
+import { announceNewGroup } from '@/lib/group-orders/announce'
 import Product from '@/lib/models/Product'
 import { connectDB } from '@/lib/db'
 import { notifyGroupJoinConfirmation } from '@/lib/group-order-notifications'
+import { sendSms } from '@/lib/sms'
+import { MARKET_BRAND } from '@/lib/branding'
 import { readPaymentSettings } from '@/lib/payments/settings'
-import { getConfiguredShippingRates, readSeaFreightEligibilitySettings } from '@/lib/shipping/settings'
+import { readSharedPricing, configuredShippingRates, type SharedPricingConfig } from '@/lib/pricing/shared-settings'
 import type { ShippingMethodId } from '@/lib/logistics'
 import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
 import { calculateBilledWeight } from '@/lib/pricing/volumetric-weight'
+import { groupParticipantUnitPrice, validateGroupVariantSelection } from '@/lib/group-orders/pricing'
 import { evaluateSeaFreightEligibility } from '@/lib/shipping/sea-freight-eligibility'
 import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { creditGrainsForGroupJoin, creditGroupCompleteToParticipants, updateTierFromBalance } from '@/lib/grains'
+import { sanitizePublicGroup, sanitizePublicGroupDetail } from '@/lib/group-orders/public-group'
+import { getRedisClient } from '@/lib/redis'
+import { invalidateGroupOrdersCache } from '@/lib/catalog-cache'
+
+const GROUPS_LIST_CACHE_TTL = 45 // secondes — la liste bouge peu, lue à chaque accueil
 
 const SHIPPING_METHOD_MAP: Record<string, ShippingMethodId> = {
   maritime_60j: 'sea_freight',
@@ -32,32 +42,15 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-function sanitizePublicGroup(group: any) {
-  return {
-    groupId: group.groupId,
-    status: group.status,
-    product: group.product,
-    minQty: group.minQty,
-    targetQty: group.targetQty,
-    currentQty: group.currentQty,
-    maxQty: group.maxQty,
-    priceTiers: group.priceTiers,
-    currentUnitPrice: group.currentUnitPrice,
-    deadline: group.deadline,
-    shippingMethod: group.shippingMethod,
-    shippingCostPerUnit: group.shippingCostPerUnit,
-    participantCount: Array.isArray(group.participants) ? group.participants.length : 0,
-  }
-}
-
 function calcShippingCostPerUnit(
   shippingMethod: string,
   weightKg: number,
   volumeM3: number,
-  targetQty: number
+  targetQty: number,
+  config: SharedPricingConfig
 ): number {
   if (!targetQty || targetQty <= 0) return 0
-  const rates = getConfiguredShippingRates()
+  const rates = configuredShippingRates(config)
   const internalMethod = SHIPPING_METHOD_MAP[shippingMethod] || 'sea_freight'
   const rate = rates[internalMethod]
   if (!rate) return 0
@@ -110,34 +103,48 @@ export async function GET(req: NextRequest) {
     if (!searchParams.get('includeExpired')) {
       query.deadline = { $gte: new Date() }
     }
-    
+
+    const cacheKey = `mkt:group-orders:v1:${status || ''}:${productId || ''}:${limit}:${searchParams.get('includeExpired') ? 1 : 0}`
+    const redis = getRedisClient()
+    if (redis && redis.status === 'ready') {
+      const cached = await redis.get(cacheKey)
+      if (cached) return NextResponse.json(JSON.parse(cached))
+    }
+
     const groups = await GroupOrder.find(query)
-      // Public response: do not leak participant PII / payment details / chat tokens
-      .select(
-        '-participants.phone -participants.email -participants.paidAmount -participants.paymentReference -participants.transactionId -participants.adminNote -participants.paymentUpdatedAt -participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt'
-      )
+      .select('groupId status product minQty targetQty currentQty maxQty priceTiers currentUnitPrice deadline shippingMethod shippingCostPerUnit participants createdAt')
       .sort({ deadline: 1, currentQty: -1 })
       .limit(limit)
       .lean()
-    
+
     // Calculer stats
     const stats = {
       totalOpen: await GroupOrder.countDocuments({ status: 'open', deadline: { $gte: new Date() } }),
       totalFilled: await GroupOrder.countDocuments({ status: 'filled' }),
       totalParticipants: groups.reduce((sum: number, g: any) => sum + (g.participants?.length || 0), 0)
     }
-    
-    return NextResponse.json({
+
+    const response = {
       success: true,
-      groups,
+      // La liste n'expose jamais les identités/montants des participants
+      groups: groups.map((g: any) => sanitizePublicGroup(g)),
       stats,
       config: {
         minJoinQty: groupRules.minJoinQty,
         maxJoinQtyPerParticipant: groupRules.maxJoinQtyPerParticipant,
         defaultDeadlineDays: groupRules.defaultDeadlineDays,
+        // Exposés pour que le formulaire de création affiche les seuils
+        // réellement appliqués par le POST au lieu de valeurs inventées.
+        defaultMinQty: groupRules.defaultMinQty,
+        defaultTargetQty: groupRules.defaultTargetQty,
+        defaultMaxQty: groupRules.defaultMaxQty,
         allowedShippingMethods
       }
-    })
+    }
+    if (redis && redis.status === 'ready') {
+      await redis.set(cacheKey, JSON.stringify(response), 'EX', GROUPS_LIST_CACHE_TTL)
+    }
+    return NextResponse.json(response)
     
   } catch (error) {
     console.error('Erreur récupération achats groupés:', error)
@@ -191,7 +198,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string }
+    let auth: { userId: string; role: string; email?: string; name?: string; phone?: string; isNew?: boolean; token?: string; requiresVerification?: boolean }
     try {
       auth = await resolveGuestOrAuthUser(req, { name: creatorName, phone: creatorPhoneRaw, email: creatorEmail })
     } catch (e) {
@@ -286,6 +293,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Sélection de variante du créateur — fail-closed comme le checkout standard
+    const rawVariantIds = Array.isArray(body?.variantIds) ? body.variantIds : (body?.variantId ? [body.variantId] : [])
+    const variantSelection = validateGroupVariantSelection(product, rawVariantIds)
+    if ('error' in variantSelection) {
+      return NextResponse.json(
+        { success: false, error: variantSelection.error },
+        { status: 400 }
+      )
+    }
+
     const existingGroup = await GroupOrder.findOne({
       'product.productId': product._id,
       status: 'open',
@@ -323,10 +340,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Calculer le prix unitaire initial
+    // Calculer le prix unitaire initial (tarif de base = headline du groupe)
     let currentUnitPrice = product.price || 0
     const priceTiers = product.priceTiers || []
-    
+
     if (priceTiers.length > 0) {
       const sortedTiers = [...priceTiers].sort((a: any, b: any) => b.minQty - a.minQty)
       for (const tier of sortedTiers) {
@@ -336,6 +353,11 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Prix du créateur : paliers mis à l'échelle de sa variante éventuelle
+    const creatorUnitPrice = groupParticipantUnitPrice(
+      product, product.price || 0, priceTiers, variantSelection.variantIds, qty
+    )
 
     const productWeightKg = product.weightKg || product.grossWeightKg || product.netWeightKg || 0
     const productVolumeM3 =
@@ -349,8 +371,9 @@ export async function POST(req: NextRequest) {
           ? (product.lengthCm * product.widthCm * product.heightCm) / 1_000_000
           : 0
 
+    const pricingSnapshot = await readSharedPricing()
     if (normalizedShippingMethod === 'maritime_60j') {
-      const seaFreightEligibility = readSeaFreightEligibilitySettings()
+      const seaFreightEligibility = pricingSnapshot.config.seaFreightEligibility
       const billedWeightPerUnit = calculateBilledWeight({
         actualWeightKg: productWeightKg,
         lengthCm: product.lengthCm,
@@ -389,7 +412,8 @@ export async function POST(req: NextRequest) {
       normalizedShippingMethod,
       productWeightKg,
       productVolumeM3,
-      targetQty
+      targetQty,
+      pricingSnapshot.config
     )
 
     const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
@@ -398,6 +422,7 @@ export async function POST(req: NextRequest) {
     // Créer l'achat groupé
     const groupOrder = new GroupOrder({
       groupId: generateGroupId(),
+      pricingSnapshot,
       status: initialStatus,
       product: {
         productId: product._id,
@@ -414,13 +439,15 @@ export async function POST(req: NextRequest) {
       priceTiers,
       currentUnitPrice,
       participants: [{
-        userId: auth.userId as any,
+        userId: auth.userId ? (auth.userId as any) : undefined,
         name: creatorName,
         phone: creatorPhone,
         email: creatorEmail,
         qty,
-        unitPrice: currentUnitPrice,
-        totalAmount: qty * currentUnitPrice,
+        unitPrice: creatorUnitPrice,
+        totalAmount: qty * creatorUnitPrice,
+        variantIds: variantSelection.variantIds.length > 0 ? variantSelection.variantIds : undefined,
+        variantLabels: variantSelection.variantLabels.length > 0 ? variantSelection.variantLabels : undefined,
         paidAmount: 0,
         paymentStatus: 'pending',
         joinedAt: new Date()
@@ -429,7 +456,7 @@ export async function POST(req: NextRequest) {
       shippingMethod: normalizedShippingMethod,
       shippingCostPerUnit: shippingCostPerUnit > 0 ? shippingCostPerUnit : undefined,
       createdBy: {
-        userId: auth.userId as any,
+        userId: auth.userId ? (auth.userId as any) : undefined,
         name: creatorName,
         phone: creatorPhone,
         email: creatorEmail
@@ -438,14 +465,18 @@ export async function POST(req: NextRequest) {
     })
     
     await groupOrder.save()
+    void invalidateGroupOrdersCache()
 
-    // Créditer les grains de fidélité (best effort)
+    // Créditer les grains de fidélité (best effort) — uniquement pour un
+    // utilisateur réellement identifié (jamais pour un invité non vérifié).
     try {
-      await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
-      if (initialStatus === 'filled') {
-        await creditGroupCompleteToParticipants(groupOrder)
+      if (auth.userId) {
+        await creditGrainsForGroupJoin(auth.userId, groupOrder.groupId)
+        if (initialStatus === 'filled') {
+          await creditGroupCompleteToParticipants(groupOrder)
+        }
+        await updateTierFromBalance(auth.userId)
       }
-      await updateTierFromBalance(auth.userId)
     } catch (grainsErr) {
       console.error('[grains] Erreur crédit grains groupe:', grainsErr)
     }
@@ -453,13 +484,13 @@ export async function POST(req: NextRequest) {
     // Envoyer notification de confirmation au créateur
     try {
       await notifyGroupJoinConfirmation(
-        { 
-          name: creatorName, 
-          email: creatorEmail, 
-          phone: creatorPhone, 
-          qty, 
-          unitPrice: currentUnitPrice, 
-          totalAmount: qty * currentUnitPrice 
+        {
+          name: creatorName,
+          email: creatorEmail,
+          phone: creatorPhone,
+          qty,
+          unitPrice: creatorUnitPrice,
+          totalAmount: qty * creatorUnitPrice
         },
         {
           groupId: groupOrder.groupId,
@@ -473,12 +504,20 @@ export async function POST(req: NextRequest) {
     } catch (notifError) {
       console.error('Erreur notification:', notifError)
     }
-    
+
+    // Annonce : intéressés par ce produit, abonnés aux nouveaux groupes, kit de diffusion pour l'équipe
+    if (groupOrder.status === 'open') {
+      void announceNewGroup(groupOrder.groupId).catch((err) => console.error('Erreur annonce nouveau groupe:', err))
+    }
+
     const response = NextResponse.json({
       success: true,
       message: 'Achat groupé créé avec succès',
-      group: groupOrder,
+      group: sanitizePublicGroupDetail(groupOrder.toObject()),
       isNewAccount: auth.isNew || false,
+      // Contact déjà rattaché à un compte : inscription faite en invité, sans
+      // session — le front invite à se connecter pour la retrouver dans « Mon compte ».
+      accountExists: auth.requiresVerification === true,
     }, { status: 201 })
 
     if (auth.token) {

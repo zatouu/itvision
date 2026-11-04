@@ -3,11 +3,9 @@ import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Project from '@/lib/models/Project'
 import { connectMongoose } from '@/lib/mongoose'
 import { logDataAccess } from '@/lib/security-logger'
-import { requireAuth } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
-async function verifyToken(request: NextRequest) {
-  return await requireAuth(request)
-}
+const verifyToken = (request: NextRequest) => requireApiUser(request)
 
 // GET - Récupérer les rapports de maintenance
 export async function GET(request: NextRequest) {
@@ -151,6 +149,8 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur création rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la création du rapport' },
@@ -236,6 +236,8 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur mise à jour rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la mise à jour' },

@@ -21,6 +21,7 @@ export { getVisibilityConfig, invalidateVisibilityConfigCache, DEFAULT_VISIBILIT
 export { getScheduler } from './scheduler'
 export { buildNotificationPlan, filterAndRank, isEligible } from './engine'
 export { rankProviders, scoreProvider } from './ranking'
+export { normalizeMissionPreferences, preferenceRejection } from './preferences'
 export type { ProviderCandidate, RankedProvider, NotificationPlan, DispatchRequestContext } from './types'
 
 import { ensureVisibilityStarted } from './dispatch'

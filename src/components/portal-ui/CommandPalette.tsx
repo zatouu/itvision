@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface PaletteItem {
@@ -16,32 +16,58 @@ export interface PaletteItem {
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
+const SEARCH_DEBOUNCE_MS = 250
+const MIN_SEARCH_LENGTH = 2
 
 export function CommandPalette({
   open,
   onClose,
   onSelect,
   items,
+  onSearch,
   placeholder = 'Rechercher une page, une action…',
 }: {
   open: boolean
   onClose: () => void
   onSelect: (item: PaletteItem) => void
   items: PaletteItem[]
+  /** Recherche distante (documents, tickets…) ajoutée après les pages et actions. */
+  onSearch?: (query: string) => Promise<PaletteItem[]>
   placeholder?: string
 }) {
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
+  const [remote, setRemote] = useState<PaletteItem[]>([])
+  const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const searchSeq = useRef(0)
 
   const filtered = useMemo(() => {
     const q = normalize(query.trim())
-    if (!q) return items
-    return items.filter(i =>
-      normalize(`${i.label} ${(i.keywords || []).join(' ')}`).includes(q)
-    )
-  }, [query, items])
+    const local = q
+      ? items.filter(i => normalize(`${i.label} ${(i.keywords || []).join(' ')}`).includes(q))
+      : items
+    return [...local, ...remote]
+  }, [query, items, remote])
+
+  useEffect(() => {
+    const q = query.trim()
+    if (!onSearch || q.length < MIN_SEARCH_LENGTH) {
+      setRemote([])
+      setSearching(false)
+      return
+    }
+    const seq = ++searchSeq.current
+    setSearching(true)
+    const timer = setTimeout(() => {
+      onSearch(q)
+        .then(res => { if (seq === searchSeq.current) setRemote(res) })
+        .catch(() => { if (seq === searchSeq.current) setRemote([]) })
+        .finally(() => { if (seq === searchSeq.current) setSearching(false) })
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [query, onSearch])
 
   useEffect(() => {
     if (open) {
@@ -89,13 +115,19 @@ export function CommandPalette({
             placeholder={placeholder}
             className="w-full bg-transparent py-3.5 text-sm text-stone-900 outline-none placeholder:text-stone-400"
           />
-          <kbd className="hidden sm:inline-flex flex-shrink-0 rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
-            ESC
-          </kbd>
+          {searching ? (
+            <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-stone-400" />
+          ) : (
+            <kbd className="hidden sm:inline-flex flex-shrink-0 rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
+              ESC
+            </kbd>
+          )}
         </div>
         <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-2">
           {filtered.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-stone-400">Aucun résultat pour « {query} »</p>
+            <p className="px-3 py-10 text-center text-sm text-stone-400">
+              {searching ? 'Recherche en cours…' : `Aucun résultat pour « ${query} »`}
+            </p>
           ) : (
             filtered.map((item, i) => {
               const Icon = item.icon

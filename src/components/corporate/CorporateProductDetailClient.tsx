@@ -9,6 +9,7 @@ import {
   Clock, Star
 } from 'lucide-react'
 import WhatsAppOrderDrawer from './WhatsAppOrderDrawer'
+import { brandWhatsAppUrl, CORPORATE_BRAND } from '@/lib/branding'
 
 export interface ProductDetailData {
   id: string
@@ -255,7 +256,7 @@ export default function CorporateProductDetailClient({ product }: Props) {
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Besoin d&apos;être conseillé ?</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Nos experts évaluent gratuitement vos besoins.</p>
                   <a
-                    href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour, je souhaite être conseillé pour : ' + product.name)}`}
+                    href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour, je souhaite être conseillé pour : ' + product.name)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-green-700 dark:text-green-400 hover:underline"

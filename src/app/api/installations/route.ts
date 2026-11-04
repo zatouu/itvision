@@ -11,21 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Installation from '@/lib/models/Installation'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase()
-  }
-}
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 
 /**
  * POST /api/installations
@@ -33,13 +19,13 @@ async function verifyToken(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireApiUser(request)
     await connectMongoose()
     const body = await request.json()
     const {
       productId,
       productName,
       orderId,
-      clientId,
       clientName,
       clientEmail,
       clientPhone,
@@ -49,6 +35,8 @@ export async function POST(request: NextRequest) {
       notes,
       quantity = 1
     } = body
+    // Un client ne peut créer une installation que pour lui-même
+    const clientId = user.role === 'CLIENT' ? user.userId : body.clientId
 
     // Validation
     if (!productId || !productName || !clientName || !clientPhone || !address) {
@@ -119,11 +107,10 @@ export async function POST(request: NextRequest) {
       activityId: activity._id.toString()
     }, { status: 201 })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur création installation:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur serveur' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
@@ -133,7 +120,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const { role, userId } = await verifyToken(request)
+    const { role, userId } = await requireApiUser(request)
     await connectMongoose()
 
     const { searchParams } = new URL(request.url)
@@ -190,11 +177,10 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur récupération installations:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur serveur' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

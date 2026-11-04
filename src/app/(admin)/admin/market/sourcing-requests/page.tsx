@@ -25,6 +25,9 @@ import {
   Mail,
   User as UserIcon
 } from 'lucide-react'
+import SourcingHealthPanel from '@/components/admin/SourcingHealthPanel'
+import { getImportServiceFeeRate } from '@/lib/pricing/tiered-service-fees'
+import { usePricingSettings } from '@/lib/pricing/use-pricing-settings'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +48,9 @@ interface ProposalDraft {
   supplierUrl?: string
   supplierName?: string
   notes?: string
+  sourcePlatform?: '1688' | 'aliexpress' | 'alibaba'
   price1688?: number | ''
+  sourceCurrency?: string
   exchangeRate?: number | ''
   productCostFCFA: number | ''
   serviceFeeRate: number | ''
@@ -72,6 +77,7 @@ interface SourcingRow {
   externalUrl?: string
   qty: number
   budgetMaxFCFA?: number
+  budgetScope?: 'unit' | 'total'
   deliveryNeededBy?: string
   contactName?: string
   contactPhone?: string
@@ -85,17 +91,27 @@ interface SourcingRow {
   adminNotes?: string
   proposal?: any
   proposalSentAt?: string
+  proposalNotification?: { status: 'pending' | 'sending' | 'submitted' | 'failed'; attempts: number }
   clientDecision?: 'accepted' | 'rejected'
   publicToken: string
   externalSearchResults?: Array<{
     title: string
     price1688?: number
+    sourceCurrency?: string
     image: string
     url: string
     supplier?: string
     minOrder?: number
+    platform?: '1688' | 'aliexpress' | 'alibaba'
   }>
 }
+
+const SOURCE_PLATFORM_LABEL: Record<string, string> = {
+  '1688': '1688',
+  aliexpress: 'AliExpress',
+  alibaba: 'Alibaba',
+}
+const SOURCE_CURRENCY_SYMBOL: Record<string, string> = { CNY: '¥', USD: '$', EUR: '€', MAD: 'DH', XOF: 'F', XAF: 'F', GBP: '£', AED: 'د.إ', SAR: '﷼' }
 
 const STATUS_OPTIONS: Array<{ value: 'all' | 'pending' | Status; label: string }> = [
   { value: 'pending', label: 'À traiter' },
@@ -270,6 +286,8 @@ export default function AdminSourcingRequestsPage() {
           <RefreshCw className="h-4 w-4" /> Rafraîchir
         </button>
       </div>
+
+      <SourcingHealthPanel />
 
       {/* Onglets */}
       <div className="mt-4 flex gap-2 border-b border-stone-200">
@@ -567,6 +585,7 @@ function DetailPanel({
   const [sending, setSending] = useState<'save' | 'send' | null>(null)
   const [propError, setPropError] = useState<string | null>(null)
   const [propSuccess, setPropSuccess] = useState<string | null>(null)
+  const { settings: pricingSettings, error: pricingError, reload: reloadPricing } = usePricingSettings()
 
   // Sync quand la requête sélectionnée change
   useEffect(() => {
@@ -578,19 +597,26 @@ function DetailPanel({
 
   const computed = useMemo(() => {
     const cost = Number(proposal.productCostFCFA) || 0
-    const sf = Number(proposal.serviceFeeRate) || 0
+    const requestedRate = Number(proposal.serviceFeeRate) || 0
+    const sf = ['new', 'searching', 'proposal_ready'].includes(request.status)
+      ? getImportServiceFeeRate(Math.max(1, Math.floor(Number(proposal.qty) || 1)), requestedRate, pricingSettings?.singleImportServiceFeeRate)
+      : requestedRate
     const ins = Number(proposal.insuranceRate) || 0
     const ship = Number(proposal.shippingCost) || 0
     const sfAmt = Math.round(cost * (sf / 100))
     const insAmt = Math.round(cost * (ins / 100))
     const total = cost + sfAmt + insAmt + ship
-    return { sfAmt, insAmt, total }
-  }, [proposal.productCostFCFA, proposal.serviceFeeRate, proposal.insuranceRate, proposal.shippingCost])
+    return { sfAmt, insAmt, total, serviceFeeRate: sf }
+  }, [proposal.productCostFCFA, proposal.serviceFeeRate, proposal.insuranceRate, proposal.shippingCost, proposal.qty, request.status, pricingSettings])
 
   const submitProposal = useCallback(
     async (send: boolean) => {
       setPropError(null)
       setPropSuccess(null)
+      if (!pricingSettings) {
+        setPropError('Les tarifs doivent être chargés avant de valider la proposition.')
+        return
+      }
       // Validation côté client
       if (!proposal.productName.trim()) {
         setPropError('Nom produit requis.')
@@ -626,7 +652,7 @@ function DetailPanel({
         })
         const json = await res.json()
         if (!res.ok || !json?.success) throw new Error(json?.error || 'Échec')
-        setPropSuccess(send ? 'Proposition envoyée au client par SMS.' : 'Proposition enregistrée (draft).')
+        setPropSuccess(send ? 'Proposition disponible. La transmission du SMS est suivie séparément.' : 'Proposition enregistrée en brouillon, non visible par le client.')
         await onListReload()
         await onReload()
       } catch (err: any) {
@@ -635,7 +661,7 @@ function DetailPanel({
         setSending(null)
       }
     },
-    [proposal, request._id, onListReload, onReload]
+    [proposal, request._id, onListReload, onReload, pricingSettings]
   )
 
   const trackUrl = `/market/sourcing/${request.publicToken}`
@@ -686,7 +712,7 @@ function DetailPanel({
               Quantité : <strong>{request.qty}</strong>
               {request.budgetMaxFCFA && (
                 <>
-                  {' '}— Budget max : <strong>{fmtFcfa(request.budgetMaxFCFA)}</strong>
+                  {' '}· Budget : <strong>{fmtFcfa(request.budgetMaxFCFA)}</strong> {request.budgetScope === 'unit' ? 'par pièce' : request.budgetScope === 'total' ? 'au total' : '(unité à confirmer)'}
                 </>
               )}
               {request.deliveryNeededBy && (
@@ -743,35 +769,44 @@ function DetailPanel({
               </a>
             </Section>
           )}
-          {/* Résultats recherche externe 1688 */}
+          {/* Résultats recherche externe (1688 / AliExpress / Alibaba) */}
           {request.externalSearchResults && request.externalSearchResults.length > 0 && (
-            <Section title={`Résultats 1688 (${request.externalSearchResults.length})`}>
+            <Section title={`Résultats externes (${request.externalSearchResults.length})`}>
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {request.externalSearchResults.map((r, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-2 p-2 rounded-lg border border-stone-100 bg-white"
-                  >
-                    <div className="w-14 h-14 rounded bg-stone-100 flex-shrink-0 overflow-hidden">
-                      <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                {request.externalSearchResults.map((r, i) => {
+                  const pl = r.platform || '1688'
+                  const cur = r.sourceCurrency || 'CNY'
+                  return (
+                    <div
+                      key={i}
+                      className="flex gap-2 p-2 rounded-lg border border-stone-100 bg-white"
+                    >
+                      <div className="w-14 h-14 rounded bg-stone-100 flex-shrink-0 overflow-hidden">
+                        <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-stone-900 truncate">{r.title}</p>
+                        <p className="text-xs text-violet-600">
+                          {r.price1688
+                            ? `${SOURCE_CURRENCY_SYMBOL[cur] || ''}${r.price1688.toLocaleString('fr-FR')} ${cur}`
+                            : 'Prix N/A'}
+                          <span className="ml-1 inline-block rounded bg-stone-100 px-1 text-[10px] text-stone-500">
+                            {SOURCE_PLATFORM_LABEL[pl] || pl}
+                          </span>
+                        </p>
+                        {r.supplier && <p className="text-[11px] text-stone-500 truncate">{r.supplier}</p>}
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Voir sur {SOURCE_PLATFORM_LABEL[pl] || pl}
+                        </a>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-stone-900 truncate">{r.title}</p>
-                      <p className="text-xs text-violet-600">
-                        {r.price1688 ? `¥${r.price1688.toLocaleString('fr-FR')}` : 'Prix N/A'}
-                      </p>
-                      {r.supplier && <p className="text-[11px] text-stone-500 truncate">{r.supplier}</p>}
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 text-[11px] text-violet-600 hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Voir sur 1688
-                      </a>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </Section>
           )}
@@ -828,7 +863,14 @@ function DetailPanel({
           </h3>
           {request.proposalSentAt && (
             <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Envoyée le {fmtDate(request.proposalSentAt)}
+              <CheckCircle2 className="h-3.5 w-3.5" /> Disponible depuis le {fmtDate(request.proposalSentAt)}
+            </span>
+          )}
+          {request.proposalSentAt && (
+            <span className={`text-xs ${request.proposalNotification?.status === 'failed' ? 'text-red-700' : 'text-stone-600'}`}>
+              SMS : {request.proposalNotification?.status === 'submitted' ? 'transmis au service SMS (réception non confirmée)'
+                : request.proposalNotification?.status === 'failed' ? 'non transmis, intervention nécessaire'
+                  : request.proposalNotification ? 'en attente de transmission ou de reprise' : 'état historique non disponible'}
             </span>
           )}
         </div>
@@ -857,13 +899,13 @@ function DetailPanel({
             onChange={(v) => setProposal({ ...proposal, supplierName: v })}
           />
           <FieldInput
-            label="Prix 1688 (CNY)"
+            label={`Prix source (${proposal.sourceCurrency || 'CNY'})`}
             type="number"
             value={proposal.price1688 ?? ''}
             onChange={(v) => setProposal({ ...proposal, price1688: v === '' ? '' : Number(v) })}
           />
           <FieldInput
-            label="Taux change (1 CNY → FCFA)"
+            label={`Taux change (1 ${proposal.sourceCurrency || 'CNY'} → FCFA)`}
             type="number"
             value={proposal.exchangeRate ?? ''}
             onChange={(v) => setProposal({ ...proposal, exchangeRate: v === '' ? '' : Number(v) })}
@@ -884,7 +926,7 @@ function DetailPanel({
           <FieldInput
             label="Frais de service % *"
             type="number"
-            value={proposal.serviceFeeRate}
+            value={computed.serviceFeeRate}
             onChange={(v) => setProposal({ ...proposal, serviceFeeRate: v === '' ? '' : Number(v) })}
           />
           <FieldInput
@@ -937,12 +979,17 @@ function DetailPanel({
         </div>
 
         {/* Récap calcul */}
-        <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
+        {!pricingSettings && ['new', 'searching', 'proposal_ready'].includes(request.status) ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role={pricingError ? 'alert' : 'status'}>
+            <span>{pricingError || 'Chargement des tarifs...'}</span>
+            {pricingError && <button type="button" onClick={reloadPricing} className="inline-flex min-h-11 items-center gap-2 rounded border px-3"><RefreshCw size={16} /> Réessayer</button>}
+          </div>
+        ) : <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           <Recap label="Service" value={computed.sfAmt} />
           <Recap label="Assurance" value={computed.insAmt} />
           <Recap label="Transport" value={Number(proposal.shippingCost) || 0} />
           <Recap label="TOTAL client" value={computed.total} highlight />
-        </div>
+        </div>}
 
         {propError && (
           <div className="mt-3 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-700">{propError}</div>
@@ -957,7 +1004,7 @@ function DetailPanel({
           <button
             type="button"
             onClick={() => submitProposal(false)}
-            disabled={!!sending}
+            disabled={!!sending || !pricingSettings}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-stone-200 text-stone-700 text-sm font-semibold hover:bg-stone-50 disabled:opacity-50"
           >
             {sending === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -966,7 +1013,7 @@ function DetailPanel({
           <button
             type="button"
             onClick={() => submitProposal(true)}
-            disabled={!!sending}
+            disabled={!!sending || !pricingSettings}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50"
           >
             {sending === 'send' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -986,7 +1033,9 @@ function initProposalDraft(req: SourcingRow): ProposalDraft {
     supplierUrl: p?.supplierUrl || req.externalUrl || '',
     supplierName: p?.supplierName || '',
     notes: p?.notes || '',
+    sourcePlatform: p?.sourcePlatform,
     price1688: p?.price1688 ?? '',
+    sourceCurrency: p?.sourceCurrency || 'CNY',
     exchangeRate: p?.exchangeRate ?? 100,
     productCostFCFA: p?.productCostFCFA ?? '',
     serviceFeeRate: p?.serviceFeeRate ?? 10,

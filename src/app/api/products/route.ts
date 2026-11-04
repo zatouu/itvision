@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product, { type IProduct } from '@/lib/models/Product.validated'
+import Product, { type IProduct } from '@/lib/models/Product'
 import type { ProductVariantGroup, ProductChannel } from '@/lib/types/product.types'
 import { randomUUID } from 'crypto'
-import { requireAuth } from '@/lib/jwt'
+import { verifyAuthServer } from '@/lib/auth-server'
+import { productConfigurationError } from '@/lib/pricing/variants'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 import { expandCategorySlugs } from '@/lib/taxonomy/expand-categories'
 import { invalidateCatalogCache } from '@/lib/catalog-cache'
 
 async function requireManagerRole(request: NextRequest) {
   try {
-    const { role } = await requireAuth(request)
-    const allowed = role === 'ADMIN' || role === 'PRODUCT_MANAGER'
+    const auth = await verifyAuthServer(request)
+    if (!auth.isAuthenticated) return { ok: false as const, status: auth.unavailable ? 503 : 401, error: auth.unavailable ? 'Authentification temporairement indisponible' : 'Non authentifié' }
+    const allowed = PRODUCT_STAFF_ROLES.includes(String(auth.user?.role || '').toUpperCase())
     if (!allowed) return { ok: false as const, status: 403, error: 'Accès refusé' as const }
     return { ok: true as const }
   } catch {
@@ -163,6 +166,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     groupBuyEnabled,
     groupBuyMinQty,
     groupBuyTargetQty,
+    minOrderQty,
     priceTiers
   } = payload || {}
 
@@ -270,6 +274,12 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     ? parsedServiceFeeRate 
     : undefined
   normalized.insuranceRate = parseNumber(insuranceRate)
+
+  // Lot minimum (MOQ) — entier ≥ 1, sinon laissé inchangé (défaut schéma = 1)
+  const parsedMinOrderQty = parseNumber(minOrderQty)
+  normalized.minOrderQty = parsedMinOrderQty !== undefined
+    ? Math.max(1, Math.floor(parsedMinOrderQty))
+    : undefined
   if (typeof price1688Currency === 'string') {
     const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
     normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
@@ -377,7 +387,11 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     await connectMongoose()
     const body = await request.json()
+    const configurationError = productConfigurationError(body, false)
+    if (configurationError) return NextResponse.json({ success: false, error: configurationError }, { status: 400 })
     const payload = buildProductPayload(body)
+    const publicationError = productConfigurationError({ ...payload, isPublished: payload.isPublished ?? true })
+    if (publicationError) return NextResponse.json({ success: false, error: publicationError }, { status: 400 })
     if (!payload.name) return NextResponse.json({ success: false, error: 'Le nom du produit est requis' }, { status: 400 })
 
     // Validation des prix - par défaut, un prix doit être défini sauf si explicitement sur devis
@@ -414,6 +428,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { id, ...rest } = body || {}
     if (!id) return NextResponse.json({ success: false, error: 'ID du produit requis' }, { status: 400 })
+    const inputError = productConfigurationError(rest, false)
+    if (inputError) return NextResponse.json({ success: false, error: inputError }, { status: 400 })
     const payload = buildProductPayload(rest)
     
     // Récupérer le produit existant pour vérifier
@@ -421,6 +437,9 @@ export async function PATCH(request: NextRequest) {
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Produit non trouvé' }, { status: 404 })
     }
+    const definedPayload = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined))
+    const configurationError = productConfigurationError({ ...existing, ...definedPayload })
+    if (configurationError) return NextResponse.json({ success: false, error: configurationError }, { status: 400 })
     
     // Validation des prix - un prix doit être défini sauf si explicitement sur devis
     const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
@@ -442,7 +461,7 @@ export async function PATCH(request: NextRequest) {
     const incomingTags = (payload as any).tags ?? existingTags
     ;(payload as any).tags = syncConditionTags(incomingTags, finalCondition)
 
-    await Product.updateOne({ _id: id }, { $set: payload })
+    await Product.updateOne({ _id: id }, { $set: payload }, { runValidators: true })
     const updated = await Product.findById(id).lean()
     void invalidateCatalogCache()
     return NextResponse.json({ success: true, item: updated })

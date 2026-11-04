@@ -78,7 +78,7 @@ async function createAdminUser() {
     let existingUser: any = null;
     try {
       const { stdout } = await execPromise(
-        `docker exec -i itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db itvision_db --quiet < ${tmpCheckFile}`
+        `docker exec -i itvision-mongodb mongosh -u itvision_app -p "${process.env.DB_PASS ?? ''}" --authenticationDatabase itvision_db itvision_db --quiet < ${tmpCheckFile}`
       );
       if (stdout && stdout.trim() !== 'null' && stdout.trim() !== '') {
         existingUser = JSON.parse(stdout.trim());
@@ -142,7 +142,7 @@ async function createAdminUser() {
     fs.writeFileSync(tmpUpdateFile, updateScript);
     
     const { stdout, stderr } = await execPromise(
-      `docker exec -i itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db itvision_db < ${tmpUpdateFile}`
+      `docker exec -i itvision-mongodb mongosh -u itvision_app -p "${process.env.DB_PASS ?? ''}" --authenticationDatabase itvision_db itvision_db < ${tmpUpdateFile}`
     );
     
     console.log(stdout);

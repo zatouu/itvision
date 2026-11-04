@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import PromoSlide from '@/lib/models/PromoSlide'
 import { requireAuth } from '@/lib/jwt'
+import { parseSlideInput } from '@/lib/market/promo-slides'
 
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
 
@@ -43,20 +44,23 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     await requireAdmin(request)
 
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const { data, error } = parseSlideInput(body, false)
+    if (error) return NextResponse.json({ success: false, error }, { status: 400 })
+
+    // Sans ordre précisé, la nouvelle slide passe en dernier
+    if (data.order === undefined) {
+      const last = await PromoSlide.findOne().sort({ order: -1 }).select('order').lean<{ order?: number }>()
+      data.order = (last?.order ?? -1) + 1
+    }
     const slide = await PromoSlide.create({
-      title: body.title || 'Nouvelle slide',
-      subtitle: body.subtitle,
-      ctaText: body.ctaText || 'En savoir plus',
-      ctaLink: body.ctaLink || '/produits',
-      bgColor: body.bgColor,
-      accentColor: body.accentColor,
-      textColor: body.textColor,
-      images: body.images || [],
-      isActive: body.isActive ?? true,
-      order: typeof body.order === 'number' ? body.order : 0,
-      startDate: body.startDate ? new Date(body.startDate) : undefined,
-      endDate: body.endDate ? new Date(body.endDate) : undefined,
+      ...data,
+      ctaText: data.ctaText || 'Découvrir',
+      ctaLink: data.ctaLink || '/produits',
+      images: data.images || [],
+      isActive: data.isActive ?? true,
+      startDate: data.startDate || undefined,
+      endDate: data.endDate || undefined,
     })
 
     return NextResponse.json({ success: true, slide })

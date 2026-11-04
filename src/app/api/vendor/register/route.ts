@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import { verifyAuthServer } from '@/lib/auth-server'
+import { verifyAuthServer, setAuthCookie } from '@/lib/auth-server'
+import { signAuthTokenWithExpiry } from '@/lib/jwt'
+import { keycloakEnabled } from '@/lib/keycloak'
+import { resolveUserCategory } from '@/lib/user-segmentation'
+import { reconcileVendorAccount, reissueAuthCookie } from '@/lib/vendor'
+import { notifyAdmins, notifyUser } from '@/lib/notify'
 import VendorProfile from '@/lib/models/VendorProfile'
 import Shop from '@/lib/models/Shop'
 import User from '@/lib/models/User'
@@ -17,6 +22,7 @@ const registerSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuthServer(req)
+    if (auth.unavailable) return NextResponse.json({ success: false, error: 'Service temporairement indisponible' }, { status: 503 })
     if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ success: false, error: 'Authentification requise' }, { status: 401 })
     }
@@ -33,6 +39,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vous avez déjà une boutique' }, { status: 409 })
     }
 
+    // Empêcher un administrateur de perdre son rôle
+    if (['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      return NextResponse.json({ success: false, error: 'Les administrateurs ne peuvent pas devenir vendeurs depuis ce formulaire.' }, { status: 403 })
+    }
+
+    // Rattachement : boutique créée par un admin avec l'email du compte
+    // (ownerEmail/ownerId) → provisionne le VendorProfile manquant.
+    const rec = await reconcileVendorAccount(String(user._id))
+    if (rec?.healed) {
+      const response = NextResponse.json({
+        success: true,
+        attached: true,
+        vendor: { id: String(rec.vendor._id), name: rec.vendor.name, slug: rec.vendor.slug },
+        message: 'Votre boutique existante a été rattachée à votre compte.',
+      })
+      await reissueAuthCookie(response, user, 'VENDOR', auth.user.sessionVersion ?? 0)
+      return response
+    }
+
     const body = await req.json()
     const parsed = registerSchema.safeParse(body)
     if (!parsed.success) {
@@ -43,58 +68,95 @@ export async function POST(req: NextRequest) {
     const cleanName = name.trim()
     const slug = slugify(cleanName)
 
-    // Empêcher un administrateur de perdre son rôle
-    if (['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json({ success: false, error: 'Les administrateurs ne peuvent pas devenir vendeurs depuis ce formulaire.' }, { status: 403 })
-    }
-
     const slugTaken = await VendorProfile.findOne({ slug }).lean() as any
     if (slugTaken) {
       return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
     }
 
-    const session = await mongoose.startSession()
+    const vendorDoc = {
+      userId: user._id,
+      name: cleanName,
+      slug,
+      description: description ? String(description).trim() : undefined,
+      contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
+      contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+      verified: false,
+      rating: 0,
+      commissionRate: 0,
+    }
+    const shopDoc = {
+      name: cleanName,
+      slug,
+      description: description ? String(description).trim() : undefined,
+      ownerId: user._id,
+      ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
+      ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
+      status: 'pending_review',
+      isVerified: false,
+    }
+
+    // Replica set (prod) → transaction atomique. Standalone (dev) → séquentiel
+    // + compensation : si une étape échoue, on supprime ce qui a été créé.
     let vendor: any
+    const session = await mongoose.startSession()
     try {
       await session.withTransaction(async () => {
-        vendor = await VendorProfile.create([{
-          userId: user._id,
-          name: cleanName,
-          slug,
-          description: description ? String(description).trim() : undefined,
-          contactEmail: contactEmail ? String(contactEmail).trim() : user.email,
-          contactPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-          verified: false,
-          rating: 0,
-          commissionRate: 0,
-        }], { session })
-        vendor = vendor[0]
-
-        await Shop.create([{
-          name: cleanName,
-          slug,
-          description: description ? String(description).trim() : undefined,
-          ownerId: user._id,
-          ownerEmail: contactEmail ? String(contactEmail).trim() : user.email,
-          ownerPhone: contactPhone ? String(contactPhone).trim() : user.phone,
-          status: 'pending_review',
-          isVerified: false,
-        }], { session })
-
+        const created = await VendorProfile.create([vendorDoc], { session })
+        vendor = created[0]
+        await Shop.create([shopDoc], { session })
         user.role = 'VENDOR'
         user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
         await user.save({ session })
       })
     } catch (error: any) {
-      await session.endSession()
-      if (error.code === 11000) {
-        return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
+      const noReplicaSet = error?.code === 20 || error?.codeName === 'IllegalOperation'
+      if (!noReplicaSet) {
+        if (error.code === 11000) {
+          return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
+        }
+        throw error
       }
-      throw error
+      // Fallback standalone : écritures séquentielles + compensation
+      let shopCreated = false
+      try {
+        vendor = await VendorProfile.create(vendorDoc)
+        await Shop.create(shopDoc)
+        shopCreated = true
+        user.role = 'VENDOR'
+        user.vendorProfileId = vendor._id as mongoose.Types.ObjectId
+        await user.save()
+      } catch (seqErr: any) {
+        if (shopCreated) await Shop.deleteOne({ slug, ownerId: user._id }).catch(() => {})
+        if (vendor) await VendorProfile.deleteOne({ _id: vendor._id }).catch(() => {})
+        if (seqErr.code === 11000) {
+          return NextResponse.json({ success: false, error: 'Une boutique avec ce nom existe déjà' }, { status: 409 })
+        }
+        throw seqErr
+      }
+    } finally {
+      await session.endSession()
     }
-    await session.endSession()
 
-    return NextResponse.json({
+    // Notifications : admins (file de validation) + confirmation vendeur
+    await Promise.all([
+      notifyAdmins({
+        type: 'warning',
+        title: 'Nouvelle boutique à valider',
+        message: `« ${vendor.name} » vient de s'inscrire et attend votre approbation.`,
+        actionUrl: '/admin/marketplace/shops',
+        metadata: { slug: vendor.slug },
+        push: false,
+      }),
+      notifyUser(String(user._id), {
+        type: 'info',
+        title: 'Boutique créée',
+        message: `« ${vendor.name} » est en cours de vérification — vous serez notifié dès sa mise en ligne.`,
+        actionUrl: '/espace-vendeur',
+        metadata: { slug: vendor.slug },
+      }),
+    ]).catch(e => console.error('[vendor/register] notify failed:', e))
+
+    const response = NextResponse.json({
       success: true,
       vendor: {
         id: String(vendor._id),
@@ -102,6 +164,34 @@ export async function POST(req: NextRequest) {
         slug: vendor.slug,
       },
     })
+
+    // Réémettre le JWT avec le rôle VENDOR pour éviter une reconnexion forcée.
+    // Sous Keycloak, les rôles viennent des claims — pas de réémission locale.
+    if (!keycloakEnabled()) {
+      try {
+        const normalizedRole = 'VENDOR'
+        const companyClientId = user.companyClientId ? String(user.companyClientId) : undefined
+        const userCategory = resolveUserCategory({ role: normalizedRole, companyClientId, email: user.email, username: user.username })
+        const token = await signAuthTokenWithExpiry(
+          {
+            userId: String(user._id),
+            sessionVersion: auth.user.sessionVersion ?? 0,
+            email: user.email,
+            role: normalizedRole,
+            username: user.username,
+            marketplaceTier: user.marketplaceTier || 'standard',
+            userCategory,
+            ...(companyClientId ? { companyClientId } : {})
+          },
+          '7d'
+        )
+        setAuthCookie(response, token)
+      } catch (jwtErr) {
+        console.error('[vendor/register] JWT reissue failed:', jwtErr)
+      }
+    }
+
+    return response
   } catch (error: any) {
     console.error('[vendor/register] error:', error)
     if (error.code === 11000) {

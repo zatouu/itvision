@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import mongoose from 'mongoose'
 import Intervention from '@/lib/models/Intervention'
-import Technician from '@/lib/models/Technician'
-import InAppNotification from '@/lib/models/InAppNotification'
 import { requireAuth } from '@/lib/jwt'
 import { logAuditEvent } from '@/lib/audit'
-import { emitCompanyEvent, emitCompanyNotification, emitInterventionUpdate } from '@/lib/socket-emit'
+import { emitCompanyEvent, emitInterventionUpdate } from '@/lib/socket-emit'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
+import { resolveTechnicianId, isAssignedTechnician } from '@/lib/interventions-access'
+import { notifyCompany, resolveClientCompanyId } from '@/lib/portal/company-notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,21 +47,28 @@ export async function POST(request: NextRequest) {
 
     // Un technicien ne peut écrire que sur SES interventions
     if (role === 'TECHNICIAN') {
-      const tech = await Technician.findOne({ email: String(email).toLowerCase() }).select('_id').lean() as any
-      const assigned = [intervention.technicienId, intervention.assignedTechnician]
-        .map(x => x && String(x))
-      if (!tech || !assigned.includes(String(tech._id))) {
+      const techId = await resolveTechnicianId(email)
+      if (!isAssignedTechnician(intervention, techId)) {
         return NextResponse.json({ error: 'Intervention non assignée à ce technicien' }, { status: 403 })
       }
     }
 
+    if (!['scheduled', 'in_progress', 'completed'].includes(intervention.status)) {
+      return NextResponse.json({ error: 'Rapport impossible sur une intervention non planifiée ou annulée' }, { status: 409 })
+    }
+
     const $push: any = {}
     const $set: any = {}
+    let replayed = false
 
     for (const key of ['photosAvant', 'photosApres'] as const) {
       const list = Array.isArray(body[key]) ? body[key] : []
-      const valid = list
-        .filter((p: any) => p && isValidPhotoUrl(p.url))
+      // Envoi rejoué (file hors ligne) : une URL déjà rattachée n'est pas ajoutée deux fois
+      const already = new Set(((intervention as any)[key] || []).map((p: any) => p?.url))
+      const candidates = list.filter((p: any) => p && isValidPhotoUrl(p.url))
+      if (candidates.some((p: any) => already.has(p.url))) replayed = true
+      const valid = candidates
+        .filter((p: any) => !already.has(p.url))
         .slice(0, 20)
         .map((p: any) => ({
           url: p.url,
@@ -89,19 +96,37 @@ export async function POST(request: NextRequest) {
       }
     }
     if (validSig(body.signatureClient)) {
-      $set['signatures.client'] = {
-        signature: body.signatureClient.signature,
-        name: String(body.signatureClient.name || '').slice(0, 120),
-        title: String(body.signatureClient.title || '').slice(0, 120),
-        timestamp: new Date(),
+      if (!['in_progress', 'completed'].includes(intervention.status)) {
+        return NextResponse.json({ error: 'La signature du client se recueille une fois l\u2019intervention démarrée' }, { status: 409 })
+      }
+      const existing = intervention.signatures?.client?.signature
+      if (existing && existing === body.signatureClient.signature) {
+        replayed = true
+      } else if (existing) {
+        // Même effet que la validation depuis le portail : on ne remplace pas un bon déjà signé
+        return NextResponse.json({ error: 'Le bon est déjà signé par le client' }, { status: 409 })
+      } else {
+        $set['signatures.client'] = {
+          signature: body.signatureClient.signature,
+          name: String(body.signatureClient.name || '').slice(0, 120),
+          title: String(body.signatureClient.title || '').slice(0, 120),
+          timestamp: new Date(),
+        }
+        $set.clientAcknowledgedAt = new Date()
       }
     }
 
     if (!Object.keys($push).length && !Object.keys($set).length) {
+      if (replayed) return NextResponse.json({ success: true, alreadyApplied: true })
       return NextResponse.json({ error: 'Aucune donnée à enregistrer' }, { status: 400 })
     }
 
-    await Intervention.updateOne({ _id: interventionId }, { ...(Object.keys($push).length ? { $push } : {}), $set })
+    const filter: any = { _id: interventionId }
+    if ($set['signatures.client']) filter['signatures.client.signature'] = { $in: [null, ''] }
+    const write = await Intervention.updateOne(filter, { ...(Object.keys($push).length ? { $push } : {}), $set })
+    if (write.matchedCount === 0) {
+      return NextResponse.json({ error: 'Le bon est déjà signé par le client' }, { status: 409 })
+    }
 
     const updated = await Intervention.findById(interventionId)
     if (updated?.addHistoryEntry) {
@@ -113,34 +138,29 @@ export async function POST(request: NextRequest) {
       await updated.save()
     }
 
-    // Temps réel + notification persistante vers la société cliente
-    const clientId = intervention.clientId ? String(intervention.clientId) : null
-    if (clientId) {
-      emitCompanyEvent(clientId, 'corp:intervention:updated', {
+    // Temps réel + notification vers l'entreprise cliente (droits, préférences et push gérés par notifyCompany)
+    const companyId = await resolveClientCompanyId(intervention.clientId)
+    if (companyId) {
+      emitCompanyEvent(companyId, 'corp:intervention:updated', {
         interventionId: String(intervention._id),
         title: intervention.title,
         status: intervention.status,
       })
-      try {
-        const notif = await InAppNotification.create({
-          teamId: clientId,
-          roles: ['CLIENT'],
-          type: 'info',
-          title: 'Rapport d\u2019intervention mis à jour',
-          message: intervention.title,
+      const signedOnSite = !!$set['signatures.client']
+      // Pendant l'intervention, les ajouts de photos restent silencieux : la fin d'intervention notifie déjà
+      if (signedOnSite || intervention.status === 'completed') {
+        await notifyCompany({
+          companyId,
+          category: 'intervention',
+          type: signedOnSite ? 'success' : 'info',
+          title: signedOnSite ? `Bon signé sur place : ${intervention.title}` : `Compte rendu complété : ${intervention.title}`,
+          message: signedOnSite
+            ? `Signé par ${$set['signatures.client'].name || 'votre représentant'}. Le compte rendu et les photos sont disponibles.`
+            : 'Le technicien a ajouté des photos ou des observations au compte rendu.',
           actionUrl: `/portail-entreprise/interventions/${intervention._id}`,
+          metadata: { interventionId: String(intervention._id) },
+          push: signedOnSite,
         })
-        emitCompanyNotification(clientId, {
-          _id: String(notif._id),
-          type: 'info',
-          title: notif.title,
-          message: notif.message,
-          actionUrl: notif.actionUrl,
-          createdAt: notif.createdAt,
-          readBy: [],
-        })
-      } catch (e) {
-        console.error('[report] notification:', e)
       }
     }
     emitInterventionUpdate(String(intervention._id), { id: String(intervention._id), status: intervention.status })
@@ -151,7 +171,7 @@ export async function POST(request: NextRequest) {
       action: 'report_updated',
       userId: String(userId),
       userRole: role,
-      clientCompanyId: clientId || undefined,
+      clientCompanyId: companyId || undefined,
       ip: request.headers.get('x-forwarded-for') || undefined,
       userAgent: request.headers.get('user-agent') || undefined,
       metadata: { title: intervention.title },

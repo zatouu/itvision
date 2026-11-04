@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GroupOrder } from '@/lib/models/GroupOrder'
 import { connectDB } from '@/lib/db'
 import { notifyDeadlineReminder } from '@/lib/group-order-notifications'
+import { closeExpiredGroups } from '@/lib/group-orders/expiry'
 
 /**
  * API pour envoyer les rappels de deadline
@@ -18,10 +19,10 @@ export async function GET(req: NextRequest) {
   try {
     // Vérification du secret pour les appels externes (optionnel)
     const { searchParams } = new URL(req.url)
-    const secret = searchParams.get('secret')
+    const secret = searchParams.get('secret') || req.headers.get('x-cron-secret')
     const cronSecret = process.env.CRON_SECRET
     
-    if (cronSecret && secret !== cronSecret) {
+    if (!cronSecret || secret !== cronSecret) {
       return NextResponse.json(
         { success: false, error: 'Non autorisé' },
         { status: 401 }
@@ -103,16 +104,8 @@ export async function GET(req: NextRequest) {
       }
     }
     
-    // Mettre à jour les achats expirés
-    const expiredResult = await GroupOrder.updateMany(
-      {
-        status: 'open',
-        deadline: { $lt: now }
-      },
-      {
-        $set: { status: 'cancelled', internalNotes: 'Expiré automatiquement - deadline dépassée' }
-      }
-    )
+    // Clôture des groupes expirés : minimum atteint → paiement, sinon annulation
+    const closed = await closeExpiredGroups(now)
     
     return NextResponse.json({
       success: true,
@@ -121,7 +114,8 @@ export async function GET(req: NextRequest) {
         threeDaysReminders: groupsThreeDays.length,
         oneDayReminders: groupsOneDay.length,
         totalSent: sentCount,
-        expiredCancelled: expiredResult.modifiedCount,
+        expiredFilled: closed.filled,
+        expiredCancelled: closed.cancelled,
         errors: errors.length > 0 ? errors : undefined
       }
     })

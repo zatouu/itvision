@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
-import { Dispute, DisputeMessage, DisputeEvidence, DisputeHistory, DisputeDecision } from '../model'
+import { Dispute, DisputeEvidence, DisputeHistory, DisputeDecision } from '../model'
+import XeuyMessage from '@/lib/models/XeuyMessage'
 import type { DisputeRepository } from './DisputeRepository'
 import type { DisputeEntity } from '../domain/entity'
 import type {
@@ -162,11 +163,12 @@ export class MongooseDisputeRepository implements DisputeRepository {
   }
 
   async addMessage(props: DisputeMessageProps): Promise<DisputeMessageProps> {
-    const created = await DisputeMessage.create({
-      disputeId: toObjectId(props.disputeId),
-      authorType: props.authorType,
-      authorId: toObjectId(props.authorId),
-      message: props.message,
+    const created = await XeuyMessage.create({
+      threadType: 'dispute_case',
+      threadId: String(props.disputeId),
+      senderId: String(props.authorId),
+      senderRole: props.authorType,
+      text: props.message,
       createdAt: props.createdAt,
       readAt: props.readAt ?? undefined,
     })
@@ -180,7 +182,7 @@ export class MongooseDisputeRepository implements DisputeRepository {
   ): Promise<DisputeMessageProps[]> {
     if (!mongoose.isValidObjectId(disputeId)) return []
     const skip = (page - 1) * limit
-    const docs = await DisputeMessage.find({ disputeId: toObjectId(disputeId) })
+    const docs = await XeuyMessage.find({ threadType: 'dispute_case', threadId: String(disputeId) })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

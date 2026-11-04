@@ -1,0 +1,3 @@
+# Les scripts shell montés dans les conteneurs doivent rester en LF
+# (CRLF casse le shebang sous Linux → "bad interpreter")
+*.sh text eol=lf

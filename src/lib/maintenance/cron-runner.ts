@@ -1,8 +1,15 @@
 import { schedule, ScheduledTask, validate } from 'node-cron'
+import { runOncePerSlot } from '@/lib/cron-lock'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ category: 'job' })
 
 import { runPreventiveVisitsJob, JOB_NAME as JOB_PREVENTIVE } from './jobs/preventive-visits'
 import { runRenewalRemindersJob, JOB_NAME as JOB_RENEWAL } from './jobs/renewal-reminders'
 import { runSLAMonitoringJob, JOB_NAME as JOB_SLA } from './jobs/sla-monitoring'
+import { runCorporateAgentsJob, JOB_NAME as JOB_CORPORATE_AGENTS } from './jobs/corporate-agents'
+import { runInvoiceRemindersJob, JOB_NAME as JOB_INVOICE_REMINDERS } from './jobs/invoice-reminders'
+import { runContractBillingJob, JOB_NAME as JOB_CONTRACT_BILLING } from './jobs/contract-billing'
 
 type JobDefinition = {
   name: string
@@ -29,6 +36,27 @@ const jobs: JobDefinition[] = [
     schedule: '*/15 * * * *',
     task: runSLAMonitoringJob,
     enabled: process.env.MAINTENANCE_CRON_SLA !== 'false'
+  },
+  {
+    // Agents corporate : renouvellements + digests clients (lundi 7h)
+    name: JOB_CORPORATE_AGENTS,
+    schedule: '0 7 * * 1',
+    task: runCorporateAgentsJob,
+    enabled: process.env.MAINTENANCE_CRON_CORPORATE_AGENTS !== 'false'
+  },
+  {
+    // Relances clients des factures (emails sortants) : activation explicite
+    name: JOB_INVOICE_REMINDERS,
+    schedule: '0 9 * * 1-5',
+    task: runInvoiceRemindersJob,
+    enabled: process.env.INVOICE_REMINDERS_ENABLED === 'true'
+  },
+  {
+    // Factures brouillon des échéances de contrats (autoBilling) : activation explicite
+    name: JOB_CONTRACT_BILLING,
+    schedule: '30 6 * * *',
+    task: runContractBillingJob,
+    enabled: process.env.CONTRACT_BILLING_ENABLED === 'true'
   }
 ]
 
@@ -53,14 +81,17 @@ export function startMaintenanceCron(): void {
 
     const task = schedule(job.schedule, async () => {
       const start = Date.now()
-      console.log(`[CRON] ▶ ${job.name} démarré à ${new Date().toISOString()}`)
 
       try {
-        const result = await job.task()
-        const duration = Date.now() - start
-        console.log(`[CRON] ✔ ${job.name} terminé en ${duration}ms`, result)
+        // Une seule instance par créneau (verrou plus court que la plus petite période : 15 min)
+        const result = await runOncePerSlot(`maintenance:${job.name}`, 10 * 60, async () => {
+          log.info('job_started', { job: job.name })
+          return job.task()
+        })
+        if (result === undefined) return
+        log.info('job_finished', { job: job.name, durationMs: Date.now() - start, result })
       } catch (error: any) {
-        console.error(`[CRON] ✘ ${job.name} échoué:`, error.message)
+        log.error('job_failed', { job: job.name, durationMs: Date.now() - start, err: error })
       }
     }, {
       timezone: 'UTC'

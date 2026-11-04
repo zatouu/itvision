@@ -13,8 +13,8 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    // Désactiver ESLint pendant le build pour l'instant
-    ignoreDuringBuilds: true,
+    // Ne plus ignorer ESLint pendant le build afin de bloquer les erreurs en CI
+    ignoreDuringBuilds: false,
   },
   typescript: {
     // Désactiver les erreurs TypeScript pendant le build si nécessaire
@@ -49,7 +49,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://pay.wave.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.alicdn.com https://*.aliexpress.com https://*.alibaba.com https://*.1688.com https://api.wave.com https://api.orange.com https://api.free.sn; frame-src https://js.stripe.com https://pay.wave.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://pay.wave.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.alicdn.com https://*.aliexpress.com https://*.alibaba.com https://*.1688.com https://api.wave.com https://api.orange.com https://api.free.sn https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://challenges.cloudflare.com; frame-src 'self' https://js.stripe.com https://pay.wave.com https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;"
           },
           {
             key: 'Strict-Transport-Security',
@@ -91,45 +91,43 @@ const nextConfig = {
     // Note: do NOT expose server secrets (JWT_SECRET / NEXTAUTH_SECRET) here.
   },
   
-  // Autoriser les images externes (CDN AliExpress / 1688 / Alibaba)
+  // Autoriser toutes les images (sources multiples : AliExpress, 1688, Alibaba, fournisseurs...)
   images: {
-    formats: ['image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30,
-    remotePatterns: [
-      { protocol: 'https', hostname: '**.alicdn.com' },
-      { protocol: 'https', hostname: '**.aliexpress.com' },
-      { protocol: 'https', hostname: '**.1688.com' },
-      { protocol: 'https', hostname: '**.alibaba.com' },
-      { protocol: 'https', hostname: 'ae*.alicdn.com' },
-      { protocol: 'https', hostname: 'cbu*.alicdn.com' },
-      { protocol: 'https', hostname: 'img.alicdn.com' },
-      { protocol: 'https', hostname: 'gw.alicdn.com' },
-      { protocol: 'http', hostname: '**.alicdn.com' },
-    ],
+    unoptimized: true,
   },
 
   // Augmenter la limite de taille du body pour les uploads vidéo (défaut ~4MB)
   experimental: {
+    cpus: 2,
+    webpackMemoryOptimizations: true,
     serverActions: {
       bodySizeLimit: '150mb',
     },
+    // Corps des requêtes clonés pour le middleware (routes multipart restantes, ex. documents admin) :
+    // au-delà de cette taille Next tronque le corps (10 Mo par défaut) et formData() échoue.
+    // /api/upload et /api/ai/transcribe sont hors middleware (src/lib/middleware/multipart-routes.ts).
+    middlewareClientMaxBodySize: '110mb',
   },
 
   outputFileTracingIncludes: {
     '/': ['./lib/**/*'],
   },
 
-  // Packages serveur exclus du bundling (binaires natifs)
-  serverExternalPackages: ['playwright', 'playwright-core'],
+  // Packages serveur exclus du bundling (binaires natifs + plugins à requires dynamiques)
+  serverExternalPackages: [
+    'playwright',
+    'playwright-core',
+    'playwright-extra',
+    'puppeteer-extra-plugin-stealth',
+    'puppeteer-extra-plugin',
+    'puppeteer-extra',
+  ],
   
   // Optimisations de sécurité
   poweredByHeader: false, // Masquer le header "Powered by Next.js"
   
   // Configuration stricte pour la production
   ...(process.env.NODE_ENV === 'production' && {
-    output: 'standalone',
     compress: true,
     trailingSlash: false
   })

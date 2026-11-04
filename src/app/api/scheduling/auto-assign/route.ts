@@ -4,6 +4,8 @@ import { connectMongoose } from '@/lib/mongoose'
 import Intervention from '@/lib/models/Intervention'
 import Technician from '@/lib/models/Technician'
 import { requireInterventionAccess } from '@/lib/interventions-access'
+import { notifyInterventionChange } from '@/lib/portal/intervention-notify'
+import { notifyTechnicianOfChange } from '@/lib/tech/notify-technician'
 
 interface ScoredTechnician {
   _id: mongoose.Types.ObjectId
@@ -45,6 +47,9 @@ export async function POST(request: NextRequest) {
     const auth = await requireInterventionAccess(request)
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+    if (auth.role === 'TECHNICIAN') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     await connectMongoose()
@@ -149,16 +154,22 @@ export async function POST(request: NextRequest) {
 
     // Application réelle si dryRun = false
     if (!dryRun) {
-      await Intervention.updateOne(
-        { _id: interventionId },
+      const updated = await Intervention.findOneAndUpdate(
+        { _id: interventionId, status: { $in: ['pending', 'scheduled'] } },
         {
           $set: {
             technicienId: best._id,
             assignedTechnician: best._id,
             status: 'scheduled'
           }
-        }
-      )
+        },
+        { new: true }
+      ).lean() as any
+      if (!updated) {
+        return NextResponse.json({ error: 'Intervention déjà démarrée, terminée ou annulée' }, { status: 409 })
+      }
+      void notifyInterventionChange(intervention, updated).catch(e => console.error('[auto-assign] notification client:', e))
+      void notifyTechnicianOfChange(intervention, updated)
     }
 
     return NextResponse.json({
@@ -190,6 +201,9 @@ export async function GET(request: NextRequest) {
     const auth = await requireInterventionAccess(request)
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+    if (auth.role === 'TECHNICIAN') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     await connectMongoose()

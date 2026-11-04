@@ -89,9 +89,22 @@ export async function GET(request: NextRequest) {
     if (isActive === 'true') query.isActive = true
     if (isActive === 'false') query.isActive = false
 
-    const [users, total] = await Promise.all([
+    const [users, total, counts] = await Promise.all([
       User.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      User.countDocuments(query)
+      User.countDocuments(query),
+      // Compteurs par domaine pour les onglets — indépendants du filtre courant
+      Promise.all([
+        User.countDocuments({ role: 'CLIENT', companyClientId: { $exists: true, $ne: null } }),
+        User.countDocuments({
+          role: 'CLIENT',
+          $or: [{ companyClientId: { $exists: false } }, { companyClientId: null }],
+          email: { $not: /@xeuy\.bi$/i },
+          username: { $not: /^mobile_/ }
+        }),
+        User.countDocuments({ $or: [{ role: 'PROVIDER' }, { providerProfileId: { $exists: true, $ne: null } }] }),
+        User.countDocuments({ role: 'CLIENT', $or: [{ email: /@xeuy\.bi$/i }, { username: /^mobile_/ }] }),
+        User.countDocuments({ role: { $nin: ['CLIENT', 'PROVIDER'] } }),
+      ])
     ])
 
     const usersWithCategory = users.map((user: any) => ({
@@ -99,7 +112,16 @@ export async function GET(request: NextRequest) {
       userCategory: resolveUserCategory({ role: user.role, companyClientId: user.companyClientId, providerProfileId: user.providerProfileId, email: user.email, username: user.username })
     }))
 
-    return NextResponse.json({ success: true, users: usersWithCategory, total, skip, limit })
+    return NextResponse.json({
+      success: true, users: usersWithCategory, total, skip, limit,
+      domainCounts: {
+        ENTERPRISE_CLIENT: counts[0],
+        MARKETPLACE_CLIENT: counts[1],
+        XEUY_PROVIDER: counts[2],
+        XEUY_CLIENT: counts[3],
+        PLATFORM_USER: counts[4],
+      }
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     const status = message.includes('auth') || message.includes('autorisé') ? 401 : 500
@@ -110,7 +132,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
     const body = await request.json()
 
     const { username, email, password, name, phone, role, avatarUrl, company, address, city, country, companyClientId } = body
@@ -119,6 +141,11 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedRole = String(role || '').toUpperCase()
+
+    // Création de comptes privilégiés réservée au SUPER_ADMIN
+    if (['ADMIN', 'SUPER_ADMIN'].includes(normalizedRole) && admin.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Seul un Super Admin peut créer un compte administrateur' }, { status: 403 })
+    }
     const normalizedCompanyClientId = normalizedRole === 'CLIENT' && companyClientId ? companyClientId : undefined
 
     const normalizedEmail = email.toLowerCase()
@@ -165,27 +192,44 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await connectMongoose()
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
     const body = await request.json()
 
     const { id, name, phone, role, isActive, avatarUrl, company, address, city, country, companyClientId } = body
     if (!id) return NextResponse.json({ error: 'ID requis' }, { status: 400 })
 
     const normalizedRole = role ? String(role).toUpperCase() : undefined
-    const setData: any = {
-      name,
-      phone,
-      avatarUrl,
-      role: normalizedRole,
-      isActive,
-      company,
-      address,
-      city,
-      country
-    }
-    const unsetData: any = {}
 
-    if (normalizedRole && normalizedRole !== 'CLIENT') {
+    const target = await User.findById(id).select('role').lean() as any
+    if (!target) return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+    const currentRole = String(target.role || '').toUpperCase()
+    // Le formulaire renvoie le rôle actuel : seul un vrai changement de rôle est contrôlé
+    const roleChange = normalizedRole && normalizedRole !== currentRole ? normalizedRole : undefined
+
+    // Attribution des rôles privilégiés réservée au SUPER_ADMIN (anti-escalade)
+    if (roleChange && ['ADMIN', 'SUPER_ADMIN'].includes(roleChange) && admin.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Seul un Super Admin peut attribuer un rôle administrateur' }, { status: 403 })
+    }
+
+    // Rétrogradation d'un admin existant réservée au SUPER_ADMIN
+    const targetIsAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(currentRole)
+    if (targetIsAdmin && admin.role !== 'SUPER_ADMIN' && String(target._id) !== admin.userId) {
+      return NextResponse.json({ error: 'Seul un Super Admin peut modifier un administrateur' }, { status: 403 })
+    }
+    if (roleChange && targetIsAdmin && admin.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Seul un Super Admin peut changer le rôle d’un administrateur' }, { status: 403 })
+    }
+    // Ne pas écraser les champs absents du body (update partiel)
+    const setData: any = {}
+    for (const [key, val] of Object.entries({ name, phone, avatarUrl, isActive, company, address, city, country })) {
+      if (val !== undefined) setData[key] = val
+    }
+    if (typeof setData.avatarUrl === 'string') setData.avatarUrl = setData.avatarUrl.trim().slice(0, 500)
+    if (roleChange) setData.role = roleChange
+    const unsetData: any = {}
+    const effectiveRole = roleChange || currentRole
+
+    if (effectiveRole !== 'CLIENT') {
       unsetData.companyClientId = 1
     } else if (companyClientId === null || companyClientId === '') {
       unsetData.companyClientId = 1
@@ -215,6 +259,15 @@ export async function PATCH(request: NextRequest) {
 
     const { id, action, newPassword } = body
     if (!id || !action) return NextResponse.json({ error: 'ID et action requis' }, { status: 400 })
+
+    // Toute action sensible sur un compte admin est réservée au SUPER_ADMIN
+    const patchTarget = await User.findById(id).select('role').lean() as any
+    if (!patchTarget) return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+    if (String(patchTarget._id) !== admin.userId &&
+        ['ADMIN', 'SUPER_ADMIN'].includes(String(patchTarget.role || '').toUpperCase()) &&
+        admin.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Seul un Super Admin peut agir sur un compte administrateur' }, { status: 403 })
+    }
 
     if (action === 'reset_password') {
       if (!newPassword || newPassword.length < 6) return NextResponse.json({ error: 'Mot de passe invalide' }, { status: 400 })

@@ -1,7 +1,6 @@
 /**
  * Script MongoDB pour créer un utilisateur admin
- * Usage: docker exec -i itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db < scripts/create-admin-user-mongo.js
- * Ou: docker exec -i itvision-mongodb mongosh -u admin -p AdminPassword123 --authenticationDatabase admin < scripts/create-admin-user-mongo.js
+ * Usage: docker exec -i itvision-mongodb sh -c 'mongosh -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin' < scripts/create-admin-user-mongo.js
  */
 
 // Se connecter à la base de données

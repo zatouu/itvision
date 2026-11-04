@@ -19,6 +19,7 @@ import ServiceReview from '../models/ServiceReview'
 import User from '../models/User'
 import { connectMongoose } from '../mongoose'
 import { resolveTier } from './config'
+import { normalizeMissionPreferences } from './preferences'
 import { GeoPoint, PresenceStatus, ProviderCandidate } from './types'
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -206,7 +207,7 @@ export async function getCandidates(
 
   const [profiles, users, subs, ratings] = await Promise.all([
     ProviderProfile.find({ userId: { $in: oids } })
-      .select('userId kycVerified serviceCategories currentLoad maxConcurrentMissions')
+      .select('userId kycVerified serviceCategories secondaryCategories availabilityStatus currentLoad maxConcurrentMissions preferences')
       .lean() as any,
     User.find({ _id: { $in: oids } }).select('name kycVerified providerStats').lean() as any,
     ProviderSubscription.find({ userId: { $in: oids }, status: 'active' })
@@ -233,8 +234,8 @@ export async function getCandidates(
     const categories: string[] = profile?.serviceCategories || []
     const secondaryCategories: string[] = profile?.secondaryCategories || []
     const availabilityStatus = profile?.availabilityStatus || 'Disponible'
-    const visible = profile?.visible !== false
-    const available = visible && availabilityStatus === 'Disponible'
+    // `visible` ne pilote que l'affichage sur l'accueil client, pas la réception des demandes
+    const available = availabilityStatus === 'Disponible'
     const tierDef = sub ? { radiusKm: sub.visibilityRadiusKm, priorityLevel: sub.priorityLevel, boostMultiplier: sub.boostMultiplier, id: sub.tier } : freeTier
 
     candidates.push({
@@ -258,6 +259,7 @@ export async function getCandidates(
       visibilityRadiusKm: tierDef.radiusKm ?? config.defaultRadiusKm,
       priorityLevel: tierDef.priorityLevel ?? 0,
       boostMultiplier: tierDef.boostMultiplier ?? 1,
+      preferences: normalizeMissionPreferences(profile?.preferences),
     })
   }
 

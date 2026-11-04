@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import QuickRating from '@/components/portal/QuickRating'
 import {
   Clock, MapPin, Wrench,
   CheckCircle, Loader2, AlertCircle, FileText, Download, Star,
@@ -102,6 +103,10 @@ export default function InterventionDetailPage() {
         meta={<><span className="font-mono">{iv.interventionNumber || '—'}</span> · {interventionTypeLabel[iv.typeIntervention] || iv.typeIntervention}</>}
       />
 
+      {iv.status === 'completed' && !iv.feedback && iv.canRate && (
+        <QuickRating interventionId={iv._id} onDone={fb => setIv((prev: any) => ({ ...prev, feedback: { ...fb, submittedAt: new Date().toISOString() } }))} />
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 border-b border-stone-200 overflow-x-auto">
         {TABS.map(t => {
@@ -155,6 +160,7 @@ export default function InterventionDetailPage() {
                 ))}
                 <span className="text-xs text-stone-500 ml-1 tabular-nums">{iv.feedback.rating}/5</span>
               </div>
+              {iv.feedback.tags?.length > 0 && <p className="text-xs text-stone-500 mt-2">{iv.feedback.tags.join(' · ')}</p>}
               {iv.feedback.comment && <p className="text-xs text-stone-600 mt-2">{iv.feedback.comment}</p>}
               <p className="text-[11px] text-stone-400 mt-1">{fmtDate(iv.feedback.submittedAt)}</p>
             </Card>

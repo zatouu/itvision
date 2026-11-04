@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connectMongoose } from '@/lib/mongoose'
 import Workflow from '@/lib/models/Workflow'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { requireApiUser } from '@/lib/api-auth'
 
-// Vérification d'authentification
 async function verifyAuth(request: NextRequest): Promise<{ authenticated: boolean; role?: string; userId?: string }> {
-  const token = request.cookies.get('auth-token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  
-  if (!token) return { authenticated: false }
-  
   try {
-    const secret = getJwtSecretKey()
-    const { payload } = await jwtVerify(token, secret)
-    return { 
-      authenticated: true, 
-      role: String(payload.role || '').toUpperCase(),
-      userId: payload.userId as string
-    }
+    const { role, userId } = await requireApiUser(request)
+    return { authenticated: true, role, userId }
   } catch {
     return { authenticated: false }
   }

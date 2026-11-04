@@ -41,8 +41,30 @@ export default function OrderChat({ orderReference, token }: OrderChatProps) {
 
   useEffect(() => {
     fetchMessages()
-    const interval = setInterval(fetchMessages, 8000)
-    return () => clearInterval(interval)
+
+    // Temps réel via SSE ; en cas d'indisponibilité, simple rafraîchissement périodique
+    let fallback: ReturnType<typeof setInterval> | null = null
+    let es: EventSource | null = null
+    if (typeof EventSource !== 'undefined') {
+      const params = new URLSearchParams({ orderReference, since: String(Date.now()) })
+      if (token) params.set('token', token)
+      es = new EventSource(`/api/order-chat/stream?${params.toString()}`)
+      es.addEventListener('chat-message', (event) => {
+        const incoming = JSON.parse((event as MessageEvent).data) as ChatMessage
+        setMessages(prev => (prev.some(m => m._id === incoming._id) ? prev : [...prev, incoming]))
+      })
+      es.onerror = () => {
+        es?.close()
+        if (!fallback) fallback = setInterval(fetchMessages, 30000)
+      }
+    } else {
+      fallback = setInterval(fetchMessages, 30000)
+    }
+
+    return () => {
+      es?.close()
+      if (fallback) clearInterval(fallback)
+    }
   }, [orderReference, token])
 
   useEffect(() => {
@@ -61,7 +83,7 @@ export default function OrderChat({ orderReference, token }: OrderChatProps) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur')
-      setMessages(prev => [...prev, data.message])
+      setMessages(prev => (prev.some(m => m._id === data.message._id) ? prev : [...prev, data.message]))
       setText('')
     } catch (e: any) {
       setError(e.message)

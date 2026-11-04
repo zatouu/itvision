@@ -1,5 +1,5 @@
 /**
- * Accès par domaine — Étape 2 (cf. AUDIT_GLOBAL_SORTIE_MONOLITHE.md §5)
+ * Accès par domaine — Étape 2 (cf. docs/AUDIT_GLOBAL_SORTIE_MONOLITHE.md §5)
  *
  * Point d'entrée unique pour l'autorisation côté API :
  * - résout le token (JWT interne ou Keycloak) via verifyAuthToken
@@ -20,11 +20,41 @@ import { verifyAuthToken, type JwtUser } from '@/lib/jwt'
 import { connectMongoose } from '@/lib/mongoose'
 import User from '@/lib/models/User'
 import Client from '@/lib/models/Client'
+import {
+  COMPANY_ROLES,
+  memberCapabilities,
+  type CompanyRole,
+  type CompanyCapability,
+} from '@/lib/company-rights'
+
+export { COMPANY_ROLES }
+export type { CompanyRole, CompanyCapability }
 
 export type AccessDomain = 'corporate' | 'market' | 'xeuy' | 'admin' | 'shared'
 
 const STAFF_ROLES = ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER', 'ACCOUNTANT']
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
+
+/*
+ * Rôles internes à l'entreprise cliente (User.companyRole), 'owner' par défaut pour les comptes historiques.
+ * Capacités = droits du membre (profil ou droits personnalisés User.companyCapabilities, cf. company-rights.ts),
+ * puis filtrées par les interrupteurs admin (Client.permissions) qui restent autoritaires :
+ * - canAccessPortal=false      → aucune capacité (portail coupé)
+ * - canViewReports=false       → pas de 'reports:view'
+ * - canRequestMaintenance=false→ pas de 'maintenance:request'
+ */
+
+export interface CompanyPermissions {
+  canViewReports: boolean
+  canRequestMaintenance: boolean
+  canAccessPortal: boolean
+}
+
+export const DEFAULT_COMPANY_PERMISSIONS: CompanyPermissions = {
+  canViewReports: true,
+  canRequestMaintenance: true,
+  canAccessPortal: true,
+}
 
 export interface UserAccess {
   userId: string
@@ -40,6 +70,12 @@ export interface UserAccess {
   }
   /** Nom de la société cliente (corporate) si résolu. */
   companyName?: string
+  /** Rôle interne entreprise (corporate) — 'owner' par défaut. */
+  companyRole?: string
+  /** Droits personnalisés du membre (remplacent ceux du rôle), définis par l'administrateur de l'espace. */
+  companyCustomCapabilities?: string[]
+  /** Interrupteurs admin sur la société cliente (corporate). */
+  companyPermissions?: CompanyPermissions
   isStaff: boolean
   isAdmin: boolean
 }
@@ -55,23 +91,26 @@ export type DomainAccessResult =
 export async function resolveUserAccess(jwtUser: JwtUser): Promise<UserAccess | null> {
   await connectMongoose()
   const dbUser = await User.findById(jwtUser.userId)
-    .select('companyClientId corporateProfileId marketplaceProfileId providerProfileId vendorProfileId')
+    .select('companyClientId companyRole companyCapabilities corporateProfileId marketplaceProfileId providerProfileId vendorProfileId')
     .lean() as any
   if (!dbUser) return null
 
   let companyClientId = jwtUser.companyClientId || (dbUser.companyClientId ? String(dbUser.companyClientId) : undefined)
   let companyName: string | undefined
+  let companyPermissions: CompanyPermissions | undefined
 
   // Fallback legacy : tokens anciens sans companyClientId mais CLIENT lié à un Client
   if (!companyClientId && jwtUser.role === 'CLIENT') {
-    const company = await Client.findOne({ userId: jwtUser.userId }).select('name company').lean() as any
+    const company = await Client.findOne({ userId: jwtUser.userId }).select('name company permissions').lean() as any
     if (company) {
       companyClientId = String(company._id)
       companyName = company.company || company.name
+      companyPermissions = company.permissions
     }
-  } else if (companyClientId && !companyName) {
-    const company = await Client.findById(companyClientId).select('name company').lean() as any
+  } else if (companyClientId) {
+    const company = await Client.findById(companyClientId).select('name company permissions').lean() as any
     companyName = company?.company || company?.name
+    companyPermissions = company?.permissions
   }
 
   const role = (jwtUser.role || '').toUpperCase()
@@ -87,6 +126,9 @@ export async function resolveUserAccess(jwtUser: JwtUser): Promise<UserAccess | 
       vendorProfileId: dbUser.vendorProfileId ? String(dbUser.vendorProfileId) : undefined,
     },
     companyName,
+    companyRole: dbUser.companyRole ? String(dbUser.companyRole) : undefined,
+    companyCustomCapabilities: Array.isArray(dbUser.companyCapabilities) ? dbUser.companyCapabilities.map(String) : undefined,
+    companyPermissions,
     isStaff: STAFF_ROLES.includes(role),
     isAdmin: ADMIN_ROLES.includes(role),
   }
@@ -141,7 +183,10 @@ function checkDomain(access: UserAccess, domain: AccessDomain): boolean {
   if (access.isAdmin) return true // admins = preview tous domaines
   switch (domain) {
     case 'corporate':
-      return access.role === 'CLIENT' && !!access.profiles.companyClientId
+      // Portail entreprise : CLIENT + société liée + portail non désactivé par l'admin
+      return access.role === 'CLIENT'
+        && !!access.profiles.companyClientId
+        && companyPermissionsOf(access).canAccessPortal
     case 'admin':
       return access.isStaff
     case 'xeuy':
@@ -153,6 +198,54 @@ function checkDomain(access: UserAccess, domain: AccessDomain): boolean {
     default:
       return false
   }
+}
+
+/** Interrupteurs société avec défauts permissifs (comptes historiques sans permissions). */
+export function companyPermissionsOf(access: UserAccess): CompanyPermissions {
+  const p = access.companyPermissions
+  if (!p) return DEFAULT_COMPANY_PERMISSIONS
+  return {
+    canViewReports: p.canViewReports !== false,
+    canRequestMaintenance: p.canRequestMaintenance !== false,
+    canAccessPortal: p.canAccessPortal !== false,
+  }
+}
+
+/** Rôle interne entreprise, avec 'owner' par défaut (comptes historiques). */
+export function companyRoleOf(access: UserAccess): CompanyRole {
+  const role = String(access.companyRole || '').toLowerCase()
+  return (COMPANY_ROLES as readonly string[]).includes(role) ? (role as CompanyRole) : 'owner'
+}
+
+/**
+ * Capacités effectives du membre d'entreprise : rôle interne ∩ interrupteurs admin.
+ * Les interrupteurs (canAccessPortal / canViewReports / canRequestMaintenance)
+ * priment sur le rôle — décision admin, jamais contournable côté client.
+ */
+export function companyCapabilities(access: UserAccess): Set<CompanyCapability> {
+  const perms = companyPermissionsOf(access)
+  if (!perms.canAccessPortal) return new Set()
+  const caps = new Set(memberCapabilities(companyRoleOf(access), access.companyCustomCapabilities))
+  if (!perms.canViewReports) caps.delete('reports:view')
+  if (!perms.canRequestMaintenance) caps.delete('maintenance:request')
+  return caps
+}
+
+export function canCompany(access: UserAccess, capability: CompanyCapability): boolean {
+  return companyCapabilities(access).has(capability)
+}
+
+/**
+ * Garde de capacité : retourne une réponse 403 si refusé, null si autorisé.
+ * Usage : `const denied = requireCompanyCapability(access, 'quotes:respond'); if (denied) return denied`
+ */
+export function requireCompanyCapability(access: UserAccess, capability: CompanyCapability): NextResponse | null {
+  if (access.isAdmin) return null // preview admin
+  if (canCompany(access, capability)) return null
+  return NextResponse.json(
+    { error: "Vous n'avez pas ce droit dans l'espace de votre entreprise. Un administrateur de votre espace peut vous l'accorder (Paramètres > Équipe et droits)." },
+    { status: 403 }
+  )
 }
 
 /**

@@ -10,7 +10,7 @@ import type { ShippingMethodId } from '../logistics'
 // ============================================================================
 
 export type StockStatus = 'in_stock' | 'preorder' | 'out_of_stock'
-export type ServiceFeeRate = 5 | 10 | 15
+export type ServiceFeeRate = number
 export type Currency = 'FCFA' | 'EUR' | 'USD' | 'CNY'
 export type ProductChannel = 'marketplace' | 'corporate' | 'xeuy-bi'
 
@@ -22,7 +22,7 @@ export interface Pricing1688Input {
   price1688?: number // Prix en Yuan (¥)
   baseCost?: number // Prix déjà converti en FCFA
   exchangeRate?: number // Taux de change (défaut: 100)
-  serviceFeeRate?: ServiceFeeRate // 5, 10, ou 15
+  serviceFeeRate?: ServiceFeeRate
   insuranceRate?: number // Pourcentage (défaut: 2.5% obligatoire)
   shippingMethod: ShippingMethodId
   weightKg?: number
@@ -70,6 +70,7 @@ export interface ProductDimensions {
 
 export interface ProductLogistics {
   weightKg: number | null
+  weightEstimated?: boolean
   packagingWeightKg: number | null
   volumeM3: number | null
   dimensions: ProductDimensions | null
@@ -291,7 +292,7 @@ export interface ProductUpdateInput extends Partial<ProductCreateInput> {
 // ============================================================================
 
 export const validateServiceFeeRate = (rate: number | undefined): rate is ServiceFeeRate => {
-  return rate === 5 || rate === 10 || rate === 15
+  return typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 && rate <= 100
 }
 
 export const validateStockStatus = (status: string | undefined): status is StockStatus => {

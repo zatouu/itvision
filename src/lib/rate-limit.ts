@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getRedisClient } from '@/lib/redis'
+import { getClientIp as clientIp } from '@/lib/client-ip'
 
 interface LimitEntry {
   count: number
@@ -12,6 +13,8 @@ export interface RateLimitOptions {
   windowMs?: number
   max?: number
   keyPrefix?: string
+  /** Compte par identifiant (ex. userId) plutôt que par IP — indispensable derrière le NAT des opérateurs mobiles */
+  identifier?: string
 }
 
 function cleanup(now: number) {
@@ -21,11 +24,7 @@ function cleanup(now: number) {
 }
 
 function getClientIp(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for')
-  if (forwarded) return forwarded.split(',')[0].trim()
-  const realIp = req.headers.get('x-real-ip')
-  if (realIp) return realIp
-  return 'unknown'
+  return clientIp(req)
 }
 
 export async function rateLimitRequest(
@@ -34,9 +33,9 @@ export async function rateLimitRequest(
 ): Promise<{ ok: boolean; retryAfter: number } | null> {
   // Bypass E2E (voir rate-limiter.ts)
   if (process.env.DISABLE_RATE_LIMIT === 'true') return { ok: true, retryAfter: 0 }
-  const { windowMs = 60_000, max = 10, keyPrefix = '' } = options
+  const { windowMs = 60_000, max = 10, keyPrefix = '', identifier } = options
   const now = Date.now()
-  const ip = getClientIp(req)
+  const ip = identifier ? `id:${identifier}` : getClientIp(req)
   const key = `${keyPrefix}:${ip}`
 
   cleanup(now)

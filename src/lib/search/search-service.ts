@@ -8,6 +8,7 @@
 
 import { expandQuery } from './synonyms'
 import { buildFacetStages, formatFacets } from './facets'
+import { accentInsensitiveRegex } from './accents'
 
 export interface CatalogSearchOptions {
   q?: string
@@ -43,8 +44,8 @@ export interface CatalogSearchProvider {
   search(page: number, limit: number, options: CatalogSearchOptions): Promise<CatalogSearchResult>
 }
 
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function termRegex(term: string) {
+  return { $regex: accentInsensitiveRegex(term), $options: 'i' }
 }
 
 export class MongoSearchProvider implements CatalogSearchProvider {
@@ -60,11 +61,11 @@ export class MongoSearchProvider implements CatalogSearchProvider {
 
     const clauses = terms.map((term) => ({
       $or: [
-        { name: { $regex: escapeRegex(term), $options: 'i' } },
-        { tagline: { $regex: escapeRegex(term), $options: 'i' } },
-        { description: { $regex: escapeRegex(term), $options: 'i' } },
-        { tags: { $regex: escapeRegex(term), $options: 'i' } },
-        { 'sourcing.title': { $regex: escapeRegex(term), $options: 'i' } },
+        { name: termRegex(term) },
+        { tagline: termRegex(term) },
+        { description: termRegex(term) },
+        { tags: termRegex(term) },
+        { 'sourcing.title': termRegex(term) },
       ],
     }))
 

@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { setAuthCookie } from '@/lib/auth-server'
 import { resolveGuestOrAuthUser } from '@/lib/guest-checkout'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = await rateLimitRequest(request, { windowMs: 60_000, max: 10, keyPrefix: 'auth:guest-checkout' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     const { name, phone, email } = await request.json()
     const resolved = await resolveGuestOrAuthUser(request, { name, phone, email })
+
+    // Compte existant : pas de session sans preuve de possession du contact.
+    // Le client doit se connecter (mot de passe) ou vérifier son téléphone (OTP).
+    if (resolved.requiresVerification) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'ACCOUNT_EXISTS',
+          error: 'Un compte existe déjà avec ce téléphone ou cet email. Connectez-vous pour continuer.',
+        },
+        { status: 409 }
+      )
+    }
 
     const response = NextResponse.json({
       success: true,

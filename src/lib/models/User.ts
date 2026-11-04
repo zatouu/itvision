@@ -4,6 +4,7 @@ export interface IUser extends Document {
   username: string
   email: string
   passwordHash: string
+  sessionVersion?: number
   name: string
   avatarUrl?: string
   phone?: string
@@ -16,6 +17,23 @@ export interface IUser extends Document {
   companyClientId?: mongoose.Types.ObjectId
   // Rôle interne dans l'entreprise cliente (portail B2B) — owner = compte d'origine
   companyRole?: 'owner' | 'admin' | 'finance' | 'technical' | 'viewer'
+  companyCapabilities?: string[]
+  companyInvitePending?: boolean
+  portalSeenAt?: Date
+  portalLastSeenAt?: Date
+  portalNotifyMuted?: string[]
+  // Carnet d'adresses marketplace (livraison)
+  savedAddresses?: mongoose.Types.DocumentArray<{
+    label: string
+    fullName: string
+    phone: string
+    region: string
+    department: string
+    neighborhood: string
+    street: string
+    additionalInfo?: string
+    isDefault: boolean
+  }>
   // Profils découplés par domaine
   marketplaceProfileId?: mongoose.Types.ObjectId
   corporateProfileId?: mongoose.Types.ObjectId
@@ -52,6 +70,17 @@ export interface IUser extends Document {
     reliabilityScore: number // 0..100 (100 = jamais annulé, défaut 100)
     lastUpdatedAt?: Date
   }
+  // Préférences de confidentialité (RGPD) — écran Privacy de l'app mobile
+  privacy?: {
+    profilePublic?: boolean
+    preciseLocation?: boolean
+    smsNotifications?: boolean
+    whatsappNotifications?: boolean
+  }
+  // Suppression de compte (RGPD) : le user est anonymisé et désactivé,
+  // jamais supprimé physiquement (intégrité financière/escrow/audit)
+  deletedAt?: Date
+  anonymizedAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -60,6 +89,7 @@ const UserSchema = new Schema<IUser>({
   username: { type: String, required: true, unique: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
+  sessionVersion: { type: Number, default: 0, min: 0 },
   name: { type: String, required: true },
   avatarUrl: { type: String },
   phone: { type: String },
@@ -69,11 +99,34 @@ const UserSchema = new Schema<IUser>({
   country: { type: String, trim: true },
   companyClientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
   companyRole: { type: String, enum: ['owner', 'admin', 'finance', 'technical', 'viewer'] },
+  // Droits personnalisés dans l'espace entreprise ; absent = droits du rôle
+  companyCapabilities: { type: [String], default: undefined },
+  // Invité par son entreprise, compte pas encore activé (levé par /api/auth/reset)
+  companyInvitePending: { type: Boolean },
+  // Visites du portail entreprise : portalLastSeenAt = début de la visite précédente (encart « depuis votre dernière visite »)
+  portalSeenAt: { type: Date },
+  portalLastSeenAt: { type: Date },
+  // Catégories de notifications du portail que le membre ne veut plus recevoir en push
+  portalNotifyMuted: { type: [String], default: undefined },
   marketplaceProfileId: { type: Schema.Types.ObjectId, ref: 'MarketplaceProfile', sparse: true, index: true },
   corporateProfileId: { type: Schema.Types.ObjectId, ref: 'CorporateProfile', sparse: true, index: true },
   providerProfileId: { type: Schema.Types.ObjectId, ref: 'ProviderProfile', sparse: true, index: true },
   vendorProfileId: { type: Schema.Types.ObjectId, ref: 'VendorProfile', sparse: true, index: true },
   favoriteProductIds: { type: [String], default: [] },
+  savedAddresses: {
+    type: [{
+      label: { type: String, trim: true, default: 'Domicile' },
+      fullName: { type: String, trim: true, required: true },
+      phone: { type: String, trim: true, required: true },
+      region: { type: String, trim: true, required: true },
+      department: { type: String, trim: true, required: true },
+      neighborhood: { type: String, trim: true, required: true },
+      street: { type: String, trim: true, required: true },
+      additionalInfo: { type: String, trim: true },
+      isDefault: { type: Boolean, default: false },
+    }],
+    default: [],
+  },
   role: { type: String, enum: ['CLIENT', 'TECHNICIAN', 'PRODUCT_MANAGER', 'ACCOUNTANT', 'ADMIN', 'SUPER_ADMIN', 'VENDOR', 'PROVIDER'], default: 'CLIENT', index: true },
   marketplaceTier: { type: String, enum: ['standard', 'pro', 'reseller', 'partner'], default: 'standard', index: true },
   proRequestedAt: { type: Date },
@@ -103,6 +156,14 @@ const UserSchema = new Schema<IUser>({
     reliabilityScore: { type: Number, default: 100, min: 0, max: 100 },
     lastUpdatedAt: { type: Date },
   },
+  privacy: {
+    profilePublic: { type: Boolean, default: true },
+    preciseLocation: { type: Boolean, default: true },
+    smsNotifications: { type: Boolean, default: false },
+    whatsappNotifications: { type: Boolean, default: false },
+  },
+  deletedAt: { type: Date },
+  anonymizedAt: { type: Date },
 }, { timestamps: true })
 
 UserSchema.index({ referredBy: 1 })

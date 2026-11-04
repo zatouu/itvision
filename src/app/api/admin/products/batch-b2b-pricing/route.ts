@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
-import { readPricingDefaults } from '@/lib/pricing/settings'
+import { PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
+import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/admin/products/batch-b2b-pricing
@@ -21,12 +22,12 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth(req)
     const role = auth.role?.toUpperCase()
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    if (!PRODUCT_STAFF_ROLES.includes(role || '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     const body = await req.json().catch(() => ({}))
-    const defaults = readPricingDefaults()
+    const defaults = (await readSharedPricing()).config.defaults
     const defaultDiscount = typeof defaults.defaultB2BDiscountPercent === 'number' ? defaults.defaultB2BDiscountPercent : 15
     const discountPercent = typeof body.discountPercent === 'number' ? body.discountPercent : defaultDiscount
     const force = body.force === true
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req)
     const role = auth.role?.toUpperCase()
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    if (!PRODUCT_STAFF_ROLES.includes(role || '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 

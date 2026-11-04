@@ -2,27 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import MaintenanceReport from '@/lib/models/MaintenanceReport'
 import Technician from '@/lib/models/Technician'
-import Intervention from '@/lib/models/Intervention'
 import { addNotification } from '@/lib/notifications-memory'
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
 import { emailService } from '@/lib/email-service'
-import { getClientContactEmails } from '@/lib/client-contacts'
  import { logAuditEvent } from '@/lib/audit'
 import { getBrandFromHost, BrandConfig } from '@/lib/branding'
-import { emitGroupNotification, emitInterventionUpdate } from '@/lib/socket-emit'
+import { emitGroupNotification } from '@/lib/socket-emit'
+import { advanceIntervention } from '@/lib/interventions/lifecycle'
+import { escapeHtml } from '@/lib/html-escape'
+import { reportSubmissionErrors } from '@/lib/maintenance/report-rules'
 
 async function verifyTechnicianToken(request: NextRequest) {
-  // Supporte 'auth-token' (standard) et 'tech-auth-token' (legacy)
-  const token = request.cookies.get('auth-token')?.value ||
-                request.cookies.get('tech-auth-token')?.value ||
-                request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const decoded = payload as any
-  const role = String(decoded.role || '').toUpperCase()
-  const userId = String(decoded.userId || decoded.id || decoded.sub || '')
-  const technicianId = decoded.technicianId || (role === 'TECHNICIAN' ? userId : undefined)
-  return { ...decoded, role, technicianId, userId }
+  const user = await requireApiUser(request, ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'])
+  return { ...user, technicianId: user.technicianId || (user.role === 'TECHNICIAN' ? user.userId : undefined) }
 }
 
 // POST - Soumettre rapport pour validation
@@ -135,15 +127,11 @@ export async function POST(request: NextRequest) {
       emitGroupNotification('admins', {
         type: 'info',
         title: 'Nouveau rapport à valider',
-        message: `Rapport ${report.reportId} soumis par ${tokenData.name || 'technicien'}`,
+        message: `Rapport ${report.reportId} soumis par ${tokenData.username || 'technicien'}`,
         data: { reportId: String(report._id), reportNumber: report.reportId }
       })
       if (report.interventionId) {
-        await Intervention.updateOne(
-          { _id: report.interventionId },
-          { $set: { status: 'completed' } }
-        )
-        emitInterventionUpdate(String(report.interventionId), { id: String(report.interventionId), status: 'completed' })
+        await advanceIntervention(report.interventionId, 'completed', tokenData.userId)
       }
     } catch (e) { console.error('[Report] Realtime/audit error:', e) }
 
@@ -152,12 +140,7 @@ export async function POST(request: NextRequest) {
       await notifyAdminNewReport(report, brand)
     } catch {}
 
-    // Notification contacts client (si le rapport est lié à un client)
-    try {
-      if (report.clientId) {
-        await notifyClientContacts(report, brand)
-      }
-    } catch {}
+    // Le client est prévenu à la publication (après validation), pas avant : il ne pourrait pas encore lire le rapport
     
     // Mise à jour statistiques technicien
     if (techRecord && techRecord._id) {
@@ -188,6 +171,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur soumission rapport:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la soumission' },
@@ -196,100 +181,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Fonction de validation des données avant soumission
+// Mêmes règles que le formulaire technicien (src/lib/maintenance/report-rules.ts)
 function validateReportForSubmission(report: any): string[] {
-  const errors: string[] = []
-  
-  // Vérifications obligatoires
-  if (!report.initialObservations || report.initialObservations.trim().length < 10) {
-    errors.push('Observations initiales trop courtes (minimum 10 caractères)')
-  }
-  
-  if (!report.results || report.results.trim().length < 10) {
-    errors.push('Résultats de l\'intervention requis (minimum 10 caractères)')
-  }
-  
-  if (!report.tasksPerformed || report.tasksPerformed.length === 0) {
-    errors.push('Au moins une tâche réalisée doit être spécifiée')
-  }
-  
-  if (!report.startTime || !report.endTime) {
-    errors.push('Heures de début et fin d\'intervention requises')
-  }
-  
-  // Vérification durée cohérente (gère le passage à minuit)
-  if (report.startTime && report.endTime) {
-    const parse = (t: string) => {
-      const [h, m] = t.split(':').map(Number)
-      if (Number.isNaN(h) || Number.isNaN(m)) return null
-      return h * 60 + m
-    }
-    const start = parse(report.startTime)
-    const end = parse(report.endTime)
-    if (start === null || end === null) {
-      errors.push('Format des heures invalide')
-    } else {
-      let diffMinutes = end - start
-      if (diffMinutes < 0) diffMinutes += 24 * 60
-      const durationHours = diffMinutes / 60
-      if (durationHours <= 0 || durationHours > 12) {
-        errors.push('Durée d\'intervention anormalement longue (>12h)')
-      }
-    }
-  }
-  
-  // Vérification photos (au moins une photo avant OU après selon le type)
-  const hasBeforePhotos = report.photos?.before?.length > 0
-  const hasAfterPhotos = report.photos?.after?.length > 0
-  
-  if (report.interventionType === 'maintenance' && !hasBeforePhotos && !hasAfterPhotos) {
-    errors.push('Au moins une photo (avant ou après) requise pour une maintenance')
-  }
-  
-  if (report.interventionType === 'installation' && !hasAfterPhotos) {
-    errors.push('Photos après installation requises')
-  }
-  
-  // Vérification signatures si intervention terminée
-  if (report.status !== 'draft' && !report.signatures?.technician) {
-    errors.push('Signature du technicien requise')
-  }
-
-  if (Array.isArray(report.materialsUsed)) {
-    const invalidMaterials = report.materialsUsed.filter((material: any) => !material || material.quantity <= 0)
-    if (invalidMaterials.length > 0) {
-      errors.push('Certaines lignes matériel ont une quantité invalide (≥1 requis)')
-    }
-  }
-
-  if (Array.isArray(report.issuesDetected)) {
-    report.issuesDetected.forEach((issue: any, index: number) => {
-      if (issue?.requiresQuote && !issue?.recommendedSolution) {
-        errors.push(`La recommandation détaillée est obligatoire pour le problème ${issue?.reference || index + 1}`)
-      }
-    })
-  }
-
-  if (Array.isArray(report.followUpRecommendations)) {
-    report.followUpRecommendations.forEach((rec: any, index: number) => {
-      if (rec?.requiresQuote && typeof rec?.estimatedCost !== 'number') {
-        errors.push(`La recommandation ${rec?.title || index + 1} doit être chiffrée pour générer un devis`)
-      }
-    })
-  }
-
-  const hasUrgentFollowUp = Array.isArray(report.followUpRecommendations)
-    ? report.followUpRecommendations.some((rec: any) => rec?.priority === 'urgent')
-    : false
-  const hasUpcomingNextAction = Array.isArray(report.nextActions)
-    ? report.nextActions.some((action: any) => ['pending', 'scheduled'].includes(action?.status))
-    : false
-
-  if (hasUrgentFollowUp && !hasUpcomingNextAction) {
-    errors.push('Planifiez une action de suivi pour les recommandations urgentes')
-  }
-  
-  return errors
+  return reportSubmissionErrors({
+    interventionType: report.interventionType,
+    initialObservations: report.initialObservations === 'Observations non renseignées' ? '' : report.initialObservations,
+    results: report.results === 'N/A' ? '' : report.results,
+    tasksPerformed: report.tasksPerformed,
+    startTime: report.startTime,
+    endTime: report.endTime,
+    photosBeforeCount: report.photos?.before?.length || 0,
+    photosAfterCount: report.photos?.after?.length || 0,
+    materialsUsed: report.materialsUsed,
+    issuesDetected: report.issuesDetected,
+    followUpRecommendations: report.followUpRecommendations,
+    nextActions: report.nextActions,
+  })
 }
 
 // Fonction de notification admin (à implémenter selon vos besoins)
@@ -333,12 +240,12 @@ async function notifyAdminNewReport(report: any, brand: BrandConfig) {
             <h2 style="margin:0">📋 Nouveau rapport soumis</h2>
           </div>
           <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
-            <p><strong>Rapport :</strong> ${report.reportId}</p>
-            <p><strong>Site :</strong> ${report.site || 'Non spécifié'}</p>
+            <p><strong>Rapport :</strong> ${escapeHtml(report.reportId)}</p>
+            <p><strong>Site :</strong> ${escapeHtml(report.site || 'Non spécifié')}</p>
             <p><strong>Date d'intervention :</strong> ${dateStr}</p>
             <p><strong>Priorité :</strong> ${priorityLabel}</p>
             <p style="margin-top:20px">
-              <a href="${siteUrl}/admin" style="background:#2563eb;color:white;padding:10px 20px;border-radius:5px;text-decoration:none">
+              <a href="${siteUrl}/validation-rapports" style="background:#2563eb;color:white;padding:10px 20px;border-radius:5px;text-decoration:none">
                 Valider le rapport
               </a>
             </p>
@@ -349,56 +256,5 @@ async function notifyAdminNewReport(report: any, brand: BrandConfig) {
     })
   } catch (emailError) {
     console.error('Erreur envoi email notification:', emailError)
-  }
-}
-
-// Notification des contacts client lors de la soumission d'un rapport
-async function notifyClientContacts(report: any, brand: BrandConfig) {
-  try {
-    const clientId = String(report.clientId)
-    const emails = await getClientContactEmails(clientId)
-    if (emails.length === 0) return
-
-    const siteUrl = brand.url
-    const dateStr = report.interventionDate
-      ? new Date(report.interventionDate).toLocaleDateString('fr-FR')
-      : 'Non spécifiée'
-
-    await emailService.sendEmail({
-      to: emails.join(', '),
-      fromName: brand.name,
-      brand,
-      subject: `Fiche d'intervention ${report.reportId} - ${brand.name}`,
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:20px;border-radius:10px 10px 0 0">
-            <h2 style="margin:0">📋 Fiche d'intervention</h2>
-            <p style="margin:5px 0 0;opacity:0.9">${brand.name} - ${brand.tagline}</p>
-          </div>
-          <div style="background:#f9fafb;padding:20px;border-radius:0 0 10px 10px;border:1px solid #e5e7eb">
-            <p>Bonjour,</p>
-            <p>Une intervention a été réalisée sur votre site. Voici les détails :</p>
-            <table style="width:100%;border-collapse:collapse;margin:15px 0">
-              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold;width:40%">Référence</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.reportId}</td></tr>
-              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Site</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.site || 'Non spécifié'}</td></tr>
-              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Date d'intervention</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${dateStr}</td></tr>
-              <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">Horaires</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${report.startTime || ''} - ${report.endTime || ''}</td></tr>
-            </table>
-            <p>Pour consulter le rapport complet, connectez-vous à votre espace client :</p>
-            <p style="text-align:center;margin:20px 0">
-              <a href="${siteUrl}/espace-client" style="background:linear-gradient(135deg,#059669,#7c3aed);color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
-                Accéder à mon espace
-              </a>
-            </p>
-            <p style="color:#6b7280;font-size:13px">Merci de votre confiance.<br>L'équipe ${brand.name}</p>
-          </div>
-        </div>
-      `,
-      text: `Fiche d'intervention ${report.reportId}\nSite: ${report.site}\nDate: ${dateStr}\nHoraires: ${report.startTime || ''} - ${report.endTime || ''}\nConsultez votre espace client: ${siteUrl}/espace-client`
-    })
-
-    console.log(`[REPORT] Notification envoyée aux contacts client: ${emails.join(', ')}`)
-  } catch (error) {
-    console.error('Erreur notification contacts client:', error)
   }
 }

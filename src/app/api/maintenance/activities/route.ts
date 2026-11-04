@@ -2,25 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceActivity from '@/lib/models/MaintenanceActivity'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
-import { jwtVerify } from 'jose'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
-
-async function verifyToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-  if (!token) throw new Error('Non authentifié')
-  const secret = getJwtSecretKey()
-  const { payload } = await jwtVerify(token, secret)
-  return {
-    userId: payload.userId as string,
-    role: String(payload.role || '').toUpperCase()
-  }
-}
+import Technician from '@/lib/models/Technician'
+import { requireApiUser, authErrorResponse } from '@/lib/api-auth'
+import { notifyTechnician } from '@/lib/tech/notify-technician'
 
 export async function GET(request: NextRequest) {
   try {
-    const { role } = await verifyToken(request)
+    const { role } = await requireApiUser(request)
     if (!['ADMIN', 'TECHNICIAN'].includes(role)) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
@@ -47,6 +35,8 @@ export async function GET(request: NextRequest) {
       success: true,
       activities: activities.map((activity) => ({
         id: activity._id.toString(),
+        title: activity.title,
+        description: activity.description,
         visitId: activity.visitId,
         contractId: activity.contractId?.toString(),
         contractName: activity.contractName,
@@ -75,15 +65,16 @@ export async function GET(request: NextRequest) {
       }))
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur chargement activités maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, role } = await verifyToken(request)
+    const { userId, role } = await requireApiUser(request)
     if (role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
     }
@@ -91,6 +82,8 @@ export async function POST(request: NextRequest) {
     await connectMongoose()
     const body = await request.json()
     const {
+      title,
+      description,
       visitId,
       contractId,
       contractName,
@@ -130,6 +123,8 @@ export async function POST(request: NextRequest) {
     }
 
     const activity = await MaintenanceActivity.create({
+      title: title ? String(title).slice(0, 160) : undefined,
+      description: description ? String(description).slice(0, 2000) : undefined,
       visitId,
       contractId: contractId || undefined,
       contractName,
@@ -150,14 +145,31 @@ export async function POST(request: NextRequest) {
       createdBy: userId
     })
 
+    // Publication ouverte : prévenir les techs (push web — reçu même portail fermé)
+    if (activity.allowMarketplace) {
+      const label = activity.title || activity.productName || activity.contractName || `Mission ${activity.clientName}`
+      const slot = activity.date ? new Date(activity.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'Africa/Dakar' }) : ''
+      const payload = {
+        title: `Nouvelle mission : ${label}`,
+        message: `${activity.clientName}${activity.site ? ` · ${activity.site}` : ''}${slot ? ` · le ${slot}` : ''}. Proposez votre disponibilité et votre prix.`,
+        actionUrl: '/tech-interface?tab=missions',
+        metadata: { activityId: String(activity._id) },
+      }
+      const targets = Array.isArray(activity.preferredTechnicians) && activity.preferredTechnicians.length
+        ? activity.preferredTechnicians
+        : (await Technician.find({ isActive: { $ne: false } }).select('_id').limit(200).lean() as any[]).map(t => t._id)
+      void Promise.allSettled(targets.map((t: unknown) => notifyTechnician(t, payload)))
+    }
+
     return NextResponse.json({
       success: true,
       activityId: activity._id.toString()
     })
   } catch (error) {
+    const authRes = authErrorResponse(error)
+    if (authRes) return authRes
     console.error('Erreur publication activité maintenance:', error)
-    const message = error instanceof Error ? error.message : 'Erreur serveur'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, RotateCcw, Shield, Coins, ToggleLeft, AlertTriangle, Sparkles } from 'lucide-react'
+import { Save, RotateCcw, Shield, Coins, ToggleLeft, AlertTriangle, Sparkles, ShoppingBag, MessageCircle } from 'lucide-react'
+import { WHATSAPP_RELAY_EVENTS } from '@/lib/whatsapp-relay-events'
 
 type AiFeatureMode = 'free' | 'quota' | 'eligible' | 'points'
 
@@ -11,7 +12,8 @@ const AI_FEATURES: { key: string; label: string; audience: 'client' | 'provider'
   { key: 'enhance_request', label: 'Reformulation de la demande', audience: 'client' },
   { key: 'photo_analysis', label: 'Analyse des photos (vision)', audience: 'client', vision: true },
   { key: 'analyze_request', label: 'Analyse d\'une demande', audience: 'provider' },
-  { key: 'mission_help', label: 'Aide pendant la mission', audience: 'provider' },
+  { key: 'mission_coach', label: 'Coach mission par étape (automatique)', audience: 'provider' },
+  { key: 'mission_help', label: 'Questions pendant la mission', audience: 'provider' },
   { key: 'suggest_offer', label: 'Suggestion de prix / offre', audience: 'provider' },
   { key: 'daily_tips', label: 'Conseils du jour', audience: 'provider' },
 ]
@@ -35,7 +37,7 @@ type AiConfigData = {
 
 const DEFAULT_AI: AiConfigData = {
   enabled: true,
-  features: Object.fromEntries(AI_FEATURES.map(f => [f.key, { enabled: true, mode: (f.key === 'daily_tips' ? 'free' : 'quota') as AiFeatureMode }])),
+  features: Object.fromEntries(AI_FEATURES.map(f => [f.key, { enabled: true, mode: (['daily_tips', 'mission_coach'].includes(f.key) ? 'free' : 'quota') as AiFeatureMode }])),
   eligibility: { minCompletedMissions: 10, minScoreXeuy: 70, minReliability: 80, requireKyc: true },
   pricing: { textCostPoints: 1, visionCostPoints: 3 },
   dailyFreeQuota: { client: 2, provider: 2 },
@@ -44,6 +46,7 @@ const DEFAULT_AI: AiConfigData = {
 
 type AppConfigData = {
   ai?: AiConfigData
+  integrations?: { ddmBridge?: { enabled: boolean }; onlinePayments?: { enabled: boolean }; whatsappRelay?: { enabled: boolean; events?: Record<string, boolean> }; sourcingAutoSend?: { enabled: boolean; minRelevance?: number } }
   monetization: {
     mode: 'free' | 'points' | 'commission'
     freeUntil?: string
@@ -120,6 +123,18 @@ export default function PlatformConfigPage() {
           monetization: config.monetization,
           escrow: config.escrow,
           ai: config.ai,
+          integrations: {
+            ddmBridge: { enabled: !!config.integrations?.ddmBridge?.enabled },
+            onlinePayments: { enabled: !!config.integrations?.onlinePayments?.enabled },
+            whatsappRelay: {
+              enabled: !!config.integrations?.whatsappRelay?.enabled,
+              events: Object.fromEntries(WHATSAPP_RELAY_EVENTS.map(ev => [ev.key, config.integrations?.whatsappRelay?.events?.[ev.key] !== false])),
+            },
+            sourcingAutoSend: {
+              enabled: !!config.integrations?.sourcingAutoSend?.enabled,
+              minRelevance: config.integrations?.sourcingAutoSend?.minRelevance ?? 0.8,
+            },
+          },
         }),
       })
       const data = await res.json()
@@ -370,6 +385,164 @@ export default function PlatformConfigPage() {
                 />
               </div>
             </div>
+          </section>
+
+          {/* ─── Paiement des missions ─── */}
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <Coins className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-stone-900">Paiement en ligne des missions Xeuy</h2>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Wave, Orange Money, Free Money, séquestre et achat de crédits. Désactivé (lancement) : le client paie le prestataire en espèces,
+                    Xeuy ne fait que la mise en relation et l&apos;application masque les portefeuilles, recharges et paiements en ligne.
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex flex-shrink-0 items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!config.integrations?.onlinePayments?.enabled}
+                  onChange={(e) => setConfig({ ...config, integrations: { ...config.integrations, onlinePayments: { enabled: e.target.checked } } })}
+                  className="sr-only peer"
+                  aria-label="Activer le paiement en ligne des missions"
+                />
+                <div className={toggleCls} />
+              </label>
+            </div>
+          </section>
+
+          {/* ─── Intégration DDM+ ─── */}
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-amber-100 p-2 rounded-lg">
+                  <ShoppingBag className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-stone-900">Produits DDM+ dans Xeuy</h2>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Fournitures suggérées par l&apos;analyse et matériel à fournir par le client, avec lien d&apos;achat DDM+ et commission au prestataire.
+                    Désactivé : la liste reste visible, la partie DDM+ apparaît grisée avec la mention « Bientôt ».
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex flex-shrink-0 items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!config.integrations?.ddmBridge?.enabled}
+                  onChange={(e) => setConfig({ ...config, integrations: { ...config.integrations, ddmBridge: { enabled: e.target.checked } } })}
+                  className="sr-only peer"
+                  aria-label="Activer les produits DDM+ dans Xeuy"
+                />
+                <div className={toggleCls} />
+              </label>
+            </div>
+          </section>
+
+          {/* Trouvez-moi automatique */}
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-violet-100 p-2 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-violet-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-stone-900">« Trouvez-moi » en pilote automatique</h2>
+                  <p className="mt-1 text-sm text-stone-500">
+                    L&apos;agent envoie lui-même la proposition au client (SMS + page de suivi) quand le produit trouvé correspond à la demande
+                    au-delà du seuil de pertinence et respecte le budget indiqué. Sinon, la proposition attend votre validation dans le copilote.
+                  </p>
+                  {config.integrations?.sourcingAutoSend?.enabled && (
+                    <label className="mt-3 flex items-center gap-3 text-sm text-stone-700">
+                      Seuil de pertinence
+                      <select
+                        value={String(config.integrations?.sourcingAutoSend?.minRelevance ?? 0.8)}
+                        onChange={(e) => setConfig({ ...config, integrations: { ...config.integrations, sourcingAutoSend: { enabled: true, minRelevance: Number(e.target.value) } } })}
+                        className="rounded-lg border border-stone-300 px-2 py-1"
+                      >
+                        <option value="0.7">70 % (plus d&apos;envois automatiques)</option>
+                        <option value="0.8">80 % (recommandé)</option>
+                        <option value="0.9">90 % (prudent)</option>
+                      </select>
+                    </label>
+                  )}
+                </div>
+              </div>
+              <label className="relative inline-flex flex-shrink-0 items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!config.integrations?.sourcingAutoSend?.enabled}
+                  onChange={(e) => setConfig({ ...config, integrations: { ...config.integrations, sourcingAutoSend: { minRelevance: config.integrations?.sourcingAutoSend?.minRelevance ?? 0.8, enabled: e.target.checked } } })}
+                  className="sr-only peer"
+                  aria-label="Activer l'envoi automatique des propositions Trouvez-moi"
+                />
+                <div className={toggleCls} />
+              </label>
+            </div>
+          </section>
+
+          {/* Relais WhatsApp */}
+          <section className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-emerald-100 p-2 rounded-lg">
+                  <MessageCircle className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-stone-900">Relais WhatsApp des notifications Xeuy</h2>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Envoie un message WhatsApp (modèle Meta approuvé) quand la notification push n&apos;atteint aucun appareil,
+                    uniquement aux utilisateurs qui l&apos;ont accepté dans l&apos;app. Un message au plus toutes les 10 minutes par personne et par événement.
+                    Nécessite WHATSAPP_CLOUD_TOKEN, WHATSAPP_PHONE_NUMBER_ID et le modèle WHATSAPP_TEMPLATE_NOTIFICATION (2 variables : titre, texte).
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex flex-shrink-0 items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!config.integrations?.whatsappRelay?.enabled}
+                  onChange={(e) => setConfig({ ...config, integrations: { ...config.integrations, whatsappRelay: { ...config.integrations?.whatsappRelay, enabled: e.target.checked } } })}
+                  className="sr-only peer"
+                  aria-label="Activer le relais WhatsApp"
+                />
+                <div className={toggleCls} />
+              </label>
+            </div>
+            {config.integrations?.whatsappRelay?.enabled && (
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {WHATSAPP_RELAY_EVENTS.map(ev => {
+                  const on = config.integrations?.whatsappRelay?.events?.[ev.key] !== false
+                  return (
+                    <label key={ev.key} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-4 py-3 cursor-pointer">
+                      <span className="text-sm text-stone-700">{ev.label}</span>
+                      <span className="relative inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) => setConfig({
+                            ...config,
+                            integrations: {
+                              ...config.integrations,
+                              whatsappRelay: {
+                                enabled: true,
+                                events: { ...config.integrations?.whatsappRelay?.events, [ev.key]: e.target.checked },
+                              },
+                            },
+                          })}
+                          className="sr-only peer"
+                          aria-label={ev.label}
+                        />
+                        <span className={toggleCls} />
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </section>
 
           {/* ─── Assistant IA ─── */}

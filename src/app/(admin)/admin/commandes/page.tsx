@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import FreightPanel from '@/components/admin/FreightPanel'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -48,6 +49,7 @@ const shippingLabels: Record<string, string> = {
   air_express: 'Express (3-5 jrs)',
   air_15: 'Aérien (10-15 jrs)',
   sea_freight: 'Maritime (45-50 jrs)',
+  local_24h: 'Livraison locale (24h)',
   express_3j: 'Express (3-5 jrs)', // legacy aliases
   air_15j: 'Aérien (10-15 jrs)',
   maritime_60j: 'Maritime (45-50 jrs)'
@@ -813,12 +815,33 @@ export default function AdminOrdersPage() {
                       Adresse de Livraison
                     </h3>
                     <div className="space-y-1 text-sm bg-stone-50 p-4 rounded-lg">
+                      {(selectedOrder as any).pickupPoint && (
+                        <p className="mb-2 rounded-md bg-emerald-100 px-2 py-1 font-semibold text-emerald-900">
+                          Retrait en point relais : {(selectedOrder as any).pickupPoint.name}
+                          {(selectedOrder as any).pickupPoint.neighborhood ? ` (${(selectedOrder as any).pickupPoint.neighborhood})` : ''}
+                        </p>
+                      )}
                       <p className="font-semibold">{selectedOrder.address.street}</p>
                       <p>{[selectedOrder.address.neighborhood, selectedOrder.address.city, selectedOrder.address.department].filter(Boolean).join(', ')}</p>
                       <p>{selectedOrder.address.region || 'Sénégal'}</p>
                       {selectedOrder.address.additionalInfo && <p className="text-stone-600 italic mt-2">Note: {selectedOrder.address.additionalInfo}</p>}
                     </div>
                   </div>
+                )}
+
+                {(selectedOrder as any).paymentStatus === 'completed' && (selectedOrder as any).shipping?.method !== 'local_24h' && (
+                  <FreightPanel
+                    kind="order"
+                    id={selectedOrder.orderId}
+                    measured={(selectedOrder as any).shippingAdjustment ? {
+                      realWeightKg: (selectedOrder as any).shippingAdjustment.realWeightKg,
+                      realVolumeM3: (selectedOrder as any).shippingAdjustment.realVolumeM3,
+                      label: `Déjà pesé : ${(selectedOrder as any).shippingAdjustment.realWeightKg} kg · ${({ absorbed: 'écart dans la tolérance', awaiting_payment: `complément ${Math.round((selectedOrder as any).shippingAdjustment.amount).toLocaleString('fr-FR')} F en attente`, paid: 'complément réglé', refund: 'remboursement dû' } as Record<string, string>)[(selectedOrder as any).shippingAdjustment.status] || ''}`,
+                    } : undefined}
+                    hasPickup={!!(selectedOrder as any).pickupPoint}
+                    readyForPickupAt={(selectedOrder as any).readyForPickupAt}
+                    onDone={fetchOrders}
+                  />
                 )}
 
                 {/* Articles */}

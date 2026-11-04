@@ -46,6 +46,9 @@ type PaymentSettings = {
       orangeMerchantPhone: string
       freeMoneyMerchantPhone: string
       instructions: string
+      bankName: string
+      bankAccountName: string
+      bankIban: string
     },
     gateway: {
       active: boolean
@@ -520,6 +523,43 @@ export default function AdminPaymentsPage() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                   placeholder="Ex: Paiement à la livraison possible sous conditions..."
                 />
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold text-stone-900 mb-1">Virement bancaire</h3>
+                <p className="text-xs text-stone-500 mb-4">Affiché aux clients si un IBAN est renseigné. Laisser vide pour masquer l'option.</p>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Banque</label>
+                    <input
+                      type="text"
+                      value={settings.providers.manual.bankName || ''}
+                      onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, bankName: e.target.value } } })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                      placeholder="Ex: BHS, CBAO..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Titulaire du compte</label>
+                    <input
+                      type="text"
+                      value={settings.providers.manual.bankAccountName || ''}
+                      onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, bankAccountName: e.target.value } } })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                      placeholder="IT Vision Plus SARL"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">IBAN / RIB</label>
+                    <input
+                      type="text"
+                      value={settings.providers.manual.bankIban || ''}
+                      onChange={e => setSettings({ ...settings, providers: { ...settings.providers, manual: { ...settings.providers.manual, bankIban: e.target.value } } })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                      placeholder="SN08 ..."
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

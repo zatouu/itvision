@@ -13,7 +13,7 @@ BACKUP_DIR="${BACKUP_DIR:-./backups}"
 CONTAINER_NAME="${CONTAINER_NAME:-itvision-mongodb}"
 DB_NAME="${DB_NAME:-itvision_db}"
 DB_USER="${DB_USER:-itvision_app}"
-DB_PASS="${DB_PASS:-AppPassword123}"
+DB_PASS="${DB_PASS:?Variable DB_PASS requise (mot de passe MongoDB de $DB_USER)}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 
 # Couleurs
@@ -219,7 +219,7 @@ ENVIRONMENT:
     CONTAINER_NAME      Nom container MongoDB (défaut: itvision-mongodb)
     DB_NAME             Nom de la base (défaut: itvision_db)
     DB_USER             Utilisateur MongoDB (défaut: itvision_app)
-    DB_PASS             Mot de passe MongoDB (défaut: AppPassword123)
+    DB_PASS             Mot de passe MongoDB (requis)
     KEEP_DAYS           Jours de rétention (défaut: 14)
 
 EXEMPLES:

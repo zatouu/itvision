@@ -117,6 +117,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // L'utilisateur qui est aussi prestataire ne doit pas se voir lui-même « autour de lui »
+    const selfId = String(auth.user.id || '')
+    candidates = candidates.filter((p: any) => String(p.providerId) !== selfId)
+
     const userIds = candidates.map((p) => String(p.providerId))
     const users = userIds.length
       ? await User.find({ _id: { $in: userIds } }).select('_id name kycVerified').lean()

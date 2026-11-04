@@ -14,7 +14,7 @@
  */
 
 import type { ShippingMethodId } from './logistics'
-import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingRate } from './logistics'
+import { BASE_SHIPPING_RATES, REAL_SHIPPING_COSTS, type ShippingRate, type ShippingCosts } from './logistics'
 import type {
   Pricing1688Input,
   Pricing1688Breakdown,
@@ -22,6 +22,8 @@ import type {
   Currency
 } from './types/product.types'
 import { DEFAULT_EXCHANGE_RATE, DEFAULT_INSURANCE_RATE, SERVICE_FEE_RATES } from './pricing/constants'
+import { getImportServiceFeeRate } from './pricing/tiered-service-fees'
+import { getPlatformSingleImportServiceFeeRate } from './pricing/platform-rate'
 
 // ============================================================================
 // CONSTANTES (centralisées dans src/lib/pricing/constants.ts)
@@ -74,28 +76,16 @@ function calculateRealShippingCost(
   method: ShippingMethodId,
   weightKg?: number,
   volumeM3?: number,
-  shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>
+  internalCosts: ShippingCosts = REAL_SHIPPING_COSTS
 ): number {
-  // Vérifier les overrides
-  const override = shippingOverrides?.find(o => o.methodId === method)
-  if (override) {
-    if (override.flatFee !== undefined) {
-      return override.flatFee
-    }
-    if (method === 'sea_freight' && override.ratePerM3 !== undefined && volumeM3) {
-      return volumeM3 * override.ratePerM3
-    }
-    if (override.ratePerKg !== undefined && weightKg) {
-      return weightKg * override.ratePerKg
-    }
-  }
-
-  const realCost = REAL_SHIPPING_COSTS[method]
+  const realCost = internalCosts[method]
   if (!realCost) return 0
 
   let billedAmount = 0
 
-  if (method === 'sea_freight') {
+  if (method === 'local_24h') {
+    billedAmount = realCost.rate
+  } else if (method === 'sea_freight') {
     if (typeof volumeM3 === 'number' && volumeM3 > 0) {
       billedAmount = volumeM3 * realCost.rate
     }
@@ -138,7 +128,9 @@ function calculateClientShippingCost(
 
   let billedAmount = 0
 
-  if (clientRate.billing === 'per_cubic_meter') {
+  if (clientRate.billing === 'flat') {
+    billedAmount = clientRate.rate
+  } else if (clientRate.billing === 'per_cubic_meter') {
     if (typeof volumeM3 === 'number' && volumeM3 > 0) {
       billedAmount = volumeM3 * clientRate.rate
     }
@@ -185,7 +177,9 @@ function calculateDynamicMargin(
 export function simulatePricing1688(
   input: Pricing1688Input,
   shippingOverrides?: Array<{ methodId: string; ratePerKg?: number; ratePerM3?: number; flatFee?: number }>,
-  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES
+  clientRates: Record<ShippingMethodId, ShippingRate> = BASE_SHIPPING_RATES,
+  singleImportServiceFeeRate = getPlatformSingleImportServiceFeeRate(),
+  internalCosts: ShippingCosts = REAL_SHIPPING_COSTS
 ): Pricing1688Breakdown {
   const {
     price1688,
@@ -204,11 +198,12 @@ export function simulatePricing1688(
   const productCostFCFA = calculateProductCostFCFA(price1688, baseCost, exchangeRate)
 
   // 2. Coûts de transport
-  const shippingCostReal = calculateRealShippingCost(shippingMethod, weightKg, volumeM3, shippingOverrides)
+  const shippingCostReal = calculateRealShippingCost(shippingMethod, weightKg, volumeM3, internalCosts)
   const shippingCostClient = calculateClientShippingCost(shippingMethod, weightKg, volumeM3, shippingOverrides, clientRates)
 
   // 3. Frais de service (sur le coût produit)
-  const serviceFee = productCostFCFA * (serviceFeeRate / 100)
+  const appliedServiceFeeRate = getImportServiceFeeRate(shippingMethod === 'local_24h' ? 0 : orderQuantity, serviceFeeRate, singleImportServiceFeeRate)
+  const serviceFee = productCostFCFA * (appliedServiceFeeRate / 100)
 
   // 4. Frais d'assurance
   // Assurance par défaut si non spécifiée (appliquée sur le prix fournisseur)
@@ -221,10 +216,10 @@ export function simulatePricing1688(
   const insuranceFee = insuranceBase * (finalInsuranceRate / 100)
 
   // 5. Coût total réel
-  const totalRealCost = productCostFCFA + shippingCostReal + serviceFee + insuranceFee
+  const totalRealCost = productCostFCFA + shippingCostReal + insuranceFee
 
   // 6. Prix total facturé client (base)
-  const baseClientPrice = productCostFCFA + shippingCostClient
+  const baseClientPrice = productCostFCFA + shippingCostClient + serviceFee + insuranceFee
 
   // 7. Marge de base
   const baseMargin = baseClientPrice - totalRealCost

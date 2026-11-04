@@ -5,6 +5,7 @@ import ServiceRequest from '@/lib/models/ServiceRequest'
 import ServiceReview from '@/lib/models/ServiceReview'
 import { requireAuth } from '@/lib/jwt'
 import User from '@/lib/models/User'
+import { isDdmBridgeEnabled } from '@/lib/wallet'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -32,11 +33,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .lean()
     const userMap = new Map(users.map((u: any) => [String(u._id), u]))
 
+    const ddmBridge = await isDdmBridgeEnabled()
     const enriched = offers.map((o: any) => {
       const u: any = userMap.get(String(o.providerId)) || {}
       const stats = u.providerStats || {}
       return {
         ...o,
+        // Intégration DDM+ « bientôt » : la liste reste, le lien d'achat est retiré
+        materials: Array.isArray(o.materials) && !ddmBridge
+          ? o.materials.map((m: any) => (m.product ? { ...m, product: { ...m.product, link: undefined } } : m))
+          : o.materials,
         providerRating: ratingsMap.get(String(o.providerId)) || null,
         providerVerified: !!u.kycVerified,
         providerReliability: {
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     })
 
-    return NextResponse.json({ offers: enriched, request: sr })
+    return NextResponse.json({ offers: enriched, request: sr, ddmBridge })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     console.error('[GET /api/services/requests/:id/offers]', e)

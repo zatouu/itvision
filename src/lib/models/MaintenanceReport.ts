@@ -68,8 +68,15 @@ export interface IMaintenanceReport extends Document {
   reportId: string
   interventionId?: mongoose.Types.ObjectId
   technicianId: mongoose.Types.ObjectId
-  clientId: mongoose.Types.ObjectId
+  clientId?: mongoose.Types.ObjectId
+  /** Client hors annuaire (particulier) : suffit à l'envoi du rapport par mail. */
+  clientContact?: { name?: string; email?: string; phone?: string }
   projectId: mongoose.Types.ObjectId
+  /** Devis généré depuis ce rapport (route admin ou agent quote_draft). */
+  quoteGenerated?: boolean
+  quoteGeneratedAt?: Date
+  quoteId?: mongoose.Types.ObjectId
+  quoteNumber?: string
   
   // Informations intervention
   interventionDate: Date
@@ -200,8 +207,13 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
   reportId: { type: String, required: true, unique: true },
   interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention', index: true },
   technicianId: { type: Schema.Types.ObjectId, ref: 'Technician', required: true },
-  clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
-  projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
+  clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: false },
+  clientContact: {
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String }
+  },
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project' },
   
   interventionDate: { type: Date, required: true },
   startTime: { type: String, required: true },
@@ -287,7 +299,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
         estimatedCost: Number,
         estimatedDurationHours: Number,
         requiresQuote: { type: Boolean, default: true },
-        quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+        quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
         status: {
           type: String,
           enum: ['pending', 'quoted', 'approved', 'rejected', 'completed'],
@@ -323,7 +335,7 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
 
     billing: {
       needsQuote: { type: Boolean, default: false },
-      quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+      quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
       quoteStatus: {
         type: String,
         enum: ['not_started', 'draft', 'sent', 'approved', 'rejected'],
@@ -403,6 +415,14 @@ const MaintenanceReportSchema = new Schema<IMaintenanceReport>({
     enum: ['draft', 'pending_validation', 'validated', 'rejected', 'published', 'archived'],
     default: 'draft'
   },
+  // Devis généré depuis ce rapport (route admin historique + agent quote_draft).
+  // Sans ces champs déclarés, Mongoose (strict) ignorait silencieusement les
+  // écritures → le garde-fou anti-doublon ne fonctionnait pas.
+  quoteGenerated: { type: Boolean, default: false },
+  quoteGeneratedAt: { type: Date },
+  quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
+  /** Référence du devis calculé à la volée par la route admin historique. */
+  quoteNumber: { type: String },
   priority: { 
     type: String, 
     enum: ['low', 'medium', 'high', 'urgent'],

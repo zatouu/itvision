@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   TrendingUp, TrendingDown, Wallet, Banknote, Receipt, AlertTriangle,
   RefreshCw, Calendar, Building2, FileText, ArrowUpRight, ArrowDownRight,
-  PieChart, Activity, Clock, CheckCircle2, Plus, Download
+  PieChart, Activity, Clock, CheckCircle2, Plus, Download,
+  ShoppingBag, Zap, Globe
 } from 'lucide-react'
 
 interface TreasuryData {
@@ -26,6 +27,9 @@ interface TreasuryData {
     expensesCount: number
     brsRetained: number
     brsPending: number
+    creditNotesTotal?: number
+    refundsPaid?: number
+    refundsPending?: number
   }
   pipeline: { draft: number; sent: number; accepted: number }
   cashflow: Array<{ period: string; revenue: number; expense: number; net: number }>
@@ -43,9 +47,43 @@ interface TreasuryData {
     marginPct: number
     invoicesCount: number
     expensesCount: number
+    quoted?: number
+    quotedMaterial?: number
+    quotedLabor?: number
+    costMaterial?: number
+    costLabor?: number
+    costOther?: number
+    costTotal?: number
+    materialGap?: number
+    expectedMargin?: number
+    expectedMarginPct?: number
   }>
+  result?: {
+    projectsMarginHT: number
+    overheadHT: number
+    netResultHT: number
+    overheadByCategory: Array<{ category: string; total: number }>
+  }
   topPayables: Array<any>
   topReceivables: Array<any>
+  domains?: {
+    corporate: {
+      revenueBilled: number; revenueCollected: number; receivablesOpen: number; receivablesOverdue: number
+      expensesTotal: number; expensesPaid: number; payablesOpen: number; margin: number; marginPct: number
+      invoicesCount: number; expensesCount: number
+    }
+    marketplace: {
+      ordersCount: number; groupsWithPayments: number; revenueCollected: number; revenuePending: number
+      serviceFees: number; insuranceFees: number; shippingCollected: number; discountsGranted: number
+    }
+    xeuy: {
+      paymentsHeld: number; paymentsReleased: number; paymentsPending: number; paymentsRefunded: number
+      paymentsFailed: number; topupsCollected: number; topupsPending: number; totalCollected: number
+    }
+  }
+  global?: {
+    revenueCollected: number; revenuePending: number; expensesPaid: number; treasuryBalance: number
+  }
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -199,6 +237,13 @@ export default function TreasuryDashboard() {
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
               </button>
+              <Link
+                href="/admin/tresorerie/rapprochement"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white/10 border border-white/20 rounded-lg hover:bg-white/20"
+              >
+                <Banknote className="h-3.5 w-3.5" />
+                Rapprochement bancaire
+              </Link>
             </div>
           </div>
         </div>
@@ -208,34 +253,102 @@ export default function TreasuryDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Solde de trésorerie"
-          value={fmt(k.treasuryBalance)}
+          value={fmt(data.global?.treasuryBalance ?? k.treasuryBalance)}
           sub={`Projeté: ${fmt(k.projectedBalance)}`}
           icon={Wallet}
-          color={k.treasuryBalance >= 0 ? 'emerald' : 'red'}
+          color={(data.global?.treasuryBalance ?? k.treasuryBalance) >= 0 ? 'emerald' : 'red'}
           accent
         />
         <KpiCard
           label="Revenus encaissés"
-          value={fmt(k.revenueCollected)}
-          sub={`Facturé: ${fmt(k.revenueBilled)}`}
+          value={fmt(data.global?.revenueCollected ?? k.revenueCollected)}
+          sub={`Dont corporate facturé: ${fmt(k.revenueBilled)}`}
           icon={TrendingUp}
           color="green"
         />
         <KpiCard
           label="Dépenses payées"
-          value={fmt(k.expensesPaid)}
+          value={fmt(data.global?.expensesPaid ?? k.expensesPaid)}
           sub={`Total: ${fmt(k.expensesTotal)}`}
           icon={TrendingDown}
           color="orange"
         />
         <KpiCard
-          label="Marge brute"
+          label="Marge brute (HT)"
           value={fmt(k.grossMargin)}
-          sub={`${k.grossMarginPct.toFixed(1)}% du CA`}
+          sub={`${k.grossMarginPct.toFixed(1)}% du CA HT`}
           icon={PieChart}
           color={k.grossMargin >= 0 ? 'blue' : 'red'}
         />
       </div>
+
+      {/* Finance par domaine + consolidation */}
+      {data.domains && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-stone-500" />
+            <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wide">Finance par domaine</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Corporate */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-emerald-100 p-2 rounded-lg"><Building2 className="h-4 w-4 text-emerald-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Corporate</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.corporate.revenueCollected)} bold />
+                <DomainRow label="Facturé (net des avoirs)" value={fmt(data.domains.corporate.revenueBilled)} />
+                {(k.creditNotesTotal || 0) > 0 && <DomainRow label="Avoirs émis" value={`-${fmt(k.creditNotesTotal || 0)}`} />}
+                <DomainRow label="Créances" value={fmt(data.domains.corporate.receivablesOpen)} />
+                {(k.refundsPending || 0) > 0 && <DomainRow label="Remboursements à faire" value={fmt(k.refundsPending || 0)} />}
+                {(k.refundsPaid || 0) > 0 && <DomainRow label="Remboursés (période)" value={fmt(k.refundsPaid || 0)} />}
+                <DomainRow label="Dépenses payées" value={fmt(data.domains.corporate.expensesPaid)} />
+                <DomainRow label="Marge" value={`${fmt(data.domains.corporate.margin)} (${data.domains.corporate.marginPct.toFixed(1)}%)`} />
+              </div>
+              <p className="text-[11px] text-stone-400 mt-3">{data.domains.corporate.invoicesCount} factures · {data.domains.corporate.expensesCount} dépenses</p>
+            </div>
+            {/* Marketplace */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-blue-100 p-2 rounded-lg"><ShoppingBag className="h-4 w-4 text-blue-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Marketplace DDM+</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.marketplace.revenueCollected)} bold />
+                <DomainRow label="En attente" value={fmt(data.domains.marketplace.revenuePending)} />
+                <DomainRow label="Frais service" value={fmt(data.domains.marketplace.serviceFees)} />
+                <DomainRow label="Assurance" value={fmt(data.domains.marketplace.insuranceFees)} />
+                <DomainRow label="Remises accordées" value={fmt(data.domains.marketplace.discountsGranted)} />
+              </div>
+              <p className="text-[11px] text-stone-400 mt-3">{data.domains.marketplace.ordersCount} commandes · {data.domains.marketplace.groupsWithPayments} groupes payés</p>
+            </div>
+            {/* Xeuy */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="bg-violet-100 p-2 rounded-lg"><Zap className="h-4 w-4 text-violet-600" /></div>
+                <h3 className="text-sm font-semibold text-stone-900">Xeuy Services</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <DomainRow label="Encaissé" value={fmt(data.domains.xeuy.totalCollected)} bold />
+                <DomainRow label="En séquestre" value={fmt(data.domains.xeuy.paymentsHeld)} />
+                <DomainRow label="Reversé" value={fmt(data.domains.xeuy.paymentsReleased)} />
+                <DomainRow label="Recharges wallet" value={fmt(data.domains.xeuy.topupsCollected)} />
+                <DomainRow label="En attente" value={fmt(data.domains.xeuy.paymentsPending + data.domains.xeuy.topupsPending)} />
+              </div>
+            </div>
+          </div>
+          {data.global && (
+            <div className="bg-stone-900 text-white rounded-2xl px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
+              <span className="font-semibold uppercase tracking-wide text-xs text-stone-400">Global consolidé</span>
+              <span>Encaissé : <b>{fmt(data.global.revenueCollected)}</b></span>
+              <span>En attente : <b>{fmt(data.global.revenuePending)}</b></span>
+              <span>Dépensé : <b>{fmt(data.global.expensesPaid)}</b></span>
+              <span>Solde trésorerie : <b className={data.global.treasuryBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(data.global.treasuryBalance)}</b></span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sous-KPIs : créances/dettes / BRS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -442,6 +555,98 @@ export default function TreasuryDashboard() {
         </div>
       </div>
 
+      {/* Résultat de l'entreprise */}
+      {data.result && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-stone-500">Marge des projets (HT, facturé − dépenses)</p>
+            <p className={`mt-1 text-xl font-bold ${data.result.projectsMarginHT >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCompact(data.result.projectsMarginHT)}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-stone-500">Frais généraux (dépenses hors projet)</p>
+            <p className="mt-1 text-xl font-bold text-orange-700">− {fmtCompact(data.result.overheadHT)}</p>
+            {data.result.overheadByCategory.length > 0 && (
+              <p className="mt-1 truncate text-[11px] text-stone-400">
+                {data.result.overheadByCategory.slice(0, 3).map(c => `${CATEGORY_LABELS[c.category] || c.category} ${fmtCompact(c.total)}`).join(' · ')}
+              </p>
+            )}
+          </div>
+          <div className={`rounded-2xl border p-4 shadow-sm ${data.result.netResultHT >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+            <p className="text-xs text-stone-600">Résultat net de l’entreprise (HT)</p>
+            <p className={`mt-1 text-2xl font-extrabold ${data.result.netResultHT >= 0 ? 'text-emerald-800' : 'text-red-700'}`}>{fmtCompact(data.result.netResultHT)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Prévu vs réel par projet */}
+      {data.projectsPL.some(p => (p.quoted || 0) > 0 || (p.costTotal || 0) > 0) && (
+        <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-1 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-stone-900">Compta par projet : prévu (devis) vs réel (dépenses)</h3>
+              <p className="text-xs text-stone-500">Montants HT sur toute la vie du projet. Écart matériel = matériel vendu sur devis − achats matériel réels.</p>
+            </div>
+          </div>
+          {/* Mobile : cartes */}
+          <div className="divide-y divide-stone-100 md:hidden">
+            {data.projectsPL.map(p => (
+              <Link key={p.projectId} href={`/admin/projects/${p.projectId}`} className="block p-4 hover:bg-stone-50">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-semibold text-stone-900">{p.projectName}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${(p.expectedMargin || 0) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    {(p.expectedMarginPct || 0).toFixed(0)} %
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div><p className="text-stone-400">Devis acceptés</p><p className="font-semibold">{fmtCompact(p.quoted || 0)}</p></div>
+                  <div><p className="text-stone-400">Coûts réels</p><p className="font-semibold text-orange-700">{fmtCompact(p.costTotal || 0)}</p></div>
+                  <div><p className="text-stone-400">Matériel devis / achat</p><p className="font-semibold">{fmtCompact(p.quotedMaterial || 0)} / {fmtCompact(p.costMaterial || 0)}</p></div>
+                  <div><p className="text-stone-400">Facturé / encaissé</p><p className="font-semibold">{fmtCompact(p.revenueBilled)} / {fmtCompact(p.revenueCollected)}</p></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          {/* Desktop : tableau */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-left text-[11px] uppercase tracking-wide text-stone-500">
+                <tr>
+                  <th className="px-4 py-2.5 font-semibold">Projet</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Devis acceptés</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Matériel devis</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Achats matériel</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Écart matériel</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">M.O. / autres coûts</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Facturé / encaissé</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Bénéfice prévu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {data.projectsPL.map(p => (
+                  <tr key={p.projectId} className="hover:bg-stone-50">
+                    <td className="max-w-[220px] px-4 py-2.5">
+                      <Link href={`/admin/projects/${p.projectId}`} className="block truncate font-medium text-stone-900 hover:text-emerald-700">{p.projectName}</Link>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{fmtCompact(p.quoted || 0)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact(p.quotedMaterial || 0)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-orange-700">{fmtCompact(p.costMaterial || 0)}</td>
+                    <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${(p.materialGap || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {(p.costMaterial || 0) > 0 || (p.quotedMaterial || 0) > 0 ? fmtCompact(p.materialGap || 0) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact((p.costLabor || 0) + (p.costOther || 0))}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-600">{fmtCompact(p.revenueBilled)} / {fmtCompact(p.revenueCollected)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className={`font-bold tabular-nums ${(p.expectedMargin || 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCompact(p.expectedMargin || 0)}</span>
+                      {(p.quoted || 0) > 0 && <span className="ml-1 text-xs text-stone-400">{(p.expectedMarginPct || 0).toFixed(0)} %</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Échéances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
@@ -546,6 +751,15 @@ function KpiCard({ label, value, sub, icon: Icon, color, accent }: any) {
       <p className="text-xs text-stone-500 font-medium">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${c.text}`}>{value}</p>
       {sub && <p className="text-xs text-stone-500 mt-1">{sub}</p>}
+    </div>
+  )
+}
+
+function DomainRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-stone-500">{label}</span>
+      <span className={bold ? 'font-bold text-stone-900' : 'text-stone-700'}>{value}</span>
     </div>
   )
 }

@@ -1,370 +1,142 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import SoftMessage from '@/components/ui/SoftMessage'
-import LogoutButton from '@/components/auth/LogoutButton'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState, type FormEvent } from 'react'
+import { ArrowLeft, Eye, EyeOff, Save, RefreshCw, ShieldCheck } from 'lucide-react'
+import AddressBook from '@/components/market/AddressBook'
 
 type Profile = {
-  _id: string
-  name?: string
-  email?: string
-  phone?: string
-  role?: string
-  createdAt?: string
+  _id: string; name?: string; email?: string; phone?: string
   marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
-  totalMarketplacePurchases?: number
-  marketplaceOrderCount?: number
-  proRequestedAt?: string | null
-  proValidatedAt?: string | null
+  totalMarketplacePurchases?: number; marketplaceOrderCount?: number; proRequestedAt?: string | null
 }
-
-const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  standard: { label: 'Standard', color: 'text-gray-700', bg: 'bg-gray-100', border: 'border-gray-200' },
-  pro: { label: 'Pro', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-200' },
-  reseller: { label: 'Revendeur', color: 'text-violet-700', bg: 'bg-violet-100', border: 'border-violet-200' },
-  partner: { label: 'Partenaire', color: 'text-yellow-700', bg: 'bg-yellow-100', border: 'border-yellow-200' },
-}
-
-const PRO_THRESHOLDS = { minOrders: 3, minPurchases: 150_000 }
+const fieldClass = 'mt-2 min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100'
+const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50'
+const tierLabels = { standard: 'Standard', pro: 'Pro', reseller: 'Revendeur', partner: 'Partenaire' }
 
 export default function CompteProfilPage() {
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-
+  const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
-
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [requestingPro, setRequestingPro] = useState(false)
+  const [proError, setProError] = useState<string | null>(null)
   const [proMessage, setProMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-
+    const controller = new AbortController()
+    setLoading(true)
+    setLoadError(null)
     async function load() {
-      setLoading(true)
-      setError(null)
       try {
-        const res = await fetch('/api/client/profile', { method: 'GET', credentials: 'include' })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          throw new Error(data?.error || 'Impossible de charger le profil')
-        }
-
-        if (cancelled) return
-        const p = data?.profile as Profile
-        setProfile(p)
-        setName(p?.name || '')
-        setPhone(p?.phone || '')
-      } catch (e) {
-        if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Erreur lors du chargement')
+        const response = await fetch('/api/client/profile', { credentials: 'include', signal: controller.signal })
+        if (response.status === 401) { router.replace('/login?redirect=/compte/profil'); return }
+        const data = await response.json()
+        if (!response.ok || !data.profile) throw new Error(data.error || 'Impossible de charger votre profil.')
+        if (controller.signal.aborted) return
+        setProfile(data.profile)
+        setName(data.profile.name || '')
+        setPhone(data.profile.phone || '')
+      } catch (failure) {
+        if (!controller.signal.aborted) setLoadError(failure instanceof Error ? failure.message : 'Profil indisponible.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
+    void load()
+    return () => controller.abort()
+  }, [attempt, router])
 
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  async function handleSave() {
-    setSuccess(null)
-    setError(null)
-
-    if (!name.trim()) {
-      setError('Le nom est requis.')
-      return
-    }
-
-    setSaving(true)
+  async function saveIdentity(event: FormEvent) {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true); setSaveError(null); setSaved(false)
     try {
-      // Récupérer le token CSRF pour les requêtes authentifiées
-      let csrfToken: string | null = null
-      try {
-        const csrfRes = await fetch('/api/csrf', { method: 'GET', credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        csrfToken = csrfData?.csrfToken || null
-      } catch {
-        csrfToken = null
-      }
-
-      const payload: any = {
-        name: name.trim(),
-        phone: phone.trim() || undefined
-      }
-
-      const wantsPasswordChange = Boolean(currentPassword.trim() || newPassword.trim())
-      if (wantsPasswordChange) {
-        if (!currentPassword.trim() || !newPassword.trim()) {
-          setError('Pour changer le mot de passe, renseignez les deux champs.')
-          return
-        }
-        payload.currentPassword = currentPassword
-        payload.newPassword = newPassword
-      }
-
-      const res = await fetch('/api/client/profile', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data?.error || 'Impossible de mettre à jour le profil')
-      }
-
-      setSuccess('Profil mis à jour.')
-      const p = data?.profile as Profile
-      setProfile(prev => ({ ...(prev || ({} as any)), ...(p || {}) }))
-      setCurrentPassword('')
-      setNewPassword('')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur lors de la mise à jour')
-    } finally {
-      setSaving(false)
-    }
+      const response = await fetch('/api/client/profile', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), phone: phone.trim() }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Enregistrement impossible. Réessayez.')
+      setProfile(previous => ({ ...previous!, ...data.profile }))
+      setName(data.profile.name || '')
+      setPhone(data.profile.phone || '')
+      setSaved(true)
+    } catch (failure) { setSaveError(failure instanceof Error ? failure.message : 'Enregistrement impossible.') }
+    finally { setSaving(false) }
   }
 
-  return (
-    <div className="min-h-screen page-content bg-gradient-to-br from-green-50 via-white to-violet-50 dark:from-black dark:via-black dark:to-black">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Mon compte</div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Profil</h1>
-            <p className="mt-1 text-gray-600 dark:text-gray-300">Mettez à jour vos informations.</p>
+  async function changePassword(event: FormEvent) {
+    event.preventDefault()
+    if (changingPassword) return
+    setPasswordError(null)
+    if (newPassword !== confirmation) { setPasswordError('Les nouveaux mots de passe ne correspondent pas.'); return }
+    setChangingPassword(true)
+    try {
+      const response = await fetch('/api/client/profile', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword, newPassword }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Le mot de passe n’a pas été modifié.')
+      setCurrentPassword(''); setNewPassword(''); setConfirmation('')
+      router.replace('/login?redirect=/compte/profil&reason=password-changed')
+    } catch (failure) { setPasswordError(failure instanceof Error ? failure.message : 'Modification impossible.') }
+    finally { setChangingPassword(false) }
+  }
+
+  async function requestPro() {
+    setRequestingPro(true); setProError(null); setProMessage(null)
+    try {
+      const response = await fetch('/api/client/request-pro', { method: 'POST', credentials: 'include' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'La demande n’a pas été envoyée.')
+      setProfile(previous => previous ? { ...previous, proRequestedAt: new Date().toISOString() } : previous)
+      setProMessage(data.message || 'Votre demande a été envoyée.')
+    } catch (failure) { setProError(failure instanceof Error ? failure.message : 'Demande indisponible.') }
+    finally { setRequestingPro(false) }
+  }
+
+  return <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="mx-auto max-w-4xl px-4 py-6 pb-28 sm:px-6 md:pb-12">
+      <Link href="/compte" className="mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400"><ArrowLeft size={18} aria-hidden="true"/>Mon compte</Link>
+      <h1 className="text-2xl font-bold tracking-normal sm:text-3xl">Mon profil</h1>
+      <nav aria-label="Sections du profil" className="my-6 flex flex-wrap gap-x-6 border-b border-zinc-200 dark:border-zinc-800">{[['identite', 'Identité'], ['adresses', 'Adresses'], ['securite', 'Sécurité']].map(([id, label]) => <a key={id} href={`#${id}`} className="inline-flex min-h-12 items-center border-b-2 border-transparent text-sm font-semibold hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400">{label}</a>)}</nav>
+      {loading ? <p role="status" className="py-10 text-sm">Chargement du profil…</p> : loadError ? <div role="alert" className="py-6 text-sm text-red-700 dark:text-red-300"><p>{loadError}</p><button className={`${buttonClass} mt-4`} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true"/>Réessayer</button></div> : profile && <>
+        <form id="identite" aria-labelledby="identity-title" onSubmit={saveIdentity} className="scroll-mt-40 space-y-5 pb-8">
+          <h2 id="identity-title" className="text-lg font-bold">Informations personnelles</h2>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block text-sm font-semibold" htmlFor="profile-name">Nom complet<input id="profile-name" name="name" required minLength={2} maxLength={120} autoComplete="name" value={name} onChange={event => { setName(event.target.value); setSaved(false) }} className={fieldClass}/></label>
+            <label className="block text-sm font-semibold" htmlFor="profile-phone">Téléphone<input id="profile-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} value={phone} onChange={event => { setPhone(event.target.value); setSaved(false) }} className={fieldClass}/></label>
+            <label className="block text-sm font-semibold sm:col-span-2" htmlFor="profile-email">Adresse email<input id="profile-email" type="email" name="email" autoComplete="email" readOnly value={profile.email || ''} className={`${fieldClass} !bg-zinc-100 dark:!bg-zinc-800`}/></label>
           </div>
-          <Link
-            href="/compte"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
-          >
-            Retour
-          </Link>
-        </div>
-
-        <div className="mt-8 rounded-3xl border border-gray-200 bg-white/80 backdrop-blur p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950/70">
-          {loading ? (
-            <div className="py-10 text-center text-sm text-gray-600 dark:text-gray-300">Chargement…</div>
-          ) : error ? (
-            <SoftMessage
-              variant="error"
-              title="Impossible de charger votre profil"
-              message={error}
-              onClose={() => setError(null)}
-            />
-          ) : (
-            <div className="space-y-6">
-              {success && (
-                <SoftMessage
-                  variant="success"
-                  title="Modification enregistrée"
-                  message={success}
-                  onClose={() => setSuccess(null)}
-                />
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 dark:text-white">Nom</label>
-                  <input
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
-                    placeholder="Votre nom"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 dark:text-white">Téléphone</label>
-                  <input
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-100"
-                    placeholder="Ex: 77 123 45 67"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-900 dark:text-white">Email</label>
-                  <input
-                    value={profile?.email || ''}
-                    readOnly
-                    className="mt-2 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:text-gray-300"
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="text-sm font-semibold text-gray-900 dark:text-white">Changer le mot de passe (optionnel)</div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Mot de passe actuel</label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={e => setCurrentPassword(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Nouveau mot de passe</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm outline-none ring-green-500/30 focus:ring-4 dark:border-slate-800 dark:bg-slate-950 dark:text-gray-100"
-                    />
-                    <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">Minimum 6 caractères.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-5 py-3 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
-                >
-                  {saving ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-
-                <LogoutButton
-                  className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
-                >
-                  Se déconnecter
-                </LogoutButton>
-              </div>
-
-              {/* ══ Section Statut Marketplace ══ */}
-              {profile && (() => {
-                const tier = profile.marketplaceTier || 'standard'
-                const cfg = TIER_CONFIG[tier] || TIER_CONFIG.standard
-                const orders = profile.marketplaceOrderCount || 0
-                const purchases = profile.totalMarketplacePurchases || 0
-                const isStandard = tier === 'standard'
-                const isEligible = orders >= PRO_THRESHOLDS.minOrders || purchases >= PRO_THRESHOLDS.minPurchases
-                const alreadyRequested = !!profile.proRequestedAt
-                const orderProgress = Math.min(100, Math.round((orders / PRO_THRESHOLDS.minOrders) * 100))
-                const purchaseProgress = Math.min(100, Math.round((purchases / PRO_THRESHOLDS.minPurchases) * 100))
-
-                async function handleRequestPro() {
-                  setRequestingPro(true)
-                  setProMessage(null)
-                  try {
-                    let csrfToken: string | null = null
-                    try {
-                      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-                      const csrfData = await csrfRes.json().catch(() => ({}))
-                      csrfToken = csrfData?.csrfToken || null
-                    } catch {}
-                    const res = await fetch('/api/client/request-pro', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
-                      credentials: 'include',
-                    })
-                    const data = await res.json().catch(() => ({}))
-                    if (!res.ok) throw new Error(data?.error || 'Erreur')
-                    setProMessage(data.message || 'Demande envoyee')
-                    setProfile(prev => prev ? { ...prev, proRequestedAt: new Date().toISOString() } : prev)
-                  } catch (e) {
-                    setProMessage(e instanceof Error ? e.message : 'Erreur')
-                  } finally {
-                    setRequestingPro(false)
-                  }
-                }
-
-                return (
-                  <div className={`mt-2 rounded-2xl border ${cfg.border} ${cfg.bg} p-5 shadow-sm`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Statut Marketplace</h3>
-                      <span className={`${cfg.color} ${cfg.bg} px-3 py-1 rounded-full text-xs font-bold border ${cfg.border}`}>
-                        {cfg.label}
-                      </span>
-                    </div>
-
-                    {!isStandard ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-700 dark:text-gray-200">
-                          Vous beneficiez des prix wholesale automatiquement.
-                        </p>
-                        <div className="text-xs text-gray-500">
-                          <span className="font-medium">{orders}</span> commandes | <span className="font-medium">{purchases.toLocaleString('fr-FR')} FCFA</span> cumul
-                        </div>
-                        {profile.proValidatedAt && (
-                          <p className="text-xs text-gray-400">Valide depuis le {new Date(profile.proValidatedAt).toLocaleDateString('fr-FR')}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Passez au compte Pro pour acceder aux prix wholesale des la premiere piece.
-                        </p>
-                        <div className="space-y-2">
-                          <div>
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
-                              <span>Commandes ({orders}/{PRO_THRESHOLDS.minOrders})</span>
-                              <span>{orderProgress}%</span>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${orderProgress}%` }} />
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
-                              <span>Achats ({purchases.toLocaleString('fr-FR')}/{PRO_THRESHOLDS.minPurchases.toLocaleString('fr-FR')} FCFA)</span>
-                              <span>{purchaseProgress}%</span>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${purchaseProgress}%` }} />
-                            </div>
-                          </div>
-                        </div>
-
-                        {proMessage && (
-                          <SoftMessage
-                            variant={proMessage.toLowerCase().includes('erreur') ? 'error' : 'success'}
-                            message={proMessage}
-                            className="py-3"
-                            onClose={() => setProMessage(null)}
-                          />
-                        )}
-
-                        {isEligible && !alreadyRequested && (
-                          <button
-                            onClick={handleRequestPro}
-                            disabled={requestingPro}
-                            className="w-full rounded-xl bg-gradient-to-r from-green-500 to-violet-500 px-4 py-2.5 text-sm font-bold text-white transition hover:from-green-600 hover:to-violet-600 disabled:opacity-60"
-                          >
-                            {requestingPro ? 'Envoi...' : 'Demander le passage Pro'}
-                          </button>
-                        )}
-                        {alreadyRequested && !profile.proValidatedAt && (
-                          <p className="text-xs text-violet-600 font-medium">Demande en cours de validation par notre equipe.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-        </div>
-      </div>
+          {saveError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{saveError}</p>}
+          {saved && <p role="status" className="text-sm text-emerald-800 dark:text-emerald-300">Informations enregistrées.</p>}
+          <button type="submit" disabled={saving} className={buttonClass}><Save size={18} aria-hidden="true"/>{saving ? 'Enregistrement…' : 'Enregistrer les informations'}</button>
+        </form>
+        <AddressBook/>
+        <form id="securite" aria-labelledby="security-title" onSubmit={changePassword} className="scroll-mt-40 space-y-5 border-t border-zinc-200 py-8 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="security-title" className="flex items-center gap-2 text-lg font-bold"><ShieldCheck size={20} aria-hidden="true"/>Sécurité du compte</h2><button type="button" aria-pressed={passwordVisible} aria-label={passwordVisible ? 'Masquer les mots de passe' : 'Afficher les mots de passe'} title={passwordVisible ? 'Masquer les mots de passe' : 'Afficher les mots de passe'} onClick={() => setPasswordVisible(value => !value)} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700">{passwordVisible ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div>
+          <label htmlFor="current-password" className="block text-sm font-semibold">Mot de passe actuel<input id="current-password" required autoComplete="current-password" type={passwordVisible ? 'text' : 'password'} value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} className={fieldClass}/></label>
+          <div className="grid gap-5 sm:grid-cols-2"><label htmlFor="new-password" className="block text-sm font-semibold">Nouveau mot de passe<input id="new-password" required minLength={12} maxLength={72} aria-describedby="password-policy" autoComplete="new-password" type={passwordVisible ? 'text' : 'password'} value={newPassword} onChange={event => setNewPassword(event.target.value)} className={fieldClass}/></label><label htmlFor="confirm-password" className="block text-sm font-semibold">Confirmer le nouveau mot de passe<input id="confirm-password" required autoComplete="new-password" type={passwordVisible ? 'text' : 'password'} value={confirmation} onChange={event => setConfirmation(event.target.value)} className={fieldClass}/></label></div>
+          <p id="password-policy" className="text-sm text-zinc-600 dark:text-zinc-400">Au moins 12 caractères. Après modification, reconnectez-vous sur cet appareil.</p>
+          {passwordError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{passwordError}</p>}
+          <button type="submit" disabled={changingPassword} className={buttonClass}><ShieldCheck size={18} aria-hidden="true"/>{changingPassword ? 'Modification…' : 'Modifier le mot de passe'}</button>
+          <Link href="/forgot-password" className="ml-0 block min-h-11 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-300">Mot de passe oublié ?</Link>
+        </form>
+        <section className="border-t border-zinc-200 py-6 dark:border-zinc-800" aria-labelledby="tier-title">
+          <h2 id="tier-title" className="text-lg font-bold">Statut Marketplace</h2><p className="mt-3 text-sm">Votre statut : <strong>{tierLabels[profile.marketplaceTier || 'standard']}</strong></p>
+          {(!profile.marketplaceTier || profile.marketplaceTier === 'standard') && <><p className="my-3 text-sm text-zinc-600 dark:text-zinc-400">Accès Pro à partir de 3 commandes ou 150 000 FCFA d’achats.</p>{profile.proRequestedAt ? <p className="text-sm">Demande en cours d’examen.</p> : <button onClick={requestPro} disabled={requestingPro || ((profile.marketplaceOrderCount || 0) < 3 && (profile.totalMarketplacePurchases || 0) < 150000)} className={buttonClass}>{requestingPro ? 'Envoi…' : 'Demander le statut Pro'}</button>}</>}
+          {proError && <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">{proError}</p>}{proMessage && <p role="status" className="mt-3 text-sm text-emerald-800 dark:text-emerald-300">{proMessage}</p>}
+        </section>
+      </>}
     </div>
-  )
+  </div>
 }

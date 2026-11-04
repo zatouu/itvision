@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import OrderChatMessage from '@/lib/models/OrderChatMessage'
+import { listRecentMessagesByRole, toOrderMessageDto } from '@/lib/messaging/thread-messages'
 import { requireAdminApi } from '@/lib/api-auth'
 
 export async function GET(req: NextRequest) {
@@ -15,12 +15,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || 20)))
 
-    const messages = await OrderChatMessage.find({ senderRole: 'client' })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean()
+    const messages = await listRecentMessagesByRole('order', 'client', limit)
 
-    return NextResponse.json({ success: true, messages })
+    return NextResponse.json({ success: true, messages: messages.map(toOrderMessageDto) })
   } catch (err) {
     console.error('[admin/order-chat] Erreur:', err)
     return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 })

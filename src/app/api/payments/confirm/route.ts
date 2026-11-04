@@ -3,12 +3,16 @@ import { connectMongoose } from '@/lib/mongoose'
 import { requireAuth } from '@/lib/jwt'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import Payment from '@/lib/models/Payment'
-import ServiceRequest from '@/lib/models/ServiceRequest'
-import Offer from '@/lib/models/Offer'
 import { checkPaymentStatus } from '@/lib/payment'
-import { acceptOfferForRequest } from '@/lib/service-acceptance'
+import { fulfillServicePayment } from '@/modules/xeuy/payments/mission-payment'
 import { refundEscrowPoints } from '@/lib/wallet'
 import { sendPushToUser } from '@/lib/push'
+import { claimPendingPayment } from '@/lib/payments/transition'
+
+async function alreadyProcessedResponse(paymentId: unknown) {
+  const current = await Payment.findById(paymentId)
+  return NextResponse.json({ success: true, status: current?.status, payment: current, alreadyConfirmed: true })
+}
 
 /**
  * POST /api/payments/confirm
@@ -20,7 +24,8 @@ import { sendPushToUser } from '@/lib/push'
  * 1. Find the pending payment for this requestId + clientId
  * 2. If mock mode → auto-confirm
  * 3. If provider API available → query real status
- * 4. If API says succeeded or status is unknown (trust-based for QR/cash) → confirm
+ * 4. Confirm ONLY when the provider reports 'succeeded'. 'unknown' (provider API
+ *    down/unconfigured) stays pending — webhook or admin validation decides.
  * 5. Transition payment to 'held' + accept offer + start mission
  */
 export async function POST(request: NextRequest) {
@@ -57,11 +62,13 @@ export async function POST(request: NextRequest) {
     const checkResult = await checkPaymentStatus(payment.provider, payment.externalId)
 
     if (checkResult.status === 'failed') {
-      payment.status = 'failed'
-      payment.failedAt = new Date()
-      payment.failReason = `Provider check: ${checkResult.status}`
-      payment.confirmedBy = 'client'
-      await payment.save()
+      const failed = await claimPendingPayment(payment._id, {
+        status: 'failed',
+        failedAt: new Date(),
+        failReason: `Provider check: ${checkResult.status}`,
+        confirmedBy: 'client',
+      })
+      if (!failed) return alreadyProcessedResponse(payment._id)
 
       // Refund escrow points
       if (payment.escrowPointsCharged > 0) {
@@ -71,38 +78,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, status: 'failed', error: 'Paiement échoué côté provider' })
     }
 
-    // 2. Confirm if: provider says succeeded OR status is unknown (trust-based for QR/cash/manual)
-    const shouldConfirm = checkResult.status === 'succeeded' || checkResult.status === 'unknown'
+    // 2. Confirmer UNIQUEMENT si le provider dit 'succeeded'. Un statut
+    //    'unknown' (API provider en panne, non configurée, ou flux manuel QR)
+    //    ne doit JAMAIS confirmer — sinon un client peut valider une mission
+    //    sans avoir payé, et l'escrow serait libéré au prestataire en fin de mission.
+    const shouldConfirm = checkResult.status === 'succeeded'
 
     if (!shouldConfirm) {
-      // Still pending according to provider
+      if (checkResult.status === 'unknown') {
+        // Alerte opérationnelle : l'API provider ne répond pas — la confirmation
+        // repose alors uniquement sur le webhook signé ou la validation admin.
+        console.warn(`[payments/confirm] Statut provider inconnu (provider=${payment.provider}, payment=${payment._id}) — pas de confirmation client`)
+      }
+      if (payment.manualConfirm) {
+        return NextResponse.json({
+          success: true,
+          status: 'pending',
+          manualConfirm: true,
+          message: 'Paiement manuel en attente de validation par nos équipes'
+        })
+      }
       return NextResponse.json({ success: true, status: 'pending', payment, message: 'Paiement encore en cours côté provider' })
     }
 
-    // 3. Transition to held
-    payment.status = 'held'
-    payment.heldAt = new Date()
-    payment.confirmedBy = checkResult.status === 'succeeded' ? 'client' : 'client'
-    await payment.save()
+    // 3. Transition to held (le webhook a pu passer entre-temps)
+    const held = await claimPendingPayment(payment._id, { status: 'held', heldAt: new Date(), confirmedBy: 'client' })
+    if (!held) return alreadyProcessedResponse(payment._id)
 
-    // 4. Accept offer + start mission (unless balance phase)
-    if (payment.phase !== 'balance' && payment.requestId) {
-      const sr = await ServiceRequest.findById(payment.requestId)
-      const offer = await Offer.findById(payment.offerId)
-      if (sr && offer) {
-        try {
-          await acceptOfferForRequest({
-            serviceRequest: sr,
-            offer,
-            securePayment: payment.useEscrow !== false,
-            notifyClientPaymentHeld: payment.useEscrow !== false,
-            amount: payment.amount,
-          })
-        } catch (acceptErr: any) {
-          console.error('[payments/confirm] acceptOfferForRequest error:', acceptErr)
-          // Payment is held but mission acceptance failed — don't block the client
-        }
-      }
+    // 4. Attribuer l'offre (ou rembourser si elle ne peut plus l'être)
+    const fulfilled = await fulfillServicePayment(payment._id)
+    if (!fulfilled.accepted) {
+      return NextResponse.json({ success: false, status: 'refunded', error: 'Cette offre n’est plus disponible : votre paiement va vous être remboursé.' }, { status: 409 })
     }
 
     // 5. Notify client
@@ -115,8 +121,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       status: 'held',
-      payment,
-      confirmedBy: payment.confirmedBy,
+      payment: held,
+      confirmedBy: held.confirmedBy,
     })
   } catch (e: any) {
     if (e.message === 'Non authentifié') return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })

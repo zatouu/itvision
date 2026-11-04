@@ -133,6 +133,12 @@ export default function PolitiqueConfidentialitePage() {
                 <li><strong>Données de navigation</strong> : 13 mois maximum</li>
                 <li><strong>Comptes supprimés</strong> : effacement sous 30 jours</li>
               </ul>
+              <p>
+                Pour supprimer votre compte et vos données, consultez la{' '}
+                <Link href="/suppression-compte" className="text-emerald-600 hover:underline">
+                  procédure de suppression de compte
+                </Link>.
+              </p>
             </section>
 
             <section>

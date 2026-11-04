@@ -4,11 +4,14 @@ import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 
 import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage, Share2 } from 'lucide-react'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { CategorySelect } from '@/components/admin/CategorySelect'
+import { productConfigurationError } from '@/lib/pricing/variants'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
+import FileDropZone from '@/components/ui/FileDropZone'
+import { uploadFile } from '@/lib/http/upload-file'
 
 type ShippingOverride = {
   methodId: string
@@ -89,6 +92,8 @@ type Product = {
   groupBuyEnabled?: boolean
   groupBuyMinQty?: number
   groupBuyTargetQty?: number
+  // Lot minimum par commande standard (MOQ)
+  minOrderQty?: number
   priceTiers?: Array<{
     minQty: number
     maxQty?: number
@@ -119,8 +124,9 @@ async function fetchProducts(
     limit: String(limit)
   })
   const res = await fetch(`/api/products?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch products')
+  if (!res.ok) throw new Error('Le catalogue est temporairement indisponible.')
   const data = await res.json()
+  if (!Array.isArray(data?.items)) throw new Error('La réponse du catalogue est incomplète.')
   return {
     items: (data?.items || []) as Product[],
     total: Number(data?.total) || 0,
@@ -470,10 +476,10 @@ export default function AdminProductManager() {
     variantOptions: [],
     // Variantes avec prix et images
     variantGroups: [],
-    availabilityNote: 'Import direct Chine avec livraison express (3j), aérien (15j) ou maritime (60j)',
+    availabilityNote: '',
     sourcing: {},
     shippingOverrides: [],
-    isPublished: true,
+    isPublished: false,
     isFeatured: false,
     // Canaux de distribution
     channels: ['marketplace'],
@@ -482,6 +488,7 @@ export default function AdminProductManager() {
     groupBuyEnabled: false,
     groupBuyMinQty: 10,
     groupBuyTargetQty: 50,
+    minOrderQty: 1,
     priceTiers: [],
     // Informations 1688
     price1688: undefined,
@@ -496,6 +503,7 @@ export default function AdminProductManager() {
   const [pageSize, setPageSize] = useState(50)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [listError, setListError] = useState<'refresh' | 'more' | null>(null)
   const [editing, setEditing] = useState<Product | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
@@ -527,11 +535,11 @@ export default function AdminProductManager() {
 
   const tabs: { id: ProductTab; label: string; description: string; icon: React.ElementType }[] = [
     { id: 'info', label: 'Fiche produit', description: 'Nom, description, points clés', icon: Sparkles },
-    { id: 'details', label: 'Détails & logistique', description: 'Poids, dimensions, disponibilité', icon: Layers },
     { id: 'media', label: 'Médias', description: 'Visuels et galerie', icon: ImageIcon },
-    { id: 'variants', label: 'Variantes', description: 'Couleurs, options avec prix', icon: Settings },
-    { id: 'pricing', label: 'Tarifs & livraison', description: 'Prix public, marges, transport', icon: Package },
-    { id: 'groupbuy', label: 'Achat Groupé', description: 'Prix dégressifs par quantité', icon: Users },
+    { id: 'variants', label: 'Variantes', description: 'Choix, coûts source et stock', icon: Settings },
+    { id: 'details', label: 'Stock & expédition', description: 'Disponibilité, poids et dimensions', icon: Truck },
+    { id: 'pricing', label: 'Prix & transport', description: 'Prix, marges et tarifs', icon: Package },
+    { id: 'groupbuy', label: 'Lots & groupes', description: 'Minimum et prix dégressifs', icon: Users },
     { id: 'import', label: 'Import express', description: 'Recherche AliExpress et import', icon: Download }
   ]
 
@@ -550,11 +558,14 @@ export default function AdminProductManager() {
 
   const refresh = async () => {
     setLoading(true)
+    setListError(null)
     try {
       const result = await fetchProducts(query, category, conditionFilter, { skip: 0, limit: pageSize })
       setItems(normalizeItems(result.items))
       setTotalCount(result.total || result.items.length)
       setSelectedIds(new Set())
+    } catch {
+      setListError('refresh')
     } finally {
       setLoading(false)
     }
@@ -564,6 +575,7 @@ export default function AdminProductManager() {
     if (loading || loadingMore) return
     if (totalCount > 0 && items.length >= totalCount) return
     setLoadingMore(true)
+    setListError(null)
     try {
       const result = await fetchProducts(query, category, conditionFilter, { skip: items.length, limit: pageSize })
       const next = normalizeItems(result.items)
@@ -579,6 +591,8 @@ export default function AdminProductManager() {
         return merged
       })
       setTotalCount(result.total || totalCount)
+    } catch {
+      setListError('more')
     } finally {
       setLoadingMore(false)
     }
@@ -779,10 +793,33 @@ export default function AdminProductManager() {
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const editorSnapshot = useRef('')
+  const editorOpen = !!editing
+  useEffect(() => {
+    if (!editorOpen) return
+    editorSnapshot.current = JSON.stringify(editing)
+    const previous = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    editorRef.current?.focus()
+    return () => { document.body.style.overflow = overflow; previous?.focus() }
+  }, [editorOpen])
+  const closeEditor = () => {
+    if (saving) return
+    if (JSON.stringify(editing) !== editorSnapshot.current && !window.confirm('Fermer sans enregistrer les modifications ?')) return
+    setEditing(null)
+    setSaveError(null)
+  }
 
   const onSave = async () => {
     if (!editing) return
     setSaveError(null)
+    const configurationError = productConfigurationError(editing)
+    if (configurationError) {
+      setSaveError(configurationError)
+      return
+    }
 
     // Validation basique
     if (!editing.name.trim()) {
@@ -1515,7 +1552,7 @@ export default function AdminProductManager() {
               />
             </label>
             <label className="space-y-1">
-              <span>Promesse client (jours)</span>
+              <span>Délai indicatif (jours)</span>
               <input
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 type="number"
@@ -1720,12 +1757,13 @@ export default function AdminProductManager() {
             <ImageIcon className="h-4 w-4" />
             Image principale
           </div>
+          <FileDropZone accept="image/*" maxSizeMb={10} disabled={uploadingMain} onFiles={files => handleMainImageUpload(files[0])} overlayLabel="Déposez l’image principale">
           <div className="mt-4 flex flex-col gap-4 lg:flex-row">
             <div className="w-full overflow-hidden rounded-lg border border-dashed border-gray-200 bg-gray-50 lg:w-56">
               {editing.image ? (
                 <img src={editing.image} alt={editing.name || 'Visuel produit'} className="h-36 w-full object-cover" />
               ) : (
-                <div className="flex h-36 items-center justify-center text-xs text-gray-400">Prévisualisation</div>
+                <div className="flex h-36 items-center justify-center text-xs text-gray-400">Glissez une image ici</div>
               )}
             </div>
             <div className="flex-1 space-y-3 text-sm text-gray-700">
@@ -1747,6 +1785,7 @@ export default function AdminProductManager() {
               </div>
             </div>
           </div>
+          </FileDropZone>
         </div>
 
         {/* Galerie produit (miniatures affichées sur la page produit) */}
@@ -2337,11 +2376,8 @@ export default function AdminProductManager() {
   // Ajoute une variante à un groupe
   const addVariant = (groupIndex: number) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants.push({
-      id: generateVariantId(),
-      name: `Variante ${groups[groupIndex].variants.length + 1}`,
-      stock: 0
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: [...group.variants, { id: generateVariantId(), name: `Variante ${group.variants.length + 1}`, stock: 0 }]
     })
     setEditing({ ...editing, variantGroups: groups })
   }
@@ -2349,20 +2385,28 @@ export default function AdminProductManager() {
   // Supprime une variante
   const removeVariant = (groupIndex: number, variantIndex: number) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants.splice(variantIndex, 1)
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: group.variants.filter((_, optionIndex) => optionIndex !== variantIndex)
+    })
     setEditing({ ...editing, variantGroups: groups })
   }
 
   // Met à jour une variante
   const updateVariant = (groupIndex: number, variantIndex: number, updates: Partial<ProductVariant>) => {
     if (!editing) return
-    const groups = [...(editing.variantGroups || [])]
-    groups[groupIndex].variants[variantIndex] = {
-      ...groups[groupIndex].variants[variantIndex],
-      ...updates
-    }
+    const groups = (editing.variantGroups || []).map((group, index) => index !== groupIndex ? group : {
+      ...group, variants: group.variants.map((option, optionIndex) => optionIndex !== variantIndex ? option : { ...option, ...updates })
+    })
     setEditing({ ...editing, variantGroups: groups })
+  }
+
+  const uploadVariantImage = async (groupIndex: number, variantIndex: number, file: File) => {
+    try {
+      const uploaded = await uploadFile(file, { endpoint: '/api/upload', fields: { type: 'variants' } })
+      updateVariant(groupIndex, variantIndex, { image: uploaded.url })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de l’upload')
+    }
   }
 
   const renderVariantsTab = () => {
@@ -2370,25 +2414,23 @@ export default function AdminProductManager() {
     const exchangeRate = editing.exchangeRate || 100
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        <section aria-label="Variantes du produit" className="min-w-0 bg-white py-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
               <Settings className="h-4 w-4" />
-              Variantes du produit (style 1688)
+              Variantes du produit
             </div>
             <button
               type="button"
               onClick={addVariantGroup}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
+              className="inline-flex min-h-11 items-center gap-1 px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-sm hover:bg-emerald-800"
             >
               <Plus className="h-4 w-4" /> Ajouter un groupe
             </button>
           </div>
           
-          <p className="text-xs text-gray-500 mb-4">
-            Créez des variantes avec leurs prix et images spécifiques (ex: Couleur, Taille, Norme...). 
-            Le prix en Yuan sera automatiquement converti en FCFA.
-          </p>
+          <p className="text-sm text-gray-600 mb-4">Un choix par groupe. Les montants sont des coûts fournisseur ; entre plusieurs options tarifées, le coût le plus élevé s'applique.</p>
+          <p className="mb-4 text-sm font-medium text-gray-700">{editing.stockStatus === 'in_stock' ? `Stock global Dakar : ${editing.stockQuantity ?? 0} unité(s). Les stocks des groupes ne s'additionnent pas.` : editing.stockStatus === 'out_of_stock' ? 'Produit indisponible à la commande.' : 'Commande Chine : stock indicatif, approvisionnement à la demande.'}</p>
 
           {(!editing.variantGroups || editing.variantGroups.length === 0) ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
@@ -2400,10 +2442,11 @@ export default function AdminProductManager() {
             <div className="space-y-6">
               {editing.variantGroups.map((group, groupIndex) => (
                 <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <input
                       type="text"
-                      className="text-lg font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-emerald-500 focus:outline-none px-1"
+                      aria-label={`Nom du groupe ${groupIndex + 1}`}
+                      className="min-h-11 min-w-0 w-full font-semibold text-gray-800 bg-white border border-gray-300 rounded-lg px-2"
                       value={group.name}
                       onChange={e => updateVariantGroupName(groupIndex, e.target.value)}
                       placeholder="Nom du groupe (ex: Couleur)"
@@ -2412,14 +2455,14 @@ export default function AdminProductManager() {
                       <button
                         type="button"
                         onClick={() => addVariant(groupIndex)}
-                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        className="inline-flex min-h-11 items-center gap-1 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
-                        + Variante
+                        <Plus className="h-4 w-4"/> Variante
                       </button>
                       <button
                         type="button"
                         onClick={() => removeVariantGroup(groupIndex)}
-                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className="min-h-11 text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
                       >
                         Supprimer groupe
                       </button>
@@ -2428,9 +2471,9 @@ export default function AdminProductManager() {
                   
                   <div className="space-y-3">
                     {group.variants.map((variant, variantIndex) => (
-                      <div key={variant.id} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
+                      <div key={variant.id} className="grid grid-cols-[48px_minmax(0,1fr)] items-start gap-3 bg-white p-3 rounded-lg border border-gray-200">
                         {/* Image variante */}
-                        <div className="w-16 h-16 flex-shrink-0">
+                        <div className="w-12 h-12">
                           {variant.image ? (
                             <img src={variant.image} alt={variant.name} className="w-full h-full object-cover rounded-lg" />
                           ) : (
@@ -2441,11 +2484,12 @@ export default function AdminProductManager() {
                         </div>
                         
                         {/* Infos variante */}
-                        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2">
+                        <div className="min-w-0 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                           <div>
                             <label className="text-xs text-gray-500">Nom *</label>
                             <input
                               type="text"
+                              aria-label={`Nom variante ${groupIndex + 1}-${variantIndex + 1}`}
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.name}
                               onChange={e => updateVariant(groupIndex, variantIndex, { name: e.target.value })}
@@ -2458,16 +2502,19 @@ export default function AdminProductManager() {
                               type="text"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.sku || ''}
+                              aria-label={`SKU ${variant.name}`}
                               onChange={e => updateVariant(groupIndex, variantIndex, { sku: e.target.value })}
                               placeholder="SKU-001"
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Prix ajusté (¥)</label>
+                            <label className="text-xs text-gray-600">Coût fournisseur (CNY)</label>
                             <input
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.price1688 ?? ''}
+                              aria-label={`Coût CNY ${variant.name}`}
+                              min="0"
                               onChange={e => {
                                 const price1688 = e.target.value ? Number(e.target.value) : undefined
                                 const priceFCFA = typeof price1688 === 'number' ? Math.round(price1688 * exchangeRate) : undefined
@@ -2478,11 +2525,13 @@ export default function AdminProductManager() {
                             <span className="text-[10px] text-gray-400">Vide = choix sans impact sur le prix</span>
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Prix FCFA</label>
+                            <label className="text-xs text-gray-600">Coût fournisseur (FCFA)</label>
                             <input
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
                               value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
+                              aria-label={`Coût FCFA ${variant.name}`}
+                              min="0"
                               onChange={e => {
                                 const priceFCFA = e.target.value ? Number(e.target.value) : undefined
                                 updateVariant(groupIndex, variantIndex, { priceFCFA })
@@ -2496,19 +2545,24 @@ export default function AdminProductManager() {
                               type="number"
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.stock}
+                              aria-label={`Stock ${variant.name}`}
+                              min="0"
+                              step="1"
                               onChange={e => updateVariant(groupIndex, variantIndex, { stock: Number(e.target.value) || 0 })}
                               placeholder="0"
                             />
                           </div>
                           <div>
                             <label className="text-xs text-gray-500">Image variante</label>
-                            <div className="flex gap-2">
+                            <FileDropZone accept="image/*" maxSizeMb={10} onFiles={files => uploadVariantImage(groupIndex, variantIndex, files[0])} overlayLabel="Déposez l’image">
+                            <div className="flex flex-wrap gap-2">
                               <input
                                 type="text"
-                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="min-w-0 w-full border border-gray-200 rounded px-2 py-1 text-sm"
+                                aria-label={`Image ${variant.name}`}
                                 value={variant.image || ''}
                                 onChange={e => updateVariant(groupIndex, variantIndex, { image: e.target.value })}
-                                placeholder="URL ou uploadée"
+                                placeholder="URL, ou glissez une image"
                               />
                               <label className="flex items-center gap-1 text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 cursor-pointer font-medium transition-colors">
                                 <Upload className="h-3 w-3" />
@@ -2517,27 +2571,10 @@ export default function AdminProductManager() {
                                   type="file"
                                   className="hidden"
                                   accept="image/*"
-                                  onChange={async (e) => {
+                                  onChange={(e) => {
                                     const file = e.target.files?.[0]
-                                    if (file) {
-                                      try {
-                                        const formData = new FormData()
-                                        formData.append('file', file)
-                                        formData.append('type', 'variants')
-                                        const res = await fetch('/api/upload', { method: 'POST', body: formData })
-                                        if (res.ok) {
-                                          const data = await res.json()
-                                          updateVariant(groupIndex, variantIndex, { image: data.url || data.staticUrl })
-                                          alert('✓ Image uploadée avec succès!')
-                                        } else {
-                                          const err = await res.json()
-                                          alert(`❌ Erreur: ${err.error}`)
-                                        }
-                                      } catch (err) {
-                                        console.error('Upload erreur:', err)
-                                        alert('Erreur lors de l\'upload')
-                                      }
-                                    }
+                                    if (file) uploadVariantImage(groupIndex, variantIndex, file)
+                                    e.target.value = ''
                                   }}
                                 />
                               </label>
@@ -2545,11 +2582,12 @@ export default function AdminProductManager() {
                                 <img src={variant.image} alt="preview" className="w-8 h-8 rounded border border-gray-200 object-cover" />
                               )}
                             </div>
+                            </FileDropZone>
                           </div>
                         </div>
                         
                         {/* Actions */}
-                        <div className="flex flex-col gap-1">
+                        <div className="col-start-2 flex flex-wrap items-center justify-between gap-2">
                           <label className="flex items-center gap-1 text-xs">
                             <input
                               type="radio"
@@ -2557,11 +2595,9 @@ export default function AdminProductManager() {
                               checked={variant.isDefault}
                               onChange={() => {
                                 // Désélectionner toutes les autres variantes du groupe
-                                const groups = [...(editing.variantGroups || [])]
-                                groups[groupIndex].variants = groups[groupIndex].variants.map((v, i) => ({
-                                  ...v,
-                                  isDefault: i === variantIndex
-                                }))
+                                const groups = (editing.variantGroups || []).map((entry, index) => index !== groupIndex ? entry : {
+                                  ...entry, variants: entry.variants.map((option, optionIndex) => ({ ...option, isDefault: optionIndex === variantIndex }))
+                                })
                                 setEditing({ ...editing, variantGroups: groups })
                               }}
                             />
@@ -2570,7 +2606,8 @@ export default function AdminProductManager() {
                           <button
                             type="button"
                             onClick={() => removeVariant(groupIndex, variantIndex)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            className="grid h-11 w-11 place-items-center text-red-700 hover:bg-red-50 rounded"
+                            aria-label={`Supprimer ${variant.name}`}
                             title="Supprimer"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -2583,7 +2620,7 @@ export default function AdminProductManager() {
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Résumé des variantes */}
         {editing.variantGroups && editing.variantGroups.length > 0 && (
@@ -2599,8 +2636,8 @@ export default function AdminProductManager() {
                 <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.length, 0)}</strong>
               </div>
               <div>
-                <span className="text-blue-600">Stock total :</span>{' '}
-                <strong>{editing.variantGroups.reduce((sum, g) => sum + g.variants.reduce((s, v) => s + v.stock, 0), 0)}</strong>
+                <span className="text-blue-600">Stock global :</span>{' '}
+                <strong>{editing.stockStatus === 'in_stock' ? editing.stockQuantity ?? 0 : 'Sur commande / indisponible'}</strong>
               </div>
               <div>
                 <span className="text-blue-600">Prix spécifiques :</span>{' '}
@@ -2728,6 +2765,29 @@ export default function AdminProductManager() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Lot minimum (MOQ) — s'applique à la commande standard */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-700 mb-4">
+            <Package className="h-4 w-4" />
+            Lot minimum (MOQ)
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-gray-500">Quantité minimum par commande</label>
+              <input
+                type="number"
+                min="1"
+                value={editing.minOrderQty ?? 1}
+                onChange={e => setEditing({ ...editing, minOrderQty: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                1 = pas de lot. Au-delà, le panier et le checkout exigent cette quantité minimum.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Paliers de prix */}
@@ -3082,6 +3142,12 @@ export default function AdminProductManager() {
         </div>
       </div>
 
+      {listError && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <span>{listError === 'more' ? 'Impossible de charger les produits suivants.' : 'Le catalogue est temporairement indisponible.'} {items.length > 0 && 'Les produits affichés peuvent ne plus être à jour.'}</span>
+          <button type="button" className="min-h-11 px-3 font-semibold underline" onClick={() => listError === 'more' ? loadMore() : refresh()}>Réessayer le chargement</button>
+        </div>
+      )}
       <div className="overflow-x-auto bg-white rounded-xl border">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
@@ -3105,7 +3171,7 @@ export default function AdminProductManager() {
             {loading ? (
               <tr><td colSpan={6} className="p-6 text-center text-gray-500"><Loader2 className="h-4 w-4 inline animate-spin" /> Chargement...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Aucun produit</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500">{listError ? 'Chargement indisponible' : 'Aucun produit'}</td></tr>
             ) : (
               items.map(product => (
                 <tr key={product._id} className="border-t">
@@ -3238,25 +3304,34 @@ export default function AdminProductManager() {
 
       {editing && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 px-4 py-8 overflow-y-auto"
-          onClick={() => setEditing(null)}
+          className="fixed inset-0 z-50 bg-black/40 px-2 py-4 sm:px-4"
+          onClick={closeEditor}
         >
           <div
-            className="mx-auto w-full max-w-6xl rounded-2xl bg-white shadow-2xl"
+            ref={editorRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-editor-title"
+            tabIndex={-1}
+            className="mx-auto max-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-y-auto rounded-lg bg-white text-gray-900 shadow-2xl"
             onClick={e => e.stopPropagation()}
+            onKeyDown={event => {
+              if (event.key === 'Escape') { event.stopPropagation(); closeEditor() }
+              if (event.key !== 'Tab') return
+              const controls = Array.from(editorRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || []).filter(element => element.getClientRects().length > 0)
+              const first = controls[0]
+              const last = controls[controls.length - 1]
+              if (event.shiftKey && (document.activeElement === first || document.activeElement === editorRef.current)) { event.preventDefault(); last?.focus() }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+            }}
           >
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-6">
               <div>
-                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                <h3 id="product-editor-title" className="text-lg font-semibold text-gray-900">
                   {editing._id ? 'Modifier le produit' : 'Créer un produit'}
-                  {!editing._id && (
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">
-                      Workflow import & logistique
-                    </span>
-                  )}
                 </h3>
-                <div className="flex items-center gap-4">
-                  <p className="text-sm text-gray-500">Complétez chaque onglet pour finaliser la fiche produit.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-gray-600">{editing.isPublished ? 'Publication activée' : 'Brouillon'} · {editing.stockStatus === 'in_stock' ? 'Stock Dakar' : editing.stockStatus === 'out_of_stock' ? 'Indisponible' : 'Commande Chine'}</p>
                   {/* Indicateur de sauvegarde automatique */}
                   {!editing._id && lastSaved && (
                     <span className="text-xs text-green-600 flex items-center gap-1">
@@ -3270,46 +3345,16 @@ export default function AdminProductManager() {
               </div>
               <button
                 type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-lg border border-transparent p-1.5 text-gray-400 transition hover:border-gray-200 hover:bg-gray-100 hover:text-gray-600"
+                onClick={closeEditor}
+                aria-label="Fermer l’éditeur produit"
+                disabled={saving}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="px-6 pt-6">
-              <div className="flex items-center justify-between">
-                {[
-                  { id: 'info', label: 'Fiche', subTabs: ['info'] },
-                  { id: 'details', label: 'Détails & médias', subTabs: ['details', 'media'] },
-                  { id: 'pricing', label: 'Tarifs', subTabs: ['pricing'] },
-                  { id: 'options', label: 'Options avancées', subTabs: ['variants', 'groupbuy', 'import'] }
-                ].map((step, index, arr) => {
-                  const isActive = step.subTabs.includes(activeTab)
-                  const currentStepIndex = arr.findIndex((s) => s.subTabs.includes(activeTab))
-                  const isCompleted = currentStepIndex > index
-                  return (
-                    <div key={step.id} className="flex flex-1 items-center">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab(step.subTabs[0] as ProductTab)}
-                        className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition ${isActive ? 'bg-emerald-50 text-emerald-700' : isCompleted ? 'text-emerald-600' : 'text-gray-400'}`}
-                      >
-                        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isActive ? 'bg-emerald-600 text-white' : isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {isCompleted ? '✓' : index + 1}
-                        </span>
-                        <span className="hidden sm:inline">{step.label}</span>
-                      </button>
-                      {index < arr.length - 1 && (
-                        <div className={`mx-2 h-px flex-1 ${isCompleted ? 'bg-emerald-300' : 'bg-gray-200'}`} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6 px-6 py-6 md:flex-row">
-              <nav className="flex flex-wrap gap-3 md:w-64 md:flex-col">
+            <div className="flex min-w-0 flex-col gap-4 p-4 lg:flex-row lg:gap-6 lg:p-6">
+              <nav aria-label="Sections du produit" className="flex gap-2 overflow-x-auto pb-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible">
                 {tabs.map(tab => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.id
@@ -3318,7 +3363,8 @@ export default function AdminProductManager() {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 md:flex-none inline-flex items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      aria-pressed={isActive}
+                      className={`inline-flex min-h-11 shrink-0 items-start gap-2 rounded-lg border px-3 py-2 text-left transition lg:w-full ${
                         isActive
                           ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm'
                           : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/60'
@@ -3326,18 +3372,18 @@ export default function AdminProductManager() {
                     >
                       <Icon className={`mt-0.5 h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
                       <div>
-                        <div className="text-sm font-semibold">{tab.label}</div>
-                        <div className="text-xs text-gray-500">{tab.description}</div>
+                        <div className="whitespace-nowrap text-sm font-semibold lg:whitespace-normal">{tab.label}</div>
+                        <div className="hidden text-xs text-gray-600 lg:block">{tab.description}</div>
                       </div>
                     </button>
                   )
                 })}
               </nav>
-              <div className="flex-1 space-y-6">
+              <div className="min-w-0 flex-1 space-y-6">
                 {renderTabContent()}
                 {/* Message d'erreur de sauvegarde */}
                 {saveError && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                  <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
                     <svg className="h-5 w-5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
@@ -3377,7 +3423,7 @@ export default function AdminProductManager() {
                     <button
                       type="button"
                       className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                      onClick={() => { setEditing(null); setSaveError(null) }}
+                      onClick={closeEditor}
                       disabled={saving}
                     >
                       Annuler

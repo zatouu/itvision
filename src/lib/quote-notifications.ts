@@ -9,6 +9,7 @@ type QuoteEventType =
   | 'client_rejected'
   | 'client_counter_proposed'
   | 'client_comment'
+  | 'admin_comment'
 
 interface QuoteNotificationParams {
   eventType: QuoteEventType
@@ -35,7 +36,7 @@ function buildPayload(params: QuoteNotificationParams) {
           type: 'success' as const,
           title: 'Devis envoyé',
           message: `Le devis ${quoteNumber} a été envoyé au client.`,
-          actionUrl: '/admin'
+          actionUrl: '/admin/devis'
         },
         client: {
           type: 'info' as const,
@@ -50,7 +51,7 @@ function buildPayload(params: QuoteNotificationParams) {
           type: 'success' as const,
           title: `Devis ${quoteNumber} accepté`,
           message: `${actor} a accepté le devis.`,
-          actionUrl: '/admin'
+          actionUrl: '/admin/devis'
         },
         client: {
           type: 'success' as const,
@@ -65,7 +66,7 @@ function buildPayload(params: QuoteNotificationParams) {
           type: 'warning' as const,
           title: `Devis ${quoteNumber} refusé`,
           message: `${actor} a refusé le devis.`,
-          actionUrl: '/admin'
+          actionUrl: '/admin/devis'
         },
         client: {
           type: 'warning' as const,
@@ -80,13 +81,28 @@ function buildPayload(params: QuoteNotificationParams) {
           type: 'info' as const,
           title: `Contre-proposition sur ${quoteNumber}`,
           message: `${actor} propose ${fmt(Number(params.counterAmount || 0))} FCFA.`,
-          actionUrl: '/admin'
+          actionUrl: '/admin/devis'
         },
         client: {
           type: 'info' as const,
           title: `Contre-proposition envoyée (${quoteNumber})`,
           message: `Votre contre-proposition a été transmise à l'équipe ${CORPORATE_BRAND.name}`,
           actionUrl: '/portail-entreprise/documents'
+        }
+      }
+    case 'admin_comment':
+      return {
+        admin: {
+          type: 'success' as const,
+          title: `Réponse envoyée sur ${quoteNumber}`,
+          message: `${actor} a répondu au client.`,
+          actionUrl: '/admin/devis'
+        },
+        client: {
+          type: 'info' as const,
+          title: `Réponse de ${CORPORATE_BRAND.name} sur le devis ${quoteNumber}`,
+          message: params.message ? params.message.slice(0, 160) : 'Nouvelle réponse à votre commentaire.',
+          actionUrl: params.quote?._id ? `/portail-entreprise/documents/devis/${String(params.quote._id)}` : '/portail-entreprise/documents'
         }
       }
     case 'client_comment':
@@ -96,7 +112,7 @@ function buildPayload(params: QuoteNotificationParams) {
           type: 'info' as const,
           title: `Nouveau commentaire sur ${quoteNumber}`,
           message: `${actor} a ajouté un commentaire${params.message ? `: "${params.message.slice(0, 120)}"` : ''}.`,
-          actionUrl: '/admin'
+          actionUrl: '/admin/devis'
         },
         client: {
           type: 'info' as const,
@@ -110,6 +126,9 @@ function buildPayload(params: QuoteNotificationParams) {
 
 export async function notifyQuoteWorkflowEvent(params: QuoteNotificationParams): Promise<void> {
   const payload = buildPayload(params)
+  // Lien direct vers le devis (et ouverture de la réponse quand il vient d'être envoyé)
+  const quoteId = params.quote?._id ? String(params.quote._id) : ''
+  if (quoteId) payload.client.actionUrl = `/portail-entreprise/documents/devis/${quoteId}${params.eventType === 'quote_sent' ? '?repondre=1' : ''}`
 
   addNotification({
     userId: 'admin',
@@ -132,12 +151,12 @@ export async function notifyQuoteWorkflowEvent(params: QuoteNotificationParams):
     const notif = await InAppNotification.create({
       ...(params.clientUserId ? { userId: params.clientUserId } : {}),
       ...(params.clientCompanyId ? { teamId: params.clientCompanyId } : {}),
-      roles: ['CLIENT'],
       type: payload.client.type,
       title: payload.client.title,
       message: payload.client.message,
       actionUrl: payload.client.actionUrl,
       metadata: {
+        category: 'quote',
         quoteId: String(params.quote?._id || ''),
         quoteNumber: String(params.quote?.numero || ''),
         eventType: params.eventType,

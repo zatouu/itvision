@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import Review from '@/lib/models/Review'
+import { Order } from '@/lib/models/Order'
+import { GroupOrder } from '@/lib/models/GroupOrder'
+import User from '@/lib/models/User'
 import { verifyAuthToken } from '@/lib/jwt'
+import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
+
+/** « Awa Diop » → « Awa D. » : jamais d'email ni de nom complet sur une page publique. */
+function publicName(name?: string): string {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0 || parts[0].includes('@')) return 'Client DDM+'
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0]
+}
 
 // GET /api/reviews?productId=xxx&page=1&limit=10
 export async function GET(req: NextRequest) {
@@ -43,11 +55,12 @@ export async function GET(req: NextRequest) {
           r4: { $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] } },
           r5: { $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] } },
           withPhotos: { $sum: { $cond: [{ $gt: [{ $size: { $ifNull: ['$photos', []] } }, 0] }, 1, 0] } },
+          verifiedCount: { $sum: { $cond: ['$verified', 1, 0] } },
         },
       },
     ])
 
-    const stats = allRatings[0] || { avgRating: 0, count: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, withPhotos: 0 }
+    const stats = allRatings[0] || { avgRating: 0, count: 0, r1: 0, r2: 0, r3: 0, r4: 0, r5: 0, withPhotos: 0, verifiedCount: 0 }
 
     return NextResponse.json({
       success: true,
@@ -67,6 +80,7 @@ export async function GET(req: NextRequest) {
         total: stats.count,
         distribution: { 1: stats.r1, 2: stats.r2, 3: stats.r3, 4: stats.r4, 5: stats.r5 },
         withPhotos: stats.withPhotos,
+        verifiedCount: stats.verifiedCount || 0,
       },
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     })
@@ -76,9 +90,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/reviews — Creer un avis (authentifie ou non)
+// POST /api/reviews — Creer un avis (authentification requise)
 export async function POST(req: NextRequest) {
   try {
+    // Anti-spam : avis limités par IP (invités acceptés mais bornés)
+    const limit = await rateLimitRequest(req, { windowMs: 3_600_000, max: 10, keyPrefix: 'reviews:post' })
+    if (limit && !limit.ok) return tooManyResponse(limit.retryAfter)
+
     const body = await req.json()
     const { productId, rating, comment, title, photos, userName, orderId } = body
 
@@ -87,6 +105,10 @@ export async function POST(req: NextRequest) {
         { error: 'productId, rating et comment sont requis' },
         { status: 400 }
       )
+    }
+    // Un objet JSON ici deviendrait un opérateur Mongo dans les requêtes
+    if (typeof productId !== 'string' || productId.length > 64 || (orderId !== undefined && typeof orderId !== 'string')) {
+      return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 })
     }
 
     if (typeof rating !== 'number' || rating < 1 || rating > 5) {
@@ -97,54 +119,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Le commentaire doit faire au moins 10 caracteres' }, { status: 400 })
     }
 
-    // Verifier les photos (max 5, URLs valides)
+    // Photos : uniquement des fichiers servis par nos uploads (max 5)
     let cleanPhotos: string[] = []
     if (Array.isArray(photos)) {
       cleanPhotos = photos
-        .filter((p: any) => typeof p === 'string' && p.startsWith('http'))
+        .filter((p: any) => typeof p === 'string' && /^\/(api\/)?uploads\/[\w\-/.]+$/.test(p) && !p.includes('..'))
         .slice(0, 5)
     }
 
-    // Tenter d'identifier l'utilisateur connecte
-    let userId: string | undefined
-    let resolvedUserName = userName || 'Client'
-    let verified = false
-
+    let userId: string
     try {
       const token = req.cookies.get('auth-token')?.value
-      if (token) {
-        const decoded = await verifyAuthToken(token)
-        userId = decoded.userId
-        resolvedUserName = decoded.username || decoded.email || userName || 'Client'
-        verified = true
-      }
-    } catch {}
-
-    // Empecher les doublons (meme user, meme produit)
-    if (userId) {
-      await connectMongoose()
-      const existing = await Review.findOne({ productId, userId })
-      if (existing) {
-        return NextResponse.json(
-          { error: 'Vous avez deja laisse un avis pour ce produit' },
-          { status: 409 }
-        )
-      }
+      if (!token) throw new Error('missing token')
+      const decoded = await verifyAuthToken(token)
+      userId = decoded.userId
+    } catch {
+      return NextResponse.json({ error: 'Connectez-vous pour laisser un avis' }, { status: 401 })
     }
 
     await connectMongoose()
+    const author = await User.findById(userId).select('name').lean() as any
+    const resolvedUserName = publicName(author?.name || (typeof userName === 'string' ? userName : ''))
+
+    // Empecher les doublons (meme user, meme produit)
+    const existing = await Review.findOne({ productId, userId })
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Vous avez deja laisse un avis pour ce produit' },
+        { status: 409 }
+      )
+    }
+
+    // « Achat vérifié » uniquement si une commande payée du client contient le produit
+    const purchaseQuery: any = {
+      clientId: userId,
+      paymentStatus: { $in: ['paid', 'completed'] },
+      'items.id': productId,
+    }
+    if (orderId && typeof orderId === 'string') purchaseQuery.orderId = orderId
+    const boughtInGroup = () => mongoose.isValidObjectId(productId) && mongoose.isValidObjectId(userId)
+      ? GroupOrder.exists({
+          'product.productId': new mongoose.Types.ObjectId(productId),
+          participants: { $elemMatch: { userId: new mongoose.Types.ObjectId(userId), paymentStatus: { $in: ['paid', 'partial'] } } },
+        })
+      : null
+    const verified = !!(await Order.exists(purchaseQuery)) || !!(await boughtInGroup())
 
     const review = await Review.create({
       productId,
       userId,
       userName: resolvedUserName,
       rating: Math.round(rating),
-      title: title?.trim() || undefined,
-      comment: comment.trim(),
+      title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 80) : undefined,
+      comment: comment.trim().slice(0, 1500),
       photos: cleanPhotos,
       verified,
       orderId: orderId || undefined,
-      status: 'approved',
+      // Les avis sans achat vérifié passent en modération
+      status: verified ? 'approved' : 'pending',
     })
 
     return NextResponse.json({

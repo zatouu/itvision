@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { jwtVerify } from 'jose'
+import { verifyJwtPayload } from '@/lib/jwt'
 import { keycloakEnabled, verifyKeycloakToken, mapKeycloakRolesToAppRole } from '@/lib/keycloak'
-import { getJwtSecretKey } from '@/lib/jwt-secret'
+import { SessionStoreUnavailableError } from '@/lib/auth-session'
 import { verifyDevToken } from '@/lib/auth-dev'
 
 function getAuthCookieDomain(): string | undefined {
@@ -45,8 +45,10 @@ export interface AuthResult {
     name?: string
     marketplaceTier?: 'standard' | 'pro' | 'reseller' | 'partner'
     companyClientId?: string
+    sessionVersion?: number
   }
   error?: string
+  unavailable?: boolean
 }
 
 /**
@@ -111,7 +113,7 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
       }
     }
 
-    const { payload } = await jwtVerify(token, getJwtSecretKey())
+    const payload = await verifyJwtPayload(token)
     const rawClaims = payload as Record<string, unknown>
     const allowedTiers = ['standard', 'pro', 'reseller', 'partner'] as const
 
@@ -128,9 +130,13 @@ export async function verifyAuthServer(request?: NextRequest): Promise<AuthResul
             ? (rawClaims.marketplaceTier as (typeof allowedTiers)[number])
             : 'standard',
         companyClientId: typeof rawClaims.companyClientId === 'string' ? rawClaims.companyClientId : undefined,
+        sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
       },
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof SessionStoreUnavailableError) {
+      return { isAuthenticated: false, unavailable: true, error: error.message }
+    }
     return { isAuthenticated: false, error: 'Token invalide' }
   }
 }

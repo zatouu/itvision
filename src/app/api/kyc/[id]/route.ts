@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { userId, role } = await requireAuth(request)
     const { id } = await params
 
-    if (role !== 'ADMIN') {
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Accès admin requis' }, { status: 403 })
     }
 
@@ -67,16 +67,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 /**
- * Admin: list all KYC requests (GET /api/kyc/:id is unused, use /api/kyc/list instead)
+ * Lecture d'une soumission KYC — réservée au propriétaire de la demande ou au staff.
+ * (GET /api/kyc/:id est peu utilisé, /api/kyc/list côté admin)
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
-    await requireAuth(request)
+    const { userId, role } = await requireAuth(request)
     const { id } = await params
 
     const kyc = await KycRequest.findById(id).lean()
     if (!kyc) return NextResponse.json({ error: 'KYC introuvable' }, { status: 404 })
+
+    const isOwner = String((kyc as any).providerId) === String(userId)
+    const isStaff = role === 'ADMIN' || role === 'SUPER_ADMIN'
+    if (!isOwner && !isStaff) {
+      return NextResponse.json({ error: 'Interdit' }, { status: 403 })
+    }
 
     return NextResponse.json({ kyc })
   } catch (e: any) {

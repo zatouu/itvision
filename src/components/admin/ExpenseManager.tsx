@@ -156,19 +156,20 @@ export default function ExpenseManager() {
 
   const updateAmounts = (next: Partial<Expense>) => {
     const ht = Number(next.amountHT || 0)
-    const rate = Number(next.taxRate || 0)
-    const taxAmount = Math.round(ht * rate) / 100
-    const ttc = ht + taxAmount
 
     // Auto-détection BRS selon la catégorie
     const autoBrs = next.category ? BRS_CATEGORIES.has(next.category) : false
     const brsApplicable = next.brsApplicable !== undefined ? next.brsApplicable : autoBrs
+    // BRS et TVA s'excluent : un prestataire soumis à la retenue ne facture pas de TVA
+    const rate = brsApplicable ? 0 : Number(next.taxRate || 0)
+    const taxAmount = Math.round(ht * rate) / 100
+    const ttc = ht + taxAmount
     const brsRate = Number(next.brsRate ?? 5)
     const brsThreshold = Number(next.brsThreshold ?? 25000)
     const brsAmount = brsApplicable && ht > brsThreshold ? Math.round(ht * brsRate) / 100 : 0
     const netPayable = ttc - brsAmount
 
-    return { ...next, taxAmount, amountTTC: ttc, brsApplicable, brsRate, brsThreshold, brsAmount, netPayable }
+    return { ...next, taxRate: rate, taxAmount, amountTTC: ttc, brsApplicable, brsRate, brsThreshold, brsAmount, netPayable }
   }
 
   const openCreate = () => {
@@ -519,8 +520,10 @@ export default function ExpenseManager() {
                   <input
                     type="number"
                     value={editing.taxRate ?? 0}
+                    disabled={Boolean(editing.brsApplicable)}
+                    title={editing.brsApplicable ? 'Pas de TVA avec la retenue BRS' : undefined}
                     onChange={(e) => setEditing(updateAmounts({ ...editing, taxRate: Number(e.target.value) }))}
-                    className="input"
+                    className="input disabled:bg-stone-100 disabled:text-stone-400"
                   />
                 </Field>
                 <Field label="Total TTC">

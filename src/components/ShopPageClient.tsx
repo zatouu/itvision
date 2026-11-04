@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import { Loader2, Store, Package, CheckCircle, MapPin } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Loader2, AlertCircle } from 'lucide-react'
+import ScreenShop from '@/components/market/storefront/screens/ScreenShop'
 
 interface ProductItem {
   id: string
@@ -15,8 +14,31 @@ interface ProductItem {
   currency: string
   stockStatus?: string
   stockQuantity?: number
+  moq?: number
+  basePrice?: number
+  hasGroup?: boolean
+  save?: number
   isFeatured?: boolean
 }
+
+interface ShopData {
+  name: string
+  description?: string
+  logo?: string
+  coverImage?: string
+  isVerified: boolean
+  country?: string
+  city?: string
+  categories?: string[]
+  responseTimeHours?: number
+  createdAt?: string
+  socialWhatsApp?: string
+  socialInstagram?: string
+  socialFacebook?: string
+  socialWebsite?: string
+}
+
+import type { SimilarShop } from '@/components/market/storefront/screens/ScreenShop'
 
 interface ShopPageClientProps {
   shopId: string
@@ -24,123 +46,127 @@ interface ShopPageClientProps {
   shopSlug: string
   shopLogo?: string
   shopDescription?: string
+  followers?: number
+  similarShops?: SimilarShop[]
+  shop?: ShopData
 }
 
-export default function ShopPageClient({ shopId, shopName, shopLogo, shopDescription }: ShopPageClientProps) {
+function formatResponseTime(hours?: number): string | undefined {
+  if (hours == null || hours < 0) return undefined
+  if (hours < 1) return '< 1h'
+  if (hours < 24) return `< ${Math.ceil(hours)}h`
+  return `< ${Math.ceil(hours / 24)}j`
+}
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0]?.toUpperCase())
+    .slice(0, 2)
+    .join('') || name.slice(0, 2).toUpperCase()
+}
+
+export default function ShopPageClient({
+  shopId,
+  shopName,
+  shopSlug,
+  shopDescription,
+  followers = 0,
+  similarShops = [],
+  shop,
+}: ShopPageClientProps) {
   const [items, setItems] = useState<ProductItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const limit = 24
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { loadProducts(1) }, [shopId])
-
-  const loadProducts = async (p: number) => {
-    try {
-      setLoading(true)
-      const res = await fetch(`/api/shops/${shopId}/products?page=${p}&limit=${limit}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erreur')
-      setItems(data.items || [])
-      setTotal(data.pagination?.total || 0)
-      setPage(p)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch(`/api/shops/${shopId}/products?page=1&limit=100`, { cache: 'no-store' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Erreur')
+        setItems(data.items || [])
+      } catch (e: any) {
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
     }
+    loadProducts()
+  }, [shopId])
+
+  const products = useMemo(() =>
+    items.map((it) => ({
+      id: it.id,
+      name: it.name,
+      img: it.image || '/placeholder.svg',
+      cat: it.category,
+      price: typeof it.price === 'number' ? it.price : 0,
+      moq: it.moq ?? 1,
+      base: it.basePrice,
+      hasGroup: it.hasGroup ?? false,
+      save: it.save ?? 0,
+    })),
+  [items])
+
+  const categories = useMemo(() =>
+    Array.from(new Set(items.map((p) => p.category).filter(Boolean))) as string[],
+  [items])
+
+  const shopData = useMemo(() => ({
+    name: shopName,
+    initials: getInitials(shopName),
+    type: 'partner' as const,
+    verified: shop?.isVerified ?? false,
+    logo: shop?.logo,
+    coverImage: shop?.coverImage,
+    rating: 0,
+    reviewCount: 0,
+    memberSince: shop?.createdAt ? new Date(shop.createdAt).getFullYear().toString() : undefined,
+    location: shop?.city ? `${shop.city}, ${shop?.country || 'Sénégal'}` : (shop?.country || 'Sénégal'),
+    responseTime: formatResponseTime(shop?.responseTimeHours),
+    categories: categories.length ? categories : (shop?.categories ?? ['Général']),
+    description: shopDescription || shop?.description,
+    socials: {
+      instagram: shop?.socialInstagram,
+      facebook: shop?.socialFacebook,
+      website: shop?.socialWebsite,
+    },
+    productCount: items.length,
+  }), [shopName, shop, shopDescription, categories, items.length])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    )
   }
 
-  const pages = Math.ceil(total / limit)
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Erreur</h1>
+        <p className="text-slate-600 dark:text-slate-400">{error}</p>
+      </div>
+    )
+  }
+
+  const whatsappUrl = shop?.socialWhatsApp
+    ? `https://wa.me/${shop.socialWhatsApp.replace(/\D/g, '')}`
+    : undefined
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 flex items-start gap-4">
-        <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
-          {shopLogo ? (
-            <Image src={shopLogo} alt={shopName} width={80} height={80} className="object-cover w-full h-full" />
-          ) : (
-            <Store className="h-8 w-8 text-gray-400" />
-          )}
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{shopName}</h1>
-          {shopDescription && <p className="text-gray-600 mt-1 max-w-2xl">{shopDescription}</p>}
-          <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-            <Package className="h-4 w-4" />
-            <span>{total} produit{total > 1 ? 's' : ''}</span>
-          </div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          Cette boutique n'a pas encore de produits en ligne.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={`/produits/${item.slug || item.id}`}
-              className="group block rounded-2xl border border-gray-200 bg-white overflow-hidden transition hover:shadow-lg hover:border-emerald-300"
-            >
-              <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                {item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    <Package className="h-10 w-10" />
-                  </div>
-                )}
-                {item.stockStatus === 'in_stock' && (item.stockQuantity ?? 0) > 0 && (
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full shadow-sm">
-                    <CheckCircle className="w-3 h-3" />
-                    En stock
-                  </span>
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="font-medium text-gray-900 line-clamp-2 group-hover:text-emerald-600 transition">{item.name}</h3>
-                {item.price !== null && (
-                  <p className="mt-2 font-bold text-emerald-700">
-                    {item.price.toLocaleString('fr-FR')} {item.currency}
-                  </p>
-                )}
-                {item.stockStatus === 'in_stock' && (item.stockQuantity ?? 0) > 0 && (
-                  <p className="mt-1.5 text-[10px] text-slate-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    Disponible localement · prix revendeur
-                  </p>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {pages > 1 && !loading && (
-        <div className="flex justify-center gap-2 mt-8">
-          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => loadProducts(p)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${page === p ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <ScreenShop
+      shop={shopData}
+      products={products}
+      contactWhatsApp={whatsappUrl}
+      shopSlug={shopSlug}
+      shopId={shopId}
+      followers={followers}
+      similarShops={similarShops}
+    />
   )
 }

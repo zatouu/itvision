@@ -26,15 +26,14 @@ export async function handlePaymentReconcile(task: IScheduledTask): Promise<void
     throw new Error('Payload incomplet pour payment_reconcile')
   }
 
-  // Vérifier que le paiement est toujours en état 'released' et non déjà crédité
+  // Paiement libéré, ou remboursé partiellement avec une part prestataire (litige)
   const payment = await Payment.findById(paymentId).lean() as any
   if (!payment) throw new Error(`Paiement ${paymentId} introuvable`)
-  if (payment.status !== 'released') {
-    // Déjà remboursé ou autre état → rien à faire
+  if (!['released', 'refunded'].includes(payment.status)) {
     return
   }
 
-  // Réessayer le crédit cash
+  // Idempotent (clé = paiement) : sans effet si le premier essai avait en réalité abouti
   await creditCashBalance(providerId, amount, {
     relatedMissionId: requestId,
     paymentRef: paymentId,
@@ -42,6 +41,22 @@ export async function handlePaymentReconcile(task: IScheduledTask): Promise<void
   })
 
   console.log(`[payment_reconcile] Crédit réussi pour payment=${paymentId} provider=${providerId} amount=${amount}`)
+}
+
+/**
+ * Crédite la part prestataire d'un paiement déjà passé à 'released' (ou remboursé partiellement).
+ * En cas d'échec, un réessai est planifié au lieu de laisser le prestataire impayé.
+ */
+export async function payProvider(payment: { _id: unknown; providerId?: unknown }, net: number, requestId: string, description: string): Promise<boolean> {
+  if (!(net > 0) || !payment.providerId) return false
+  try {
+    await creditCashBalance(String(payment.providerId), net, { relatedMissionId: requestId, paymentRef: String(payment._id), description })
+    return true
+  } catch (err) {
+    console.error(`[payProvider] crédit échoué payment=${payment._id}, réessai planifié`, err)
+    await schedulePaymentReconcile(String(payment._id), String(payment.providerId), net, requestId)
+    return false
+  }
 }
 
 /**

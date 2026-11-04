@@ -2,29 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectMongoose } from '@/lib/mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
-import { verifyJwtPayload } from '@/lib/jwt'
+import { requireApiUser, authErrorResponse, ADMIN_ROLES } from '@/lib/api-auth'
 
-async function verifyAdminToken(request: NextRequest) {
-  const token =
-    request.cookies.get('auth-token')?.value ||
-    request.cookies.get('admin-auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '')
-
-  if (!token) throw new Error('Token manquant')
-  const payload = await verifyJwtPayload(token)
-  const normalizedRole = String((payload as any).role || '').toUpperCase()
-  if (normalizedRole !== 'ADMIN' && normalizedRole !== 'SUPERVISOR') {
-    throw new Error('Accès non autorisé')
-  }
-  return payload
+function errorResponse(error: unknown) {
+  const authRes = authErrorResponse(error)
+  if (authRes) return authRes
+  console.error('[admin/reports/snapshot]', error)
+  return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
 }
 
 // POST — Créer un snapshot immuable d'un contrat
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
-    const adminPayload = await verifyAdminToken(request)
-    const adminUserId = (adminPayload as any).userId as string
+    const { userId: adminUserId } = await requireApiUser(request, ADMIN_ROLES)
     const { id } = await params
 
     const contract = await MaintenanceContract.findById(id).lean() as any
@@ -61,9 +52,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
 
     return NextResponse.json({ success: true, snapshot })
-  } catch (error: any) {
-    const status = error.message === 'Accès non autorisé' || error.message === 'Token manquant' ? 403 : 500
-    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status })
+  } catch (error) {
+    return errorResponse(error)
   }
 }
 
@@ -71,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectMongoose()
-    await verifyAdminToken(request)
+    await requireApiUser(request, ADMIN_ROLES)
     const { id } = await params
 
     const contract = await MaintenanceContract.findById(id).select('snapshots').lean() as any
@@ -83,8 +73,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       success: true,
       snapshots: contract.snapshots || []
     })
-  } catch (error: any) {
-    const status = error.message === 'Accès non autorisé' || error.message === 'Token manquant' ? 403 : 500
-    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status })
+  } catch (error) {
+    return errorResponse(error)
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyRateLimit, apiRateLimiter } from '@/lib/rate-limiter'
+import { requireAuth } from '@/lib/jwt'
 
 /**
  * Décode une polyline Google encodée en tableau de coordonnées {lat,lng}.
@@ -45,9 +46,81 @@ function parseCoord(value: string | null): { lat: number; lng: number } | null {
   return { lat, lng }
 }
 
+type RouteResult = {
+  polyline: Array<{ lat: number; lng: number }>
+  distanceMeters: number
+  durationSeconds: number
+  distanceText?: string
+  durationText?: string
+  provider: 'google' | 'osrm'
+}
+
+const OSRM_URL = process.env.OSRM_URL || 'https://router.project-osrm.org'
+
+function formatDistance(meters: number): string {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1).replace('.', ',')} km`
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60))
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+}
+
+/** Google Directions : uniquement si GOOGLE_MAPS_API_KEY est configurée sur le serveur. */
+async function googleRoute(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }, mode: string): Promise<RouteResult | null> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY
+  if (!apiKey) return null
+  const url = new URL('https://maps.googleapis.com/maps/api/directions/json')
+  url.searchParams.set('origin', `${origin.lat},${origin.lng}`)
+  url.searchParams.set('destination', `${destination.lat},${destination.lng}`)
+  url.searchParams.set('mode', mode)
+  url.searchParams.set('key', apiKey)
+  const res = await fetch(url.toString(), { cache: 'no-store', signal: AbortSignal.timeout(8000) })
+  const data = await res.json()
+  if (data.status !== 'OK' || !data.routes?.length) {
+    console.warn('[Route] Google indisponible, repli OSRM :', data.status)
+    return null
+  }
+  const leg = data.routes[0].legs[0]
+  return {
+    polyline: decodePolyline(data.routes[0].overview_polyline?.points || ''),
+    distanceMeters: leg.distance?.value || 0,
+    durationSeconds: leg.duration?.value || 0,
+    distanceText: leg.distance?.text,
+    durationText: leg.duration?.text,
+    provider: 'google',
+  }
+}
+
+/** Repli sans clé : serveur OSRM (OpenStreetMap). Même encodage de polyline que Google (précision 5). */
+async function osrmRoute(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }, mode: string): Promise<RouteResult | null> {
+  const profile = mode === 'walking' ? 'foot' : mode === 'bicycling' ? 'bike' : 'driving'
+  const url = `${OSRM_URL.replace(/\/+$/, '')}/route/v1/${profile}/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=polyline`
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'XeuyBi/1.0 (itvisionplus.sn)' } })
+  if (!res.ok) return null
+  const data = await res.json()
+  const route = data?.routes?.[0]
+  if (data?.code !== 'Ok' || !route?.geometry) return null
+  return {
+    polyline: decodePolyline(route.geometry),
+    distanceMeters: Math.round(route.distance || 0),
+    durationSeconds: Math.round(route.duration || 0),
+    provider: 'osrm',
+  }
+}
+
 export async function GET(request: NextRequest) {
   const rateLimit = await applyRateLimit(request, apiRateLimiter)
   if (rateLimit) return rateLimit
+
+  // Réservé aux utilisateurs connectés : sans quoi n'importe qui peut brûler
+  // le quota Google (ou abuser du serveur OSRM public) au nom de la plateforme.
+  try {
+    await requireAuth(request)
+  } catch {
+    return NextResponse.json({ error: 'Authentification requise' }, { status: 401 })
+  }
 
   try {
     const { searchParams } = new URL(request.url)
@@ -62,43 +135,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Clé Google Maps non configurée sur le serveur' },
-        { status: 503 }
-      )
+    // Google si la clé est configurée, sinon (ou en cas d'échec) OSRM : l'itinéraire ne dépend plus de la clé
+    const route = await googleRoute(origin, destination, mode).catch(() => null)
+      || await osrmRoute(origin, destination, mode).catch(() => null)
+
+    if (!route || route.polyline.length === 0) {
+      return NextResponse.json({ error: 'Aucun itinéraire trouvé' }, { status: 502 })
     }
-
-    const url = new URL('https://maps.googleapis.com/maps/api/directions/json')
-    url.searchParams.set('origin', `${origin.lat},${origin.lng}`)
-    url.searchParams.set('destination', `${destination.lat},${destination.lng}`)
-    url.searchParams.set('mode', mode)
-    url.searchParams.set('key', apiKey)
-
-    const res = await fetch(url.toString(), { next: { revalidate: 0 } })
-    const data = await res.json()
-
-    if (data.status !== 'OK' || !data.routes?.length) {
-      return NextResponse.json(
-        { error: data.status || 'Aucun itinéraire trouvé', googleStatus: data.status },
-        { status: 400 }
-      )
-    }
-
-    const leg = data.routes[0].legs[0]
-    const encoded = data.routes[0].overview_polyline?.points || ''
 
     return NextResponse.json({
       success: true,
-      polyline: decodePolyline(encoded),
+      provider: route.provider,
+      polyline: route.polyline,
       distance: {
-        text: leg.distance?.text || '',
-        value: leg.distance?.value || 0, // mètres
+        text: route.distanceText || formatDistance(route.distanceMeters),
+        value: route.distanceMeters, // mètres
       },
       duration: {
-        text: leg.duration?.text || '',
-        value: leg.duration?.value || 0, // secondes
+        text: route.durationText || formatDuration(route.durationSeconds),
+        value: route.durationSeconds, // secondes
       },
       origin,
       destination,
@@ -106,6 +161,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur'
     console.error('[Route] Error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Itinéraire indisponible' }, { status: 500 })
   }
 }

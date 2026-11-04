@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import PromoSlide from '@/lib/models/PromoSlide'
 import { requireAuth } from '@/lib/jwt'
+import { parseSlideInput } from '@/lib/market/promo-slides'
 
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN']
 
@@ -21,23 +22,11 @@ export async function PUT(
     await requireAdmin(request)
 
     const { id } = await params
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const { data: update, error } = parseSlideInput(body, true)
+    if (error) return NextResponse.json({ success: false, error }, { status: 400 })
 
-    const update: any = {}
-    if (body.title !== undefined) update.title = body.title
-    if (body.subtitle !== undefined) update.subtitle = body.subtitle
-    if (body.ctaText !== undefined) update.ctaText = body.ctaText
-    if (body.ctaLink !== undefined) update.ctaLink = body.ctaLink
-    if (body.bgColor !== undefined) update.bgColor = body.bgColor
-    if (body.accentColor !== undefined) update.accentColor = body.accentColor
-    if (body.textColor !== undefined) update.textColor = body.textColor
-    if (body.images !== undefined) update.images = body.images
-    if (body.isActive !== undefined) update.isActive = body.isActive
-    if (typeof body.order === 'number') update.order = body.order
-    if (body.startDate !== undefined) update.startDate = body.startDate ? new Date(body.startDate) : null
-    if (body.endDate !== undefined) update.endDate = body.endDate ? new Date(body.endDate) : null
-
-    const slide = await PromoSlide.findByIdAndUpdate(id, update, { new: true })
+    const slide = await PromoSlide.findByIdAndUpdate(id, update, { new: true, runValidators: true })
 
     if (!slide) {
       return NextResponse.json({ success: false, error: 'Slide introuvable' }, { status: 404 })

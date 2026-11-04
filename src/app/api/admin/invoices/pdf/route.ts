@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminApi } from '@/lib/api-auth'
 import { generateITVisionInvoicePdf } from '@/lib/pdf'
+import { renderInvoicePdf, pdfResponseHeaders } from '@/lib/pdf-documents'
+import { connectMongoose } from '@/lib/mongoose'
+import AdminInvoice from '@/lib/models/AdminInvoice'
 import fs from 'fs'
 import path from 'path'
 
@@ -27,6 +30,16 @@ export async function POST(request: NextRequest) {
 
     const invoiceData = await request.json()
 
+    // Facture enregistrée : PDF construit depuis la base (identique à l'email et au portail)
+    const savedId = String(invoiceData?.id || invoiceData?._id || '')
+    if (/^[a-fA-F0-9]{24}$/.test(savedId)) {
+      await connectMongoose()
+      const saved = await AdminInvoice.findById(savedId).lean() as any
+      if (saved) {
+        return new NextResponse(new Uint8Array(renderInvoicePdf(saved)), { headers: pdfResponseHeaders('Facture', saved.numero, false) })
+      }
+    }
+
     // Charger logo et cachet
     const logoBase64 = loadImage('public/images/logo-it-vision.png')
     const stampBase64 = loadImage('public/images/cachetitv.png')
@@ -50,8 +63,9 @@ export async function POST(request: NextRequest) {
         totalPrice: Number(it.totalPrice || 0)
       })) : [],
       subtotal: Number(invoiceData.subtotal || 0),
-      taxRate: Number(invoiceData.taxRate ?? 18),
+      taxRate: Number(invoiceData.taxRate ?? 0),
       taxAmount: Number(invoiceData.taxAmount || 0),
+      brsAmount: Number(invoiceData.brsAmount || 0),
       total: Number(invoiceData.total || 0),
       notes: invoiceData.notes,
       terms: invoiceData.terms,

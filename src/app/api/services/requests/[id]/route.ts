@@ -6,7 +6,7 @@ import { requireAuth } from '@/lib/jwt'
 import { rateLimitRequest, tooManyResponse } from '@/lib/rate-limit'
 import User from '@/lib/models/User'
 import DisputeEvidence from '@/lib/models/DisputeEvidence'
-import DisputeMessage from '@/lib/models/DisputeMessage'
+import { listThreadMessages, postMessage, toMissionMessageDto } from '@/lib/messaging/thread-messages'
 import MissionAuditLog from '@/lib/models/MissionAuditLog'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [disputeEvidence, disputeMessages, disputeAudit] = hasDispute
       ? await Promise.all([
           DisputeEvidence.find({ requestId: id }).sort({ createdAt: -1 }).lean(),
-          DisputeMessage.find({ requestId: id }).sort({ createdAt: 1 }).lean(),
+          listThreadMessages('mission_dispute', id, { limit: 500 }).then((msgs) => msgs.map(toMissionMessageDto)),
           MissionAuditLog.find({ requestId: id, action: { $in: ['dispute_opened', 'dispute_resolved', 'payment_released', 'payment_refunded'] } }).sort({ createdAt: -1 }).lean(),
         ])
       : [[], [], []]
@@ -84,6 +84,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const lifecycle = await import('@/lib/mission-lifecycle')
     const metrics = lifecycle.computeMetrics(sr)
     const display = lifecycle.DISPLAY_LABELS[lifecycle.normalizeStatus(sr.status)]
+
+    // Coach IA de l'étape courante (généré à chaque transition, caché dans aiCoach) — réservé au prestataire assigné / admin
+    const coachCache = (isProvider || isAdmin) && sr.aiCoach && typeof sr.aiCoach === 'object' ? sr.aiCoach as Record<string, any> : null
+    const coachEntry = coachCache ? (coachCache[sr.status] || coachCache[lifecycle.normalizeStatus(sr.status)] || null) : null
+    const coachAdvice = coachEntry?.advice && typeof coachEntry.advice === 'object' ? coachEntry.advice : null
 
     // Journal d'état de la mission (transitions + pauses/reprises)
     const statusLogRaw = await MissionAuditLog.find({
@@ -131,11 +136,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       clientAvatar: (clientUser as any)?.avatarUrl || null,
       clientVerified: !!(clientUser as any)?.kycVerified,
       clientValidatedAt: (sr as any).validatedByClientAt || null,
+      autoValidatedAt: (sr as any).autoValidatedAt || null,
       providerName: providerUser?.name,
       providerPhone: providerUser?.phone,
       providerAvatar: (providerUser as any)?.avatarUrl || null,
       statusLabel: display,
       statusLog,
+      aiAdvice: coachAdvice?.summary || coachAdvice?.title || null,
+      aiCoach: coachAdvice,
       clientReview,
       earnings,
       weeklyCompletedMissions,
@@ -273,11 +281,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.action === 'dispute-message') {
       if (!body.text) return NextResponse.json({ error: 'Le message est obligatoire' }, { status: 400 })
       if (!['dispute'].includes(sr.status)) return NextResponse.json({ error: 'La mission n\'est pas en litige' }, { status: 409 })
-      await DisputeMessage.create({
-        requestId: id,
-        senderId: userId,
+      await postMessage({
+        threadType: 'mission_dispute',
+        threadId: id,
+        senderId: String(userId),
         senderRole: missionRole,
-        text: String(body.text).slice(0, 2000),
+        text: String(body.text),
       })
       await (await import('@/lib/mission-lifecycle')).touch(id, 'dispute-message', userId)
     }
@@ -316,8 +325,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // ─── Mises à jour de champs autorisés (client) ───
-    const allowedClient = ['description', 'budget']
-    if (isClient) {
+    const editableStatuses = ['created', 'broadcasted', 'pending_offers']
+    if (isClient && editableStatuses.includes(sr.status)) {
+      const allowedClient = ['description', 'budget', 'subcategory', 'location', 'scheduledFor', 'attributes']
       for (const key of allowedClient) {
         if (body[key] !== undefined) (sr as any)[key] = body[key]
       }

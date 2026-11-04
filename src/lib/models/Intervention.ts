@@ -86,6 +86,8 @@ export interface IIntervention extends Document {
   // Statut et workflow
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   assignedTechnician?: mongoose.Types.ObjectId
+  /** Équipe affectée (le responsable reste technicienId). Tous voient l'intervention dans leur portail. */
+  technicianIds?: mongoose.Types.ObjectId[]
   
   // Devis lié
   quoteId?: mongoose.Types.ObjectId
@@ -95,6 +97,8 @@ export interface IIntervention extends Document {
   clientFeedback?: {
     rating: number
     comment?: string
+    tags?: string[]
+    userId?: mongoose.Types.ObjectId
     submittedAt: Date
   }
   clientAcknowledgedAt?: Date
@@ -218,15 +222,18 @@ const InterventionSchema = new Schema<IIntervention>({
 
   },
   assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician' },
+  technicianIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Technician' }], default: undefined },
   
   // Devis lié
-  quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
+  quoteId: { type: Schema.Types.ObjectId, ref: 'AdminQuote' },
   quoteGenerated: { type: Boolean, default: false },
   
   // Feedback client post-intervention
   clientFeedback: {
     rating: { type: Number, min: 1, max: 5 },
     comment: { type: String },
+    tags: { type: [String], default: undefined },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     submittedAt: { type: Date }
   },
   clientAcknowledgedAt: { type: Date },
@@ -242,6 +249,7 @@ const InterventionSchema = new Schema<IIntervention>({
 
 // Index composites pour les requêtes fréquentes
 InterventionSchema.index({ technicienId: 1, date: -1 })
+InterventionSchema.index({ technicianIds: 1, date: -1 })
 InterventionSchema.index({ clientId: 1, date: -1 })
 InterventionSchema.index({ status: 1, date: -1 })
 InterventionSchema.index({ 'client.zone': 1 })

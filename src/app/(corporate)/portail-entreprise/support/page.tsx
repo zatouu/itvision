@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { LifeBuoy, Plus, X, Send, Clock, Zap, ChevronRight } from 'lucide-react'
 import SoftMessage from '@/components/ui/SoftMessage'
 import { CARD, INPUT, fmtDateTime, ticketStatus, priority, StatusBadge, EmptyState, PageHeader, BackLink } from '@/components/portal-ui'
+import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 
 const CATEGORIES = [
   { value: 'incident',  label: 'Incident' },
@@ -30,6 +31,31 @@ export default function SupportPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [canWrite, setCanWrite] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/client-enterprise/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (Array.isArray(d?.capabilities)) setCanWrite(d.capabilities.includes('tickets:write')) })
+      .catch(() => {})
+  }, [])
+
+  // Liens du parc et du tableau de bord : ?sujet=panne|contrat|projet&domaine=… ouvre le formulaire pré-rempli
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sujet = params.get('sujet')
+    const domaine = params.get('domaine') as ItvDomain | null
+    const label = domaine && domaine in ITV_DOMAINS ? ITV_DOMAINS[domaine].label : ''
+    const presets: Record<string, { title: string; category: string; description: string }> = {
+      panne: { title: `Problème ${label ? `— ${label}` : 'sur une installation'}`, category: 'incident', description: 'Équipement concerné, site, symptôme constaté depuis :\n' },
+      contrat: { title: `Demande de contrat de maintenance${label ? ` — ${label}` : ''}`, category: 'request', description: 'Nous souhaitons un contrat de maintenance pour nos équipements. Sites concernés :\n' },
+      projet: { title: 'Nouveau projet', category: 'request', description: 'Domaine (vidéosurveillance, contrôle d’accès, incendie, domotique…), site, besoin et délai souhaité :\n' },
+    }
+    if (sujet && presets[sujet]) {
+      setForm(f => ({ ...f, ...presets[sujet] }))
+      setShowForm(true)
+    }
+  }, [])
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -90,12 +116,21 @@ export default function SupportPage() {
         subtitle="Tickets d'assistance"
       >
         <BackLink href="/portail-entreprise" className="hidden sm:inline-flex" />
-        <button
-          onClick={() => { setShowForm(true); setError('') }}
-          className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Nouveau ticket
-        </button>
+        {canWrite ? (
+          <button
+            onClick={() => { setShowForm(true); setError('') }}
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Nouveau ticket
+          </button>
+        ) : (
+          <span
+            title="Droit « Ouvrir et suivre des tickets » non accordé : demandez-le à un administrateur de votre espace"
+            className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-400"
+          >
+            <Plus className="w-4 h-4" /> Nouveau ticket
+          </span>
+        )}
       </PageHeader>
 
       {/* Succès */}
@@ -208,7 +243,7 @@ export default function SupportPage() {
         <EmptyState
           icon={LifeBuoy}
           title={filter === 'open' ? 'Aucun ticket ouvert' : filter === 'closed' ? 'Aucun ticket résolu' : 'Aucun ticket'}
-          action={filter === 'open' ? (
+          action={filter === 'open' && canWrite ? (
             <button onClick={() => setShowForm(true)}
               className="text-sm font-medium text-emerald-700 hover:text-emerald-800">
               Ouvrir un ticket

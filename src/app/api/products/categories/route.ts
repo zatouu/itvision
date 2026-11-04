@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { aggregateProductCounts } from '@/lib/taxonomy/category-api-format'
 import { getProductCategoriesCache, setProductCategoriesCache } from '@/lib/catalog-cache'

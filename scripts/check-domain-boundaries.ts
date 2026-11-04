@@ -1,5 +1,5 @@
 /**
- * Vérificateur de frontières inter-domaines (cf. AUDIT_GLOBAL_SORTIE_MONOLITHE.md)
+ * Vérificateur de frontières inter-domaines (cf. docs/AUDIT_GLOBAL_SORTIE_MONOLITHE.md)
  * Usage : npx tsx scripts/check-domain-boundaries.ts
  *
  * Règle : un fichier de route ne peut importer que les modèles de SON domaine

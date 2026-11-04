@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import Product from '@/lib/models/Product.validated'
+import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
 
 // PATCH - Mettre à jour le prix B2B d'un ou plusieurs produits

@@ -21,7 +21,7 @@ for (const testFile of tests) {
   console.log('='.repeat(60))
 
   try {
-    execSync(`node "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" exec -- tsx "${fullPath}"`, {
+    execSync(`npx tsx "${fullPath}"`, {
       stdio: 'inherit',
       cwd: process.cwd(),
       env: process.env,

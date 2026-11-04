@@ -10,7 +10,9 @@ echo "🔌 Connexion à MongoDB via Docker..."
 # Le hash bcrypt de "admin123" (12 rounds)
 PASSWORD_HASH='$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqJqZqZqZq'
 
-docker exec -i itvision-mongodb mongosh -u itvision_app -p AppPassword123 --authenticationDatabase itvision_db itvision_db <<EOF
+DB_PASS="${DB_PASS:?Variable DB_PASS requise (mot de passe MongoDB itvision_app)}"
+
+docker exec -i itvision-mongodb mongosh -u itvision_app -p "$DB_PASS" --authenticationDatabase itvision_db itvision_db <<EOF
 // Vérifier si l'utilisateur existe
 const existing = db.users.findOne({ \$or: [{ username: 'admin' }, { email: 'admin@itvision.sn' }] });
 

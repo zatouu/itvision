@@ -39,6 +39,13 @@ const PaymentSchema = new Schema({
   refundedAt: { type: Date },
   refundedBy: { type: String },
   refundAmount: { type: Number, default: 0, min: 0 },
+  // Statut 'refunded' = décision ; l'argent ne revient au client qu'une fois le virement effectué (refundStatus 'done')
+  refundStatus: { type: String, enum: ['none', 'pending', 'done'], default: 'none' },
+  refundReason: { type: String },
+  refundReference: { type: String },
+  refundMethod: { type: String },
+  refundDoneAt: { type: Date },
+  refundDoneBy: { type: String },
   failedAt: { type: Date },
   failReason: { type: String },
   confirmedBy: { type: String, enum: ['webhook', 'client', 'system_reconcile', 'admin'], default: null },
@@ -50,6 +57,7 @@ PaymentSchema.index({ clientId: 1, createdAt: -1 })
 PaymentSchema.index({ domain: 1, status: 1, createdAt: -1 })
 PaymentSchema.index({ externalId: 1 }, { sparse: true })
 PaymentSchema.index({ status: 1, createdAt: -1 })
+PaymentSchema.index({ refundStatus: 1, refundedAt: -1 })
 
 const Payment = models.Payment || model('Payment', PaymentSchema)
 export default Payment

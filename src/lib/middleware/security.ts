@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 
 export function applySecurityHeaders(response: NextResponse, pathname: string): void {
+  // challenges.cloudflare.com : captcha Turnstile du formulaire d'inscription
   const scriptSrc =
     process.env.NODE_ENV === 'production'
-      ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      ? "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com"
 
   const connectSrc =
     process.env.NODE_ENV === 'production'
@@ -16,7 +17,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'Permissions-Policy': `camera=(), microphone=(), geolocation=${pathname.replace(/\/$/, '') === '/compte/profil' ? '(self)' : '()'}, payment=()`,
     'Content-Security-Policy': [
       "default-src 'self'",
       scriptSrc,
@@ -24,7 +25,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string): 
       "img-src 'self' data: https:",
       "font-src 'self'",
       connectSrc,
-      "frame-src 'none'",
+      "frame-src 'self' https://js.stripe.com https://pay.wave.com https://challenges.cloudflare.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

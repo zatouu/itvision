@@ -12,6 +12,7 @@
 
 import mongoose, { Schema, Document, Model } from 'mongoose'
 import { randomBytes } from 'crypto'
+import { SOURCE_CURRENCIES } from '@/lib/pricing/constants'
 
 export type SourcingStatus =
   | 'new'              // créée, attente sourcer
@@ -36,8 +37,10 @@ export interface SourcingProposal {
   notes?: string
 
   // Pricing transparent (mêmes briques que Product/Cart calculator)
-  price1688?: number            // CNY
-  exchangeRate?: number         // 1 CNY = X FCFA (typique 100)
+  sourcePlatform?: '1688' | 'aliexpress' | 'alibaba'
+  price1688?: number            // prix source (devise sourceCurrency)
+  sourceCurrency?: string       // ISO: CNY=1688, USD/EUR/MAD…=AliExpress/Alibaba
+  exchangeRate?: number         // 1 unité source = X FCFA (typique 100 CNY)
   productCostFCFA: number       // price1688 × exchangeRate (ou baseCost direct)
   serviceFeeRate: number        // % (5/10/15)
   serviceFeeAmount: number      // FCFA
@@ -72,6 +75,7 @@ export interface SourcingProposal {
 export interface ISourcingRequest extends Document {
   // ── Identité client ────────────────────────────────────────────────────────
   userId?: string               // si connecté
+  companyClientId?: string      // si demande émise depuis le portail entreprise (B2B)
   contactPhone: string          // toujours requis (E.164 normalisé)
   contactName?: string
   contactEmail?: string
@@ -86,6 +90,7 @@ export interface ISourcingRequest extends Document {
   description: string           // description longue
   qty: number                   // quantité souhaitée
   budgetMaxFCFA?: number        // budget cible côté client (optionnel)
+  budgetScope?: 'unit' | 'total'
   deliveryNeededBy?: Date       // deadline livraison (optionnelle)
   categoryHint?: string         // catégorie suggérée par client
 
@@ -95,6 +100,10 @@ export interface ISourcingRequest extends Document {
   assignedToUserId?: string     // sourcer humain
   assignedAt?: Date
   adminNotes?: string
+  // Recherche autonome (agent sourcing_request)
+  aiQuery?: string              // mots-clés déduits de la photo
+  autoSearchAttempts?: number   // tentatives après blocage des sites sources
+  slaAlertAt?: Date             // alerte admin délai dépassé (une seule fois)
 
   // ── Auto-match catalogue (rempli à la création) ───────────────────────────
   catalogMatches: Array<{
@@ -103,16 +112,17 @@ export interface ISourcingRequest extends Document {
     matchedAt: Date
   }>
 
-  // ── Résultats recherche externe 1688 (bridge) ───────────────────────────────
+  // ── Résultats recherche externe multi-sources (bridge) ──────────────────────
   externalSearchResults?: Array<{
     title: string
-    price1688?: number
+    price1688?: number            // prix affiché source (devise = sourceCurrency)
+    sourceCurrency?: string       // ISO (CNY/USD/EUR/MAD…)
     image: string
     url: string
     supplier?: string
     minOrder?: number
     location?: string
-    platform: '1688'
+    platform: '1688' | 'aliexpress' | 'alibaba'
     searchedAt: Date
   }>
 
@@ -120,6 +130,13 @@ export interface ISourcingRequest extends Document {
   proposal?: SourcingProposal
   proposalSentAt?: Date
   proposalSmsMessageId?: string // id SMS pour debug
+  proposalNotification?: {
+    status: 'pending' | 'sending' | 'submitted' | 'failed'
+    attempts: number
+    nextAttemptAt?: Date
+    leaseId?: string
+    submittedAt?: Date
+  }
 
   // ── Décision client ────────────────────────────────────────────────────────
   clientDecision?: 'accepted' | 'rejected'
@@ -129,6 +146,7 @@ export interface ISourcingRequest extends Document {
   // ── Suivi commande ─────────────────────────────────────────────────────────
   productId?: string            // Product créé après acceptation
   orderId?: string              // commande déclenchée
+  orderAccessToken?: string     // jeton de suivi/paiement de la commande (exposé uniquement via publicToken)
 
   // ── Sécurité / tracking ────────────────────────────────────────────────────
   publicToken: string           // pour lien SMS public (non devinable)
@@ -148,7 +166,9 @@ const ProposalSchema = new Schema<SourcingProposal>(
     supplierName: { type: String, trim: true },
     notes: { type: String, trim: true, maxlength: 2000 },
 
+    sourcePlatform: { type: String, enum: ['1688', 'aliexpress', 'alibaba'] },
     price1688: { type: Number, min: 0 },
+    sourceCurrency: { type: String, enum: [...SOURCE_CURRENCIES], default: 'CNY' },
     exchangeRate: { type: Number, min: 0 },
     productCostFCFA: { type: Number, required: true, min: 0 },
     serviceFeeRate: { type: Number, required: true, min: 0, max: 100 },
@@ -202,13 +222,14 @@ const CatalogMatchSchema = new Schema(
 const ExternalSearchResultSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
-    price1688: { type: Number, min: 0 },
+    price1688: { type: Number, min: 0 },          // prix source dans sa devise
+    sourceCurrency: { type: String, enum: [...SOURCE_CURRENCIES], default: 'CNY' },
     image: { type: String, required: true, trim: true },
     url: { type: String, required: true, trim: true },
     supplier: { type: String, trim: true },
     minOrder: { type: Number, min: 0 },
     location: { type: String, trim: true },
-    platform: { type: String, default: '1688', enum: ['1688'] },
+    platform: { type: String, default: '1688', enum: ['1688', 'aliexpress', 'alibaba'] },
     searchedAt: { type: Date, default: Date.now }
   },
   { _id: false }
@@ -217,6 +238,8 @@ const ExternalSearchResultSchema = new Schema(
 const SourcingRequestSchema = new Schema<ISourcingRequest>(
   {
     userId: { type: String, index: true, sparse: true },
+    /** Société cliente (portail entreprise) à l'origine de la demande B2B. */
+    companyClientId: { type: String, index: true, sparse: true },
     contactPhone: { type: String, required: true, index: true },
     contactName: { type: String, trim: true, maxlength: 100 },
     contactEmail: { type: String, trim: true, lowercase: true, maxlength: 150 },
@@ -230,6 +253,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     description: { type: String, trim: true, maxlength: 4000 },
     qty: { type: Number, required: true, min: 1, max: 100000, default: 1 },
     budgetMaxFCFA: { type: Number, min: 0 },
+    budgetScope: { type: String, enum: ['unit', 'total'] },
     deliveryNeededBy: { type: Date },
     categoryHint: { type: String, trim: true, maxlength: 100 },
 
@@ -253,6 +277,9 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     assignedToUserId: { type: String, index: true, sparse: true },
     assignedAt: { type: Date },
     adminNotes: { type: String, trim: true, maxlength: 5000 },
+    aiQuery: { type: String, trim: true, maxlength: 300 },
+    autoSearchAttempts: { type: Number, default: 0 },
+    slaAlertAt: { type: Date },
 
     catalogMatches: { type: [CatalogMatchSchema], default: [] },
     externalSearchResults: { type: [ExternalSearchResultSchema], default: undefined },
@@ -260,6 +287,16 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
     proposal: { type: ProposalSchema, default: undefined },
     proposalSentAt: { type: Date },
     proposalSmsMessageId: { type: String },
+    proposalNotification: {
+      type: new Schema({
+        status: { type: String, enum: ['pending', 'sending', 'submitted', 'failed'], required: true },
+        attempts: { type: Number, required: true, min: 0 },
+        nextAttemptAt: Date,
+        leaseId: String,
+        submittedAt: Date,
+      }, { _id: false }),
+      default: undefined,
+    },
 
     clientDecision: { type: String, enum: ['accepted', 'rejected'] },
     clientDecisionAt: { type: Date },
@@ -267,6 +304,7 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
 
     productId: { type: String, sparse: true },
     orderId: { type: String, sparse: true },
+    orderAccessToken: { type: String, select: false },
 
     publicToken: { type: String, required: true, unique: true, index: true },
     reference: { type: String, required: true, unique: true, index: true }
@@ -275,7 +313,9 @@ const SourcingRequestSchema = new Schema<ISourcingRequest>(
 )
 
 SourcingRequestSchema.index({ status: 1, slaDueAt: 1 })
+SourcingRequestSchema.index({ 'proposalNotification.status': 1, 'proposalNotification.nextAttemptAt': 1 })
 SourcingRequestSchema.index({ createdAt: -1 })
+SourcingRequestSchema.index({ companyClientId: 1, createdAt: -1 }, { sparse: true })
 
 /**
  * Calcul du SLA : +24h ouvrées (lun-sam, hors dimanche).

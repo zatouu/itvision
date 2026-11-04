@@ -45,6 +45,7 @@ export default function SearchAutocomplete({
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
+  const [groupHits, setGroupHits] = useState<Array<{ groupId: string; name: string; image: string; price: number | null; currentQty: number; targetQty: number }>>([])
   const [trending, setTrending] = useState<SearchSuggestion[]>([])
   const [recent, setRecent] = useState<string[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -89,6 +90,7 @@ export default function SearchAutocomplete({
     const fetchSuggestions = async () => {
       if (value.trim().length < 2) {
         setSuggestions([])
+        setGroupHits([])
         return
       }
 
@@ -104,9 +106,11 @@ export default function SearchAutocomplete({
         )
         const data = await res.json().catch(() => ({}))
         setSuggestions(data.suggestions || [])
+        setGroupHits(Array.isArray(data.groups) ? data.groups : [])
       } catch (err: any) {
         if (err.name !== 'AbortError') {
           setSuggestions([])
+          setGroupHits([])
         }
       } finally {
         setLoading(false)
@@ -232,8 +236,8 @@ export default function SearchAutocomplete({
 
   return (
     <div ref={wrapperRef} className="relative flex-1 min-w-0">
-      <div className="flex items-center gap-2">
-        <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 ml-3 flex-shrink-0" />
+      <div className="flex items-center gap-1">
+        <Search aria-hidden className="ml-3 hidden h-4 w-4 flex-shrink-0 text-zinc-400 dark:text-slate-500 sm:block" />
         <input
           ref={inputRef}
           value={value}
@@ -241,7 +245,9 @@ export default function SearchAutocomplete({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 outline-none bg-transparent px-2 text-sm min-w-0 dark:text-slate-200"
+          className="mkt-search-input h-10 min-w-0 flex-1 bg-transparent pl-3 text-base outline-none sm:pl-1 sm:text-sm dark:text-slate-200"
+          role="combobox"
+          aria-label="Rechercher dans le catalogue"
           autoComplete="off"
           aria-autocomplete="list"
           aria-controls="search-autocomplete-list"
@@ -251,18 +257,22 @@ export default function SearchAutocomplete({
           <button
             type="button"
             title="Recherche par image"
+            aria-label="Recherche par image"
             onClick={onCameraClick}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full flex-shrink-0"
+            className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full text-violet-600 transition hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/50"
           >
-            <Camera className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <Camera className="h-[18px] w-[18px]" />
           </button>
         )}
         <button
           type="button"
           onClick={() => handleSearch(value)}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-medium flex-shrink-0"
+          aria-label="Rechercher"
+          title="Rechercher"
+          className="flex h-10 min-w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-700 px-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 sm:px-5"
         >
-          Rechercher
+          <Search size={18} className="sm:hidden" />
+          <span className="hidden sm:inline">Rechercher</span>
         </button>
       </div>
 
@@ -279,9 +289,30 @@ export default function SearchAutocomplete({
                   Recherche en cours...
                 </div>
               )}
-              {!loading && suggestions.length === 0 && value.trim().length >= 2 && (
+              {!loading && suggestions.length === 0 && groupHits.length === 0 && value.trim().length >= 2 && (
                 <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                   Aucun produit trouvé pour “{value}”
+                </div>
+              )}
+              {groupHits.length > 0 && (
+                <div className="border-b border-slate-100 py-2 dark:border-slate-700">
+                  <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-300">Achats groupés en cours</p>
+                  <ul>
+                    {groupHits.map(g => (
+                      <li
+                        key={g.groupId}
+                        onClick={() => { saveRecent(g.name); setIsOpen(false); router.push(`/achats-groupes/${g.groupId}`) }}
+                        className="flex cursor-pointer items-center gap-3 px-4 py-2 hover:bg-violet-50 dark:hover:bg-slate-700/50"
+                      >
+                        <img src={g.image} alt="" className="h-10 w-10 flex-shrink-0 rounded-lg bg-slate-100 object-cover dark:bg-slate-900" loading="lazy" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{g.name}</p>
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{g.currentQty}/{g.targetQty} pièces réservées</p>
+                        </div>
+                        <span className="flex-shrink-0 text-xs font-semibold text-violet-700 dark:text-violet-300">{formatPrice(g.price, 'FCFA')}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {suggestions.length > 0 && (

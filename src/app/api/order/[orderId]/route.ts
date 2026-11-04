@@ -4,9 +4,14 @@ import { connectDB } from '@/lib/db'
 import { requireAdminApi } from '@/lib/api-auth'
 import crypto from 'crypto'
 import { requireAuth } from '@/lib/jwt'
-import { reverseGrainsForOrder, updateTierFromBalance } from '@/lib/grains'
+import { confirmPayment } from '@/lib/payment-fulfillment'
 import { restoreProductStock } from '@/lib/inventory'
 import { sendWebPushToOrder } from '@/lib/push-web'
+import { isValidOrderStatus, isAllowedOrderStatusTransition, applyOrderCancellationEffects, ORDER_STATUS_VALUES, type OrderStatus } from '@/lib/market/order-status'
+import { syncOrderGuarantee } from '@/lib/market/order-paid-effects'
+
+// Au-delà, la commande est partie : l'adresse n'est plus modifiable par le client
+const ADDRESS_EDITABLE_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing']
 
 function hashTrackingToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
@@ -33,9 +38,16 @@ async function restoreOrderStock(order: any) {
   if (!order || !Array.isArray(order.inventoryReservations) || order.inventoryReservations.length === 0) return
   for (const reservation of order.inventoryReservations) {
     if (reservation.restored) continue
+    // Ne restituer que ce qui n'a pas déjà été restitué (retours partiels)
+    const remaining = reservation.qty - (reservation.restoredQty || 0)
+    if (remaining <= 0) {
+      reservation.restored = true
+      continue
+    }
     try {
-      const result = await restoreProductStock(reservation.productId, reservation.qty, reservation.variantIds)
+      const result = await restoreProductStock(reservation.productId, remaining, reservation.variantIds)
       if (result.ok) {
+        reservation.restoredQty = reservation.qty
         reservation.restored = true
       } else {
         console.error(`[order] Échec restauration stock commande ${order.orderId}:`, result.error)
@@ -126,13 +138,36 @@ export async function GET(
           clientPhone: order.clientPhone,
           items: order.items,
           subtotal: order.subtotal,
+          subtotalBeforeDiscounts: order.subtotalBeforeDiscounts,
+          fees: order.fees,
+          grainsDiscount: order.grainsDiscount,
+          grainsUsed: order.grainsUsed,
+          promoDiscount: order.promoDiscount,
+          promoCode: order.promoCode,
           shipping: order.shipping,
           total: order.total,
           status: order.status,
           paymentStatus: order.paymentStatus,
           address: order.address,
+          pickupPoint: order.pickupPoint,
+          readyForPickupAt: order.readyForPickupAt,
+          shippingAdjustment: order.shippingAdjustment ? {
+            realWeightKg: order.shippingAdjustment.realWeightKg,
+            estimatedCost: order.shippingAdjustment.estimatedCost,
+            realCost: order.shippingAdjustment.realCost,
+            amount: order.shippingAdjustment.amount,
+            status: order.shippingAdjustment.status,
+            paymentReference: order.shippingAdjustment.status === 'awaiting_payment' ? order.shippingAdjustment.paymentReference : undefined,
+          } : undefined,
           delivery: order.delivery,
           createdAt: order.createdAt,
+          deliveredAt: order.deliveredAt,
+          paymentMethod: order.paymentMethod,
+          refundStatus: order.refundStatus,
+          refundAmount: order.refundAmount,
+          refundReference: order.refundStatus === 'done' ? order.refundReference : undefined,
+          refundedAt: order.refundedAt,
+          guaranteeReference: order.guaranteeReference && order.guaranteeReference !== 'pending' ? order.guaranteeReference : undefined,
           currency: order.currency
         }
       },
@@ -173,19 +208,77 @@ export async function PATCH(
       updateData.address = body.address
     }
 
-    // Support de mise à jour du statut
+    // Statut : enum validé + transitions de la machine à états (pas de retour arrière,
+    // pas de réactivation d'une commande livrée ou annulée)
+    let previousStatus: OrderStatus | null = null
     if (body.status) {
+      if (!isValidOrderStatus(body.status)) {
+        return NextResponse.json(
+          { success: false, error: `Statut invalide — attendu : ${ORDER_STATUS_VALUES.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      const current = (await Order.findOne({ orderId }).select('status').lean()) as { status?: OrderStatus } | null
+      if (!current) {
+        return NextResponse.json({ success: false, error: 'Commande non trouvée' }, { status: 404 })
+      }
+      previousStatus = (current.status || 'pending') as OrderStatus
+      if (!isAllowedOrderStatusTransition(previousStatus, body.status)) {
+        return NextResponse.json(
+          { success: false, error: `Transition interdite de "${previousStatus}" vers "${body.status}"` },
+          { status: 409 }
+        )
+      }
       updateData.status = body.status
+      if (body.status !== previousStatus) {
+        if (body.status === 'confirmed') updateData.confirmedAt = new Date()
+        if (body.status === 'shipped') updateData.shippedAt = new Date()
+        if (body.status === 'delivered') updateData.deliveredAt = new Date()
+      }
     }
 
-    // Support de mise à jour du statut de paiement
-    if (body.paymentStatus) {
+    // Paiement marqué comme complété → flux canonique (grains, notifications, escrow)
+    let paymentConfirmed = false
+    if (isAdmin && body.paymentStatus === 'completed') {
+      const result = await confirmPayment({
+        reference: orderId,
+        amount: Number(body.amount || 0),
+        provider: (body.provider as any) || 'cash',
+        transactionId: body.transactionId || `admin-${Date.now()}`
+      })
+      if (!result.found) {
+        return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 })
+      }
+      paymentConfirmed = result.changed
+    } else if (body.paymentStatus) {
+      // Autres statuts (failed…) : mise à jour directe réservée admin — enum validé
+      const PAYMENT_STATUSES = ['pending', 'completed', 'failed']
+      if (!PAYMENT_STATUSES.includes(String(body.paymentStatus))) {
+        return NextResponse.json(
+          { success: false, error: `paymentStatus invalide — attendu : ${PAYMENT_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
       updateData.paymentStatus = body.paymentStatus
     }
 
     // Support de notes
     if (body.notes !== undefined) {
       updateData.notes = body.notes
+    }
+
+    // Remboursement effectué (commande payée annulée) : référence opérateur obligatoire
+    let refundFilter: Record<string, unknown> | null = null
+    if (isAdmin && body.refund && typeof body.refund === 'object') {
+      const reference = typeof body.refund.reference === 'string' ? body.refund.reference.trim().slice(0, 120) : ''
+      if (!reference) {
+        return NextResponse.json({ success: false, error: 'Référence du remboursement obligatoire' }, { status: 400 })
+      }
+      updateData.refundStatus = 'done'
+      updateData.refundReference = reference
+      updateData.refundedAt = new Date()
+      updateData.refundedBy = adminAuth.ok ? (adminAuth.user?.email || adminAuth.user?.id || 'admin') : 'admin'
+      refundFilter = { refundStatus: 'pending' }
     }
 
     // Support de mise à jour du suivi transporteur
@@ -219,10 +312,11 @@ export async function PATCH(
     const minCreatedAt = getTrackingTokenMinDate()
 
     const tokenNow = new Date()
-    const query = isAdmin
+    const query: Record<string, unknown> = isAdmin
       ? { orderId }
       : {
           orderId,
+          status: { $in: ADDRESS_EDITABLE_STATUSES },
           trackingAccessTokenHash: tokenHash || '__invalid__',
           $or: [
             { trackingAccessTokenExpiresAt: { $gt: tokenNow } },
@@ -232,37 +326,43 @@ export async function PATCH(
             }
           ]
         }
+    // Mise à jour conditionnelle : échoue si le statut a changé depuis la vérification
+    if (previousStatus) query.status = previousStatus
+    if (refundFilter) Object.assign(query, refundFilter)
 
     const order = (await Order.findOneAndUpdate(query, updateData, { new: true }).lean()) as any
 
     if (!order) {
+      if (refundFilter) {
+        return NextResponse.json(
+          { success: false, error: 'Aucun remboursement en attente sur cette commande' },
+          { status: 409 }
+        )
+      }
+      if (previousStatus) {
+        return NextResponse.json(
+          { success: false, error: 'Le statut de la commande a changé entre-temps, rechargez la page' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json(
         { success: false, error: 'Commande non trouvée' },
         { status: 404 }
       )
     }
 
-    console.log(`Commande ${orderId} mise à jour:`, updateData)
+    const statusChanged = previousStatus !== null && previousStatus !== order.status
 
-    // Reverse grains and restore stock if order is cancelled/refunded
-    if (['cancelled', 'refunded'].includes(order.status)) {
-      try {
-        await restoreOrderStock(order)
-      } catch (stockErr) {
-        console.error('[inventory] Erreur restauration stock commande:', stockErr)
-      }
-      if (order.clientId) {
-        try {
-          await reverseGrainsForOrder(order.clientId, order._id, `commande ${order.status}`)
-          await updateTierFromBalance(order.clientId)
-        } catch (grainsErr) {
-          console.error('[grains] Erreur reverse grains commande:', grainsErr)
-        }
-      }
+    // Effets de l'annulation (stock, promo, grains, remboursement dû) : uniquement au passage en "cancelled"
+    if (statusChanged && order.status === 'cancelled') {
+      await applyOrderCancellationEffects(order, `commande ${order.status}`)
+    }
+    if (statusChanged) {
+      await syncOrderGuarantee(order, order.status)
     }
 
     // Envoyer une notification push web si le statut a changé
-    if (body.status && typeof body.status === 'string') {
+    if (statusChanged) {
       const statusLabels: Record<string, string> = {
         pending: 'en attente',
         confirmed: 'confirmée',
@@ -310,8 +410,14 @@ export async function DELETE(
 
     await connectDB()
 
-    // Restaurer le stock avant suppression
+    // Restaurer le stock avant suppression — une commande payée ne se supprime pas (traçabilité comptable)
     const order = await Order.findOne({ orderId }).lean() as any
+    if (order && order.paymentStatus === 'completed') {
+      return NextResponse.json(
+        { success: false, error: 'Commande payée : annulez-la (remboursement tracé) au lieu de la supprimer' },
+        { status: 409 }
+      )
+    }
     if (order) {
       try {
         await restoreOrderStock(order)

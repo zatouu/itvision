@@ -63,6 +63,8 @@ function reqContext(req: any): DispatchRequestContext {
     budget: req.budget ?? null,
     description: req.description ?? null,
     createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+    urgent: !!req.urgent,
+    scheduled: !!req.scheduledFor,
   }
 }
 
@@ -84,6 +86,10 @@ export async function enqueueDispatch(requestId: string): Promise<boolean> {
     return false
   }
 
+  // Le prestataire choisi par le client est notifié directement par POST /api/services/requests :
+  // on le compte comme déjà notifié pour que la vague 0 ne lui renvoie pas la même demande.
+  const preNotified = req.preferredProviderId ? [String(req.preferredProviderId)] : []
+
   await VisibilityDispatch.findOneAndUpdate(
     { requestId: new mongoose.Types.ObjectId(requestId) },
     {
@@ -95,7 +101,8 @@ export async function enqueueDispatch(requestId: string): Promise<boolean> {
         status: 'active',
         currentStage: -1,
         offersReceived: 0,
-        providersNotified: [],
+        providersNotified: preNotified,
+        // 0 pour que la vague 0 parte toujours ; recalculé (= providersNotified.length) après chaque vague
         totalNotified: 0,
         waves: [],
       },

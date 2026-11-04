@@ -6,7 +6,6 @@ import Payment from './models/Payment'
 import { refreshMissionAnomalies } from './mission-anomalies'
 import {
   getAppConfig,
-  creditCashBalance,
   refundEscrowPoints,
   releaseMissionReservation,
 } from './wallet'
@@ -177,7 +176,8 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
 
   if (role) {
     // Seul le client (ou admin) peut valider la fin de mission, et uniquement depuis awaiting_validation.
-    if (to === 'completed' && role !== 'client' && role !== 'admin') {
+    // 'system' = validation automatique après délai (client prévenu, pas de litige ouvert).
+    if (to === 'completed' && role !== 'client' && role !== 'admin' && role !== 'system') {
       return { ok: false, reason: 'Seul le client peut valider la fin de la mission' }
     }
     if (to === 'completed' && from !== 'awaiting_validation' && from !== 'dispute') {
@@ -186,6 +186,10 @@ export function canTransition(fromRaw: string, toRaw: string, role?: MissionRole
     // Le prestataire ne peut pas annuler une mission démarrée.
     if (role === 'provider' && to === 'cancelled' && missionStarted(from)) {
       return { ok: false, reason: 'Vous ne pouvez plus annuler une mission démarrée' }
+    }
+    // Travaux commencés : le client conteste par un litige, il n'annule pas (sinon remboursement d'un travail fait)
+    if (role === 'client' && to === 'cancelled' && ['in_progress', 'paused', 'awaiting_validation'].includes(from)) {
+      return { ok: false, reason: 'Les travaux ont commencé : ouvrez un litige si un problème survient' }
     }
     // Archivage et expiration : admin/system uniquement.
     if (role !== 'admin' && role !== 'system') {
@@ -288,7 +292,8 @@ export async function transition(
   if (to === 'awaiting_validation') $set.providerCompletedAt = now
   if (to === 'completed') {
     $set.completedAt = now
-    $set.validatedByClientAt = now
+    if (actor.role === 'system') $set.autoValidatedAt = now
+    else $set.validatedByClientAt = now
   }
   if (to === 'cancelled') {
     $set.cancelledAt = now
@@ -333,6 +338,11 @@ export async function transition(
   }
 
   await notifyStatusChange(updated, prevStatus, actor, metadata)
+  void import('./messaging/mission-system-messages')
+    .then(m => m.postMissionSystemMessage(String(updated._id), to))
+    .catch(() => {})
+  // Coach IA : fiche conseils pour la nouvelle étape (fire-and-forget, mise en cache dans aiCoach)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: actor.userId,
@@ -395,6 +405,8 @@ export async function pause(requestId: string, options: PauseOptions) {
   if (!updated) throw new Error('Conflit : la mission a déjà changé de statut')
 
   await notifyStatusChange(updated, from, options.actor, { type: 'pause' })
+  // Coach IA : fiche conseils pour l'étape "pause" (fire-and-forget)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: options.actor.userId,
@@ -442,6 +454,8 @@ export async function resume(requestId: string, actor: { userId: string; role: M
   if (!updated) throw new Error('Conflit : la mission a déjà changé de statut ou la pause est terminée')
 
   await notifyStatusChange(updated, 'paused', actor, { type: 'resume' })
+  // Coach IA : ré-émet la fiche de l'étape reprise depuis le cache (fire-and-forget)
+  void import('./ai/mission-coach').then(m => m.generateMissionCoachStep(updated)).catch(() => {})
   await logAudit({
     requestId,
     actorId: actor.userId,
@@ -460,7 +474,8 @@ export async function validateCompletion(
   actor: { userId: string; role: MissionRole },
   context?: TransitionContext
 ) {
-  if (actor.role !== 'client' && actor.role !== 'admin') {
+  // 'system' : validation automatique (mission-inactivity-job) après préavis au client.
+  if (actor.role !== 'client' && actor.role !== 'admin' && actor.role !== 'system') {
     throw new Error('Seul le client peut valider la fin de mission')
   }
   return transition(requestId, 'completed', { actor, context })
@@ -523,6 +538,12 @@ export async function resolveDispute(
     toStatus = 'archived'
   } else {
     toStatus = 'completed'
+  }
+
+  // Deux administrateurs ne peuvent pas résoudre le même litige (double remboursement ou double reversement)
+  const claimed = await ServiceRequest.updateOne({ _id: sr._id, status: 'dispute' }, { $set: { status: toStatus } })
+  if (claimed.modifiedCount === 0) {
+    throw new Error('Ce litige vient d’être résolu par un autre administrateur')
   }
 
   // Appliquer la résolution
@@ -722,28 +743,35 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
   const id = String(sr._id)
   if (io) {
     io.to(`request-${id}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role, metadata })
-    io.to(`user-${sr.clientId}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus })
+    io.to(`user-${sr.clientId}`).emit('request:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role })
     if (sr.assignedProviderId) {
-      io.to(`provider-${sr.assignedProviderId}`).emit('mission:status-changed', { requestId: id, status: sr.status, prevStatus })
+      io.to(`provider-${sr.assignedProviderId}`).emit('mission:status-changed', { requestId: id, status: sr.status, prevStatus, actorRole: actor.role })
     }
   }
 
+  // Pas d'emoji : l'app affiche déjà une icône par type de notification.
   const statusLabels: Record<string, string> = {
-    broadcasted: '📡 Mission diffusée',
-    accepted: '✅ Mission acceptée',
-    on_the_way: '🚗 En route',
-    arrived: '📍 Prestataire arrivé',
-    in_progress: '🛠️ Mission démarrée',
-    paused: '⏸️ Mission en pause',
-    awaiting_validation: '⏳ Validation en attente',
-    completed: '✅ Mission terminée',
-    cancelled: '❌ Mission annulée',
-    expired: '⏰ Mission expirée',
-    dispute: '⚠️ Litige ouvert',
-    archived: '📦 Mission archivée',
+    broadcasted: 'Mission diffusée',
+    accepted: 'Mission acceptée',
+    on_the_way: 'Prestataire en route',
+    arrived: 'Prestataire arrivé',
+    in_progress: 'Mission démarrée',
+    paused: 'Mission en pause',
+    awaiting_validation: 'Validation en attente',
+    completed: 'Mission terminée',
+    cancelled: 'Mission annulée',
+    expired: 'Mission expirée',
+    dispute: 'Litige ouvert',
+    archived: 'Mission archivée',
   }
   const label = statusLabels[sr.status]
   if (label) {
+    const cat = String(sr.category || 'Service').replace(/[-_]/g, ' ')
+    const service = cat.charAt(0).toUpperCase() + cat.slice(1)
+    const by = actor.role === 'client' ? ' par le client' : actor.role === 'provider' ? ' par le prestataire' : ''
+    const body = sr.status === 'cancelled'
+      ? `${service} — annulée${by}.`
+      : `${service} · réf. ${id.slice(-6).toUpperCase()}`
     const recipients: { userId: string; appType: 'consumer' | 'provider' }[] = []
     if (sr.clientId) {
       recipients.push({ userId: String(sr.clientId), appType: 'consumer' })
@@ -751,10 +779,11 @@ async function notifyStatusChange(sr: any, prevStatus: string, actor: { userId: 
     if (sr.assignedProviderId) {
       recipients.push({ userId: String(sr.assignedProviderId), appType: 'provider' })
     }
-    for (const r of recipients) {
+    // L'auteur de l'action n'est pas notifié de sa propre action.
+    for (const r of recipients.filter(r => r.userId !== String(actor.userId))) {
       void sendPushToUser(r.userId, {
         title: label,
-        body: `Mission ${id.slice(-6).toUpperCase()} — ${DISPLAY_LABELS[normalizeStatus(sr.status)]}`,
+        body,
         data: { type: 'request:status-changed', requestId: id, status: sr.status, prevStatus },
         appType: r.appType,
       })
@@ -794,11 +823,9 @@ async function releaseHeldPayments(sr: any, validatedByUserId: string) {
       const net = rawAmount - commission
 
       if (net > 0) {
-        await creditCashBalance(String(payment.providerId), net, {
-          relatedMissionId: String(sr._id),
-          paymentRef: String(payment._id),
-          description: `Reversement mission validée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`,
-        })
+        const { payProvider } = await import('./payment-reconcile')
+        await payProvider(payment, net, String(sr._id),
+          `Reversement mission validée ${payment.phase === 'deposit' ? '(dépôt)' : payment.phase === 'balance' ? '(solde)' : '(total)'}`)
       }
       releasedCount++
       totalNet += net
@@ -837,48 +864,61 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
     const clientLateCancellation = isClient && ['on_the_way', 'arrived'].includes(prevStatus)
 
     while (true) {
-      const heldPayment = await Payment.findOneAndUpdate(
-        { requestId: sr._id, status: 'held' },
-        {
-          $set: clientLateCancellation
-            ? { status: 'released', releasedAt: now, releasedBy: actor.userId }
-            : { status: 'refunded', refundedAt: now, refundedBy: actor.userId },
-        },
-        { sort: { createdAt: 1 } }
-      )
-      if (!heldPayment) break
+      const held: any = await Payment.findOne({ requestId: sr._id, status: 'held' }).sort({ createdAt: 1 }).lean()
+      if (!held) break
 
       const cfg = await getAppConfig()
       const commissionRate = Number(cfg.monetization?.commissionRate) || 0
-      const rawAmount = heldPayment.depositAmount > 0 ? heldPayment.depositAmount : heldPayment.amount
+      const rawAmount = held.depositAmount > 0 ? held.depositAmount : held.amount
+      // Annulation tardive : le prestataire touche des frais de déplacement plafonnés, le reste revient au client
+      const travelFee = clientLateCancellation ? Math.min(cancellationTravelFee(), rawAmount) : 0
+      const clientRefund = held.amount - travelFee
 
-      if (clientLateCancellation) {
-        const commission = Math.round((rawAmount * commissionRate) / 100)
-        const net = rawAmount - commission
+      const heldPayment: any = await Payment.findOneAndUpdate(
+        { _id: held._id, status: 'held' },
+        {
+          $set: clientRefund > 0
+            ? { status: 'refunded', refundedAt: now, refundedBy: actor.userId, refundAmount: clientRefund }
+            : { status: 'released', releasedAt: now, releasedBy: actor.userId },
+        },
+        { new: true }
+      ).lean()
+      if (!heldPayment) continue
+
+      if (travelFee > 0) {
+        const commission = Math.round((travelFee * commissionRate) / 100)
+        const net = travelFee - commission
         if (heldPayment.provider !== 'cash' && net > 0) {
-          await creditCashBalance(String(heldPayment.providerId), net, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(heldPayment._id),
-            description: 'Dépôt de garantie suite à annulation tardive client',
-          })
+          const { payProvider } = await import('./payment-reconcile')
+          await payProvider(heldPayment, net, String(sr._id), 'Frais de déplacement suite à annulation tardive client')
         }
         if (sr.assignedProviderId) {
           void sendPushToUser(String(sr.assignedProviderId), {
-            title: 'Dépôt de garantie reçu',
+            title: 'Frais de déplacement reçus',
             body: `${net.toLocaleString('fr-FR')} FCFA crédités suite à l'annulation tardive du client.`,
             data: { type: 'payment:released', requestId: String(sr._id) },
             appType: 'provider',
           })
         }
-      } else {
+      }
+
+      if (clientRefund > 0) {
         const escrowCost = heldPayment.escrowPointsCharged || 0
-        if (escrowCost > 0) {
+        if (escrowCost > 0 && !clientLateCancellation) {
           await refundEscrowPoints(String(heldPayment.clientId), String(sr._id), escrowCost)
         }
+        const { queueClientRefund } = await import('@/modules/xeuy/payments/mission-payment')
+        const queued = await queueClientRefund(
+          heldPayment._id,
+          clientRefund,
+          travelFee > 0 ? `Mission annulée (frais de déplacement retenus : ${travelFee} FCFA)` : 'Mission annulée'
+        )
         void sendPushToUser(String(heldPayment.clientId), {
-          title: 'Paiement remboursé',
-          body: `${rawAmount.toLocaleString('fr-FR')} FCFA remboursés suite à l'annulation.`,
-          data: { type: 'payment:refunded', requestId: String(sr._id) },
+          title: queued ? 'Remboursement en cours' : 'Mission annulée',
+          body: queued
+            ? `${clientRefund.toLocaleString('fr-FR')} FCFA vont vous être remboursés suite à l'annulation${travelFee > 0 ? ` (${travelFee.toLocaleString('fr-FR')} FCFA de frais de déplacement retenus)` : ''}.`
+            : 'Aucun montant n’a été prélevé pour cette mission.',
+          data: { type: queued ? 'payment:refund_pending' : 'payment:refunded', requestId: String(sr._id) },
           appType: 'consumer',
         })
       }
@@ -886,6 +926,12 @@ async function handleCancellationSideEffects(sr: any, prevStatus: string, actor:
   } catch (e) {
     console.error('[lifecycle] cancellation payment side effect', e)
   }
+}
+
+/** Frais de déplacement retenus quand le client annule alors que le prestataire est en route ou arrivé. */
+export function cancellationTravelFee(): number {
+  const fee = Number(process.env.XEUY_CANCEL_TRAVEL_FEE)
+  return Number.isFinite(fee) && fee >= 0 ? Math.round(fee) : 2000
 }
 
 /**
@@ -932,85 +978,59 @@ async function executeDisputePayments(
     let totalRefunded = 0
     let totalReleased = 0
 
+    // Sans décision financière, les fonds restent en séquestre (à traiter par l'administration) : jamais libérés sans bénéficiaire
+    if (decision === 'cancel' || decision === 'other') return
+
+    const { payProvider } = await import('./payment-reconcile')
+    const { queueClientRefund } = await import('@/modules/xeuy/payments/mission-payment')
+
     while (true) {
-      const payment: any = await Payment.findOne({ requestId: sr._id, status: 'held' })
+      const held: any = await Payment.findOne({ requestId: sr._id, status: 'held' })
         .sort({ createdAt: 1 })
         .lean()
-      if (!payment) break
+      if (!held) break
 
-      const rawAmount = payment.phase === 'deposit' ? (payment.depositAmount || 0)
-        : payment.phase === 'balance' ? (payment.balanceAmount || 0)
-        : (payment.amount || 0)
-      if (rawAmount <= 0) {
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: 0 } }
-        )
-        continue
+      const rawAmount = held.phase === 'deposit' ? (held.depositAmount || 0)
+        : held.phase === 'balance' ? (held.balanceAmount || 0)
+        : (held.amount || 0)
+
+      // Part remboursée au client pour ce paiement
+      const paymentRefund = decision === 'refund' ? rawAmount
+        : decision === 'partial_refund' ? Math.min(remainingRefund, rawAmount)
+        : 0
+      const toProvider = paymentRefund === 0
+
+      // Réservation du paiement AVANT tout mouvement d'argent : un second passage ne le retrouve plus
+      const payment: any = await Payment.findOneAndUpdate(
+        { _id: held._id, status: 'held' },
+        {
+          $set: toProvider
+            ? { status: 'released', releasedAt: now, releasedBy: adminId }
+            : { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: paymentRefund },
+        },
+        { new: true }
+      ).lean()
+      if (!payment) continue
+      if (rawAmount <= 0) continue
+
+      if (paymentRefund > 0) {
+        if (decision === 'refund' && (payment.escrowPointsCharged || 0) > 0) {
+          await refundEscrowPoints(String(payment.clientId), String(sr._id), payment.escrowPointsCharged)
+        }
+        await queueClientRefund(payment._id, paymentRefund, decision === 'refund' ? 'Litige : remboursement intégral' : 'Litige : remboursement partiel')
+        totalRefunded += paymentRefund
+        remainingRefund -= paymentRefund
       }
 
-      if (decision === 'refund') {
-        // Remboursement intégral au client
-        const escrowCost = payment.escrowPointsCharged || 0
-        if (escrowCost > 0) {
-          await refundEscrowPoints(String(payment.clientId), String(sr._id), escrowCost)
-        }
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'refunded', refundedAt: now, refundedBy: adminId, refundAmount: rawAmount } }
-        )
-        totalRefunded += rawAmount
-      } else if (decision === 'release_escrow' || decision === 'reject') {
-        // Libération intégrale au prestataire
-        const commission = Math.round((rawAmount * commissionRate) / 100)
-        const net = rawAmount - commission
-        if (payment.provider !== 'cash' && net > 0) {
-          await creditCashBalance(String(payment.providerId), net, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(payment._id),
-            description: `Reversement mission validée (litige résolu)`,
-          })
-        }
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
-        )
-        totalReleased += net
-      } else if (decision === 'partial_refund') {
-        // Remboursement partiel au client, le solde au prestataire
-        const paymentRefund = Math.min(remainingRefund, rawAmount)
-        const providerGross = rawAmount - paymentRefund
+      const providerGross = rawAmount - paymentRefund
+      if (providerGross > 0 && payment.provider !== 'cash') {
         const commission = Math.round((providerGross * commissionRate) / 100)
         const providerNet = providerGross - commission
-
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          {
-            $set: {
-              status: 'refunded',
-              refundedAt: now,
-              refundedBy: adminId,
-              refundAmount: paymentRefund,
-            },
-          }
-        )
-        if (paymentRefund > 0) totalRefunded += paymentRefund
-        remainingRefund -= paymentRefund
-
-        if (providerNet > 0 && payment.provider !== 'cash') {
-          await creditCashBalance(String(payment.providerId), providerNet, {
-            relatedMissionId: String(sr._id),
-            paymentRef: String(payment._id),
-            description: `Reversement litige résolu (remboursement partiel client de ${paymentRefund} FCFA)`,
-          })
-          totalReleased += providerNet
-        }
-      } else {
-        // cancel / other : aucun effet financier, on libère juste le statut
-        await Payment.updateOne(
-          { _id: payment._id, status: 'held' },
-          { $set: { status: 'released', releasedAt: now, releasedBy: adminId } }
-        )
+        await payProvider(payment, providerNet, String(sr._id),
+          paymentRefund > 0
+            ? `Reversement litige résolu (remboursement partiel client de ${paymentRefund} FCFA)`
+            : 'Reversement mission validée (litige résolu)')
+        totalReleased += providerNet
       }
     }
 

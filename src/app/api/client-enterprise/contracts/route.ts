@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDomainAccess, companyScope } from '@/lib/domain-access'
+import { requireDomainAccess, companyScope, canCompany } from '@/lib/domain-access'
 import { connectDB } from '@/lib/db'
 import mongoose from 'mongoose'
 import MaintenanceContract from '@/lib/models/MaintenanceContract'
@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
   const filter: any = companyScope({ userId, companyId })
   if (status) filter.status = status
 
-  const contracts = await MaintenanceContract.find(filter)
-    .sort({ createdAt: -1 })
-    .lean()
+  const query = MaintenanceContract.find(filter).sort({ createdAt: -1 })
+  if (!access.isAdmin && !canCompany(access, 'finance:view')) query.select('-annualPrice')
+  const contracts = await query.lean()
 
   return NextResponse.json({ contracts })
 }

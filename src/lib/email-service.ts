@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import SentEmail from '@/lib/models/SentEmail'
-import { BrandConfig, getDefaultBrand } from './branding'
+import { BrandConfig, getDefaultBrand, MARKET_BRAND } from './branding'
+import { escapeHtml } from './html-escape'
 
 interface EmailConfig {
   host: string
@@ -125,6 +126,11 @@ class EmailService {
   }
 
   async sendEmail(emailData: EmailData): Promise<boolean> {
+    return (await this.sendEmailDetailed(emailData)).ok
+  }
+
+  /** Envoi avec statut réel : 'simulated' = serveur SMTP absent ou injoignable, rien n'est parti. */
+  async sendEmailDetailed(emailData: EmailData): Promise<{ ok: boolean; status: 'sent' | 'failed' | 'simulated'; bcc: string }> {
     const bccRecipients = this.getBccRecipients(emailData.bcc)
     const fromAddress = this.getSmtpFromAddress(emailData.fromName || emailData.brand?.name)
 
@@ -137,7 +143,7 @@ class EmailService {
         bccRecipients,
         status: 'simulated'
       })
-      return true
+      return { ok: true, status: 'simulated', bcc: bccRecipients }
     }
 
     const smtpReady = await this.ensureTransporterVerified()
@@ -150,7 +156,7 @@ class EmailService {
         bccRecipients,
         status: 'simulated'
       })
-      return true
+      return { ok: true, status: 'simulated', bcc: bccRecipients }
     }
 
     try {
@@ -174,7 +180,7 @@ class EmailService {
         status: 'sent',
         messageId: result?.messageId
       })
-      return true
+      return { ok: true, status: 'sent', bcc: bccRecipients }
     } catch (error) {
       console.error('[EMAIL] Erreur lors de l\'envoi:', error)
       this.logEmailToConsole(emailData)
@@ -185,7 +191,7 @@ class EmailService {
         status: 'failed',
         error: error instanceof Error ? error.message : String(error)
       })
-      return false
+      return { ok: false, status: 'failed', bcc: bccRecipients }
     }
   }
 
@@ -389,13 +395,13 @@ class EmailService {
             <p>${brand.name} - ${brand.tagline}</p>
           </div>
           <div class="content">
-            <h2>Bonjour ${bookingData.clientInfo.name},</h2>
+            <h2>Bonjour ${escapeHtml(bookingData.clientInfo.name)},</h2>
             <p>Nous avons bien reçu votre demande de rendez-vous. Voici les détails :</p>
             
             <div class="appointment-card">
               <div class="detail-row">
                 <span class="detail-label">🔧 Service demandé</span>
-                <span class="detail-value">${serviceName}</span>
+                <span class="detail-value">${escapeHtml(serviceName)}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">📅 Date</span>
@@ -403,24 +409,24 @@ class EmailService {
               </div>
               <div class="detail-row">
                 <span class="detail-label">🕐 Heure</span>
-                <span class="detail-value">${bookingData.time}</span>
+                <span class="detail-value">${escapeHtml(bookingData.time)}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">⏱️ Durée estimée</span>
-                <span class="detail-value">${bookingData.duration || '2-3h'}</span>
+                <span class="detail-value">${escapeHtml(bookingData.duration || '2-3h')}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">📍 Adresse</span>
-                <span class="detail-value">${bookingData.address}</span>
+                <span class="detail-value">${escapeHtml(bookingData.address)}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">📞 Contact</span>
-                <span class="detail-value">${bookingData.clientInfo.phone}</span>
+                <span class="detail-value">${escapeHtml(bookingData.clientInfo.phone)}</span>
               </div>
               ${bookingData.clientInfo.company ? `
               <div class="detail-row">
                 <span class="detail-label">🏢 Entreprise</span>
-                <span class="detail-value">${bookingData.clientInfo.company}</span>
+                <span class="detail-value">${escapeHtml(bookingData.clientInfo.company)}</span>
               </div>
               ` : ''}
               <div class="detail-row">
@@ -434,7 +440,7 @@ class EmailService {
             ${bookingData.details ? `
             <div class="appointment-card">
               <h3>📝 Détails supplémentaires</h3>
-              <p>${bookingData.details}</p>
+              <p>${escapeHtml(bookingData.details)}</p>
             </div>
             ` : ''}
 
@@ -464,7 +470,7 @@ class EmailService {
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} ${brand.name} - Tous droits réservés</p>
-            <p>Cet email a été envoyé à ${bookingData.clientInfo.email}</p>
+            <p>Cet email a été envoyé à ${escapeHtml(bookingData.clientInfo.email)}</p>
           </div>
         </div>
       </body>
@@ -508,6 +514,14 @@ class EmailService {
     const secondary = brand.secondaryColor || '#764ba2'
     const siteUrl = brand.url
 
+    // Les fonctionnalités mises en avant dépendent du produit — un client DDM+
+    // ne doit pas recevoir le discours corporate (maintenance, factures B2B).
+    const isMarket = brand === MARKET_BRAND
+    const features = isMarket
+      ? ['🛒 Commander sur tout le catalogue', '📦 Suivre vos commandes en temps réel', '👥 Rejoindre des achats groupés', '🌾 Cumuler des grains de fidélité']
+      : ['📊 Suivre vos projets en temps réel', '📋 Consulter vos rapports de maintenance', '💬 Communiquer avec nos équipes', '📄 Gérer vos factures et devis']
+    const featuresHtml = features.map(f => `              <li>${f}</li>`).join('\n')
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -531,15 +545,12 @@ class EmailService {
             <p>${brand.tagline}</p>
           </div>
           <div class="content">
-            <h2>Bonjour ${userName},</h2>
+            <h2>Bonjour ${escapeHtml(userName)},</h2>
             <p>Félicitations ! Votre compte ${brand.name} a été créé avec succès.</p>
             
             <p>Vous pouvez maintenant accéder à votre espace personnel pour :</p>
             <ul>
-              <li>📊 Suivre vos projets en temps réel</li>
-              <li>📋 Consulter vos rapports de maintenance</li>
-              <li>💬 Communiquer avec nos équipes</li>
-              <li>📄 Gérer vos factures et devis</li>
+${featuresHtml}
             </ul>
             
             <div style="text-align: center;">
@@ -608,11 +619,11 @@ class EmailService {
             <p>${brand.name} - Espace Client</p>
           </div>
           <div class="content">
-            <h2>Bonjour ${userName},</h2>
+            <h2>Bonjour ${escapeHtml(userName)},</h2>
             <p>L'email de votre compte ${brand.name} a été modifié par notre équipe.</p>
 
             <div class="info">
-              <strong>Nouvel email :</strong> ${userEmail}
+              <strong>Nouvel email :</strong> ${escapeHtml(userEmail)}
             </div>
 
             <p>Vous devez définir un nouveau mot de passe pour continuer à accéder à votre espace client :</p>

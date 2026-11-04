@@ -196,13 +196,22 @@ export default function AdminReturnsPage() {
                 </>
               )}
               {selected.status === 'approved' && (
-                <button
-                  disabled={updating}
-                  onClick={() => updateStatus(selected._id, 'in_transit')}
-                  className="col-span-2 flex items-center justify-center gap-1 bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-                >
-                  <Truck className="h-4 w-4" /> En transit
-                </button>
+                <>
+                  <button
+                    disabled={updating}
+                    onClick={() => updateStatus(selected._id, 'in_transit')}
+                    className="flex items-center justify-center gap-1 bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    <Truck className="h-4 w-4" /> En transit
+                  </button>
+                  <button
+                    disabled={updating}
+                    onClick={() => updateStatus(selected._id, 'received')}
+                    className="flex items-center justify-center gap-1 bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    <Package className="h-4 w-4" /> Déposé et reçu
+                  </button>
+                </>
               )}
               {selected.status === 'in_transit' && (
                 <button
@@ -214,13 +223,24 @@ export default function AdminReturnsPage() {
                 </button>
               )}
               {selected.status === 'received' && (
-                <button
-                  disabled={updating}
-                  onClick={() => updateStatus(selected._id, 'refunded')}
-                  className="col-span-2 flex items-center justify-center gap-1 bg-emerald-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  <RefreshCw className="h-4 w-4" /> Rembourser
-                </button>
+                <>
+                  <a
+                    href="/admin/marketplace/remboursements"
+                    className="flex items-center justify-center gap-1 bg-emerald-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Rembourser
+                  </a>
+                  <button
+                    disabled={updating}
+                    onClick={() => {
+                      const note = window.prompt('Motif du refus après contrôle (communiqué au client) :')
+                      if (note) updateStatus(selected._id, 'rejected', note)
+                    }}
+                    className="flex items-center justify-center gap-1 bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                  >
+                    <XCircle className="h-4 w-4" /> Refuser après contrôle
+                  </button>
+                </>
               )}
             </div>
 

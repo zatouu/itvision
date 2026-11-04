@@ -39,6 +39,18 @@ export function invalidateAppConfigCache() {
   _cfgCache = { value: null, at: 0 }
 }
 
+/** Produits DDM+ visibles dans Xeuy (fournitures, liens d'achat) ; désactivé par défaut jusqu'au lancement. */
+export async function isDdmBridgeEnabled(): Promise<boolean> {
+  const cfg = await getAppConfig()
+  return cfg.integrations?.ddmBridge?.enabled === true
+}
+
+/** Paiement en ligne des missions et achat de crédits ; désactivé (lancement) = espèces entre client et prestataire. */
+export async function isOnlinePaymentsEnabled(): Promise<boolean> {
+  const cfg = await getAppConfig()
+  return cfg.integrations?.onlinePayments?.enabled === true
+}
+
 /**
  * Indique si le mode points est actif maintenant.
  * `free` reste effectif tant que `freeUntil` n'est pas dépassé même si mode='points'.
@@ -184,26 +196,40 @@ export async function refundEscrowPoints(
 
 /**
  * Crédite le solde cash (FCFA) d'un utilisateur (reversement prestataire, etc.).
+ * Idempotent par `paymentRef` (ou `idempotencyKey`) : un second appel pour le même reversement ne crédite rien.
  */
 export async function creditCashBalance(
   userId: string,
   amount: number,
-  opts: { description?: string; relatedMissionId?: string; paymentRef?: string } = {}
-): Promise<{ balance: number }> {
+  opts: { description?: string; relatedMissionId?: string; paymentRef?: string; idempotencyKey?: string; txnType?: 'payout' | 'refund' } = {}
+): Promise<{ balance: number; applied: boolean }> {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error('Montant de crédit cash invalide')
   }
   await connectMongoose()
-  const wallet = await Wallet.findOneAndUpdate(
-    { userId },
-    {
-      $inc: { balance: amount },
-      $push: { txns: { type: 'payout', amount, ref: opts.paymentRef, meta: { description: opts.description, relatedMissionId: opts.relatedMissionId }, createdAt: new Date() } },
-      $setOnInsert: { escrow: 0, points: 0, reservedPoints: 0, lifetimePointsEarned: 0, lifetimePointsSpent: 0 },
+  const key = opts.idempotencyKey || (opts.paymentRef ? `credit:${opts.paymentRef}` : null)
+  const update: Record<string, unknown> = {
+    $inc: { balance: amount },
+    $push: {
+      txns: { type: opts.txnType || 'payout', amount, ref: opts.paymentRef, meta: { description: opts.description, relatedMissionId: opts.relatedMissionId }, createdAt: new Date() },
+      ...(key ? { opsApplied: { $each: [key], $slice: -2000 } } : {}),
     },
-    { new: true, upsert: true }
-  )
-  return { balance: wallet?.balance || 0 }
+    $setOnInsert: { escrow: 0, points: 0, reservedPoints: 0, lifetimePointsEarned: 0, lifetimePointsSpent: 0 },
+  }
+  // Le marqueur et le montant sont écrits dans la même opération atomique (un seul document)
+  const filter = key ? { userId, opsApplied: { $ne: key } } : { userId }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const wallet = await Wallet.findOneAndUpdate(filter, update, { new: true, upsert: true })
+      return { balance: wallet?.balance || 0, applied: true }
+    } catch (e: any) {
+      // Doublon d'userId : le wallet existe et porte déjà la clé (crédit déjà fait), ou création concurrente (on réessaie)
+      if (e?.code !== 11000 || !key) throw e
+      const existing = await Wallet.findOne({ userId }).select('+opsApplied balance').lean() as any
+      if (existing?.opsApplied?.includes(key)) return { balance: existing.balance || 0, applied: false }
+    }
+  }
+  throw new Error('Crédit cash impossible (conflit)')
 }
 
 export type CreditReservationResult =

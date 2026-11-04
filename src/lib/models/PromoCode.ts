@@ -30,7 +30,6 @@ const PromoCodeSchema = new Schema<IPromoCode>({
   active: { type: Boolean, default: true },
 }, { timestamps: true })
 
-PromoCodeSchema.index({ code: 1 })
 PromoCodeSchema.index({ active: 1, validFrom: 1, validUntil: 1 })
 
 export default models.PromoCode || model<IPromoCode>('PromoCode', PromoCodeSchema)

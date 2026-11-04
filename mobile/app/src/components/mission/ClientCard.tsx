@@ -1,0 +1,269 @@
+import { createThemedStyles } from '../../theme'
+import React from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ViewStyle } from 'react-native'
+import { Image } from 'expo-image'
+import { Phone, MessageSquare, Check, Star } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
+import { radius, spacing } from '../../design'
+
+interface Props {
+  clientName?: string
+  clientPhone?: string
+  clientAvatar?: string
+  clientAvatarBlurhash?: string
+  clientRating?: number
+  missionCount?: number
+  isVerified?: boolean
+  isTyping?: boolean
+  onCall?: () => void
+  onChat?: () => void
+  style?: ViewStyle
+}
+
+function getInitials(name?: string): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  return 'CL'
+}
+
+export const ClientCard: React.FC<Props> = ({
+  clientName,
+  clientPhone,
+  clientAvatar,
+  clientAvatarBlurhash,
+  clientRating = 4.8,
+  missionCount,
+  isVerified = true,
+  isTyping = false,
+  onCall,
+  onChat,
+  style,
+}) => {
+  const { colors, s } = useStyles()
+  const { t } = useTranslation()
+
+  const displayName = clientName || t('common.client', { defaultValue: 'Client' })
+  const initials = getInitials(clientName)
+  const hasRealAvatar = !!(
+    clientAvatar &&
+    typeof clientAvatar === 'string' &&
+    clientAvatar.startsWith('http') &&
+    !clientAvatar.includes('unsplash.com')
+  )
+
+  const handleCall = () => {
+    if (onCall) {
+      onCall()
+      return
+    }
+    if (clientPhone) {
+      Linking.openURL(`tel:${clientPhone}`).catch(() => {})
+    }
+  }
+
+  const ratingValue = Number(clientRating)
+  const hasRating = Number.isFinite(ratingValue) && ratingValue > 0
+  const subtitle = typeof missionCount === 'number'
+    ? t('providerMissionAssigned.missionsCount', { count: missionCount, defaultValue: '{{count}} missions' })
+    : isVerified
+      ? t('providerMissionActive.clientVerified', { defaultValue: 'Client vérifié' })
+      : ''
+
+  return (
+    <View style={[s.card, style]}>
+      <View style={s.avatarWrapper}>
+        {hasRealAvatar ? (
+          <Image
+            source={{ uri: clientAvatar }}
+            placeholder={clientAvatarBlurhash}
+            contentFit="cover"
+            transition={200}
+            style={s.avatar}
+          />
+        ) : (
+          <View style={s.initialsAvatar}>
+            <Text style={s.initialsText}>{initials}</Text>
+          </View>
+        )}
+
+        {isVerified && (
+          <View style={s.verifiedBadge}>
+            <Check size={9} color={colors.onPrimary} strokeWidth={3.5} />
+          </View>
+        )}
+      </View>
+
+      <View style={s.infoColumn}>
+        <Text style={s.name} numberOfLines={1}>
+          {displayName}
+        </Text>
+        {(hasRating || !!subtitle) && (
+          <View style={s.metaRow}>
+            {hasRating && (
+              <>
+                <Star size={12} color={colors.warning} fill={colors.warning} style={{ marginRight: 3 }} />
+                <Text style={s.ratingText}>{ratingValue.toFixed(1)}</Text>
+              </>
+            )}
+            {hasRating && !!subtitle && <Text style={s.bullet}>·</Text>}
+            {!!subtitle && (
+              <Text style={s.verifiedText} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+
+      <View style={s.actionsRow}>
+        <TouchableOpacity
+          style={[s.actionButton, s.callButton]}
+          activeOpacity={0.75}
+          onPress={handleCall}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11y.callShort')}
+        >
+          <Phone size={18} color={colors.primaryText} strokeWidth={2.2} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.actionButton, s.chatButton]}
+          activeOpacity={0.75}
+          onPress={onChat}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11y.openChat')}
+        >
+          <MessageSquare size={18} color={colors.info} strokeWidth={2.2} />
+          {isTyping && <View style={s.typingDot} />}
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}
+
+
+
+const useStyles = createThemedStyles(colors => {
+  const s = StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    avatarWrapper: {
+      position: 'relative',
+      marginRight: 12,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.slate100,
+    },
+    initialsAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.infoLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    initialsText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.infoInk,
+      letterSpacing: 0.5,
+    },
+    verifiedBadge: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 17,
+      height: 17,
+      borderRadius: 9,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    infoColumn: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    name: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    ratingText: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    bullet: {
+      marginHorizontal: 4,
+      color: colors.textMuted,
+      fontSize: 11,
+    },
+    verifiedText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginLeft: 6,
+    },
+    actionButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    callButton: {
+      backgroundColor: colors.brandSoft,
+    },
+    chatButton: {
+      backgroundColor: colors.infoSoft,
+    },
+    typingDot: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.info,
+    },
+  })
+  return { colors, s }
+})

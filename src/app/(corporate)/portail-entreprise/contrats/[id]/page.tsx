@@ -174,7 +174,7 @@ export default function ContractDetailPage() {
             <Row label="Statut" value={cfg.label} />
             <Row label="Date début" value={fmtDate(contract.startDate)} />
             <Row label="Date fin" value={fmtDate(contract.endDate)} />
-            <Row label="Coût annuel" value={`${fmtNum(contract.annualPrice)} FCFA`} bold />
+            {contract.annualPrice != null && <Row label="Coût annuel" value={`${fmtNum(contract.annualPrice)} FCFA`} bold />}
             <Row label="Renouvellement" value={contract.autoRenewal ? 'Automatique' : 'Manuel'} />
             {contract.description && <Row label="Description" value={contract.description} />}
           </Card>
@@ -213,6 +213,50 @@ export default function ContractDetailPage() {
               </div>
             )}
           </Card>
+          {(() => {
+            const sla = contract.sla
+            if (!sla) return null
+            const tone = (rate: number | null) => rate === null ? 'bg-stone-300' : rate >= 90 ? 'bg-emerald-600' : rate >= 70 ? 'bg-amber-500' : 'bg-red-500'
+            const Metric = ({ label, rate, detail }: { label: string; rate: number | null; detail: string }) => (
+              <div>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-stone-500">{label}</span>
+                  <span className="font-semibold text-stone-700 tabular-nums">{rate === null ? '—' : `${rate} %`}</span>
+                </div>
+                <ProgressBar value={rate ?? 0} tone={tone(rate)} />
+                <p className="text-[11px] text-stone-400 mt-1">{detail}</p>
+              </div>
+            )
+            return (
+              <Card title="Engagements de service (SLA)" icon={Timer}>
+                <div className="space-y-4">
+                  <Metric
+                    label={`Intervention sous ${sla.targetHours} h`}
+                    rate={sla.response.rate}
+                    detail={sla.response.measured
+                      ? `${sla.response.onTime} sur ${sla.response.measured} dépannages · délai moyen ${sla.response.avgHours} h`
+                      : 'Aucun dépannage mesuré sur la période'}
+                  />
+                  <Metric
+                    label="Interventions résolues"
+                    rate={sla.resolution.rate}
+                    detail={`${sla.resolution.completed} sur ${sla.resolution.total}${sla.resolution.open ? ` · ${sla.resolution.open} en cours` : ''}${sla.resolution.avgHours !== null ? ` · résolution moyenne ${sla.resolution.avgHours} h` : ''}`}
+                  />
+                  {sla.tickets.resolved > 0 && (
+                    <Metric
+                      label="Demandes support traitées dans les délais"
+                      rate={sla.tickets.rate}
+                      detail={`${sla.tickets.onTime} sur ${sla.tickets.resolved} demandes résolues`}
+                    />
+                  )}
+                  <p className="text-xs text-stone-500">
+                    Satisfaction : <span className="font-semibold text-stone-700">{sla.satisfaction.avg !== null ? `${sla.satisfaction.avg}/5 (${sla.satisfaction.count} avis)` : 'pas encore notée'}</span>
+                  </p>
+                  <p className="text-[11px] text-stone-400">Mesuré depuis le {fmtDate(sla.periodStart)}, à partir de l&apos;heure de la demande et de l&apos;arrivée du technicien. Les visites préventives planifiées ne comptent pas dans le délai.</p>
+                </div>
+              </Card>
+            )
+          })()}
         </div>
       )}
 
@@ -237,7 +281,7 @@ export default function ContractDetailPage() {
           {(() => {
             const slaTarget = coverage.responseTimeHours ?? (typeof coverage.responseTime === 'string' ? parseFloat(coverage.responseTime) : null)
             const slaActual = contract.stats?.averageResponseTime ?? null
-            if (!slaTarget) return null
+            if (!slaTarget || contract.sla) return null
             const ratio = slaActual !== null ? Math.min(Math.round((slaActual / slaTarget) * 100), 200) : null
             const respected = slaActual !== null && slaActual <= slaTarget
             return (
@@ -265,7 +309,7 @@ export default function ContractDetailPage() {
           {contract.stats && (
             <Card title="Chiffres clés" icon={TrendingUp}>
               <Row label="Interventions totales" value={`${contract.stats.totalInterventions || 0}`} />
-              <Row label="Coût total réalisé" value={`${fmtNum(contract.stats.totalCost || 0)} FCFA`} />
+              {contract.stats.totalCost != null && <Row label="Coût total réalisé" value={`${fmtNum(contract.stats.totalCost)} FCFA`} />}
               <Row label="Dernière intervention" value={fmtDate(contract.stats.lastInterventionDate)} />
               <Row label="Prochaine visite préventive" value={fmtDate(contract.stats.nextPreventiveDate)} />
             </Card>
