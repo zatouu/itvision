@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const endpoint = new URL(process.env.ADDRESS_GEOCODING_URL || 'https://nominatim.openstreetmap.org/reverse')
     if (endpoint.protocol !== 'https:') throw new Error('Configuration invalide')
     endpoint.search = new URLSearchParams({ lat: String(parsed.data.latitude), lon: String(parsed.data.longitude), format: 'jsonv2', addressdetails: '1', 'accept-language': 'fr' }).toString()
-    const response = await fetch(endpoint, { cache: 'no-store', signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'DDMPlus-Address/1.0 (+https://market.itvisionplus.sn)', Accept: 'application/json' } })
+    const response = await fetch(endpoint, { cache: 'no-store', signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'DDMPlus-Address/1.0 (+https://ddm.sn)', Accept: 'application/json' } })
     if (!response.ok) return reply({ error: 'Adresse introuvable pour le moment. Réessayez ou complétez les champs manuellement.' }, 502)
     const data = z.object({ address: z.record(z.string(), z.string()) }).safeParse(await response.json())
     if (!data.success) return reply({ error: 'Aucune adresse trouvée à cette position.' }, 422)

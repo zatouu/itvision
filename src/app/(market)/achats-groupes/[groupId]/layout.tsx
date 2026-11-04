@@ -4,8 +4,9 @@ import { connectMongoose } from '@/lib/mongoose';
 import { GroupOrder } from '@/lib/models/GroupOrder';
 import Review from '@/lib/models/Review';
 import { buildProductJsonLd } from '@/lib/structured-data';
+import { MARKET_SITE_URL } from '@/lib/branding';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn';
+const SITE_URL = MARKET_SITE_URL;
 
 interface LayoutProps {
   params: Promise<{ groupId: string }>;

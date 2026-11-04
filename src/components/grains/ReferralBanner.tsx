@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Users, Copy, Check, MessageCircle, Link2 } from 'lucide-react'
+import { MARKET_SITE_URL } from '@/lib/branding'
 
 interface ReferralBannerProps {
   referralCode: string | null
@@ -13,7 +14,7 @@ export default function ReferralBanner({ referralCode }: ReferralBannerProps) {
   if (!referralCode) return null
 
   const code = referralCode
-  const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://market.itvisionplus.sn'}/market/creer-compte?ref=${code}`
+  const link = `${typeof window !== 'undefined' ? window.location.origin : MARKET_SITE_URL}/market/creer-compte?ref=${code}`
 
   const copy = () => {
     navigator.clipboard.writeText(link)

@@ -2,7 +2,7 @@
 
 Ce dépôt héberge **3 produits** partageant un backend Next.js + MongoDB :
 - **corporate** — IT Vision B2B (portail-entreprise, interventions, contrats, admin)
-- **market** — DDM+ marketplace import Chine (`market.itvisionplus.sn`)
+- **market** — DDM+ marketplace import Chine (`ddm.sn`, accueil à la racine)
 - **xeuy** — app mobile de mise en relation de services (consumer+provider, fusion prévue en dernier sur branche dédiée)
 
 ## Frontière contractuelle
@@ -120,6 +120,22 @@ Déclenchement manuel : `POST /api/cron/maintenance { job: 'corporate-agents' }`
 corporate (vitrine + API + futur portail) **n'expose que les produits IT Vision**.
 Un produit de vendeur tiers (`shopId`) est exclu, même taggé `corporateVisible`
 — ne pas contourner ce filtre, c'est une règle commerciale, pas technique.
+
+## SEO — deux sites, deux identités
+
+`itvisionplus.sn` (B2B sécurité électronique) et `ddm.sn` (import Chine grand
+public) sont servis par la même app mais ne doivent jamais se mélanger : ni
+marque, ni JSON-LD, ni mots-clés de l'un chez l'autre.
+
+- `robots.txt`, `sitemap.xml` et `/opengraph-image` dépendent de l'hôte
+  (`isMarketHost`) ; le sitemap est généré à la requête (Mongo absent au build).
+- Métadonnées d'une page publique : `corporatePage()` / `pageMetadata()`
+  (`src/lib/seo.ts`) — titre, description, canonical et Open Graph complets.
+  **Jamais de `canonical` dans un layout** (il serait hérité par toutes les pages).
+- Un seul `<h1>` par page ; les liens vers les fiches produit sont de vrais `href`.
+- Pages vitrines DDM (accueil, catalogue) : pré-rendues côté serveur via
+  `src/lib/market/storefront-ssr.ts` (données mappées une seule fois côté serveur).
+- `www.` → domaine nu (301, middleware) ; http → https est géré par nginx.
 
 ## Mobile Xeuy (`mobile/app`) — build & OTA
 

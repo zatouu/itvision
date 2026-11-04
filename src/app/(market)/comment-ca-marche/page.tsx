@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: 'Comment ça marche — DDM+',
   description:
     "Achat groupé depuis la Chine : réservez sans payer, payez le prix final à la clôture, contrôle qualité, transport au poids réel, livraison ou retrait à Dakar.",
+  alternates: { canonical: '/comment-ca-marche' },
 }
 
 const fmtPct = (r: number) => `${Math.round(r * 1000) / 10}`.replace('.', ',') + ' %'

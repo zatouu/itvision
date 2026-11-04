@@ -14,7 +14,7 @@ export const PUBLIC_ROUTES: string[] = [
   '/api/health',
 ]
 
-// Routes propres à la marketplace (accessibles sur market.itvisionplus.sn)
+// Routes propres à la marketplace (accessibles sur ddm.sn)
 // DÉRIVÉ du registre : toutes les pages déclarées domain 'market', sauf
 // celles à comportement spécial sur le domaine principal :
 // - /produits      → réécrit en /corporate-produits (vitrine B2B), pas redirect market

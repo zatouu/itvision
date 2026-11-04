@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from './formatFcfa';
 import { Card } from './Card';
@@ -16,6 +17,8 @@ export interface ProductCardProps {
   size?: ProductCardSize;
   className?: string;
   onClick?: () => void;
+  /** URL de la fiche : le nom devient un vrai lien (exploré par les moteurs, accessible au clavier). */
+  href?: string;
   /** Ajout rapide au panier. Non proposé si le produit exige une variante. */
   onQuickAdd?: (product: Product) => void;
 }
@@ -35,6 +38,7 @@ export function ProductCard({
   size = 'sm',
   className,
   onClick,
+  href,
   onQuickAdd,
 }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -168,7 +172,12 @@ export function ProductCard({
             isLg ? 'min-h-[34px] text-[13px]' : 'min-h-[30px] text-[12px]'
           )}
         >
-          {product.name}
+          {href ? (
+            // Le lien gère seul la navigation : le clic ne doit pas remonter au onClick de la carte
+            <Link href={href} onClick={(e) => e.stopPropagation()} className="hover:underline focus-visible:underline">
+              {product.name}
+            </Link>
+          ) : product.name}
         </p>
 
         {/* Étoiles uniquement si des avis existent réellement */}

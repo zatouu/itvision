@@ -157,7 +157,7 @@ function ClosedNotice({ title, text, href, cta }: { title: string; text: string;
           <Link href={href} className="block w-full h-11 rounded-xl bg-emerald-600 text-white font-bold leading-[2.75rem] hover:bg-emerald-700 transition">
             {cta}
           </Link>
-          <Link href="/market" className="block w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold leading-[2.75rem] hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+          <Link href="/" className="block w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold leading-[2.75rem] hover:bg-slate-50 dark:hover:bg-slate-800 transition">
             Retour au catalogue
           </Link>
         </div>

@@ -3,11 +3,13 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { Building2, Home, Factory, Shield, MapPin, Calendar, Users } from 'lucide-react'
 import Link from 'next/link'
+import { corporatePage } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Nos Réalisations - IT Vision',
-  description: 'Découvrez nos dernières réalisations en sécurité électronique : centres commerciaux, résidences, entreprises et villas de prestige.',
-}
+export const metadata: Metadata = corporatePage(
+  '/realisations',
+  'Nos réalisations en sécurité électronique',
+  'Références IT Vision Plus au Sénégal : vidéosurveillance, contrôle d\'accès et sécurité incendie pour centres commerciaux, résidences, entreprises et villas.',
+)
 
 export default function RealisationsPage() {
   const projects = [

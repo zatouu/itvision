@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwtPayload } from '@/lib/jwt'
 import { csrfProtection } from '@/lib/csrf-protection'
 import { SessionStoreUnavailableError } from '@/lib/auth-session'
-import { isMarketDomain, getHost } from '@/lib/middleware/domain'
+import { isMarketDomain, getHost, buildMarketUrl } from '@/lib/middleware/domain'
 import { isPublicRoute, isMarketplaceRoute, isMobileApiRoute, getRequiredRole, isSharedPublicRoute } from '@/lib/middleware/routes'
 import { getPageRule } from '@/lib/domains'
 import { handleCorsPreflight, getMobileCorsHeaders, injectCorsHeaders } from '@/lib/middleware/cors'
@@ -30,10 +30,20 @@ export async function middleware(request: NextRequest) {
   const host = getHost(request)
   const onMarketDomain = isMarketDomain(request)
 
-  // Ignorer les fichiers statiques et les assets
+  // Une seule version indexable par site : www.<domaine> → <domaine> (301)
+  if (host.toLowerCase().startsWith('www.') && !pathname.startsWith('/api/') && !pathname.startsWith('/_next')) {
+    const apexUrl = request.nextUrl.clone()
+    apexUrl.protocol = 'https:'
+    apexUrl.hostname = host.split(':')[0].slice('www.'.length)
+    apexUrl.port = ''
+    return NextResponse.redirect(apexUrl, 301)
+  }
+
+  // Ignorer les fichiers statiques et les assets (dont l'image Open Graph, propre au domaine)
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/') ||
+    pathname.startsWith('/opengraph-image') ||
     pathname.includes('.') // fichiers avec extension (images, etc.)
   ) {
     // Pour les API, on applique juste la protection CSRF
@@ -59,13 +69,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ─── ROUTAGE PAR SOUS-DOMAINE ───
+  // ─── ROUTAGE PAR DOMAINE ───
 
-  // Sur market.itvisionplus.sn : rediriger les routes non-marketplace vers le site principal
+  // Sur ddm.sn (ou market.*) : l'accueil market est à la racine, jamais sous /market
   if (onMarketDomain) {
     if (pathname === '/') {
       const marketHomeUrl = new URL('/market', request.url)
       return NextResponse.rewrite(marketHomeUrl)
+    }
+
+    if (pathname === '/market' || pathname === '/market/') {
+      const rootUrl = request.nextUrl.clone()
+      rootUrl.pathname = '/'
+      return NextResponse.redirect(rootUrl, 308)
     }
 
     const isAllowedOnMarket =
@@ -88,23 +104,19 @@ export async function middleware(request: NextRequest) {
       if (rule && rule.access === 'public') {
         const mainUrl = new URL(pathname + request.nextUrl.search, request.url)
         const bare = host.split(':')[0].replace(/^www\./, '')
-        // market.itvisionplus.sn → itvisionplus.sn ; ddm.sn → itvisionplus.sn
+        // market.itvisionplus.sn → itvisionplus.sn ; market.localhost → localhost ; ddm.sn → itvisionplus.sn
         mainUrl.hostname = bare.startsWith('market.') ? bare.slice('market.'.length) : 'itvisionplus.sn'
-        mainUrl.port = ''
+        if (mainUrl.hostname !== 'localhost') mainUrl.port = ''
         return NextResponse.redirect(mainUrl)
       }
-      const marketHomeUrl = new URL('/market', request.url)
-      return NextResponse.redirect(marketHomeUrl)
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // Sur itvisionplus.sn : rediriger les routes marketplace vers market.itvisionplus.sn
+  // Sur itvisionplus.sn : rediriger les routes marketplace vers ddm.sn
   if (!onMarketDomain) {
     if (isMarketplaceRoute(pathname)) {
-      const marketUrl = new URL(pathname, request.url)
-      marketUrl.hostname = 'ddm.sn'
-      marketUrl.port = ''
-      return NextResponse.redirect(marketUrl)
+      return NextResponse.redirect(buildMarketUrl(request, pathname))
     }
     // /produits sur le site principal → vitrine corporate B2B/B2C
     if (pathname === '/produits' || pathname.startsWith('/produits/')) {

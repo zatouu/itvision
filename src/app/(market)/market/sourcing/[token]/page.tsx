@@ -291,7 +291,7 @@ export default function SourcingTrackingPage() {
         <AlertCircle className="h-12 w-12 text-red-500 mb-3" />
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Demande introuvable</h1>
         <p className="text-slate-600 dark:text-slate-300 mt-1">{error || 'Le lien semble invalide ou expiré.'}</p>
-        <Link href="/market" className="mt-6 inline-flex items-center gap-2 text-violet-600 hover:underline">
+        <Link href="/" className="mt-6 inline-flex items-center gap-2 text-violet-600 hover:underline">
           <ArrowLeft className="h-4 w-4" /> Retour au market
         </Link>
       </div>
@@ -306,7 +306,7 @@ export default function SourcingTrackingPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto max-w-6xl px-4 md:px-6 py-4">
-          <Link href="/market" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-violet-600 transition">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 dark:text-slate-400 hover:text-violet-600 transition">
             <ArrowLeft size={16} /> Retour
           </Link>
         </div>

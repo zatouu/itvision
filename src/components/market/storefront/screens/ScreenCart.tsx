@@ -414,7 +414,7 @@ export default function ScreenCart() {
       <div className="min-h-full bg-slate-50 dark:bg-slate-950">
         <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
           <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
-            <Link href="/market">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mon panier</span>
+            <Link href="/">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mon panier</span>
           </div>
           <div className="mb-4 flex items-baseline justify-between md:mb-6">
             <div>

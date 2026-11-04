@@ -127,7 +127,7 @@ export default function MarketHeader() {
   const { isVendor } = useMarketAuth()
 
   const nav = [
-    { name: 'Accueil', href: '/market', icon: Home },
+    { name: 'Accueil', href: '/', icon: Home },
     { name: 'Produits', href: '/produits', icon: Package },
     { name: 'Achats groupés', href: '/achats-groupes', icon: Users },
     { name: 'Boutiques', href: '/market/boutiques', icon: Store },
@@ -135,7 +135,7 @@ export default function MarketHeader() {
     ...(isVendor ? [{ name: 'Ma boutique', href: '/espace-vendeur', icon: LayoutDashboard }] : []),
   ]
 
-  const isActive = (href: string) => pathname === href || (href === '/market' && pathname === '/') || (href !== '/market' && pathname.startsWith(href + '/'))
+  const isActive = (href: string) => href === '/' ? (pathname === '/' || pathname === '/market') : (pathname === href || pathname.startsWith(href + '/'))
 
   const handleSearch = useCallback((term: string) => {
     router.push(`/produits?q=${encodeURIComponent(term)}`)
@@ -151,7 +151,7 @@ export default function MarketHeader() {
       </div>
       <nav aria-label="Navigation principale" className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         {/* Logo */}
-        <Link href="/market" aria-label="DDM+, accueil" className="flex w-24 min-[360px]:w-32 shrink-0 items-center xl:w-28">
+        <Link href="/" aria-label="DDM+, accueil" className="flex w-24 min-[360px]:w-32 shrink-0 items-center xl:w-28">
           <DDMLogo variant="horizontal" size="lg" showTagline={false} priority />
         </Link>
 
@@ -234,7 +234,7 @@ export default function MarketHeader() {
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2">
           <nav aria-label="Rayons et services" className="hidden shrink-0 items-center gap-1 xl:flex">
             <CategoryMegaMenu />
-            {nav.filter(item => item.href !== '/market').map(item => {
+            {nav.filter(item => item.href !== '/').map(item => {
               const ItemIcon = item.icon
               const active = isActive(item.href)
               return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm font-medium ${active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}><ItemIcon size={16} />{item.name}</Link>

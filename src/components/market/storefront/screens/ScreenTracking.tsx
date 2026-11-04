@@ -373,7 +373,7 @@ export default function ScreenTracking() {
         <div className="mx-auto max-w-6xl md:px-6 md:py-6">
           {/* Fil d'ariane + titre — desktop */}
           <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
-            <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte/commandes" className="cursor-pointer">Mes commandes</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{order.id}</span>
+            <Link href="/" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte/commandes" className="cursor-pointer">Mes commandes</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">{order.id}</span>
           </div>
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4 px-4 pt-4 md:px-0 md:pt-0">
             <div>

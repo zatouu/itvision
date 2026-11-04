@@ -1,4 +1,6 @@
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
+import { CORPORATE_BRAND, CORPORATE_CONTACT, CORPORATE_SITE_URL, MARKET_BRAND, MARKET_SITE_URL } from '@/lib/branding'
+
+const SITE_URL = MARKET_SITE_URL
 const SITE_NAME = 'DDM+ Marketplace'
 const SITE_DESCRIPTION = 'Marketplace d\'import direct Chine et d\'achats groupés au Sénégal.'
 
@@ -28,13 +30,20 @@ export function buildOrganizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': `${SITE_URL}/#organization`,
     name: SITE_NAME,
+    alternateName: [MARKET_BRAND.name, MARKET_BRAND.fullName],
     url: SITE_URL,
     description: SITE_DESCRIPTION,
     logo: `${SITE_URL}/branding/ddm-logo-favicon.svg`,
-    sameAs: [
-      // Ajouter les vrais réseaux sociaux quand disponibles
-    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: MARKET_BRAND.whatsapp.replace(/\s/g, ''),
+      contactType: 'customer service',
+      areaServed: 'SN',
+      availableLanguage: ['French'],
+    },
+    sameAs: ['https://instagram.com/ddm_import', 'https://facebook.com/ddm.import'],
   }
 }
 
@@ -42,8 +51,11 @@ export function buildWebsiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
     name: SITE_NAME,
     url: SITE_URL,
+    inLanguage: 'fr-SN',
+    publisher: { '@id': `${SITE_URL}/#organization` },
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -53,6 +65,54 @@ export function buildWebsiteJsonLd() {
       'query-input': 'required name=search_term_string',
     },
   }
+}
+
+/** Fiche entreprise locale IT Vision Plus (résultats locaux « sécurité électronique Dakar »). */
+export function buildCorporateLocalBusinessJsonLd() {
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@type': ['LocalBusiness', 'ProfessionalService'],
+      '@id': `${CORPORATE_SITE_URL}/#business`,
+      name: CORPORATE_BRAND.name,
+      alternateName: 'IT Vision',
+      url: CORPORATE_SITE_URL,
+      logo: `${CORPORATE_SITE_URL}/images/logo-it-vision.png`,
+      image: `${CORPORATE_SITE_URL}/opengraph-image`,
+      description:
+        'Intégrateur en sécurité électronique au Sénégal : vidéosurveillance, contrôle d\'accès, alarme et sécurité incendie, domotique, câblage réseau et fibre optique, maintenance et digitalisation des PME.',
+      telephone: CORPORATE_CONTACT.phone,
+      email: CORPORATE_CONTACT.email,
+      priceRange: '$$',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: CORPORATE_CONTACT.streetAddress,
+        addressLocality: CORPORATE_CONTACT.city,
+        addressCountry: CORPORATE_CONTACT.country,
+      },
+      areaServed: [
+        { '@type': 'City', name: 'Dakar' },
+        { '@type': 'Country', name: 'Sénégal' },
+      ],
+      contactPoint: [
+        { '@type': 'ContactPoint', telephone: CORPORATE_CONTACT.phone, contactType: 'customer service', areaServed: 'SN', availableLanguage: ['French'] },
+        { '@type': 'ContactPoint', telephone: CORPORATE_CONTACT.whatsapp.replace(/\s/g, ''), contactType: 'technical support', areaServed: 'SN', availableLanguage: ['French'] },
+      ],
+      knowsAbout: [
+        'Vidéosurveillance', 'Contrôle d\'accès', 'Alarme intrusion', 'Sécurité incendie',
+        'Domotique', 'Câblage réseau', 'Fibre optique', 'Maintenance des systèmes de sécurité',
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      '@id': `${CORPORATE_SITE_URL}/#website`,
+      name: CORPORATE_BRAND.name,
+      url: CORPORATE_SITE_URL,
+      inLanguage: 'fr-SN',
+      publisher: { '@id': `${CORPORATE_SITE_URL}/#business` },
+    },
+  ]
 }
 
 export function buildBreadcrumbJsonLd(items: { name: string; url: string }[]) {

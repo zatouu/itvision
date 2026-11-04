@@ -9,7 +9,7 @@ import { useSourcingModal } from '@/components/market/storefront/SourcingModalCo
 
 // Le panier est dans l'en-tête mobile : la place centrale revient à « Trouvez-moi », le service différenciant.
 const leftItems = [
-  { name: 'Accueil', href: '/market', icon: Home },
+  { name: 'Accueil', href: '/', icon: Home },
   { name: 'Produits', href: '/produits', icon: Package },
 ]
 const rightItemsBase = [
@@ -50,7 +50,7 @@ export default function MarketBottomNav() {
     ? rightItemsBase.map((i) => (i.href === '/achats-groupes' ? { name: 'Ma boutique', href: '/espace-vendeur', icon: LayoutDashboard } : i))
     : rightItemsBase
 
-  const isActive = (href: string) => pathname === href || (href === '/market' && pathname === '/') || (href !== '/market' && pathname.startsWith(href + '/'))
+  const isActive = (href: string) => href === '/' ? (pathname === '/' || pathname === '/market') : (pathname === href || pathname.startsWith(href + '/'))
 
   const renderItem = (item: { name: string; href: string; icon: typeof Home }) => {
     const I = item.icon

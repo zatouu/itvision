@@ -6,8 +6,9 @@ import Shop from '@/lib/models/Shop'
 import Product from '@/lib/models/Product'
 import ShopFollower from '@/lib/models/ShopFollower'
 import ShopPageClient from '@/components/ShopPageClient'
+import { MARKET_SITE_URL } from '@/lib/branding'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn'
+const SITE_URL = MARKET_SITE_URL
 
 const fetchShop = async (shopId: string) => {
   await connectMongoose()

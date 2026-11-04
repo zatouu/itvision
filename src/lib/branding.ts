@@ -33,7 +33,6 @@ export const MARKET_BRAND: BrandConfig = {
   // Emails conservés tels quels (pas d'email DDM dédié pour l'instant)
   contactEmail: 'contact@itvisionplus.sn',
   supportEmail: 'support@itvisionplus.sn',
-  // Domaine conservé tel quel (pas de domaine DDM dédié pour l'instant)
   url: 'https://ddm.sn',
   whatsapp: '+221 77 413 34 40',
   address: 'Parcelles Assainies, Unité 25 – Dakar, Sénégal',
@@ -41,6 +40,12 @@ export const MARKET_BRAND: BrandConfig = {
   primaryColor: '#7c3aed',
   secondaryColor: '#4f46e5',
 } as const
+
+/**
+ * URL publique de la marketplace (canonical, sitemap, OG, JSON-LD).
+ * Indépendante de NEXT_PUBLIC_SITE_URL, qui désigne le site corporate.
+ */
+export const MARKET_SITE_URL = (process.env.NEXT_PUBLIC_MARKET_URL || MARKET_BRAND.url).replace(/\/+$/, '')
 
 export const CORPORATE_BRAND: BrandConfig = {
   name: 'IT Vision Plus',
@@ -56,6 +61,20 @@ export const CORPORATE_BRAND: BrandConfig = {
   hashtag: '#ITVisionPlus',
   primaryColor: '#0f766e',
   secondaryColor: '#047857',
+} as const
+
+/** URL publique du site corporate (canonical, sitemap, OG, JSON-LD). */
+export const CORPORATE_SITE_URL = (process.env.NEXT_PUBLIC_CORPORATE_URL || CORPORATE_BRAND.url).replace(/\/+$/, '')
+
+/** Coordonnées affichées sur le site corporate (en-tête, pied de page, contact). */
+export const CORPORATE_CONTACT = {
+  phone: '+221777438220',
+  phoneDisplay: '+221 77 743 82 20',
+  whatsapp: CORPORATE_BRAND.whatsapp,
+  email: CORPORATE_BRAND.contactEmail,
+  streetAddress: 'Parcelles Assainies, Unité 25',
+  city: 'Dakar',
+  country: 'SN',
 } as const
 
 export const XEUY_BRAND: BrandConfig = {

@@ -398,7 +398,7 @@ export default function ScreenProduct() {
         <div className="mx-auto max-w-6xl md:px-6 md:py-6">
           {/* Fil d'ariane — desktop uniquement */}
           <div className="mb-4 hidden items-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400 md:flex">
-            <Link href="/market" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
+            <Link href="/" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
             <Link href="/produits" className="hover:text-slate-700 dark:hover:text-slate-300">Catalogue</Link><Icon name="chevronRight" size={12}/>
             <Link href={`/produits?category=${encodeURIComponent(p.category || '')}`} className="hover:text-slate-700 dark:hover:text-slate-300">{p.category || p.cat || 'Catégorie'}</Link><Icon name="chevronRight" size={12}/>
             <span className="text-slate-700 dark:text-slate-300 line-clamp-1 max-w-[220px]">{p.name}</span>
@@ -649,7 +649,7 @@ export default function ScreenProduct() {
                   <Section title="Produits similaires" className="py-4 bg-white dark:bg-slate-900 md:bg-transparent md:dark:bg-transparent md:py-0">
                     <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
                       {SIMILAR.slice(0, 4).map((r) => (
-                        <ProductCard key={r.id} product={r} size="lg" onClick={() => router.push(`/produits/${r.id}`)} />
+                        <ProductCard key={r.id} product={r} size="lg" href={`/produits/${r.id}`} onClick={() => router.push(`/produits/${r.id}`)} />
                       ))}
                     </div>
                   </Section>

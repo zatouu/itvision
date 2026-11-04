@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { brandWhatsAppUrl } from '@/lib/branding';
-import { SOURCING_LINK, resolveSlideTheme, sanitizeSlideImages, sanitizeSlideLink } from '@/lib/market/promo-slides';
+import { SOURCING_LINK } from '@/lib/market/promo-slides';
 import { formatFcfa } from '../formatFcfa';
 import { useSourcingModal } from '../SourcingModalContext';
 import { ProductCard } from '../ProductCard';
@@ -20,11 +20,10 @@ import type { HeroSlide } from '../PromoSlideView';
 import { categoryVisual } from '../category-visuals';
 import { clearRecentlyViewed, getRecentlyViewedIds } from '../recently-viewed';
 import { useQuickAdd } from '../useQuickAdd';
-import { mapCatalogItem, mapGroupOrder, mapCategory } from '../data-mappers';
-import type { Product, Group, Category } from '../types';
+import { mapCatalogItem } from '../data-mappers';
+import { mapHomeResults, type HomeCategory, type GroupStats, type HomeData } from '../home-data';
+import type { Product, Group } from '../types';
 
-type HomeCategory = Category & { image?: string; count?: number };
-type GroupStats = { totalParticipants: number; totalSaved: number; totalFilled: number };
 // En dessous, des chiffres trop faibles desserviraient la confiance : on n'affiche rien
 const SOCIAL_PROOF_MIN_PARTICIPANTS = 10;
 
@@ -65,22 +64,6 @@ function buildAutoSlides(products: Product[], groups: Group[]): HeroSlide[] {
       ctaText: 'Explorer le catalogue', ctaLink: '/produits',
     },
   ];
-}
-
-function mapAdminSlides(raw: unknown): HeroSlide[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(slide => slide && typeof slide.title === 'string' && slide.title.trim())
-    .map(slide => ({
-      id: String(slide._id),
-      title: slide.title,
-      subtitle: slide.subtitle || undefined,
-      badge: slide.badge || undefined,
-      ctaText: slide.ctaText || 'Découvrir',
-      ctaLink: sanitizeSlideLink(slide.ctaLink) ?? '/produits',
-      theme: resolveSlideTheme(slide.bgColor),
-      images: sanitizeSlideImages(slide.images),
-    }));
 }
 
 function SectionHeader({ id, title, subtitle, icon: Icon, tone, href, linkLabel }: {
@@ -140,26 +123,41 @@ function Rail({ children, className }: { children: ReactNode; className?: string
   return <div className={cn(railClass, className)}>{children}</div>;
 }
 
-export default function ScreenHome() {
+/** `initialData` : accueil pré-rendu côté serveur (indexable) ; sans lui, chargement client. */
+export default function ScreenHome({ initialData }: { initialData?: HomeData | null } = {}) {
   const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
   const { quickAdd, toast: quickAddToast } = useQuickAdd();
-  const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [deals, setDeals] = useState<Product[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [categories, setCategories] = useState<HomeCategory[]>([]);
-  const [adminSlides, setAdminSlides] = useState<HeroSlide[]>([]);
+  const [loading, setLoading] = useState(!initialData);
+  const [products, setProducts] = useState<Product[]>(initialData?.products ?? []);
+  const [deals, setDeals] = useState<Product[]>(initialData?.deals ?? []);
+  const [groups, setGroups] = useState<Group[]>(initialData?.groups ?? []);
+  const [categories, setCategories] = useState<HomeCategory[]>(initialData?.categories ?? []);
+  const [adminSlides, setAdminSlides] = useState<HeroSlide[]>(initialData?.adminSlides ?? []);
   const [recent, setRecent] = useState<Product[]>([]);
-  const [groupStats, setGroupStats] = useState<GroupStats | null>(null);
-  const [failures, setFailures] = useState<string[]>([]);
+  const [groupStats, setGroupStats] = useState<GroupStats | null>(initialData?.groupStats ?? null);
+  const [failures, setFailures] = useState<string[]>(initialData?.failures ?? []);
   const [attempt, setAttempt] = useState(0);
+  const serverRendered = useRef(Boolean(initialData));
 
   useEffect(() => {
     const controller = new AbortController();
     const load = (url: string) => fetch(url, { signal: controller.signal })
       .then(response => response.ok ? response.json() : null).catch(() => null);
     const recentIds = getRecentlyViewedIds();
+
+    // Données déjà rendues par le serveur : seul l'historique (propre au navigateur) reste à charger
+    if (serverRendered.current) {
+      serverRendered.current = false;
+      if (recentIds.length >= 2) {
+        load(`/api/catalog/products?compact=1&ids=${recentIds.join(',')}`).then(recentData => {
+          const items = recentData?.products ?? recentData?.items;
+          if (!controller.signal.aborted && Array.isArray(items)) setRecent(items.map(mapCatalogItem));
+        });
+      }
+      return () => controller.abort();
+    }
+
     setLoading(true);
     Promise.all([
       load('/api/catalog/products?limit=12&compact=1'),
@@ -171,29 +169,15 @@ export default function ScreenHome() {
       load('/api/group-orders/stats'),
     ]).then(([productData, groupData, categoryData, slideData, dealData, recentData, statsData]) => {
       if (controller.signal.aborted) return;
-      const unavailable: string[] = [];
-      const productItems = productData?.products ?? productData?.items;
-      const categoryItems = categoryData?.categories ?? categoryData?.items;
-      const dealItems = dealData?.products ?? dealData?.items;
-      const recentItems = recentData?.products ?? recentData?.items;
-      if (!Array.isArray(productItems)) unavailable.push('Produits');
-      if (!Array.isArray(groupData?.groups)) unavailable.push('Groupes');
-      if (!Array.isArray(categoryItems)) unavailable.push('Catégories');
-      setProducts(Array.isArray(productItems) ? productItems.map(mapCatalogItem) : []);
-      setDeals(Array.isArray(dealItems) ? dealItems.map(mapCatalogItem).filter((product: Product) => (product.save ?? 0) > 0).slice(0, 10) : []);
-      setRecent(Array.isArray(recentItems) ? recentItems.map(mapCatalogItem) : []);
-      setGroups(Array.isArray(groupData?.groups) ? groupData.groups.map(mapGroupOrder) : []);
-      setCategories(Array.isArray(categoryItems) ? categoryItems.map(item => ({
-        ...mapCategory(item), image: item.image, count: item.count,
-      })) : []);
-      setAdminSlides(mapAdminSlides(slideData?.slides));
-      const stats = statsData?.stats;
-      setGroupStats(stats ? {
-        totalParticipants: Number(stats.totalParticipants) || 0,
-        totalSaved: Number(stats.totalSaved) || 0,
-        totalFilled: Number(stats.totalFilled) || 0,
-      } : null);
-      setFailures(unavailable);
+      const data = mapHomeResults({ productData, groupData, categoryData, slideData, dealData, recentData, statsData });
+      setProducts(data.products);
+      setDeals(data.deals);
+      setRecent(data.recent);
+      setGroups(data.groups);
+      setCategories(data.categories);
+      setAdminSlides(data.adminSlides);
+      setGroupStats(data.groupStats);
+      setFailures(data.failures);
     }).catch(() => {
       if (controller.signal.aborted) return;
       setProducts([]);
@@ -234,7 +218,7 @@ export default function ScreenHome() {
   return (
     <>
       <div className="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-        <h1 className="sr-only">DDM+ — le marché Chine-Sénégal</h1>
+        <h1 className="sr-only">DDM+ — marketplace d’import Chine–Sénégal : achats groupés, prix usine et livraison à Dakar</h1>
         <div className="mx-auto max-w-7xl pt-3 sm:px-6 sm:pt-5">
           <HomeHeroCarousel slides={slides} onSourcing={() => openSourcing()} />
         </div>
@@ -266,7 +250,7 @@ export default function ScreenHome() {
               </div>
               <Rail>
                 {recent.map(product => (
-                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)}
+                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} href={`/produits/${product.id}`} onClick={() => router.push(`/produits/${product.id}`)}
                     className="w-[40%] min-w-[140px] max-w-[190px] shrink-0 snap-start" />
                 ))}
               </Rail>
@@ -289,7 +273,7 @@ export default function ScreenHome() {
                 tone="bg-gradient-to-br from-orange-500 to-red-600 text-white" href="/produits" linkLabel="Voir tout" />
               <Rail className="lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
                 {deals.map((product, index) => (
-                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)}
+                  <ProductCard key={product.id} product={product} onQuickAdd={quickAdd} href={`/produits/${product.id}`} onClick={() => router.push(`/produits/${product.id}`)}
                     className={cn('w-[44%] min-w-[150px] max-w-[210px] shrink-0 snap-start lg:w-auto lg:min-w-0 lg:max-w-none', index >= 5 && 'lg:hidden')} />
                 ))}
               </Rail>
@@ -350,7 +334,7 @@ export default function ScreenHome() {
               tone="bg-gradient-to-br from-blue-600 to-cyan-500 text-white" href="/produits" linkLabel="Voir tout" />
             {products.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} size="lg" onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${product.id}`)} />)}
+                {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} size="lg" onQuickAdd={quickAdd} href={`/produits/${product.id}`} onClick={() => router.push(`/produits/${product.id}`)} />)}
               </div>
             ) : <p className="py-3 text-sm text-zinc-500 dark:text-zinc-400">{failures.includes('Produits') ? 'La sélection n’a pas pu être chargée.' : 'La sélection sera bientôt disponible.'}</p>}
           </section>

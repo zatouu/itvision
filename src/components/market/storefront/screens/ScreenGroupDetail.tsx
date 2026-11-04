@@ -1170,7 +1170,7 @@ export default function ScreenGroupDetail() {
         <div className="mx-auto max-w-6xl md:px-6 md:py-6">
           {/* Fil d'ariane — desktop */}
           <div className="mb-4 hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 md:flex">
-            <Link href="/market" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
+            <Link href="/" className="hover:text-slate-700 dark:hover:text-slate-300">Accueil</Link><Icon name="chevronRight" size={12}/>
             <Link href="/achats-groupes" className="hover:text-slate-700 dark:hover:text-slate-300">Achats groupés</Link><Icon name="chevronRight" size={12}/>
             <span className="line-clamp-1 max-w-[260px] text-slate-700 dark:text-slate-300">{g.name}</span>
           </div>

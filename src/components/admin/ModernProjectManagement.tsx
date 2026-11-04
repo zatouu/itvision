@@ -222,7 +222,7 @@ export default function ModernProjectManagement() {
   }, [])
 
   const redirectToProjectEditor = (projectId?: string) => {
-    const baseUrl = projectId ? `/admin/planning?editProject=${projectId}` : '/admin/planning'
+    const baseUrl = projectId ? `/admin/planning?view=projets&editProject=${projectId}` : '/admin/planning?view=projets'
     router.push(baseUrl)
   }
 

@@ -11,7 +11,8 @@ import mongoose from 'mongoose'
 
 export const metadata: Metadata = {
   title: 'Boutiques partenaires | DDM+ Marketplace',
-  description: 'Découvrez les boutiques partenaires DDM+. Produits en stock, import Chine et revendeurs locaux vérifiés.'
+  description: 'Découvrez les boutiques partenaires DDM+. Produits en stock, import Chine et revendeurs locaux vérifiés.',
+  alternates: { canonical: '/market/boutiques' },
 }
 
 export default async function MarketBoutiquesPage() {

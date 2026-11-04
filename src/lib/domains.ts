@@ -7,7 +7,7 @@
  *
  *   corporate → IT Vision B2B : portail-entreprise, interventions, contrats,
  *               devis/factures, projets, support, tech-interface
- *   market    → DDM+ : marketplace import Chine (market.itvisionplus.sn),
+ *   market    → DDM+ : marketplace import Chine (ddm.sn),
  *               commandes, achats groupés, grains, vendeurs
  *   xeuy      → App mobile de mise en relation de services (consumer+provider,
  *               fusion prévue EN DERNIER sur branche dédiée)
@@ -139,6 +139,7 @@ export const PAGE_RULES: RouteRule[] = [
 
   // ── Auth & légal (publics) ──
   { prefix: '/login', domain: 'shared', access: 'public' },
+  { prefix: '/opengraph-image', domain: 'shared', access: 'public', note: 'Image de partage (Open Graph) propre au domaine : itvisionplus.sn ou ddm.sn' },
   { prefix: '/register', domain: 'shared', access: 'public' },
   { prefix: '/register-corporate', domain: 'shared', access: 'public' },
   { prefix: '/forgot-password', domain: 'shared', access: 'public' },

@@ -51,7 +51,7 @@ export default function MarketAuthButton({
     partner: { label: 'Partenaire', className: 'bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800' },
   }
 
-  const redirect = pathname || '/market'
+  const redirect = pathname || '/'
   const loginHref = `/login?redirect=${encodeURIComponent(redirect)}`
   const resolvedUnauthHref = unauthHref || loginHref
   const resolvedAccountHref = auth.isEnterprise ? '/portail-entreprise' : accountHref
@@ -116,7 +116,7 @@ export default function MarketAuthButton({
                 <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
                 <LogoutButton
                   className={itemClass}
-                  redirectTo="/market"
+                  redirectTo="/"
                   onDone={() => { setMenuOpen(false); onDone?.() }}
                 >
                   <LogOut className="h-4 w-4 text-slate-400" />

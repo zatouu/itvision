@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Détail de notre tarification — DDM+',
   description:
     'Transparence totale sur nos prix : logique de prix, transports, remises pack, frais de service dégressifs et assurance 2,5%.',
+  alternates: { canonical: '/tarification' },
 }
 
 export default function TarificationPage() {

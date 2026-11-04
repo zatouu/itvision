@@ -132,9 +132,9 @@ export default function HeroCarousel() {
                       </span>
                     </div>
                     
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-emerald-600 to-purple-600 bg-clip-text text-transparent">
                       {slide.title}
-                    </h1>
+                    </h2>
                     
                     <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-700">
                       {slide.subtitle}

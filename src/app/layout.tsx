@@ -8,7 +8,6 @@ import { Toaster } from '@/components/ui/Toaster'
 import SessionProviderClient from '@/components/SessionProviderClient'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
-import { buildOrganizationJsonLd, buildWebsiteJsonLd } from '@/lib/structured-data'
 
 // Fontes self-hostées (fontes variables Google téléchargées dans
 // public/fonts/) — zéro fetch réseau au build, plus rapide au runtime.
@@ -40,12 +39,13 @@ export const viewport = {
   ],
 }
 
+// Valeurs par défaut (pages partagées : connexion, inscription…). Chaque site — corporate et
+// DDM+ — redéfinit son identité dans son propre layout : rien de spécifique à une marque ici
+// qui serait hérité par l'autre (mots-clés, auteur…).
 export const metadata: Metadata = {
   title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
   manifest: '/manifest.webmanifest',
   description: 'DDM+ Marketplace : Import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés -45%, livraison Dakar.',
-  keywords: 'DDM, Dieund Dal Ma, marketplace, import Chine Sénégal, achats groupés, mode, électronique, beauté, maison, auto, sport, prix usine, Dakar',
-  authors: [{ name: 'DDM+' }],
   icons: {
     icon: '/branding/ddm-logo-favicon.svg',
     shortcut: '/branding/ddm-logo-favicon.svg',
@@ -77,15 +77,6 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.className} antialiased`}>
         <SkipLink />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
-              buildOrganizationJsonLd(),
-              buildWebsiteJsonLd(),
-            ]),
-          }}
-        />
         <SessionProviderClient>
           <ThemeProvider>
             <AnalyticsScripts />

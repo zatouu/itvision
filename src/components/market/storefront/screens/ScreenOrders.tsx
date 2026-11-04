@@ -175,7 +175,7 @@ export default function ScreenOrders() {
         {/* Fil d'ariane + titre — desktop */}
         <div className="mb-4 px-4 pt-6 md:px-0 md:pt-0">
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-            <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte" className="cursor-pointer">Mon compte</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mes commandes</span>
+            <Link href="/" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><Link href="/compte" className="cursor-pointer">Mon compte</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Mes commandes</span>
           </div>
           <h1 className="text-2xl font-extrabold tracking-normal text-slate-900 dark:text-white">Mes commandes</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{ORDERS.length}</b> commandes au total</p>

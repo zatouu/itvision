@@ -14,49 +14,45 @@ import RetryNotice from '../RetryNotice';
 import { useQuickAdd } from '../useQuickAdd';
 import { mapCatalogItem, mapCategory } from '../data-mappers';
 import { productMatchesCategory } from '@/lib/catalog/category-match';
+import { PAGE_SIZE, MOQ_BUCKETS, buildCatalogParams, filtersFromParams, type CatalogFilters } from '../catalog-query';
 import type { Product, Category } from '../types';
 
-
-const PAGE_SIZE = 24;
-
-const SORT_MAP: Record<string, string> = {
-  popular: 'rating-desc',
-  price_asc: 'price-asc',
-  price_desc: 'price-desc',
-  save: 'groupbuy-discount-desc',
-  new: 'default',
+/** Première page du catalogue rendue côté serveur (indexable), pour les filtres d'URL donnés. */
+export type CatalogInitialData = {
+  filters: CatalogFilters;
+  products: Product[];
+  total: number;
+  hasMore: boolean;
+  categories: Category[];
 };
 
-// Filtre « lot minimum » : `lot` = vendu par lots (> 1) ; tranches affinées client
-const MOQ_BUCKETS = ['lot', '1-4', '5-9', '10-24', '25+'];
-const MOQ_LOWER_BOUND: Record<string, number> = { '5-9': 5, '10-24': 10, '25+': 25 };
-
-export default function ScreenCatalog() {
+export default function ScreenCatalog({ initialData }: { initialData?: CatalogInitialData | null } = {}) {
   const router = useRouter();
   const { open: openSourcing } = useSourcingModal();
   const { quickAdd, toast: quickAddToast } = useQuickAdd();
-  const [loading, setLoading] = useState(true);
-  const [CATEGORIES, setCATEGORIES] = useState<Category[]>([]);
-  const [CATALOG, setCATALOG] = useState<Product[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(!initialData);
+  const [CATEGORIES, setCATEGORIES] = useState<Category[]>(initialData?.categories ?? []);
+  const [CATALOG, setCATALOG] = useState<Product[]>(initialData?.products ?? []);
+  const [total, setTotal] = useState(initialData?.total ?? 0);
+  const [page, setPage] = useState(initialData ? 1 : 0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? true);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const loadGen = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const serverRendered = useRef(Boolean(initialData));
 
-  const [cat, setCat] = useState("Tous"); // clé catégorie (slug)
+  const [cat, setCat] = useState(initialData?.filters.cat ?? "Tous"); // clé catégorie (slug)
   const [priceRange, setPriceRange] = useState([0, 0]);
-  const [moqFilter, setMoqFilter] = useState("all");
-  const [groupOnly, setGroupOnly] = useState(false);
+  const [moqFilter, setMoqFilter] = useState(initialData?.filters.moq ?? "all");
+  const [groupOnly, setGroupOnly] = useState(initialData?.filters.groupOnly ?? false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [minSave, setMinSave] = useState(0);
   const [sort, setSort] = useState("popular");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [queryDeb, setQueryDeb] = useState("");
+  const [query, setQuery] = useState(initialData?.filters.q ?? "");
+  const [queryDeb, setQueryDeb] = useState(initialData?.filters.q ?? "");
 
   // Debounce recherche (les frappes ne doivent pas relancer un fetch à chaque lettre)
   useEffect(() => {
@@ -66,23 +62,7 @@ export default function ScreenCatalog() {
 
   // Charge une page catalogue (params serveur : recherche, catégorie, tri, groupes)
   const loadPage = useCallback(async (p: number, gen: number, replace: boolean) => {
-    const params = new URLSearchParams({
-      limit: String(PAGE_SIZE),
-      page: String(p),
-      compact: '1',
-      includeGroupStats: '1',
-      sortBy: SORT_MAP[sort] || 'rating-desc',
-    });
-    if (queryDeb) params.set('q', queryDeb);
-    if (cat !== 'Tous') params.set('category', cat);
-    if (groupOnly) params.set('onlyGroupBuy', '1');
-    // Lot minimum : borne basse appliquée côté serveur (pagination juste),
-    // borne haute des tranches affinée côté client.
-    if (moqFilter === 'lot') params.set('moq', 'lot');
-    else {
-      const lower = MOQ_LOWER_BOUND[moqFilter];
-      if (lower && lower > 1) params.set('minMoq', String(lower));
-    }
+    const params = buildCatalogParams(p, { cat, q: queryDeb, moq: moqFilter, groupOnly, sort });
 
     const response = await fetch(`/api/catalog/products?${params}`);
     if (!response.ok) throw new Error('Le catalogue est temporairement indisponible. Vos filtres sont conservés.');
@@ -105,6 +85,8 @@ export default function ScreenCatalog() {
 
   // (Re)chargement initial + à chaque changement de filtre côté serveur
   useEffect(() => {
+    // Première page déjà rendue par le serveur pour ces filtres : pas de rechargement au montage
+    if (serverRendered.current) { serverRendered.current = false; return; }
     const gen = ++loadGen.current;
     setLoading(true);
     setLoadingMore(false);
@@ -119,11 +101,13 @@ export default function ScreenCatalog() {
 
   // Catégories : une seule fois (elles ne dépendent pas des filtres)
   useEffect(() => {
+    if (initialData?.categories?.length) return;
     fetch('/api/catalog/categories').then(r => r.json()).catch(() => null)
       .then(catRes => {
         const catList = catRes?.categories || catRes?.items;
         if (catList?.length) setCATEGORIES(catList.map(mapCategory));
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Infinite scroll : le sentinelle charge la page suivante en approchant du bas
@@ -150,14 +134,12 @@ export default function ScreenCatalog() {
   // déjà sur /produits doit répercuter le nouveau terme.
   const searchParams = useSearchParams();
   useEffect(() => {
-    const catParam = searchParams.get('cat') || searchParams.get('category');
-    const qParam = searchParams.get('q');
-    const moqParam = searchParams.get('moq');
-    setCat(catParam || 'Tous');
-    setQuery(qParam || '');
+    const f = filtersFromParams(key => searchParams.get(key));
+    setCat(f.cat);
+    setQuery(f.q);
     // « lot » = produits vendus par lots (lot minimum > 1), aligné sur l'API
-    setMoqFilter(moqParam && MOQ_BUCKETS.includes(moqParam) ? moqParam : 'all');
-    setGroupOnly(searchParams.get('groupe') === '1');
+    setMoqFilter(f.moq);
+    setGroupOnly(f.groupOnly);
   }, [searchParams]);
 
   // Plage de prix réelle du catalogue (le slider suit le max observé)
@@ -379,7 +361,7 @@ export default function ScreenCatalog() {
           <div className="mb-4 flex items-baseline justify-between">
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                <Link href="/market" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
+                <Link href="/" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
               </div>
               <h1 className="text-2xl font-extrabold tracking-normal text-slate-900 dark:text-white">
                 {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
@@ -420,7 +402,7 @@ export default function ScreenCatalog() {
                 <Fragment>
                   <p className="mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 md:hidden"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""}</p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
-                    {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} onClick={() => router.push(`/produits/${p.id}`)}/>)}
+                    {filtered.map((p) => <ProductCard key={p.id} product={p} onQuickAdd={quickAdd} href={`/produits/${p.id}`} onClick={() => router.push(`/produits/${p.id}`)}/>)}
                   </div>
                   <div className="mt-4 hidden items-center justify-center md:flex">
                     <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Affichage {filtered.length} / {displayCount}</span>

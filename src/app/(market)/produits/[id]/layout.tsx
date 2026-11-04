@@ -6,8 +6,9 @@ import ProductModel from '@/lib/models/Product';
 import Review from '@/lib/models/Review';
 import { computeProductPricing } from '@/lib/logistics';
 import { buildProductJsonLd } from '@/lib/structured-data';
+import { MARKET_SITE_URL } from '@/lib/branding';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://market.itvisionplus.sn';
+const SITE_URL = MARKET_SITE_URL;
 
 interface LayoutProps {
   params: Promise<{ id: string }>;

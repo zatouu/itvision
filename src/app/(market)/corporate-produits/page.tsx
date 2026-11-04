@@ -7,9 +7,10 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const metadata = {
-  title: 'Solutions & Équipements | IT Vision — Sécurité Électronique',
+  title: 'Équipements de sécurité électronique à Dakar — IT Vision Plus',
   description:
     "Équipements professionnels de sécurité électronique : vidéosurveillance, contrôle d'accès, alarme, réseau. Devis personnalisé, installation et maintenance au Sénégal.",
+  alternates: { canonical: '/produits' },
 }
 
 function normalizeStr(s: string): string {
