@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx'
+import { Document, HeadingLevel, ImageRun, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx'
+import { brandingImages } from '@/lib/pdf-documents'
 
 export type ContractSiteEquipment = { type: string; quantity: number }
 export type ContractSite = {
@@ -212,13 +213,21 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
   }
 
   // En-tête
+  const images = brandingImages()
   doc.setFillColor(16, 185, 129)
   doc.rect(0, 0, 595, 70, 'F')
+  let titleX = 40
+  if (images.logo) {
+    try {
+      doc.addImage(images.logo, 'PNG', 30, 8, 70, 56)
+      titleX = 115
+    } catch {}
+  }
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(18)
-  doc.text(`Contrat de maintenance — ${title}`, 40, 40)
+  doc.text(`Contrat de maintenance — ${title}`, titleX, 40)
   doc.setFontSize(10)
-  doc.text(`${contract.contractNumber || ''}  ${contract.client.company || contract.client.name}`, 40, 58)
+  doc.text(`${contract.contractNumber || ''}  ${contract.client.company || contract.client.name}`, titleX, 58)
   doc.setTextColor(33, 33, 33)
 
   let y = 95
@@ -298,6 +307,11 @@ export function generateMaintenanceContractPdf(contract: ContractExportData): Ar
   doc.setFontSize(9)
   doc.text(`${PROVIDER.representative}`, 60, y)
   doc.text(`${contract.client.contactPerson || contract.client.company || contract.client.name}`, 380, y)
+  if (images.stamp) {
+    try {
+      doc.addImage(images.stamp, 'PNG', 55, y + 14, 120, 80)
+    } catch {}
+  }
 
   footer()
   return doc.output('arraybuffer') as unknown as ArrayBuffer
@@ -343,6 +357,15 @@ const equipmentTable = (site: ContractSite) =>
 export async function generateMaintenanceContractDocx(contract: ContractExportData): Promise<ArrayBuffer> {
   const sites = resolvedSites(contract)
   const children: Array<Paragraph | Table> = []
+  const images = brandingImages()
+  const logoData = images.logo ? Buffer.from(images.logo.split(',')[1], 'base64') : undefined
+  const stampData = images.stamp ? Buffer.from(images.stamp.split(',')[1], 'base64') : undefined
+  if (logoData) {
+    children.push(new Paragraph({
+      children: [new ImageRun({ type: 'png', data: logoData, transformation: { width: 100, height: 90 } })],
+      spacing: { after: 200 },
+    }))
+  }
 
   children.push(
     new Paragraph({
@@ -385,8 +408,15 @@ export async function generateMaintenanceContractDocx(contract: ContractExportDa
     for (const line of contract.notes.split('\n')) children.push(paragraph(line))
   }
 
+  if (stampData) {
+    children.push(new Paragraph({
+      children: [new ImageRun({ type: 'png', data: stampData, transformation: { width: 160, height: 115 } })],
+      spacing: { before: 300 },
+    }))
+  }
+
   children.push(
-    new Paragraph({ spacing: { before: 300 }, children: [] }),
+    new Paragraph({ spacing: { before: stampData ? 0 : 300 }, children: [] }),
     paragraph('Fait à Dakar, le _____________________'),
     paragraph('Le Prestataire : _____________________'),
     paragraph(`(${PROVIDER.representative}, ${PROVIDER.repTitle} — ${PROVIDER.name})`),
