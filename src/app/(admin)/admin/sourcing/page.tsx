@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Breadcrumb from '@/components/Breadcrumb'
+import NumInput from '@/components/NumInput'
 import {
   Search, Loader2, RefreshCw, Globe, CheckCircle, XCircle,
   AlertTriangle, Clock, PackageOpen, Play,
@@ -41,7 +42,7 @@ export default function AdminSourcingPage() {
   const [query, setQuery] = useState('')
   const [urls, setUrls] = useState('')
   const [category, setCategory] = useState('')
-  const [maxItems, setMaxItems] = useState(10)
+  const [maxItems, setMaxItems] = useState<number | undefined>(10)
   const [groupBuyEligible, setGroupBuyEligible] = useState(true)
 
   const load = useCallback(async () => {
@@ -80,7 +81,7 @@ export default function AdminSourcingPage() {
           query: query.trim() || undefined,
           urls: urls.trim() ? urls.split('\n').map((u) => u.trim()).filter(Boolean) : undefined,
           category: category || undefined,
-          maxItems,
+          maxItems: maxItems || 10,
           groupBuyEligible,
         }),
       })
@@ -161,12 +162,11 @@ export default function AdminSourcingPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Produits max</label>
-            <input
-              type="number"
+            <NumInput
               min={1}
               max={30}
               value={maxItems}
-              onChange={(e) => setMaxItems(Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
+              onChange={(v) => setMaxItems(v == null ? undefined : Math.min(30, Math.max(1, v)))}
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400"
             />
           </div>

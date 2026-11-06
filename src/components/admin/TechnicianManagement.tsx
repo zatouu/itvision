@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { 
+import {
   Search, Users, Mail, Phone, RefreshCw, Plus, Edit3, Trash2,
   Eye, Download, X, MapPin, Calendar, Activity, Award, Clock,
   CheckCircle2, AlertCircle, Wrench, Shield, Star, TrendingUp,
   Navigation, Settings, User, Key, Upload, Briefcase
 } from 'lucide-react'
+import NumInput from '../NumInput'
 
 interface Technician {
   _id: string
@@ -67,12 +68,12 @@ export default function TechnicianManagement() {
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
-  
+
   // Modale
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add')
   const [selectedTech, setSelectedTech] = useState<Technician | null>(null)
-  
+
   // Formulaire
   const [formData, setFormData] = useState<TechFormData>({
     name: '',
@@ -88,7 +89,7 @@ export default function TechnicianManagement() {
       weekends: false
     }
   })
-  
+
   const [saving, setSaving] = useState(false)
   const [newSpecialty, setNewSpecialty] = useState('')
   const [newCertification, setNewCertification] = useState('')
@@ -118,10 +119,10 @@ export default function TechnicianManagement() {
         ...(statusFilter !== 'all' && { status: statusFilter }),
         ...(specialtyFilter !== 'all' && { specialty: specialtyFilter })
       })
-      
+
       const res = await fetch(`/api/admin/technicians?${params}`)
       const data = await res.json()
-      
+
       if (data.success) {
         setTechnicians(data.technicians || [])
         setTotal(data.total || 0)
@@ -137,14 +138,14 @@ export default function TechnicianManagement() {
     }
   }
 
-  useEffect(() => { 
-    fetchTechnicians() 
+  useEffect(() => {
+    fetchTechnicians()
   }, [currentPage, searchTerm, statusFilter, specialtyFilter])
 
   const openModal = (mode: 'add' | 'edit' | 'view', tech?: Technician) => {
     setModalMode(mode)
     setSelectedTech(tech || null)
-    
+
     if (mode === 'add') {
       setFormData({
         name: '',
@@ -176,7 +177,7 @@ export default function TechnicianManagement() {
         }
       })
     }
-    
+
     setShowModal(true)
   }
 
@@ -198,12 +199,12 @@ export default function TechnicianManagement() {
 
     setSaving(true)
     try {
-      const url = modalMode === 'edit' && selectedTech 
+      const url = modalMode === 'edit' && selectedTech
         ? `/api/admin/technicians/${selectedTech._id}`
         : '/api/admin/technicians'
-      
+
       const method = modalMode === 'edit' ? 'PUT' : 'POST'
-      
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -211,7 +212,7 @@ export default function TechnicianManagement() {
       })
 
       const data = await res.json()
-      
+
       if (data.success) {
         alert(modalMode === 'edit' ? 'Technicien modifié avec succès !' : 'Technicien créé avec succès !')
         closeModal()
@@ -236,7 +237,7 @@ export default function TechnicianManagement() {
       })
 
       const data = await res.json()
-      
+
       if (data.success) {
         alert('Technicien supprimé avec succès')
         fetchTechnicians()
@@ -257,7 +258,7 @@ export default function TechnicianManagement() {
       })
 
       const data = await res.json()
-      
+
       if (data.success) {
         fetchTechnicians()
       } else {
@@ -317,11 +318,11 @@ export default function TechnicianManagement() {
   }
 
   const totalPages = Math.ceil(total / perPage)
-  
+
   const filteredTechs = technicians.filter(t => {
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
-      if (!t.name.toLowerCase().includes(search) && 
+      if (!t.name.toLowerCase().includes(search) &&
           !t.email.toLowerCase().includes(search) &&
           !t.phone.includes(search)) {
         return false
@@ -335,7 +336,7 @@ export default function TechnicianManagement() {
     total: technicians.length,
     active: technicians.filter(t => t.isActive).length,
     available: technicians.filter(t => t.isAvailable).length,
-    avgRating: technicians.length > 0 
+    avgRating: technicians.length > 0
       ? (technicians.reduce((sum, t) => sum + (t.stats.averageRating || 0), 0) / technicians.length).toFixed(1)
       : '0.0'
   }
@@ -346,7 +347,7 @@ export default function TechnicianManagement() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-600 via-red-500 to-rose-500 text-white p-8 shadow-2xl">
         <div className="absolute top-0 left-0 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-rose-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse delay-700" />
-        
+
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
@@ -360,17 +361,17 @@ export default function TechnicianManagement() {
               </h1>
               <p className="text-white/90">Gérez votre équipe technique et leurs interventions</p>
             </div>
-            
+
             <div className="flex flex-wrap gap-3">
-              <button 
+              <button
                 onClick={() => openModal('add')}
                 className="inline-flex items-center gap-2 bg-white text-orange-600 px-6 py-3 rounded-xl hover:bg-white/90 transition-all font-semibold shadow-lg hover:scale-105"
               >
                 <Plus className="h-5 w-5" />
                 Nouveau technicien
               </button>
-              
-              <button 
+
+              <button
                 onClick={exportTechnicians}
                 disabled={technicians.length === 0}
                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-4 py-3 rounded-xl hover:bg-white/20 transition-all disabled:opacity-50"
@@ -396,15 +397,15 @@ export default function TechnicianManagement() {
           <div className="text-xs text-blue-600 mt-1">Dans l'équipe</div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-medium text-emerald-800">Actifs</div>
-            <div className="p-2.5 bg-emerald-500 rounded-xl">
+            <div className="text-sm font-medium text-green-700">Actifs</div>
+            <div className="p-2.5 bg-green-500 rounded-xl">
               <CheckCircle2 className="h-5 w-5 text-white" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-emerald-900">{metrics.active}</div>
-          <div className="text-xs text-emerald-700 mt-1">
+          <div className="text-3xl font-bold text-green-900">{metrics.active}</div>
+          <div className="text-xs text-green-600 mt-1">
             {metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 0}% du total
           </div>
         </div>
@@ -433,24 +434,24 @@ export default function TechnicianManagement() {
       </div>
 
       {/* Barre de recherche et filtres */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Rechercher par nom, email, téléphone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-stone-50"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
             />
           </div>
-          
+
           <div className="flex gap-3">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-stone-50"
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
             >
               <option value="all">Tous les statuts</option>
               <option value="active">Actifs</option>
@@ -462,16 +463,16 @@ export default function TechnicianManagement() {
             <select
               value={specialtyFilter}
               onChange={(e) => setSpecialtyFilter(e.target.value)}
-              className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-stone-50"
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
             >
               <option value="all">Toutes spécialités</option>
               {predefinedSpecialties.map(spec => (
                 <option key={spec} value={spec}>{spec}</option>
               ))}
             </select>
-            
-            <button 
-              onClick={fetchTechnicians} 
+
+            <button
+              onClick={fetchTechnicians}
               disabled={loading}
               className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-3 rounded-xl hover:bg-orange-200 transition-colors disabled:opacity-50"
             >
@@ -496,10 +497,10 @@ export default function TechnicianManagement() {
           <RefreshCw className="h-8 w-8 text-orange-600 animate-spin" />
         </div>
       ) : filteredTechs.length === 0 ? (
-        <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center">
-          <Users className="h-16 w-16 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-stone-900 mb-2">Aucun technicien trouvé</h3>
-          <p className="text-stone-600 mb-6">
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+          <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun technicien trouvé</h3>
+          <p className="text-gray-600 mb-6">
             {searchTerm || statusFilter !== 'all' || specialtyFilter !== 'all'
               ? 'Aucun technicien ne correspond à vos critères'
               : 'Commencez par ajouter votre premier technicien'}
@@ -518,14 +519,14 @@ export default function TechnicianManagement() {
             {filteredTechs.map((tech) => (
               <div
                 key={tech._id}
-                className="bg-white border border-stone-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative"
+                className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative"
               >
                 {/* Badges statut */}
                 <div className="absolute top-4 right-4 flex gap-2 flex-col items-end">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    tech.isActive 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : 'bg-stone-100 text-stone-600'
+                    tech.isActive
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600'
                   }`}>
                     {tech.isActive ? '✓ Actif' : 'Inactif'}
                   </span>
@@ -533,9 +534,9 @@ export default function TechnicianManagement() {
                     <button
                       onClick={() => toggleAvailability(tech)}
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        tech.isAvailable 
-                          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' 
-                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        tech.isAvailable
+                          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       } transition`}
                     >
                       {tech.isAvailable ? '🟢 Disponible' : '🔴 Occupé'}
@@ -550,24 +551,24 @@ export default function TechnicianManagement() {
 
                 {/* Infos principales */}
                 <div className="mb-4">
-                  <h3 className="font-bold text-stone-900 text-lg mb-1 pr-28 truncate">
+                  <h3 className="font-bold text-gray-900 text-lg mb-1 pr-28 truncate">
                     {tech.name}
                   </h3>
-                  <p className="text-xs text-stone-500 font-mono">{tech.technicianId}</p>
+                  <p className="text-xs text-gray-500 font-mono">{tech.technicianId}</p>
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Mail className="h-4 w-4 text-orange-500 flex-shrink-0" />
                     <span className="truncate">{tech.email}</span>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Phone className="h-4 w-4 text-orange-500 flex-shrink-0" />
                     <span>{tech.phone}</span>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Briefcase className="h-4 w-4 text-orange-500 flex-shrink-0" />
                     <span>{tech.experience} an{tech.experience > 1 ? 's' : ''} d'expérience</span>
                   </div>
@@ -583,7 +584,7 @@ export default function TechnicianManagement() {
                         </span>
                       ))}
                       {tech.specialties.length > 3 && (
-                        <span className="px-2 py-0.5 bg-stone-100 text-stone-600 text-xs rounded-md">
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">
                           +{tech.specialties.length - 3}
                         </span>
                       )}
@@ -592,21 +593,21 @@ export default function TechnicianManagement() {
                 )}
 
                 {/* Statistiques */}
-                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-stone-100 mb-4">
+                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100 mb-4">
                   <div className="text-center">
-                    <div className="text-xl font-bold text-stone-900">{tech.stats.totalReports || 0}</div>
-                    <div className="text-xs text-stone-500">Rapports</div>
+                    <div className="text-xl font-bold text-gray-900">{tech.stats.totalReports || 0}</div>
+                    <div className="text-xs text-gray-500">Rapports</div>
                   </div>
                   <div className="text-center">
                     <div className="text-xl font-bold text-yellow-600 flex items-center justify-center gap-1">
                       {(tech.stats.averageRating || 0).toFixed(1)}
                       <Star className="h-4 w-4 fill-current" />
                     </div>
-                    <div className="text-xs text-stone-500">Note</div>
+                    <div className="text-xs text-gray-500">Note</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-emerald-700">{tech.stats.completionRate || 0}%</div>
-                    <div className="text-xs text-stone-500">Complété</div>
+                    <div className="text-xl font-bold text-green-600">{tech.stats.completionRate || 0}%</div>
+                    <div className="text-xs text-gray-500">Complété</div>
                   </div>
                 </div>
 
@@ -614,12 +615,12 @@ export default function TechnicianManagement() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openModal('view', tech)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-all text-sm font-medium hover:scale-105"
+                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all text-sm font-medium hover:scale-105"
                   >
                     <Eye className="h-4 w-4" />
                     Voir
                   </button>
-                  
+
                   <button
                     onClick={() => openModal('edit', tech)}
                     className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-orange-100 text-orange-700 rounded-xl hover:bg-orange-200 transition-all text-sm font-medium hover:scale-105"
@@ -627,7 +628,7 @@ export default function TechnicianManagement() {
                     <Edit3 className="h-4 w-4" />
                     Modifier
                   </button>
-                  
+
                   <button
                     onClick={() => handleDelete(tech._id)}
                     className="inline-flex items-center justify-center p-2.5 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
@@ -641,24 +642,24 @@ export default function TechnicianManagement() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between bg-white border border-stone-200 rounded-2xl p-4">
-              <div className="text-sm text-stone-600 font-medium">
+            <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl p-4">
+              <div className="text-sm text-gray-600 font-medium">
                 Page <span className="text-orange-600">{currentPage}</span> sur {totalPages} • {total} technicien{total > 1 ? 's' : ''}
               </div>
-              
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Précédent
                 </button>
-                
+
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Suivant
                 </button>
@@ -697,16 +698,16 @@ export default function TechnicianManagement() {
                       {selectedTech.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl font-bold text-stone-900">{selectedTech.name}</h3>
-                      <p className="text-sm text-stone-500 font-mono mt-1">{selectedTech.technicianId}</p>
+                      <h3 className="text-3xl font-bold text-gray-900">{selectedTech.name}</h3>
+                      <p className="text-sm text-gray-500 font-mono mt-1">{selectedTech.technicianId}</p>
                       <div className="flex gap-2 mt-2">
                         <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                          selectedTech.isActive ? 'bg-emerald-500 text-white' : 'bg-stone-300 text-stone-700'
+                          selectedTech.isActive ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'
                         }`}>
                           {selectedTech.isActive ? '✓ Actif' : 'Inactif'}
                         </span>
                         <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                          selectedTech.isAvailable ? 'bg-orange-500 text-white' : 'bg-stone-300 text-stone-700'
+                          selectedTech.isAvailable ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-700'
                         }`}>
                           {selectedTech.isAvailable ? '🟢 Disponible' : '🔴 Occupé'}
                         </span>
@@ -722,15 +723,15 @@ export default function TechnicianManagement() {
                       </div>
                       <div className="font-semibold text-blue-900 break-all">{selectedTech.email}</div>
                     </div>
-                    
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
-                      <div className="text-sm text-emerald-800 font-medium mb-1 flex items-center gap-2">
+
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                      <div className="text-sm text-green-700 font-medium mb-1 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         Téléphone
                       </div>
-                      <div className="font-semibold text-emerald-900">{selectedTech.phone}</div>
+                      <div className="font-semibold text-green-900">{selectedTech.phone}</div>
                     </div>
-                    
+
                     <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
                       <div className="text-sm text-purple-700 font-medium mb-1 flex items-center gap-2">
                         <Briefcase className="h-4 w-4" />
@@ -738,7 +739,7 @@ export default function TechnicianManagement() {
                       </div>
                       <div className="font-semibold text-purple-900">{selectedTech.experience} an{selectedTech.experience > 1 ? 's' : ''}</div>
                     </div>
-                    
+
                     <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4">
                       <div className="text-sm text-yellow-700 font-medium mb-1 flex items-center gap-2">
                         <Star className="h-4 w-4" />
@@ -767,14 +768,14 @@ export default function TechnicianManagement() {
 
                   {/* Certifications */}
                   {selectedTech.certifications && selectedTech.certifications.length > 0 && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                      <div className="text-sm font-semibold text-emerald-900 mb-2 flex items-center gap-2">
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="text-sm font-semibold text-green-900 mb-2 flex items-center gap-2">
                         <Award className="h-4 w-4" />
                         Certifications
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {selectedTech.certifications.map((cert, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-emerald-200 text-emerald-800 text-sm rounded-lg font-medium">
+                          <span key={idx} className="px-3 py-1 bg-green-200 text-green-800 text-sm rounded-lg font-medium">
                             {cert}
                           </span>
                         ))}
@@ -783,22 +784,22 @@ export default function TechnicianManagement() {
                   )}
 
                   {/* Statistiques détaillées */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-stone-50 rounded-xl p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-xl p-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-stone-900">{selectedTech.stats.totalReports || 0}</div>
-                      <div className="text-xs text-stone-600 mt-1">Rapports totaux</div>
+                      <div className="text-2xl font-bold text-gray-900">{selectedTech.stats.totalReports || 0}</div>
+                      <div className="text-xs text-gray-600 mt-1">Rapports totaux</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-emerald-700">{selectedTech.stats.completionRate || 0}%</div>
-                      <div className="text-xs text-stone-600 mt-1">Taux complétion</div>
+                      <div className="text-2xl font-bold text-green-600">{selectedTech.stats.completionRate || 0}%</div>
+                      <div className="text-xs text-gray-600 mt-1">Taux complétion</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-orange-600">{selectedTech.stats.onTimeRate || 0}%</div>
-                      <div className="text-xs text-stone-600 mt-1">Ponctualité</div>
+                      <div className="text-xs text-gray-600 mt-1">Ponctualité</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">{selectedTech.stats.averageResponseTime || 0}min</div>
-                      <div className="text-xs text-stone-600 mt-1">Temps réponse</div>
+                      <div className="text-xs text-gray-600 mt-1">Temps réponse</div>
                     </div>
                   </div>
 
@@ -815,7 +816,7 @@ export default function TechnicianManagement() {
                     </button>
                     <button
                       onClick={closeModal}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-all font-semibold"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-semibold"
                     >
                       Fermer
                     </button>
@@ -827,37 +828,37 @@ export default function TechnicianManagement() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Informations de base */}
                     <div className="md:col-span-2">
-                      <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <User className="h-5 w-5" />
                         Informations de base
                       </h3>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Nom complet *
                       </label>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         placeholder="Jean Dupont"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Email *
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           placeholder="jean@email.com"
                           required
                         />
@@ -865,16 +866,16 @@ export default function TechnicianManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Téléphone *
                       </label>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="tel"
                           value={formData.phone}
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           placeholder="+221 77 123 45 67"
                           required
                         />
@@ -882,16 +883,16 @@ export default function TechnicianManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         {modalMode === 'add' ? 'Mot de passe *' : 'Nouveau mot de passe (optionnel)'}
                       </label>
                       <div className="relative">
-                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="password"
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           placeholder="••••••••"
                           required={modalMode === 'add'}
                         />
@@ -899,22 +900,22 @@ export default function TechnicianManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Années d'expérience
                       </label>
-                      <input
-                        type="number"
+                      <NumInput
                         min="0"
                         max="50"
                         value={formData.experience}
-                        onChange={(e) => setFormData({ ...formData, experience: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        emptyValue={0}
+                        onChange={(v) => setFormData({ ...formData, experience: v ?? 0 })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* Spécialités */}
                     <div className="md:col-span-2">
-                      <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2 mt-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 mt-4">
                         <Wrench className="h-5 w-5" />
                         Spécialités
                       </h3>
@@ -943,7 +944,7 @@ export default function TechnicianManagement() {
                               addSpecialty()
                             }
                           }}
-                          className="flex-1 px-4 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           placeholder="Ajouter une spécialité..."
                         />
                         <button
@@ -961,7 +962,7 @@ export default function TechnicianManagement() {
                               key={spec}
                               type="button"
                               onClick={() => setFormData({ ...formData, specialties: [...formData.specialties, spec] })}
-                              className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md hover:bg-stone-200"
+                              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md hover:bg-gray-200"
                             >
                               + {spec}
                             </button>
@@ -972,18 +973,18 @@ export default function TechnicianManagement() {
 
                     {/* Certifications */}
                     <div className="md:col-span-2">
-                      <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2 mt-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 mt-4">
                         <Award className="h-5 w-5" />
                         Certifications
                       </h3>
                       <div className="flex flex-wrap gap-2 mb-3">
                         {formData.certifications.map((cert, idx) => (
-                          <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium">
+                          <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
                             {cert}
                             <button
                               type="button"
                               onClick={() => removeCertification(cert)}
-                              className="hover:bg-emerald-200 rounded p-0.5"
+                              className="hover:bg-green-200 rounded p-0.5"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -1001,13 +1002,13 @@ export default function TechnicianManagement() {
                               addCertification()
                             }
                           }}
-                          className="flex-1 px-4 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           placeholder="Ajouter une certification..."
                         />
                         <button
                           type="button"
                           onClick={addCertification}
-                          className="px-4 py-2 bg-emerald-800 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+                          className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
                         >
                           <Plus className="h-5 w-5" />
                         </button>
@@ -1016,33 +1017,33 @@ export default function TechnicianManagement() {
 
                     {/* Horaires de travail */}
                     <div className="md:col-span-2">
-                      <h3 className="text-lg font-semibold text-stone-900 mb-4 flex items-center gap-2 mt-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2 mt-4">
                         <Clock className="h-5 w-5" />
                         Horaires de travail
                       </h3>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Début</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Début</label>
                           <input
                             type="time"
                             value={formData.workingHours.start}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
+                            onChange={(e) => setFormData({
+                              ...formData,
                               workingHours: { ...formData.workingHours, start: e.target.value }
                             })}
-                            className="w-full px-4 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Fin</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Fin</label>
                           <input
                             type="time"
                             value={formData.workingHours.end}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
+                            onChange={(e) => setFormData({
+                              ...formData,
                               workingHours: { ...formData.workingHours, end: e.target.value }
                             })}
-                            className="w-full px-4 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           />
                         </div>
                         <div className="flex items-end">
@@ -1050,11 +1051,11 @@ export default function TechnicianManagement() {
                             <input
                               type="checkbox"
                               checked={formData.workingHours.weekends}
-                              onChange={(e) => setFormData({ 
-                                ...formData, 
+                              onChange={(e) => setFormData({
+                                ...formData,
                                 workingHours: { ...formData.workingHours, weekends: e.target.checked }
                               })}
-                              className="w-5 h-5 rounded border-stone-300 text-orange-600 focus:ring-orange-500"
+                              className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                             />
                             <span className="text-sm font-medium text-orange-900">Week-ends</span>
                           </label>
@@ -1063,11 +1064,11 @@ export default function TechnicianManagement() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-stone-200">
+                  <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="flex-1 px-6 py-4 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-colors font-semibold"
+                      className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
                     >
                       Annuler
                     </button>

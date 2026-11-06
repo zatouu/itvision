@@ -1,19 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  DollarSign, 
-  Edit3, 
-  Save, 
-  RefreshCw, 
-  TrendingUp, 
-  Package, 
-  Search, 
-  Filter, 
-  Check, 
-  X, 
-  AlertTriangle, 
-  Eye, 
+import NumInput from './NumInput'
+import {
+  DollarSign,
+  Edit3,
+  Save,
+  RefreshCw,
+  TrendingUp,
+  Package,
+  Search,
+  Filter,
+  Check,
+  X,
+  AlertTriangle,
+  Eye,
   History,
   Calculator
 } from 'lucide-react'
@@ -69,7 +70,7 @@ export default function QuickPriceEditor() {
         {
           id: 'pbo-commscope-f04',
           name: 'PBO 4 ports',
-          model: 'FlexNAP F04', 
+          model: 'FlexNAP F04',
           brand: 'CommScope',
           category: 'fiber-optic',
           unitPrice: 45000,
@@ -169,7 +170,7 @@ export default function QuickPriceEditor() {
 
     // Mettre à jour le produit
     setProducts(prev => {
-      const updated = prev.map(product => 
+      const updated = prev.map(product =>
         product.id === productId
           ? {
               ...product,
@@ -180,7 +181,7 @@ export default function QuickPriceEditor() {
             }
           : product
       )
-      
+
       // Sauvegarder dans localStorage
       localStorage.setItem('itvision-products', JSON.stringify(updated))
       return updated
@@ -225,7 +226,7 @@ export default function QuickPriceEditor() {
         }
         return product
       })
-      
+
       localStorage.setItem('itvision-products', JSON.stringify(updated))
       return updated
     })
@@ -276,7 +277,7 @@ export default function QuickPriceEditor() {
               Modifiez vos prix en temps réel - Synchronisation automatique avec le site
             </p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <button
               onClick={() => bulkUpdateMargin(30)}
@@ -284,7 +285,7 @@ export default function QuickPriceEditor() {
             >
               Marge 30% Tous
             </button>
-            
+
             <button
               onClick={loadProducts}
               className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
@@ -385,7 +386,7 @@ export default function QuickPriceEditor() {
             <tbody className="divide-y divide-gray-200">
               {filteredProducts.map((product) => {
                 const editing = editingPrices[product.id]
-                const currentMargin = editing 
+                const currentMargin = editing
                   ? ((editing.price - editing.cost) / editing.price) * 100
                   : product.margin
 
@@ -401,10 +402,10 @@ export default function QuickPriceEditor() {
 
                     <td className="px-4 py-4">
                       {editing ? (
-                        <input
-                          type="number"
+                        <NumInput
                           value={editing.cost}
-                          onChange={(e) => updateEditingPrice(product.id, 'cost', parseInt(e.target.value) || 0)}
+                          emptyValue={0}
+                          onChange={(v) => updateEditingPrice(product.id, 'cost', v ?? 0)}
                           className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                         />
                       ) : (
@@ -417,10 +418,10 @@ export default function QuickPriceEditor() {
                     <td className="px-4 py-4">
                       {editing ? (
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
+                          <NumInput
                             value={editing.price}
-                            onChange={(e) => updateEditingPrice(product.id, 'price', parseInt(e.target.value) || 0)}
+                            emptyValue={0}
+                            onChange={(v) => updateEditingPrice(product.id, 'price', v ?? 0)}
                             className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                           />
                           {showMarginWarning === product.id && (

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCsrf } from '@/hooks/useCsrf'
+import NumInput from '../NumInput'
 import {
   Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
   Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users,
@@ -69,7 +70,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
 
   const [form, setForm] = useState({
     productId: '', productName: '', productCategory: 'Tech', productImage: '', productDescription: '',
-    productBasePrice: 0, targetQty: 0, initialQty: 1, currentUnitPrice: 0,
+    productBasePrice: 0, targetQty: 0, initialQty: 1 as number | undefined, currentUnitPrice: 0,
     priceTiers: [] as Array<{ minQty: number; price: number; discount: number }>,
     deadline: '', shippingMethod: 'maritime_60j' as 'maritime_60j'|'air_15j'|'express_3j',
     creatorName: '', creatorPhone: '', creatorEmail: '',
@@ -253,7 +254,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
     }
     const minQty = groupDefaults.minQty
     const maxQty = groupDefaults.maxJoinQty
-    if (!Number.isFinite(form.initialQty) || form.initialQty < minQty || (maxQty > 0 && form.initialQty > maxQty)) {
+    if (form.initialQty == null || form.initialQty < minQty || (maxQty > 0 && form.initialQty > maxQty)) {
       alert(`Quantité initiale invalide : entre ${minQty} et ${maxQty > 0 ? maxQty : '∞'}.`)
       return
     }
@@ -301,7 +302,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   }
 
   const estimatedUnitPrice = useMemo(() => {
-    const qty = Number.isFinite(form.initialQty) ? form.initialQty : 0
+    const qty = form.initialQty ?? 0
     const tiers = [...form.priceTiers].sort((a, b) => b.minQty - a.minQty)
     const matched = tiers.find(t => qty >= t.minQty)
     const price = matched?.price ?? form.productBasePrice
@@ -566,7 +567,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
-                        <input type="number" min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(Number(e.target.value) || groupDefaults.minQty))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <NumInput min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={v=>setForm(f=>({...f,initialQty:v == null ? undefined : Math.round(v)}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>

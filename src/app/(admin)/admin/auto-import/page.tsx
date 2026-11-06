@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import NumInput from '@/components/NumInput'
 import {
   ArrowLeft,
   Calendar,
@@ -244,14 +245,14 @@ export default function AutoImportAdminPage() {
 
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-2">Concurrence</label>
-              <input
-                type="number"
+              <NumInput
                 min={1}
                 max={10}
-                value={config?.concurrency || 1}
-                onChange={(e) =>
+                value={config?.concurrency}
+                emptyValue={1}
+                onChange={(v) =>
                   setConfig(prev =>
-                    prev ? { ...prev, concurrency: Math.min(10, Math.max(1, Number(e.target.value) || 1)) } : prev
+                    prev ? { ...prev, concurrency: v == null ? 1 : Math.min(10, Math.max(1, v)) } : prev
                   )
                 }
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"

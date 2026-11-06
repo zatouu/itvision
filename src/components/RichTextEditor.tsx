@@ -25,6 +25,32 @@ interface RichTextEditorProps {
   className?: string
 }
 
+const ToolbarButton = ({
+  onClick,
+  isActive,
+  children,
+  title,
+}: {
+  onClick: () => void
+  isActive?: boolean
+  children: React.ReactNode
+  title: string
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title}
+    className={clsx(
+      'p-1.5 rounded transition-colors',
+      isActive
+        ? 'bg-emerald-100 text-emerald-700'
+        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+    )}
+  >
+    {children}
+  </button>
+)
+
 export default function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -66,32 +92,6 @@ export default function RichTextEditor({ value, onChange, placeholder, className
   if (!editor) {
     return null
   }
-
-  const ToolbarButton = ({
-    onClick,
-    isActive,
-    children,
-    title,
-  }: {
-    onClick: () => void
-    isActive?: boolean
-    children: React.ReactNode
-    title: string
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={clsx(
-        'p-1.5 rounded transition-colors',
-        isActive
-          ? 'bg-emerald-100 text-emerald-700'
-          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-      )}
-    >
-      {children}
-    </button>
-  )
 
   return (
     <div className={clsx('rounded-lg border border-gray-200 overflow-hidden bg-white', className)}>

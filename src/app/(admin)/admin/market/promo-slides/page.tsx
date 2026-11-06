@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import NumInput from '@/components/NumInput'
 import {
   Plus,
   Pencil,
@@ -302,10 +303,10 @@ export default function PromoSlidesPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Ordre</label>
-              <input
-                type="number"
-                value={form.order ?? 0}
-                onChange={(e) => setForm((f) => ({ ...f, order: parseInt(e.target.value) || 0 }))}
+              <NumInput
+                value={form.order}
+                emptyValue={0}
+                onChange={(v) => setForm((f) => ({ ...f, order: v ?? 0 }))}
                 className="w-full px-3 py-2 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
