@@ -257,7 +257,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isLikelyValidImageUrl = (url) => {
     if (typeof url !== 'string') return false;
     const value = url.trim();
-    if (!value || !/^https?:\/\//i.test(value)) return false;
+    if (!value) return false;
+    // Accepter les URLs protocol-relative (//ae01.alicdn.com/...)
+    if (!/^https?:\/\//i.test(value) && !value.startsWith('//')) return false;
     const lower = value.toLowerCase();
     for (const pattern of IMAGE_NOISE_PATTERNS) {
       if (pattern.test(lower)) return false;
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const variantImages = normalizedVariantGroups.flatMap(g =>
       (g.variants || []).map(v => v.image).filter(Boolean)
     );
-    const gallery = dedupeImages(p.gallery || []).slice(0, 20);
+    const gallery = dedupeImages([...(p.gallery || []), ...(p.images || [])]).slice(0, 20);
     const descriptionImages = dedupeImages(p.descriptionImages || []).slice(0, 30);
     const images = dedupeImages([
       ...gallery,

@@ -380,8 +380,12 @@ function transformForSmartApi(p) {
     const out = [];
     const seen = new Set();
     (images || []).forEach((url) => {
-      if (typeof url !== 'string' || !url.startsWith('http')) return;
-      const normalized = url.replace(/_\d+x\d+[^.]*/i, '').trim();
+      if (typeof url !== 'string') return;
+      // AliExpress sert souvent des URLs protocol-relative (//ae01.alicdn.com/...)
+      let normalized = url.trim();
+      if (normalized.startsWith('//')) normalized = 'https:' + normalized;
+      if (!normalized.startsWith('http')) return;
+      normalized = normalized.replace(/_\d+x\d+[^.]*/i, '').trim();
       if (!normalized) return;
       const key = normalized.split('?')[0];
       if (seen.has(key)) return;
@@ -395,7 +399,8 @@ function transformForSmartApi(p) {
   const variantImages = normalizedVariantGroups.flatMap(g =>
     (g.variants || []).map(v => v.image).filter(Boolean)
   );
-  const gallery = dedupeImages(p.gallery || []).slice(0, 20);
+  // Compat : anciennes extractions stockaient p.images au lieu de p.gallery
+  const gallery = dedupeImages([...(p.gallery || []), ...(p.images || [])]).slice(0, 20);
   const descriptionImages = dedupeImages(p.descriptionImages || []).slice(0, 30);
   const images = dedupeImages([...gallery, ...descriptionImages, ...variantImages]).slice(0, 10);
 
