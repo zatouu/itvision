@@ -150,6 +150,7 @@ export const PAGE_RULES: RouteRule[] = [
   { prefix: '/client-portal-v2', domain: 'deprecated', access: 'public', note: 'Doublon de portail-entreprise (ModernClientPortal, 107 Ko)' },
   { prefix: '/client-portal', domain: 'deprecated', access: 'public', note: 'Doublon de portail-entreprise' },
   { prefix: '/test-inputs', domain: 'deprecated', access: 'public', note: 'Page de test dev' },
+  { prefix: '/sentry-example-page', domain: 'deprecated', access: 'public', note: 'Page exemple générée par le wizard Sentry — supprimer' },
 ]
 
 // ─── API ────────────────────────────────────────────────────────────────────
@@ -249,6 +250,9 @@ export const API_RULES: RouteRule[] = [
   // ── Compte client marketplace (les endpoints corporate du client-portal ont été supprimés) ──
   { prefix: '/api/client/address-from-position', domain: 'market', access: 'auth', note: 'Géocodage inverse sur demande explicite, coordonnées non persistées' },
   { prefix: '/api/client', domain: 'market', access: 'auth', note: 'Reste : profile + request-pro (compte/checkout/panier + mobile CORS)' },
+
+  // ── Code mort ──
+  { prefix: '/api/sentry-example-api', domain: 'deprecated', access: 'public', note: 'Route exemple générée par le wizard Sentry — supprimer' },
 ]
 
 // ─── MODÈLES ────────────────────────────────────────────────────────────────
