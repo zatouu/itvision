@@ -7,8 +7,8 @@ import AdminTabs from '@/components/admin/AdminTabs'
 export default function CatalogAdminPage() {
   return (
     <div>
-      <Breadcrumb 
-        backHref="/admin" 
+      <Breadcrumb
+        backHref="/admin"
         backLabel="Retour au dashboard"
       />
       <div className="mt-4">

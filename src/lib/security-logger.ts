@@ -23,12 +23,12 @@ class SecurityLogger {
       }
     }
 
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               request.headers.get('x-real-ip') || 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+               request.headers.get('x-real-ip') ||
                request.headers.get('cf-connecting-ip') || // Cloudflare
                'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
-    
+
     return { ip, userAgent }
   }
 
@@ -41,7 +41,7 @@ class SecurityLogger {
     sessionId?: string
   ): void {
     const { ip, userAgent } = this.getClientInfo(request)
-    
+
     const event: SecurityEvent = {
       timestamp: new Date().toISOString(),
       eventType,
@@ -54,7 +54,7 @@ class SecurityLogger {
     }
 
     this.events.push(event)
-    
+
     // Garder seulement les derniers événements
     if (this.events.length > this.maxEvents) {
       this.events = this.events.slice(-this.maxEvents)
@@ -62,7 +62,7 @@ class SecurityLogger {
 
     // Log en console selon la gravité
     this.logToConsole(event)
-    
+
     // En production, envoyer vers un service de monitoring
     if (process.env.NODE_ENV === 'production') {
       this.sendToMonitoring(event)
@@ -71,7 +71,7 @@ class SecurityLogger {
 
   private logToConsole(event: SecurityEvent): void {
     const logMessage = `[SECURITY] ${event.eventType} - ${event.severity.toUpperCase()} - IP: ${event.ip} - User: ${event.userId || 'anonymous'}`
-    
+
     switch (event.severity) {
       case 'critical':
         console.error(`🚨 ${logMessage}`, event.details)
@@ -164,7 +164,7 @@ class SecurityLogger {
       })
     }
 
-    return filteredEvents.sort((a, b) => 
+    return filteredEvents.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
   }
@@ -178,17 +178,17 @@ class SecurityLogger {
   } {
     const now = new Date()
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-    
+
     const recentEvents = this.events.filter(e => new Date(e.timestamp) > oneHourAgo)
     const criticalEvents = this.events.filter(e => e.severity === 'critical').length
     const highEvents = this.events.filter(e => e.severity === 'high').length
-    
+
     // Compter les IPs
     const ipCounts: Record<string, number> = {}
     this.events.forEach(event => {
       ipCounts[event.ip] = (ipCounts[event.ip] || 0) + 1
     })
-    
+
     const topIPs = Object.entries(ipCounts)
       .map(([ip, count]) => ({ ip, count }))
       .sort((a, b) => b.count - a.count)
@@ -208,17 +208,17 @@ class SecurityLogger {
 export const securityLogger = new SecurityLogger()
 
 // Helper functions pour un usage facile
-export const logLoginAttempt = (success: boolean, request: NextRequest, userId?: string, details?: Record<string, any>) => 
+export const logLoginAttempt = (success: boolean, request: NextRequest, userId?: string, details?: Record<string, any>) =>
   securityLogger.logLoginAttempt(success, request, userId, details)
 
-export const logFailedAuth = (reason: string, request: NextRequest, details?: Record<string, any>) => 
+export const logFailedAuth = (reason: string, request: NextRequest, details?: Record<string, any>) =>
   securityLogger.logFailedAuth(reason, request, details)
 
-export const logSuspiciousActivity = (activity: string, request: NextRequest, details?: Record<string, any>) => 
+export const logSuspiciousActivity = (activity: string, request: NextRequest, details?: Record<string, any>) =>
   securityLogger.logSuspiciousActivity(activity, request, details)
 
-export const logDataAccess = (resource: string, action: string, request: NextRequest, userId?: string, details?: Record<string, any>) => 
+export const logDataAccess = (resource: string, action: string, request: NextRequest, userId?: string, details?: Record<string, any>) =>
   securityLogger.logDataAccess(resource, action, request, userId, details)
 
-export const logSecurityViolation = (violation: string, request: NextRequest, details?: Record<string, any>) => 
+export const logSecurityViolation = (violation: string, request: NextRequest, details?: Record<string, any>) =>
   securityLogger.logSecurityViolation(violation, request, details)

@@ -7,8 +7,8 @@ import AdminTabs from '@/components/admin/AdminTabs'
 export default function PricesAdminPage() {
   return (
     <div className="bg-white rounded-lg p-6">
-      <Breadcrumb 
-        backHref="/admin" 
+      <Breadcrumb
+        backHref="/admin"
         backLabel="Retour au dashboard"
       />
       <div className="mt-4">

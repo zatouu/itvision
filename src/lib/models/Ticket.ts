@@ -127,7 +127,7 @@ TicketSchema.pre('validate', function(next) {
     deadline.setHours(deadline.getHours() + this.sla.targetHours)
     this.sla.deadlineAt = deadline
   }
-  
+
   // Réparer automatiquement les messages existants sans authorId/authorRole
   if (this.messages && Array.isArray(this.messages)) {
     this.messages = this.messages.map((msg: any) => {
@@ -143,14 +143,14 @@ TicketSchema.pre('validate', function(next) {
       return msg
     })
   }
-  
+
   // Initialiser les tableaux vides si nécessaires
   if (!this.messages) this.messages = []
   if (!this.history) this.history = []
   if (!this.assignedTo) this.assignedTo = []
   if (!this.watchers) this.watchers = []
   if (!this.tags) this.tags = []
-  
+
   next()
 })
 

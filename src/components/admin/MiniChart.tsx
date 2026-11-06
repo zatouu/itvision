@@ -23,8 +23,8 @@ export default function MiniChart({ data, color, height = 40, showGradient = tru
   const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`
 
   return (
-    <svg 
-      viewBox="0 0 100 100" 
+    <svg
+      viewBox="0 0 100 100"
       className="w-full"
       style={{ height: `${height}px` }}
       preserveAspectRatio="none"
@@ -37,7 +37,7 @@ export default function MiniChart({ data, color, height = 40, showGradient = tru
           </linearGradient>
         )}
       </defs>
-      
+
       {/* Zone remplie sous la courbe */}
       {showGradient && (
         <polygon
@@ -45,7 +45,7 @@ export default function MiniChart({ data, color, height = 40, showGradient = tru
           fill={`url(#${gradientId})`}
         />
       )}
-      
+
       {/* Ligne de la courbe */}
       <polyline
         points={points}
@@ -55,7 +55,7 @@ export default function MiniChart({ data, color, height = 40, showGradient = tru
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      
+
       {/* Points sur la courbe */}
       {data.map((value, index) => {
         const x = (index / (data.length - 1)) * 100

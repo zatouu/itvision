@@ -11,19 +11,19 @@ export interface PricingSimulationInput {
   // Prix produit 1688
   price1688?: number // Prix en Yuan (¥)
   baseCost?: number // Prix déjà converti en FCFA (alternative)
-  
+
   // Conversion
   exchangeRate?: number // Taux de change (défaut: 100)
-  
+
   // Transport
   shippingMethod: ShippingMethodId
   weightKg?: number
   volumeM3?: number
-  
+
   // Commissions
   serviceFeeRate?: ServiceFeeRate // 5, 10, ou 15
   insuranceRate?: number // Pourcentage d'assurance
-  
+
   // Volume de commande (pour calcul de marge cumulée)
   orderQuantity?: number
   monthlyVolume?: number // Volume mensuel moyen pour estimation bénéfice
@@ -36,16 +36,16 @@ export interface PricingBreakdown {
   serviceFee: number // Frais de service
   insuranceFee: number // Frais d'assurance
   totalRealCost: number // Coût total réel
-  
+
   // Prix client
   shippingCostClient: number // Prix transport déclaré client
   totalClientPrice: number // Prix total facturé client
-  
+
   // Marges
   shippingMargin: number // Marge sur transport
   netMargin: number // Marge nette totale
   marginPercentage: number // Pourcentage de marge
-  
+
   // Projections
   cumulativeMargin?: number // Marge cumulée selon volume commande
   estimatedMonthlyProfit?: number // Estimation bénéfice mensuel
@@ -173,8 +173,8 @@ export function simulatePricing1688(
 
   // 4. Frais d'assurance
   // Assurance par défaut si non spécifiée (appliquée sur le prix fournisseur)
-  const finalInsuranceRate = insuranceRate !== undefined 
-    ? insuranceRate 
+  const finalInsuranceRate = insuranceRate !== undefined
+    ? insuranceRate
     : DEFAULT_INSURANCE_RATE
   const insuranceBase = productCostFCFA
   const insuranceFee = insuranceBase * (finalInsuranceRate / 100)
@@ -188,14 +188,14 @@ export function simulatePricing1688(
   // 7. Marges
   const shippingMargin = shippingCostClient - shippingCostReal
   const netMargin = totalClientPrice - totalRealCost
-  const marginPercentage = totalRealCost > 0 
-    ? (netMargin / totalRealCost) * 100 
+  const marginPercentage = totalRealCost > 0
+    ? (netMargin / totalRealCost) * 100
     : 0
 
   // 8. Projections selon volume
   const cumulativeMargin = netMargin * orderQuantity
-  const estimatedMonthlyProfit = monthlyVolume > 0 
-    ? netMargin * monthlyVolume 
+  const estimatedMonthlyProfit = monthlyVolume > 0
+    ? netMargin * monthlyVolume
     : undefined
 
   const breakdown: PricingBreakdown = {
@@ -210,8 +210,8 @@ export function simulatePricing1688(
     netMargin: Math.round(netMargin),
     marginPercentage: Math.round(marginPercentage * 100) / 100,
     cumulativeMargin: Math.round(cumulativeMargin),
-    estimatedMonthlyProfit: estimatedMonthlyProfit !== undefined 
-      ? Math.round(estimatedMonthlyProfit) 
+    estimatedMonthlyProfit: estimatedMonthlyProfit !== undefined
+      ? Math.round(estimatedMonthlyProfit)
       : undefined
   }
 

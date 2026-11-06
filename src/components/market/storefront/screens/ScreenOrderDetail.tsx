@@ -546,7 +546,7 @@ export default function ScreenOrderDetail({ order, token }: ScreenOrderDetailPro
           {tracking && <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">N° suivi {tracking}</p>}
         </div>
 
-        <div className={cn('rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex', 'overflow-x-auto')}> 
+        <div className={cn('rounded-xl bg-slate-100 dark:bg-slate-800 p-1 flex', 'overflow-x-auto')}>
           {tabs.map((t) => {
             const Icon = t.i;
             return (

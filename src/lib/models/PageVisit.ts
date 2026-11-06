@@ -1,6 +1,6 @@
 /**
  * Modèle PageVisit - Statistiques de visites
- * 
+ *
  * Enregistre toutes les visites de pages pour analytics
  */
 
@@ -11,28 +11,28 @@ export interface IPageVisit extends Document {
   path: string // Chemin de la page (ex: /produits, /admin)
   pageName: string // Nom de la page (ex: "Catalogue Produits", "Dashboard Admin")
   pageType: 'public' | 'admin' | 'client' | 'technician' // Type de page
-  
+
   // Utilisateur
   userId?: mongoose.Types.ObjectId | string // ID utilisateur si connecté
   userRole?: string // Rôle de l'utilisateur
   isAuthenticated: boolean
-  
+
   // Informations de session
   sessionId?: string
   ipAddress?: string
   userAgent?: string
   referrer?: string // Page d'origine
-  
+
   // Métriques
   duration?: number // Durée de la visite en secondes
   scrollDepth?: number // Pourcentage de scroll (0-100)
   interactions?: number // Nombre d'interactions (clics, etc.)
-  
+
   // Device & Browser
   deviceType?: 'desktop' | 'mobile' | 'tablet'
   browser?: string
   os?: string
-  
+
   // Date
   visitedAt: Date
   createdAt: Date
@@ -41,8 +41,8 @@ export interface IPageVisit extends Document {
 const PageVisitSchema = new Schema<IPageVisit>({
   path: { type: String, required: true, },
   pageName: { type: String, required: true },
-  pageType: { 
-    type: String, 
+  pageType: {
+    type: String,
     enum: ['public', 'admin', 'client', 'technician'],
     required: true,
 

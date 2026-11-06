@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     // Récupérer les achats groupés actifs pour ces produits
     const productIds = products.map((p: any) => p._id.toString())
-    
+
     const activeGroups = await GroupOrder.find({
       'product.productId': { $in: productIds },
       status: { $in: ['open', 'filled'] },
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       const groups = activeGroups.filter(
         (g: any) => g.product.productId.toString() === product._id.toString()
       )
-      
+
       // Calculer le meilleur prix disponible
       const bestPrice = product.priceTiers?.length > 0
         ? Math.min(...product.priceTiers.map((t: any) => t.price))

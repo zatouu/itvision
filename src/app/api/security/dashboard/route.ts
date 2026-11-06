@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     // Statistiques de sécurité
     const securityStats = securityLogger.getSecurityStats()
     const sessionStats = sessionManager.getSessionStats()
-    
+
     // Événements récents critiques
     const criticalEvents = securityLogger.getEvents({
       severity: 'critical',

@@ -10,10 +10,10 @@ import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/admin/products/smart-import
- * 
+ *
  * Import intelligent de produit(s) depuis des donnees brutes (extension Chrome, CSV, ou scrape).
  * Nettoie les images, reformate la description via OpenAI, calcule le pricing auto.
- * 
+ *
  * Body:
  *   products: Array<{
  *     name: string

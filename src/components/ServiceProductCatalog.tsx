@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { 
+import {
   Camera,
   Home,
   Shield,
@@ -14,9 +14,9 @@ import {
   Star,
   Award
 } from 'lucide-react'
-import { 
-  ServiceType, 
-  ProductType, 
+import {
+  ServiceType,
+  ProductType,
   ProductVariant,
   DEFAULT_SERVICE_TYPES,
   VIDEOSURVEILLANCE_PRODUCTS,
@@ -68,11 +68,11 @@ export default function ServiceProductCatalog() {
     }
   }
 
-  const filteredProductTypes = allProductTypes.filter(pt => 
+  const filteredProductTypes = allProductTypes.filter(pt =>
     pt.serviceTypeId === selectedService
   )
 
-  const selectedProductTypeData = selectedProductType 
+  const selectedProductTypeData = selectedProductType
     ? allProductTypes.find(pt => pt.id === selectedProductType)
     : null
 
@@ -173,7 +173,7 @@ export default function ServiceProductCatalog() {
                 <h4 className="font-semibold text-gray-900">
                   Variants disponibles ({selectedProductTypeData.variants?.length || 0})
                 </h4>
-                
+
                 {selectedProductTypeData.variants?.map((variant) => (
                   <div key={variant.id} className={`border rounded-lg p-4 ${variant.isDefault ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
                     <div className="flex items-start justify-between mb-3">
@@ -189,13 +189,13 @@ export default function ServiceProductCatalog() {
                         </h5>
                         <p className="text-sm text-gray-600">{variant.description}</p>
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-lg font-bold text-red-500">Prix à configurer</div>
                         <div className="text-xs text-gray-500">Utilisez la gestion des prix</div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h6 className="text-sm font-medium text-gray-700 mb-2">Spécifications techniques:</h6>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -218,7 +218,7 @@ export default function ServiceProductCatalog() {
                   <div>
                     <h5 className="font-medium text-yellow-800">Configuration des prix requise</h5>
                     <p className="text-sm text-yellow-700 mt-1">
-                      Les prix de ces produits doivent être configurés dans le système de gestion des prix 
+                      Les prix de ces produits doivent être configurés dans le système de gestion des prix
                       avant de pouvoir être utilisés dans les devis.
                     </p>
                     <div className="mt-3">
@@ -253,7 +253,7 @@ export default function ServiceProductCatalog() {
       {/* Guide d'utilisation */}
       <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-4">📖 Guide d'utilisation</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
@@ -264,7 +264,7 @@ export default function ServiceProductCatalog() {
               Chaque service (vidéosurveillance, domotique, etc.) a ses propres types de produits
             </p>
           </div>
-          
+
           <div className="text-center">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <span className="text-xl font-bold text-green-600">2</span>
@@ -274,7 +274,7 @@ export default function ServiceProductCatalog() {
               Chaque type de produit a plusieurs variants (ex: NVR 4, 8, 16 canaux)
             </p>
           </div>
-          
+
           <div className="text-center">
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <span className="text-xl font-bold text-purple-600">3</span>

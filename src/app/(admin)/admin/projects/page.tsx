@@ -4,8 +4,8 @@ import Breadcrumb from '@/components/Breadcrumb'
 export default function AdminProjectsPage() {
   return (
     <div>
-      <Breadcrumb 
-        backHref="/admin" 
+      <Breadcrumb
+        backHref="/admin"
         backLabel="Retour au dashboard"
       />
       <div className="mt-4">

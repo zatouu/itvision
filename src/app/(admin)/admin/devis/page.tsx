@@ -7,8 +7,8 @@ export default function AdminDevisPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="pt-16">
-        <Breadcrumb 
-          backHref="/admin" 
+        <Breadcrumb
+          backHref="/admin"
           backLabel="Retour au dashboard"
         />
       </div>

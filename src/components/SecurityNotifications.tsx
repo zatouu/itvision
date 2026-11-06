@@ -85,7 +85,7 @@ export default function SecurityNotifications() {
                 <Shield className="h-5 w-5 text-blue-500" />
               )}
             </div>
-            
+
             <div className="ml-3 flex-1">
               <h3 className={`
                 text-sm font-medium
@@ -103,7 +103,7 @@ export default function SecurityNotifications() {
               `}>
                 {notification.message}
               </p>
-              
+
               {notification.action && (
                 <div className="mt-3 flex space-x-2">
                   <button
@@ -120,7 +120,7 @@ export default function SecurityNotifications() {
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={() => dismissNotification(notification.id)}
               className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-600"
@@ -137,7 +137,7 @@ export default function SecurityNotifications() {
 // Composant de statut de sécurité pour la barre d'administration
 export function SecurityStatus() {
   const { security, isAuthenticated } = useSecureSession()
-  
+
   if (!isAuthenticated) {
     return null
   }

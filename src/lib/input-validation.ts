@@ -51,7 +51,7 @@ export interface ValidationResult {
 }
 
 export class InputValidator {
-  
+
   // Validation générale d'une chaîne
   static validateString(
     input: string,
@@ -221,7 +221,7 @@ export class InputValidator {
 
     for (const [field, rules] of Object.entries(schema)) {
       const value = obj[field]
-      
+
       // Vérifier si requis
       if (rules.required && (value === undefined || value === null || value === '')) {
         errors[field] = [`${field} est requis`]
@@ -237,7 +237,7 @@ export class InputValidator {
 
       // Validation selon le type
       let result: ValidationResult
-      
+
       switch (rules.type) {
         case 'email':
           result = this.validateEmail(value)

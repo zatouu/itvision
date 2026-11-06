@@ -7,11 +7,11 @@ import { readSharedPricing } from '@/lib/pricing/shared-settings'
 
 /**
  * POST /api/admin/products/batch-b2b-pricing
- * 
+ *
  * Calcule et applique automatiquement le b2bPrice sur tous les produits
  * qui ont un prix retail (price ou baseCost) mais pas de b2bPrice,
  * OU recalcule tous les b2bPrice existants si force=true.
- * 
+ *
  * Body:
  *   discountPercent: number (ex: 15 = -15% sur le prix retail) — defaut 15
  *   force: boolean — recalculer meme si b2bPrice existe deja

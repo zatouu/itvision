@@ -7,10 +7,10 @@ import { validatePhone, formatPhone } from '@/lib/payment-service'
 import { requireAdminApi } from '@/lib/api-auth'
 import { applyRateLimit, serviceWriteRateLimiter } from '@/lib/rate-limiter'
 import { computeEffectivePricing } from '@/lib/pricing/quote-cart'
-import { 
-  notifyGroupJoinConfirmation, 
-  notifyNewParticipant, 
-  notifyStatusUpdate 
+import {
+  notifyGroupJoinConfirmation,
+  notifyNewParticipant,
+  notifyStatusUpdate
 } from '@/lib/group-order-notifications'
 import { assignPaymentRefsAndNotify } from '@/lib/group-order-helpers'
 import crypto from 'crypto'
@@ -106,17 +106,17 @@ export async function GET(
   context: RouteContext
 ) {
   const { groupId } = await context.params
-  
+
   try {
     await connectDB()
-    
+
     const group = await GroupOrder.findOne({ groupId })
       // Public response: do not leak participant PII / payment details / chat tokens
       .select(
         '-participants.phone -participants.email -participants.paidAmount -participants.paymentReference -participants.transactionId -participants.adminNote -participants.paymentUpdatedAt -participants.chatAccessTokenHash -participants.chatAccessTokenCreatedAt'
       )
       .lean()
-    
+
     if (!group) {
       return NextResponse.json(
         { success: false, error: 'Achat groupé non trouvé' },
@@ -160,7 +160,7 @@ export async function GET(
         qualityCheck,
       }
     })
-    
+
   } catch (error) {
     console.error('Erreur récupération achat groupé:', error)
     return NextResponse.json(
@@ -176,7 +176,7 @@ export async function POST(
   context: RouteContext
 ) {
   const { groupId } = await context.params
-  
+
   try {
     const rateLimitResponse = await applyRateLimit(req, serviceWriteRateLimiter)
     if (rateLimitResponse) return rateLimitResponse
@@ -232,16 +232,16 @@ export async function POST(
         { status: 400 }
       )
     }
-    
+
     const group = await GroupOrder.findOne({ groupId })
-    
+
     if (!group) {
       return NextResponse.json(
         { success: false, error: 'Achat groupé non trouvé' },
         { status: 404 }
       )
     }
-    
+
     // Vérifications
     if (group.status !== 'open') {
       return NextResponse.json(
@@ -249,7 +249,7 @@ export async function POST(
         { status: 400 }
       )
     }
-    
+
     if (new Date(group.deadline) < new Date()) {
       return NextResponse.json(
         { success: false, error: 'La date limite est dépassée' },
@@ -550,7 +550,7 @@ export async function POST(
     // valeur JS pré-claim peut être périmée en cas de joins concurrents.
     const finalUnitPrice = Number(createdParticipant?.unitPrice ?? participantUnitPrice)
     const finalTotalAmount = Number(createdParticipant?.totalAmount ?? qty * participantUnitPrice)
-    
+
     // Envoyer les notifications
     try {
       const groupData = {
@@ -561,21 +561,21 @@ export async function POST(
         currentUnitPrice: updated.currentUnitPrice,
         deadline: updated.deadline
       }
-      
+
       const newParticipantData = { name, phone: normalizedPhone, email, qty, unitPrice: finalUnitPrice, totalAmount: finalTotalAmount }
-      
+
       // 1. Confirmation au nouveau participant
       await notifyGroupJoinConfirmation(newParticipantData, groupData)
-      
+
       // 2. Notifier les autres participants
       const otherParticipants = (updated.participants as any[])
         .filter((p: any) => p.phone !== normalizedPhone)
         .map((p: any) => ({ name: p.name, email: p.email, phone: p.phone, qty: p.qty, unitPrice: p.unitPrice, totalAmount: p.totalAmount }))
-      
+
       if (otherParticipants.length > 0) {
         await notifyNewParticipant(otherParticipants, newParticipantData, groupData)
       }
-      
+
       // 3. Si objectif atteint : générer les refs de paiement + envoyer liens à tous
       if (objectiveJustReached) {
         await assignPaymentRefsAndNotify(updated)
@@ -583,7 +583,7 @@ export async function POST(
     } catch (notifError) {
       console.error('Erreur notifications:', notifError)
     }
-    
+
     // Réponse publique : participants masqués, sans montants ni statut paiement
     const safeGroup = sanitizePublicGroupDetail(updated.toObject ? updated.toObject() : updated)
 
@@ -628,7 +628,7 @@ export async function PATCH(
   context: RouteContext
 ) {
   const { groupId } = await context.params
-  
+
   try {
     const auth = await requireAdminApi(req)
     if (!auth.ok) {
@@ -636,10 +636,10 @@ export async function PATCH(
     }
 
     await connectDB()
-    
+
     const body = await req.json()
     const updateData: any = {}
-    
+
     // Champs modifiables
     if (body.status) {
       const allowedStatuses = ['draft', 'open', 'filled', 'ordering', 'ordered', 'shipped', 'delivered', 'cancelled']
@@ -665,7 +665,7 @@ export async function PATCH(
       updateData.whatsappInviteUrl = wa || undefined
     }
     if (body.estimatedDelivery) updateData.estimatedDelivery = new Date(body.estimatedDelivery)
-    
+
     // Mise à jour paiement d'un participant
     if (body.participantPhone && body.paymentUpdate) {
       const group = await GroupOrder.findOne({ groupId })
@@ -713,9 +713,9 @@ export async function PATCH(
         }
       }
     }
-    
+
     updateData.updatedAt = new Date()
-    
+
     // Récupérer le groupe avant mise à jour pour comparer le statut
     const previousGroup = await GroupOrder.findOne({ groupId }).lean() as any
     if (!previousGroup) {
@@ -776,14 +776,14 @@ export async function PATCH(
         updateData.chinaPurchase = chinaPurchase
       }
     }
-    
+
     const group = await GroupOrder.findOneAndUpdate(
       body.status ? { groupId, status: previousStatus } : { groupId },
       updateData,
       { new: true }
     ).lean() as any
     void invalidateGroupOrdersCache()
-    
+
     if (!group) {
       return NextResponse.json(
         { success: false, error: body.status ? 'Le statut a changé entre-temps, rechargez la page' : 'Achat groupé non trouvé' },
@@ -804,7 +804,7 @@ export async function PATCH(
         })
       }
     }
-    
+
     // Envoyer notification si le statut a changé
     if (body.status === 'open' && previousStatus === 'draft') {
       void announceNewGroup(groupId).catch((err) => console.error('Erreur annonce nouveau groupe:', err))
@@ -852,13 +852,13 @@ export async function PATCH(
         console.error('Erreur notification statut:', notifError)
       }
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Achat groupé mis à jour',
       group
     })
-    
+
   } catch (error) {
     console.error('Erreur modification achat groupé:', error)
     return NextResponse.json(
@@ -874,7 +874,7 @@ export async function DELETE(
   context: RouteContext
 ) {
   const { groupId } = await context.params
-  
+
   try {
     const auth = await requireAdminApi(req)
     if (!auth.ok) {
@@ -882,16 +882,16 @@ export async function DELETE(
     }
 
     await connectDB()
-    
+
     const group = await GroupOrder.findOne({ groupId })
-    
+
     if (!group) {
       return NextResponse.json(
         { success: false, error: 'Achat groupé non trouvé' },
         { status: 404 }
       )
     }
-    
+
     // Ne pas supprimer si des paiements ont été effectués
     const hasPaidParticipants = group.participants.some((p: any) => p.paidAmount > 0)
     if (hasPaidParticipants) {
@@ -900,14 +900,14 @@ export async function DELETE(
         { status: 400 }
       )
     }
-    
+
     await GroupOrder.deleteOne({ groupId })
-    
+
     return NextResponse.json({
       success: true,
       message: 'Achat groupé supprimé'
     })
-    
+
   } catch (error) {
     console.error('Erreur suppression achat groupé:', error)
     return NextResponse.json(

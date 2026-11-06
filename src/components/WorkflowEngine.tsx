@@ -1,29 +1,29 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  ArrowRight, 
-  Calendar, 
-  User, 
-  FileText, 
-  DollarSign, 
-  Package, 
-  Truck, 
-  Settings, 
-  Eye, 
-  Send, 
-  Wrench, 
-  Target, 
-  Star, 
-  Bell, 
-  MessageCircle, 
-  CreditCard, 
-  Building, 
-  Phone, 
-  Mail, 
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  ArrowRight,
+  Calendar,
+  User,
+  FileText,
+  DollarSign,
+  Package,
+  Truck,
+  Settings,
+  Eye,
+  Send,
+  Wrench,
+  Target,
+  Star,
+  Bell,
+  MessageCircle,
+  CreditCard,
+  Building,
+  Phone,
+  Mail,
   MapPin,
   Play,
   Pause,
@@ -899,9 +899,9 @@ export default function WorkflowEngine() {
   }
 
   const getNextSteps = (workflow: ProjectWorkflow) => {
-    return workflow.steps.filter(step => 
-      step.status === 'pending' && 
-      step.dependencies.every(dep => 
+    return workflow.steps.filter(step =>
+      step.status === 'pending' &&
+      step.dependencies.every(dep =>
         workflow.steps.find(s => s.id === dep)?.status === 'completed'
       )
     )
@@ -976,13 +976,13 @@ export default function WorkflowEngine() {
               Automatisation intelligente des processus projet
             </p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <button className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
               <Play className="h-4 w-4" />
               <span>Démarrer Workflow</span>
             </button>
-            
+
             <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
               <Settings className="h-4 w-4" />
               <span>Configurer</span>
@@ -1053,7 +1053,7 @@ export default function WorkflowEngine() {
                   <span className="text-sm text-gray-600">{workflow.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-500"
                     style={{ width: `${workflow.progress}%` }}
                   ></div>
@@ -1063,7 +1063,7 @@ export default function WorkflowEngine() {
               {/* Timeline des étapes */}
               <div className="relative">
                 <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                
+
                 <div className="space-y-4">
                   {workflow.steps.slice(0, 8).map((step, index) => (
                     <div key={step.id} className="relative flex items-start space-x-4">
@@ -1090,7 +1090,7 @@ export default function WorkflowEngine() {
                           <div>
                             <h4 className="font-medium text-gray-900">{step.name}</h4>
                             <p className="text-sm text-gray-600">{step.description}</p>
-                            
+
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                               <span>Type: {step.type}</span>
                               <span>Durée estimée: {step.estimatedDuration}h</span>
@@ -1104,7 +1104,7 @@ export default function WorkflowEngine() {
                               <span className="ml-1">{step.status.replace('_', ' ')}</span>
                             </span>
 
-                            {step.status === 'pending' && step.dependencies.every(dep => 
+                            {step.status === 'pending' && step.dependencies.every(dep =>
                               workflow.steps.find(s => s.id === dep)?.status === 'completed'
                             ) && (
                               <button
@@ -1314,7 +1314,7 @@ export default function WorkflowEngine() {
                 ✕
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Description</h4>

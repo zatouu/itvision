@@ -8,8 +8,8 @@ export default function ValidationRapportsPage() {
     <main>
       <Header />
       <div className="page-content">
-        <Breadcrumb 
-          backHref="/" 
+        <Breadcrumb
+          backHref="/"
           backLabel="Retour à l'accueil"
         />
         <EnhancedAdminValidation />

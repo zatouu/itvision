@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Test de connexion à la base de données
     await connectDB()
-    
+
     // Informations de santé
     const healthInfo = {
       status: 'healthy',
@@ -22,7 +22,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(healthInfo, { 
+    return NextResponse.json(healthInfo, {
       status: 200,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -33,14 +33,14 @@ export async function GET() {
 
   } catch (error) {
     console.error('Health check failed:', error)
-    
+
     return NextResponse.json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'IT Vision - Sécurité Électronique',
       error: 'Database connection failed',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, { 
+    }, {
       status: 503,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',

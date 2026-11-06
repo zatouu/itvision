@@ -24,7 +24,7 @@ export function useSecureSession() {
   // Générer une empreinte d'appareil
   const generateDeviceFingerprint = useCallback(() => {
     if (typeof window === 'undefined') return ''
-    
+
     const fingerprint = {
       userAgent: navigator.userAgent,
       language: navigator.language,
@@ -34,7 +34,7 @@ export function useSecureSession() {
       cookieEnabled: navigator.cookieEnabled,
       doNotTrack: navigator.doNotTrack
     }
-    
+
     return btoa(JSON.stringify(fingerprint)).slice(0, 32)
   }, [])
 
@@ -93,7 +93,7 @@ export function useSecureSession() {
         method: 'GET',
         credentials: 'include'
       })
-      
+
       if (response.ok) {
         await validateSession()
         return true
@@ -106,7 +106,7 @@ export function useSecureSession() {
 
   // Effectuer une requête sécurisée avec CSRF token
   const secureRequest = useCallback(async (
-    url: string, 
+    url: string,
     options: RequestInit = {}
   ) => {
     if (!security.csrfToken) {
@@ -130,26 +130,26 @@ export function useSecureSession() {
   // Détecter les changements d'appareil suspects
   const detectDeviceChange = useCallback(() => {
     if (typeof window === 'undefined') return false
-    
+
     const storedFingerprint = localStorage.getItem('device_fingerprint')
     const currentFingerprint = generateDeviceFingerprint()
-    
+
     if (storedFingerprint && storedFingerprint !== currentFingerprint) {
       console.warn('🚨 Changement d\'appareil détecté!')
       return true
     }
-    
+
     return false
   }, [generateDeviceFingerprint])
 
   // Effet pour validation initiale et monitoring
   useEffect(() => {
     validateSession()
-    
+
     // Vérifier périodiquement la session
     const interval = setInterval(() => {
       validateSession()
-      
+
       // Détecter les changements d'appareil
       if (detectDeviceChange()) {
         // En production, on pourrait forcer une re-authentification
@@ -164,7 +164,7 @@ export function useSecureSession() {
   useEffect(() => {
     if (security.isValid && security.timeRemaining <= security.warningThreshold && security.timeRemaining > 0) {
       console.warn(`⏰ Session expire dans ${Math.floor(security.timeRemaining / 60)} minutes`)
-      
+
       // Ici on pourrait afficher une notification à l'utilisateur
       if (typeof window !== 'undefined') {
         const showWarning = localStorage.getItem('session_warning_shown')

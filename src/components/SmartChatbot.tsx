@@ -331,10 +331,10 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
       addUserMessage(inputText)
       const userInput = inputText.toLowerCase()
       setInputText('')
-      
+
       // Ajouter au contexte de conversation
       setConversationContext(prev => [...prev, userInput])
-      
+
       // Traitement contextuel des messages
       if (userInput.includes('prix') || userInput.includes('coût') || userInput.includes('tarif') || userInput.includes('devis')) {
         simulateTyping(() => {
@@ -400,7 +400,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
           "Je comprends. Pour mieux vous aider, quel type de projet avez-vous en tête ?",
           "D'accord. Quel aspect de la sécurité électronique vous préoccupe le plus ?"
         ]
-        
+
         simulateTyping(() => {
           addBotMessage(
             responses[Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / (2**32) * responses.length)],
@@ -473,7 +473,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                       <span className="text-xs text-gray-500">Assistant</span>
                     </div>
                   )}
-                  
+
                   <div
                     className={`px-4 py-2 rounded-2xl ${
                       message.isBot
@@ -483,7 +483,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                   >
                     <p className="text-sm whitespace-pre-line">{message.text}</p>
                   </div>
-                  
+
                   {message.actions && (
                     <div className="mt-2 space-y-1">
                       {message.actions.map((action, index) => (
@@ -497,21 +497,21 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                       ))}
                     </div>
                   )}
-                  
+
                   <div className="text-xs text-gray-400 mt-1">
-                    {message.timestamp.toLocaleTimeString('fr-FR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    {message.timestamp.toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </div>
                 </div>
-                
+
                 {message.isBot && (
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center order-1 mr-2">
                     <Bot className="h-4 w-4 text-blue-600" />
                   </div>
                 )}
-                
+
                 {!message.isBot && (
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center order-2 ml-2">
                     <User className="h-4 w-4 text-purple-600" />
@@ -519,7 +519,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                 )}
               </div>
             ))}
-            
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="flex items-center space-x-2">
@@ -536,7 +536,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -559,7 +559,7 @@ export default function SmartChatbot({ onBookingClick, onQuoteClick }: ChatbotPr
                 <Send className="h-4 w-4" />
               </button>
             </div>
-            
+
             <div className="flex justify-center space-x-2 mt-2">
               <button
                 onClick={() => handleActionClick('quote')}

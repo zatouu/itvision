@@ -3,13 +3,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import {
-  Shield, Monitor, Home, Smartphone, Armchair, Gift,
+  Camera, Shield, Lock, Wifi, Bell, Cpu, Sparkles,
   Phone, Mail, CheckCircle, ArrowRight, PackageCheck, MessageCircle,
   Menu, X, ChevronRight, ShoppingBag, Search, Hash, Tag
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import WhatsAppOrderDrawer, { OrderLine } from './WhatsAppOrderDrawer'
-import { brandWhatsAppUrl, CORPORATE_BRAND } from '@/lib/branding'
 
 // ── Types ──────────────────────────────────────────────
 type StockStatus = 'in_stock' | 'preorder' | 'out_of_stock'
@@ -30,12 +29,13 @@ interface CorporateProduct {
 
 // ── Config ────────────────────────────────────────────
 const CATEGORIES: Array<{ label: string; icon: LucideIcon; aliases: string[] }> = [
-  { label: 'Sécurité', icon: Shield, aliases: ['Sécurité', 'Vidéosurveillance', 'Caméra', 'CCTV', "Contrôle d'accès", 'Biométrie', 'Alarme', 'Alarmes', 'Détection', 'Incendie'] },
-  { label: 'Informatique', icon: Monitor, aliases: ['Informatique', 'Réseau', 'Reseau', 'Wifi', 'Switch', 'PoE', 'Routeur', 'Câble'] },
-  { label: 'Domotique', icon: Home, aliases: ['Domotique', 'Smart Home'] },
-  { label: 'Électronique', icon: Smartphone, aliases: ['Électronique', 'Electronique', 'Gadgets', 'Accessoires'] },
-  { label: 'Mobilier', icon: Armchair, aliases: ['Mobilier', 'Bureau', 'Chaise'] },
-  { label: 'Packs cadeaux', icon: Gift, aliases: ['Packs', 'Cadeaux'] },
+  { label: 'Vidéosurveillance', icon: Camera, aliases: ['Vidéosurveillance', 'Camera', 'Caméra', 'CCTV'] },
+  { label: "Contrôle d'accès", icon: Lock, aliases: ["Contrôle d'Accès", "Contrôle d'accès", 'Biométrie'] },
+  { label: 'Alarme & détection', icon: Bell, aliases: ['Alarme', 'Alarmes', 'Détection'] },
+  { label: 'Réseau & connectivité', icon: Wifi, aliases: ['Réseau', 'Reseau', 'Wifi', 'Switch', 'PoE'] },
+  { label: 'Domotique', icon: Cpu, aliases: ['Domotique', 'Smart Home'] },
+  { label: 'Gadgets & accessoires', icon: Sparkles, aliases: ['Gadgets', 'Accessoires'] },
+  { label: 'Sécurité incendie', icon: Shield, aliases: ['Sécurité incendie', 'Incendie'] },
 ]
 
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.label)
@@ -200,7 +200,7 @@ export default function CorporateCatalogClient({ products }: Props) {
 
           <div className="flex items-center gap-2">
             <a
-              href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour IT Vision, je souhaite des informations sur vos équipements.')}
+              href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour IT Vision, je souhaite des informations sur vos équipements.')}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-2 text-xs font-bold text-white hover:bg-[#1ebe5d] transition-colors"
@@ -289,7 +289,7 @@ export default function CorporateCatalogClient({ products }: Props) {
             <p className="text-xs font-bold text-gray-700 dark:text-gray-200 mb-1">Besoin d'aide ?</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">Nos experts vous conseillent gratuitement.</p>
             <a
-              href={brandWhatsAppUrl(CORPORATE_BRAND, 'Bonjour, je souhaite être conseillé pour mon projet.')}
+              href={`https://wa.me/221781234567?text=${encodeURIComponent('Bonjour, je souhaite être conseillé pour mon projet.')}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-400 hover:underline"
@@ -411,7 +411,7 @@ export default function CorporateCatalogClient({ products }: Props) {
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <a
-              href={brandWhatsAppUrl(CORPORATE_BRAND, "Bonjour IT Vision, je souhaite discuter d'un projet de sécurisation.")}
+              href={`https://wa.me/221781234567?text=${encodeURIComponent("Bonjour IT Vision, je souhaite discuter d'un projet de sécurisation.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1ebe5d] transition-colors"

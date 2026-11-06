@@ -67,7 +67,7 @@ export default function AboutPage() {
   return (
     <main>
       <Header />
-      
+
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-white via-stone-50 to-emerald-50 page-content py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -109,8 +109,8 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-6 text-lg text-stone-600 leading-relaxed">
                 <p>
-                  Fondée en <strong className="text-emerald-600">décembre 2019</strong>, <strong className="text-emerald-600">IT Vision</strong> est née de la passion 
-                  de ses fondateurs pour les technologies avancées et leur vision d&apos;un écosystème connecté 
+                  Fondée en <strong className="text-emerald-600">décembre 2019</strong>, <strong className="text-emerald-600">IT Vision</strong> est née de la passion
+                  de ses fondateurs pour les technologies avancées et leur vision d&apos;un écosystème connecté
                   intelligent au service de la sécurité et de l&apos;efficacité.
                 </p>
                 <p>
@@ -120,8 +120,8 @@ export default function AboutPage() {
                   <strong className="text-emerald-600"> digitalisation des processus des PME</strong>.
                 </p>
                 <p>
-                  Notre approche unique combine <strong>expertise technique pointue</strong> (protocols mesh, LoRaWAN, MQTT), 
-                  <strong>solutions sur-mesure</strong> et <strong>innovation constante</strong>. Chaque projet nous permet 
+                  Notre approche unique combine <strong>expertise technique pointue</strong> (protocols mesh, LoRaWAN, MQTT),
+                  <strong>solutions sur-mesure</strong> et <strong>innovation constante</strong>. Chaque projet nous permet
                   de repousser les limites du possible dans l&apos;écosystème connecté africain.
                 </p>
               </div>

@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 
 export default function InterventionPage() {
   const router = useRouter()
-  
+
   useEffect(() => {
     // Rediriger vers le portail technicien avec la vue intervention
     router.replace('/tech-interface?view=intervention')
   }, [router])
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50">
       <div className="text-center">

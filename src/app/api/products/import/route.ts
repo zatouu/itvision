@@ -590,7 +590,7 @@ export async function GET(request: NextRequest) {
           ]
         }, { status: 400 })
       }
-      
+
       if (is1688Url(rawUrl)) {
         const preview = await buildPreviewFrom1688Url(rawUrl)
         return NextResponse.json({ success: true, item: preview })
@@ -680,7 +680,7 @@ export async function POST(request: NextRequest) {
             failedCount++
             continue
           }
-          
+
           let preview: NormalizedAliExpressItem | Import1688Preview
           if (is1688Url(url)) {
             preview = await buildPreviewFrom1688Url(url)

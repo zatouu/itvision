@@ -127,8 +127,8 @@ export default function SmartQuoteCalculator() {
   }
 
   const updateQuantity = (id: string, change: number) => {
-    setSelectedItems(selectedItems.map(item => 
-      item.id === id 
+    setSelectedItems(selectedItems.map(item =>
+      item.id === id
         ? { ...item, quantity: Math.max(1, item.quantity + change) }
         : item
     ))
@@ -170,7 +170,7 @@ export default function SmartQuoteCalculator() {
     const complexityAdjustment = subtotal * (getComplexityMultiplier() - 1)
     const installationCost = getInstallationCost()
     const maintenanceCost = getMaintenanceCost()
-    
+
     return subtotal + complexityAdjustment + installationCost + maintenanceCost
   }
 
@@ -179,14 +179,14 @@ export default function SmartQuoteCalculator() {
   }
 
   const generateWhatsAppQuote = () => {
-    const itemsList = selectedItems.map(item => 
+    const itemsList = selectedItems.map(item =>
       `• ${item.name} x${item.quantity} = ${formatPrice(item.basePrice * item.quantity)}`
     ).join('%0A')
-    
+
     const total = getTotalEstimate()
-    
+
     const message = `💰 ESTIMATION AUTOMATIQUE DE DEVIS%0A%0A🏢 PARAMÈTRES PROJET:%0A- Surface: ${surface}m²%0A- Étages: ${floors} ${floors === 1 ? 'étage' : 'étages'}%0A- Complexité: ${complexity}%0A- Installation: ${installation ? 'Incluse' : 'Non incluse'}%0A- Maintenance: ${maintenance ? 'Incluse (1 an)' : 'Non incluse'}%0A%0A📋 ÉQUIPEMENTS SÉLECTIONNÉS:%0A${itemsList}%0A%0A💵 ESTIMATION TOTALE:%0A${formatPrice(total)}%0A%0A⚠️ Cette estimation est indicative. Demande de devis détaillé pour confirmation exacte.%0A%0AMerci de me faire parvenir un devis personnalisé.`
-    
+
     return `https://wa.me/221774133440?text=${message}`
   }
 
@@ -298,7 +298,7 @@ export default function SmartQuoteCalculator() {
           {/* Paramètres projet */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Paramètres du projet</h3>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -315,7 +315,7 @@ export default function SmartQuoteCalculator() {
                 />
                 <div className="text-center text-sm text-gray-600 mt-1">{surface} m²</div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre d'étages/niveaux
@@ -333,7 +333,7 @@ export default function SmartQuoteCalculator() {
                   {floors} {floors === 1 ? 'étage' : 'étages'}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Complexité d'installation
@@ -350,7 +350,7 @@ export default function SmartQuoteCalculator() {
                 </select>
               </div>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <label className="flex items-center">
                 <input
@@ -361,7 +361,7 @@ export default function SmartQuoteCalculator() {
                 />
                 <span className="text-sm text-gray-700">Inclure installation</span>
               </label>
-              
+
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -380,7 +380,7 @@ export default function SmartQuoteCalculator() {
           {/* Items sélectionnés */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Votre sélection</h3>
-            
+
             {selectedItems.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Calculator className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -407,7 +407,7 @@ export default function SmartQuoteCalculator() {
                           ×
                         </button>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <button
@@ -442,54 +442,54 @@ export default function SmartQuoteCalculator() {
                 <TrendingUp className="h-5 w-5 mr-2 text-emerald-600" />
                 Estimation totale
               </h4>
-              
+
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Équipements :</span>
                   <span>{formatPrice(calculateSubtotal())}</span>
                 </div>
-                
+
                 {getComplexityMultiplier() !== 1 && (
                   <div className="flex justify-between text-blue-600">
                     <span>Ajustement complexité :</span>
                     <span>{formatPrice(calculateSubtotal() * (getComplexityMultiplier() - 1))}</span>
                   </div>
                 )}
-                
+
                 {installation && (
                   <div className="flex justify-between text-purple-600">
                     <span>Installation :</span>
                     <span>{formatPrice(getInstallationCost())}</span>
                   </div>
                 )}
-                
+
                 {floors > 1 && installation && (
                   <div className="flex justify-between text-indigo-600">
                     <span>Supplément étages (${floors - 1} étage${floors > 2 ? 's' : ''}) :</span>
                     <span>{formatPrice((floors - 1) * 50000)}</span>
                   </div>
                 )}
-                
+
                 {maintenance && (
                   <div className="flex justify-between text-orange-600">
                     <span>Maintenance 1 an :</span>
                     <span>{formatPrice(getMaintenanceCost())}</span>
                   </div>
                 )}
-                
+
                 <hr className="my-2" />
-                
+
                 <div className="flex justify-between font-semibold text-lg text-emerald-700">
                   <span>Total estimé :</span>
                   <span>{formatPrice(getTotalEstimate())}</span>
                 </div>
               </div>
-              
+
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                 <Zap className="h-4 w-4 inline mr-1" />
                 Estimation automatique basée sur nos tarifs standards. Devis définitif après étude détaillée.
               </div>
-              
+
               <a
                 href={generateWhatsAppQuote()}
                 target="_blank"

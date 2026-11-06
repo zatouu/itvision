@@ -65,7 +65,7 @@ function AdminBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `
@@ -97,14 +97,14 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
 // Stat Card Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StatCard({ 
-  icon, 
-  label, 
-  value, 
+function StatCard({
+  icon,
+  label,
+  value,
   subValue,
   trend,
   color = 'emerald'
-}: { 
+}: {
   icon: React.ReactNode
   label: string
   value: string | number
@@ -181,11 +181,11 @@ function StatusBadge({ status }: { status: string }) {
 // Transaction Detail Modal
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TransactionModal({ 
-  transaction, 
-  onClose, 
-  onUpdateStatus 
-}: { 
+function TransactionModal({
+  transaction,
+  onClose,
+  onUpdateStatus
+}: {
   transaction: Transaction
   onClose: () => void
   onUpdateStatus: (reference: string, status: string, note?: string) => Promise<void>
@@ -297,7 +297,7 @@ function TransactionModal({
             {/* Update Status */}
             <div className="space-y-4">
               <p className="text-sm font-medium text-white/60">Mettre à jour le statut</p>
-              
+
               <div className="grid grid-cols-2 gap-2">
                 {statusOptions.map(option => (
                   <button
@@ -442,7 +442,7 @@ export default function AdminEscrowPage() {
   }
 
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = 
+    const matchesSearch =
       t.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.client.phone.includes(searchQuery)
@@ -460,7 +460,7 @@ export default function AdminEscrowPage() {
       t.status,
       new Date(t.createdAt).toLocaleDateString('fr-FR')
     ])
-    
+
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -486,7 +486,7 @@ export default function AdminEscrowPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <AdminBackground />
-      
+
       <div className="relative z-10">
         {/* Header */}
         <header className="border-b border-white/10 px-6 py-4">
@@ -500,7 +500,7 @@ export default function AdminEscrowPage() {
                 <p className="text-sm text-white/40">Escrow & Transactions sécurisées</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
                 onClick={fetchData}
@@ -598,13 +598,13 @@ export default function AdminEscrowPage() {
                   className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50"
                 />
               </div>
-              
+
               {/* Filter Button */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition ${
-                  statusFilter !== 'all' 
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                  statusFilter !== 'all'
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
                     : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
                 }`}
               >

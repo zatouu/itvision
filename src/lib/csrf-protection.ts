@@ -83,18 +83,18 @@ export function csrfMiddleware(request: NextRequest): Response | null {
 
   // Pour les autres routes, vérifier le token CSRF
   const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value
-  const headerToken = request.headers.get(CSRF_HEADER_NAME) || 
+  const headerToken = request.headers.get(CSRF_HEADER_NAME) ||
                       request.headers.get('csrf-token')
 
   if (!cookieToken || !headerToken) {
-    logSecurityViolation('csrf_missing', request, { 
+    logSecurityViolation('csrf_missing', request, {
       pathname,
       hasCookie: !!cookieToken,
       hasHeader: !!headerToken
     })
     return new NextResponse(
       JSON.stringify({ error: 'Token CSRF manquant' }),
-      { 
+      {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       }
@@ -106,7 +106,7 @@ export function csrfMiddleware(request: NextRequest): Response | null {
     logSecurityViolation('csrf_mismatch', request, { pathname })
     return new NextResponse(
       JSON.stringify({ error: 'Token CSRF invalide' }),
-      { 
+      {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       }
@@ -122,12 +122,12 @@ export function csrfMiddleware(request: NextRequest): Response | null {
 export function generateCSRFResponse(request: NextRequest): NextResponse {
   const token = generateToken()
   const expires = new Date(Date.now() + TOKEN_EXPIRY)
-  
-  const response = NextResponse.json({ 
+
+  const response = NextResponse.json({
     csrfToken: token,
     expiresAt: expires.toISOString()
   })
-  
+
   // Définir le cookie avec le token
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
@@ -137,11 +137,11 @@ export function generateCSRFResponse(request: NextRequest): NextResponse {
     domain: getCsrfCookieDomain(),
     expires
   })
-  
+
   // Aussi dans le header pour faciliter le debug
   response.headers.set('X-CSRF-Token', token)
   response.headers.set('Cache-Control', 'no-store')
-  
+
   return response
 }
 

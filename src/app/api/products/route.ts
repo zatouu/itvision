@@ -176,8 +176,8 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     description,
     tagline,
     condition: normalizeCondition(condition),
-    currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY') 
-      ? currency 
+    currency: (currency === 'FCFA' || currency === 'EUR' || currency === 'USD' || currency === 'CNY')
+      ? currency
       : 'FCFA',
     availabilityNote,
     requiresQuote: typeof requiresQuote === 'boolean' ? requiresQuote : undefined,
@@ -250,8 +250,8 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     for (const raw of shippingOverrides) {
       if (!raw || typeof raw !== 'object' || typeof raw.methodId !== 'string') continue
       // Ne conserver que les overrides avec au moins une valeur définie
-      const hasValue = parseNumber(raw.ratePerKg) !== undefined || 
-                       parseNumber(raw.ratePerM3) !== undefined || 
+      const hasValue = parseNumber(raw.ratePerKg) !== undefined ||
+                       parseNumber(raw.ratePerM3) !== undefined ||
                        parseNumber(raw.flatFee) !== undefined
       if (hasValue) {
         overrides.push({
@@ -270,8 +270,8 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   normalized.price1688 = parseNumber(price1688)
   normalized.exchangeRate = parseNumber(exchangeRate)
   const parsedServiceFeeRate = parseNumber(serviceFeeRate)
-  normalized.serviceFeeRate = (parsedServiceFeeRate === 5 || parsedServiceFeeRate === 10 || parsedServiceFeeRate === 15) 
-    ? parsedServiceFeeRate 
+  normalized.serviceFeeRate = (parsedServiceFeeRate === 5 || parsedServiceFeeRate === 10 || parsedServiceFeeRate === 15)
+    ? parsedServiceFeeRate
     : undefined
   normalized.insuranceRate = parseNumber(insuranceRate)
 
@@ -282,7 +282,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
     : undefined
   if (typeof price1688Currency === 'string') {
     const validCurrencies = ['FCFA', 'EUR', 'USD', 'CNY'] as const
-    normalized.price1688Currency = validCurrencies.includes(price1688Currency as any) 
+    normalized.price1688Currency = validCurrencies.includes(price1688Currency as any)
       ? (price1688Currency as 'FCFA' | 'EUR' | 'USD' | 'CNY')
       : undefined
   }
@@ -324,7 +324,7 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
   }
   normalized.groupBuyMinQty = parseNumber(groupBuyMinQty)
   normalized.groupBuyTargetQty = parseNumber(groupBuyTargetQty)
-  
+
   // Paliers de prix dégressifs
   if (Array.isArray(priceTiers)) {
     const normalizedTiers: NonNullable<IProduct['priceTiers']> = []
@@ -431,7 +431,7 @@ export async function PATCH(request: NextRequest) {
     const inputError = productConfigurationError(rest, false)
     if (inputError) return NextResponse.json({ success: false, error: inputError }, { status: 400 })
     const payload = buildProductPayload(rest)
-    
+
     // Récupérer le produit existant pour vérifier
     const existing = await Product.findById(id).lean()
     if (!existing) {
@@ -440,21 +440,21 @@ export async function PATCH(request: NextRequest) {
     const definedPayload = Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined))
     const configurationError = productConfigurationError({ ...existing, ...definedPayload })
     if (configurationError) return NextResponse.json({ success: false, error: configurationError }, { status: 400 })
-    
+
     // Validation des prix - un prix doit être défini sauf si explicitement sur devis
     const finalRequiresQuote = payload.requiresQuote ?? (existing as any).requiresQuote
     const finalPrice = payload.price ?? (existing as any).price
     const finalB2bPrice = payload.b2bPrice ?? (existing as any).b2bPrice
     const finalBaseCost = payload.baseCost ?? (existing as any).baseCost
     const finalPrice1688 = payload.price1688 ?? (existing as any).price1688
-    
+
     if (!finalRequiresQuote && !finalPrice && !finalB2bPrice && !finalBaseCost && !finalPrice1688) {
       return NextResponse.json({
         success: false,
         error: 'Un prix doit être défini (prix public, prix corporate, coût de base ou prix 1688). Cochez "Sur devis" pour les produits sans prix.'
       }, { status: 400 })
     }
-    
+
     // Synchroniser tags/condition en conservant les tags existants
     const existingTags = Array.isArray((existing as any).tags) ? (existing as any).tags : []
     const finalCondition = (payload as any).condition ?? (existing as any).condition

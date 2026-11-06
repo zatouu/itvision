@@ -1,15 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { 
-  Search, Building2, Mail, Phone, RefreshCw, Users, ShieldCheck, 
+import {
+  Search, Building2, Mail, Phone, RefreshCw, Users, ShieldCheck,
   UserCheck, ChevronLeft, ChevronRight, Filter, Plus, Edit3, Trash2,
   Eye, Download, X, Check, MapPin, Calendar, FileText, Upload,
   Activity, AlertCircle, CheckCircle2, Tag, Briefcase, Globe,
   Star, TrendingUp, MessageSquare, Settings, Archive, UserX
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
-import PortalActivityPanel from '@/components/admin/PortalActivityPanel'
 
 interface Client {
   _id: string
@@ -35,7 +34,6 @@ interface Client {
   category?: string
   rating?: number
   lastContact?: string
-  membersCount?: number
 }
 
 interface Metrics {
@@ -56,23 +54,23 @@ export default function ImprovedClientManagement() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'archived'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [metrics, setMetrics] = useState<Metrics>({ total: 0, active: 0, portalEnabled: 0, withContracts: 0 })
-  
+
   // Modale
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  
+
   // Import
   const [showImportModal, setShowImportModal] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
-  
+
   // Formulaire
   const [formData, setFormData] = useState({
     name: '',
@@ -88,7 +86,7 @@ export default function ImprovedClientManagement() {
     category: '',
     rating: 0
   })
-  
+
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const [saving, setSaving] = useState(false)
   const [newTag, setNewTag] = useState('')
@@ -96,7 +94,7 @@ export default function ImprovedClientManagement() {
 
   // Catégories prédéfinies
   const categories = ['PME', 'Grande Entreprise', 'Administration', 'ONG', 'Particulier']
-  
+
   // Tags populaires
   const popularTags = ['VIP', 'Prioritaire', 'Urgent', 'Fidèle', 'Nouveau', 'Prospect']
 
@@ -122,7 +120,7 @@ export default function ImprovedClientManagement() {
   const handleFieldChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value })
     const error = validateField(field, value)
-    
+
     // Mettre à jour les erreurs en supprimant celles qui sont résolues
     const newErrors = { ...validationErrors }
     if (error) {
@@ -142,15 +140,15 @@ export default function ImprovedClientManagement() {
         q: searchTerm,
         ...(statusFilter !== 'all' && { status: statusFilter })
       })
-      
+
       const res = await fetch(`/api/admin/clients?${params}`)
       const data = await res.json()
-      
+
       if (data.success) {
         setClients(data.clients)
         setTotal(data.total)
         setError('')
-        
+
         if (data.metrics) {
           setMetrics({
             total: data.metrics.totalClients || 0,
@@ -169,15 +167,15 @@ export default function ImprovedClientManagement() {
     }
   }
 
-  useEffect(() => { 
-    fetchClients() 
+  useEffect(() => {
+    fetchClients()
   }, [currentPage, searchTerm, statusFilter, categoryFilter])
 
   const openModal = (mode: 'add' | 'edit' | 'view', client?: Client) => {
     setModalMode(mode)
     setSelectedClient(client || null)
     setValidationErrors({})
-    
+
     if (mode === 'add') {
       setFormData({
         name: '',
@@ -209,7 +207,7 @@ export default function ImprovedClientManagement() {
         rating: client.rating || 0
       })
     }
-    
+
     setShowModal(true)
   }
 
@@ -221,7 +219,7 @@ export default function ImprovedClientManagement() {
 
   const handleSave = async () => {
     console.log('handleSave appelé', formData)
-    
+
     // Validation finale
     const errors: ValidationErrors = {}
     if (!formData.name.trim()) errors.name = 'Le nom est obligatoire'
@@ -231,7 +229,7 @@ export default function ImprovedClientManagement() {
       if (!emailRegex.test(formData.email)) errors.email = 'Email invalide'
     }
     if (!formData.phone.trim()) errors.phone = 'Le téléphone est obligatoire'
-    
+
     if (Object.keys(errors).length > 0) {
       console.log('Erreurs de validation:', errors)
       setValidationErrors(errors)
@@ -241,14 +239,14 @@ export default function ImprovedClientManagement() {
 
     setSaving(true)
     try {
-      const url = modalMode === 'edit' && selectedClient 
+      const url = modalMode === 'edit' && selectedClient
         ? `/api/admin/clients/${selectedClient._id}`
         : '/api/admin/clients'
-      
+
       const method = modalMode === 'edit' ? 'PUT' : 'POST'
-      
+
       console.log('Envoi requête:', method, url, formData)
-      
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -257,7 +255,7 @@ export default function ImprovedClientManagement() {
 
       const data = await res.json()
       console.log('Réponse API:', data)
-      
+
       if (data.success) {
         addToast(modalMode === 'edit' ? 'Client modifié avec succès' : 'Client créé avec succès', 'success')
         if (data.warning) addToast(data.warning, 'warning')
@@ -279,7 +277,7 @@ export default function ImprovedClientManagement() {
   }
 
   const handleDelete = async (clientId: string) => {
-    if (!confirm('Supprimer ce client ? S\'il a déjà des factures, devis, contrats ou interventions, il sera archivé (historique conservé, accès portail coupé).')) return
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) return
 
     try {
       const res = await fetch(`/api/admin/clients/${clientId}`, {
@@ -287,9 +285,9 @@ export default function ImprovedClientManagement() {
       })
 
       const data = await res.json()
-      
+
       if (data.success) {
-        addToast(data.archived ? 'Client archivé (historique conservé)' : 'Client supprimé', 'success')
+        addToast('Client supprimé', 'success')
         fetchClients()
       } else {
         addToast(data.error || 'Erreur lors de la suppression', 'error')
@@ -310,17 +308,17 @@ export default function ImprovedClientManagement() {
       const text = await importFile.text()
       const lines = text.split('\n')
       const headers = lines[0].split(',').map(h => h.trim())
-      
+
       const clientsToImport = []
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue
         const values = lines[i].split(',').map(v => v.trim())
-        
+
         const client: any = {}
         headers.forEach((header, index) => {
           client[header.toLowerCase()] = values[index]
         })
-        
+
         if (client.name && client.email && client.phone) {
           clientsToImport.push({
             name: client.name,
@@ -339,7 +337,7 @@ export default function ImprovedClientManagement() {
       // Importer les clients un par un
       let imported = 0
       let errors = 0
-      
+
       for (const client of clientsToImport) {
         try {
           const res = await fetch('/api/admin/clients', {
@@ -347,7 +345,7 @@ export default function ImprovedClientManagement() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(client)
           })
-          
+
           if (res.ok) {
             imported++
           } else {
@@ -406,18 +404,18 @@ export default function ImprovedClientManagement() {
   }
 
   const totalPages = Math.ceil(total / perPage)
-  
-  const filteredClients = categoryFilter === 'all' 
-    ? clients 
+
+  const filteredClients = categoryFilter === 'all'
+    ? clients
     : clients.filter(c => c.category === categoryFilter)
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4">
       {/* En-tête avec gradient vert IT Vision */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 text-white p-8 shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-green-500 to-teal-500 text-white p-8 shadow-2xl">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-green-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-pulse delay-700" />
-        
+
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
@@ -431,25 +429,25 @@ export default function ImprovedClientManagement() {
               </h1>
               <p className="text-white/90">Gérez votre portefeuille clients et leurs accès</p>
             </div>
-            
+
             <div className="flex flex-wrap gap-3">
-              <button 
+              <button
                 onClick={() => openModal('add')}
                 className="inline-flex items-center gap-2 bg-white text-emerald-600 px-6 py-3 rounded-xl hover:bg-white/90 transition-all font-semibold shadow-lg hover:scale-105"
               >
                 <Plus className="h-5 w-5" />
                 Nouveau client
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => setShowImportModal(true)}
                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-4 py-3 rounded-xl hover:bg-white/20 transition-all"
               >
                 <Upload className="h-5 w-5" />
                 Importer
               </button>
-              
-              <button 
+
+              <button
                 onClick={exportClients}
                 disabled={clients.length === 0}
                 className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-4 py-3 rounded-xl hover:bg-white/20 transition-all disabled:opacity-50"
@@ -475,15 +473,15 @@ export default function ImprovedClientManagement() {
           <div className="text-xs text-blue-600 mt-1">Base complète</div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-medium text-emerald-800">Actifs</div>
-            <div className="p-2.5 bg-emerald-500 rounded-xl">
+            <div className="text-sm font-medium text-green-700">Actifs</div>
+            <div className="p-2.5 bg-green-500 rounded-xl">
               <CheckCircle2 className="h-5 w-5 text-white" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-emerald-900">{metrics.active}</div>
-          <div className="text-xs text-emerald-700 mt-1">
+          <div className="text-3xl font-bold text-green-900">{metrics.active}</div>
+          <div className="text-xs text-green-600 mt-1">
             {metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 0}% du total
           </div>
         </div>
@@ -512,46 +510,45 @@ export default function ImprovedClientManagement() {
       </div>
 
       {/* Barre de recherche et filtres améliorés */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Recherche */}
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Rechercher par nom, email, entreprise..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-stone-50"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
             />
           </div>
-          
+
           {/* Filtres */}
           <div className="flex gap-3">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-stone-50"
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
             >
               <option value="all">Tous les statuts</option>
               <option value="active">Actifs</option>
               <option value="inactive">Inactifs</option>
-              <option value="archived">Archivés</option>
             </select>
 
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-stone-50"
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
             >
               <option value="all">Toutes catégories</option>
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            
-            <button 
-              onClick={fetchClients} 
+
+            <button
+              onClick={fetchClients}
               disabled={loading}
               className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl hover:bg-emerald-200 transition-colors disabled:opacity-50"
             >
@@ -576,10 +573,10 @@ export default function ImprovedClientManagement() {
           <RefreshCw className="h-8 w-8 text-emerald-600 animate-spin" />
         </div>
       ) : filteredClients.length === 0 ? (
-        <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center">
-          <Building2 className="h-16 w-16 text-stone-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-stone-900 mb-2">Aucun client trouvé</h3>
-          <p className="text-stone-600 mb-6">
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+          <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun client trouvé</h3>
+          <p className="text-gray-600 mb-6">
             {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
               ? 'Aucun client ne correspond à vos critères'
               : 'Commencez par ajouter votre premier client'}
@@ -598,32 +595,32 @@ export default function ImprovedClientManagement() {
             {filteredClients.map((client) => (
               <div
                 key={client._id}
-                className="bg-white border border-stone-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative"
+                className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all group relative"
               >
                 {/* Badge statut */}
                 <div className="absolute top-4 right-4 flex gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    client.isActive 
-                      ? 'bg-emerald-100 text-emerald-800' 
-                      : 'bg-stone-100 text-stone-600'
+                    client.isActive
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600'
                   }`}>
                     {client.isActive ? '✓ Actif' : 'Inactif'}
                   </span>
                 </div>
 
                 {/* Avatar avec initiales */}
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-2xl mb-4 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-2xl mb-4 shadow-lg">
                   {client.name.charAt(0).toUpperCase()}
                 </div>
 
                 {/* Infos principales */}
-                <h3 className="font-bold text-stone-900 text-lg mb-1 pr-20 truncate">
+                <h3 className="font-bold text-gray-900 text-lg mb-1 pr-20 truncate">
                   {client.name}
                 </h3>
-                
+
                 {client.company && (
-                  <div className="flex items-center gap-1.5 text-sm text-stone-600 mb-3">
-                    <Briefcase className="h-4 w-4 text-stone-400" />
+                  <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-3">
+                    <Briefcase className="h-4 w-4 text-gray-400" />
                     <span className="truncate">{client.company}</span>
                   </div>
                 )}
@@ -636,18 +633,18 @@ export default function ImprovedClientManagement() {
                 )}
 
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Mail className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                     <span className="truncate">{client.email}</span>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Phone className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                     <span>{client.phone}</span>
                   </div>
-                  
+
                   {client.city && (
-                    <div className="flex items-center gap-2 text-sm text-stone-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                       <span className="truncate">{client.city}</span>
                     </div>
@@ -663,7 +660,7 @@ export default function ImprovedClientManagement() {
                       </span>
                     ))}
                     {client.tags.length > 3 && (
-                      <span className="px-2 py-0.5 bg-stone-100 text-stone-600 text-xs rounded-md">
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">
                         +{client.tags.length - 3}
                       </span>
                     )}
@@ -671,30 +668,23 @@ export default function ImprovedClientManagement() {
                 )}
 
                 {/* Infos supplémentaires */}
-                <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-                  <div className="flex items-center gap-2 text-xs text-stone-500">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Calendar className="h-3.5 w-3.5" />
                     {new Date(client.createdAt).toLocaleDateString('fr-FR')}
                   </div>
-                  
+
                   {client.permissions?.canAccessPortal && (
                     <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Portail
                     </div>
                   )}
-                  
+
                   {client.activeContracts && client.activeContracts.length > 0 && (
                     <div className="flex items-center gap-1 text-xs text-orange-600 font-semibold">
                       <FileText className="h-3.5 w-3.5" />
                       {client.activeContracts.length}
-                    </div>
-                  )}
-
-                  {(client.membersCount ?? 0) > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-sky-600 font-semibold" title="Membres de l'équipe portail">
-                      <Users className="h-3.5 w-3.5" />
-                      {client.membersCount}
                     </div>
                   )}
                 </div>
@@ -703,12 +693,12 @@ export default function ImprovedClientManagement() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => openModal('view', client)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-all text-sm font-medium hover:scale-105"
+                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all text-sm font-medium hover:scale-105"
                   >
                     <Eye className="h-4 w-4" />
                     Voir
                   </button>
-                  
+
                   <button
                     onClick={() => openModal('edit', client)}
                     className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-all text-sm font-medium hover:scale-105"
@@ -716,7 +706,7 @@ export default function ImprovedClientManagement() {
                     <Edit3 className="h-4 w-4" />
                     Modifier
                   </button>
-                  
+
                   <button
                     onClick={() => handleDelete(client._id)}
                     className="inline-flex items-center justify-center p-2.5 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all hover:scale-105"
@@ -730,25 +720,25 @@ export default function ImprovedClientManagement() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between bg-white border border-stone-200 rounded-2xl p-4">
-              <div className="text-sm text-stone-600 font-medium">
+            <div className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl p-4">
+              <div className="text-sm text-gray-600 font-medium">
                 Page <span className="text-emerald-600">{currentPage}</span> sur {totalPages} • {total} client{total > 1 ? 's' : ''}
               </div>
-              
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Précédent
                 </button>
-                
+
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Suivant
                   <ChevronRight className="h-4 w-4" />
@@ -764,7 +754,7 @@ export default function ImprovedClientManagement() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto my-8 shadow-2xl">
             {/* En-tête modale */}
-            <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-5 flex items-center justify-between rounded-t-3xl">
+            <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-green-500 text-white px-6 py-5 flex items-center justify-between rounded-t-3xl">
               <h2 className="text-2xl font-bold">
                 {modalMode === 'add' && '✨ Nouveau client'}
                 {modalMode === 'edit' && '✏️ Modifier le client'}
@@ -784,13 +774,13 @@ export default function ImprovedClientManagement() {
                 // Mode Vue
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
                       {selectedClient.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h3 className="text-3xl font-bold text-stone-900">{selectedClient.name}</h3>
+                      <h3 className="text-3xl font-bold text-gray-900">{selectedClient.name}</h3>
                       {selectedClient.company && (
-                        <p className="text-lg text-stone-600 flex items-center gap-2 mt-1">
+                        <p className="text-lg text-gray-600 flex items-center gap-2 mt-1">
                           <Briefcase className="h-5 w-5" />
                           {selectedClient.company}
                         </p>
@@ -806,15 +796,15 @@ export default function ImprovedClientManagement() {
                       </div>
                       <div className="font-semibold text-blue-900">{selectedClient.email}</div>
                     </div>
-                    
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
-                      <div className="text-sm text-emerald-800 font-medium mb-1 flex items-center gap-2">
+
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                      <div className="text-sm text-green-700 font-medium mb-1 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         Téléphone
                       </div>
-                      <div className="font-semibold text-emerald-900">{selectedClient.phone}</div>
+                      <div className="font-semibold text-green-900">{selectedClient.phone}</div>
                     </div>
-                    
+
                     {selectedClient.address && (
                       <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 col-span-2">
                         <div className="text-sm text-purple-700 font-medium mb-1 flex items-center gap-2">
@@ -828,18 +818,18 @@ export default function ImprovedClientManagement() {
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
                       <div className="text-sm text-orange-700 font-medium mb-1">Statut</div>
                       <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${
-                        selectedClient.isActive 
-                          ? 'bg-emerald-500 text-white' 
-                          : 'bg-stone-300 text-stone-700'
+                        selectedClient.isActive
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-300 text-gray-700'
                       }`}>
                         {selectedClient.isActive ? '✓ Actif' : 'Inactif'}
                       </span>
                     </div>
-                    
+
                     <div className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-4">
                       <div className="text-sm text-teal-700 font-medium mb-1">Accès portail</div>
                       {selectedClient.permissions?.canAccessPortal ? (
@@ -847,14 +837,12 @@ export default function ImprovedClientManagement() {
                           ✓ Activé
                         </span>
                       ) : (
-                        <span className="px-3 py-1.5 rounded-lg text-sm font-bold bg-stone-300 text-stone-700">
+                        <span className="px-3 py-1.5 rounded-lg text-sm font-bold bg-gray-300 text-gray-700">
                           Désactivé
                         </span>
                       )}
                     </div>
                   </div>
-
-                  {selectedClient.permissions?.canAccessPortal && <PortalActivityPanel clientId={String(selectedClient._id)} />}
 
                   {selectedClient.tags && selectedClient.tags.length > 0 && (
                     <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
@@ -888,14 +876,14 @@ export default function ImprovedClientManagement() {
                         closeModal()
                         setTimeout(() => openModal('edit', selectedClient), 100)
                       }}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all font-semibold shadow-lg hover:scale-105"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-xl hover:from-emerald-700 hover:to-green-600 transition-all font-semibold shadow-lg hover:scale-105"
                     >
                       <Edit3 className="h-5 w-5" />
                       Modifier ce client
                     </button>
                     <button
                       onClick={closeModal}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-all font-semibold"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-semibold"
                     >
                       Fermer
                     </button>
@@ -906,14 +894,14 @@ export default function ImprovedClientManagement() {
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Nom complet *
                       </label>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => handleFieldChange('name', e.target.value)}
-                        className={`w-full px-4 py-3 border ${validationErrors.name ? 'border-red-500' : 'border-stone-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
+                        className={`w-full px-4 py-3 border ${validationErrors.name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
                         placeholder="Jean Dupont"
                         required
                       />
@@ -923,32 +911,32 @@ export default function ImprovedClientManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Entreprise
                       </label>
                       <div className="relative">
-                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="text"
                           value={formData.company}
                           onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           placeholder="Nom de l'entreprise"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Email *
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="email"
                           value={formData.email}
                           onChange={(e) => handleFieldChange('email', e.target.value)}
-                          className={`w-full pl-11 pr-4 py-3 border ${validationErrors.email ? 'border-red-500' : 'border-stone-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
+                          className={`w-full pl-11 pr-4 py-3 border ${validationErrors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
                           placeholder="email@exemple.com"
                           required
                         />
@@ -959,16 +947,16 @@ export default function ImprovedClientManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Téléphone *
                       </label>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="tel"
                           value={formData.phone}
                           onChange={(e) => handleFieldChange('phone', e.target.value)}
-                          className={`w-full pl-11 pr-4 py-3 border ${validationErrors.phone ? 'border-red-500' : 'border-stone-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
+                          className={`w-full pl-11 pr-4 py-3 border ${validationErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent`}
                           placeholder="+221 77 123 45 67"
                           required
                         />
@@ -979,58 +967,58 @@ export default function ImprovedClientManagement() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Adresse
                       </label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-stone-400" />
+                        <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                         <input
                           type="text"
                           value={formData.address}
                           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           placeholder="123 Rue de..."
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Ville
                       </label>
                       <input
                         type="text"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         placeholder="Dakar"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Pays
                       </label>
                       <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="text"
                           value={formData.country}
                           onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                          className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           placeholder="Sénégal"
                         />
                       </div>
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Catégorie
                       </label>
                       <select
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       >
                         <option value="">Sélectionner une catégorie</option>
                         {categories.map(cat => (
@@ -1040,7 +1028,7 @@ export default function ImprovedClientManagement() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Tags
                       </label>
                       <div className="flex flex-wrap gap-2 mb-3">
@@ -1068,7 +1056,7 @@ export default function ImprovedClientManagement() {
                               addTag()
                             }
                           }}
-                          className="flex-1 px-4 py-2 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           placeholder="Ajouter un tag..."
                         />
                         <button
@@ -1086,7 +1074,7 @@ export default function ImprovedClientManagement() {
                               key={tag}
                               type="button"
                               onClick={() => setFormData({ ...formData, tags: [...formData.tags, tag] })}
-                              className="px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-md hover:bg-stone-200"
+                              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md hover:bg-gray-200"
                             >
                               + {tag}
                             </button>
@@ -1096,13 +1084,13 @@ export default function ImprovedClientManagement() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Notes internes
                       </label>
                       <textarea
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         rows={3}
                         placeholder="Notes ou remarques sur le client..."
                       />
@@ -1114,7 +1102,7 @@ export default function ImprovedClientManagement() {
                           type="checkbox"
                           checked={formData.canAccessPortal}
                           onChange={(e) => setFormData({ ...formData, canAccessPortal: e.target.checked })}
-                          className="w-5 h-5 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                          className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                         />
                         <div>
                           <div className="font-semibold text-emerald-900 flex items-center gap-2">
@@ -1127,18 +1115,18 @@ export default function ImprovedClientManagement() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-stone-200">
+                  <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="flex-1 px-6 py-4 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-colors font-semibold"
+                      className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
                     >
                       Annuler
                     </button>
                     <button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all font-semibold shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-xl hover:from-emerald-700 hover:to-green-600 transition-all font-semibold shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                       {saving ? (
                         <span className="flex items-center justify-center gap-2">
@@ -1191,11 +1179,11 @@ export default function ImprovedClientManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Sélectionner le fichier CSV
                 </label>
-                <div className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
-                  <Upload className="h-12 w-12 text-stone-400 mx-auto mb-3" />
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <input
                     type="file"
                     accept=".csv"
@@ -1203,11 +1191,11 @@ export default function ImprovedClientManagement() {
                     className="hidden"
                     id="csv-upload"
                   />
-                  <label 
-                    htmlFor="csv-upload" 
+                  <label
+                    htmlFor="csv-upload"
                     className="cursor-pointer"
                   >
-                    <span className="text-sm text-stone-600">
+                    <span className="text-sm text-gray-600">
                       {importFile ? (
                         <span className="text-emerald-600 font-semibold">
                           ✓ {importFile.name}
@@ -1227,7 +1215,7 @@ export default function ImprovedClientManagement() {
                     setShowImportModal(false)
                     setImportFile(null)
                   }}
-                  className="flex-1 px-6 py-4 bg-stone-100 text-stone-700 rounded-xl hover:bg-stone-200 transition-colors font-semibold"
+                  className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-semibold"
                 >
                   Annuler
                 </button>

@@ -7,9 +7,9 @@ import { readSharedTariffs, configuredShippingRates } from '@/lib/pricing/shared
 
 /**
  * POST /api/pricing/simulate
- * 
+ *
  * Simule le pricing d'un produit 1688 avec calcul complet des coûts et marges
- * 
+ *
  * Body:
  * {
  *   productId?: string, // ID produit existant (optionnel)
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/pricing/simulate
- * 
+ *
  * Documentation de l'API
  */
 export async function GET() {

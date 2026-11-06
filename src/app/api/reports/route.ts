@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     const session = await getServerSession()
-    
+
     if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Non autorisé' },
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectMongoose()
     const session = await getServerSession()
-    
+
     if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Non autorisé' },

@@ -90,10 +90,10 @@ const Services = () => {
                 <div className="relative flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-100 to-purple-100 rounded-lg mb-6 group-hover:from-emerald-500 group-hover:to-purple-600 transition-all duration-300">
                   <IconComponent className="h-8 w-8 text-emerald-600 group-hover:text-white transition-colors duration-300" />
                 </div>
-                
+
                 <h3 className="relative text-xl font-bold text-gray-900 mb-3">{service.title}</h3>
                 <p className="relative text-gray-600 mb-4">{service.description}</p>
-                
+
                 <ul className="relative space-y-2 mb-6">
                   {service.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center text-sm text-gray-500">
@@ -102,7 +102,7 @@ const Services = () => {
                     </li>
                   ))}
                 </ul>
-                
+
                 <Link
                   href={service.link}
                   className="relative inline-flex items-center text-emerald-600 hover:text-purple-600 font-semibold transition-colors duration-300"

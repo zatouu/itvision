@@ -184,14 +184,14 @@ export const computeProductPricing = (
   const volumeM3 = computeVolume(product)
   const overrides = product.shippingOverrides
   const isInStock = product.stockStatus === 'in_stock'
-  
+
   // Déterminer si le produit est importé
   const isImported = !product.shopId && !!(product.price1688 || (product.sourcing?.platform && ['1688', 'alibaba', 'taobao', 'aliexpress'].includes(product.sourcing.platform)))
 
   // Calcul des frais additionnels (uniquement pour les produits importés avec un prix)
   let fees: PricingFees | undefined
   let totalWithFees: number | null = null
-  
+
   if (isImported && salePrice !== null && salePrice > 0 && productCostFCFA !== null) {
     const standardServiceFeeRate = typeof product.serviceFeeRate === 'number' ? product.serviceFeeRate : (globalDefaults.defaultServiceFeeRate ?? DEFAULT_SERVICE_FEE_RATE)
     const serviceFeeRate = getImportServiceFeeRate(orderQuantity, standardServiceFeeRate, singleImportServiceFeeRate)

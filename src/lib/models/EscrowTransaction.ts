@@ -1,7 +1,7 @@
 /**
  * Modèle EscrowTransaction
  * Système de garantie et suivi des paiements pour renforcer la confiance client
- * 
+ *
  * Ce n'est pas un escrow technique avec tiers, mais un système de transparence
  * qui montre au client exactement où en est son argent et ses garanties.
  */
@@ -9,7 +9,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 // États du cycle de vie d'une transaction garantie
-export type EscrowStatus = 
+export type EscrowStatus =
   | 'pending_payment'    // En attente de paiement
   | 'payment_received'   // Paiement reçu et vérifié
   | 'funds_secured'      // Fonds sécurisés (garantie active)
@@ -44,40 +44,40 @@ export interface IGuarantee {
 export interface IEscrowTransaction extends Document {
   // Référence unique visible au client
   reference: string
-  
+
   // Liens vers les entités
   groupOrderId?: mongoose.Types.ObjectId
   orderId?: mongoose.Types.ObjectId
   userId?: mongoose.Types.ObjectId
-  
+
   // Informations client
   client: {
     name: string
     phone: string
     email?: string
   }
-  
+
   // Montants
   amount: number
   currency: string
   paidAmount: number
-  
+
   // Statut actuel
   status: EscrowStatus
-  
+
   // Historique complet (visible au client)
   timeline: IEscrowEvent[]
-  
+
   // Garanties offertes
   guarantees: IGuarantee[]
-  
+
   // Dates clés
   paymentReceivedAt?: Date
   orderPlacedAt?: Date
   deliveredAt?: Date
   verificationEndsAt?: Date
   completedAt?: Date
-  
+
   // Informations de livraison
   delivery?: {
     method: string
@@ -87,7 +87,7 @@ export interface IEscrowTransaction extends Document {
     actualDate?: Date
     proofUrl?: string // Photo de livraison
   }
-  
+
   // Litige éventuel
   dispute?: {
     openedAt: Date
@@ -97,7 +97,7 @@ export interface IEscrowTransaction extends Document {
     resolution?: string
     resolvedAt?: Date
   }
-  
+
   // Remboursement éventuel
   refund?: {
     amount: number
@@ -106,7 +106,7 @@ export interface IEscrowTransaction extends Document {
     processedAt?: Date
     transactionId?: string
   }
-  
+
   // Métadonnées
   createdAt: Date
   updatedAt: Date
@@ -128,47 +128,47 @@ const GuaranteeSchema = new Schema<IGuarantee>({
 }, { _id: false })
 
 const EscrowTransactionSchema = new Schema<IEscrowTransaction>({
-  reference: { 
-    type: String, 
-    required: true, 
+  reference: {
+    type: String,
+    required: true,
     unique: true,
     index: true
   },
-  
+
   groupOrderId: { type: Schema.Types.ObjectId, ref: 'GroupOrder' },
   orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
   userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  
+
   client: {
     name: { type: String, required: true },
     phone: { type: String, required: true },
     email: String
   },
-  
+
   amount: { type: Number, required: true },
   currency: { type: String, default: 'FCFA' },
   paidAmount: { type: Number, default: 0 },
-  
-  status: { 
-    type: String, 
+
+  status: {
+    type: String,
     enum: [
-      'pending_payment', 'payment_received', 'funds_secured', 
-      'order_placed', 'order_confirmed', 'in_transit', 
-      'delivered', 'verification', 'completed', 
+      'pending_payment', 'payment_received', 'funds_secured',
+      'order_placed', 'order_confirmed', 'in_transit',
+      'delivered', 'verification', 'completed',
       'disputed', 'refunded', 'cancelled'
     ],
     default: 'pending_payment'
   },
-  
+
   timeline: [EscrowEventSchema],
   guarantees: [GuaranteeSchema],
-  
+
   paymentReceivedAt: Date,
   orderPlacedAt: Date,
   deliveredAt: Date,
   verificationEndsAt: Date,
   completedAt: Date,
-  
+
   delivery: {
     method: String,
     trackingNumber: String,
@@ -177,7 +177,7 @@ const EscrowTransactionSchema = new Schema<IEscrowTransaction>({
     actualDate: Date,
     proofUrl: String
   },
-  
+
   dispute: {
     openedAt: Date,
     reason: String,
@@ -186,7 +186,7 @@ const EscrowTransactionSchema = new Schema<IEscrowTransaction>({
     resolution: String,
     resolvedAt: Date
   },
-  
+
   refund: {
     amount: Number,
     reason: String,
@@ -215,8 +215,8 @@ EscrowTransactionSchema.statics.generateReference = function(): string {
 
 // Méthode pour ajouter un événement au timeline
 EscrowTransactionSchema.methods.addEvent = function(
-  status: EscrowStatus, 
-  note?: string, 
+  status: EscrowStatus,
+  note?: string,
   adminId?: string
 ): void {
   this.timeline.push({
@@ -232,7 +232,7 @@ EscrowTransactionSchema.methods.addEvent = function(
 // Méthode pour calculer les garanties par défaut
 EscrowTransactionSchema.methods.setDefaultGuarantees = function(): void {
   const now = new Date()
-  
+
   this.guarantees = [
     {
       type: 'money_back',
@@ -255,7 +255,7 @@ EscrowTransactionSchema.methods.setDefaultGuarantees = function(): void {
   ]
 }
 
-export const EscrowTransaction = mongoose.models.EscrowTransaction || 
+export const EscrowTransaction = mongoose.models.EscrowTransaction ||
   mongoose.model<IEscrowTransaction>('EscrowTransaction', EscrowTransactionSchema)
 
 // Labels et descriptions pour l'affichage client

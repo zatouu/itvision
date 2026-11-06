@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectMongoose()
     const session = await getServerSession()
-    
+
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Non autorisé' },

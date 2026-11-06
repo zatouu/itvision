@@ -80,25 +80,25 @@ export async function GET(req: NextRequest) {
       .map(([method]) => method)
 
     await connectDB()
-    
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const productId = searchParams.get('productId')
     const limit = parseInt(searchParams.get('limit') || '50')
-    
+
     const query: any = {}
-    
+
     // Par défaut, montrer les achats groupés ouverts
     if (status) {
       query.status = status
     } else {
       query.status = { $in: ['open', 'filled'] }
     }
-    
+
     if (productId) {
       query['product.productId'] = productId
     }
-    
+
     // Ne pas montrer les expirés sauf si demandé
     if (!searchParams.get('includeExpired')) {
       query.deadline = { $gte: new Date() }
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
       await redis.set(cacheKey, JSON.stringify(response), 'EX', GROUPS_LIST_CACHE_TTL)
     }
     return NextResponse.json(response)
-    
+
   } catch (error) {
     console.error('Erreur récupération achats groupés:', error)
     return NextResponse.json(
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
     const defaultShippingMethod = enabledShippingMethods[0] || 'maritime_60j'
 
     await connectDB()
-    
+
     const body = await req.json()
     const {
       productId,
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
     const creatorPhoneRaw = asTrimmedString(creator?.phone, 32) || ''
     const creatorEmail = asTrimmedString(creator?.email, 120)
     const cleanDescription = asTrimmedString(description, 500)
-    
+
     if (!productId || !creatorName || !creatorPhoneRaw) {
       return NextResponse.json(
         { success: false, error: 'Données manquantes: productId, qty, creator (name, phone) requis' },
@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    
+
     // Récupérer le produit
     const product = await Product.findOne({ _id: productId, isPublished: { $ne: false } }).lean() as any
     if (!product) {
@@ -284,7 +284,7 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       )
     }
-    
+
     // Vérifier que l'achat groupé est activé pour ce produit
     if (!product.groupBuyEnabled) {
       return NextResponse.json(
@@ -322,7 +322,7 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       )
     }
-    
+
     const minQty = Number(product.groupBuyMinQty) > 0 ? Number(product.groupBuyMinQty) : groupRules.defaultMinQty
     const targetQty =
       Number(product.groupBuyTargetQty) >= minQty
@@ -418,7 +418,7 @@ export async function POST(req: NextRequest) {
 
     const reachedObjective = qty >= targetQty || (typeof maxQty === 'number' && qty >= maxQty)
     const initialStatus = groupRules.autoFillOnTargetReached && reachedObjective ? 'filled' : 'open'
-    
+
     // Créer l'achat groupé
     const groupOrder = new GroupOrder({
       groupId: generateGroupId(),
@@ -463,7 +463,7 @@ export async function POST(req: NextRequest) {
       },
       description: cleanDescription
     })
-    
+
     await groupOrder.save()
     void invalidateGroupOrdersCache()
 

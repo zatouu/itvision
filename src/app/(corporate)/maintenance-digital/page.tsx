@@ -28,8 +28,8 @@ export default function MaintenanceDigitalPage() {
               Créez des rapports de maintenance complets et professionnels avec notre formulaire intuitif
             </p>
           </div>
-          
-          <EnhancedMaintenanceForm 
+
+          <EnhancedMaintenanceForm
             onSave={handleSave}
             onSubmit={handleSubmit}
           />

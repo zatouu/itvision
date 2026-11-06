@@ -7,13 +7,13 @@ export interface ITechnician extends Document {
   email: string
   phone: string
   passwordHash: string
-  
+
   // Profil
   profilePhoto?: string
   specialties: string[]
   certifications: string[]
   experience: number // années
-  
+
   // Statut
   isActive: boolean
   isAvailable: boolean
@@ -22,7 +22,7 @@ export interface ITechnician extends Document {
     lng: number
     lastUpdate: Date
   }
-  
+
   // Permissions
   permissions: {
     canCreateReports: boolean
@@ -31,7 +31,7 @@ export interface ITechnician extends Document {
     allowedInterventionTypes: string[]
     maxReportValue?: number // limite si applicable
   }
-  
+
   // Statistiques
   stats: {
     totalReports: number
@@ -40,7 +40,7 @@ export interface ITechnician extends Document {
     averageResponseTime: number // minutes
     onTimeRate: number // pourcentage ponctualité
   }
-  
+
   // Préférences
   preferences: {
     notifications: {
@@ -55,7 +55,7 @@ export interface ITechnician extends Document {
     }
     language: string
   }
-  
+
   // Géolocalisation tracking
   locationHistory: {
     timestamp: Date
@@ -64,16 +64,16 @@ export interface ITechnician extends Document {
     accuracy: number
     activity?: string // 'traveling' | 'on_site' | 'break'
   }[]
-  
+
   // Sessions et sécurité
   lastLogin?: Date
   lastLocationUpdate?: Date
   deviceTokens: string[] // pour notifications push
-  
+
   // Équipe et hiérarchie
   teamId?: mongoose.Types.ObjectId
   supervisorId?: mongoose.Types.ObjectId
-  
+
   createdAt: Date
   updatedAt: Date
 }
@@ -84,12 +84,12 @@ const TechnicianSchema = new Schema<ITechnician>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   phone: { type: String, required: true },
   passwordHash: { type: String, required: true },
-  
+
   profilePhoto: { type: String },
   specialties: [{ type: String }],
   certifications: [{ type: String }],
   experience: { type: Number, default: 0 },
-  
+
   isActive: { type: Boolean, default: true },
   isAvailable: { type: Boolean, default: true },
   currentLocation: {
@@ -97,7 +97,7 @@ const TechnicianSchema = new Schema<ITechnician>({
     lng: Number,
     lastUpdate: Date
   },
-  
+
   permissions: {
     canCreateReports: { type: Boolean, default: true },
     canEditOwnReports: { type: Boolean, default: true },
@@ -105,7 +105,7 @@ const TechnicianSchema = new Schema<ITechnician>({
     allowedInterventionTypes: [{ type: String }],
     maxReportValue: Number
   },
-  
+
   stats: {
     totalReports: { type: Number, default: 0 },
     averageRating: { type: Number, default: 0 },
@@ -113,7 +113,7 @@ const TechnicianSchema = new Schema<ITechnician>({
     averageResponseTime: { type: Number, default: 0 },
     onTimeRate: { type: Number, default: 0 }
   },
-  
+
   preferences: {
     notifications: {
       email: { type: Boolean, default: true },
@@ -127,7 +127,7 @@ const TechnicianSchema = new Schema<ITechnician>({
     },
     language: { type: String, default: 'fr' }
   },
-  
+
   locationHistory: [{
     timestamp: { type: Date, default: Date.now },
     lat: Number,
@@ -135,11 +135,11 @@ const TechnicianSchema = new Schema<ITechnician>({
     accuracy: Number,
     activity: { type: String, enum: ['traveling', 'on_site', 'break'] }
   }],
-  
+
   lastLogin: Date,
   lastLocationUpdate: Date,
   deviceTokens: [{ type: String }],
-  
+
   teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
   supervisorId: { type: Schema.Types.ObjectId, ref: 'Technician' }
 }, {
@@ -167,7 +167,7 @@ TechnicianSchema.methods.updateLocation = function(lat: number, lng: number, acc
     lng,
     lastUpdate: new Date()
   }
-  
+
   // Garder historique des 100 dernières positions
   this.locationHistory.push({
     timestamp: new Date(),
@@ -175,11 +175,11 @@ TechnicianSchema.methods.updateLocation = function(lat: number, lng: number, acc
     lng,
     accuracy
   })
-  
+
   if (this.locationHistory.length > 100) {
     this.locationHistory = this.locationHistory.slice(-100)
   }
-  
+
   this.lastLocationUpdate = new Date()
 }
 

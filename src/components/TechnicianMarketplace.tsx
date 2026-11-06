@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Briefcase, 
-  MapPin, 
-  Clock, 
-  DollarSign, 
-  Users, 
+import {
+  Briefcase,
+  MapPin,
+  Clock,
+  DollarSign,
+  Users,
   Calendar,
   Package,
   Phone,

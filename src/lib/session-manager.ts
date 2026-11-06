@@ -30,8 +30,8 @@ class SessionManager {
   }
 
   private getClientInfo(request: NextRequest) {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               request.headers.get('x-real-ip') || 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+               request.headers.get('x-real-ip') ||
                request.headers.get('cf-connecting-ip') || // Cloudflare
                'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
@@ -61,7 +61,7 @@ class SessionManager {
     }
 
     this.sessions.set(sessionId, sessionData)
-    
+
     logDataAccess('session', 'create', request, userId, {
       sessionId: sessionId.substring(0, 8) + '...',
       role
@@ -86,7 +86,7 @@ class SessionManager {
     // Vérifier expiration absolue
     if (now > session.expiresAt) {
       this.sessions.delete(sessionId)
-      logSecurityViolation('session_expired_max', request, { 
+      logSecurityViolation('session_expired_max', request, {
         sessionId: sessionId.substring(0, 8) + '...',
         userId: session.userId
       })
@@ -96,7 +96,7 @@ class SessionManager {
     // Vérifier timeout d'inactivité
     if (now - session.lastActivity > this.sessionTimeout) {
       this.sessions.delete(sessionId)
-      logSecurityViolation('session_expired_timeout', request, { 
+      logSecurityViolation('session_expired_timeout', request, {
         sessionId: sessionId.substring(0, 8) + '...',
         userId: session.userId,
         inactiveFor: Math.round((now - session.lastActivity) / 60000) + ' minutes'
@@ -106,7 +106,7 @@ class SessionManager {
 
     // Vérifier changement d'IP (sécurité renforcée)
     if (session.ipAddress !== ip) {
-      logSecurityViolation('session_ip_change', request, { 
+      logSecurityViolation('session_ip_change', request, {
         sessionId: sessionId.substring(0, 8) + '...',
         userId: session.userId,
         originalIp: session.ipAddress,
@@ -118,7 +118,7 @@ class SessionManager {
 
     // Vérifier changement d'User-Agent (détection de hijacking)
     if (session.userAgent !== userAgent) {
-      logSecurityViolation('session_useragent_change', request, { 
+      logSecurityViolation('session_useragent_change', request, {
         sessionId: sessionId.substring(0, 8) + '...',
         userId: session.userId
       })
@@ -142,9 +142,9 @@ class SessionManager {
     const now = Date.now()
     session.lastActivity = now
     session.expiresAt = now + this.maxSessionAge // Renouveler la durée maximale
-    
+
     this.sessions.set(sessionId, session)
-    
+
     logDataAccess('session', 'refresh', request, session.userId, {
       sessionId: sessionId.substring(0, 8) + '...'
     })
@@ -157,7 +157,7 @@ class SessionManager {
     if (!session) return false
 
     this.sessions.delete(sessionId)
-    
+
     logDataAccess('session', 'destroy', request, session.userId, {
       sessionId: sessionId.substring(0, 8) + '...'
     })
@@ -211,8 +211,8 @@ class SessionManager {
   } {
     const now = Date.now()
     const allSessions = Array.from(this.sessions.values())
-    
-    const activeSessions = allSessions.filter(s => 
+
+    const activeSessions = allSessions.filter(s =>
       now <= s.expiresAt && (now - s.lastActivity) <= this.sessionTimeout
     ).length
 
@@ -243,7 +243,7 @@ export function requireValidSession(request: NextRequest): Response | SessionDat
     logSecurityViolation('missing_session_id', request)
     return new Response(
       JSON.stringify({ error: 'Session requise' }),
-      { 
+      {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       }
@@ -251,14 +251,14 @@ export function requireValidSession(request: NextRequest): Response | SessionDat
   }
 
   const validation = sessionManager.validateSession(sessionId, request)
-  
+
   if (!validation.valid) {
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Session invalide',
         reason: validation.reason
       }),
-      { 
+      {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       }
@@ -275,7 +275,7 @@ export function createSessionResponse(
   request: NextRequest
 ): NextResponse {
   const response = NextResponse.json(data)
-  
+
   // Ajouter le cookie de session sécurisé
   response.cookies.set('session-id', session.sessionId, {
     httpOnly: true,

@@ -4,18 +4,18 @@ export interface IAccountingEntry extends Document {
   // Identification
   entryType: 'sale' | 'purchase' | 'expense' | 'revenue' | 'margin' | 'commission'
   entryNumber: string // Numéro unique (ex: ACC-2024-001)
-  
+
   // Références
   productId?: Types.ObjectId | string
   productName?: string
   orderId?: string
   clientId?: Types.ObjectId | string
   clientName?: string
-  
+
   // Montants
   amount: number // Montant principal
   currency: string // Devise (FCFA, EUR, etc.)
-  
+
   // Détails pricing 1688 (si applicable)
   pricing1688?: {
     price1688?: number // Prix en Yuan
@@ -32,19 +32,19 @@ export interface IAccountingEntry extends Document {
     marginPercentage: number
     shippingMethod?: string
   }
-  
+
   // Catégorisation
   category: string // 'product_sale', 'service', 'installation', etc.
   subCategory?: string
-  
+
   // Dates
   transactionDate: Date
   recordedAt: Date
-  
+
   // Métadonnées
   notes?: string
   metadata?: Record<string, any>
-  
+
   // Statut
   status: 'pending' | 'confirmed' | 'cancelled'
   confirmedBy?: Types.ObjectId

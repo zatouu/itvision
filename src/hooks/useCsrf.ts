@@ -12,9 +12,9 @@ interface UseCsrfReturn {
 
 /**
  * Hook pour gérer les tokens CSRF avec le pattern double-submit cookie
- * 
- * Note: Pour les routes admin protégées par JWT (/api/admin/*), 
- * le CSRF n'est pas nécessaire car le JWT dans le cookie httpOnly 
+ *
+ * Note: Pour les routes admin protégées par JWT (/api/admin/*),
+ * le CSRF n'est pas nécessaire car le JWT dans le cookie httpOnly
  * protège déjà contre les attaques CSRF.
  */
 export function useCsrf(): UseCsrfReturn {

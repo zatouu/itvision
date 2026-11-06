@@ -182,7 +182,7 @@ export default function ScreenTracking() {
     }
   };
 
-  
+
   const Timeline = () => order.status === 'cancelled' ? <p className="py-4 text-sm text-red-700 dark:text-red-300">Cette commande a été annulée.</p> : !isPaymentSettled(order.paymentStatus) ? <p className="py-4 text-sm">En attente de paiement.</p> : (
     <div className="relative">
       {steps.map((step, i) => {

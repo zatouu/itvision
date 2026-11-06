@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const host = (await headers()).get('host')
     const brand = getBrandFromHost(host)
     const { email } = await request.json()
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Email requis' }, { status: 400 })
     }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await User.findOne({ email: email.toLowerCase() })
-    
+
     // Toujours retourner success pour éviter l'énumération d'emails
     if (!user) {
       console.log(`[RESET] Tentative de reset pour email inexistant: ${email}`)
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     try {
       const emailData = emailService.generatePasswordResetEmail(user.email, token, brand)
       const emailSent = await emailService.sendEmail(emailData)
-      
+
       if (emailSent) {
         console.log(`[RESET] Email de réinitialisation envoyé à: ${user.email}`)
       } else {
