@@ -212,14 +212,46 @@ async function handleBulkExport(apiUrl, apiToken, useSmart = true) {
 
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
+  // Mode standard : import produit par produit via /api/products/import
+  if (!useSmart) {
+    let imported = 0;
+    let firstError = '';
+    const remaining = [];
+    for (const p of products) {
+      try {
+        const res = await fetch(`${cookieUrl}/api/products/import`, {
+          method: 'POST', headers, credentials: 'omit',
+          body: JSON.stringify({ item: transformForStandardApi(p) })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && (data?.product || data?.success !== false)) {
+          imported++;
+        } else {
+          if (!firstError) firstError = data?.error || `Erreur ${res.status}`;
+          remaining.push(p);
+        }
+      } catch (err) {
+        if (!firstError) firstError = err?.message || 'Erreur réseau';
+        remaining.push(p);
+      }
+    }
+    await chrome.storage.local.set({ products: remaining });
+    if (imported === 0 && remaining.length > 0) {
+      return { success: false, error: firstError || 'Import standard échoué' };
+    }
+    return { success: true, imported, failed: remaining.length, remaining: remaining.length };
+  }
+
   // Transform identique à popup.js
   const payload = {
     products: products.map(p => transformForSmartApi(p)),
     options: { exchangeRate: 85, b2bDiscountPercent: 15, reformatDescriptions: true, filterImages: true }
   };
 
+  // credentials:'omit' — ne PAS envoyer le cookie de session : un cookie présent
+  // désactive le bypass Bearer côté CSRF (csrf_origin → 403). Le JWT Bearer suffit.
   const response = await fetch(`${cookieUrl}/api/admin/products/smart-import`, {
-    method: 'POST', headers, credentials: 'include', body: JSON.stringify(payload)
+    method: 'POST', headers, credentials: 'omit', body: JSON.stringify(payload)
   });
 
   // Lire le texte d'abord : une réponse HTML (redirection login, 404, CSRF)
@@ -262,6 +294,57 @@ async function handleBulkExport(apiUrl, apiToken, useSmart = true) {
   }
 
   return { success: false, error: result.error || 'Export échoué' };
+}
+
+// Format standard /api/products/import (fallback hors smart-import)
+function transformForStandardApi(p) {
+  const common = {
+    productUrl: p.url,
+    image: p.image,
+    gallery: p.gallery || [],
+    descriptionImages: p.descriptionImages || [],
+    videos: p.videos || [],
+    imageCategories: p.imageCategories || undefined,
+    features: p.features || [],
+    variantGroups: p.variantGroups || [],
+    description: p.description || undefined,
+    specifications: p.specifications || {},
+    weightKg: p.weightKg || undefined,
+    lengthCm: p.lengthCm || undefined,
+    widthCm: p.widthCm || undefined,
+    heightCm: p.heightCm || undefined,
+  };
+  if (p.platform === '1688') {
+    return {
+      ...common,
+      name: p.name || 'Produit 1688',
+      price1688: p.price1688,
+      promoPrice1688: p.promoPrice1688 || undefined,
+      price1688Currency: 'CNY',
+      exchangeRate: p.exchangeRate || 100,
+      currency: 'FCFA',
+      category: p.category || 'Catalogue import Chine',
+      tagline: p.tagline || 'Import 1688',
+      availabilityNote: p.availabilityNote || 'Import 1688 — vérifier poids/dimensions',
+      moq: p.moq,
+      priceTiers: p.priceTiers || [],
+      supplier: p.supplier || undefined,
+    };
+  }
+  return {
+    ...common,
+    name: p.name || 'Produit AliExpress',
+    price: p.price,
+    priceUSD: p.priceUSD || undefined,
+    baseCost: p.price,
+    currency: 'FCFA',
+    category: p.category || 'Catalogue import Chine',
+    tagline: p.tagline || 'Import AliExpress',
+    availabilityNote: p.availabilityNote || 'Import AliExpress — freight 3j/15j/60j',
+    shopName: p.shopName,
+    orders: p.orders,
+    totalRated: p.rating,
+  };
 }
 
 // Transform identique à popup.js (dupliqué ici pour le background)
