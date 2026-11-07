@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Camera, CheckCircle2, Clock, Eye, EyeOff, Loader2, NotebookPen, RotateCcw, Send, Trash2, X } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { uploadFile } from '@/lib/http/upload-file'
 import {
@@ -233,7 +234,7 @@ export default function ProjectJournal({ projectId, mode, tasks, team, techId, c
             </label>
             <label className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-1.5 text-xs text-stone-600">
               <Clock className="h-4 w-4" />
-              <input type="number" min="0" max="24" step="0.5" value={hours} onChange={e => setHours(e.target.value)} placeholder="h" aria-label="Heures passées" className="w-12 bg-transparent text-sm focus:outline-none" />
+              <NumInput min="0" max="24" step="0.5" value={hours === '' ? undefined : Number(hours)} onChange={v => setHours(v == null ? '' : String(v))} placeholder="h" aria-label="Heures passées" className="w-12 bg-transparent text-sm focus:outline-none" />
             </label>
           </div>
           <button type="button" onClick={submit} disabled={!canSend}

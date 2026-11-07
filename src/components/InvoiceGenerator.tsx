@@ -71,6 +71,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toaster'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 
@@ -1657,10 +1658,10 @@ function InvoiceForm({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                    <input
-                      type="number"
+                    <NumInput
                       value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      emptyValue={0}
+                      onChange={(v) => updateItem(index, 'quantity', v ?? 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="1"
                       step="any"
@@ -1669,10 +1670,11 @@ function InvoiceForm({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire</label>
-                    <input
-                      type="number"
+                    <NumInput
+                      integer
                       value={item.netUnitPrice ?? item.unitPrice}
-                      onChange={(e) => updateItem(index, 'netUnitPrice', parseInt(e.target.value) || 0)}
+                      emptyValue={0}
+                      onChange={(v) => updateItem(index, 'netUnitPrice', v ?? 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                     />
@@ -1745,10 +1747,10 @@ function InvoiceForm({
             <div className="flex justify-between items-center">
               <span className="text-gray-700">TVA:</span>
               <div className="flex items-center space-x-2">
-                <input
-                  type="number"
+                <NumInput
                   value={formData.taxRate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
+                  emptyValue={0}
+                  onChange={(v) => setFormData(prev => ({ ...prev, taxRate: v ?? 0 }))}
                   className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
                   min="0"
                   max="100"

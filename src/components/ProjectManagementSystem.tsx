@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import { 
   Plus, 
   Edit3, 
@@ -2712,11 +2713,11 @@ export default function ProjectManagementSystem({ openNewProjectSignal }: Projec
                           <input className="w-40 bg-transparent outline-none" value={p.name} onChange={e=>{
                             const name=e.target.value; setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,name}:x) }))
                           }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Produit mis à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
-                          <input type="number" className="w-16 bg-transparent outline-none" value={p.quantity} onChange={e=>{
-                            const quantity = Number(e.target.value||0); setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,quantity,totalPrice:(x.unitPrice||0)*quantity}:x) }))
+                          <NumInput integer className="w-16 bg-transparent outline-none" value={p.quantity} emptyValue={0} onChange={v=>{
+                            const quantity = v ?? 0; setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,quantity,totalPrice:(x.unitPrice||0)*quantity}:x) }))
                           }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Quantité mise à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
-                          <input type="number" className="w-20 bg-transparent outline-none" value={p.unitPrice} onChange={e=>{
-                            const unitPrice = Number(e.target.value||0); setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,unitPrice,totalPrice:unitPrice*(x.quantity||0)}:x) }))
+                          <NumInput integer className="w-20 bg-transparent outline-none" value={p.unitPrice} emptyValue={0} onChange={v=>{
+                            const unitPrice = v ?? 0; setSelectedProject(sp=>({ ...sp!, products:(sp!.products||[]).map(x=>x.productId===p.productId?{...x,unitPrice,totalPrice:unitPrice*(x.quantity||0)}:x) }))
                           }} onBlur={async()=>{ try{ await apiUpdateProduct(selectedProject!.id,p.productId,p); setToast({type:'success',message:'Prix unitaire mis à jour'}) }catch{ setToast({type:'error',message:'MAJ produit échouée'}) } }} />
                           <span className="text-xs text-gray-500">Total: {p.totalPrice || 0}</span>
                         </div>

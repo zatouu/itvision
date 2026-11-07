@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import {
   RefreshCw,
   Loader2,
@@ -131,7 +132,7 @@ export default function AdminImageEmbeddingsPage() {
       const csrf = await fetchCsrf()
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (csrf) headers['X-CSRF-Token'] = csrf
-      const url = `/api/admin/catalog/image-embeddings/backfill?limit=${batchLimit}${force ? '&force=1' : ''}`
+      const url = `/api/admin/catalog/image-embeddings/backfill?limit=${batchLimit || 1}${force ? '&force=1' : ''}`
       const r = await fetch(url, { method: 'POST', credentials: 'include', headers })
       const j = await r.json()
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`)
@@ -315,12 +316,13 @@ export default function AdminImageEmbeddingsPage() {
             <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">
               Taille du lot
             </label>
-            <input
-              type="number"
+            <NumInput
+              integer
+              emptyValue={0}
               min={1}
               max={200}
               value={batchLimit}
-              onChange={(e) => setBatchLimit(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+              onChange={(v) => setBatchLimit(v == null ? 0 : Math.max(1, Math.min(200, v)))}
               className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
             <p className="mt-1 text-[11px] text-stone-400">1 à 200 par appel (timeout 60s)</p>

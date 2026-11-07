@@ -39,17 +39,15 @@ import { readSharedPricing } from '@/lib/pricing/shared-settings'
  * Une offre déjà importée (même identifiant ou URL source) n'est pas recréée : seul son prix est mis à jour.
  */
 
-// Patterns d'images a exclure (logos boutique, promos, icones paiement)
-const IMAGE_BLACKLIST_PATTERNS = [
-  /paypal/i, /visa/i, /mastercard/i, /alipay/i, /wechat.*pay/i,
-  /logo/i, /banner/i, /promo/i, /coupon/i, /discount/i, /sale/i,
-  /icon/i, /badge/i, /stamp/i, /watermark/i,
-  /store.*logo/i, /shop.*logo/i, /brand.*logo/i,
-  /customer.*service/i, /guarantee/i, /certification/i,
-  /shipping.*free/i, /free.*shipping/i,
-  /qrcode/i, /qr.*code/i, /wechat/i, /whatsapp/i,
-  /\.gif$/i, // GIFs animees = presque toujours promo
-]
+// Mots d'interface (logos, promos, paiement…) comparés mot à mot sur le CHEMIN de l'image.
+// Pas de recherche de sous-chaîne : les noms de fichiers des CDN sont des identifiants
+// aléatoires où « sale », « icon », « visa »… apparaissent par hasard.
+const IMAGE_NOISE_TOKENS = new Set([
+  'logo', 'logos', 'banner', 'banners', 'icon', 'icons', 'badge', 'badges', 'stamp', 'watermark',
+  'promo', 'promotion', 'coupon', 'coupons', 'discount', 'paypal', 'visa', 'mastercard', 'alipay',
+  'qrcode', 'qr', 'wechat', 'whatsapp', 'favicon', 'placeholder', 'sprite', 'avatar', 'pixel',
+])
+const IMAGE_NOISE_HOST_RE = /(?:^|\.)(?:paypal|klarna|afterpay|googletagmanager|google-analytics|doubleclick|facebook)\.(?:com|net)$/i
 
 // Classification automatique dans les catégories IT Vision (fallback sans IA)
 const CATEGORY_KEYWORDS: Record<string, { name: string; keywords: string[]; subCategories: { name: string; slug: string; keywords: string[] }[] }> = {
@@ -150,18 +148,34 @@ function classifyCategoryFromKeywords(
   return { category: bestCategoryName, subCategory: bestSubCategory }
 }
 
+const PRODUCT_CDN_HOST_RE = /(?:^|\.)(?:alicdn\.com|aliexpress-media\.com|aliexpress\.com|alibaba\.com|1688\.com|alibabausercontent\.com)$/i
+
+/**
+ * URL canonique en pleine résolution : https, sans suffixe de redimensionnement des CDN
+ * (xxx.jpg_220x220q75.jpg_.avif, xxx.310x310.jpg, xxx.summ.jpg…) ni paramètres.
+ */
 function normalizeImageUrl(url: string): string {
   if (!url || typeof url !== 'string') return ''
   let clean = url.trim()
   if (!clean) return ''
   if (clean.startsWith('//')) clean = `https:${clean}`
   if (!/^https?:\/\//i.test(clean)) return ''
-  clean = clean
-    .replace(/_\d+x\d+[^.]*/i, '')
-    .replace(/\.\d+x\d+\./i, '.')
-    .replace(/\.search\..*$/i, '')
-    .replace(/_q\d+\.jpg$/i, '.jpg')
-  return clean
+  let parsed: URL
+  try { parsed = new URL(clean) } catch { return '' }
+  if (!PRODUCT_CDN_HOST_RE.test(parsed.hostname)) return parsed.href.split('#')[0]
+  const base = parsed.pathname.match(/^(.*?\.(?:jpe?g|png|webp))(?=[_.]|$)/i)
+  const path = (base ? base[1] : parsed.pathname)
+    .replace(/\.(?:\d{2,4}x\d{2,4}|summ|search|sum)\.(jpe?g|png|webp)$/i, '.$1')
+  return `https://${parsed.hostname}${path}`
+}
+
+function isNoiseImageUrl(url: string): boolean {
+  let parsed: URL
+  try { parsed = new URL(url) } catch { return true }
+  if (IMAGE_NOISE_HOST_RE.test(parsed.hostname)) return true
+  const path = parsed.pathname.toLowerCase()
+  if (/\.(?:gif|svg|ico)$/.test(path)) return true
+  return path.split(/[^a-z0-9]+/).some(token => IMAGE_NOISE_TOKENS.has(token))
 }
 
 function filterProductImages(images: string[]): string[] {
@@ -172,30 +186,7 @@ function filterProductImages(images: string[]): string[] {
 
   for (const source of images) {
     const url = normalizeImageUrl(source)
-    if (!url) continue
-
-    // Exclure les patterns blacklistes
-    const urlLower = url.toLowerCase()
-    let blacklisted = false
-    for (const pattern of IMAGE_BLACKLIST_PATTERNS) {
-      if (pattern.test(urlLower)) {
-        blacklisted = true
-        break
-      }
-    }
-    if (blacklisted) continue
-
-    // Exclure seulement les miniatures explicites très petites
-    const dimMatch = urlLower.match(/(\d+)x(\d+)/)
-    if (dimMatch) {
-      const w = parseInt(dimMatch[1])
-      const h = parseInt(dimMatch[2])
-      if (w < 80 && h < 80) continue
-    }
-
-    // Exclure les favicons et petites icones
-    if (urlLower.includes('favicon') || urlLower.includes('.ico')) continue
-
+    if (!url || isNoiseImageUrl(url)) continue
     const key = url.split('?')[0]
     if (seen.has(key)) continue
     seen.add(key)
@@ -308,7 +299,15 @@ Règles:
     if (!jsonMatch) return images
     const parsed = JSON.parse(jsonMatch[0])
     if (Array.isArray(parsed.keep) && parsed.keep.length > 0) {
-      return parsed.keep.filter((u: string) => typeof u === 'string' && images.includes(u))
+      // Le modèle peut renvoyer une URL légèrement réécrite : on la rapproche par forme canonique
+      const byKey = new Map(sample.map(u => [normalizeImageUrl(u), u]))
+      const kept = parsed.keep
+        .map((u: unknown) => (typeof u === 'string' ? byKey.get(normalizeImageUrl(u)) : undefined))
+        .filter((u: string | undefined): u is string => Boolean(u))
+      // Ne jamais vider une galerie : sans correspondance, on garde l'ordre d'origine
+      if (kept.length === 0) return images
+      // Les images au-delà de l'échantillon n'ont pas été jugées : on les conserve à la suite
+      return [...new Set([...kept, ...images.slice(sample.length)])]
     }
   } catch (err) {
     console.warn('[smart-import] Vision image filtering failed:', err)
@@ -453,22 +452,23 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        // 1. Filtrer les images
+        // 1. Images, classées comme sur la page source : galerie ≠ variantes ≠ description
         const variantGroups = normalizeVariantGroups(raw.variantGroups, raw.variants)
-        const variantImages = variantGroups.flatMap(group => group.variants.map(v => v.image).filter(Boolean))
-        const mergedRawImages = [
-          ...(Array.isArray(raw.images) ? raw.images : []),
-          ...(Array.isArray(raw.gallery) ? raw.gallery : []),
-          ...(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []),
-          ...(Array.isArray(raw.imageCategories?.gallery) ? raw.imageCategories.gallery : []),
-          ...(Array.isArray(raw.imageCategories?.description) ? raw.imageCategories.description : []),
-          ...(Array.isArray(raw.imageCategories?.variant) ? raw.imageCategories.variant : []),
-          ...variantImages,
-        ]
-        const rawImages = mergedRawImages.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
-        const cleanImages = shouldFilterImages
-          ? filterProductImages(rawImages)
-          : rawImages.map(normalizeImageUrl).filter(Boolean)
+        const variantImages = variantGroups.flatMap(group => group.variants.map(v => v.image).filter(Boolean)) as string[]
+        const asList = (value: unknown): string[] =>
+          Array.isArray(value) ? value.filter((img): img is string => typeof img === 'string' && img.trim().length > 0) : []
+        const prepare = (list: string[]) => shouldFilterImages
+          ? filterProductImages(list)
+          : [...new Set(list.map(normalizeImageUrl).filter(Boolean))]
+
+        const descriptionCandidates = prepare([...asList(raw.descriptionImages), ...asList(raw.imageCategories?.description)])
+        const descriptionSet = new Set(descriptionCandidates)
+        // `images` (ancien format) mélange tout : on n'en garde que ce qui n'est pas du descriptif
+        let cleanImages = prepare([...asList(raw.gallery), ...asList(raw.imageCategories?.gallery), ...asList(raw.images)])
+          .filter(url => !descriptionSet.has(url))
+        // Galerie absente de la source : images des variantes, puis du descriptif, plutôt qu'un placeholder
+        if (cleanImages.length === 0) cleanImages = prepare([...variantImages, ...asList(raw.imageCategories?.variant)])
+        if (cleanImages.length === 0) cleanImages = descriptionCandidates.slice(0, 5)
 
         // 1b. Filtre vision Qwen pour éliminer les images promo / logo / bruit
         let visionFilteredImages = cleanImages
@@ -479,7 +479,8 @@ export async function POST(req: NextRequest) {
         // Limiter a 10 images max ; rapatriées chez nous (les CDN chinois bloquent le hotlink)
         const localized = await localizeProductImages({ gallery: visionFilteredImages.slice(0, 10) })
         const finalImages = localized.gallery
-        const cleanDescriptionImages = filterProductImages(Array.isArray(raw.descriptionImages) ? raw.descriptionImages : []).slice(0, 30)
+        const finalSet = new Set(visionFilteredImages)
+        const cleanDescriptionImages = descriptionCandidates.filter(url => !finalSet.has(url)).slice(0, 30)
 
         // 2. Enrichissement IA (nom + catégorie + description + features + tags)
         let productName = String(raw.name || '').trim()
@@ -586,7 +587,7 @@ export async function POST(req: NextRequest) {
           name: raw.name,
           success: true,
           productId: String(created._id),
-          imagesOriginal: rawImages.length,
+          imagesOriginal: asList(raw.gallery).length + asList(raw.images).length + asList(raw.descriptionImages).length,
           imagesFiltered: finalImages.length,
           descriptionReformatted: enriched,
           pricing: typeof price === 'number' ? { price, b2bPrice: b2bPrice || 0 } : undefined,

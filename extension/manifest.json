@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "IT Vision - Import 1688/AliExpress",
-  "version": "2.0.0",
-  "description": "Import produits 1688/AliExpress : images classées, vidéos, variantes, description structurée, smart-import",
+  "name": "IT Vision - Import 1688/AliExpress/Alibaba",
+  "version": "2.1.0",
+  "description": "Import produits 1688/AliExpress/Alibaba : images classées, vidéos, variantes, description structurée, smart-import",
   "permissions": [
     "activeTab",
     "storage",
@@ -15,6 +15,7 @@
   "host_permissions": [
     "*://*.1688.com/*",
     "*://*.aliexpress.com/*",
+    "*://*.alibaba.com/*",
     "*://*.itvisionplus.sn/*",
     "*://itvisionplus.sn/*",
     "*://*.itvision.sn/*",
@@ -40,7 +41,8 @@
       "matches": [
         "*://*.1688.com/*",
         "*://*.aliexpress.com/item/*",
-        "*://*.aliexpress.com/i/*"
+        "*://*.aliexpress.com/i/*",
+        "*://*.alibaba.com/product-detail/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

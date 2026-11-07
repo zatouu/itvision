@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import { 
   Search, Users, Mail, Phone, RefreshCw, Plus, Edit3, Trash2,
   Eye, Download, X, MapPin, Calendar, Activity, Award, Clock,
@@ -905,12 +906,13 @@ export default function TechnicianManagement() {
                       <label className="block text-sm font-semibold text-stone-700 mb-2">
                         Années d'expérience
                       </label>
-                      <input
-                        type="number"
+                      <NumInput
+                        integer
                         min="0"
                         max="50"
                         value={formData.experience}
-                        onChange={(e) => setFormData({ ...formData, experience: parseInt(e.target.value) || 0 })}
+                        emptyValue={0}
+                        onChange={(v) => setFormData({ ...formData, experience: v ?? 0 })}
                         className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       />
                     </div>

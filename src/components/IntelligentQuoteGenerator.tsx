@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import { 
   Calculator, 
   DollarSign, 
@@ -1298,10 +1299,11 @@ export default function IntelligentQuoteGenerator() {
                                   >
                                     <Minus className="h-4 w-4" />
                                   </button>
-                                  <input
-                                    type="number"
+                                  <NumInput
+                                    integer
                                     value={item.quantity}
-                                    onChange={(e) => updateItemQuantity(section.id, item.id, parseInt(e.target.value) || 0)}
+                                    emptyValue={0}
+                                    onChange={(v) => updateItemQuantity(section.id, item.id, v ?? 0)}
                                     className="w-16 text-center border border-gray-300 rounded px-2 py-1"
                                   />
                                   <button

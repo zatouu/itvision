@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, Send, MessageSquare, ThumbsUp, ThumbsDown, RefreshCw, Loader2 } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 import SoftMessage from '@/components/ui/SoftMessage'
 import SignaturePad from '@/components/portal/SignaturePad'
 import { INPUT, BTN_PRIMARY, fmtNum, fmtDate, quoteClientResponse, StatusBadge } from '@/components/portal-ui'
@@ -167,7 +168,7 @@ export default function QuoteResponseModal({
                   {action === 'counter_proposed' && (
                     <div>
                       <label className="block text-xs font-medium text-stone-600 mb-1.5">Votre proposition de montant (FCFA)</label>
-                      <input type="number" min={0} required value={counterAmount} onChange={e => setCounterAmount(e.target.value)}
+                      <NumInput integer min={0} required value={counterAmount === '' ? undefined : Number(counterAmount)} onChange={v => setCounterAmount(v == null ? '' : String(v))}
                         placeholder={String(quote.total)} className={INPUT} />
                     </div>
                   )}

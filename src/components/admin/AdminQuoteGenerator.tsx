@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import QuoteDecisionDialog from '@/components/admin/QuoteDecisionDialog'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
@@ -1409,11 +1410,12 @@ export default function AdminQuoteGenerator() {
                       {currentQuote.products.map((product) => (
                         <tr key={product.id} className="hover:bg-stone-50">
                           <td className="px-4 py-3">
-                            <input
-                              type="number"
+                            <NumInput
+                              integer
                               min="1"
                               value={product.quantity}
-                              onChange={(e) => updateProduct(product.id, 'quantity', Number(e.target.value))}
+                              emptyValue={0}
+                              onChange={(v) => updateProduct(product.id, 'quantity', v ?? 0)}
                               className="w-20 px-2 py-1 border border-stone-300 rounded text-center focus:ring-2 focus:ring-blue-500"
                             />
                           </td>
@@ -1428,11 +1430,12 @@ export default function AdminQuoteGenerator() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <input
-                                type="number"
+                              <NumInput
+                                integer
                                 min="0"
                                 value={product.netUnitPrice ?? product.unitPrice}
-                                onChange={(e) => updateProduct(product.id, 'netUnitPrice', Number(e.target.value))}
+                                emptyValue={0}
+                                onChange={(v) => updateProduct(product.id, 'netUnitPrice', v ?? 0)}
                                 className="w-32 px-2 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
                               />
                               <span className="text-sm text-stone-600">CFA</span>
@@ -1444,12 +1447,12 @@ export default function AdminQuoteGenerator() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <input
-                              type="number"
+                            <NumInput
+                              integer
                               min="0"
-                              value={product.unitCost ?? ''}
+                              value={product.unitCost}
                               placeholder={product.isLabor ? 'coût M.O.' : 'achat'}
-                              onChange={(e) => updateProduct(product.id, 'unitCost', e.target.value === '' ? undefined : Number(e.target.value))}
+                              onChange={(v) => updateProduct(product.id, 'unitCost', v)}
                               className="w-28 px-2 py-1 border border-amber-200 bg-amber-50/40 rounded focus:ring-2 focus:ring-amber-400"
                             />
                             {!!product.unitCost && (product.netUnitPrice ?? product.unitPrice) > 0 && (
@@ -1538,12 +1541,13 @@ export default function AdminQuoteGenerator() {
                 
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-stone-600">Autres</span>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     min="0"
                     value={currentQuote.other}
-                    onChange={(e) => {
-                      const updatedQuote = { ...currentQuote, other: Number(e.target.value) }
+                    emptyValue={0}
+                    onChange={(v) => {
+                      const updatedQuote = { ...currentQuote, other: v ?? 0 }
                       calculateTotals(updatedQuote)
                     }}
                     className="w-32 px-2 py-1 border border-stone-300 rounded text-right focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1566,8 +1570,8 @@ export default function AdminQuoteGenerator() {
               <div className="rounded-lg border border-stone-200 p-4">
                 <label className="block text-sm font-medium text-stone-700 mb-2">Acompte à la commande (%)</label>
                 <div className="flex items-center gap-2">
-                  <input type="number" min={0} max={100} value={currentQuote.depositPercent ?? ''} placeholder="ex. 50"
-                    onChange={(e) => setCurrentQuote({ ...currentQuote, depositPercent: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  <NumInput min={0} max={100} value={currentQuote.depositPercent} placeholder="ex. 50"
+                    onChange={(v) => setCurrentQuote({ ...currentQuote, depositPercent: v })}
                     className="w-24 px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
                   <span className="text-sm text-stone-500">
                     {currentQuote.depositPercent

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Scale, AlertCircle, CheckCircle2, Loader2, Clock, CreditCard, MessageSquare, FileText, X, Send } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 const decisionLabels: Record<string, string> = {
   release_escrow: 'Libérer au prestataire',
@@ -255,7 +256,7 @@ export default function AdminServiceDisputeDetailPage() {
                 {decision === 'partial_refund' && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Montant remboursé (FCFA)</label>
-                    <input type="number" min={1} required={decision === 'partial_refund'} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+                    <NumInput integer min={1} required={decision === 'partial_refund'} value={refundAmount === '' ? undefined : Number(refundAmount)} onChange={(v) => setRefundAmount(v == null ? '' : String(v))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 )}
                 <div>

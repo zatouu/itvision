@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import {
   Building2, Clock, ClipboardList, Wrench, Camera, Send, Save, Loader2, Plus, Trash2, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, PenLine, X, RotateCcw, Package, Lightbulb, CalendarClock,
@@ -680,8 +681,8 @@ export default function EnhancedMaintenanceForm({
                   {it.requiresQuote && (
                     <div className="grid grid-cols-3 gap-2">
                       <input className={`${inputCls} col-span-3`} disabled={ro} value={it.recommendedSolution} onChange={e => issues.set(i, { recommendedSolution: e.target.value })} placeholder="Solution recommandée *" aria-label="Solution recommandée" />
-                      <input className={`${inputCls} col-span-2`} disabled={ro} type="number" inputMode="numeric" min={0} value={it.estimatedCost || ''} onChange={e => issues.set(i, { estimatedCost: e.target.value })} placeholder="Coût estimé (FCFA)" aria-label="Coût estimé" />
-                      <input className={inputCls} disabled={ro} type="number" inputMode="decimal" min={0} value={it.estimatedDurationHours || ''} onChange={e => issues.set(i, { estimatedDurationHours: e.target.value })} placeholder="Heures" aria-label="Durée estimée" />
+                      <NumInput className={`${inputCls} col-span-2`} disabled={ro} integer min={0} value={it.estimatedCost ? Number(it.estimatedCost) : undefined} onChange={v => issues.set(i, { estimatedCost: v == null ? '' : String(v) })} placeholder="Coût estimé (FCFA)" aria-label="Coût estimé" />
+                      <NumInput className={inputCls} disabled={ro} min={0} value={it.estimatedDurationHours ? Number(it.estimatedDurationHours) : undefined} onChange={v => issues.set(i, { estimatedDurationHours: v == null ? '' : String(v) })} placeholder="Heures" aria-label="Durée estimée" />
                     </div>
                   )}
                 </Row>
@@ -726,7 +727,7 @@ export default function EnhancedMaintenanceForm({
                 <Row key={i} onRemove={ro ? undefined : () => materials.remove(i)}>
                   <div className="grid grid-cols-4 gap-2">
                     <input className={`${inputCls} col-span-3`} disabled={ro} value={m.name} onChange={e => materials.set(i, { name: e.target.value })} placeholder="Désignation" aria-label="Désignation" />
-                    <input className={inputCls} disabled={ro} type="number" inputMode="numeric" min={1} value={m.quantity || ''} onChange={e => materials.set(i, { quantity: Number(e.target.value) })} placeholder="Qté" aria-label="Quantité" />
+                    <NumInput className={inputCls} disabled={ro} integer min={1} value={m.quantity} emptyValue={0} onChange={v => materials.set(i, { quantity: v ?? 0 })} placeholder="Qté" aria-label="Quantité" />
                   </div>
                   <input className={inputCls} disabled={ro} value={m.supplierReference || ''} onChange={e => materials.set(i, { supplierReference: e.target.value })} placeholder="Référence ou n° de série (facultatif)" aria-label="Référence" />
                 </Row>
@@ -813,7 +814,7 @@ export default function EnhancedMaintenanceForm({
                       À chiffrer
                     </label>
                     {f.requiresQuote && (
-                      <input className={inputCls} disabled={ro} type="number" inputMode="numeric" min={0} value={f.estimatedCost || ''} onChange={e => followUps.set(i, { estimatedCost: e.target.value })} placeholder="Montant estimé (FCFA) *" aria-label="Montant estimé" />
+                      <NumInput className={inputCls} disabled={ro} integer min={0} value={f.estimatedCost ? Number(f.estimatedCost) : undefined} onChange={v => followUps.set(i, { estimatedCost: v == null ? '' : String(v) })} placeholder="Montant estimé (FCFA) *" aria-label="Montant estimé" />
                     )}
                   </div>
                 </Row>

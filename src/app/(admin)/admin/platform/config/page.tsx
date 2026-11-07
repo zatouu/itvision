@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Save, RotateCcw, Shield, Coins, ToggleLeft, AlertTriangle, Sparkles, ShoppingBag, MessageCircle } from 'lucide-react'
 import { WHATSAPP_RELAY_EVENTS } from '@/lib/whatsapp-relay-events'
+import NumInput from '@/components/ui/NumInput'
 
 type AiFeatureMode = 'free' | 'quota' | 'eligible' | 'points'
 
@@ -252,11 +253,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   XC par mission gagnée (provider)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
+                  emptyValue={0}
                   min={0}
                   value={config.monetization.pointsPerWonMission}
-                  onChange={(e) => updateMonetization('pointsPerWonMission', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('pointsPerWonMission', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -265,11 +267,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   XC de bienvenue (nouveau user)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
+                  emptyValue={0}
                   min={0}
                   value={config.monetization.welcomePoints}
-                  onChange={(e) => updateMonetization('welcomePoints', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('welcomePoints', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -278,11 +281,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   Bonus parrainage (XC)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
+                  emptyValue={0}
                   min={0}
                   value={config.monetization.referralBonusPoints}
-                  onChange={(e) => updateMonetization('referralBonusPoints', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('referralBonusPoints', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -291,12 +295,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   Commission (%)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  emptyValue={0}
                   min={0}
                   max={100}
                   value={config.monetization.commissionRate}
-                  onChange={(e) => updateMonetization('commissionRate', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('commissionRate', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -305,11 +309,11 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   FCFA par XC (taux recharge)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  emptyValue={0}
                   min={1}
                   value={config.monetization.fcfaPerPoint}
-                  onChange={(e) => updateMonetization('fcfaPerPoint', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('fcfaPerPoint', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -318,11 +322,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   Coût escrow (XC client)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
+                  emptyValue={0}
                   min={0}
                   value={config.monetization.escrowCostPoints}
-                  onChange={(e) => updateMonetization('escrowCostPoints', Number(e.target.value))}
+                  onChange={(v) => updateMonetization('escrowCostPoints', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <p className="text-xs text-stone-500 mt-1">
@@ -376,11 +381,12 @@ export default function PlatformConfigPage() {
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   Fenêtre de litige (heures)
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
+                  emptyValue={0}
                   min={1}
                   value={config.escrow.disputeWindowHours}
-                  onChange={(e) => updateEscrow('disputeWindowHours', Number(e.target.value))}
+                  onChange={(v) => updateEscrow('disputeWindowHours', v ?? 0)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -577,24 +583,24 @@ export default function PlatformConfigPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Appels gratuits / jour (client)</label>
-                <input type="number" min={0} value={ai.dailyFreeQuota.client} onChange={(e) => updateAi({ dailyFreeQuota: { ...ai.dailyFreeQuota, client: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} value={ai.dailyFreeQuota.client} onChange={(v) => updateAi({ dailyFreeQuota: { ...ai.dailyFreeQuota, client: v ?? 0 } })} className={inputCls} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Appels gratuits / jour (prestataire)</label>
-                <input type="number" min={0} value={ai.dailyFreeQuota.provider} onChange={(e) => updateAi({ dailyFreeQuota: { ...ai.dailyFreeQuota, provider: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} value={ai.dailyFreeQuota.provider} onChange={(v) => updateAi({ dailyFreeQuota: { ...ai.dailyFreeQuota, provider: v ?? 0 } })} className={inputCls} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Coût d'un appel texte (XC)</label>
-                <input type="number" min={0} value={ai.pricing.textCostPoints} onChange={(e) => updateAi({ pricing: { ...ai.pricing, textCostPoints: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} value={ai.pricing.textCostPoints} onChange={(v) => updateAi({ pricing: { ...ai.pricing, textCostPoints: v ?? 0 } })} className={inputCls} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Coût d'un appel avec photos (XC)</label>
-                <input type="number" min={0} value={ai.pricing.visionCostPoints} onChange={(e) => updateAi({ pricing: { ...ai.pricing, visionCostPoints: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} value={ai.pricing.visionCostPoints} onChange={(v) => updateAi({ pricing: { ...ai.pricing, visionCostPoints: v ?? 0 } })} className={inputCls} />
                 <p className="text-xs text-stone-500 mt-1">La vision coûte 5 à 10× plus cher que le texte côté fournisseur.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Photos max par appel</label>
-                <input type="number" min={1} max={5} value={ai.maxImagesPerCall} onChange={(e) => updateAi({ maxImagesPerCall: Number(e.target.value) })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={1} max={5} value={ai.maxImagesPerCall} onChange={(v) => updateAi({ maxImagesPerCall: v ?? 0 })} className={inputCls} />
               </div>
             </div>
 
@@ -644,15 +650,15 @@ export default function PlatformConfigPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Missions terminées min.</label>
-                <input type="number" min={0} value={ai.eligibility.minCompletedMissions} onChange={(e) => updateAi({ eligibility: { ...ai.eligibility, minCompletedMissions: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} value={ai.eligibility.minCompletedMissions} onChange={(v) => updateAi({ eligibility: { ...ai.eligibility, minCompletedMissions: v ?? 0 } })} className={inputCls} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Score Xeuy min. (/100)</label>
-                <input type="number" min={0} max={100} value={ai.eligibility.minScoreXeuy} onChange={(e) => updateAi({ eligibility: { ...ai.eligibility, minScoreXeuy: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} max={100} value={ai.eligibility.minScoreXeuy} onChange={(v) => updateAi({ eligibility: { ...ai.eligibility, minScoreXeuy: v ?? 0 } })} className={inputCls} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Fiabilité min. (/100)</label>
-                <input type="number" min={0} max={100} value={ai.eligibility.minReliability} onChange={(e) => updateAi({ eligibility: { ...ai.eligibility, minReliability: Number(e.target.value) } })} className={inputCls} />
+                <NumInput integer emptyValue={0} min={0} max={100} value={ai.eligibility.minReliability} onChange={(v) => updateAi({ eligibility: { ...ai.eligibility, minReliability: v ?? 0 } })} className={inputCls} />
               </div>
               <div className="flex items-center justify-between md:block">
                 <label className="block text-sm font-medium text-stone-700 mb-2">KYC vérifié requis</label>

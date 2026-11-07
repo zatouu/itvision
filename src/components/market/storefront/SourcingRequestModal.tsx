@@ -7,6 +7,7 @@ import { X, Camera, Link as LinkIcon, FileText, Upload, Loader2, CheckCircle, Al
 import { cn } from '@/lib/utils';
 import { formatFcfa } from './formatFcfa';
 import { useSourcingModal } from './SourcingModalContext';
+import NumInput from '@/components/ui/NumInput';
 
 const SOURCE_TABS = [
   { key: 'photo', label: 'Photo', icon: Camera, accept: 'image/*' },
@@ -431,26 +432,26 @@ export default function SourcingRequestModal() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
                   <label htmlFor={`${fieldId}-quantity`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Qté</label>
-                  <input
+                  <NumInput
                     id={`${fieldId}-quantity`}
-                    type="number"
+                    integer
                     min={1}
                     inputMode="numeric"
-                    value={qty}
-                    onChange={(e) => setQty(e.target.value === '' ? '' : Number(e.target.value))}
+                    value={qty === '' ? undefined : qty}
+                    onChange={(v) => setQty(v ?? '')}
                     className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
                 <div>
                   <label htmlFor={`${fieldId}-budget`} className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Budget/pc</label>
-                  <input
+                  <NumInput
                     id={`${fieldId}-budget`}
-                    type="number"
+                    integer
                     min={0}
                     step={100}
                     inputMode="numeric"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value === '' ? '' : Number(e.target.value))}
+                    value={budget === '' ? undefined : budget}
+                    onChange={(v) => setBudget(v ?? '')}
                     placeholder="FCFA"
                     className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-base sm:text-[13px] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500"
                   />

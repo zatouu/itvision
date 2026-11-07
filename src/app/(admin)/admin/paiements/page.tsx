@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import NumInput from '@/components/ui/NumInput'
 import { 
   CreditCard, 
   Settings, 
@@ -745,20 +746,30 @@ function NumberField({
   min?: number
   max?: number
 }) {
+  const [draft, setDraft] = useState<number | undefined>(value)
+  useEffect(() => { setDraft(value) }, [value])
+  const bound = (n: number) => {
+    const boundedMin = Math.max(min, n)
+    return typeof max === 'number' ? Math.min(max, boundedMin) : boundedMin
+  }
   return (
     <div>
       <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>
-      <input
-        type="number"
-        value={value}
+      <NumInput
+        integer
+        value={draft}
         min={min}
         max={max}
-        onChange={(e) => {
-          const parsed = parseInt(e.target.value || String(min), 10)
-          if (!Number.isFinite(parsed)) return
-          const boundedMin = Math.max(min, parsed)
-          const bounded = typeof max === 'number' ? Math.min(max, boundedMin) : boundedMin
-          onChange(bounded)
+        onChange={(v) => {
+          setDraft(v)
+          // Le plancher n'est appliqué qu'à la sortie du champ pour ne pas bloquer la frappe (« 1 » avant « 15 »)
+          if (v != null && v >= min) onChange(bound(v))
+        }}
+        onBlur={() => {
+          if (draft != null && draft >= min) return
+          const next = bound(draft ?? min)
+          setDraft(next)
+          onChange(next)
         }}
         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
       />

@@ -19,14 +19,14 @@ export default function PromoCodeInput({ onApply, appliedCode }: PromoCodeInputP
         <input
           type="text"
           value={code}
-          onChange={e => setCode(e.target.value.toUpperCase())}
+          onChange={e => setCode(e.target.value)}
           placeholder="Code promo"
-          className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ddm-emerald/30 focus:border-ddm-emerald"
+          className="w-full pl-9 pr-3 py-2.5 text-sm uppercase border border-slate-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ddm-emerald/30 focus:border-ddm-emerald"
         />
       </div>
       <motion.button
         whileTap={{ scale: 0.97 }}
-        onClick={() => onApply(code)}
+        onClick={() => onApply(code.trim().toUpperCase())}
         disabled={!code.trim()}
         className="px-4 py-2.5 bg-ddm-navy text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition"
       >

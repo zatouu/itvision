@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Loader2, PackageCheck, RotateCcw, X } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
+import NumInput from '@/components/ui/NumInput'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 
 interface BudgetLine {
@@ -121,7 +122,7 @@ export default function ProjectBudgetPanel({ projectId, onExpensesChanged }: {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <label className="flex items-center gap-1 text-xs text-stone-500">
                         Prix unit. réel
-                        <input type="number" min={0} value={unit} onChange={e => setActual(a => ({ ...a, [l.id]: e.target.value }))}
+                        <NumInput integer min={0} value={unit === '' ? undefined : Number(unit)} onChange={v => setActual(a => ({ ...a, [l.id]: v == null ? '' : String(v) }))}
                           className="w-24 rounded-lg border border-stone-200 px-2 py-1.5 text-sm" />
                       </label>
                       <label className="flex items-center gap-1 text-xs text-stone-500">

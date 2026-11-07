@@ -8,8 +8,9 @@
 const PRODUCT_URL_PATTERNS = [
   /^https?:\/\/detail\.1688\.com\/offer\//,
   /^https?:\/\/www\.1688\.com\/offer\//,
-  /^https?:\/\/www\.aliexpress\.com\/item\//,
-  /^https?:\/\/www\.aliexpress\.com\/i\//,
+  /^https?:\/\/([a-z]+\.)?aliexpress\.com\/item\//,
+  /^https?:\/\/([a-z]+\.)?aliexpress\.com\/i\//,
+  /^https?:\/\/([a-z]+\.)?alibaba\.com\/product-detail\//,
 ];
 
 function isProductPage(url) {
@@ -331,6 +332,19 @@ function transformForStandardApi(p) {
       supplier: p.supplier || undefined,
     };
   }
+  if (p.platform === 'alibaba') {
+    // Prix source en USD/EUR : sans conversion fiable ici, le produit passe en « sur devis »
+    return {
+      ...common,
+      name: p.name || 'Produit Alibaba',
+      price: undefined,
+      currency: 'FCFA',
+      category: p.category || 'Catalogue import Chine',
+      tagline: p.tagline || 'Import Alibaba',
+      availabilityNote: p.availabilityNote || 'Import Alibaba — vérifier prix, poids et dimensions',
+      shopName: p.shopName,
+    };
+  }
   return {
     ...common,
     name: p.name || 'Produit AliExpress',
@@ -418,6 +432,8 @@ function transformForSmartApi(p) {
     descriptionImages,
     videos: p.videos || [],
     price1688: p.price1688 || undefined,
+    // 1688 : CNY ; Alibaba : USD (ou EUR sur fr.alibaba.com), converti côté serveur
+    price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === 'alibaba' ? 'USD' : 'CNY')) : undefined,
     promoPrice1688: p.promoPrice1688 || undefined,
     price: p.price || undefined,
     priceTiers: p.priceTiers || [],
@@ -433,7 +449,7 @@ function transformForSmartApi(p) {
     heightCm: hasDimensions ? heightCm : undefined,
     volumeM3,
     sourceUrl: p.url,
-    sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
+    sourcePlatform: p.platform === '1688' || p.platform === 'alibaba' ? p.platform : 'aliexpress',
     supplierName: p.shopName || p.supplier?.name || undefined,
     moq: p.moq || undefined,
     specifications: p.specifications || {},
@@ -457,7 +473,8 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ['page'],
     documentUrlPatterns: [
       '*://detail.1688.com/*',
-      '*://www.aliexpress.com/item/*'
+      '*://*.aliexpress.com/item/*',
+      '*://*.alibaba.com/product-detail/*'
     ]
   });
 });

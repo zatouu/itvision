@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Copy, Check, Loader2, Share2, Users, X } from 'lucide-react'
 import { formatFcfa } from '@/components/market/storefront/formatFcfa'
+import NumInput from '@/components/ui/NumInput'
 
 type Reservation = { id: string; name: string; phone: string; qty: number; note?: string; status: string; createdAt: string }
 type Campaign = {
@@ -124,11 +125,11 @@ export default function PreordersPage() {
             <p className="text-sm font-bold text-slate-900 dark:text-white">Ouvrir les précommandes · {draft.groupId}</p>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
               Mon prix de vente par pièce (FCFA)
-              <input required type="number" min={100} value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+              <NumInput required integer min={100} value={draft.price === '' ? undefined : Number(draft.price)} onChange={v => setDraft({ ...draft, price: v == null ? '' : String(v) })} className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
             </label>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
               Acompte demandé (facultatif, réglé directement avec vous)
-              <input type="number" min={0} value={draft.deposit} onChange={e => setDraft({ ...draft, deposit: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+              <NumInput integer min={0} value={draft.deposit === '' ? undefined : Number(draft.deposit)} onChange={v => setDraft({ ...draft, deposit: v == null ? '' : String(v) })} className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
             </label>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
               Message à vos clients (facultatif)

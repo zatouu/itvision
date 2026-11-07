@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, RefreshCw, Save, Settings2, Trash2 } from 'lucide-react'
 import { DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE } from '@/lib/pricing/tiered-service-fees'
 import { pricingDefaultsUpdateSchema, validate } from '@/lib/validation'
+import NumInput from '@/components/ui/NumInput'
 
 type ServiceFeeTierSetting = {
   minAmount: number
@@ -150,28 +151,28 @@ export default function AdminPricingDefaults() {
       <div className="grid grid-cols-1 items-end sm:grid-cols-2 xl:grid-cols-5 gap-3">
         <label className="space-y-1 text-xs">
           <div>Taux de change (1 ¥ = X FCFA)</div>
-          <input type="number" required min="1" step="1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultExchangeRate}
-            onChange={e => setDefaults({ ...defaults, defaultExchangeRate: Number(e.target.value) })} />
+          <NumInput required min="1" step="1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultExchangeRate}
+            onChange={v => setDefaults({ ...defaults, defaultExchangeRate: v ?? NaN })} />
         </label>
         <label className="space-y-1 text-xs">
           <div>Frais de service par défaut (%)</div>
-          <input type="number" required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultServiceFeeRate}
-            onChange={e => setDefaults({ ...defaults, defaultServiceFeeRate: Number(e.target.value) })} />
+          <NumInput required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultServiceFeeRate}
+            onChange={v => setDefaults({ ...defaults, defaultServiceFeeRate: v ?? NaN })} />
         </label>
         <label className="space-y-1 text-xs">
           <div>Frais minimum pour 1 pièce importée (%)</div>
-          <input type="number" required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={Number.isFinite(defaults.singleImportServiceFeeRate) ? defaults.singleImportServiceFeeRate : ''}
-            onChange={event => setDefaults({ ...defaults, singleImportServiceFeeRate: event.target.valueAsNumber })} />
+          <NumInput required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.singleImportServiceFeeRate}
+            onChange={v => setDefaults({ ...defaults, singleImportServiceFeeRate: v ?? NaN })} />
         </label>
         <label className="space-y-1 text-xs">
           <div>Assurance par défaut (%)</div>
-          <input type="number" required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultInsuranceRate}
-            onChange={e => setDefaults({ ...defaults, defaultInsuranceRate: Number(e.target.value) })} />
+          <NumInput required min="0" max="100" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultInsuranceRate}
+            onChange={v => setDefaults({ ...defaults, defaultInsuranceRate: v ?? NaN })} />
         </label>
         <label className="space-y-1 text-xs">
           <div>Remise B2B par défaut (%)</div>
-          <input type="number" required min="1" max="50" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultB2BDiscountPercent}
-            onChange={e => setDefaults({ ...defaults, defaultB2BDiscountPercent: Number(e.target.value) })} />
+          <NumInput required min="1" max="50" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultB2BDiscountPercent}
+            onChange={v => setDefaults({ ...defaults, defaultB2BDiscountPercent: v ?? NaN })} />
         </label>
       </div>
 
@@ -192,28 +193,27 @@ export default function AdminPricingDefaults() {
             <div key={index} className="grid grid-cols-12 gap-2 items-end border rounded p-2">
               <label className="col-span-6 lg:col-span-3 min-w-0 text-xs space-y-1">
                 <div>Min (FCFA)</div>
-                <input
-                  type="number"
+                <NumInput
                   required
                   min="0"
                   step="1"
+                  integer
                   readOnly={index === 0}
                   className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm"
                   value={tier.minAmount}
-                  onChange={(e) => updateTier(index, { minAmount: Math.max(0, Number(e.target.value) || 0) })}
+                  onChange={(v) => updateTier(index, { minAmount: Math.max(0, v ?? NaN) })}
                 />
               </label>
               <label className="col-span-6 lg:col-span-2 min-w-0 text-xs space-y-1">
                 <div>Taux (%)</div>
-                <input
-                  type="number"
+                <NumInput
                   step="0.1"
                   required
                   min="0"
                   max="100"
                   className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm"
                   value={tier.feeRate}
-                  onChange={(e) => updateTier(index, { feeRate: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                  onChange={(v) => updateTier(index, { feeRate: Math.max(0, Math.min(100, v ?? NaN)) })}
                 />
               </label>
               <label className="col-span-6 lg:col-span-3 min-w-0 text-xs space-y-1">

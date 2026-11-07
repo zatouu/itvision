@@ -17,6 +17,7 @@ import {
   History,
   Calculator
 } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 interface Product {
   id: string
@@ -401,10 +402,11 @@ export default function QuickPriceEditor() {
 
                     <td className="px-4 py-4">
                       {editing ? (
-                        <input
-                          type="number"
+                        <NumInput
+                          integer
+                          emptyValue={0}
                           value={editing.cost}
-                          onChange={(e) => updateEditingPrice(product.id, 'cost', parseInt(e.target.value) || 0)}
+                          onChange={(v) => updateEditingPrice(product.id, 'cost', v ?? 0)}
                           className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                         />
                       ) : (
@@ -417,10 +419,11 @@ export default function QuickPriceEditor() {
                     <td className="px-4 py-4">
                       {editing ? (
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
+                          <NumInput
+                            integer
+                            emptyValue={0}
                             value={editing.price}
-                            onChange={(e) => updateEditingPrice(product.id, 'price', parseInt(e.target.value) || 0)}
+                            onChange={(v) => updateEditingPrice(product.id, 'price', v ?? 0)}
                             className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                           />
                           {showMarginWarning === product.id && (

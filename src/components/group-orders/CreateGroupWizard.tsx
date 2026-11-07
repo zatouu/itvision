@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCsrf } from '@/hooks/useCsrf'
+import NumInput from '@/components/ui/NumInput'
 import {
   Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
   Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users,
@@ -566,7 +567,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
-                        <input type="number" min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={e=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(Number(e.target.value) || groupDefaults.minQty))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                        <NumInput integer emptyValue={0} min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={v=>setForm(f=>({...f,initialQty:v ?? 0}))} onBlur={()=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(f.initialQty || groupDefaults.minQty))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>

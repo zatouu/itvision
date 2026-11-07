@@ -15,6 +15,7 @@ Ce dépôt héberge **3 produits** partageant un backend Next.js + MongoDB :
 2. **Toute nouvelle route ou modèle** doit être déclaré dans `src/lib/domains.ts`, sinon `npm run test:domains` échoue.
 3. **Pas de code mort** : ne pas garder de page/composant orphelin « au cas où ». Marquer `deprecated` dans le registre, supprimer.
 4. **Responsivité globale** : tout composant nouveau ou modifié doit être responsive (mobile → desktop), sans exception. Pas de vue desktop-only ni de doublon mobile.
+   **Saisies** : champ numérique = `NumInput` (`@/components/ui/NumInput`), jamais `<input type="number">` + `Number(e.target.value) || défaut` (le 0 ne s'efface plus). Les défauts s'appliquent à l'enregistrement, pas à la frappe. Ne jamais définir un composant qui rend un `<input>` à l'intérieur d'un autre composant (remonté à chaque frappe → perte de focus) ni transformer le texte pendant la frappe (trim, majuscules : à la validation).
 5. **Interactions inter-domaines** via événements (`<domaine>:<entité>:<action>`) ou `/api/internal/*` — jamais par import direct.
 6. **Socket.io** : tout nouvel événement doit être namespacé (`corp:`, `mkt:`, `xeuy:`) — voir `src/lib/socket-events.ts`. Ne pas renommer les events legacy tant que les apps déployées les utilisent.
 7. **Auth** : `verifyAuthServer()` seul helper côté API ; le scoping par profil (`companyClientId`, `providerProfileId`...) prime sur le rôle global.

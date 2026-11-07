@@ -1,5 +1,5 @@
 /**
- * Content Script - Extraction données produit depuis 1688 et AliExpress
+ * Content Script - Extraction données produit depuis 1688, AliExpress et Alibaba
  * v2.0 — Images classées, vidéos, description structurée, variantes enrichies
  */
 
@@ -35,60 +35,64 @@
     await wait(300);
   };
 
-  /** Nettoyer une URL d'image : enlever suffixes thumbnail, ajouter https */
-  const cleanImageUrl = (src) => {
-    if (!src) return '';
-    let clean = src
-      .replace(/_\d+x\d+[^.]*/, '')       // Thumbnails AliExpress/1688
-      .replace(/\.\d+x\d+\./, '.')         // Autre format
-      .replace(/\.summ\..*$/, '')           // Résumé 1688
-      .replace(/_Q\d+\.jpg/, '.jpg')       // Qualité faible
-      .replace(/\.search\..*$/, '');        // Version recherche
-    if (clean.startsWith('//')) clean = 'https:' + clean;
-    return clean;
-  };
+  /** CDN d'images produit (1688, AliExpress, Alibaba) */
+  const PRODUCT_CDN_HOST_RE = /(?:^|\.)(?:alicdn\.com|aliexpress-media\.com|aliexpress\.com|alibaba\.com|1688\.com|alibabausercontent\.com)$/i;
 
   /**
-   * Patterns de bruit pour les URLs d'images 1688/AliExpress.
-   * On veut éliminer: logos, bannières, promos, icônes de paiement, QR codes,
-   * avis, badges, watermark vendeur, images de catégorie, etc.
+   * URL d'image canonique en pleine résolution : https, sans suffixe de redimensionnement
+   * (xxx.jpg_220x220q75.jpg_.avif, xxx.310x310.jpg, xxx.summ.jpg…), sans paramètres.
+   * Deux tailles d'une même image donnent la même URL, ce qui sert aussi au dédoublonnage.
    */
-  const IMAGE_NOISE_PATTERNS = {
-    payment: /(?:paypal|klarna|afterpay|clearpay|stripe|alipay|wechat.?pay|visa|mastercard|amex|unionpay|discover|diners|jcb|sezzle|laybuy|zip\.co|affirm|grabpay|payme|tng|gcash|maya|dana|ovo|gopay|linkaja|shopee.?pay|pagaleve|ebanx|billet|mercado.?pago|pix|pagos|pago|pago.?facil|rapipago|redcompra|webpay|khipu|spei|conekt|openpay|culqi|payu|epay|2c2p|molpay|billdesk|paytm|phonepe|upi|razorpay|instamojo|ccavenue|paystack|flutterwave|chippercash|wave|orange.?money|mtn.?money|moov|free.?money|sama|thunes|moneygram|western.?union|ria|wise|revolut|n26|monzo|starling|bunq|klarna|tabby|tamara|spotii|postpay|cashew|jazzcash|easypaisa|bank.?transfer|bank.?deposit|wire.?transfer|swift|iban|ach|sepa|direct.?debit|sofort|giropay|ideal|bancontact|eps|p24|blik|trustly|zimpler|vipps|mobilepay|swish|vipps|satispay|twint|payconiq|anyday|valu|sympl|forsa|souhoola|aman|shahry|contact.?carrefour|fawry|vodafone.?cash|etisalat.?cash|we.?pay|me.?pay|qpay|benefitpay|knet|knetpay|mada|stcpay|sadad|mobicash|wari|orange|coris|bci|wave|cb|paypal)/i,
-    logo: /(?:\blogo\b|brand.?logo|shop.?logo|store.?logo|seller.?logo|company.?logo|official.?store|verified.?store|flagship|maintenance|certified|authorized|distributor)/i,
-    badge: /(?:badge|certification|certificate|verified|guarantee|warranty|authentic|genuine|original|official|choice|top.?choice|recommended|bestseller|best.?seller|hot.?sale|flash.?sale|big.?sale|super.?deal|mega.?sale|clearance|promotion|promo|discount|coupon|voucher|code|gift|freebies|free.?gift|bundle|combo|save|off|%\s*off|cashback|refund|return|shipping.?free|free.?shipping|express|fast.?delivery|local.?delivery|warehouse|origin|made.?in|factory|direct|wholesale|retail|dropship)/i,
-    banner: /(?:banner|header|footer|sidebar|widget|popup|modal|toast|notification|announcement|promo.?bar|top.?bar|sticky|floating|ad\b|ads|advertisement|sponsored|promoted)/i,
-    qrcode: /(?:qrcode|qr.?code|qr\b|barcode|scan|wechat|whatsapp|telegram|line|kakao|zalo|viber|signal|skype|messenger)/i,
-    review: /(?:review|feedback|rating|comment|testimonial|avatar|profile|buyer|customer|user.?pic|verified.?purchase|purchase.?proof)/i,
-    ui: /(?:icon|button|arrow|check|star|heart|cart|bag|search|menu|close|hamburger|loader|spinner|placeholder|no.?image|image.?error|blank|transparent|spacer|gif\b|svg\b)/i,
-    size: /(?:1x1|1x2|2x1|2x2|pixel|tracker|beacon|tracking|analytics|gtm|ga\b|facebook|fb\.com|tiktok|instagram|pinterest|twitter|x\.com|linkedin|youtube)/i,
+  const cleanImageUrl = (src) => {
+    if (!src || typeof src !== 'string') return '';
+    let url = src.trim().replace(/\\u002F/gi, '/').replace(/\\\//g, '/');
+    if (url.startsWith('//')) url = 'https:' + url;
+    if (!/^https?:\/\//i.test(url)) return '';
+    let parsed;
+    try { parsed = new URL(url); } catch { return ''; }
+    if (!PRODUCT_CDN_HOST_RE.test(parsed.hostname)) return parsed.href.split('#')[0];
+    const base = parsed.pathname.match(/^(.*?\.(?:jpe?g|png|webp))(?=[_.]|$)/i);
+    const path = (base ? base[1] : parsed.pathname)
+      .replace(/\.(?:\d{2,4}x\d{2,4}|summ|search|sum)\.(jpe?g|png|webp)$/i, '.$1');
+    return `https://${parsed.hostname}${path}`;
   };
 
+  /** Hébergeurs qui ne servent jamais de photos produit */
+  const NOISE_HOST_RE = /(?:^|\.)(?:paypal|klarna|afterpay|clearpay|stripe|sezzle|affirm|googletagmanager|google-analytics|doubleclick|facebook|fbcdn)\.(?:com|net)$/i;
+
+  /** Mots qui, dans le CHEMIN d'une image, signalent un élément d'interface */
+  const NOISE_PATH_TOKENS = new Set([
+    'logo', 'logos', 'banner', 'banners', 'icon', 'icons', 'badge', 'badges', 'qrcode', 'qr', 'avatar', 'avatars',
+    'coupon', 'coupons', 'promo', 'promotion', 'paypal', 'visa', 'mastercard', 'amex', 'klarna', 'afterpay',
+    'watermark', 'sprite', 'sprites', 'placeholder', 'loading', 'loader', 'spinner', 'pixel', 'tracking', 'tracker',
+    'beacon', 'flag', 'flags', 'emoji', 'favicon', 'blank', 'transparent', 'spacer', 'nopic', 'noimage',
+  ]);
+
+  /**
+   * Image d'interface (logo, icône, paiement, suivi…) plutôt que photo produit.
+   * Les mots-clés sont comparés mot à mot, sur le chemin seulement : les noms de fichiers
+   * des CDN sont des identifiants aléatoires qui contiennent souvent « cb », « ria », « eps »…
+   * et l'hôte cbu01.alicdn.com héberge justement les photos 1688.
+   */
   const isNoiseImage = (url) => {
-    if (!url) return true;
-    const lower = url.toLowerCase();
+    if (!url || typeof url !== 'string') return true;
+    const value = url.trim();
+    if (/^data:/i.test(value)) return true;
+    let parsed;
+    try { parsed = new URL(value.startsWith('//') ? 'https:' + value : value); } catch { return true; }
+    if (NOISE_HOST_RE.test(parsed.hostname)) return true;
+    const path = parsed.pathname.toLowerCase();
+    if (/\.(?:svg|gif|ico)$/.test(path)) return true;
+    return path.split(/[^a-z0-9]+/).some(token => NOISE_PATH_TOKENS.has(token));
+  };
 
-    // Images inline / tracking
-    if (lower.startsWith('data:')) return true;
-    if (/1x1|pixel|tracker|beacon|google-analytics|googletagmanager|facebook\.com\/tr|analytics/i.test(lower)) return true;
-    if (lower.endsWith('.svg') || lower.endsWith('.gif')) return true;
-
-    // Domaines connus de bruit
-    if (/paypal\.com|klarna\.com|afterpay\.com|stripe\.com|clearpay|zip\.co|sezzle|affirm\.com|tabby|tamara|spotii/i.test(lower)) return true;
-
-    // Nom de fichier extrait
-    const filename = lower.split('/').pop()?.split('?')[0] || '';
-    if (filename) {
-      // Préfixes très courants de bruit
-      if (/^(paypal|klarna|visa|mastercard|amex|unionpay|discover|icon|logo|badge|banner|afterpay|clearpay|payment|checkout|trust|secure|guarantee|coupon|promo|sale|discount|qrcode|qr_|wechat|whatsapp|avatar|profile|review|feedback|choice|new_user|welcome|local_deal|local_warehouse)[_\-.]/.test(filename)) return true;
-    }
-
-    // Patterns généraux
-    for (const pattern of Object.values(IMAGE_NOISE_PATTERNS)) {
-      if (pattern.test(lower)) return true;
-    }
-
-    return false;
+  /** Miniature d'une vraie photo produit (xxx.jpg_80x80.jpg) : petite à l'écran, mais à garder */
+  const isProductThumbnail = (src) => {
+    if (!src) return false;
+    try {
+      const parsed = new URL(src.startsWith('//') ? 'https:' + src : src);
+      return PRODUCT_CDN_HOST_RE.test(parsed.hostname) && /\.(?:jpe?g|png|webp)[_.]\d{2,4}x\d{2,4}/i.test(parsed.pathname);
+    } catch { return false; }
   };
 
   /** Filtrer une image par ses attributs DOM (alt, class, taille, parent) */
@@ -118,14 +122,15 @@
       parent = parent.parentElement;
     }
 
-    // Taille trop petite = icône
+    // Taille trop petite = icône (sauf miniature d'une photo produit : la galerie en est faite)
+    const thumbnail = isProductThumbnail(src);
     const w = img.naturalWidth || parseInt(img.getAttribute('width') || '0');
     const h = img.naturalHeight || parseInt(img.getAttribute('height') || '0');
-    if ((w > 0 && w < 100) || (h > 0 && h < 100)) return true;
+    if (!thumbnail && ((w > 0 && w < 100) || (h > 0 && h < 100))) return true;
 
     // Position suspecte: images absolument positionnées très petites
     const rect = img.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0 && (rect.width < 80 || rect.height < 80)) {
+    if (!thumbnail && rect.width > 0 && rect.height > 0 && (rect.width < 80 || rect.height < 80)) {
       // Vérifier si c'est dans une zone de contenu principal ou un coin
       const style = window.getComputedStyle(img);
       if (style.position === 'absolute' || style.position === 'fixed') return true;
@@ -187,9 +192,11 @@
   /** Vérifie qu'une URL est hébergée sur un CDN produit 1688/AliExpress */
   const is1688ProductImage = (src) => /cbu\d*\.alicdn\.com|img\.alicdn\.com|sc\d+\.alicdn\.com|imgextra|gw\.alicdn\.com|\.1688\.com/i.test(src);
 
-  const isAliProductImage = (src) => /ae\d+\.alicdn\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn\.com|assets\.alicdn\.com\/imgextra|img\.alicdn\.com|imgextra|gw\.alicdn\.com/i.test(src);
+  const isAliProductImage = (src) => /ae\d+\.alicdn\.com|aliexpress-media\.com|cbu\d*\.alicdn\.com|img\.aliexpress|sc\d+\.alicdn\.com|assets\.alicdn\.com\/imgextra|img\.alicdn\.com|imgextra|gw\.alicdn\.com/i.test(src);
 
-  const isProductImageUrl = (src) => /^https?:\/\//i.test(src) && !isNoiseImage(src) && (is1688ProductImage(src) || isAliProductImage(src));
+  const isAlibabaProductImage = (src) => /s\.alicdn\.com\/@sc\d+|sc\d+\.alicdn\.com|alibaba\.com|img\.alicdn\.com|imgextra|alibabausercontent\.com/i.test(src);
+
+  const isProductImageUrl = (src) => /^https?:\/\//i.test(src) && !isNoiseImage(src) && (is1688ProductImage(src) || isAliProductImage(src) || isAlibabaProductImage(src));
 
   /** Déduplication d'images par URL normalisée */
   const deduplicateImages = (urls) => {
@@ -209,6 +216,192 @@
       seen.add(key);
       return true;
     });
+  };
+
+  // ==========================================
+  // IMAGES DEPUIS LES DONNÉES DE LA PAGE (JSON intégré)
+  // ==========================================
+  // Les pages produit embarquent la liste officielle des images (galerie, SKU, description)
+  // dans des scripts JSON : plus fiable que le DOM, qui ne montre que ce qui est chargé à l'écran.
+
+  const IMAGE_VALUE_RE = /^(?:https?:)?\/\/[^\s"'<>]+\.(?:jpe?g|png|webp)(?:[_.?#][^\s"'<>]*)?$/i;
+  // Zones de la page qui ne décrivent pas ce produit (recommandations, boutique, avis, pubs…)
+  const FOREIGN_PATH_RE = /recommend|similar|related|crosssell|cross_sell|moreitem|otheritem|bestsell|youmaylike|guess|store|shop(?!ping)|seller|company|supplier|logo|avatar|banner|coupon|promo|review|feedback|evaluation|comment|buyer|footer|header|navigation|\bads?\b|advert|marketing|campaign|activity/;
+  const DESCRIPTION_PATH_RE = /desc|detailcontent|detailhtml|detailimage|richtext|introduction|productdetail/;
+  const VARIANT_PATH_RE = /sku|saleprop|propvalue|propertyvalue|skuattr|attrvalue|variation|variant|propertyimage/;
+  const GALLERY_PATH_RE = /imagepathlist|offerimglist|offerimg|mainimage|mainpic|bigimage|summimage|productimage|imagelist|imglist|piclist|picurl|imageurls|gallery|mediaitems|media|images?(?:\.|$)|pics?(?:\.|$)/;
+  const VARIANT_NAME_KEYS = ['propertyValueDisplayName', 'propertyValueName', 'skuPropertyValueTips', 'valueName', 'propValueName', 'name', 'alias', 'text', 'value', 'title'];
+
+  /** Fin d'un littéral JSON/JS équilibré à partir de `start` ({ ou [), chaînes comprises */
+  const findBalancedEnd = (text, start) => {
+    const open = text[start];
+    const close = open === '{' ? '}' : ']';
+    let depth = 0;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (c === '"' || c === "'" || c === '`') {
+        for (i++; i < text.length && text[i] !== c; i++) if (text[i] === '\\') i++;
+        continue;
+      }
+      if (c === open) depth++;
+      else if (c === close && --depth === 0) return i + 1;
+    }
+    return -1;
+  };
+
+  /** Parse le littéral ; s'il n'est pas du JSON strict ({ data: {...} }), descend d'un niveau */
+  const parseJsonLiteral = (text, start, end, roots, depth = 0) => {
+    const chunk = text.slice(start, end);
+    try { roots.push(JSON.parse(chunk)); return; } catch {}
+    if (depth >= 2) return;
+    const re = /[:=(]\s*([{[])/g;
+    re.lastIndex = 1;
+    let m;
+    while ((m = re.exec(chunk))) {
+      const childStart = m.index + m[0].length - 1;
+      const childEnd = findBalancedEnd(chunk, childStart);
+      if (childEnd <= childStart) break;
+      if (childEnd - childStart > 200) parseJsonLiteral(chunk, childStart, childEnd, roots, depth + 1);
+      re.lastIndex = childEnd;
+    }
+  };
+
+  /** Objets JSON intégrés à la page : JSON-LD, data islands, états d'hydratation (window.x = {...}) */
+  const collectPageJson = () => {
+    const roots = [];
+    document.querySelectorAll('script:not([src])').forEach(script => {
+      const text = script.textContent || '';
+      if (text.length < 100 || text.length > 8_000_000) return;
+      if (!/\.(?:jpe?g|png|webp)/i.test(text)) return;
+      if ((script.getAttribute('type') || '').toLowerCase().includes('json')) {
+        try { roots.push(JSON.parse(text)); return; } catch {}
+      }
+      const re = /[=(]\s*([{[])/g;
+      let m, guard = 0;
+      while ((m = re.exec(text)) && guard++ < 300) {
+        const start = m.index + m[0].length - 1;
+        const end = findBalancedEnd(text, start);
+        if (end <= start) continue;
+        if (end - start > 200 && /\.(?:jpe?g|png|webp)/i.test(text.slice(start, end))) parseJsonLiteral(text, start, end, roots);
+        re.lastIndex = end;
+      }
+    });
+    return roots;
+  };
+
+  const normalizeVariantName = (name) => String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  /** Images de la page classées d'après le chemin des clés JSON qui les contiennent */
+  const harvestPageImages = () => {
+    const out = { gallery: [], description: [], variant: [], variantByName: {} };
+    const add = (list, url) => { if (url && !list.includes(url)) list.push(url); };
+    let visited = 0;
+
+    // Une URL d'image trouvée au chemin `path` (clés JSON depuis la racine)
+    const visitImage = (raw, path) => {
+      if (!IMAGE_VALUE_RE.test(raw.trim())) return '';
+      const joined = path.join('.').toLowerCase();
+      if (FOREIGN_PATH_RE.test(joined)) return '';
+      const url = cleanImageUrl(raw);
+      if (!url || isNoiseImage(url)) return '';
+      if (DESCRIPTION_PATH_RE.test(joined)) add(out.description, url);
+      else if (VARIANT_PATH_RE.test(joined)) { add(out.variant, url); return url; }
+      else if (GALLERY_PATH_RE.test(joined)) add(out.gallery, url);
+      return '';
+    };
+
+    const walk = (node, keys, depth) => {
+      if (!node || depth > 16 || ++visited > 300000) return;
+      if (Array.isArray(node)) {
+        node.forEach((child, i) => {
+          if (typeof child === 'string') visitImage(child, keys.concat(String(i)));
+          else walk(child, keys.concat(String(i)), depth + 1);
+        });
+        return;
+      }
+      if (typeof node !== 'object') return;
+
+      let ownImage = '';
+      for (const [key, value] of Object.entries(node)) {
+        const path = keys.concat(key);
+        if (typeof value === 'string') {
+          const variantImage = visitImage(value, path);
+          if (!ownImage) ownImage = variantImage;
+        } else if (value && typeof value === 'object') {
+          walk(value, path, depth + 1);
+        }
+      }
+
+      // Valeur de SKU : associer son image à son libellé (« Noir », « 128 Go »…)
+      if (ownImage) {
+        const nameKey = VARIANT_NAME_KEYS.find(k => typeof node[k] === 'string' && node[k].trim() && !IMAGE_VALUE_RE.test(node[k].trim()));
+        if (nameKey) out.variantByName[normalizeVariantName(node[nameKey])] = ownImage;
+      }
+    };
+
+    collectPageJson().forEach(root => walk(root, [], 0));
+    return out;
+  };
+
+  /**
+   * Classement final des images, commun à toutes les plateformes :
+   * - galerie : liste officielle de la page en priorité (dans son ordre), sinon ce que le DOM a trouvé ;
+   * - variantes : image de chaque option (complétée par son libellé si le DOM ne l'avait pas) ;
+   * - description : images du descriptif, jamais mélangées à la galerie ;
+   * - jamais de produit sans image si la page en contient au moins une.
+   */
+  const finalizeImages = (data) => {
+    let page = { gallery: [], description: [], variant: [], variantByName: {} };
+    try { page = harvestPageImages(); } catch (e) { console.warn('[IT Vision] Données JSON de la page:', e); }
+
+    const unique = (list) => {
+      const seen = new Set();
+      return (list || []).map(cleanImageUrl).filter(url => url && !isNoiseImage(url) && !seen.has(url) && seen.add(url));
+    };
+
+    const domGallery = unique(data.gallery);
+    const description = unique([...page.description, ...(data.descriptionImages || []), ...(data.imageCategories?.description || [])]);
+    const descriptionSet = new Set(description);
+
+    // Avec une galerie officielle suffisante, le DOM n'apporte que du bruit potentiel
+    let gallery = page.gallery.length >= 3
+      ? unique(page.gallery)
+      : unique([...page.gallery, ...domGallery.filter(url => !descriptionSet.has(url))]);
+
+    (data.variantGroups || []).forEach(group => (group.variants || []).forEach(variant => {
+      const own = variant.image ? cleanImageUrl(variant.image) : '';
+      variant.image = (own && !isNoiseImage(own) ? own : '') || page.variantByName[normalizeVariantName(variant.name)] || undefined;
+    }));
+    const variantImages = unique([
+      ...(data.variantGroups || []).flatMap(group => (group.variants || []).map(v => v.image)),
+      ...page.variant,
+    ]);
+
+    if (gallery.length === 0) gallery = variantImages.slice(0, 10);
+    if (gallery.length === 0) gallery = description.slice(0, 5);
+    if (gallery.length === 0) {
+      const og = cleanImageUrl(document.querySelector('meta[property="og:image"]')?.getAttribute('content') || '');
+      if (og && !isNoiseImage(og)) gallery = [og];
+    }
+
+    const gallerySet = new Set(gallery);
+    data.gallery = gallery.slice(0, 20);
+    data.image = data.gallery[0] || undefined;
+    data.descriptionImages = description.filter(url => !gallerySet.has(url)).slice(0, 30);
+    data.imageCategories = {
+      main: data.gallery.slice(0, 1),
+      gallery: data.gallery,
+      variant: variantImages.slice(0, 30),
+      description: data.descriptionImages,
+      packaging: unique(data.imageCategories?.packaging).slice(0, 5),
+    };
+    console.log('[IT Vision] Images finales:', {
+      galerie: data.gallery.length,
+      variantes: variantImages.length,
+      description: data.descriptionImages.length,
+      sourcePage: page.gallery.length,
+    });
+    return data;
   };
 
   /** Extraire texte propre d'un élément DOM, sans HTML */
@@ -822,6 +1015,9 @@
     if (!widthCm && pageState.widthCm) widthCm = pageState.widthCm;
     if (!heightCm && pageState.heightCm) heightCm = pageState.heightCm;
     if (pageState.shopName && !data.supplier) data.supplier = { name: pageState.shopName };
+
+    // ── IMAGES : classement final (données JSON de la page + DOM) ──
+    try { finalizeImages(data); } catch (e) { console.warn('[IT Vision] Classement images 1688:', e); }
 
     // ── VALEURS PAR DÉFAUT ──
     try {
@@ -1719,6 +1915,9 @@
       packaging: packagingImages.length
     });
 
+    // Classement final des images (données JSON de la page + DOM)
+    try { finalizeImages(data); } catch (e) { console.warn('[IT Vision] Classement images AliExpress:', e); }
+
     // Features (résumé compact)
     data.features = [
       data.rating && `Note: ${data.rating}/5`,
@@ -1761,6 +1960,246 @@
   };
 
   // ==========================================
+  // EXTRACTEUR ALIBABA (alibaba.com et sous-domaines : fr., es., …)
+  // ==========================================
+
+  /** « 1,234.56 » / « 1 234,56 » / « 3.5 » → nombre */
+  const parseLocaleAmount = (raw) => {
+    let s = String(raw || '').replace(/[\s\u00a0\u202f]/g, '');
+    if (!s) return NaN;
+    const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+      s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+    } else if (lastComma > -1) {
+      s = /,\d{1,2}$/.test(s) ? s.replace(',', '.') : s.replace(/,/g, '');
+    }
+    return parseFloat(s);
+  };
+
+  const ALIBABA_UNIT_RE = '(?:pieces?|pcs|sets?|units?|pairs?|boxes|cartons?|meters?|kilograms?|kg|bags?|rolls?|pi[eè]ces?|unit[eé]s?|ensembles?|paires?|bo[iî]tes?|m[eè]tres?|lots?)';
+
+  const scrapeAlibaba = async () => {
+    console.log('[IT Vision] Extraction Alibaba...');
+    const data = {
+      platform: 'alibaba',
+      url: window.location.href.split('?')[0],
+      timestamp: new Date().toISOString(),
+      gallery: [],
+      descriptionImages: [],
+      videos: [],
+      variantGroups: [],
+      features: [],
+      specifications: {},
+    };
+
+    try {
+      await wait(1500);
+      await deepScroll(7000, 450, 220);
+    } catch (e) { console.warn('[IT Vision] Scroll Alibaba:', e); }
+
+    const bodyText = document.body?.innerText || '';
+
+    // ── TITRE ──
+    data.name = trySelectors([
+      'h1[class*="title" i]', '[class*="product-title" i] h1', '[class*="product-title" i]',
+      '[class*="module-pdp-title" i] h1', '[data-module-name*="title" i] h1', 'h1',
+    ]) || document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim()
+      || document.title.replace(/\s*[-|].*$/, '').trim() || 'Produit Alibaba';
+
+    // ── PRIX + PALIERS (USD sur alibaba.com, EUR possible sur fr.alibaba.com) ──
+    try {
+      const priceArea = document.querySelector('[class*="product-price" i], [class*="price-list" i], [class*="price-wrap" i], [class*="module-pdp-price" i], [data-module-name*="price" i]');
+      const priceText = (priceArea?.innerText || bodyText.slice(0, 8000));
+      data.price1688Currency = /€|EUR/.test(priceText) ? 'EUR' : 'USD';
+
+      const tiers = [];
+      const tierRe = new RegExp(`(?:≥|>=|\\+)?\\s*([\\d][\\d\\s.,]*)\\s*(?:-\\s*([\\d][\\d\\s.,]*))?\\s*${ALIBABA_UNIT_RE}[^\\d$€]{0,20}(?:US\\s?\\$|\\$|€|EUR|USD)?\\s*(\\d[\\d.,]*)\\s*(?:€|EUR)?`, 'gi');
+      document.querySelectorAll('[class*="price-item" i], [class*="ladder" i] [class*="item" i], [class*="price-list" i] > *, [class*="price-range" i] > *').forEach(item => {
+        const text = (item.innerText || '').replace(/\n+/g, ' ');
+        tierRe.lastIndex = 0;
+        const m = tierRe.exec(text);
+        if (!m) return;
+        const minQty = parseInt(m[1].replace(/\D/g, ''), 10);
+        const maxQty = m[2] ? parseInt(m[2].replace(/\D/g, ''), 10) : undefined;
+        const price = parseLocaleAmount(m[3]);
+        if (minQty > 0 && price > 0 && !tiers.some(t => t.minQty === minQty)) tiers.push({ minQty, maxQty, price1688: price });
+      });
+
+      if (tiers.length) {
+        tiers.sort((a, b) => a.minQty - b.minQty);
+        data.priceTiers = tiers;
+        // Prix de référence : celui de la quantité minimale (le plus élevé, le plus prudent)
+        data.price1688 = tiers[0].price1688;
+        data.moq = data.moq || tiers[0].minQty;
+      } else {
+        const m = priceText.match(/(?:US\s?\$|\$|€)\s*(\d[\d.,]*)(?:\s*-\s*(?:US\s?\$|\$|€)?\s*(\d[\d.,]*))?|(\d[\d.,]*)\s*€/);
+        const values = m ? [m[1], m[2], m[3]].map(parseLocaleAmount).filter(v => v > 0) : [];
+        if (values.length) data.price1688 = Math.max(...values);
+      }
+    } catch (e) { console.warn('[IT Vision] Prix Alibaba:', e); }
+
+    // ── MOQ ──
+    try {
+      const m = bodyText.match(new RegExp(`(?:min\\.?\\s*order|minimum order(?: quantity)?|commande minimale|quantit[ée] minimale|qt[ée]\\.? min\\.?)\\s*:?\\s*([\\d][\\d\\s.,]*)\\s*${ALIBABA_UNIT_RE}?`, 'i'));
+      const moq = m ? parseInt(m[1].replace(/\D/g, ''), 10) : 0;
+      if (moq > 0) data.moq = moq;
+    } catch {}
+
+    // ── IMAGES (DOM ; complétées par les données JSON dans finalizeImages) ──
+    try {
+      const imageSet = new Set();
+      const gallerySelectors = [
+        '[class*="image-list" i] img', '[class*="main-image" i] img', '[class*="gallery" i] img',
+        '[class*="slider" i] img', '[class*="detail-image" i] img', '[class*="media-item" i] img',
+        '[class*="thumb" i] img', '[data-module-name*="gallery" i] img',
+      ];
+      gallerySelectors.forEach(sel => document.querySelectorAll(sel).forEach(img => {
+        if (img.closest('[class*="description" i], [id*="description" i], [class*="recommend" i], [class*="supplier" i]')) return;
+        const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('src') || '';
+        if (!src || isNoiseImageElement(img) || !isAlibabaProductImage(src)) return;
+        const clean = cleanImageUrl(src);
+        if (clean) imageSet.add(clean);
+      }));
+      document.querySelectorAll('[class*="gallery" i] [style*="background-image"], [class*="image-list" i] [style*="background-image"]').forEach(el => {
+        const m = (el.getAttribute('style') || '').match(/url\(["']?([^"')]+)["']?\)/);
+        if (m && isAlibabaProductImage(m[1]) && !isNoiseImage(m[1])) imageSet.add(cleanImageUrl(m[1]));
+      });
+      data.gallery = Array.from(imageSet);
+    } catch (e) { console.warn('[IT Vision] Images Alibaba:', e); }
+
+    // ── VIDÉOS ──
+    try { data.videos = extractVideos(document); } catch { data.videos = []; }
+
+    // ── SPÉCIFICATIONS (attributs clés) ──
+    try {
+      const specs = {};
+      const addSpec = (k, v) => {
+        const key = (k || '').replace(/[:：]\s*$/, '').trim();
+        const val = (v || '').trim();
+        if (key && val && key.length <= 60 && val.length <= 200 && key !== val && !specs[key]) specs[key] = val;
+      };
+      document.querySelectorAll('[class*="attribute" i] [class*="item" i], [class*="attr-list" i] > *, [class*="specification" i] [class*="item" i], [class*="key-attr" i] [class*="item" i]').forEach(item => {
+        const kEl = item.querySelector('[class*="name" i], [class*="label" i], [class*="key" i], dt, th');
+        const vEl = item.querySelector('[class*="value" i], [class*="info" i], dd, td');
+        if (kEl && vEl) addSpec(kEl.innerText, vEl.innerText);
+      });
+      document.querySelectorAll('[class*="attribute" i] tr, [class*="specification" i] tr, [class*="detail-attr" i] tr').forEach(tr => {
+        const cells = tr.querySelectorAll('td, th');
+        for (let i = 0; i + 1 < cells.length; i += 2) addSpec(cells[i].innerText, cells[i + 1].innerText);
+      });
+      document.querySelectorAll('[class*="attribute" i] dl, [class*="specification" i] dl').forEach(dl => {
+        const dts = dl.querySelectorAll('dt');
+        dts.forEach(dt => addSpec(dt.innerText, dt.nextElementSibling?.innerText));
+      });
+      data.specifications = specs;
+    } catch (e) { console.warn('[IT Vision] Spécifications Alibaba:', e); }
+
+    // ── VARIANTES (couleur, taille, modèle…) ──
+    try {
+      const groups = [];
+      document.querySelectorAll('[class*="sku-item" i], [class*="sku-prop" i], [class*="sku-attr" i], [class*="sku-info" i] > *, [data-module-name*="sku" i] [class*="item" i]').forEach(container => {
+        const labelEl = container.querySelector('[class*="title" i], [class*="label" i], [class*="name" i], dt, h4, h5, strong');
+        let groupName = (labelEl?.innerText || '').replace(/[:：].*$/s, '').replace(/\(\d+\)/, '').trim();
+        if (!groupName || groupName.length > 40) return;
+        if (/colou?r|couleur|color/i.test(groupName)) groupName = 'Couleur';
+        else if (/size|taille|dimension/i.test(groupName)) groupName = 'Taille';
+        else if (/model|mod[eè]le|style|type/i.test(groupName)) groupName = 'Modèle';
+        if (groups.some(g => g.name === groupName)) return;
+
+        const variants = [];
+        container.querySelectorAll('[class*="value" i] > *, [class*="option" i], [class*="sku-item-image" i], li, img').forEach((item, idx) => {
+          if (item === labelEl || item.contains(labelEl)) return;
+          const img = item.tagName === 'IMG' ? item : item.querySelector('img');
+          const name = (item.getAttribute('title') || img?.getAttribute('alt') || img?.getAttribute('title') || item.innerText || '').trim();
+          if (!name || name.length > 80 || name === groupName || variants.some(v => v.name === name)) return;
+          const src = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
+          variants.push({
+            id: `sku-${groups.length}-${idx}`,
+            name,
+            image: src ? cleanImageUrl(src) || undefined : undefined,
+            price1688: data.price1688,
+            stock: 1000,
+            isDefault: variants.length === 0,
+          });
+        });
+        if (variants.length > 1) groups.push({ name: groupName, variants });
+      });
+      data.variantGroups = groups;
+    } catch (e) { console.warn('[IT Vision] Variantes Alibaba:', e); }
+
+    // ── DESCRIPTION (texte + images du descriptif) ──
+    let presentationText = '';
+    try {
+      const descRoot = document.querySelector('#description, [id*="description" i], [class*="product-description" i], [class*="detail-desc" i], [class*="description-layout" i], [data-module-name*="description" i]');
+      if (descRoot) {
+        presentationText = cleanTextFromElement(descRoot).slice(0, 4000);
+        descRoot.querySelectorAll('img').forEach(img => {
+          const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('src') || '';
+          if (!src || isNoiseImage(src)) return;
+          const clean = cleanImageUrl(src);
+          if (clean && !data.descriptionImages.includes(clean)) data.descriptionImages.push(clean);
+        });
+      }
+    } catch (e) { console.warn('[IT Vision] Description Alibaba:', e); }
+    data.description = buildStructuredDescription({ title: data.name, specs: data.specifications, presentationText });
+
+    // ── FOURNISSEUR ──
+    try {
+      data.shopName = trySelectors(['[class*="company-name" i]', '[class*="supplier-name" i]', '[class*="store-name" i]', 'a[href*=".en.alibaba.com"]']) || undefined;
+      if (data.shopName) data.supplier = { name: data.shopName };
+    } catch {}
+
+    // ── POIDS & DIMENSIONS (section « Emballage et livraison ») ──
+    try {
+      const pack = bodyText.match(/(?:single package size|package size|taille (?:du|de l')?\s*(?:paquet|emballage)[^:]*)\s*:?\s*([\d.,]+)\s*[xX×*]\s*([\d.,]+)\s*[xX×*]\s*([\d.,]+)\s*cm/i);
+      if (pack) {
+        const [l, w, h] = [pack[1], pack[2], pack[3]].map(parseLocaleAmount);
+        if (l > 0 && w > 0 && h > 0) { data.lengthCm = l; data.widthCm = w; data.heightCm = h; }
+      }
+      const weight = bodyText.match(/(?:single gross weight|gross weight|poids brut(?: unique)?)\s*:?\s*([\d.,]+)\s*(kg|g)\b/i);
+      if (weight) {
+        const value = parseLocaleAmount(weight[1]);
+        if (value > 0) data.weightKg = weight[2].toLowerCase() === 'g' ? value / 1000 : value;
+      }
+    } catch {}
+
+    // ── IMAGES : classement final (données JSON de la page + DOM) ──
+    try { finalizeImages(data); } catch (e) { console.warn('[IT Vision] Classement images Alibaba:', e); }
+
+    data.category = classifyCategory(data.name, data.description, data.specifications) || 'Catalogue import Chine';
+    data.tagline = 'Import Alibaba';
+    data.availabilityNote = 'Import Alibaba — vérifier poids/dimensions';
+    data.currency = 'FCFA';
+    data.features = [
+      data.moq && `MOQ: ${data.moq} unités`,
+      data.priceTiers?.length && `${data.priceTiers.length} paliers de prix`,
+      Object.keys(data.specifications || {}).length > 0 && `${Object.keys(data.specifications).length} spécifications`,
+      data.videos?.length > 0 && `${data.videos.length} vidéo(s)`,
+      data.gallery?.length > 0 && `${data.gallery.length} images galerie`,
+      data.descriptionImages?.length > 0 && `${data.descriptionImages.length} images description`,
+      data.weightKg && `Poids: ${data.weightKg} kg`,
+    ].filter(Boolean);
+
+    console.log('[IT Vision] Alibaba extrait:', {
+      name: data.name,
+      price: data.price1688,
+      currency: data.price1688Currency,
+      gallery: data.gallery?.length,
+      descImages: data.descriptionImages?.length,
+      variants: data.variantGroups?.length,
+    });
+    return data;
+  };
+
+  /** Extracteur adapté au site courant */
+  const scrapeCurrentPage = () => {
+    const host = window.location.hostname;
+    if (host.includes('1688.com')) return scrape1688();
+    if (/(^|\.)alibaba\.com$/i.test(host)) return scrapeAlibaba();
+    return scrapeAliExpress();
+  };
+
+  // ==========================================
   // UI FLOATING BUTTON
   // ==========================================
   
@@ -1799,8 +2238,7 @@
       setTimeout(() => btn.style.transform = 'scale(1)', 150);
       
       try {
-        const is1688 = window.location.hostname.includes('1688.com');
-        const data = is1688 ? await scrape1688() : await scrapeAliExpress();
+        const data = await scrapeCurrentPage();
         
         // Envoyer au background script
         chrome.runtime.sendMessage({
@@ -1850,8 +2288,7 @@
 
   /** Expose un point d'entrée global utilisable par Playwright/Puppeteer */
   window.itVisionScrape = async () => {
-    const is1688 = window.location.hostname.includes('1688.com');
-    const data = is1688 ? await scrape1688() : await scrapeAliExpress();
+    const data = await scrapeCurrentPage();
     return data;
   };
 
@@ -1863,9 +2300,8 @@
     // Écouter messages du popup
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'EXTRACT_PRODUCT') {
-        const is1688 = window.location.hostname.includes('1688.com');
 
-        (is1688 ? scrape1688() : scrapeAliExpress())
+        scrapeCurrentPage()
           .then(data => sendResponse({ success: true, data }))
           .catch(err => sendResponse({ success: false, error: err.message }));
 

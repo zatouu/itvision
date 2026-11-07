@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Pencil, RefreshCw, Save, X, Users, Calendar, CheckCircle, AlertCircle, Clock, Zap, UserPlus, Search } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
+import NumInput from '@/components/ui/NumInput'
 
 type Project = {
   _id?: string
@@ -500,7 +501,7 @@ export default function EnhancedProjectManager() {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">Progression (%)</label>
-                  <input type="number" min="0" max="100" value={editing.progress || 0} onChange={e => setEditing({ ...editing, progress: Number(e.target.value) })} className="w-full border rounded-lg px-3 py-2" />
+                  <NumInput integer min="0" max="100" value={editing.progress || 0} emptyValue={0} onChange={v => setEditing({ ...editing, progress: v ?? 0 })} className="w-full border rounded-lg px-3 py-2" />
                 </div>
 
                 <div>
@@ -515,12 +516,12 @@ export default function EnhancedProjectManager() {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">Budget estimé (FCFA)</label>
-                  <input type="number" value={editing.value ?? ''} onChange={e => setEditing({ ...editing, value: e.target.value ? Number(e.target.value) : undefined })} className="w-full border rounded-lg px-3 py-2" placeholder="0" />
+                  <NumInput integer value={editing.value} onChange={v => setEditing({ ...editing, value: v })} className="w-full border rounded-lg px-3 py-2" placeholder="0" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium mb-1">Marge (%)</label>
-                  <input type="number" value={editing.margin ?? ''} onChange={e => setEditing({ ...editing, margin: e.target.value ? Number(e.target.value) : undefined })} className="w-full border rounded-lg px-3 py-2" placeholder="0" />
+                  <NumInput value={editing.margin} onChange={v => setEditing({ ...editing, margin: v })} className="w-full border rounded-lg px-3 py-2" placeholder="0" />
                 </div>
               </div>
 

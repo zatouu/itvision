@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import AdminPricingDefaults from './AdminPricingDefaults'
 import AdminShippingRates from './AdminShippingRates'
+import NumInput from '@/components/ui/NumInput'
 import { 
   ServiceType, 
   ProductType, 
@@ -470,10 +471,11 @@ export default function PriceManagementSystem() {
 
                         <td className="px-4 py-4">
                           {editing ? (
-                            <input
-                              type="number"
+                            <NumInput
+                              integer
+                              emptyValue={0}
                               value={editing.costPrice}
-                              onChange={(e) => updateEditingPrice(editKey, 'costPrice', parseInt(e.target.value) || 0)}
+                              onChange={(v) => updateEditingPrice(editKey, 'costPrice', v ?? 0)}
                               className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                               placeholder="Prix coût"
                             />
@@ -487,10 +489,11 @@ export default function PriceManagementSystem() {
                         <td className="px-4 py-4">
                           {editing ? (
                             <div className="flex items-center space-x-2">
-                              <input
-                                type="number"
+                              <NumInput
+                                integer
+                                emptyValue={0}
                                 value={editing.unitPrice}
-                                onChange={(e) => updateEditingPrice(editKey, 'unitPrice', parseInt(e.target.value) || 0)}
+                                onChange={(v) => updateEditingPrice(editKey, 'unitPrice', v ?? 0)}
                                 className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                                 placeholder="Prix vente"
                               />
@@ -516,10 +519,11 @@ export default function PriceManagementSystem() {
                         <td className="px-4 py-4">
                           {editing ? (
                             <div>
-                              <input
-                                type="number"
+                              <NumInput
+                                integer
+                                emptyValue={0}
                                 value={Math.round(editing.margin)}
-                                onChange={(e) => updateEditingPrice(editKey, 'margin', parseInt(e.target.value) || 0)}
+                                onChange={(v) => updateEditingPrice(editKey, 'margin', v ?? 0)}
                                 className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500"
                                 placeholder="%"
                               />

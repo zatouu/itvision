@@ -22,6 +22,7 @@ import type {
   MaintenanceTemplateService
 } from '@/data/maintenanceTemplates'
 import { maintenanceTemplates } from '@/data/maintenanceTemplates'
+import NumInput from '@/components/ui/NumInput'
 
 type ClientOption = {
   _id: string
@@ -540,10 +541,11 @@ export default function MaintenanceContractModal({
                 </div>
                 <div>
                   <label className="text-xs text-stone-500">Prix annuel</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     value={formState.annualPrice}
-                    onChange={(e) => updateFormState('annualPrice', Number(e.target.value))}
+                    emptyValue={0}
+                    onChange={(v) => updateFormState('annualPrice', v ?? 0)}
                     className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                   />
                 </div>
@@ -669,11 +671,12 @@ export default function MaintenanceContractModal({
                       </div>
                       <div>
                         <label className="text-xs text-stone-500">Quantité</label>
-                        <input
-                          type="number"
+                        <NumInput
+                          integer
                           min={0}
                           value={equipment.quantity}
-                          onChange={(e) => updateEquipmentItem(index, 'quantity', e.target.value)}
+                          emptyValue={0}
+                          onChange={(v) => updateEquipmentItem(index, 'quantity', v == null ? '' : String(v))}
                           className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2 text-sm"
                         />
                       </div>

@@ -21,6 +21,7 @@ import ProjectBudgetPanel from '@/components/admin/projects/ProjectBudgetPanel'
 import ProjectTeamCard from '@/components/admin/projects/ProjectTeamCard'
 import ProjectJournal from '@/components/projects/ProjectJournal'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import { DOCUMENT_ACCEPT, uploadFile } from '@/lib/http/upload-file'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { allowedTransitions, normalizeProjectStatus, PROJECT_STATUSES, PROJECT_STATUS_META, type ProjectTask, type ProjectTeamMember } from '@/lib/projects/workflow'
@@ -684,7 +685,7 @@ export default function ProjectDetailPage() {
                     {!r?.requestedAt && (
                       <>
                         <label className="flex items-center gap-1.5 text-xs text-stone-600">Garantie
-                          <input type="number" min={0} max={120} value={warrantyMonths} onChange={e => setWarrantyMonths(Number(e.target.value))} className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-sm" /> mois
+                          <NumInput integer min={0} max={120} value={warrantyMonths} emptyValue={0} onChange={v => setWarrantyMonths(v ?? 0)} className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-sm" /> mois
                         </label>
                         <button onClick={() => receptionAction('request')} disabled={receptionBusy} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">Demander la réception au client</button>
                       </>
@@ -907,7 +908,7 @@ export default function ProjectDetailPage() {
                 <input type="date" value={editing.endDate?.slice(0, 10) || ''} min={String((editing as any).startDate || '').slice(0, 10) || undefined} onChange={e => setEditing({ ...editing, endDate: e.target.value || undefined })} className="input" />
               </Field>
               <Field label="Montant (FCFA)">
-                <input type="number" value={editing.value || 0} onChange={e => setEditing({ ...editing, value: Number(e.target.value) })} className="input" />
+                <NumInput integer value={editing.value || 0} emptyValue={0} onChange={v => setEditing({ ...editing, value: v ?? 0 })} className="input" />
                 <span className="text-xs text-stone-500">Remplacé automatiquement par le total des devis acceptés dès qu’il y en a.</span>
               </Field>
               <Field label="Progression (%)">
@@ -1085,7 +1086,7 @@ export default function ProjectDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-stone-500 mb-1">Montant (FCFA)</label>
-                  <input type="number" min={0} value={newExpense.amountTTC} onChange={e => setNewExpense(v => ({ ...v, amountTTC: e.target.value }))} placeholder="0" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  <NumInput integer min={0} value={newExpense.amountTTC === '' ? undefined : Number(newExpense.amountTTC)} onChange={v => setNewExpense(prev => ({ ...prev, amountTTC: v == null ? '' : String(v) }))} placeholder="0" className="w-full border rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-stone-500 mb-1">Catégorie</label>

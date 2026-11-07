@@ -11,6 +11,7 @@ import {
   ChevronRight, Star, TrendingDown, Zap, Settings, X, AlertTriangle
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
+import NumInput from '@/components/ui/NumInput'
 import { ITV_DOMAINS, type ItvDomain } from '@/lib/portal/project-view'
 import { PIPELINE, PROJECT_STATUSES } from '@/lib/projects/workflow'
 
@@ -1114,23 +1115,23 @@ export default function ModernProjectManagement() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-stone-700">Valeur (FCFA)</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     min="0"
-                    value={newProjectData.value}
-                    onChange={e => handleNewProjectFieldChange('value', e.target.value)}
+                    value={newProjectData.value === '' ? undefined : Number(newProjectData.value)}
+                    onChange={v => handleNewProjectFieldChange('value', v == null ? '' : String(v))}
                     placeholder="0"
                     className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-stone-700">Progression (%)</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     min="0"
                     max="100"
-                    value={newProjectData.progress}
-                    onChange={e => handleNewProjectFieldChange('progress', e.target.value)}
+                    value={newProjectData.progress === '' ? undefined : Number(newProjectData.progress)}
+                    onChange={v => handleNewProjectFieldChange('progress', v == null ? '' : String(v))}
                     className="mt-1 w-full rounded-xl border border-stone-200 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>

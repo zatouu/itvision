@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   Bold,
   Italic,
@@ -25,7 +25,42 @@ interface RichTextEditorProps {
   className?: string
 }
 
+// Défini hors de l'éditeur : sinon React recrée toute la barre d'outils à chaque frappe
+function ToolbarButton({
+  onClick,
+  isActive,
+  children,
+  title,
+}: {
+  onClick: () => void
+  isActive?: boolean
+  children: React.ReactNode
+  title: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={clsx(
+        'p-1.5 rounded transition-colors',
+        isActive
+          ? 'bg-emerald-100 text-emerald-700'
+          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+  // Dernier HTML émis par l'éditeur : quand le parent nous le renvoie, ce n'est pas un
+  // changement extérieur (sinon setContent replacerait le curseur en fin de texte).
+  const lastEmitted = useRef<string | null>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -52,46 +87,25 @@ export default function RichTextEditor({ value, onChange, placeholder, className
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      const html = editor.getHTML()
+      lastEmitted.current = html
+      onChangeRef.current(html)
     },
   })
 
-  // Sync external value changes
+  // Synchronise uniquement les changements venus de l'extérieur (préremplissage, IA, import)
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value || '')
-    }
+    if (!editor) return
+    const incoming = value || ''
+    if (incoming === lastEmitted.current || incoming === editor.getHTML()) return
+    if (!incoming && editor.isEmpty) return
+    lastEmitted.current = incoming
+    editor.commands.setContent(incoming, { emitUpdate: false })
   }, [value, editor])
 
   if (!editor) {
     return null
   }
-
-  const ToolbarButton = ({
-    onClick,
-    isActive,
-    children,
-    title,
-  }: {
-    onClick: () => void
-    isActive?: boolean
-    children: React.ReactNode
-    title: string
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={clsx(
-        'p-1.5 rounded transition-colors',
-        isActive
-          ? 'bg-emerald-100 text-emerald-700'
-          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-      )}
-    >
-      {children}
-    </button>
-  )
 
   return (
     <div className={clsx('rounded-lg border border-gray-200 overflow-hidden bg-white', className)}>

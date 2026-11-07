@@ -11,6 +11,7 @@ const RichTextEditor = lazy(() => import('./RichTextEditor'))
 import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import { uploadFile } from '@/lib/http/upload-file'
 
 type ShippingOverride = {
@@ -336,22 +337,25 @@ function PricingSimulator({ product }: { product: Product }) {
         </label>
         <label className="space-y-1">
           <span>Quantité commande</span>
-          <input
+          <NumInput
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            type="number"
             min="1"
+            integer
+            emptyValue={0}
+            placeholder="1"
             value={orderQuantity}
-            onChange={e => setOrderQuantity(Number(e.target.value) || 1)}
+            onChange={v => setOrderQuantity(v ?? 0)}
           />
         </label>
         <label className="space-y-1">
           <span>Volume mensuel moyen (optionnel)</span>
-          <input
+          <NumInput
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            type="number"
             min="0"
+            integer
+            emptyValue={0}
             value={monthlyVolume}
-            onChange={e => setMonthlyVolume(Number(e.target.value) || 0)}
+            onChange={v => setMonthlyVolume(v ?? 0)}
           />
         </label>
       </div>
@@ -845,9 +849,17 @@ export default function AdminProductManager() {
       const method = editing._id ? 'PATCH' : 'POST'
       const payload: Record<string, unknown> = {
         ...editing,
+        exchangeRate: editing.exchangeRate ?? 100,
+        insuranceRate: editing.insuranceRate ?? 2.5,
+        minOrderQty: editing.minOrderQty ?? 1,
+        ...(editing.groupBuyEnabled ? {
+          groupBuyMinQty: editing.groupBuyMinQty || 10,
+          groupBuyTargetQty: editing.groupBuyTargetQty || 50,
+        } : {}),
+        priceTiers: editing.priceTiers?.map(tier => ({ ...tier, minQty: tier.minQty || 1 })),
         gallery: (editing.gallery || []).filter(Boolean),
         descriptionImages: (editing.descriptionImages || []).filter(Boolean),
-        features: (editing.features || []).filter(Boolean),
+        features: (editing.features || []).map(feature => feature.trim()).filter(Boolean),
         colorOptions: (editing.colorOptions || []).map(option => option.trim()).filter(Boolean),
         variantOptions: (editing.variantOptions || []).map(option => option.trim()).filter(Boolean),
         shippingOverrides: ensureOverrides(editing.shippingOverrides).map(override => ({
@@ -1368,7 +1380,7 @@ export default function AdminProductManager() {
                 value={(editing.features || []).join('\n')}
                 onChange={e => setEditing({
                   ...editing,
-                  features: e.target.value.split(/\r?\n/).map(line => line.trim())
+                  features: e.target.value.split(/\r?\n/)
                 })}
               />
             </label>
@@ -1381,7 +1393,7 @@ export default function AdminProductManager() {
                   value={(editing.colorOptions || []).join('\n')}
                   onChange={e => setEditing({
                     ...editing,
-                    colorOptions: e.target.value.split(/\r?\n/).map(line => line.trim())
+                    colorOptions: e.target.value.split(/\r?\n/)
                   })}
                 />
               </label>
@@ -1393,7 +1405,7 @@ export default function AdminProductManager() {
                   value={(editing.variantOptions || []).join('\n')}
                   onChange={e => setEditing({
                     ...editing,
-                    variantOptions: e.target.value.split(/\r?\n/).map(line => line.trim())
+                    variantOptions: e.target.value.split(/\r?\n/)
                   })}
                 />
               </label>
@@ -1535,29 +1547,29 @@ export default function AdminProductManager() {
             </label>
             <label className="space-y-1">
               <span>Stock disponible (unités)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.stockQuantity ?? ''}
-                onChange={e => setEditing({ ...editing, stockQuantity: e.target.value ? Number(e.target.value) : undefined })}
+                integer
+                value={editing.stockQuantity}
+                onChange={v => setEditing({ ...editing, stockQuantity: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Délai moyen côté Chine (jours)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.leadTimeDays ?? ''}
-                onChange={e => setEditing({ ...editing, leadTimeDays: e.target.value ? Number(e.target.value) : undefined })}
+                integer
+                value={editing.leadTimeDays}
+                onChange={v => setEditing({ ...editing, leadTimeDays: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Délai indicatif (jours)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.deliveryDays ?? ''}
-                onChange={e => setEditing({ ...editing, deliveryDays: e.target.value ? Number(e.target.value) : undefined })}
+                integer
+                value={editing.deliveryDays}
+                onChange={v => setEditing({ ...editing, deliveryDays: v })}
               />
             </label>
           </div>
@@ -1572,86 +1584,79 @@ export default function AdminProductManager() {
           <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-4">
             <label className="space-y-1">
               <span>Poids net (kg)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.01"
                 placeholder="Sans emballage"
-                value={editing.netWeightKg ?? ''}
-                onChange={e => setEditing({ ...editing, netWeightKg: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.netWeightKg}
+                onChange={v => setEditing({ ...editing, netWeightKg: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Poids brut (kg) *</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium"
-                type="number"
                 min="0"
                 step="0.01"
                 placeholder="Avec emballage"
-                value={editing.grossWeightKg ?? editing.weightKg ?? ''}
-                onChange={e => {
-                  const val = e.target.value ? Number(e.target.value) : undefined
+                value={editing.grossWeightKg ?? editing.weightKg}
+                onChange={v => {
+                  const val = v
                   setEditing({ ...editing, grossWeightKg: val, weightKg: val })
                 }}
               />
             </label>
             <label className="space-y-1">
               <span>Poids emballage (kg)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.01"
                 placeholder="Auto-calculé"
-                value={editing.packagingWeightKg ?? ''}
-                onChange={e => setEditing({ ...editing, packagingWeightKg: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.packagingWeightKg}
+                onChange={v => setEditing({ ...editing, packagingWeightKg: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Volume (m³)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.001"
                 placeholder="Auto si dimensions"
-                value={editing.volumeM3 ?? ''}
-                onChange={e => setEditing({ ...editing, volumeM3: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.volumeM3}
+                onChange={v => setEditing({ ...editing, volumeM3: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Longueur (cm)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.1"
-                value={editing.lengthCm ?? ''}
-                onChange={e => setEditing({ ...editing, lengthCm: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.lengthCm}
+                onChange={v => setEditing({ ...editing, lengthCm: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Largeur (cm)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.1"
-                value={editing.widthCm ?? ''}
-                onChange={e => setEditing({ ...editing, widthCm: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.widthCm}
+                onChange={v => setEditing({ ...editing, widthCm: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Hauteur (cm)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 min="0"
                 step="0.1"
-                value={editing.heightCm ?? ''}
-                onChange={e => setEditing({ ...editing, heightCm: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.heightCm}
+                onChange={v => setEditing({ ...editing, heightCm: v })}
               />
             </label>
           </div>
@@ -1919,41 +1924,37 @@ export default function AdminProductManager() {
           <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
             <label className="space-y-1">
               <span>Prix public (FCFA)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.price ?? ''}
-                onChange={e => {
+                value={editing.price}
+                onChange={v => {
                   setAutoPrice(false)
-                  setEditing({ ...editing, price: e.target.value ? Number(e.target.value) : undefined })
+                  setEditing({ ...editing, price: v })
                 }}
               />
             </label>
             <label className="space-y-1">
               <span>Prix corporate (FCFA)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.b2bPrice ?? ''}
-                onChange={e => setEditing({ ...editing, b2bPrice: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.b2bPrice}
+                onChange={v => setEditing({ ...editing, b2bPrice: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Coût fournisseur (FCFA)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.baseCost ?? ''}
-                onChange={e => setEditing({ ...editing, baseCost: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.baseCost}
+                onChange={v => setEditing({ ...editing, baseCost: v })}
               />
             </label>
             <label className="space-y-1">
               <span>Marge cible (%)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.marginRate ?? ''}
-                onChange={e => setEditing({ ...editing, marginRate: e.target.value ? Number(e.target.value) : undefined })}
+                value={editing.marginRate}
+                onChange={v => setEditing({ ...editing, marginRate: v })}
               />
             </label>
             <label className="space-y-1">
@@ -2070,13 +2071,12 @@ export default function AdminProductManager() {
           <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
             <label className="space-y-1">
               <span>Prix source (¥ Yuan)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 step="0.01"
-                value={editing.price1688 ?? ''}
-                onChange={e => {
-                  const value = e.target.value ? Number(e.target.value) : undefined
+                value={editing.price1688}
+                onChange={v => {
+                  const value = v
                   setEditing({ ...editing, price1688: value })
                   // Calcul automatique du baseCost si exchangeRate est défini
                   if (value && editing.exchangeRate) {
@@ -2089,12 +2089,12 @@ export default function AdminProductManager() {
             </label>
             <label className="space-y-1">
               <span>Taux de change (1 ¥ = X FCFA)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
-                value={editing.exchangeRate ?? 100}
-                onChange={e => {
-                  const value = e.target.value ? Number(e.target.value) : 100
+                placeholder="100"
+                value={editing.exchangeRate}
+                onChange={v => {
+                  const value = v
                   setEditing({ ...editing, exchangeRate: value })
                   // Recalculer baseCost si prix source existe
                   if (editing.price1688 && value) {
@@ -2119,13 +2119,13 @@ export default function AdminProductManager() {
             </label>
             <label className="space-y-1">
               <span>Frais d'assurance (%)</span>
-              <input
+              <NumInput
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                type="number"
                 step="0.1"
                 min="0"
-                value={editing.insuranceRate ?? 2.5}
-                onChange={e => setEditing({ ...editing, insuranceRate: e.target.value ? Number(e.target.value) : 2.5 })}
+                placeholder="2.5"
+                value={editing.insuranceRate}
+                onChange={v => setEditing({ ...editing, insuranceRate: v })}
               />
               <p className="text-xs text-gray-500">Par défaut: 2.5% (obligatoire)</p>
             </label>
@@ -2218,12 +2218,11 @@ export default function AdminProductManager() {
                     {method.billing === 'per_kg' && (
                       <label className="space-y-1">
                         <span>Tarif personnalisé (FCFA/kg)</span>
-                        <input
+                        <NumInput
                           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                          type="number"
-                          value={override?.ratePerKg ?? ''}
-                          onChange={e => {
-                            const value = e.target.value ? Number(e.target.value) : undefined
+                          value={override?.ratePerKg}
+                          onChange={v => {
+                            const value = v
                             setEditing(prev => {
                               if (!prev) return prev
                               const overrides = ensureOverrides(prev.shippingOverrides)
@@ -2239,12 +2238,11 @@ export default function AdminProductManager() {
                     {method.billing === 'per_cubic_meter' && (
                       <label className="space-y-1">
                         <span>Tarif personnalisé (FCFA/m³)</span>
-                        <input
+                        <NumInput
                           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                          type="number"
-                          value={override?.ratePerM3 ?? ''}
-                          onChange={e => {
-                            const value = e.target.value ? Number(e.target.value) : undefined
+                          value={override?.ratePerM3}
+                          onChange={v => {
+                            const value = v
                             setEditing(prev => {
                               if (!prev) return prev
                               const overrides = ensureOverrides(prev.shippingOverrides)
@@ -2259,12 +2257,11 @@ export default function AdminProductManager() {
                     )}
                     <label className="space-y-1">
                       <span>Supplément fixe (FCFA)</span>
-                      <input
+                      <NumInput
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                        type="number"
-                        value={override?.flatFee ?? ''}
-                        onChange={e => {
-                          const value = e.target.value ? Number(e.target.value) : undefined
+                        value={override?.flatFee}
+                        onChange={v => {
+                          const value = v
                           setEditing(prev => {
                             if (!prev) return prev
                             const overrides = ensureOverrides(prev.shippingOverrides)
@@ -2509,14 +2506,13 @@ export default function AdminProductManager() {
                           </div>
                           <div>
                             <label className="text-xs text-gray-600">Coût fournisseur (CNY)</label>
-                            <input
-                              type="number"
+                            <NumInput
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
-                              value={variant.price1688 ?? ''}
+                              value={variant.price1688}
                               aria-label={`Coût CNY ${variant.name}`}
                               min="0"
-                              onChange={e => {
-                                const price1688 = e.target.value ? Number(e.target.value) : undefined
+                              onChange={v => {
+                                const price1688 = v
                                 const priceFCFA = typeof price1688 === 'number' ? Math.round(price1688 * exchangeRate) : undefined
                                 updateVariant(groupIndex, variantIndex, { price1688, priceFCFA })
                               }}
@@ -2526,14 +2522,13 @@ export default function AdminProductManager() {
                           </div>
                           <div>
                             <label className="text-xs text-gray-600">Coût fournisseur (FCFA)</label>
-                            <input
-                              type="number"
+                            <NumInput
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-gray-50"
-                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : '')}
+                              value={variant.priceFCFA ?? (variant.price1688 ? Math.round(variant.price1688 * exchangeRate) : undefined)}
                               aria-label={`Coût FCFA ${variant.name}`}
                               min="0"
-                              onChange={e => {
-                                const priceFCFA = e.target.value ? Number(e.target.value) : undefined
+                              onChange={v => {
+                                const priceFCFA = v
                                 updateVariant(groupIndex, variantIndex, { priceFCFA })
                               }}
                               placeholder="Auto"
@@ -2541,14 +2536,15 @@ export default function AdminProductManager() {
                           </div>
                           <div>
                             <label className="text-xs text-gray-500">Stock</label>
-                            <input
-                              type="number"
+                            <NumInput
                               className="w-full border border-gray-200 rounded px-2 py-1 text-sm"
                               value={variant.stock}
                               aria-label={`Stock ${variant.name}`}
                               min="0"
                               step="1"
-                              onChange={e => updateVariant(groupIndex, variantIndex, { stock: Number(e.target.value) || 0 })}
+                              integer
+                              emptyValue={0}
+                              onChange={v => updateVariant(groupIndex, variantIndex, { stock: v ?? 0 })}
                               placeholder="0"
                             />
                           </div>
@@ -2743,22 +2739,24 @@ export default function AdminProductManager() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-500">Quantité minimum pour lancer</label>
-                <input
-                  type="number"
+                <NumInput
                   min="1"
-                  value={editing.groupBuyMinQty || 10}
-                  onChange={e => setEditing({ ...editing, groupBuyMinQty: parseInt(e.target.value) || 10 })}
+                  integer
+                  placeholder="10"
+                  value={editing.groupBuyMinQty}
+                  onChange={v => setEditing({ ...editing, groupBuyMinQty: v })}
                   className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-400 mt-1">Min. pour valider la commande groupée</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500">Quantité cible idéale</label>
-                <input
-                  type="number"
+                <NumInput
                   min="1"
-                  value={editing.groupBuyTargetQty || 50}
-                  onChange={e => setEditing({ ...editing, groupBuyTargetQty: parseInt(e.target.value) || 50 })}
+                  integer
+                  placeholder="50"
+                  value={editing.groupBuyTargetQty}
+                  onChange={v => setEditing({ ...editing, groupBuyTargetQty: v })}
                   className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <p className="text-xs text-gray-400 mt-1">Objectif affiché aux participants</p>
@@ -2776,11 +2774,12 @@ export default function AdminProductManager() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-500">Quantité minimum par commande</label>
-              <input
-                type="number"
+              <NumInput
                 min="1"
-                value={editing.minOrderQty ?? 1}
-                onChange={e => setEditing({ ...editing, minOrderQty: Math.max(1, parseInt(e.target.value) || 1) })}
+                integer
+                placeholder="1"
+                value={editing.minOrderQty}
+                onChange={v => setEditing({ ...editing, minOrderQty: v === undefined ? undefined : Math.max(1, v) })}
                 className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-400 mt-1">
@@ -2830,32 +2829,36 @@ export default function AdminProductManager() {
                     <div className="flex-1 grid grid-cols-4 gap-3">
                       <div>
                         <label className="text-xs text-gray-500">À partir de (qté)</label>
-                        <input
-                          type="number"
+                        <NumInput
                           min="1"
+                          integer
+                          emptyValue={0}
+                          placeholder="1"
                           value={tier.minQty}
-                          onChange={e => updatePriceTier(index, { minQty: parseInt(e.target.value) || 1 })}
+                          onChange={v => updatePriceTier(index, { minQty: v ?? 0 })}
                           className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
                         />
                       </div>
                       <div>
                         <label className="text-xs text-gray-500">Jusqu&apos;à (qté)</label>
-                        <input
-                          type="number"
+                        <NumInput
                           min={tier.minQty}
-                          value={tier.maxQty || ''}
+                          integer
+                          emptyValue={0}
+                          value={tier.maxQty}
                           placeholder="∞"
-                          onChange={e => updatePriceTier(index, { maxQty: e.target.value ? parseInt(e.target.value) : undefined })}
+                          onChange={v => updatePriceTier(index, { maxQty: v })}
                           className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
                         />
                       </div>
                       <div>
                         <label className="text-xs text-gray-500">Prix unitaire (FCFA)</label>
-                        <input
-                          type="number"
+                        <NumInput
                           min="0"
+                          integer
+                          emptyValue={0}
                           value={tier.price}
-                          onChange={e => updatePriceTier(index, { price: parseInt(e.target.value) || 0 })}
+                          onChange={v => updatePriceTier(index, { price: v ?? 0 })}
                           className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 text-sm"
                         />
                       </div>
@@ -3518,7 +3521,7 @@ function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabP
     setError(null)
     setFeedback(null)
     try {
-      const params = new URLSearchParams({ keyword: keyword.trim(), limit: String(limit) })
+      const params = new URLSearchParams({ keyword: keyword.trim(), limit: String(limit || 1) })
       const res = await fetch(`/api/products/import?${params.toString()}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -3682,13 +3685,15 @@ function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabP
               value={keyword}
               onChange={e => setKeyword(e.target.value)}
             />
-            <input
+            <NumInput
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-28"
-              type="number"
               min={1}
               max={12}
+              integer
+              emptyValue={0}
+              placeholder="1"
               value={limit}
-              onChange={e => setLimit(Math.min(12, Math.max(1, Number(e.target.value) || 1)))}
+              onChange={v => setLimit(v === undefined ? 0 : Math.min(12, Math.max(1, v)))}
             />
             <button
               type="submit"
@@ -3757,15 +3762,15 @@ function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabP
 
                 <label className="space-y-1">
                   <span className="text-[11px] text-gray-500">Taux de change (1 ¥ → FCFA)</span>
-                  <input
+                  <NumInput
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
-                    type="number"
                     min={1}
                     step="1"
-                    value={preview1688.exchangeRate ?? 100}
-                    onChange={(e) =>
+                    placeholder="100"
+                    value={preview1688.exchangeRate}
+                    onChange={(v) =>
                       setPreview1688(prev => (prev
-                        ? { ...prev, exchangeRate: e.target.value ? Number(e.target.value) : undefined }
+                        ? { ...prev, exchangeRate: v }
                         : prev))
                     }
                   />
@@ -3773,15 +3778,15 @@ function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabP
 
                 <label className="space-y-1">
                   <span className="text-[11px] text-gray-500">Poids brut (kg)</span>
-                  <input
+                  <NumInput
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
-                    type="number"
                     min={0}
                     step="0.01"
-                    value={preview1688.weightKg ?? 1}
-                    onChange={(e) =>
+                    placeholder="1"
+                    value={preview1688.weightKg}
+                    onChange={(v) =>
                       setPreview1688(prev => (prev
-                        ? { ...prev, weightKg: e.target.value ? Number(e.target.value) : undefined }
+                        ? { ...prev, weightKg: v }
                         : prev))
                     }
                   />
@@ -3790,45 +3795,45 @@ function ImportTab({ onImported, formatCurrency, onStartManual1688 }: ImportTabP
                 <div className="grid grid-cols-3 gap-2">
                   <label className="space-y-1">
                     <span className="text-[11px] text-gray-500">L (cm)</span>
-                    <input
+                    <NumInput
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
-                      type="number"
                       min={0}
                       step="0.1"
-                      value={preview1688.lengthCm ?? 10}
-                      onChange={(e) =>
+                      placeholder="10"
+                      value={preview1688.lengthCm}
+                      onChange={(v) =>
                         setPreview1688(prev => (prev
-                          ? { ...prev, lengthCm: e.target.value ? Number(e.target.value) : undefined }
+                          ? { ...prev, lengthCm: v }
                           : prev))
                       }
                     />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[11px] text-gray-500">l (cm)</span>
-                    <input
+                    <NumInput
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
-                      type="number"
                       min={0}
                       step="0.1"
-                      value={preview1688.widthCm ?? 10}
-                      onChange={(e) =>
+                      placeholder="10"
+                      value={preview1688.widthCm}
+                      onChange={(v) =>
                         setPreview1688(prev => (prev
-                          ? { ...prev, widthCm: e.target.value ? Number(e.target.value) : undefined }
+                          ? { ...prev, widthCm: v }
                           : prev))
                       }
                     />
                   </label>
                   <label className="space-y-1">
                     <span className="text-[11px] text-gray-500">H (cm)</span>
-                    <input
+                    <NumInput
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs"
-                      type="number"
                       min={0}
                       step="0.1"
-                      value={preview1688.heightCm ?? 10}
-                      onChange={(e) =>
+                      placeholder="10"
+                      value={preview1688.heightCm}
+                      onChange={(v) =>
                         setPreview1688(prev => (prev
-                          ? { ...prev, heightCm: e.target.value ? Number(e.target.value) : undefined }
+                          ? { ...prev, heightCm: v }
                           : prev))
                       }
                     />

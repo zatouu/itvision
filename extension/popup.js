@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <img src="${p.image || 'icons/icon48.png'}" onerror="this.src='icons/icon48.png'" alt="">
         <div class="product-info">
           <div class="product-name">${p.name || 'Produit sans nom'}</div>
-          <div class="product-price">${p.price1688 ? '¥' + p.price1688 : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
+          <div class="product-price">${p.price1688 ? ({ USD: '$', EUR: '€' }[p.price1688Currency] || '¥') + p.price1688 : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
           <div style="font-size:10px;color:${confColor};margin-top:2px">Confiance ${conf.score}% ${conf.warnings.length ? `· ${conf.warnings.slice(0, 2).join(', ')}` : ''}</div>
           ${stats ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${stats}</div>` : ''}
         </div>
@@ -130,8 +130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
-      if (!tab.url.includes('1688.com') && !tab.url.includes('aliexpress.com')) {
-        showNotification('Veuillez ouvrir une page 1688 ou AliExpress', 'error');
+      if (!/1688\.com|aliexpress\.com|alibaba\.com/.test(tab.url || '')) {
+        showNotification('Veuillez ouvrir une page produit 1688, AliExpress ou Alibaba', 'error');
         return;
       }
 
@@ -222,6 +222,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         supplier: p.supplier || undefined,
       };
     }
+    if (p.platform === 'alibaba') {
+      // Prix source en USD/EUR : sans conversion fiable ici, le produit passe en « sur devis »
+      return {
+        ...common,
+        name: p.name || 'Produit Alibaba',
+        price: undefined,
+        currency: 'FCFA',
+        category: p.category || 'Catalogue import Chine',
+        tagline: p.tagline || 'Import Alibaba',
+        availabilityNote: p.availabilityNote || 'Import Alibaba — vérifier prix, poids et dimensions',
+        shopName: p.shopName,
+      };
+    }
     return {
       ...common,
       name: p.name || 'Produit AliExpress',
@@ -243,16 +256,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
-  const IMAGE_NOISE_PATTERNS = [
-    /paypal|klarna|afterpay|clearpay|stripe|alipay|wechat.?pay|visa|mastercard|amex|unionpay|discover|sezzle|affirm|tabby|tamara/i,
-    /badge|banner|coupon|promo|sale|discount|clearance|offer|deal|gift|bundle|save\s|\%\s*off|cashback|voucher/i,
-    /logo|watermark|brand|seller|shop|store|official|verified|certified|guarantee|warranty|authentic/i,
-    /qrcode|qr.?code|qr\b|barcode|wechat|whatsapp|telegram|line|kakao|zalo/i,
-    /review|feedback|rating|avatar|profile|buyer|customer|testimonial/i,
-    /icon|button|arrow|cart|bag|search|menu|close|loader|spinner|placeholder|tracker|pixel|beacon/i,
-    /\.svg(\?|$)/i,
-    /\.gif(\?|$)/i,
-  ];
+  // Mots d'interface comparés mot à mot sur le CHEMIN de l'image : les noms de fichiers
+  // des CDN sont des identifiants aléatoires où « line », « cart », « sale »… apparaissent par hasard
+  const NOISE_PATH_TOKENS = new Set([
+    'logo', 'logos', 'banner', 'banners', 'icon', 'icons', 'badge', 'badges', 'qrcode', 'qr', 'avatar', 'avatars',
+    'coupon', 'coupons', 'promo', 'promotion', 'paypal', 'visa', 'mastercard', 'amex', 'klarna', 'afterpay',
+    'watermark', 'sprite', 'sprites', 'placeholder', 'loading', 'loader', 'spinner', 'pixel', 'tracking', 'tracker',
+    'beacon', 'flag', 'flags', 'emoji', 'favicon', 'blank', 'transparent', 'spacer', 'nopic', 'noimage',
+  ]);
 
   const isLikelyValidImageUrl = (url) => {
     if (typeof url !== 'string') return false;
@@ -260,11 +271,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!value) return false;
     // Accepter les URLs protocol-relative (//ae01.alicdn.com/...)
     if (!/^https?:\/\//i.test(value) && !value.startsWith('//')) return false;
-    const lower = value.toLowerCase();
-    for (const pattern of IMAGE_NOISE_PATTERNS) {
-      if (pattern.test(lower)) return false;
-    }
-    return /\.(jpe?g|png|webp)(\?|$)/i.test(lower) || /alicdn|aliexpress|1688|imgextra|cbu\d+\.alicdn|img\.alicdn|sc\d+\.alicdn/i.test(lower);
+    let parsed;
+    try { parsed = new URL(value.startsWith('//') ? 'https:' + value : value); } catch { return false; }
+    const path = parsed.pathname.toLowerCase();
+    if (/\.(?:svg|gif|ico)$/.test(path)) return false;
+    if (path.split(/[^a-z0-9]+/).some(token => NOISE_PATH_TOKENS.has(token))) return false;
+    return /\.(jpe?g|png|webp)/i.test(path) || /alicdn|aliexpress|alibaba|1688/i.test(parsed.hostname);
   };
 
   const dedupeImages = (images) => {
@@ -272,7 +284,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const seen = new Set();
     (images || []).forEach((url) => {
       if (!isLikelyValidImageUrl(url)) return;
-      const normalized = String(url).replace(/_\d+x\d+[^.]*/i, '').trim();
+      let normalized = String(url).trim();
+      if (normalized.startsWith('//')) normalized = 'https:' + normalized;
       if (!normalized) return;
       const key = normalized.split('?')[0];
       if (seen.has(key)) return;
@@ -340,6 +353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       imageCategories: p.imageCategories || undefined,
       videos: p.videos || [],
       price1688: p.price1688 || undefined,
+      // 1688 : CNY ; Alibaba : USD (ou EUR sur fr.alibaba.com), converti côté serveur
+      price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === 'alibaba' ? 'USD' : 'CNY')) : undefined,
       promoPrice1688: p.promoPrice1688 || undefined,
       price: p.price || undefined,
       priceTiers: p.priceTiers || [],
@@ -361,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       heightCm: hasDimensions ? heightCm : undefined,
       volumeM3,
       sourceUrl: p.url,
-      sourcePlatform: p.platform === '1688' ? '1688' : 'aliexpress',
+      sourcePlatform: p.platform === '1688' || p.platform === 'alibaba' ? p.platform : 'aliexpress',
       supplierName: p.shopName || p.supplier?.name || undefined,
       moq: p.moq || undefined,
       specifications: p.specifications || {},

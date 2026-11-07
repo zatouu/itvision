@@ -26,6 +26,7 @@ import {
   User as UserIcon
 } from 'lucide-react'
 import SourcingHealthPanel from '@/components/admin/SourcingHealthPanel'
+import NumInput from '@/components/ui/NumInput'
 import { getImportServiceFeeRate } from '@/lib/pricing/tiered-service-fees'
 import { usePricingSettings } from '@/lib/pricing/use-pricing-settings'
 
@@ -57,13 +58,13 @@ interface ProposalDraft {
   insuranceRate: number | ''
   shippingMethod: 'air_express' | 'air_economy' | 'sea_freight'
   shippingCost: number | ''
-  qty: number
+  qty: number | ''
   weightKg?: number | ''
   lengthCm?: number | ''
   widthCm?: number | ''
   heightCm?: number | ''
   deliveryDays: number | ''
-  expiresInHours: number
+  expiresInHours: number | ''
 }
 
 interface SourcingRow {
@@ -641,6 +642,8 @@ function DetailPanel({
               insuranceRate: Number(proposal.insuranceRate) || 0,
               shippingCost: Number(proposal.shippingCost) || 0,
               deliveryDays: Number(proposal.deliveryDays) || 0,
+              qty: Number(proposal.qty) || 1,
+              expiresInHours: Number(proposal.expiresInHours) || 72,
               price1688: proposal.price1688 === '' ? undefined : Number(proposal.price1688),
               exchangeRate: proposal.exchangeRate === '' ? undefined : Number(proposal.exchangeRate),
               weightKg: proposal.weightKg === '' ? undefined : Number(proposal.weightKg),
@@ -898,42 +901,37 @@ function DetailPanel({
             value={proposal.supplierName || ''}
             onChange={(v) => setProposal({ ...proposal, supplierName: v })}
           />
-          <FieldInput
+          <FieldNumber
             label={`Prix source (${proposal.sourceCurrency || 'CNY'})`}
-            type="number"
-            value={proposal.price1688 ?? ''}
-            onChange={(v) => setProposal({ ...proposal, price1688: v === '' ? '' : Number(v) })}
+            value={proposal.price1688}
+            onChange={(v) => setProposal({ ...proposal, price1688: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label={`Taux change (1 ${proposal.sourceCurrency || 'CNY'} → FCFA)`}
-            type="number"
-            value={proposal.exchangeRate ?? ''}
-            onChange={(v) => setProposal({ ...proposal, exchangeRate: v === '' ? '' : Number(v) })}
+            value={proposal.exchangeRate}
+            onChange={(v) => setProposal({ ...proposal, exchangeRate: v ?? '' })}
             placeholder="100"
           />
-          <FieldInput
+          <FieldNumber
             label="Coût produit FCFA *"
-            type="number"
             value={proposal.productCostFCFA}
-            onChange={(v) => setProposal({ ...proposal, productCostFCFA: v === '' ? '' : Number(v) })}
+            onChange={(v) => setProposal({ ...proposal, productCostFCFA: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label="Quantité *"
-            type="number"
+            integer
             value={proposal.qty}
-            onChange={(v) => setProposal({ ...proposal, qty: Number(v) || 1 })}
+            onChange={(v) => setProposal({ ...proposal, qty: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label="Frais de service % *"
-            type="number"
             value={computed.serviceFeeRate}
-            onChange={(v) => setProposal({ ...proposal, serviceFeeRate: v === '' ? '' : Number(v) })}
+            onChange={(v) => setProposal({ ...proposal, serviceFeeRate: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label="Assurance % *"
-            type="number"
             value={proposal.insuranceRate}
-            onChange={(v) => setProposal({ ...proposal, insuranceRate: v === '' ? '' : Number(v) })}
+            onChange={(v) => setProposal({ ...proposal, insuranceRate: v ?? '' })}
           />
           <FieldSelect
             label="Mode transport *"
@@ -947,23 +945,22 @@ function DetailPanel({
               { value: 'sea_freight', label: 'Maritime' }
             ]}
           />
-          <FieldInput
+          <FieldNumber
             label="Coût transport FCFA *"
-            type="number"
             value={proposal.shippingCost}
-            onChange={(v) => setProposal({ ...proposal, shippingCost: v === '' ? '' : Number(v) })}
+            onChange={(v) => setProposal({ ...proposal, shippingCost: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label="Délai (jours) *"
-            type="number"
+            integer
             value={proposal.deliveryDays}
-            onChange={(v) => setProposal({ ...proposal, deliveryDays: v === '' ? '' : Number(v) })}
+            onChange={(v) => setProposal({ ...proposal, deliveryDays: v ?? '' })}
           />
-          <FieldInput
+          <FieldNumber
             label="Validité proposition (heures)"
-            type="number"
+            integer
             value={proposal.expiresInHours}
-            onChange={(v) => setProposal({ ...proposal, expiresInHours: Number(v) || 72 })}
+            onChange={(v) => setProposal({ ...proposal, expiresInHours: v ?? '' })}
           />
         </div>
 
@@ -1083,6 +1080,33 @@ function FieldInput({
         type={type}
         value={value as any}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+      />
+    </label>
+  )
+}
+
+function FieldNumber({
+  label,
+  value,
+  onChange,
+  integer,
+  placeholder
+}: {
+  label: string
+  value: number | '' | undefined
+  onChange: (v: number | undefined) => void
+  integer?: boolean
+  placeholder?: string
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold text-stone-700">{label}</span>
+      <NumInput
+        integer={integer}
+        value={value === '' ? undefined : value}
+        onChange={onChange}
         placeholder={placeholder}
         className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
       />

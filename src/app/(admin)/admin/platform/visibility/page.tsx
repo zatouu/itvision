@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Save, RotateCcw, Eye, Radio, Users, ShieldCheck, Sliders } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 type EscalationStage = {
   stage: number
@@ -33,6 +34,32 @@ type VisibilityConfig = {
     useProfileCity: boolean
   }
 }
+
+const NumberField = ({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+}) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-sm font-medium text-stone-700">{label}</label>
+    <NumInput
+      emptyValue={0}
+      min={min}
+      max={max}
+      value={value}
+      onChange={(v) => onChange(v ?? 0)}
+      className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+)
 
 export default function VisibilityConfigPage() {
   const router = useRouter()
@@ -133,32 +160,6 @@ export default function VisibilityConfigPage() {
       </div>
     )
   }
-
-  const NumberField = ({
-    label,
-    value,
-    onChange,
-    min,
-    max,
-  }: {
-    label: string
-    value: number
-    onChange: (v: number) => void
-    min?: number
-    max?: number
-  }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-stone-700">{label}</label>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
-  )
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -328,38 +329,41 @@ export default function VisibilityConfigPage() {
                 <tr key={i} className="border-t">
                   <td className="px-3 py-2 font-medium">{stage.stage}</td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
+                    <NumInput
+                      emptyValue={0}
                       value={stage.radiusKm}
                       min={1}
-                      onChange={(e) => updateStage(i, 'radiusKm', Number(e.target.value))}
+                      onChange={(v) => updateStage(i, 'radiusKm', v ?? 0)}
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
+                    <NumInput
+                      integer
+                      emptyValue={0}
                       value={stage.delaySec}
                       min={0}
-                      onChange={(e) => updateStage(i, 'delaySec', Number(e.target.value))}
+                      onChange={(v) => updateStage(i, 'delaySec', v ?? 0)}
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
+                    <NumInput
+                      integer
+                      emptyValue={0}
                       value={stage.minOffersToStop}
                       min={0}
-                      onChange={(e) => updateStage(i, 'minOffersToStop', Number(e.target.value))}
+                      onChange={(v) => updateStage(i, 'minOffersToStop', v ?? 0)}
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      type="number"
+                    <NumInput
+                      integer
+                      emptyValue={0}
                       value={stage.minProvidersToStop}
                       min={0}
-                      onChange={(e) => updateStage(i, 'minProvidersToStop', Number(e.target.value))}
+                      onChange={(v) => updateStage(i, 'minProvidersToStop', v ?? 0)}
                       className="w-20 border rounded px-2 py-1"
                     />
                   </td>

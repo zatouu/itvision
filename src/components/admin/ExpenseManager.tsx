@@ -6,6 +6,7 @@ import {
   Building2, CreditCard, AlertTriangle, CheckCircle2, FileText,
   TrendingDown, Wallet, Tag, Briefcase, Save, RefreshCw
 } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 const CATEGORIES = [
   { value: 'achat_materiel', label: 'Achat matériel' },
@@ -509,28 +510,28 @@ export default function ExpenseManager() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Field label="Montant HT">
-                  <input
-                    type="number"
+                  <NumInput
                     value={editing.amountHT ?? 0}
-                    onChange={(e) => setEditing(updateAmounts({ ...editing, amountHT: Number(e.target.value) }))}
+                    emptyValue={0}
+                    onChange={(v) => setEditing(updateAmounts({ ...editing, amountHT: v ?? 0 }))}
                     className="input"
                   />
                 </Field>
                 <Field label="TVA (%)">
-                  <input
-                    type="number"
+                  <NumInput
                     value={editing.taxRate ?? 0}
+                    emptyValue={0}
                     disabled={Boolean(editing.brsApplicable)}
                     title={editing.brsApplicable ? 'Pas de TVA avec la retenue BRS' : undefined}
-                    onChange={(e) => setEditing(updateAmounts({ ...editing, taxRate: Number(e.target.value) }))}
+                    onChange={(v) => setEditing(updateAmounts({ ...editing, taxRate: v ?? 0 }))}
                     className="input disabled:bg-stone-100 disabled:text-stone-400"
                   />
                 </Field>
                 <Field label="Total TTC">
-                  <input
-                    type="number"
+                  <NumInput
                     value={editing.amountTTC ?? 0}
-                    onChange={(e) => setEditing({ ...editing, amountTTC: Number(e.target.value) })}
+                    emptyValue={0}
+                    onChange={(v) => setEditing({ ...editing, amountTTC: v ?? 0 })}
                     className="input font-bold"
                   />
                 </Field>
@@ -550,18 +551,18 @@ export default function ExpenseManager() {
                 {editing.brsApplicable && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <Field label="Taux BRS (%)">
-                      <input
-                        type="number"
+                      <NumInput
                         value={editing.brsRate ?? 5}
-                        onChange={(e) => setEditing(updateAmounts({ ...editing, brsRate: Number(e.target.value) }))}
+                        emptyValue={0}
+                        onChange={(v) => setEditing(updateAmounts({ ...editing, brsRate: v ?? 0 }))}
                         className="input"
                       />
                     </Field>
                     <Field label="Seuil BRS (FCFA)">
-                      <input
-                        type="number"
+                      <NumInput
                         value={editing.brsThreshold ?? 25000}
-                        onChange={(e) => setEditing(updateAmounts({ ...editing, brsThreshold: Number(e.target.value) }))}
+                        emptyValue={0}
+                        onChange={(v) => setEditing(updateAmounts({ ...editing, brsThreshold: v ?? 0 }))}
                         className="input"
                       />
                     </Field>
@@ -600,10 +601,10 @@ export default function ExpenseManager() {
                   </select>
                 </Field>
                 <Field label="Montant payé">
-                  <input
-                    type="number"
+                  <NumInput
                     value={editing.paidAmount ?? 0}
-                    onChange={(e) => setEditing({ ...editing, paidAmount: Number(e.target.value) })}
+                    emptyValue={0}
+                    onChange={(v) => setEditing({ ...editing, paidAmount: v ?? 0 })}
                     className="input"
                   />
                 </Field>

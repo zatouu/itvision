@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import { 
   Briefcase, 
   MapPin, 
@@ -403,11 +404,12 @@ export default function TechnicianMarketplace({ technicianId }: TechnicianMarket
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Montant proposé (FCFA) *
                 </label>
-                <input
-                  type="number"
+                <NumInput
+                  integer
                   min="0"
-                  value={bidFormData.amount || ''}
-                  onChange={(e) => setBidFormData({ ...bidFormData, amount: Number(e.target.value) })}
+                  value={bidFormData.amount}
+                  emptyValue={0}
+                  onChange={(v) => setBidFormData({ ...bidFormData, amount: v ?? 0 })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Ex: 50000"
                   required

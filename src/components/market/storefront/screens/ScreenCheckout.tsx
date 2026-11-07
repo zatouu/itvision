@@ -609,11 +609,11 @@ export default function ScreenCheckout() {
             <div className="flex gap-2">
               <input
                 value={promoInput}
-                onChange={e => setPromoInput(e.target.value.toUpperCase())}
+                onChange={e => setPromoInput(e.target.value)}
                 placeholder="Code promo"
-                className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-[12px] outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-[12px] uppercase outline-none focus:border-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
-              <Button variant="secondary" size="sm" disabled={!promoInput.trim()} onClick={() => setAppliedPromo(promoInput.trim())}>Appliquer</Button>
+              <Button variant="secondary" size="sm" disabled={!promoInput.trim()} onClick={() => setAppliedPromo(promoInput.trim().toUpperCase())}>Appliquer</Button>
             </div>
           )}
           {appliedPromo && quote?.discounts.promoError && (

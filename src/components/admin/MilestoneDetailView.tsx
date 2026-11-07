@@ -7,6 +7,7 @@ import {
   Save, Loader2, Plus, Trash2, Flag
 } from 'lucide-react'
 import { useToastContext } from '@/components/ToastProvider'
+import NumInput from '@/components/ui/NumInput'
 
 interface Milestone {
   id: string
@@ -329,11 +330,11 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Durée réelle (heures)</label>
-                  <input type="number" value={editable.fieldReport?.realDuration || ''} onChange={e => updateFieldReport('realDuration', Number(e.target.value))} className="input" />
+                  <NumInput value={editable.fieldReport?.realDuration} emptyValue={0} onChange={v => updateFieldReport('realDuration', v)} className="input" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Satisfaction client (1-10)</label>
-                  <input type="number" min={1} max={10} value={editable.fieldReport?.satisfaction || ''} onChange={e => updateFieldReport('satisfaction', Number(e.target.value))} className="input" />
+                  <NumInput integer min={1} max={10} value={editable.fieldReport?.satisfaction} emptyValue={0} onChange={v => updateFieldReport('satisfaction', v)} className="input" />
                 </div>
               </div>
               <div>

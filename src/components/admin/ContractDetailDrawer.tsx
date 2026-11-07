@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, FileText, Download, Pencil, Check, Loader2, MapPin, CalendarDays, Shield, Banknote, Wrench, AlertCircle } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 interface Equipment { type: string; quantity: number; location?: string }
 interface Service { name?: string; description?: string; frequency?: string }
@@ -140,15 +141,24 @@ export default function ContractDetailDrawer({
     </div>
   )
 
-  const Input = ({ k, label, type = 'text' }: { k: string; label: string; type?: string }) => (
+  const renderInput = (k: string, label: string, type = 'text') => (
     <div>
       <label className="text-[11px] uppercase tracking-wide text-stone-400">{label}</label>
-      <input
-        type={type}
-        value={form[k] ?? ''}
-        onChange={e => set(k, e.target.value)}
-        className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-      />
+      {type === 'number' ? (
+        <NumInput
+          integer
+          value={form[k] == null || form[k] === '' ? undefined : Number(form[k])}
+          onChange={v => set(k, v)}
+          className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+        />
+      ) : (
+        <input
+          type={type}
+          value={form[k] ?? ''}
+          onChange={e => set(k, e.target.value)}
+          className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+        />
+      )}
     </div>
   )
 
@@ -209,23 +219,23 @@ export default function ContractDetailDrawer({
             </h3>
             {editing ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input k="name" label="Nom du contrat" />
+                {renderInput('name', 'Nom du contrat')}
                 <div>
                   <label className="text-[11px] uppercase tracking-wide text-stone-400">Statut</label>
                   <select value={form.status} onChange={e => set('status', e.target.value)} className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm">
                     {Object.entries(STATUS).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
                   </select>
                 </div>
-                <Input k="annualPrice" label="Prix annuel (FCFA)" type="number" />
+                {renderInput('annualPrice', 'Prix annuel (FCFA)', 'number')}
                 <div>
                   <label className="text-[11px] uppercase tracking-wide text-stone-400">Fréquence</label>
                   <select value={form.paymentFrequency} onChange={e => set('paymentFrequency', e.target.value)} className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm">
                     {Object.entries(FREQ).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
-                <Input k="startDate" label="Début" type="date" />
-                <Input k="endDate" label="Fin" type="date" />
-                <div className="sm:col-span-2"><Input k="paymentTerms" label="Modalités de paiement" /></div>
+                {renderInput('startDate', 'Début', 'date')}
+                {renderInput('endDate', 'Fin', 'date')}
+                <div className="sm:col-span-2">{renderInput('paymentTerms', 'Modalités de paiement')}</div>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -246,8 +256,8 @@ export default function ContractDetailDrawer({
             </h3>
             {editing ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Input k="responseTime" label="Délai d'intervention" />
-                <Input k="supportHours" label="Support" />
+                {renderInput('responseTime', "Délai d'intervention")}
+                {renderInput('supportHours', 'Support')}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

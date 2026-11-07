@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import {
   Loader2,
   AlertCircle,
@@ -324,10 +325,10 @@ export default function VendorShopSettingsPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Frais de livraison (FCFA)" hint="Laisser vide pour appliquer le tarif plateforme. 0 = livraison offerte.">
-              <input type="number" min={0} step={100} value={form.deliveryFee} onChange={(e) => setForm({ ...form, deliveryFee: e.target.value })} className={inputCls} placeholder="Tarif plateforme" />
+              <NumInput integer min={0} step={100} value={form.deliveryFee === '' ? undefined : Number(form.deliveryFee)} onChange={(v) => setForm({ ...form, deliveryFee: v == null ? '' : String(v) })} className={inputCls} placeholder="Tarif plateforme" />
             </Field>
             <Field label="Livraison offerte dès (FCFA)" hint="Optionnel — au-delà de ce montant d'achat dans votre boutique, la livraison est gratuite.">
-              <input type="number" min={0} step={1000} value={form.deliveryFreeAbove} onChange={(e) => setForm({ ...form, deliveryFreeAbove: e.target.value })} className={inputCls} placeholder="Ex : 50 000" />
+              <NumInput integer min={0} step={1000} value={form.deliveryFreeAbove === '' ? undefined : Number(form.deliveryFreeAbove)} onChange={(v) => setForm({ ...form, deliveryFreeAbove: v == null ? '' : String(v) })} className={inputCls} placeholder="Ex : 50 000" />
             </Field>
             <Field label="Zones desservies" hint="Séparées par des virgules — ex : Dakar, Pikine, Guédiawaye.">
               <input type="text" value={form.deliveryZones} onChange={(e) => setForm({ ...form, deliveryZones: e.target.value })} className={inputCls} placeholder="Dakar, banlieue…" />
@@ -365,7 +366,7 @@ export default function VendorShopSettingsPage() {
               <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={inputCls} placeholder="Dakar" />
             </Field>
             <Field label="Temps de réponse moyen (heures)" hint="Affiché sur votre vitrine — ex : 1 pour « Réponse moyenne : < 1h ».">
-              <input type="number" min={0} max={720} step="0.5" value={form.responseTimeHours} onChange={(e) => setForm({ ...form, responseTimeHours: e.target.value })} className={inputCls} placeholder="Ex : 1" />
+              <NumInput min={0} max={720} step="0.5" value={form.responseTimeHours === '' ? undefined : Number(form.responseTimeHours)} onChange={(v) => setForm({ ...form, responseTimeHours: v == null ? '' : String(v) })} className={inputCls} placeholder="Ex : 1" />
             </Field>
             <Field label="Adresse">
               <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={inputCls} placeholder="Quartier, rue…" />

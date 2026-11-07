@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Save, RefreshCw } from 'lucide-react'
 import { REAL_SHIPPING_COSTS, type ShippingCosts } from '@/lib/logistics'
+import NumInput from '@/components/ui/NumInput'
 import {
   DEFAULT_SEA_FREIGHT_ELIGIBILITY_SETTINGS,
   type SeaFreightEligibilitySettings,
@@ -176,17 +177,17 @@ export default function AdminShippingRates() {
             <div key={method.id} className="min-w-0 space-y-2">
               <label className="block space-y-1 text-sm">
                 <span>{method.label} - coût ({method.unit})</span>
-                <input type="number" min="0" max="1000000000" step="1" required
+                <NumInput min="0" max="1000000000" step="1" required integer emptyValue={0}
                   className="w-full rounded border px-3 py-2"
                   value={form.internalCosts[method.id].rate}
-                  onChange={event => { setSaved(false); setForm({ ...form, internalCosts: { ...form.internalCosts, [method.id]: { ...form.internalCosts[method.id], rate: Number(event.target.value) } } }) }} />
+                  onChange={v => { setSaved(false); setForm({ ...form, internalCosts: { ...form.internalCosts, [method.id]: { ...form.internalCosts[method.id], rate: v ?? 0 } } }) }} />
               </label>
               <label className="block space-y-1 text-sm">
                 <span>{method.label} - minimum transporteur (FCFA)</span>
-                <input type="number" min="0" max="1000000000" step="1" required
+                <NumInput min="0" max="1000000000" step="1" integer emptyValue={0} placeholder="0"
                   className="w-full rounded border px-3 py-2"
                   value={form.internalCosts[method.id].minimumCharge ?? REAL_SHIPPING_COSTS[method.id].minimumCharge ?? 0}
-                  onChange={event => { setSaved(false); setForm({ ...form, internalCosts: { ...form.internalCosts, [method.id]: { ...form.internalCosts[method.id], minimumCharge: Number(event.target.value) } } }) }} />
+                  onChange={v => { setSaved(false); setForm({ ...form, internalCosts: { ...form.internalCosts, [method.id]: { ...form.internalCosts[method.id], minimumCharge: v ?? 0 } } }) }} />
               </label>
             </div>
           ))}
@@ -198,13 +199,13 @@ export default function AdminShippingRates() {
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Express (FCFA/kg)</div>
           <label className="space-y-1 text-xs">
             <div>Tarif</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.air_express_rate}
-              onChange={e => setForm({ ...form, air_express_rate: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.air_express_rate}
+              onChange={v => setForm({ ...form, air_express_rate: v ?? 0 })} />
           </label>
           <label className="space-y-1 text-xs">
             <div>Minimum</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.air_express_min}
-              onChange={e => setForm({ ...form, air_express_min: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.air_express_min}
+              onChange={v => setForm({ ...form, air_express_min: v ?? 0 })} />
           </label>
         </div>
 
@@ -212,13 +213,13 @@ export default function AdminShippingRates() {
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Fret aérien (FCFA/kg)</div>
           <label className="space-y-1 text-xs">
             <div>Tarif</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.air_15_rate}
-              onChange={e => setForm({ ...form, air_15_rate: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.air_15_rate}
+              onChange={v => setForm({ ...form, air_15_rate: v ?? 0 })} />
           </label>
           <label className="space-y-1 text-xs">
             <div>Minimum</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.air_15_min}
-              onChange={e => setForm({ ...form, air_15_min: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.air_15_min}
+              onChange={v => setForm({ ...form, air_15_min: v ?? 0 })} />
           </label>
         </div>
 
@@ -226,13 +227,13 @@ export default function AdminShippingRates() {
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Maritime (FCFA/m³)</div>
           <label className="space-y-1 text-xs">
             <div>Tarif</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.sea_freight_rate}
-              onChange={e => setForm({ ...form, sea_freight_rate: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.sea_freight_rate}
+              onChange={v => setForm({ ...form, sea_freight_rate: v ?? 0 })} />
           </label>
           <label className="space-y-1 text-xs">
             <div>Minimum</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.sea_freight_min}
-              onChange={e => setForm({ ...form, sea_freight_min: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.sea_freight_min}
+              onChange={v => setForm({ ...form, sea_freight_min: v ?? 0 })} />
           </label>
         </div>
 
@@ -240,8 +241,8 @@ export default function AdminShippingRates() {
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Livraison locale ≤24h (forfait FCFA / boutique)</div>
           <label className="space-y-1 text-xs">
             <div>Forfait par défaut</div>
-            <input type="number" className="w-full rounded border px-2 py-1" value={form.local_24h_rate}
-              onChange={e => setForm({ ...form, local_24h_rate: Number(e.target.value) })} />
+            <NumInput emptyValue={0} placeholder="0" className="w-full rounded border px-2 py-1" value={form.local_24h_rate}
+              onChange={v => setForm({ ...form, local_24h_rate: v ?? 0 })} />
           </label>
           <div className="text-[11px] text-gray-600 dark:text-gray-400">Produits boutique en stock à Dakar — un forfait par boutique, sauf si le vendeur a réglé son propre tarif dans ses paramètres.</div>
         </div>
@@ -252,35 +253,38 @@ export default function AdminShippingRates() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="space-y-1 text-xs">
             <div>Volume minimum (m³)</div>
-            <input
-              type="number"
+            <NumInput
               min="0"
               step="0.001"
+              emptyValue={0}
+              placeholder="0"
               className="w-full rounded border px-2 py-1"
               value={form.minVolumeM3}
-              onChange={e => setForm({ ...form, minVolumeM3: Number(e.target.value) })}
+              onChange={v => setForm({ ...form, minVolumeM3: v ?? 0 })}
             />
           </label>
           <label className="space-y-1 text-xs">
             <div>Poids facturable minimum (kg)</div>
-            <input
-              type="number"
+            <NumInput
               min="0"
               step="0.1"
+              emptyValue={0}
+              placeholder="0"
               className="w-full rounded border px-2 py-1"
               value={form.minBilledWeightKg}
-              onChange={e => setForm({ ...form, minBilledWeightKg: Number(e.target.value) })}
+              onChange={v => setForm({ ...form, minBilledWeightKg: v ?? 0 })}
             />
           </label>
           <label className="space-y-1 text-xs">
             <div>Montant minimum commande (FCFA)</div>
-            <input
-              type="number"
+            <NumInput
               min="0"
               step="1000"
+              emptyValue={0}
+              placeholder="0"
               className="w-full rounded border px-2 py-1"
               value={form.minOrderValueFcfa}
-              onChange={e => setForm({ ...form, minOrderValueFcfa: Number(e.target.value) })}
+              onChange={v => setForm({ ...form, minOrderValueFcfa: v ?? 0 })}
             />
           </label>
           <label className="flex items-center gap-2 text-xs mt-5">
@@ -301,14 +305,16 @@ export default function AdminShippingRates() {
         </p>
         <label className="flex items-center gap-2 text-xs">
           <span>Tolérance</span>
-          <input
-            type="number"
+          <NumInput
             min="0"
             max="50"
             step="1"
+            integer
+            emptyValue={0}
+            placeholder="0"
             className="w-20 rounded border px-2 py-1"
             value={form.adjustTolerancePct}
-            onChange={e => setForm({ ...form, adjustTolerancePct: Number(e.target.value) })}
+            onChange={v => setForm({ ...form, adjustTolerancePct: v ?? 0 })}
           />
           <span>% (0 à 50)</span>
         </label>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import FileDropZone from '@/components/ui/FileDropZone'
+import NumInput from '@/components/ui/NumInput'
 import {
   Loader2, Wallet, Users, LifeBuoy, Plus, ImageIcon,
   CheckCircle, MessageCircle, X, Trash2, ChevronDown,
@@ -121,7 +122,7 @@ export function TreasuryTab({ data, loading, onRequested }: { data: any; loading
           <Wallet size={15} className="text-emerald-600" /> Demander un retrait
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2.5">
-          <input type="number" min={1000} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Montant (F)" className={inputCls} />
+          <NumInput integer min={1000} value={amount === '' ? undefined : Number(amount)} onChange={v => setAmount(v == null ? '' : String(v))} placeholder="Montant (F)" className={inputCls} />
           <select value={method} onChange={e => setMethod(e.target.value)} className={inputCls}>
             {METHODS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
@@ -617,17 +618,17 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Prix (FCFA) *</label>
-              <input required type="number" min={100} value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className={inputCls} placeholder="15000" />
+              <NumInput required integer min={100} value={form.price === '' ? undefined : Number(form.price)} onChange={v => setForm({ ...form, price: v == null ? '' : String(v) })} className={inputCls} placeholder="15000" />
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Stock *</label>
-              <input required type="number" min={0} value={form.stockQuantity} onChange={e => setForm({ ...form, stockQuantity: e.target.value })} className={inputCls} placeholder="20" />
+              <NumInput required integer min={0} value={form.stockQuantity === '' ? undefined : Number(form.stockQuantity)} onChange={v => setForm({ ...form, stockQuantity: v == null ? '' : String(v) })} className={inputCls} placeholder="20" />
             </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Lot minimum (MOQ)</label>
-            <input type="number" min={1} value={form.minOrderQty} onChange={e => setForm({ ...form, minOrderQty: e.target.value })} className={inputCls} placeholder="1 = pas de lot" />
+            <NumInput integer min={1} value={form.minOrderQty === '' ? undefined : Number(form.minOrderQty)} onChange={v => setForm({ ...form, minOrderQty: v == null ? '' : String(v) })} className={inputCls} placeholder="1 = pas de lot" />
             <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Quantité minimum par commande. Laissez vide pour vendre à l&apos;unité.</p>
           </div>
 
@@ -681,8 +682,8 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
                 {g.variants.map((v, vi) => (
                   <div key={vi} className="grid grid-cols-[1fr_80px_70px_70px_32px] gap-1.5 items-center">
                     <input value={v.name} onChange={e => setVariant(gi, vi, { name: e.target.value })} className={inputCls} placeholder="Rouge, XL…" />
-                    <input type="number" min={0} value={v.price} onChange={e => setVariant(gi, vi, { price: e.target.value })} className={inputCls} placeholder="Prix" title="Prix spécifique (vide = prix de base)" />
-                    <input type="number" min={0} value={v.stock} onChange={e => setVariant(gi, vi, { stock: e.target.value })} className={inputCls} placeholder="Stock" title="Stock spécifique" />
+                    <NumInput integer min={0} value={v.price === '' ? undefined : Number(v.price)} onChange={n => setVariant(gi, vi, { price: n == null ? '' : String(n) })} className={inputCls} placeholder="Prix" title="Prix spécifique (vide = prix de base)" />
+                    <NumInput integer min={0} value={v.stock === '' ? undefined : Number(v.stock)} onChange={n => setVariant(gi, vi, { stock: n == null ? '' : String(n) })} className={inputCls} placeholder="Stock" title="Stock spécifique" />
                     <select value={v.imageIndex} onChange={e => setVariant(gi, vi, { imageIndex: e.target.value })} className={inputCls} title="Photo associée">
                       <option value="">Photo</option>
                       {photos.map((_, pi) => <option key={pi} value={pi}>N°{pi + 1}</option>)}
@@ -724,11 +725,11 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
               <div key={i} className="grid grid-cols-[1fr_1fr_32px] gap-2 items-center">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] text-slate-400 whitespace-nowrap">Dès</span>
-                  <input type="number" min={2} value={t.minQty} onChange={e => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, minQty: e.target.value } : x)))} className={inputCls} placeholder="10" />
+                  <NumInput integer min={2} value={t.minQty === '' ? undefined : Number(t.minQty)} onChange={v => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, minQty: v == null ? '' : String(v) } : x)))} className={inputCls} placeholder="10" />
                   <span className="text-[11px] text-slate-400">pièces</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <input type="number" min={1} value={t.price} onChange={e => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} className={inputCls} placeholder="13500" />
+                  <NumInput integer min={1} value={t.price === '' ? undefined : Number(t.price)} onChange={v => setPriceTiers(prev => prev.map((x, j) => (j === i ? { ...x, price: v == null ? '' : String(v) } : x)))} className={inputCls} placeholder="13500" />
                   <span className="text-[11px] text-slate-400">F/pc</span>
                 </div>
                 <button type="button" onClick={() => setPriceTiers(prev => prev.filter((_, j) => j !== i))} className="p-1.5 text-slate-400 hover:text-red-500">
@@ -790,7 +791,7 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Poids (kg)</label>
-                <input type="number" min={0} step="0.1" value={form.weightKg} onChange={e => setForm({ ...form, weightKg: e.target.value })} className={inputCls} placeholder="Ex : 0.5" />
+                <NumInput min={0} step="0.1" value={form.weightKg === '' ? undefined : Number(form.weightKg)} onChange={v => setForm({ ...form, weightKg: v == null ? '' : String(v) })} className={inputCls} placeholder="Ex : 0.5" />
               </div>
             </div>
           </Section>

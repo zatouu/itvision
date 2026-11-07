@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Plus, Minus, Send } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 interface MaintenanceFormProps {
   isOpen: boolean
@@ -83,7 +84,7 @@ export default function MaintenanceForm({ isOpen, onClose }: MaintenanceFormProp
 
   const generateWhatsAppMessage = () => {
     const equipmentList = equipment.map((eq, index) => 
-      `${index + 1}. ${eq.category}: ${eq.brand} ${eq.model} (Qté: ${eq.quantity})${eq.details ? ` - ${eq.details}` : ''}`
+      `${index + 1}. ${eq.category}: ${eq.brand} ${eq.model} (Qté: ${eq.quantity || 1})${eq.details ? ` - ${eq.details}` : ''}`
     ).join('%0A')
 
     const message = `🔧 DEMANDE DE MAINTENANCE%0A%0A👤 INFORMATIONS CLIENT:%0A- Entreprise: ${formData.companyName}%0A- Contact: ${formData.contactName}%0A- Téléphone: ${formData.phone}%0A- Email: ${formData.email}%0A- Adresse: ${formData.address}%0A%0A📅 HISTORIQUE:%0A- Date installation: ${formData.installationDate || 'Non renseignée'}%0A- Historique maintenance: ${formData.maintenanceHistory || 'Aucun'}%0A%0A⚠️ SITUATION ACTUELLE:%0A- Problèmes constatés: ${formData.currentIssues || 'Maintenance préventive'}%0A- Urgence: ${formData.urgency}%0A%0A🔧 ÉQUIPEMENTS À MAINTENIR:%0A${equipmentList}%0A%0AMerci de me faire parvenir un devis de maintenance personnalisé.`
@@ -322,11 +323,12 @@ export default function MaintenanceForm({ isOpen, onClose }: MaintenanceFormProp
                       <label className="block text-xs font-medium text-gray-600 mb-1">
                         Quantité
                       </label>
-                      <input
-                        type="number"
+                      <NumInput
+                        integer
                         min="1"
                         value={eq.quantity}
-                        onChange={(e) => updateEquipment(eq.id, 'quantity', parseInt(e.target.value) || 1)}
+                        emptyValue={0}
+                        onChange={(v) => updateEquipment(eq.id, 'quantity', v ?? 0)}
                         className="w-full px-2 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       />
                     </div>

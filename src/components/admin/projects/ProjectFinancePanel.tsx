@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, ExternalLink, FileText, Link2, Loader2, Plus, Receipt, Unlink, X } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 import { useToastContext } from '@/components/ToastProvider'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import QuoteDecisionDialog from '@/components/admin/QuoteDecisionDialog'
@@ -313,7 +314,7 @@ export default function ProjectFinancePanel({ projectId, onChanged }: { projectI
                 <input type="radio" checked={invoiceFor.mode === 'deposit'} onChange={() => setInvoiceFor({ ...invoiceFor, mode: 'deposit' })} className="mt-0.5" />
                 <span className="flex-1"><span className="font-medium">Acompte</span>
                   <span className="mt-1 flex items-center gap-2 text-xs text-stone-500">
-                    <input type="number" min={1} max={90} value={invoiceFor.percent} onChange={e => setInvoiceFor({ ...invoiceFor, mode: 'deposit', percent: Number(e.target.value) })} className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-sm" /> %
+                    <NumInput integer min={1} max={90} value={invoiceFor.percent} emptyValue={0} onChange={v => setInvoiceFor({ ...invoiceFor, mode: 'deposit', percent: v ?? 0 })} className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-sm" /> %
                     = {fmt(Math.round(invoiceFor.quote.total * (invoiceFor.percent || 0) / 100))}
                   </span>
                 </span>

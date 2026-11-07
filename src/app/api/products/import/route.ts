@@ -1100,7 +1100,8 @@ export async function POST(request: NextRequest) {
       weightKg: ali.weightKg,
       availabilityNote: ali.availabilityNote,
       sourcing: {
-        platform: 'aliexpress',
+        // Alibaba passe aussi par cette branche (prix sur devis) : plateforme déduite de l'URL
+        platform: canonicalSource(ali.productUrl).platform === 'alibaba' ? 'alibaba' : 'aliexpress',
         supplierName: ali.shopName,
         supplierContact: undefined,
         productUrl: ali.productUrl,

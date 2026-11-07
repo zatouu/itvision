@@ -1,11 +1,12 @@
 # Extension Chrome/Firefox - IT Vision Import
 
-Extension navigateur pour scraper et importer des produits depuis 1688 et AliExpress vers IT Vision.
+Extension navigateur pour scraper et importer des produits depuis 1688, AliExpress et Alibaba (alibaba.com et ses sous-domaines : fr., es.…) vers IT Vision.
 
 ## Fonctionnalités
 
-- **Scraping en un clic** : Bouton flottant sur les pages produit 1688/AliExpress
-- **Extraction intelligente** : Titre, prix, images, variantes, MOQ, fournisseur
+- **Scraping en un clic** : Bouton flottant sur les pages produit 1688/AliExpress/Alibaba
+- **Extraction intelligente** : Titre, prix (CNY pour 1688, USD/EUR pour Alibaba, converti côté serveur), images, variantes, MOQ, fournisseur
+- **Images classées** : la liste officielle de la page (données JSON intégrées) prime sur le DOM ; galerie, images de variantes et images du descriptif restent séparées. Les mots-clés anti-parasites (logo, bannière, icône…) sont comparés mot à mot sur le chemin de l'URL, jamais sur l'hôte ni sur l'identifiant du fichier.
 - **Liste d'attente** : Accumuler plusieurs produits avant export
 - **Export vers API** : Envoi direct vers ton instance IT Vision
 - **Anti-détection** : Respecte les limites pour éviter les blocages

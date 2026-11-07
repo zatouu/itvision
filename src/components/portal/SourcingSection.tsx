@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import { PackageSearch, Send, Clock, CheckCircle, XCircle, ExternalLink, Loader2 } from 'lucide-react'
 import {
   CARD, INPUT, BTN_PRIMARY, PageHeader, BackLink, EmptyState, StatusBadge, Pill, TONE,
@@ -131,22 +132,22 @@ export default function SourcingSection({ canRequest = true }: { canRequest?: bo
             </div>
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1.5">Quantité</label>
-              <input
-                type="number"
+              <NumInput
+                integer
                 min={1}
                 className={INPUT}
-                value={form.qty}
-                onChange={e => setForm(f => ({ ...f, qty: e.target.value }))}
+                value={form.qty === '' ? undefined : Number(form.qty)}
+                onChange={v => setForm(f => ({ ...f, qty: v == null ? '' : String(v) }))}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-stone-600 mb-1.5">Budget indicatif (FCFA)</label>
-              <input
-                type="number"
+              <NumInput
+                integer
                 min={0}
                 className={INPUT}
-                value={form.budgetMaxFCFA}
-                onChange={e => setForm(f => ({ ...f, budgetMaxFCFA: e.target.value }))}
+                value={form.budgetMaxFCFA === '' ? undefined : Number(form.budgetMaxFCFA)}
+                onChange={v => setForm(f => ({ ...f, budgetMaxFCFA: v == null ? '' : String(v) }))}
                 placeholder="Optionnel"
               />
             </div>

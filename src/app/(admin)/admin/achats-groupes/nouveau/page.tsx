@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, PlusCircle } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 type Product = {
   _id: string
@@ -280,22 +281,24 @@ export default function AdminCreateGroupOrderPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-semibold text-stone-900">Objectif min</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
+                    emptyValue={0}
                     className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
                     value={form.minQty}
                     min={1}
-                    onChange={(e) => setForm((p) => ({ ...p, minQty: Number(e.target.value) }))}
+                    onChange={(v) => setForm((p) => ({ ...p, minQty: v ?? 0 }))}
                   />
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-900">Objectif cible</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
+                    emptyValue={0}
                     className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
                     value={form.targetQty}
                     min={form.minQty}
-                    onChange={(e) => setForm((p) => ({ ...p, targetQty: Number(e.target.value) }))}
+                    onChange={(v) => setForm((p) => ({ ...p, targetQty: v ?? 0 }))}
                   />
                 </div>
               </div>
@@ -303,22 +306,22 @@ export default function AdminCreateGroupOrderPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-semibold text-stone-900">Max unités (optionnel)</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
-                    value={form.maxQty ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, maxQty: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                    value={form.maxQty}
+                    onChange={(v) => setForm((p) => ({ ...p, maxQty: v }))}
                   />
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-stone-900">Max participants (optionnel)</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
-                    value={form.maxParticipants ?? ''}
-                    onChange={(e) => setForm((p) => ({
+                    value={form.maxParticipants}
+                    onChange={(v) => setForm((p) => ({
                       ...p,
-                      maxParticipants: e.target.value === '' ? undefined : Number(e.target.value)
+                      maxParticipants: v
                     }))}
                   />
                 </div>

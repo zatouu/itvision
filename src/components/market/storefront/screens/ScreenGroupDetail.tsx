@@ -22,6 +22,7 @@ import type { Group } from '../types';
 import { canRenderGroupVideo, renderGroupVideo } from '../group-video';
 import PickupPointPicker from '../PickupPointPicker';
 import DeliveryComparison, { GROUP_METHOD_TO_RATE } from '../DeliveryComparison';
+import NumInput from '@/components/ui/NumInput';
 
 const SHIP_LABEL: Record<string, string> = { express_3j: 'avion express (3 à 5 j)', air_15j: 'avion (10 à 15 j)', maritime_60j: 'bateau groupé (45 à 50 j)' };
 
@@ -822,7 +823,7 @@ export default function ScreenGroupDetail() {
                   <div className="mt-2 rounded-lg bg-white p-2.5 dark:bg-slate-900">
                     <label className="flex items-center justify-between gap-2 text-[12px] text-slate-600 dark:text-slate-400">
                       Prix de revente par pièce
-                      <input type="number" inputMode="numeric" min={0} value={resalePrice} placeholder={String(suggested)} onChange={e => setResalePrice(e.target.value)} className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-sm font-bold tabular-nums outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"/>
+                      <NumInput integer inputMode="numeric" min={0} value={resalePrice === '' ? undefined : Number(resalePrice)} placeholder={String(suggested)} onChange={v => setResalePrice(v == null ? '' : String(v))} className="h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-sm font-bold tabular-nums outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"/>
                     </label>
                     <div className="mt-2 flex justify-between text-[12px]">
                       <span className="text-slate-600 dark:text-slate-400">Bénéfice estimé sur {qty} pcs</span>

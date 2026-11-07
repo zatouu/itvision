@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import NumInput from '@/components/ui/NumInput'
 import {
   Calendar,
   List,
@@ -1676,12 +1677,12 @@ const publishVisitToMarketplace = async (
                       </div>
                       <div>
                         <label htmlFor="intv-duration" className="text-xs text-gray-500">Durée (h)</label>
-                        <input
+                        <NumInput
                           id="intv-duration"
-                          type="number"
                           min={1}
                           value={newInterventionForm.estimatedDuration}
-                          onChange={(e) => updateNewInterventionField('estimatedDuration', Number(e.target.value))}
+                          emptyValue={0}
+                          onChange={(v) => updateNewInterventionField('estimatedDuration', v ?? 0)}
                           className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
                         />
                       </div>

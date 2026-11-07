@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { RotateCw, Undo2, Users, PackageX, CheckCircle2, Loader2 } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 type OrderRefund = { orderId: string; clientName: string; clientPhone: string; refundAmount?: number; total: number; paymentMethod?: string; transactionId?: string; status: string; updatedAt: string }
 type GroupRefund = { groupId: string; productName?: string; participantId: string; name: string; phone: string; amount: number; paymentMethod?: string; transactionId?: string; overpaid?: boolean }
@@ -150,9 +151,9 @@ export default function AdminMarketRefundsPage() {
               title={`Retour ${r.orderId} · ${op(r.paymentMethod)}`}
               line={<>{r.name || 'Client'} · <span className="font-mono">{r.phone || '—'}</span></>}
               sub={`${r.items.join(', ')} — ${r.reason} · remboursable : ${fcfa(r.refundable)}`}>
-              <input type="number" min={1} max={r.refundable}
-                value={amounts[r.returnId] ?? String(r.suggestedAmount)}
-                onChange={e => setAmounts(a => ({ ...a, [r.returnId]: e.target.value }))}
+              <NumInput integer min={1} max={r.refundable}
+                value={amounts[r.returnId] === undefined ? r.suggestedAmount : amounts[r.returnId] === '' ? undefined : Number(amounts[r.returnId])}
+                onChange={v => setAmounts(a => ({ ...a, [r.returnId]: v == null ? '' : String(v) }))}
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm md:w-32" aria-label="Montant remboursé" />
               {refInput(r.returnId)}
               {doneButton(r.returnId, () => refundReturn(r))}

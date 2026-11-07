@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Scale, AlertCircle, CheckCircle2, RefreshCw, Eye, X, Loader2 } from 'lucide-react'
+import NumInput from '@/components/ui/NumInput'
 
 type DisputeStatus = 'open' | 'under_review' | 'resolved' | 'closed'
 
@@ -340,13 +341,13 @@ export default function AdminServiceDisputesPage() {
               {decision === 'partial_refund' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Montant remboursé au client (FCFA)</label>
-                  <input
-                    type="number"
+                  <NumInput
+                    integer
                     min={1}
                     max={selected.paymentAmount || 0}
                     required={decision === 'partial_refund'}
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
+                    value={refundAmount === '' ? undefined : Number(refundAmount)}
+                    onChange={(v) => setRefundAmount(v == null ? '' : String(v))}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="Ex: 5000"
                   />
