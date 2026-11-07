@@ -2,6 +2,7 @@ import { computeProductPricing, type ShippingMethodId, type ShippingRate } from 
 import { getPlatformExchangeRate } from './pricing/platform-rate'
 import { resolveDisplayPrice } from './pricing/display-price'
 import type { PricingDefaults } from './pricing/settings'
+import { firstImage } from './media'
 
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
@@ -174,7 +175,7 @@ export const formatSimilarProducts = (
       category: item.category ?? 'Catalogue import Chine',
       condition: item.condition ?? 'new',
         tags: normalizeTags(item),
-      image: normalizeGallery(item)[0] ?? '/placeholder.svg',
+      image: firstImage(normalizeGallery(item)) ?? item.image ?? '/placeholder.svg',
       features: Array.isArray(item.features) ? item.features.slice(0, 3) : [],
       // Prix tout compris (marchandise + frais de service + assurance), cohérent
       // avec le catalogue et le devis serveur — `baseCost` seul sous-affichait.

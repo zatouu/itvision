@@ -26,6 +26,7 @@ import { recordProductView } from '../recently-viewed';
 import { addToCart, loadCart, mapProductDetail, productSelection } from '../data-mappers';
 import type { CartItem, Product, PriceTier, ShippingMode } from '../types';
 import type { CartQuote } from '@/lib/pricing/quote-cart';
+import { firstImage } from '@/lib/media';
 
 
 export default function ScreenProduct() {
@@ -116,8 +117,26 @@ export default function ScreenProduct() {
   const [cartNotice, setCartNotice] = useState('');
   const [cartError, setCartError] = useState('');
   const [qty, setQty] = useState(PRODUCT?.minOrderQty ?? 1);
-  const [tab, setTab] = useState("desc");
   const [showMoqExplain, setShowMoqExplain] = useState(false);
+  const [activeSection, setActiveSection] = useState('details');
+  const scrollToSection = (key: string) => {
+    setActiveSection(key);
+    document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Onglet actif = section visible sous la barre de navigation
+  useEffect(() => {
+    if (!PRODUCT || loading || typeof IntersectionObserver === 'undefined') return;
+    const sections = ['details', 'attributs', 'emballage', 'avis']
+      .map(key => document.getElementById(`section-${key}`))
+      .filter((el): el is HTMLElement => !!el);
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (visible) setActiveSection(visible.target.id.replace('section-', ''));
+    }, { rootMargin: '-35% 0px -55% 0px' });
+    sections.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [PRODUCT, loading]);
   const [reviewsPage, setReviewsPage] = useState(1);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState('');
@@ -204,7 +223,7 @@ export default function ScreenProduct() {
     variantId: variantIds.length === 1 ? variantIds[0] : undefined,
     variantIds: [...variantIds].sort(),
     variantLabels: selectedLabels,
-    image: variantImage || images[activeImg] || images[0] || '/placeholder.svg',
+    image: variantImage || firstImage([images[activeImg], ...images]) || '/placeholder.svg',
     unit: baseUnit,
     qty,
     minOrderQty: p.minOrderQty,
@@ -448,7 +467,7 @@ export default function ScreenProduct() {
                     }
                     const cheapest = (p.shipping.modes || []).filter((m: ShippingMode) => m.from > 0).sort((a: ShippingMode, b: ShippingMode) => a.from - b.from)[0]
                     return (
-                      <button type="button" onClick={() => setTab('ship')} className="mt-1 text-left text-[12px] font-semibold text-slate-600 underline decoration-dotted underline-offset-2 dark:text-slate-300">
+                      <button type="button" onClick={() => scrollToSection('emballage')} className="mt-1 text-left text-[12px] font-semibold text-slate-600 underline decoration-dotted underline-offset-2 dark:text-slate-300">
                         {cheapest ? `+ transport dès ${formatFcfa(cheapest.from)}/pc (${cheapest.label}, ${cheapest.days})` : 'Transport calculé au panier selon le poids et le mode choisi'}
                       </button>
                     )
@@ -543,56 +562,106 @@ export default function ScreenProduct() {
               </div>
             </aside>
 
-            {/* Onglets + confiance + similaires : colonne gauche desktop, sous le panneau mobile */}
+            {/* Sous la galerie (colonne gauche desktop) : attributs clés et colis, comme Alibaba / 1688 */}
             <div className="min-w-0 lg:col-start-1">
-              <div className="mt-2 bg-white dark:bg-slate-900 md:mt-4 md:overflow-hidden md:rounded-2xl md:border md:border-slate-200 md:dark:border-slate-800">
-                <div className="flex gap-1 border-b border-slate-200 px-4 dark:border-slate-800">
-                  {[
-                    ["desc", "Description"],
-                    ["ship", "Expédition"],
-                    ["rev", `Avis (${reviewCount})`],
-                  ].map(([k, l]) => (
-                    <button
-                      key={k}
-                      onClick={() => setTab(k)}
-                      className={cn(
-                        "border-b-2 px-2 md:px-3 py-3 text-[13px] md:text-sm font-semibold",
-                        tab === k
-                          ? "border-emerald-600 text-emerald-700 dark:text-emerald-400"
-                          : "border-transparent text-slate-500 dark:text-slate-400"
-                      )}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                <div className="px-4 py-4 md:p-6">
-                  {tab === "desc" && (
-                    <ProductDescription
-                      description={p.description}
-                      specs={p.specs}
-                      descriptionImages={p.descriptionImages}
-                    />
-                  )}
-                  {tab === "ship" && (
-                    <div className="space-y-2 md:space-y-3 text-[13px] text-slate-700 dark:text-slate-300">
-                      <p className="text-sm text-slate-600 dark:text-slate-400">{p.availabilityStatus === 'in_stock' ? 'Expédition depuis le stock local.' : `Origine indiquée : ${p.shipping.origin}`}</p>
-                      <p className="text-sm">Les délais sont indicatifs. Le transport dépend du poids et du volume du lot ; son montant final est confirmé au panier et peut être ajusté après pesée.</p>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {p.shipping.modes.map((m: ShippingMode) => (
-                          <div key={m.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
-                            <div>
-                              <p className="text-[12px] md:text-sm font-bold text-slate-900 dark:text-white">{m.label}</p>
-                              <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400">{m.days}</p>
-                            </div>
-                            <p className="text-[12px] md:text-sm font-bold text-slate-900 dark:text-white tabular-nums md:mt-2">{m.from > 0 ? `dès ${formatFcfa(m.from)}/pc` : 'Selon poids/volume'}</p>
-                          </div>
-                        ))}
+              {p.specs.length > 0 && (
+                <section id="section-attributs" aria-labelledby="titre-attributs" className="mt-2 scroll-mt-[calc(var(--mkt-header-h,0px)+3.5rem)] bg-white px-4 py-4 dark:bg-slate-900 md:mt-4 md:rounded-2xl md:border md:border-slate-200 md:p-5 md:dark:border-slate-800">
+                  <h2 id="titre-attributs" className="mb-3 text-base font-bold text-slate-900 dark:text-white">Attributs clés</h2>
+                  <dl className="grid overflow-hidden rounded-xl border border-slate-200 text-[13px] dark:border-slate-800 sm:grid-cols-2">
+                    {p.specs.map(([k, v], i) => (
+                      <div key={`${k}-${i}`} className="grid grid-cols-[minmax(96px,42%)_1fr] border-b border-slate-200 last:border-b-0 dark:border-slate-800 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                        <dt className="bg-slate-50 px-3 py-2.5 font-medium text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 [overflow-wrap:anywhere]">{k}</dt>
+                        <dd className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white [overflow-wrap:anywhere]">{v}</dd>
                       </div>
-                    </div>
-                  )}
-                  {tab === 'rev' && reviewsUnavailable && <RetryNotice message="Impossible de charger les avis." onRetry={() => setAttempt(value => value + 1)}/>}
-                  {tab === "rev" && !reviewsUnavailable && (
+                    ))}
+                  </dl>
+                </section>
+              )}
+
+              <section id="section-emballage" aria-labelledby="titre-emballage" className="mt-2 scroll-mt-[calc(var(--mkt-header-h,0px)+3.5rem)] bg-white px-4 py-4 dark:bg-slate-900 md:mt-4 md:rounded-2xl md:border md:border-slate-200 md:p-5 md:dark:border-slate-800">
+                <h2 id="titre-emballage" className="mb-3 text-base font-bold text-slate-900 dark:text-white">Emballage et livraison</h2>
+                {(() => {
+                  const lg = p.logistics || {};
+                  const hasDims = !!(lg.lengthCm && lg.widthCm && lg.heightCm);
+                  const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+                  const rows: [string, string][] = [];
+                  if (lg.weightKg) rows.push(['Poids unitaire', `${fmt(lg.weightKg)} kg${p.weightEstimated ? ' (estimé)' : ''}`]);
+                  if (hasDims) rows.push(['Dimensions du colis', `${fmt(lg.lengthCm!)} × ${fmt(lg.widthCm!)} × ${fmt(lg.heightCm!)} cm`]);
+                  if (lg.volumeM3) rows.push(['Volume', `${lg.volumeM3.toLocaleString('fr-FR', { maximumFractionDigits: 4 })} m³`]);
+                  rows.push(['Expédition', p.availabilityStatus === 'in_stock' ? 'Depuis le stock à Dakar' : `Depuis ${p.shipping.origin}`]);
+                  if (p.leadTimeDays) rows.push(['Délai de préparation', `${p.leadTimeDays} jours`]);
+                  return (
+                    <dl className="grid gap-x-6 gap-y-2 text-[13px] sm:grid-cols-2">
+                      {rows.map(([k, v]) => (
+                        <div key={k} className="flex justify-between gap-3 border-b border-dashed border-slate-200 pb-2 dark:border-slate-800">
+                          <dt className="text-slate-500 dark:text-slate-400">{k}</dt>
+                          <dd className="text-right font-semibold text-slate-900 dark:text-white tabular-nums">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  );
+                })()}
+                {p.shipping.modes.length > 0 && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    {p.shipping.modes.map((m: ShippingMode) => (
+                      <div key={m.key} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
+                        <p className="text-[12px] md:text-sm font-bold text-slate-900 dark:text-white">{m.label}</p>
+                        <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400">{m.days}</p>
+                        <p className="mt-1 text-[12px] md:text-sm font-bold text-slate-900 dark:text-white tabular-nums">{m.from > 0 ? `dès ${formatFcfa(m.from)}/pc` : 'Selon poids/volume'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Les délais sont indicatifs. Le transport dépend du poids et du volume du lot ; son montant final est confirmé au panier et peut être ajusté après pesée.</p>
+              </section>
+
+              <div className="mt-2 px-4 py-4 md:mt-4 md:px-0 md:py-0">
+                {groupBuyCard}
+                {groupsUnavailable ? <RetryNotice message="Disponibilité des achats groupés temporairement indisponible." onRetry={() => setAttempt(value => value + 1)}/> : !p.groupBuy?.active && <GroupNotifyCard productId={p.id}/>}
+                <Button variant="ghost" className="mt-3 !h-auto min-h-11 w-full !whitespace-normal" onClick={() => openSourcing({ source: 'text', title: p.name, description: `Comme « ${p.name} », mais : ` })}><Icon name="camera" size={18}/>Rechercher une autre configuration</Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Pleine largeur : détails du produit en grand format, avis, similaires */}
+          <nav aria-label="Sections de la fiche" style={{ top: 'var(--mkt-header-h, 0px)' }} className="sticky z-30 mt-4 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 md:mt-8 md:rounded-t-2xl md:px-2">
+            {([
+              ['details', 'Détails du produit'],
+              ...(p.specs.length > 0 ? [['attributs', 'Attributs']] : []),
+              ['emballage', 'Emballage et livraison'],
+              ['avis', `Avis (${reviewCount})`],
+            ] as [string, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => scrollToSection(key)}
+                className={cn(
+                  'shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-[13px] font-semibold md:text-sm',
+                  activeSection === key
+                    ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <section id="section-details" aria-labelledby="titre-details" className="scroll-mt-[calc(var(--mkt-header-h,0px)+3.5rem)] bg-white px-4 py-5 dark:bg-slate-900 md:rounded-b-2xl md:border md:border-t-0 md:border-slate-200 md:px-8 md:py-8 md:dark:border-slate-800">
+            <h2 id="titre-details" className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Détails du produit</h2>
+            <ProductDescription
+              description={p.description}
+              specs={p.specs}
+              descriptionImages={p.descriptionImages}
+              showSpecs={false}
+            />
+          </section>
+
+          <section id="section-avis" aria-labelledby="titre-avis" className="mt-2 scroll-mt-[calc(var(--mkt-header-h,0px)+3.5rem)] bg-white px-4 py-5 dark:bg-slate-900 md:mt-4 md:rounded-2xl md:border md:border-slate-200 md:p-6 md:dark:border-slate-800">
+            <h2 id="titre-avis" className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Avis clients</h2>
+            {reviewsUnavailable
+              ? <RetryNotice message="Impossible de charger les avis." onRetry={() => setAttempt(value => value + 1)}/>
+              : (
                     <div className="space-y-4">
                       <div className="mb-3 flex items-center gap-3 md:mb-0 md:block md:rounded-xl md:border md:border-slate-200 md:p-4 md:dark:border-slate-800">
                         <div className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tabular-nums">{p.rating > 0 ? p.rating : '—'}<span className="hidden md:inline text-lg text-slate-400">/5</span></div>
@@ -634,29 +703,20 @@ export default function ScreenProduct() {
                         />
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-2 px-4 py-4 md:mt-4 md:px-0 md:py-0">
-                {groupBuyCard}
-                {groupsUnavailable ? <RetryNotice message="Disponibilité des achats groupés temporairement indisponible." onRetry={() => setAttempt(value => value + 1)}/> : !p.groupBuy?.active && <GroupNotifyCard productId={p.id}/>}
-                <Button variant="ghost" className="mt-3 !h-auto min-h-11 w-full !whitespace-normal" onClick={() => openSourcing({ source: 'text', title: p.name, description: `Comme « ${p.name} », mais : ` })}><Icon name="camera" size={18}/>Rechercher une autre configuration</Button>
-              </div>
-
-              {SIMILAR.length > 0 && (
-                <div className="mt-2 md:mt-6">
-                  <Section title="Produits similaires" className="py-4 bg-white dark:bg-slate-900 md:bg-transparent md:dark:bg-transparent md:py-0">
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-                      {SIMILAR.slice(0, 4).map((r) => (
-                        <ProductCard key={r.id} product={r} size="lg" href={`/produits/${r.id}`} onClick={() => router.push(`/produits/${r.id}`)} />
-                      ))}
-                    </div>
-                  </Section>
-                </div>
               )}
+          </section>
+
+          {SIMILAR.length > 0 && (
+            <div className="mt-2 md:mt-6">
+              <Section title="Produits similaires" className="py-4 bg-white dark:bg-slate-900 md:bg-transparent md:dark:bg-transparent md:py-0">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {SIMILAR.slice(0, 4).map((r) => (
+                    <ProductCard key={r.id} product={r} size="lg" href={`/produits/${r.id}`} onClick={() => router.push(`/produits/${r.id}`)} />
+                  ))}
+                </div>
+              </Section>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

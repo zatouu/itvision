@@ -122,6 +122,24 @@ corporate (vitrine + API + futur portail) **n'expose que les produits IT Vision*
 Un produit de vendeur tiers (`shopId`) est exclu, même taggé `corporateVisible`
 — ne pas contourner ce filtre, c'est une règle commerciale, pas technique.
 
+## Médias produit (photos et vidéos)
+
+`gallery` et `descriptionImages` contiennent des photos **et** des vidéos (MP4/WebM
+téléversées, vidéos fournisseur 1688/AliExpress/Alibaba, liens YouTube). Toujours
+passer par `@/lib/media` (`isVideoUrl`, `firstImage`, `isDisplayableMediaUrl`) :
+une vidéo ne s'affiche jamais en `<img>`, la vignette produit reste une photo, et
+les médias rapatriés en chemin relatif (`/api/uploads/…`) sont valides. La CSP
+autorise `media-src https:` et les iframes `youtube-nocookie.com`.
+
+## Prix des produits importés
+
+`price1688` est **toujours en yuans, transport Chine inclus** : le prix de vente
+relevé (CNY sur 1688, USD/EUR/FCFA… sur AliExpress/Alibaba) est converti en ¥ via
+`sourceCurrencyRates` puis majoré de `CHINA_INLAND_TRANSPORT_CNY` (15 ¥ par défaut,
+`src/lib/pricing/constants.ts`). Utiliser `importSourcePrice()` / `toCny()`
+(`src/lib/market/catalog-import.ts`) ; le prix d'origine est tracé dans
+`sourcing.sourcePrice` / `sourcing.sourceCurrency` / `sourcing.inlandTransportCny`.
+
 ## SEO — deux sites, deux identités
 
 `itvisionplus.sn` (B2B sécurité électronique) et `ddm.sn` (import Chine grand

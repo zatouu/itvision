@@ -14,6 +14,10 @@ import type {
 import { filterSpecEntries } from '@/lib/catalog/description-format';
 import { resolveDisplayPrice, toAllIn, describeIncludedFees } from '@/lib/pricing/display-price';
 import { ICON_NAMES } from './Icon';
+import { firstImage, isDisplayableMediaUrl } from '@/lib/media';
+
+const positiveOrUndefined = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 
 export function fmtDeadline(date: string | Date | null | undefined): string {
   if (!date) return '—';
@@ -275,10 +279,12 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     rating: typeof p?.rating === 'number' && p.rating > 0 ? p.rating : 0,
     reviews: p?.reviewCount ?? p?.reviews ?? 0,
     reviewCount: p?.reviewCount ?? p?.reviews ?? 0,
-    images:
-      Array.isArray(p?.gallery) && p.gallery.length > 0
-        ? p.gallery
-        : [p?.image || '/placeholder.svg'],
+    images: (() => {
+      const media = (Array.isArray(p?.gallery) ? p.gallery : []).filter(isDisplayableMediaUrl);
+      // La première vignette reste une photo (aperçu, panier, partage) ; les vidéos suivent
+      const cover = firstImage(media) || (isDisplayableMediaUrl(p?.image) ? p.image : '/placeholder.svg');
+      return [cover, ...media.filter((u: string) => u !== cover)];
+    })(),
     price,
     // Référence barrée = meilleur palier réellement inférieur, sinon aucune.
     basePrice: priceTiers.reduce(
@@ -292,9 +298,17 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     variants: variants.length > 0 ? variants : [],
     variantGroups,
     specs: specs.length > 0 ? filterSpecEntries(specs) : [],
+    // Images rapatriées chez nous (/api/uploads/…) comprises : l'ancien filtre « http » les perdait
     descriptionImages: Array.isArray(p?.descriptionImages)
-      ? p.descriptionImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
+      ? p.descriptionImages.filter(isDisplayableMediaUrl)
       : [],
+    logistics: {
+      weightKg: positiveOrUndefined(p?.logistics?.weightKg),
+      lengthCm: positiveOrUndefined(p?.logistics?.dimensions?.lengthCm),
+      widthCm: positiveOrUndefined(p?.logistics?.dimensions?.widthCm),
+      heightCm: positiveOrUndefined(p?.logistics?.dimensions?.heightCm),
+      volumeM3: positiveOrUndefined(p?.logistics?.volumeM3),
+    },
     shipping: {
       origin: p?.sourcing?.origin || 'Guangzhou, Chine',
       // Pas de modes fictifs : si le produit n'a pas d'options calculées

@@ -432,8 +432,8 @@ function transformForSmartApi(p) {
     descriptionImages,
     videos: p.videos || [],
     price1688: p.price1688 || undefined,
-    // 1688 : CNY ; Alibaba : USD (ou EUR sur fr.alibaba.com), converti côté serveur
-    price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === 'alibaba' ? 'USD' : 'CNY')) : undefined,
+    // Prix de vente source : 1688 en CNY ; Alibaba/AliExpress en USD, EUR, FCFA… — converti en ¥ + transport côté serveur
+    price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === '1688' ? 'CNY' : 'USD')) : undefined,
     promoPrice1688: p.promoPrice1688 || undefined,
     price: p.price || undefined,
     priceTiers: p.priceTiers || [],

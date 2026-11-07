@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <img src="${p.image || 'icons/icon48.png'}" onerror="this.src='icons/icon48.png'" alt="">
         <div class="product-info">
           <div class="product-name">${p.name || 'Produit sans nom'}</div>
-          <div class="product-price">${p.price1688 ? ({ USD: '$', EUR: '€' }[p.price1688Currency] || '¥') + p.price1688 : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
+          <div class="product-price">${p.price1688 ? (p.price1688Currency === 'XOF' ? p.price1688 + ' FCFA' : ({ USD: '$', EUR: '€', MAD: 'DH ', GBP: '£' }[p.price1688Currency] || '¥') + p.price1688) : (p.price ? p.price + ' FCFA' : 'Prix non disponible')}</div>
           <div style="font-size:10px;color:${confColor};margin-top:2px">Confiance ${conf.score}% ${conf.warnings.length ? `· ${conf.warnings.slice(0, 2).join(', ')}` : ''}</div>
           ${stats ? `<div style="font-size:10px;color:#6b7280;margin-top:1px">${stats}</div>` : ''}
         </div>
@@ -353,8 +353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       imageCategories: p.imageCategories || undefined,
       videos: p.videos || [],
       price1688: p.price1688 || undefined,
-      // 1688 : CNY ; Alibaba : USD (ou EUR sur fr.alibaba.com), converti côté serveur
-      price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === 'alibaba' ? 'USD' : 'CNY')) : undefined,
+      // Prix de vente source : 1688 en CNY ; Alibaba/AliExpress en USD, EUR, FCFA… — converti en ¥ + transport côté serveur
+      price1688Currency: p.price1688 ? (p.price1688Currency || (p.platform === '1688' ? 'CNY' : 'USD')) : undefined,
       promoPrice1688: p.promoPrice1688 || undefined,
       price: p.price || undefined,
       priceTiers: p.priceTiers || [],

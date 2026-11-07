@@ -3,25 +3,31 @@
 import { useState } from 'react'
 import { formatDescription, type DescBlock } from '@/lib/catalog/description-format'
 import MediaLightbox from '@/components/market/MediaLightbox'
+import { isVideoUrl } from '@/lib/media'
+import { ProductVideo } from './ProductImageGallery'
 
 /**
  * Rendu premium « façon Taobao » de la description produit :
  * - texte nettoyé du bruit de scraping, structuré en titres/paragraphes/puces
  * - tableau de specs zébré (colonne clé grisée)
- * - bande d'images de description pleine largeur quand disponible
+ * - images (et vidéos) de description en grand format, pleine largeur
  */
 export default function ProductDescription({
   description,
   specs = [],
   descriptionImages = [],
+  showSpecs = true,
 }: {
   description?: string
   specs?: [string, string][]
   descriptionImages?: string[]
+  /** false quand les caractéristiques sont déjà affichées ailleurs (section « Attributs ») */
+  showSpecs?: boolean
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const blocks = formatDescription(description)
-  const hasSpecs = specs.length > 0
+  const hasSpecs = showSpecs && specs.length > 0
+  const photos = descriptionImages.filter(src => !isVideoUrl(src))
   const hasContent = blocks.length > 0 || hasSpecs || descriptionImages.length > 0
 
   if (!hasContent) {
@@ -63,30 +69,38 @@ export default function ProductDescription({
       )}
 
       {descriptionImages.length > 0 && (
-        <div className="-mx-1 space-y-2">
-          {descriptionImages.map((src, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setLightboxIndex(i)}
-              className="block w-full cursor-zoom-in"
-              aria-label="Agrandir l'image"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt=""
-                loading="lazy"
-                className="w-full rounded-lg object-cover transition hover:brightness-95"
-              />
-            </button>
-          ))}
+        // Grand format, images empilées bord à bord comme sur 1688 / Alibaba ; vidéos lues sur place
+        <div className="-mx-4 md:mx-0">
+          <div className="mx-auto max-w-[880px] overflow-hidden bg-white md:rounded-xl md:border md:border-slate-200 dark:bg-slate-900 md:dark:border-slate-800">
+            {descriptionImages.map((src, i) => isVideoUrl(src) ? (
+              <div key={`${src}-${i}`} className="aspect-video w-full bg-black">
+                <ProductVideo src={src} title="Vidéo de présentation du produit" />
+              </div>
+            ) : (
+              <button
+                key={`${src}-${i}`}
+                type="button"
+                onClick={() => setLightboxIndex(photos.indexOf(src))}
+                className="block w-full cursor-zoom-in"
+                aria-label="Agrandir l'image"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-auto w-full"
+                />
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {lightboxIndex !== null && (
+      {lightboxIndex !== null && lightboxIndex >= 0 && (
         <MediaLightbox
-          images={descriptionImages}
+          images={photos}
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onIndexChange={setLightboxIndex}

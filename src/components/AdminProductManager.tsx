@@ -1,10 +1,12 @@
 'use client'
 
 import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage, Share2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Search, Package, Truck, Settings, MapPin, Layers, Sparkles, Image as ImageIcon, Download, Upload, X, Calculator, TrendingUp, DollarSign, BarChart3, Users, TrendingDown, Play, GripVertical, ArrowLeft, ArrowRight, FileImage, Share2, Copy } from 'lucide-react'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { CategorySelect } from '@/components/admin/CategorySelect'
 import { productConfigurationError } from '@/lib/pricing/variants'
+import { isVideoFileUrl, isYouTubeUrl as isYouTubeMediaUrl } from '@/lib/media'
+import { CHINA_INLAND_TRANSPORT_CNY, DEFAULT_EXCHANGE_RATE, SOURCE_CURRENCIES, SOURCE_CURRENCY_RATES } from '@/lib/pricing/constants'
 
 // Éditeur de texte riche chargé dynamiquement
 const RichTextEditor = lazy(() => import('./RichTextEditor'))
@@ -81,7 +83,11 @@ type Product = {
     supplierName?: string
     supplierContact?: string
     productUrl?: string
+    externalId?: string
     notes?: string
+    sourcePrice?: number
+    sourceCurrency?: string
+    inlandTransportCny?: number
   }
   shippingOverrides?: ShippingOverride[]
   isPublished?: boolean
@@ -141,15 +147,9 @@ const formatCurrency = (amount?: number, currency = 'FCFA') => {
   return `${amount.toLocaleString('fr-FR')} ${currency}`
 }
 
-const isVideoUrl = (url: string) => {
-  if (!url) return false
-  return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
-}
+const isVideoUrl = (url: string) => isVideoFileUrl(url)
 
-const isYouTubeUrl = (url: string) => {
-  if (!url) return false
-  return /youtu\.be\//i.test(url) || /youtube\.com\//i.test(url)
-}
+const isYouTubeUrl = (url: string) => isYouTubeMediaUrl(url)
 
 const slugifyCategory = (value: string) => {
   return value
@@ -165,6 +165,39 @@ type ProductTab = 'info' | 'details' | 'media' | 'pricing' | 'variants' | 'group
 const ensureOverrides = (overrides?: ShippingOverride[]): ShippingOverride[] => {
   if (!Array.isArray(overrides)) return []
   return overrides.filter(o => o && typeof o.methodId === 'string')
+}
+
+const CURRENCY_LABELS: Record<string, string> = {
+  CNY: '¥ Yuan (CNY)', USD: '$ Dollar (USD)', EUR: '€ Euro (EUR)', XOF: 'FCFA (XOF)', XAF: 'FCFA CEMAC (XAF)',
+  MAD: 'Dirham (MAD)', GBP: '£ Livre (GBP)', AED: 'Dirham EAU (AED)', SAR: 'Riyal (SAR)',
+}
+
+type SourcePricingRef = { rates: Record<string, number>; inlandTransportCny: number; b2bDiscountPercent: number }
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/** Montant d'une devise source ramené en yuans (taux exprimés en FCFA par unité). */
+const sourceToCny = (amount: number | undefined, currency: string | undefined, rates: Record<string, number>): number | undefined => {
+  if (!amount || amount <= 0) return undefined
+  const code = (currency || 'CNY').toUpperCase()
+  if (code === 'CNY') return round2(amount)
+  const rate = rates[code]
+  if (!(rate > 0) || !(rates.CNY > 0)) return undefined
+  return round2((amount * rate) / rates.CNY)
+}
+
+/** Décomposition du prix public automatique — même formule pour le calcul auto, le récapitulatif et l'aperçu. */
+const priceBreakdown = (p: Product) => {
+  const base = typeof p.baseCost === 'number' && p.baseCost > 0 ? p.baseCost : (p.price1688 || 0) * (p.exchangeRate || DEFAULT_EXCHANGE_RATE)
+  if (!(base > 0)) return undefined
+  const marginRate = typeof p.marginRate === 'number' ? p.marginRate : 0
+  const serviceFeeRate = typeof p.serviceFeeRate === 'number' ? p.serviceFeeRate : 10
+  const insuranceRate = typeof p.insuranceRate === 'number' ? p.insuranceRate : 2.5
+  const margin = base * (marginRate / 100)
+  const serviceFee = base * (serviceFeeRate / 100)
+  const insurance = base * (insuranceRate / 100)
+  const total = Math.round(base + margin + serviceFee + insurance)
+  return { base: Math.round(base), margin: Math.round(margin), serviceFee: Math.round(serviceFee), insurance: Math.round(insurance), total, marginRate, serviceFeeRate, insuranceRate }
 }
 
 // Clé pour le localStorage des brouillons
@@ -462,7 +495,7 @@ export default function AdminProductManager() {
     features: [],
     requiresQuote: false, // Par défaut: afficher un prix (non sur devis)
     stockStatus: 'preorder',
-    stockQuantity: 0,
+    stockQuantity: 100, // Quantité disponible par défaut
     leadTimeDays: 15,
     deliveryDays: 15,
     // Poids
@@ -522,12 +555,34 @@ export default function AdminProductManager() {
   >('none')
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
-  const [autoPrice, setAutoPrice] = useState(false)
+  const [autoPrice, setAutoPrice] = useState(true)
+  const [sourceRef, setSourceRef] = useState<SourcePricingRef>({
+    rates: { ...SOURCE_CURRENCY_RATES },
+    inlandTransportCny: CHINA_INLAND_TRANSPORT_CNY,
+    b2bDiscountPercent: 15,
+  })
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/settings', { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (cancelled || !data?.success) return
+        setSourceRef(prev => ({
+          rates: { ...prev.rates, ...(data.sourceCurrencyRates || {}) },
+          inlandTransportCny: typeof data.inlandTransportCny === 'number' ? data.inlandTransportCny : prev.inlandTransportCny,
+          b2bDiscountPercent: typeof data.defaults?.defaultB2BDiscountPercent === 'number' ? data.defaults.defaultB2BDiscountPercent : prev.b2bDiscountPercent,
+        }))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const [activeTab, setActiveTab] = useState<ProductTab>('info')
   const [uploadingMain, setUploadingMain] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
   const [uploadingDescImages, setUploadingDescImages] = useState(false)
   const [newGalleryInput, setNewGalleryInput] = useState('')
+  const [newDescInput, setNewDescInput] = useState('')
   const [newTagInput, setNewTagInput] = useState('')
   const [dragOverGallery, setDragOverGallery] = useState(false)
   const [dragOverDesc, setDragOverDesc] = useState(false)
@@ -749,6 +804,7 @@ export default function AdminProductManager() {
   const restoreDraft = () => {
     const draft = loadDraft()
     if (draft) {
+      setAutoPrice(autoPriceFor(draft))
       setEditing(draft)
       setHasDraft(false)
       setDraftRestored(true)
@@ -777,23 +833,15 @@ export default function AdminProductManager() {
 
   useEffect(() => {
     if (!autoPrice || !editing) return
-    if (typeof editing.baseCost !== 'number') return
-    const margin = typeof editing.marginRate === 'number' ? editing.marginRate : (empty.marginRate || 0)
-    const serviceFee = editing.serviceFeeRate || 10
-    const insurance = editing.insuranceRate || 2.5
-    const computed = Math.round(editing.baseCost * (1 + (margin + serviceFee + insurance) / 100))
-    if (editing.price === computed) return
+    const computed = priceBreakdown(editing)?.total
+    if (computed === undefined || editing.price === computed) return
     setEditing(prev => {
-      if (!prev || !autoPrice) return prev
-      if (typeof prev.baseCost !== 'number') return prev
-      const marginPrev = typeof prev.marginRate === 'number' ? prev.marginRate : (empty.marginRate || 0)
-      const serviceFeePrev = prev.serviceFeeRate || 10
-      const insurancePrev = prev.insuranceRate || 2.5
-      const recomputed = Math.round(prev.baseCost * (1 + (marginPrev + serviceFeePrev + insurancePrev) / 100))
-      if (prev.price === recomputed) return prev
+      if (!prev) return prev
+      const recomputed = priceBreakdown(prev)?.total
+      if (recomputed === undefined || prev.price === recomputed) return prev
       return { ...prev, price: recomputed }
     })
-  }, [autoPrice, editing?.baseCost, editing?.marginRate, editing?.serviceFeeRate, editing?.insuranceRate])
+  }, [autoPrice, editing?.baseCost, editing?.price1688, editing?.exchangeRate, editing?.marginRate, editing?.serviceFeeRate, editing?.insuranceRate])
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -911,6 +959,43 @@ export default function AdminProductManager() {
     await refresh()
   }
 
+  const openEditor = (product: Product) => {
+    setAutoPrice(autoPriceFor(product))
+    setActiveTab('info')
+    setEditing({
+      ...empty,
+      ...product,
+      gallery: product.gallery || [],
+      features: product.features || [],
+      colorOptions: product.colorOptions || [],
+      variantOptions: product.variantOptions || [],
+      shippingOverrides: ensureOverrides(product.shippingOverrides),
+      sourcing: product.sourcing || {}
+    })
+  }
+
+  // Copie complète côté serveur (non publiée), puis ouverture pour ajustement
+  const onDuplicate = async (product: Product) => {
+    if (!product._id || duplicatingId) return
+    setDuplicatingId(product._id)
+    try {
+      const res = await fetch('/api/admin/products/duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: product._id })
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.item) {
+        alert(data?.error || 'Duplication échouée')
+        return
+      }
+      await refresh()
+      openEditor({ ...data.item, _id: String(data.item._id) })
+    } finally {
+      setDuplicatingId(null)
+    }
+  }
+
   const selectedCount = selectedIds.size
 
   const toggleSelected = (id: string, checked: boolean) => {
@@ -1014,20 +1099,15 @@ export default function AdminProductManager() {
     return '-'
   }
 
-  const suggestedSalePrice = (product: Product): number | undefined => {
-    const base = typeof product.baseCost === 'number' ? product.baseCost : ((product.price1688 || 0) * (product.exchangeRate || 100))
-    if (base <= 0) return undefined
-    const margin = typeof product.marginRate === 'number' ? product.marginRate : (empty.marginRate || 0)
-    const serviceFee = base * ((product.serviceFeeRate || 10) / 100)
-    const insurance = base * ((product.insuranceRate || 2.5) / 100)
-    const marginAmount = base * (margin / 100)
-    return Math.round(base + serviceFee + insurance + marginAmount)
-  }
+  const suggestedSalePrice = (product: Product): number | undefined => priceBreakdown(product)?.total
 
   const suggestedPrice = editing ? suggestedSalePrice(editing) : undefined
 
+  /** Calcul auto activé à l'ouverture si le prix actuel est vide ou déjà celui de la formule (sinon prix saisi à la main conservé). */
+  const autoPriceFor = (product: Product) => !product.price || product.price === suggestedSalePrice(product)
+
   const handleImportedProduct = async (product: Product) => {
-    setAutoPrice(false)
+    setAutoPrice(true)
     setActiveTab('info')
     setEditing({
       ...empty,
@@ -1867,10 +1947,10 @@ export default function AdminProductManager() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-purple-700">
               <FileImage className="h-4 w-4" />
-              Images de description
-              <span className="text-xs font-normal normal-case text-gray-400">— grandes images de présentation</span>
+              Images et vidéos de description
+              <span className="text-xs font-normal normal-case text-gray-400">— grand format, section « Détails du produit »</span>
             </div>
-            <span className="text-xs text-gray-400">{(editing.descriptionImages || []).length} image(s)</span>
+            <span className="text-xs text-gray-400">{(editing.descriptionImages || []).length} média(s)</span>
           </div>
 
           <div
@@ -1883,15 +1963,39 @@ export default function AdminProductManager() {
           >
             <FileImage className="mx-auto h-8 w-8 text-gray-300" />
             <p className="mt-2 text-sm text-gray-500">
-              Glissez-déposez des images de description ici
+              Glissez-déposez des images ou des vidéos (MP4, WebM) ici
             </p>
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
                 <Upload className="h-4 w-4" />
                 <span>Parcourir</span>
-                <input type="file" className="hidden" multiple accept="image/*"
+                <input type="file" className="hidden" multiple accept="image/*,video/*"
                   onChange={e => handleDescImagesUpload(e.target.files)} disabled={uploadingDescImages} />
               </label>
+              <div className="flex items-center gap-2">
+                <input
+                  className="w-60 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Ou coller une URL (image, vidéo, YouTube)…"
+                  value={newDescInput}
+                  onChange={e => setNewDescInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newDescInput.trim()) {
+                      setEditing(prev => (prev ? { ...prev, descriptionImages: [...(prev.descriptionImages || []), newDescInput.trim()] } : prev))
+                      setNewDescInput('')
+                    }
+                  }}
+                />
+                <button type="button"
+                  className="rounded-lg bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
+                  aria-label="Ajouter l'URL aux médias de description"
+                  onClick={() => {
+                    if (!newDescInput.trim()) return
+                    setEditing(prev => (prev ? { ...prev, descriptionImages: [...(prev.descriptionImages || []), newDescInput.trim()] } : prev))
+                    setNewDescInput('')
+                  }}>
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             {uploadingDescImages && (
               <p className="mt-3 flex items-center justify-center gap-2 text-xs text-purple-600">
@@ -1914,59 +2018,204 @@ export default function AdminProductManager() {
   const renderPricingTab = () => {
     if (!editing) return null
     const shippingOverrides = ensureOverrides(editing.shippingOverrides)
+    const sourcing = editing.sourcing || {}
+    const platformRate = sourceRef.rates.CNY || DEFAULT_EXCHANGE_RATE
+    const saleCurrency = (sourcing.sourceCurrency || 'CNY').toUpperCase()
+    const transportCny = typeof sourcing.inlandTransportCny === 'number' ? sourcing.inlandTransportCny : sourceRef.inlandTransportCny
+    const saleCny = sourceToCny(sourcing.sourcePrice, saleCurrency, sourceRef.rates)
+    const computedSourceCny = saleCny !== undefined ? round2(saleCny + transportCny) : undefined
+    const sourceAdjusted = computedSourceCny !== undefined && !!editing.price1688 && Math.abs(editing.price1688 - computedSourceCny) > 0.01
+    const breakdown = priceBreakdown(editing)
+    const b2bSuggested = editing.price ? Math.round(editing.price * (1 - sourceRef.b2bDiscountPercent / 100)) : undefined
+    const displayedPrice = editing.price || editing.b2bPrice || breakdown?.total
+    const priceGap = breakdown && editing.price ? editing.price - breakdown.total : 0
+    const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm'
+    const fcfa = (n: number) => formatCurrency(n, 'FCFA')
+
+    // Prix de vente relevé (toute devise) → yuans + transport Chine → prix source → coût FCFA
+    const updateSourceSale = (patch: Partial<NonNullable<Product['sourcing']>>) => {
+      setEditing(prev => {
+        if (!prev) return prev
+        const nextSourcing = { ...(prev.sourcing || {}), ...patch }
+        const currency = (nextSourcing.sourceCurrency || 'CNY').toUpperCase()
+        const transport = typeof nextSourcing.inlandTransportCny === 'number' ? nextSourcing.inlandTransportCny : sourceRef.inlandTransportCny
+        const cny = sourceToCny(nextSourcing.sourcePrice, currency, sourceRef.rates)
+        if (cny === undefined) return { ...prev, sourcing: nextSourcing }
+        const price1688 = round2(cny + transport)
+        const rate = prev.exchangeRate || platformRate
+        return { ...prev, sourcing: nextSourcing, price1688, price1688Currency: 'CNY', exchangeRate: rate, baseCost: Math.round(price1688 * rate) }
+      })
+    }
+    const updateSourceCny = (price1688?: number) => setEditing(prev => {
+      if (!prev) return prev
+      const rate = prev.exchangeRate || platformRate
+      return { ...prev, price1688, price1688Currency: 'CNY', exchangeRate: rate, baseCost: price1688 ? Math.round(price1688 * rate) : prev.baseCost }
+    })
+    const updateExchangeRate = (rate?: number) => setEditing(prev => {
+      if (!prev) return prev
+      return { ...prev, exchangeRate: rate, baseCost: prev.price1688 && rate ? Math.round(prev.price1688 * rate) : prev.baseCost }
+    })
+
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
-            <Package className="h-4 w-4" />
-            Tarification & marges
+        {/* 1. Prix source : prix de vente relevé → yuans → coût FCFA */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
+              <DollarSign className="h-4 w-4" />
+              Prix source (achat Chine)
+            </div>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-gray-500">Confidentiel — non visible par le client</span>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
+
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 sm:grid-cols-3">
             <label className="space-y-1">
-              <span>Prix public (FCFA)</span>
+              <span>Prix de vente relevé</span>
               <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={editing.price}
-                onChange={v => {
-                  setAutoPrice(false)
-                  setEditing({ ...editing, price: v })
-                }}
+                className={inputClass}
+                step="0.01"
+                min="0"
+                placeholder="ex. 12,50"
+                value={sourcing.sourcePrice}
+                onChange={v => updateSourceSale({ sourcePrice: v })}
               />
+              <p className="text-xs text-gray-500">Prix affiché sur 1688 / AliExpress / Alibaba</p>
             </label>
             <label className="space-y-1">
-              <span>Prix corporate (FCFA)</span>
+              <span>Devise du prix relevé</span>
+              <select
+                className={inputClass}
+                value={saleCurrency}
+                onChange={e => updateSourceSale({ sourceCurrency: e.target.value })}
+              >
+                {SOURCE_CURRENCIES.map(code => (
+                  <option key={code} value={code}>{CURRENCY_LABELS[code] || code}</option>
+                ))}
+              </select>
+              {saleCurrency !== 'CNY' && sourceRef.rates[saleCurrency] > 0 && (
+                <p className="text-xs text-gray-500">1 {saleCurrency} = {round2(sourceRef.rates[saleCurrency] / platformRate)} ¥</p>
+              )}
+            </label>
+            <label className="space-y-1">
+              <span>Transport Chine (¥)</span>
               <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={editing.b2bPrice}
-                onChange={v => setEditing({ ...editing, b2bPrice: v })}
+                className={inputClass}
+                step="0.5"
+                min="0"
+                placeholder={String(sourceRef.inlandTransportCny)}
+                value={sourcing.inlandTransportCny}
+                onChange={v => updateSourceSale({ inlandTransportCny: v })}
               />
+              <p className="text-xs text-gray-500">Fournisseur → entrepôt, {sourceRef.inlandTransportCny} ¥ par défaut</p>
+            </label>
+          </div>
+
+          {computedSourceCny !== undefined && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs text-gray-700">
+              <span className="font-medium">{sourcing.sourcePrice} {saleCurrency}</span>
+              {saleCurrency !== 'CNY' && <span>→ {saleCny} ¥</span>}
+              <span>+ {transportCny} ¥ transport</span>
+              <span className="font-semibold text-blue-700">= {computedSourceCny} ¥</span>
+              {sourceAdjusted && (
+                <button
+                  type="button"
+                  className="ml-auto rounded border border-blue-200 px-2 py-0.5 font-medium text-blue-700 hover:bg-blue-50"
+                  onClick={() => updateSourceCny(computedSourceCny)}
+                >
+                  Prix source ajusté à la main — recalculer
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 sm:grid-cols-3">
+            <label className="space-y-1">
+              <span>Prix source (¥ Yuan)</span>
+              <NumInput
+                className={`${inputClass} font-semibold`}
+                step="0.01"
+                min="0"
+                value={editing.price1688}
+                onChange={updateSourceCny}
+              />
+              <p className="text-xs text-gray-500">Prix d&apos;achat transport Chine inclus</p>
+            </label>
+            <label className="space-y-1">
+              <span>Taux (1 ¥ = X FCFA)</span>
+              <NumInput
+                className={inputClass}
+                step="0.1"
+                min="0"
+                placeholder={String(platformRate)}
+                value={editing.exchangeRate}
+                onChange={updateExchangeRate}
+              />
+              {editing.exchangeRate !== platformRate ? (
+                <button type="button" className="text-xs font-medium text-blue-700 hover:underline" onClick={() => updateExchangeRate(platformRate)}>
+                  Utiliser le taux plateforme ({platformRate})
+                </button>
+              ) : (
+                <p className="text-xs text-gray-500">Taux plateforme</p>
+              )}
             </label>
             <label className="space-y-1">
               <span>Coût fournisseur (FCFA)</span>
               <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className={inputClass}
+                min="0"
                 value={editing.baseCost}
                 onChange={v => setEditing({ ...editing, baseCost: v })}
               />
+              <p className="text-xs text-gray-500">
+                {editing.price1688 ? `= ${editing.price1688} ¥ × ${editing.exchangeRate || platformRate}` : 'Saisie directe (produit local)'}
+              </p>
             </label>
+          </div>
+        </div>
+
+        {/* 2. Tarification : marge + frais → prix public */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+            <Package className="h-4 w-4" />
+            Tarification & marges
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 sm:grid-cols-3">
             <label className="space-y-1">
               <span>Marge cible (%)</span>
               <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className={inputClass}
+                step="0.5"
+                min="0"
                 value={editing.marginRate}
                 onChange={v => setEditing({ ...editing, marginRate: v })}
               />
             </label>
             <label className="space-y-1">
-              <span>Devise</span>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={editing.currency || 'FCFA'}
-                onChange={e => setEditing({ ...editing, currency: e.target.value })}
+              <span>Frais de service (%)</span>
+              <select
+                className={inputClass}
+                value={editing.serviceFeeRate ?? 10}
+                onChange={e => setEditing({ ...editing, serviceFeeRate: Number(e.target.value) })}
+              >
+                {[...new Set([0, 5, 10, 15, editing.serviceFeeRate ?? 10])].sort((a, b) => a - b).map(rate => (
+                  <option key={rate} value={rate}>{rate}%</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span>Assurance (%)</span>
+              <NumInput
+                className={inputClass}
+                step="0.1"
+                min="0"
+                placeholder="2.5"
+                value={editing.insuranceRate}
+                onChange={v => setEditing({ ...editing, insuranceRate: v })}
               />
             </label>
           </div>
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
             <div className="flex items-start gap-3">
               <input
                 id="autoPrice"
@@ -1985,210 +2234,133 @@ export default function AdminProductManager() {
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
               <div className="flex-1">
-                <label htmlFor="autoPrice" className="block text-sm font-medium text-gray-900 cursor-pointer">
+                <label htmlFor="autoPrice" className="block cursor-pointer text-sm font-medium text-gray-900">
                   Calcul automatique du prix public
                 </label>
                 <p className="text-xs text-gray-500">
-                  Le prix public se met à jour automatiquement à partir du coût fournisseur, de la marge, des frais de service et de l&apos;assurance.
+                  Prix public = coût fournisseur + marge + frais de service + assurance (transport ajouté au checkout).
                 </p>
-                {autoPrice && typeof suggestedPrice === 'number' && (
-                  <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700">
-                    <Calculator className="h-4 w-4" />
-                    Prix calculé : {formatCurrency(suggestedPrice, editing.currency)}
-                  </div>
-                )}
-                {autoPrice && suggestedPrice === undefined && (
+                {autoPrice && breakdown === undefined && (
                   <div className="mt-2 text-xs text-amber-600">
-                    Renseignez un coût fournisseur ou un prix source pour activer le calcul.
+                    Renseignez un prix source ou un coût fournisseur pour activer le calcul.
                   </div>
                 )}
               </div>
             </div>
           </div>
-          {/* Indicateur de validation du prix */}
-          {!editing.requiresQuote && !editing.price && !editing.b2bPrice && !editing.baseCost && !editing.price1688 && (
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 sm:grid-cols-3">
+            <label className="space-y-1">
+              <span>Prix public (FCFA)</span>
+              <NumInput
+                className={`${inputClass} font-semibold ${autoPrice ? 'bg-emerald-50' : ''}`}
+                value={editing.price}
+                onChange={v => {
+                  setAutoPrice(false)
+                  setEditing({ ...editing, price: v })
+                }}
+              />
+              <p className="text-xs text-gray-500">{autoPrice ? 'Calculé — modifier le désactive' : 'Saisi manuellement'}</p>
+            </label>
+            <label className="space-y-1">
+              <span>Prix corporate (FCFA)</span>
+              <NumInput
+                className={inputClass}
+                value={editing.b2bPrice}
+                onChange={v => setEditing({ ...editing, b2bPrice: v })}
+              />
+              {b2bSuggested !== undefined && editing.b2bPrice !== b2bSuggested && (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-emerald-700 hover:underline"
+                  onClick={() => setEditing({ ...editing, b2bPrice: b2bSuggested })}
+                >
+                  Appliquer −{sourceRef.b2bDiscountPercent}% : {fcfa(b2bSuggested)}
+                </button>
+              )}
+            </label>
+            <label className="space-y-1">
+              <span>Devise d&apos;affichage</span>
+              <select
+                className={inputClass}
+                value={editing.currency || 'FCFA'}
+                onChange={e => setEditing({ ...editing, currency: e.target.value })}
+              >
+                {['FCFA', 'EUR', 'USD', 'CNY'].map(code => <option key={code} value={code}>{code}</option>)}
+              </select>
+            </label>
+          </div>
+
+          {breakdown && (
+            <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4">
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Calculator className="h-4 w-4 text-emerald-600" />
+                Décomposition du prix public
+              </h4>
+              <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-5">
+                <div className="rounded-lg bg-white p-2.5">
+                  <span className="block text-gray-500">Coût produit</span>
+                  <span className="font-bold text-gray-800">{fcfa(breakdown.base)}</span>
+                </div>
+                <div className="rounded-lg bg-white p-2.5">
+                  <span className="block text-gray-500">Marge ({breakdown.marginRate}%)</span>
+                  <span className="font-bold text-emerald-700">+{fcfa(breakdown.margin)}</span>
+                </div>
+                <div className="rounded-lg bg-white p-2.5">
+                  <span className="block text-gray-500">Service ({breakdown.serviceFeeRate}%)</span>
+                  <span className="font-bold text-orange-600">+{fcfa(breakdown.serviceFee)}</span>
+                </div>
+                <div className="rounded-lg bg-white p-2.5">
+                  <span className="block text-gray-500">Assurance ({breakdown.insuranceRate}%)</span>
+                  <span className="font-bold text-purple-600">+{fcfa(breakdown.insurance)}</span>
+                </div>
+                <div className="col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 sm:col-span-1">
+                  <span className="block font-medium text-emerald-700">Prix public calculé</span>
+                  <span className="text-sm font-bold text-emerald-800">{fcfa(breakdown.total)}</span>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                <span>Gain estimé (marge + service) : <strong>{fcfa(breakdown.margin + breakdown.serviceFee)}</strong></span>
+                <span>Coefficient : <strong>×{(breakdown.total / breakdown.base).toFixed(2)}</strong></span>
+                <span className="italic text-gray-500">+ transport selon le mode choisi au checkout</span>
+              </div>
+              {!autoPrice && Math.abs(priceGap) >= 1 && (
+                <div className="mt-2 text-xs text-amber-700">
+                  Prix public saisi {priceGap > 0 ? 'au-dessus' : 'en dessous'} du calcul de {fcfa(Math.abs(priceGap))}.
+                </div>
+              )}
+            </div>
+          )}
+
+          {!editing.requiresQuote && !displayedPrice && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <svg className="h-5 w-5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
                 <div className="font-medium">Prix requis</div>
-                <div className="text-xs">Renseignez un prix (prix public, prix corporate, coût de base ou prix source) ou cochez "Sur devis" ci-dessous.</div>
+                <div className="text-xs">Renseignez un prix source, un coût fournisseur ou un prix public, ou cochez « Sur devis » ci-dessous.</div>
               </div>
             </div>
           )}
-          
-          {/* Indicateur de prix valide */}
-          {!editing.requiresQuote && (editing.price || editing.b2bPrice || editing.baseCost || editing.price1688) && (
-            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-center gap-2">
-              <svg className="h-5 w-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>
-                <strong>Prix affiché:</strong> {
-                  editing.price 
-                    ? formatCurrency(editing.price, editing.currency)
-                    : editing.b2bPrice
-                      ? formatCurrency(editing.b2bPrice, editing.currency)
-                      : editing.baseCost || editing.price1688
-                        ? (() => {
-                            const base = editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))
-                            const total = Math.round(base * (1 + ((editing.marginRate || 0) + (editing.serviceFeeRate || 10) + (editing.insuranceRate || 2.5)) / 100))
-                            return formatCurrency(total, editing.currency)
-                          })()
-                        : 'Sera calculé automatiquement'
-                }
-              </span>
-            </div>
-          )}
-          
+
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={!!editing.requiresQuote} 
-                onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })} 
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={!!editing.requiresQuote}
+                onChange={e => setEditing({ ...editing, requiresQuote: e.target.checked })}
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
               />
               <div>
                 <span className="font-medium text-gray-900">Sur devis uniquement</span>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  À utiliser uniquement pour les produits spéciaux nécessitant une étude personnalisée (installations complexes, projets sur mesure).
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Réservé aux produits nécessitant une étude personnalisée (installations complexes, projets sur mesure).
                   La plupart des produits doivent avoir un prix affiché.
                 </p>
               </div>
             </label>
           </div>
-        </div>
-
-        {/* Section Prix Source */}
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-700">
-            <DollarSign className="h-4 w-4" />
-            Prix Source (Import)
-          </div>
-          <p className="text-xs text-gray-600 mt-1">Informations confidentielles - non visibles par le client</p>
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
-            <label className="space-y-1">
-              <span>Prix source (¥ Yuan)</span>
-              <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                step="0.01"
-                value={editing.price1688}
-                onChange={v => {
-                  const value = v
-                  setEditing({ ...editing, price1688: value })
-                  // Calcul automatique du baseCost si exchangeRate est défini
-                  if (value && editing.exchangeRate) {
-                    const calculatedBaseCost = value * editing.exchangeRate
-                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
-                  }
-                }}
-              />
-              <p className="text-xs text-gray-500">Prix d'achat fournisseur en Yuan</p>
-            </label>
-            <label className="space-y-1">
-              <span>Taux de change (1 ¥ = X FCFA)</span>
-              <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                placeholder="100"
-                value={editing.exchangeRate}
-                onChange={v => {
-                  const value = v
-                  setEditing({ ...editing, exchangeRate: value })
-                  // Recalculer baseCost si prix source existe
-                  if (editing.price1688 && value) {
-                    const calculatedBaseCost = editing.price1688 * value
-                    setEditing(prev => ({ ...prev, baseCost: calculatedBaseCost }))
-                  }
-                }}
-              />
-              <p className="text-xs text-gray-500">Par défaut: 1 ¥ = 100 FCFA</p>
-            </label>
-            <label className="space-y-1">
-              <span>Frais de service (%)</span>
-              <select
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={editing.serviceFeeRate ?? 10}
-                onChange={e => setEditing({ ...editing, serviceFeeRate: Number(e.target.value) })}
-              >
-                <option value={5}>5%</option>
-                <option value={10}>10%</option>
-                <option value={15}>15%</option>
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span>Frais d'assurance (%)</span>
-              <NumInput
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                step="0.1"
-                min="0"
-                placeholder="2.5"
-                value={editing.insuranceRate}
-                onChange={v => setEditing({ ...editing, insuranceRate: v })}
-              />
-              <p className="text-xs text-gray-500">Par défaut: 2.5% (obligatoire)</p>
-            </label>
-          </div>
-          {/* Récapitulatif prix automatique */}
-          {(editing.price1688 || editing.baseCost) && (
-            <div className="mt-4 rounded-lg bg-white border border-blue-100 p-4">
-              <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-blue-600" />
-                Récapitulatif prix automatique
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Coût produit</span>
-                  <span className="font-bold text-gray-800">
-                    {formatCurrency(
-                      editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                  {editing.price1688 && (
-                    <span className="text-gray-400 block text-[10px]">
-                      ({editing.price1688} ¥ × {editing.exchangeRate || 100})
-                    </span>
-                  )}
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Frais service ({editing.serviceFeeRate || 10}%)</span>
-                  <span className="font-bold text-orange-600">
-                    +{formatCurrency(
-                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.serviceFeeRate || 10) / 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <span className="text-gray-500 block">Assurance ({editing.insuranceRate || 2.5}%)</span>
-                  <span className="font-bold text-purple-600">
-                    +{formatCurrency(
-                      Math.round((editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * ((editing.insuranceRate || 2.5) / 100)),
-                      'FCFA'
-                    )}
-                  </span>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
-                  <span className="text-emerald-600 block font-medium">Sous-total client</span>
-                  <span className="font-bold text-emerald-700 text-sm">
-                    {formatCurrency(
-                      Math.round(
-                        (editing.baseCost || ((editing.price1688 || 0) * (editing.exchangeRate || 100))) * 
-                        (1 + ((editing.serviceFeeRate || 10) / 100) + ((editing.insuranceRate || 2.5) / 100))
-                      ),
-                      'FCFA'
-                    )}
-                  </span>
-                  <span className="text-emerald-500 block text-[10px]">+ transport selon mode choisi</span>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-gray-500 italic">
-                * Le prix final client inclut ce sous-total + les frais de transport selon le mode de livraison choisi.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Simulateur de pricing */}
@@ -2305,7 +2477,7 @@ export default function AdminProductManager() {
       return m?.[1] || undefined
     })()
 
-    setAutoPrice(false)
+    setAutoPrice(true)
     setActiveTab('info')
     setEditing({
       ...empty,
@@ -2316,7 +2488,7 @@ export default function AdminProductManager() {
       stockStatus: 'preorder',
       currency: 'FCFA',
       price1688Currency: 'CNY',
-      exchangeRate: 100,
+      exchangeRate: sourceRef.rates.CNY || 100,
       sourcing: {
         platform: '1688',
         productUrl: url || undefined,
@@ -2961,7 +3133,7 @@ export default function AdminProductManager() {
             {seedingCategories ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Réinitialiser catégories
           </button>
-          <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
+          <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty, exchangeRate: sourceRef.rates.CNY || empty.exchangeRate }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
             <Plus className="h-4 w-4" /> Nouveau produit
           </button>
         </div>
@@ -3259,26 +3431,23 @@ export default function AdminProductManager() {
                     {product.weightKg && <div className="text-xs text-gray-400 mt-1">{product.weightKg} kg</div>}
                   </td>
                   <td className="p-3 text-right">
-                    <button
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border mr-2"
-                      onClick={() => {
-                        setAutoPrice(false)
-                        setActiveTab('info')
-                        setEditing({
-                          ...empty,
-                          ...product,
-                          gallery: product.gallery || [],
-                          features: product.features || [],
-                          colorOptions: product.colorOptions || [],
-                          variantOptions: product.variantOptions || [],
-                          shippingOverrides: ensureOverrides(product.shippingOverrides),
-                          sourcing: product.sourcing || {}
-                        })
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" /> Éditer
-                    </button>
-                    <button className="inline-flex items-center gap-1 px-2 py-1 rounded border text-red-600" onClick={() => onDelete(product._id)}><Trash2 className="h-4 w-4" /> Supprimer</button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded border"
+                        onClick={() => openEditor(product)}
+                      >
+                        <Pencil className="h-4 w-4" /> Éditer
+                      </button>
+                      <button
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded border text-blue-700 disabled:opacity-50"
+                        disabled={!!duplicatingId}
+                        onClick={() => onDuplicate(product)}
+                        title="Créer une copie non publiée de ce produit"
+                      >
+                        {duplicatingId === product._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />} Dupliquer
+                      </button>
+                      <button className="inline-flex items-center gap-1 px-2 py-1 rounded border text-red-600" onClick={() => onDelete(product._id)}><Trash2 className="h-4 w-4" /> Supprimer</button>
+                    </div>
                   </td>
                 </tr>
               ))

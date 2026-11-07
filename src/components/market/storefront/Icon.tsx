@@ -29,6 +29,7 @@ import {
   Moon,
   Package,
   Plane,
+  Play,
   Plus,
   Search,
   Send,
@@ -55,6 +56,7 @@ import { cn } from '@/lib/utils';
 
 const ICONS = {
   home: Home,
+  play: Play,
   grid: LayoutGrid,
   users: Users,
   cart: ShoppingCart,

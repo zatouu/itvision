@@ -4,9 +4,10 @@ import Product from '@/lib/models/Product'
 import { requireAuth } from '@/lib/jwt'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { qwenChat, qwenVision } from '@/lib/ai/qwen'
-import { canonicalSource, estimateWeightKg, findImportedProduct, importPricing } from '@/lib/market/catalog-import'
+import { canonicalSource, CHINA_INLAND_TRANSPORT_CNY, estimateWeightKg, findImportedProduct, importPricing, importSourcePrice, toCny } from '@/lib/market/catalog-import'
 import { localizeProductImages } from '@/lib/agents/sourcing/localize-images'
 import { readSharedPricing } from '@/lib/pricing/shared-settings'
+import { isVideoFileUrl } from '@/lib/media'
 
 /**
  * POST /api/admin/products/smart-import
@@ -19,7 +20,9 @@ import { readSharedPricing } from '@/lib/pricing/shared-settings'
  *     name: string
  *     description?: string         // Description brute a reformater
  *     images?: string[]            // URLs images brutes (sera filtre)
- *     price1688?: number           // Prix fournisseur en Yuan
+ *     price1688?: number           // Prix de vente relevé sur la plateforme (devise price1688Currency)
+ *     price1688Currency?: string   // CNY (défaut), USD, EUR, XOF… — converti en ¥ puis + transport Chine (15 ¥)
+ *     promoPrice1688?: number      // Prix promo visible : le plus bas des deux est retenu
  *     category?: string
  *     features?: string[]
  *     variants?: Array<{ name: string; image?: string; price1688?: number }>
@@ -424,11 +427,29 @@ export async function POST(req: NextRequest) {
 
         const rawSourceUrl = typeof raw.sourceUrl === 'string' ? raw.sourceUrl : undefined
         const source = canonicalSource(rawSourceUrl, typeof raw.sourcePlatform === 'string' ? raw.sourcePlatform : undefined)
-        const sourcePrice = toPositiveNumber(raw.price1688) || 0
-        const sourceCurrency = typeof raw.price1688Currency === 'string' ? raw.price1688Currency
-          : source.platform === 'aliexpress' && !raw.price1688 ? 'USD' : 'CNY'
+        // Prix de vente relevé (CNY, USD, EUR, FCFA…) → yuans + transport intérieur Chine.
+        // Ancien format AliExpress : seul `price` (déjà en FCFA) était envoyé.
+        const legacyFcfa = !toPositiveNumber(raw.price1688) && source.platform === 'aliexpress' ? toPositiveNumber(raw.price) : undefined
+        const rawSourceCurrency = legacyFcfa ? 'XOF'
+          : typeof raw.price1688Currency === 'string' ? raw.price1688Currency
+          : source.platform === 'alibaba' ? 'USD' : 'CNY'
+        const sourceSale = importSourcePrice({
+          salePrice: legacyFcfa ?? toPositiveNumber(raw.price1688),
+          promoPrice: legacyFcfa ? undefined : toPositiveNumber(raw.promoPrice1688),
+          currency: rawSourceCurrency,
+        }, pricingSettings.config)
+        const sourcePrice = sourceSale?.price1688 || 0
+        const variantPriceCny = (value?: number) => {
+          const cny = value ? toCny(value, rawSourceCurrency, pricingSettings.config.sourceCurrencyRates) : undefined
+          return cny ? Math.round((cny + (sourceSale?.transportCny ?? CHINA_INLAND_TRANSPORT_CNY)) * 100) / 100 : undefined
+        }
+        const sourceTrace = sourceSale ? {
+          'sourcing.sourcePrice': sourceSale.salePrice,
+          'sourcing.sourceCurrency': sourceSale.saleCurrency,
+          'sourcing.inlandTransportCny': sourceSale.transportCny,
+        } : {}
         const priced = sourcePrice > 0
-          ? importPricing({ sourcePrice, currency: sourceCurrency, platform: source.platform, marginRate, serviceFeeRate }, pricingSettings.config)
+          ? importPricing({ sourcePrice, currency: 'CNY', platform: source.platform, marginRate, serviceFeeRate }, pricingSettings.config)
           : null
 
         // Offre déjà au catalogue : on rafraîchit son prix, sans toucher au contenu relu par l'équipe
@@ -443,17 +464,44 @@ export async function POST(req: NextRequest) {
                 price: priced.price,
                 b2bPrice: Math.round(priced.price * (1 - b2bDiscountPercent / 100)),
                 lastPriceCheckAt: new Date(),
+                ...sourceTrace,
                 ...(source.externalId ? { 'sourcing.externalId': source.externalId } : {}),
               },
               $push: { priceHistory: { $each: [{ date: new Date(), price1688: sourcePrice, exchangeRate: priced.exchangeRate, source: 'import' }], $slice: -50 } },
             })
+          }
+          // Compléter ce qui manque encore (dimensions, poids réel, médias, quantité) sans écraser le contenu relu
+          const current = await Product.findById(existing._id)
+            .select('lengthCm widthCm heightCm weightEstimated gallery descriptionImages stockQuantity')
+            .lean() as any
+          if (current) {
+            const fill: Record<string, unknown> = {}
+            const [l, w, h] = [raw.lengthCm, raw.widthCm, raw.heightCm].map(toPositiveNumber)
+            if (l && w && h && !(current.lengthCm && current.widthCm && current.heightCm)) {
+              Object.assign(fill, { lengthCm: l, widthCm: w, heightCm: h, volumeM3: Math.round((l * w * h) / 1_000) / 1_000 })
+            }
+            const realWeight = toPositiveNumber(raw.weightKg)
+            if (realWeight && current.weightEstimated) Object.assign(fill, { weightKg: realWeight, weightEstimated: false })
+            const toUrls = (value: unknown) => Array.isArray(value) ? value.filter((u): u is string => typeof u === 'string' && u.trim().length > 0) : []
+            if (!(current.descriptionImages || []).length) {
+              const desc = filterProductImages([...toUrls(raw.descriptionImages), ...toUrls(raw.imageCategories?.description)]).slice(0, 30)
+              if (desc.length) fill.descriptionImages = desc
+            }
+            const gallery: string[] = Array.isArray(current.gallery) ? current.gallery : []
+            const newVideos = [...new Set(toUrls(raw.videos).map(v => v.trim().replace(/^\/\//, 'https://')).filter(isVideoFileUrl))].slice(0, 2)
+            if (newVideos.length && !gallery.some(isVideoFileUrl)) fill.gallery = [...gallery.slice(0, 1), ...newVideos, ...gallery.slice(1)]
+            if (!current.stockQuantity) fill.stockQuantity = 100
+            if (Object.keys(fill).length) await Product.updateOne({ _id: existing._id }, { $set: fill })
           }
           results.push({ index: i, name: raw.name, success: true, updated: true, productId: String(existing._id) })
           continue
         }
 
         // 1. Images, classées comme sur la page source : galerie ≠ variantes ≠ description
-        const variantGroups = normalizeVariantGroups(raw.variantGroups, raw.variants)
+        const variantGroups = normalizeVariantGroups(raw.variantGroups, raw.variants).map(group => ({
+          ...group,
+          variants: group.variants.map(v => ({ ...v, price1688: variantPriceCny(v.price1688) })),
+        }))
         const variantImages = variantGroups.flatMap(group => group.variants.map(v => v.image).filter(Boolean)) as string[]
         const asList = (value: unknown): string[] =>
           Array.isArray(value) ? value.filter((img): img is string => typeof img === 'string' && img.trim().length > 0) : []
@@ -479,6 +527,9 @@ export async function POST(req: NextRequest) {
         // Limiter a 10 images max ; rapatriées chez nous (les CDN chinois bloquent le hotlink)
         const localized = await localizeProductImages({ gallery: visionFilteredImages.slice(0, 10) })
         const finalImages = localized.gallery
+        // Vidéos du fournisseur : lues depuis leur CDN (trop lourdes à rapatrier), placées après la photo de couverture
+        const videos = [...new Set(asList(raw.videos).map(v => v.trim().replace(/^\/\//, 'https://')).filter(isVideoFileUrl))].slice(0, 2)
+        const finalGallery = finalImages.length > 0 ? [finalImages[0], ...videos, ...finalImages.slice(1)] : finalImages
         const finalSet = new Set(visionFilteredImages)
         const cleanDescriptionImages = descriptionCandidates.filter(url => !finalSet.has(url)).slice(0, 30)
 
@@ -541,7 +592,7 @@ export async function POST(req: NextRequest) {
           category: category || 'Catalogue import Chine',
           tags: tags || ['import-chine'],
           image: finalImages[0] || '/placeholder.svg',
-          gallery: finalImages,
+          gallery: finalGallery,
           descriptionImages: cleanDescriptionImages,
           price,
           b2bPrice,
@@ -554,6 +605,8 @@ export async function POST(req: NextRequest) {
           currency: 'FCFA',
           condition: 'new',
           stockStatus: 'preorder',
+          // Quantité disponible par défaut d'un produit importé (sur commande)
+          stockQuantity: 100,
           requiresQuote,
           isPublished: autoPublish,
           weightKg,
@@ -568,6 +621,11 @@ export async function POST(req: NextRequest) {
             productUrl: source.url || rawSourceUrl,
             externalId: source.externalId,
             supplierName: raw.supplierName || undefined,
+            ...(sourceSale ? {
+              sourcePrice: sourceSale.salePrice,
+              sourceCurrency: sourceSale.saleCurrency,
+              inlandTransportCny: sourceSale.transportCny,
+            } : {}),
           },
           ...(sourcePrice > 0 ? {
             priceHistory: [{ date: new Date(), price1688: sourcePrice, exchangeRate: priced?.exchangeRate, source: 'import' }],

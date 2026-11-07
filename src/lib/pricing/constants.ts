@@ -3,6 +3,9 @@ export const DEFAULT_EXCHANGE_RATE = 100 // 1 ¥ = 100 FCFA
 export const DEFAULT_SERVICE_FEE_RATE = 10 // 10% de frais de service par défaut
 export const DEFAULT_INSURANCE_RATE = 2.5 // 2.5% d'assurance par défaut
 
+/** Transport intérieur Chine (fournisseur → entrepôt) ajouté au prix de vente relevé, en yuans. */
+export const CHINA_INLAND_TRANSPORT_CNY = Number(process.env.CHINA_INLAND_TRANSPORT_CNY || 15)
+
 /**
  * Devises sources supportées : CNY (1688), USD/EUR (AliExpress/Alibaba
  * internationaux), MAD/XOF/XAF/GBP/AED/SAR (devises localisées que ces

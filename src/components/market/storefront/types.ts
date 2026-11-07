@@ -86,6 +86,14 @@ export interface ProductShipping {
   modes: ShippingMode[];
 }
 
+export interface ProductLogistics {
+  weightKg?: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  volumeM3?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -108,7 +116,10 @@ export interface Product {
   variants: ProductVariant[];
   variantGroups?: ProductVariantGroup[];
   specs: [string, string][];
+  /** Images ET vidéos de description (grand format, section « Détails du produit ») */
   descriptionImages?: string[];
+  /** Colis : poids, dimensions et volume renseignés sur la fiche */
+  logistics?: ProductLogistics;
   shipping: ProductShipping;
   // Catalog / card shortcuts
   cat?: string;

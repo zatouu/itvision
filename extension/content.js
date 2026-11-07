@@ -225,6 +225,8 @@
   // dans des scripts JSON : plus fiable que le DOM, qui ne montre que ce qui est chargé à l'écran.
 
   const IMAGE_VALUE_RE = /^(?:https?:)?\/\/[^\s"'<>]+\.(?:jpe?g|png|webp)(?:[_.?#][^\s"'<>]*)?$/i;
+  // Vidéos produit : fichiers vidéo ou lecteurs des plateformes (cloud.video.taobao.com/play/…)
+  const VIDEO_VALUE_RE = /^(?:https?:)?\/\/(?:[^\s"'<>]+\.(?:mp4|webm|m3u8|mov)(?:[?#][^\s"'<>]*)?|(?:cloud\.video\.taobao\.com|video\.aliexpress-media\.com|cloud\.video\.alibaba\.com)\/play\/[^\s"'<>]+)$/i;
   // Zones de la page qui ne décrivent pas ce produit (recommandations, boutique, avis, pubs…)
   const FOREIGN_PATH_RE = /recommend|similar|related|crosssell|cross_sell|moreitem|otheritem|bestsell|youmaylike|guess|store|shop(?!ping)|seller|company|supplier|logo|avatar|banner|coupon|promo|review|feedback|evaluation|comment|buyer|footer|header|navigation|\bads?\b|advert|marketing|campaign|activity/;
   const DESCRIPTION_PATH_RE = /desc|detailcontent|detailhtml|detailimage|richtext|introduction|productdetail/;
@@ -261,7 +263,7 @@
       const childStart = m.index + m[0].length - 1;
       const childEnd = findBalancedEnd(chunk, childStart);
       if (childEnd <= childStart) break;
-      if (childEnd - childStart > 200) parseJsonLiteral(chunk, childStart, childEnd, roots, depth + 1);
+      if (childEnd - childStart > 30) parseJsonLiteral(chunk, childStart, childEnd, roots, depth + 1);
       re.lastIndex = childEnd;
     }
   };
@@ -271,8 +273,8 @@
     const roots = [];
     document.querySelectorAll('script:not([src])').forEach(script => {
       const text = script.textContent || '';
-      if (text.length < 100 || text.length > 8_000_000) return;
-      if (!/\.(?:jpe?g|png|webp)/i.test(text)) return;
+      if (text.length < 40 || text.length > 8_000_000) return;
+      if (!/\.(?:jpe?g|png|webp|mp4)|"width"/i.test(text)) return;
       if ((script.getAttribute('type') || '').toLowerCase().includes('json')) {
         try { roots.push(JSON.parse(text)); return; } catch {}
       }
@@ -282,7 +284,7 @@
         const start = m.index + m[0].length - 1;
         const end = findBalancedEnd(text, start);
         if (end <= start) continue;
-        if (end - start > 200 && /\.(?:jpe?g|png|webp)/i.test(text.slice(start, end))) parseJsonLiteral(text, start, end, roots);
+        if (end - start > 30 && /\.(?:jpe?g|png|webp|mp4)/i.test(text.slice(start, end))) parseJsonLiteral(text, start, end, roots);
         re.lastIndex = end;
       }
     });
@@ -293,13 +295,18 @@
 
   /** Images de la page classées d'après le chemin des clés JSON qui les contiennent */
   const harvestPageImages = () => {
-    const out = { gallery: [], description: [], variant: [], variantByName: {} };
+    const out = { gallery: [], description: [], variant: [], variantByName: {}, videos: [] };
     const add = (list, url) => { if (url && !list.includes(url)) list.push(url); };
     let visited = 0;
 
     // Une URL d'image trouvée au chemin `path` (clés JSON depuis la racine)
     const visitImage = (raw, path) => {
-      if (!IMAGE_VALUE_RE.test(raw.trim())) return '';
+      const value = raw.trim();
+      if (VIDEO_VALUE_RE.test(value)) {
+        if (!FOREIGN_PATH_RE.test(path.join('.').toLowerCase())) add(out.videos, value.startsWith('//') ? 'https:' + value : value);
+        return '';
+      }
+      if (!IMAGE_VALUE_RE.test(value)) return '';
       const joined = path.join('.').toLowerCase();
       if (FOREIGN_PATH_RE.test(joined)) return '';
       const url = cleanImageUrl(raw);
@@ -351,8 +358,13 @@
    * - jamais de produit sans image si la page en contient au moins une.
    */
   const finalizeImages = (data) => {
-    let page = { gallery: [], description: [], variant: [], variantByName: {} };
+    let page = { gallery: [], description: [], variant: [], variantByName: {}, videos: [] };
     try { page = harvestPageImages(); } catch (e) { console.warn('[IT Vision] Données JSON de la page:', e); }
+
+    // Vidéos : DOM + JSON, uniquement de vraies URL vidéo (pas les liens « vidéo » de navigation)
+    data.videos = [...new Set([...(data.videos || []), ...(page.videos || [])]
+      .map(v => String(v || '').trim().replace(/^\/\//, 'https://'))
+      .filter(v => VIDEO_VALUE_RE.test(v)))].slice(0, 3);
 
     const unique = (list) => {
       const seen = new Set();
@@ -401,6 +413,109 @@
       description: data.descriptionImages.length,
       sourcePage: page.gallery.length,
     });
+    return data;
+  };
+
+  // ==========================================
+  // COLIS : DIMENSIONS ET POIDS (commun aux trois plateformes)
+  // ==========================================
+
+  const toPositive = (value) => {
+    const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+
+  /** Dimensions plausibles d'un colis (cm) : rejette les identifiants et les valeurs absurdes */
+  const plausibleDims = (l, w, h) => [l, w, h].every(v => v > 0 && v <= 300);
+
+  /** 1) Données JSON de la page : objet portant longueur + largeur + hauteur (1688 : pieceWeightScale, Alibaba : packaging) */
+  const packageFromJson = () => {
+    const pick = (obj, names) => {
+      for (const [key, value] of Object.entries(obj)) {
+        if (names.test(key)) { const n = toPositive(value); if (n) return n; }
+      }
+      return 0;
+    };
+    let found = null;
+    let visited = 0;
+    const walk = (node, depth) => {
+      if (found || !node || typeof node !== 'object' || depth > 14 || ++visited > 200000) return;
+      if (Array.isArray(node)) { node.forEach(child => walk(child, depth + 1)); return; }
+      const l = pick(node, /^(?:package|pkg|packing|piece)?_?len(?:gth)?$/i);
+      const w = pick(node, /^(?:package|pkg|packing|piece)?_?wid(?:th)?$/i);
+      const h = pick(node, /^(?:package|pkg|packing|piece)?_?(?:hei(?:ght)?|high)$/i);
+      if (l && w && h) {
+        // Unité éventuellement indiquée à côté : mm → cm
+        const unit = String(node.unit || node.lengthUnit || node.sizeUnit || '').toLowerCase();
+        const factor = unit === 'mm' ? 0.1 : unit === 'm' ? 100 : 1;
+        if (plausibleDims(l * factor, w * factor, h * factor)) {
+          const rawWeight = pick(node, /^(?:package|pkg|packing|piece|gross)?_?weight$/i);
+          const weightUnit = String(node.weightUnit || '').toLowerCase();
+          // 1688 exprime le poids de colis en grammes ; une valeur ≥ 30 sans unité y correspond
+          const weightKg = rawWeight ? (weightUnit === 'kg' ? rawWeight : weightUnit === 'g' || rawWeight >= 30 ? rawWeight / 1000 : rawWeight) : 0;
+          found = { lengthCm: l * factor, widthCm: w * factor, heightCm: h * factor, weightKg };
+          return;
+        }
+      }
+      Object.values(node).forEach(child => walk(child, depth + 1));
+    };
+    try { collectPageJson().forEach(root => walk(root, 0)); } catch {}
+    return found;
+  };
+
+  /** 2) Tableau d'emballage à colonnes (1688 : « 长(cm) | 宽(cm) | 高(cm) | 重量(g) ») */
+  const packageFromTable = () => {
+    const colIndex = (cells, re) => cells.findIndex(c => re.test(c));
+    for (const table of document.querySelectorAll('table')) {
+      const rows = Array.from(table.querySelectorAll('tr'));
+      if (rows.length < 2) continue;
+      const head = Array.from(rows[0].querySelectorAll('th, td')).map(c => (c.textContent || '').trim().toLowerCase());
+      const li = colIndex(head, /^长|length|longueur/), wi = colIndex(head, /^宽|width|largeur/), hi = colIndex(head, /^高|height|hauteur/);
+      if (li < 0 || wi < 0 || hi < 0) continue;
+      const factor = /mm/.test(head[li]) ? 0.1 : 1;
+      const weightIdx = colIndex(head, /重量|weight|poids/);
+      for (const row of rows.slice(1)) {
+        const cells = Array.from(row.querySelectorAll('td, th')).map(c => (c.textContent || '').trim());
+        const [l, w, h] = [cells[li], cells[wi], cells[hi]].map(v => toPositive(v) * factor);
+        if (!plausibleDims(l, w, h)) continue;
+        let weightKg = 0;
+        if (weightIdx >= 0) {
+          const raw = toPositive(cells[weightIdx]);
+          weightKg = /\(g\)|（g）|\bg\b|克/.test(head[weightIdx]) && !/kg/.test(head[weightIdx]) ? raw / 1000 : raw;
+        }
+        return { lengthCm: l, widthCm: w, heightCm: h, weightKg };
+      }
+    }
+    return null;
+  };
+
+  /** 3) Texte de la page : « Taille du colis : 20 x 15 x 10 cm », « 包装尺寸：20*15*10cm », « Package size … » */
+  const packageFromText = () => {
+    const text = (document.body?.innerText || '').slice(0, 200000);
+    const label = '(?:包装尺寸|包装规格|外箱尺寸|产品尺寸|尺寸|package\\s*size|packing\\s*size|single\\s*package\\s*size|product\\s*size|dimensions?|taille\\s*(?:du|de\\s*l\'|d\')?\\s*(?:paquet|colis|emballage|produit)[^:：\\n]{0,15}|emballage)';
+    const num = '(\\d+(?:[.,]\\d+)?)';
+    const sep = '\\s*[x×*✕Xх]\\s*';
+    const m = text.match(new RegExp(`${label}[^\\d\\n]{0,25}${num}${sep}${num}${sep}${num}\\s*(mm|cm|m)?\\b`, 'i'));
+    if (!m) return null;
+    const factor = (m[4] || 'cm').toLowerCase() === 'mm' ? 0.1 : (m[4] || '').toLowerCase() === 'm' ? 100 : 1;
+    const [l, w, h] = [m[1], m[2], m[3]].map(v => toPositive(v) * factor);
+    return plausibleDims(l, w, h) ? { lengthCm: l, widthCm: w, heightCm: h, weightKg: 0 } : null;
+  };
+
+  /** Complète dimensions et poids manquants, toutes plateformes (n'écrase jamais une valeur déjà trouvée) */
+  const fillPackageInfo = (data) => {
+    const hasDims = toPositive(data.lengthCm) && toPositive(data.widthCm) && toPositive(data.heightCm);
+    if (hasDims && toPositive(data.weightKg)) return data;
+    const info = packageFromJson() || packageFromTable() || packageFromText();
+    if (!info) return data;
+    const round = (v) => Math.round(v * 10) / 10;
+    if (!hasDims) {
+      data.lengthCm = round(info.lengthCm);
+      data.widthCm = round(info.widthCm);
+      data.heightCm = round(info.heightCm);
+    }
+    if (!toPositive(data.weightKg) && info.weightKg > 0 && info.weightKg < 500) data.weightKg = Math.round(info.weightKg * 1000) / 1000;
+    console.log('[IT Vision] Colis:', { L: data.lengthCm, l: data.widthCm, h: data.heightCm, kg: data.weightKg });
     return data;
   };
 
@@ -700,6 +815,13 @@
       );
       const priceMatch = priceEl?.textContent?.match(/(\d+(?:\.\d+)?)/);
       data.price1688 = priceMatch ? parseFloat(priceMatch[1]) : null;
+      // Repli : état JSON de la page, puis premier « ¥ 12.5 » de la zone prix
+      if (!(data.price1688 > 0) && pageState.price1688 > 0) data.price1688 = pageState.price1688;
+      if (!(data.price1688 > 0)) {
+        const area = document.querySelector('[class*="price" i]')?.textContent || '';
+        const ym = area.match(/[¥￥]\s*(\d+(?:\.\d+)?)/);
+        if (ym) data.price1688 = parseFloat(ym[1]);
+      }
 
       const priceTiers = [];
       document.querySelectorAll(
@@ -1161,29 +1283,59 @@
     };
 
     // JSON-LD price
+    // Devise affichée : €, $, FCFA, DH, ¥… → code ISO transmis au serveur (conversion ¥ + transport)
+    const detectCurrency = (currency, textSource = '') => {
+      const curr = String(currency || '').toUpperCase();
+      if (curr) return curr === 'FCFA' || curr === 'CFA' ? 'XOF' : curr;
+      const t = String(textSource).toUpperCase();
+      if (/F\s?CFA|\bCFA\b|\bXOF\b/.test(t)) return 'XOF';
+      if (/€|\bEUR\b/.test(t)) return 'EUR';
+      if (/\bDH\b|DIRHAM|\bMAD\b|د\.م|درهم/.test(t)) return 'MAD';
+      if (/\bAED\b/.test(t)) return 'AED';
+      if (/\bSAR\b/.test(t)) return 'SAR';
+      if (/£|\bGBP\b/.test(t)) return 'GBP';
+      if (/[¥￥]|\bCNY\b|\bRMB\b/.test(t) && !/US\s?\$|\$/.test(t)) return 'CNY';
+      return 'USD';
+    };
+    const setSalePrice = (val, currency) => {
+      data.price1688 = Math.round(val * 100) / 100;
+      data.price1688Currency = currency;
+    };
     if (jsonLdProduct?.offers) {
       const offers = Array.isArray(jsonLdProduct.offers) ? jsonLdProduct.offers[0] : jsonLdProduct.offers;
       const offerPrice = offers?.price || offers?.lowPrice;
       if (offerPrice) {
         data.priceUSD = parseFloat(offerPrice);
         const converted = convertToFcfa(offerPrice, offers?.priceCurrency, jsonLdProduct.name);
-        if (converted) data.price = converted;
+        if (converted) {
+          data.price = converted;
+          setSalePrice(parseFloat(offerPrice), detectCurrency(offers?.priceCurrency, jsonLdProduct.name));
+        }
       }
     }
     if (!data.price) {
-      // DOM: chercher tous les éléments contenant un prix
-      const allEls = document.querySelectorAll('[data-pl="product-price"], [class*="Price"], [class*="price"]');
+      // DOM : prix courant (prix de vente) avant le prix barré
+      const allEls = document.querySelectorAll(
+        '[class*="price--current" i], [class*="price-default--current" i], [class*="currentPrice" i], ' +
+        '[data-pl="product-price"], [class*="Price"], [class*="price"]'
+      );
       for (const el of allEls) {
+        if (/original|--del\b|strike/i.test(String(el.className || ''))) continue;
         const text = el.textContent || '';
-        // Chercher un pattern prix: €12.34, $12.34, 12,34€, DH 12.34, 12.34 MAD...
-        const m = text.match(/(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)\s*(\d+[.,]\d+)|(\d+[.,]\d+)\s*(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)/i);
+        // Chercher un pattern prix: €12.34, $12.34, 12,34€, DH 12.34, 12.34 MAD, 1 234 FCFA...
+        const m = text.match(/(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)\s*(\d+[.,]\d+)|(\d+[.,]\d+)\s*(?:[\$€£]|US\$|EUR|MAD|AED|SAR|DH)/i)
+          || text.match(/(\d{1,3}(?:[\s\u00a0\u202f.]\d{3})+|\d+)\s*(?:F\s?CFA|CFA|XOF)/i);
         if (m) {
-          const val = parseFloat((m[1] || m[2]).replace(',', '.'));
-          if (val > 0 && val < 100000) {
-            const converted = convertToFcfa(val, '', text);
+          const isCfa = /CFA|XOF/i.test(m[0]);
+          const val = isCfa
+            ? parseFloat(String(m[1]).replace(/[\s\u00a0\u202f.]/g, ''))
+            : parseFloat((m[1] || m[2]).replace(',', '.'));
+          if (val > 0 && val < (isCfa ? 100000000 : 100000)) {
+            const converted = isCfa ? Math.round(val) : convertToFcfa(val, '', text);
             if (converted) {
-              data.priceUSD = val;
+              data.priceUSD = isCfa ? undefined : val;
               data.price = converted;
+              setSalePrice(val, isCfa ? 'XOF' : detectCurrency('', m[0] + ' ' + text));
               break;
             }
           }
@@ -2192,11 +2344,13 @@
   };
 
   /** Extracteur adapté au site courant */
-  const scrapeCurrentPage = () => {
+  const scrapeCurrentPage = async () => {
     const host = window.location.hostname;
-    if (host.includes('1688.com')) return scrape1688();
-    if (/(^|\.)alibaba\.com$/i.test(host)) return scrapeAlibaba();
-    return scrapeAliExpress();
+    const data = host.includes('1688.com') ? await scrape1688()
+      : /(^|\.)alibaba\.com$/i.test(host) ? await scrapeAlibaba()
+      : await scrapeAliExpress();
+    try { fillPackageInfo(data); } catch (e) { console.warn('[IT Vision] Colis:', e); }
+    return data;
   };
 
   // ==========================================

@@ -88,6 +88,11 @@ export interface IProduct extends Document {
     productUrl?: string
     externalId?: string
     notes?: string
+    /** Prix de vente relevé sur la plateforme, dans sa devise d'origine */
+    sourcePrice?: number
+    sourceCurrency?: string
+    /** Transport intérieur Chine ajouté au prix source (¥) */
+    inlandTransportCny?: number
   }
   // Informations 1688
   price1688?: number // Prix en Yuan (¥)
@@ -217,7 +222,10 @@ const ProductSchema = new Schema<IProduct>({
     supplierContact: { type: String },
     productUrl: { type: String },
     externalId: { type: String },
-    notes: { type: String }
+    notes: { type: String },
+    sourcePrice: { type: Number },
+    sourceCurrency: { type: String },
+    inlandTransportCny: { type: Number }
   },
   // Informations 1688
   price1688: { type: Number },

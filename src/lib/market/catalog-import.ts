@@ -1,7 +1,7 @@
 import Product from '@/lib/models/Product'
 import { computeProductPricing } from '@/lib/logistics'
 import { configuredShippingRates, type SharedPricingConfig } from '@/lib/pricing/shared-settings'
-import type { SourceCurrency } from '@/lib/pricing/constants'
+import { CHINA_INLAND_TRANSPORT_CNY, type SourceCurrency } from '@/lib/pricing/constants'
 import { qwenChat } from '@/lib/ai/qwen'
 
 /**
@@ -10,6 +10,47 @@ import { qwenChat } from '@/lib/ai/qwen'
  */
 
 export const IMPORT_MARGIN_RATE = Number(process.env.SOURCING_MARGIN_RATE || 15)
+
+export { CHINA_INLAND_TRANSPORT_CNY }
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/** Montant dans une devise source (USD, EUR, XOF…) ramené en yuans via les taux partagés (FCFA par unité). */
+export function toCny(amount: number, currency: string | undefined, rates: SharedPricingConfig['sourceCurrencyRates']): number | undefined {
+  const code = (currency || 'CNY').toUpperCase().replace(/^FCFA$|^CFA$/, 'XOF') as SourceCurrency
+  if (!(amount > 0)) return undefined
+  if (code === 'CNY') return round2(amount)
+  const rate = rates[code]
+  const cnyRate = rates.CNY
+  if (!(rate > 0) || !(cnyRate > 0)) return undefined
+  return round2((amount * rate) / cnyRate)
+}
+
+/**
+ * Prix de vente relevé sur la plateforme → prix source en yuans (price1688) :
+ * conversion en CNY puis + transport intérieur Chine.
+ */
+export function importSourcePrice(input: {
+  salePrice?: number
+  promoPrice?: number
+  currency?: string
+}, config: SharedPricingConfig, transportCny = CHINA_INLAND_TRANSPORT_CNY) {
+  // Prix promo retenu seulement s'il est plausible (sélecteurs « sale/promotion » parfois trop larges)
+  const base = input.salePrice && input.salePrice > 0 ? input.salePrice : undefined
+  const promo = input.promoPrice && input.promoPrice > 0 ? input.promoPrice : undefined
+  const salePrice = base && promo && promo < base && promo >= base * 0.3 ? promo : (base ?? promo)
+  if (!salePrice) return null
+  const saleCurrency = (input.currency || 'CNY').toUpperCase().replace(/^FCFA$|^CFA$/, 'XOF')
+  const saleCny = toCny(salePrice, saleCurrency, config.sourceCurrencyRates)
+  if (!saleCny) return null
+  return {
+    price1688: round2(saleCny + transportCny),
+    salePrice,
+    saleCurrency,
+    saleCny,
+    transportCny,
+  }
+}
 
 export interface SourceRef {
   platform: string

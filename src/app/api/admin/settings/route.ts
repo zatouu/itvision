@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readSharedPricing, writeSharedPricing, PricingConflictError } from '@/lib/pricing/shared-settings'
 import { requireAdminApi, PRODUCT_STAFF_ROLES } from '@/lib/api-auth'
 import { pricingDefaultsUpdateSchema, validate } from '@/lib/validation'
+import { CHINA_INLAND_TRANSPORT_CNY } from '@/lib/pricing/constants'
 
 export async function GET(request: NextRequest) {
   // Lecture ouverte au PRODUCT_MANAGER (page /admin/produits/b2b-pricing) ;
@@ -16,6 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       defaults: pricing.config.defaults,
+      sourceCurrencyRates: pricing.config.sourceCurrencyRates,
+      inlandTransportCny: CHINA_INLAND_TRANSPORT_CNY,
       pricingVersion: pricing.version,
       permissions: { canWrite: ['ADMIN', 'SUPER_ADMIN'].includes(auth.user.role.toUpperCase()) },
     }, { headers: { 'Cache-Control': 'private, no-store' } })

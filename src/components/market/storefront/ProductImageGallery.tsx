@@ -3,7 +3,55 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import MediaLightbox from '@/components/market/MediaLightbox';
+import { isVideoUrl, isYouTubeUrl, youTubeEmbedUrl, youTubeThumbnail } from '@/lib/media';
 import { Icon } from './Icon';
+
+/** Lecteur d'une vidéo produit : fichier (MP4/WebM, plateforme source) ou YouTube */
+export function ProductVideo({ src, title, className, autoPlay = false }: { src: string; title: string; className?: string; autoPlay?: boolean }) {
+  const embed = isYouTubeUrl(src) ? youTubeEmbedUrl(src, autoPlay) : null;
+  if (embed) {
+    return (
+      <iframe
+        src={embed}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        loading="lazy"
+        className={cn('h-full w-full border-0 bg-black', className)}
+      />
+    );
+  }
+  return (
+    <video
+      src={src}
+      controls
+      playsInline
+      autoPlay={autoPlay}
+      muted={autoPlay}
+      preload="metadata"
+      className={cn('h-full w-full bg-black object-contain', className)}
+    >
+      <track kind="captions" />
+    </video>
+  );
+}
+
+/** Vignette d'une vidéo : aperçu YouTube ou première image de la vidéo, avec pictogramme lecture */
+function VideoThumb({ src }: { src: string }) {
+  const poster = youTubeThumbnail(src);
+  return (
+    <span className="relative block h-full w-full bg-slate-900">
+      {poster
+        ? <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover opacity-90" />
+        : <video src={`${src}#t=0.5`} muted playsInline preload="metadata" className="h-full w-full object-cover opacity-90" />}
+      <span className="absolute inset-0 grid place-items-center">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white">
+          <Icon name="play" size={14} />
+        </span>
+      </span>
+    </span>
+  );
+}
 
 interface ProductImageGalleryProps {
   images: string[]
@@ -210,79 +258,108 @@ export default function ProductImageGallery({
     if (!lightbox) setLightbox(true);
   };
 
-  const imageSrc = images[active] || images[0] || '/placeholder.svg';
-  const hoverZoomed = hoverZoom && scale <= 1.05;
+  const current = images[active] || images[0] || '/placeholder.svg';
+  const currentIsVideo = isVideoUrl(current);
+  const hoverZoomed = hoverZoom && scale <= 1.05 && !currentIsVideo;
+  // La visionneuse plein écran ne montre que les photos (les vidéos se lisent sur place)
+  const photos = images.filter(src => !isVideoUrl(src));
+  const photoIndex = Math.max(0, photos.indexOf(current));
 
   return (
-    <div className={cn('bg-white dark:bg-slate-900', className)}>
+    <div className={cn('bg-white dark:bg-slate-900 lg:flex lg:flex-row-reverse lg:gap-3 lg:p-3', className)}>
       <div
-        className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 select-none"
-        onMouseEnter={handleMouseEnter}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 select-none lg:aspect-square lg:min-w-0 lg:flex-1 lg:rounded-xl"
+        onMouseEnter={currentIsVideo ? undefined : handleMouseEnter}
+        onMouseMove={currentIsVideo ? undefined : handleMouseMove}
+        onMouseLeave={currentIsVideo ? undefined : handleMouseLeave}
         style={{ cursor: hoverZoomed ? 'zoom-in' : undefined }}
       >
-        <img
-          src={imageSrc}
-          alt={name}
-          draggable={false}
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onClick={handleMainClick}
-          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
-          className="h-full w-full object-contain transition-transform duration-200"
-          style={
-            hoverZoomed
-              ? {
-                  transform: 'scale(1.8)',
-                  transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
-                  transitionDuration: '100ms',
-                }
-              : {
-                  transform: `translateX(${pan.x}px) scale(${scale})`,
-                  transformOrigin: 'center center',
-                  touchAction: 'pan-y',
-                }
-          }
-        />
-        {badges}
-        <button type="button" onClick={() => setLightbox(true)} aria-label="Agrandir les photos" title="Agrandir les photos" className="absolute bottom-2 right-2 grid h-11 w-11 place-items-center rounded-lg bg-white text-slate-900 shadow focus-visible:outline-2 focus-visible:outline-emerald-700">
-          <Icon name="search" size={20} />
-        </button>
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-          {active + 1} / {images.length}
-        </div>
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto p-3">
-        {images.map((src, i) => (
-          <button
-            key={i}
-            type="button"
-            aria-label={`Photo ${i + 1} de ${name}`}
-            aria-pressed={active === i}
-            onClick={() => { setActive(i); setScale(1); setPan({ x: 0, y: 0 }); }}
-            className={cn(
-              'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-slate-100 dark:bg-slate-800',
-              active === i ? 'border-emerald-600' : 'border-transparent'
-            )}
-          >
-            <img loading="lazy" decoding="async" src={src} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />
+        {currentIsVideo ? (
+          <ProductVideo key={current} src={current} title={`Vidéo — ${name}`} />
+        ) : (
+          <img
+            src={current}
+            alt={name}
+            draggable={false}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onClick={handleMainClick}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
+            className="h-full w-full object-contain transition-transform duration-200"
+            style={
+              hoverZoomed
+                ? {
+                    transform: 'scale(1.8)',
+                    transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                    transitionDuration: '100ms',
+                  }
+                : {
+                    transform: `translateX(${pan.x}px) scale(${scale})`,
+                    transformOrigin: 'center center',
+                    touchAction: 'pan-y',
+                  }
+            }
+          />
+        )}
+        {!currentIsVideo && badges}
+        {!currentIsVideo && photos.length > 0 && (
+          <button type="button" onClick={() => setLightbox(true)} aria-label="Agrandir les photos" title="Agrandir les photos" className="absolute bottom-2 right-2 grid h-11 w-11 place-items-center rounded-lg bg-white text-slate-900 shadow focus-visible:outline-2 focus-visible:outline-emerald-700">
+            <Icon name="search" size={20} />
           </button>
-        ))}
+        )}
+        {images.length > 1 && !currentIsVideo && (
+          <>
+            <button type="button" onClick={() => go(-1)} aria-label="Média précédent" className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-900 shadow hover:bg-white lg:grid">
+              <Icon name="chevronLeft" size={20} />
+            </button>
+            <button type="button" onClick={() => go(1)} aria-label="Média suivant" className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-900 shadow hover:bg-white lg:grid">
+              <Icon name="chevronRight" size={20} />
+            </button>
+          </>
+        )}
+        {!currentIsVideo && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+            {active + 1} / {images.length}
+          </div>
+        )}
       </div>
 
-      {lightbox && (
+      {/* Miniatures : bande horizontale sur mobile, colonne à gauche sur ordinateur (comme Alibaba / 1688) */}
+      <div className="flex gap-2 overflow-x-auto p-3 lg:max-h-[min(560px,calc(100vh-8rem))] lg:w-[76px] lg:flex-none lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:p-0">
+        {images.map((src, i) => {
+          const video = isVideoUrl(src);
+          return (
+            <button
+              key={`${src}-${i}`}
+              type="button"
+              aria-label={video ? `Vidéo de ${name}` : `Photo ${i + 1} de ${name}`}
+              aria-pressed={active === i}
+              onClick={() => { setActive(i); setScale(1); setPan({ x: 0, y: 0 }); }}
+              onMouseEnter={() => { if (!video && window.matchMedia('(hover: hover) and (pointer: fine)').matches) setActive(i); }}
+              className={cn(
+                'relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-slate-100 dark:bg-slate-800 lg:h-[72px] lg:w-[72px]',
+                active === i ? 'border-emerald-600' : 'border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+              )}
+            >
+              {video
+                ? <VideoThumb src={src} />
+                : <img loading="lazy" decoding="async" src={src} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }} className="h-full w-full object-cover" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {lightbox && photos.length > 0 && (
         <MediaLightbox
-          images={images}
-          index={active}
+          images={photos}
+          index={photoIndex}
           name={name}
           onClose={() => { setLightbox(false); setScale(1); setPan({ x: 0, y: 0 }); }}
-          onIndexChange={(i) => setActive(i)}
+          onIndexChange={(i) => setActive(Math.max(0, images.indexOf(photos[i])))}
         />
       )}
     </div>

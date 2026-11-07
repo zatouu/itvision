@@ -239,7 +239,11 @@ const buildProductPayload = (payload: any): Partial<IProduct> => {
       supplierName: typeof sourcing.supplierName === 'string' ? sourcing.supplierName : undefined,
       supplierContact: typeof sourcing.supplierContact === 'string' ? sourcing.supplierContact : undefined,
       productUrl: typeof sourcing.productUrl === 'string' ? sourcing.productUrl : undefined,
-      notes: typeof sourcing.notes === 'string' ? sourcing.notes : undefined
+      externalId: typeof sourcing.externalId === 'string' ? sourcing.externalId : undefined,
+      notes: typeof sourcing.notes === 'string' ? sourcing.notes : undefined,
+      sourcePrice: typeof sourcing.sourcePrice === 'number' && sourcing.sourcePrice > 0 ? sourcing.sourcePrice : undefined,
+      sourceCurrency: typeof sourcing.sourceCurrency === 'string' ? sourcing.sourceCurrency : undefined,
+      inlandTransportCny: typeof sourcing.inlandTransportCny === 'number' && sourcing.inlandTransportCny >= 0 ? sourcing.inlandTransportCny : undefined
     }
     normalized.sourcing = normalizedSourcing
   }
