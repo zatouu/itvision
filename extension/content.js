@@ -647,13 +647,14 @@
   const VARIANT_GROUP_FR = [
     [/颜色|色|colou?r/i, 'Couleur'],
     [/尺码|尺寸|size|taille/i, 'Taille'],
-    [/规格|型号|款式|款|model|style|type/i, 'Modèle'],
     [/长度|length|longueur/i, 'Longueur'],
     [/功率|power|watt|puissance/i, 'Puissance'],
     [/容量|capacity|capacité/i, 'Capacité'],
     [/电压|voltage|tension/i, 'Tension'],
-    [/套餐|package|bundle|pack/i, 'Pack'],
     [/插头|plug|prise/i, 'Prise'],
+    [/套餐|package|bundle|pack/i, 'Pack'],
+    // Générique en dernier : « Plug Type » doit rester « Prise »
+    [/规格|型号|款式|款|model|style|type/i, 'Modèle'],
   ];
   const frGroupName = (name) => {
     const n = String(name || '').trim();
@@ -730,6 +731,44 @@
           };
         }).filter(Boolean);
         return { name: frGroupName(g?.skuPropertyName), sourceName: g?.skuPropertyName || '', variants };
+      }).filter(g => g.variants.length > 0);
+      if (groups.some(g => g.variants.length > 1)) return groups;
+    }
+
+    // ── Alibaba.com : skuAttrs [{id,name,values:[{id,name,largeImage|image}]}] + skuInfoMap {"aid:vid;aid:vid": {price…}} ──
+    const attrs = extractJsonAfterKey('skuAttrs') || extractJsonAfterKey('skuAttributes') || extractJsonAfterKey('skuProperties');
+    if (Array.isArray(attrs) && attrs.length) {
+      const infoRaw = extractJsonAfterKey('skuInfoMap') || extractJsonAfterKey('skuInfoList') || extractJsonAfterKey('skuList') || {};
+      const infoEntries = Array.isArray(infoRaw)
+        ? infoRaw.map(s => [String(s?.skuAttr || s?.attrs || s?.skuAttrStr || s?.key || ''), s])
+        : Object.entries(infoRaw);
+      const priceOf = (s) => num(s?.price?.price) || num(s?.price?.value) || num(s?.price) || num(s?.discountPrice)
+        || num(s?.ladderPrices?.[0]?.price) || num(s?.priceFormatted) || num(s?.skuPrice);
+      const combos = infoEntries.map(([key, s]) => ({
+        ids: decodeEntities(key).split(/[;,]/).map(x => x.trim()).filter(Boolean),
+        price: priceOf(s),
+        stock: Number(s?.inventory ?? s?.stock ?? s?.availQuantity ?? 0) || 0,
+      }));
+      const groups = attrs.map(g => {
+        const attrId = String(g?.id ?? g?.attrId ?? g?.pid ?? '');
+        const values = g?.values || g?.valueList || g?.attrValues || g?.skuAttrValues || [];
+        const variants = (Array.isArray(values) ? values : []).map((v, idx) => {
+          const name = String(v?.name || v?.valueName || v?.text || v?.value || '').trim();
+          if (!name) return null;
+          const vid = String(v?.id ?? v?.valueId ?? v?.vid ?? '');
+          const matching = combos.filter(c => vid && c.ids.some(x => x === `${attrId}:${vid}` || x.endsWith(`:${vid}`) || x === vid));
+          const prices = matching.map(c => c.price).filter(Boolean);
+          const image = v?.largeImage || v?.originImage || v?.bigImage || v?.image || v?.imageUrl || v?.skuImage;
+          return {
+            id: `sku-${idx}`,
+            name,
+            image: image ? cleanImageUrl(String(image)) : undefined,
+            price1688: prices.length ? Math.min(...prices) : undefined,
+            stock: matching.reduce((s, c) => s + c.stock, 0) || 1000,
+            isDefault: idx === 0,
+          };
+        }).filter(Boolean);
+        return { name: frGroupName(g?.name || g?.attrName || g?.propName), sourceName: g?.name || '', variants };
       }).filter(g => g.variants.length > 0);
       if (groups.some(g => g.variants.length > 1)) return groups;
     }
@@ -2429,6 +2468,11 @@
         if (variants.length > 1) groups.push({ name: groupName, variants });
       });
       data.variantGroups = groups;
+
+      // JSON de la page : image, prix et stock par option ; le DOM reste le repli
+      const scriptGroups = extractVariantsFromScripts();
+      if (scriptGroups.length) data.variantGroups = mergeVariantGroups(scriptGroups, data.variantGroups);
+      console.log('[IT Vision] Alibaba Variantes:', data.variantGroups.map(g => `${g.name}(${g.variants.length})`).join(', ') || 'aucune');
     } catch (e) { console.warn('[IT Vision] Variantes Alibaba:', e); }
 
     // ── DESCRIPTION (texte + images du descriptif) ──
