@@ -4,7 +4,8 @@ export const DEFAULT_SERVICE_FEE_RATE = 10 // 10% de frais de service par défau
 export const DEFAULT_INSURANCE_RATE = 2.5 // 2.5% d'assurance par défaut
 
 /** Transport intérieur Chine (fournisseur → entrepôt) ajouté au prix de vente relevé, en yuans. */
-export const CHINA_INLAND_TRANSPORT_CNY = Number(process.env.CHINA_INLAND_TRANSPORT_CNY || 15)
+export const CHINA_INLAND_TRANSPORT_CNY = Number(process.env.CHINA_INLAND_TRANSPORT_CNY || 5)
+// Valeur de repli : le réglage effectif est `defaults.inlandTransportCny` (Admin → Tarifs)
 
 /**
  * Devises sources supportées : CNY (1688), USD/EUR (AliExpress/Alibaba

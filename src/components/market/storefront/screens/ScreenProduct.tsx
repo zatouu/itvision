@@ -564,17 +564,34 @@ export default function ScreenProduct() {
 
             {/* Sous la galerie (colonne gauche desktop) : attributs clés et colis, comme Alibaba / 1688 */}
             <div className="min-w-0 lg:col-start-1">
-              {p.specs.length > 0 && (
+              {(p.specs.length > 0 || (p.highlights?.length ?? 0) > 0) && (
                 <section id="section-attributs" aria-labelledby="titre-attributs" className="mt-2 scroll-mt-[calc(var(--mkt-header-h,0px)+3.5rem)] bg-white px-4 py-4 dark:bg-slate-900 md:mt-4 md:rounded-2xl md:border md:border-slate-200 md:p-5 md:dark:border-slate-800">
-                  <h2 id="titre-attributs" className="mb-3 text-base font-bold text-slate-900 dark:text-white">Attributs clés</h2>
-                  <dl className="grid overflow-hidden rounded-xl border border-slate-200 text-[13px] dark:border-slate-800 sm:grid-cols-2">
-                    {p.specs.map(([k, v], i) => (
-                      <div key={`${k}-${i}`} className="grid grid-cols-[minmax(96px,42%)_1fr] border-b border-slate-200 last:border-b-0 dark:border-slate-800 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
-                        <dt className="bg-slate-50 px-3 py-2.5 font-medium text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 [overflow-wrap:anywhere]">{k}</dt>
-                        <dd className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white [overflow-wrap:anywhere]">{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                  {(p.highlights?.length ?? 0) > 0 && (
+                    <>
+                      <h2 id="titre-attributs" className="mb-3 text-base font-bold text-slate-900 dark:text-white">Points forts</h2>
+                      <ul className="mb-4 grid gap-2 text-[13px] text-slate-700 dark:text-slate-300 sm:grid-cols-2">
+                        {p.highlights!.map((h, i) => (
+                          <li key={`${h}-${i}`} className="flex items-start gap-2 [overflow-wrap:anywhere]">
+                            <Icon name="check" size={14} className="mt-0.5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span>{h}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {p.specs.length > 0 && (
+                    <>
+                      <h2 {...(p.highlights?.length ? {} : { id: 'titre-attributs' })} className="mb-3 text-base font-bold text-slate-900 dark:text-white">Caractéristiques techniques</h2>
+                      <dl className="grid overflow-hidden rounded-xl border border-slate-200 text-[13px] dark:border-slate-800 sm:grid-cols-2">
+                        {p.specs.map(([k, v], i) => (
+                          <div key={`${k}-${i}`} className="grid grid-cols-[minmax(96px,42%)_1fr] border-b border-slate-200 last:border-b-0 dark:border-slate-800 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                            <dt className="bg-slate-50 px-3 py-2.5 font-medium text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 [overflow-wrap:anywhere]">{k}</dt>
+                            <dd className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white [overflow-wrap:anywhere]">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </>
+                  )}
                 </section>
               )}
 
@@ -607,12 +624,12 @@ export default function ScreenProduct() {
                       <div key={m.key} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
                         <p className="text-[12px] md:text-sm font-bold text-slate-900 dark:text-white">{m.label}</p>
                         <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400">{m.days}</p>
-                        <p className="mt-1 text-[12px] md:text-sm font-bold text-slate-900 dark:text-white tabular-nums">{m.from > 0 ? `dès ${formatFcfa(m.from)}/pc` : 'Selon poids/volume'}</p>
+                        <p className="mt-1 text-[12px] md:text-sm font-bold text-slate-900 dark:text-white tabular-nums">{m.from > 0 ? `≈ ${formatFcfa(m.from)} pour 1 pièce` : 'Selon poids/volume'}</p>
                       </div>
                     ))}
                   </div>
                 )}
-                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Les délais sont indicatifs. Le transport dépend du poids et du volume du lot ; son montant final est confirmé au panier et peut être ajusté après pesée.</p>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Délais indicatifs. Le transport est calculé sur le poids (aérien) ou le volume (maritime) du lot entier : commander plusieurs pièces fait baisser le coût par pièce. Le montant exact est confirmé au panier et ajusté après pesée.</p>
               </section>
 
               <div className="mt-2 px-4 py-4 md:mt-4 md:px-0 md:py-0">
@@ -627,7 +644,7 @@ export default function ScreenProduct() {
           <nav aria-label="Sections de la fiche" style={{ top: 'var(--mkt-header-h, 0px)' }} className="sticky z-30 mt-4 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 md:mt-8 md:rounded-t-2xl md:px-2">
             {([
               ['details', 'Détails du produit'],
-              ...(p.specs.length > 0 ? [['attributs', 'Attributs']] : []),
+              ...(p.specs.length > 0 || (p.highlights?.length ?? 0) > 0 ? [['attributs', 'Caractéristiques']] : []),
               ['emballage', 'Emballage et livraison'],
               ['avis', `Avis (${reviewCount})`],
             ] as [string, string][]).map(([key, label]) => (

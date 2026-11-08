@@ -116,6 +116,8 @@ export interface Product {
   variants: ProductVariant[];
   variantGroups?: ProductVariantGroup[];
   specs: [string, string][];
+  /** Points forts rédigés (phrases sans valeur technique) */
+  highlights?: string[];
   /** Images ET vidéos de description (grand format, section « Détails du produit ») */
   descriptionImages?: string[];
   /** Colis : poids, dimensions et volume renseignés sur la fiche */

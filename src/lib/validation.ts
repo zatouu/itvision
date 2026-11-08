@@ -8,6 +8,7 @@ export const pricingDefaultsUpdateSchema = z.object({
   singleImportServiceFeeRate: pricingPercentageSchema.optional(),
   defaultInsuranceRate: pricingPercentageSchema.optional(),
   defaultB2BDiscountPercent: z.number().finite().min(1).max(50).optional(),
+  inlandTransportCny: z.number().finite().min(0).max(200).optional(),
   serviceFeeTiers: z.array(z.object({
     minAmount: z.number().finite().int().min(0),
     maxAmount: z.number().finite().int().min(0).optional(),

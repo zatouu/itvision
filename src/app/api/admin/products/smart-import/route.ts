@@ -203,17 +203,21 @@ function buildEnrichmentPrompt(categoriesList: string): string {
   return `Tu es un assistant e-commerce pour un marketplace d'import Chine destiné à l'Afrique de l'Ouest francophone (Sénégal, Côte d'Ivoire).
 Tu reçois les données brutes d'un produit importé depuis 1688 ou AliExpress.
 Nettoie-les et retourne UNIQUEMENT un JSON valide sans markdown avec cette structure exacte :
-{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "tags": ["..."], "estimatedWeightKg": 0.5 }
+{ "name": "...", "category": "...", "subCategory": "...", "description": "...", "features": ["..."], "specifications": { "Clé": "valeur" }, "variantNames": { "nom source": "nom français" }, "tags": ["..."], "estimatedWeightKg": 0.5 }
 
 Règles :
 - name : nom produit propre et vendeur en français (max 80 caractères). Traduis depuis le chinois/anglais. Conserve marque et modèle. Supprime spam, emojis excessifs, mentions vendeur/promo.
 - category : choisis EXACTEMENT une catégorie dans cette liste :
 ${categoriesList}
 - subCategory : choisis une sous-catégorie pertinente parmi celles de la catégorie choisie, ou laisse vide.
-- description : 3-5 phrases claires en français, vendeuses, sans jargon inutile.
-- features : 4-8 bullet points courts en français.
+- description : 2 à 3 courts paragraphes en français (séparés par une ligne vide), clairs et vendeurs :
+  1) à quoi sert le produit et pour qui ; 2) pour un produit technique (électronique, sécurité, réseau, domotique, éclairage, électroménager, outillage), les informations décisives à l'achat présentes dans la source : alimentation (tension, puissance, batterie/autonomie), performances (résolution, portée, luminosité, capacité, débit), connectique et compatibilités (Wi-Fi, Bluetooth, PoE, application, protocole, culot, prise), résistance (indice IP, matériaux), dimensions ; 3) installation/usage et contenu du colis si connu.
+- features : 4 à 8 points forts courts en français, phrases simples SANS deux-points (ex. « Étanche IP67, utilisable sous la pluie »).
+- specifications : fiche technique en français, 6 à 20 paires clé/valeur courtes (ex. "Puissance": "10 W", "Tension": "220 V", "Culot": "E27", "Indice de protection": "IP67", "Longueur": "5 m"). Traduis les clés et les valeurs. Unités normalisées (W, V, mAh, m, cm, kg, lm, °C). N'inclus JAMAIS de prix, MOQ, stock, délai, nom de fournisseur ou d'usine.
+- variantNames : traduction française courte de CHAQUE nom d'option de variante fourni (ex. "黑色": "Noir", "10米": "10 m", "暖白": "Blanc chaud"). Garde les codes/modèles tels quels.
 - tags : 3-6 tags pertinents en minuscules, en français.
 - estimatedWeightKg : poids d'expédition probable d'une unité emballée, en kg (nombre).
+N'invente AUCUNE valeur technique absente de la source : si une information manque, ne la mentionne pas.
 Ne traduis pas les noms de marque. Supprime les infos inutiles (politique retour vendeur chinois, etc).`
 }
 
@@ -223,12 +227,20 @@ function parseEnrichmentJson(content: string, fallback: { name: string; descript
 
   try {
     const parsed = JSON.parse(jsonMatch[0])
+    const stringRecord = (value: unknown): Record<string, string> => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+        .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()])
+        .filter(([k, v]) => k && v && k.length <= 60 && v.length <= 200))
+    }
     return {
       name: parsed.name || fallback.name,
       category: parsed.category || undefined,
       subCategory: parsed.subCategory || undefined,
       description: parsed.description || fallback.description,
       features: Array.isArray(parsed.features) ? parsed.features : fallback.features,
+      specifications: stringRecord(parsed.specifications),
+      variantNames: stringRecord(parsed.variantNames),
       tags: Array.isArray(parsed.tags) ? parsed.tags : fallback.tags,
       estimatedWeightKg: parsed.estimatedWeightKg,
     }
@@ -237,13 +249,21 @@ function parseEnrichmentJson(content: string, fallback: { name: string; descript
   }
 }
 
+/** Noms d'options de variantes envoyés à l'IA pour traduction (groupes + options, sans doublon). */
+function variantOptionNames(raw: Record<string, unknown>): string[] {
+  const groups = Array.isArray(raw.variantGroups) ? raw.variantGroups as any[] : []
+  const names = groups.flatMap(g => [g?.name, ...(Array.isArray(g?.variants) ? g.variants.map((v: any) => v?.name) : [])])
+  const flat = Array.isArray(raw.variants) ? (raw.variants as any[]).map(v => v?.name) : []
+  return [...new Set([...names, ...flat].map(n => String(n || '').trim()).filter(n => n && n.length <= 80))].slice(0, 80)
+}
+
 // qwenChat passe par le gateway (DeepSeek, puis QwenCloud, puis Ollama)
 async function callGatewayEnrich(rawName: string, rawDescription: string, raw: Record<string, unknown>, categoriesList: string) {
   const result = await qwenChat([
     { role: 'system', content: buildEnrichmentPrompt(categoriesList) },
     {
       role: 'user',
-      content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2000)}`,
+      content: `Nom brut: ${rawName.slice(0, 200)}\nDescription brute:\n${rawDescription.slice(0, 3000)}\nSpécifications:\n${JSON.stringify(raw.specifications || {}).slice(0, 2500)}\nOptions de variantes à traduire:\n${JSON.stringify(variantOptionNames(raw)).slice(0, 1200)}`,
     },
   ])
   return result.text
@@ -251,7 +271,7 @@ async function callGatewayEnrich(rawName: string, rawDescription: string, raw: R
 
 async function enrichProduct(
   raw: Record<string, unknown>
-): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[]; estimatedWeightKg?: unknown }> {
+): Promise<{ name: string; category?: string; subCategory?: string; description: string; features: string[]; tags: string[]; estimatedWeightKg?: unknown; specifications?: Record<string, string>; variantNames?: Record<string, string> }> {
   const rawName = String(raw.name || '')
   const rawDescription = String(raw.description || '')
   const fallback = {
@@ -441,7 +461,7 @@ export async function POST(req: NextRequest) {
         const sourcePrice = sourceSale?.price1688 || 0
         const variantPriceCny = (value?: number) => {
           const cny = value ? toCny(value, rawSourceCurrency, pricingSettings.config.sourceCurrencyRates) : undefined
-          return cny ? Math.round((cny + (sourceSale?.transportCny ?? CHINA_INLAND_TRANSPORT_CNY)) * 100) / 100 : undefined
+          return cny ? Math.round((cny + (sourceSale?.transportCny ?? pricingSettings.config.defaults.inlandTransportCny ?? CHINA_INLAND_TRANSPORT_CNY)) * 100) / 100 : undefined
         }
         const sourceTrace = sourceSale ? {
           'sourcing.sourcePrice': sourceSale.salePrice,
@@ -472,7 +492,7 @@ export async function POST(req: NextRequest) {
           }
           // Compléter ce qui manque encore (dimensions, poids réel, médias, quantité) sans écraser le contenu relu
           const current = await Product.findById(existing._id)
-            .select('lengthCm widthCm heightCm weightEstimated gallery descriptionImages stockQuantity')
+            .select('lengthCm widthCm heightCm weightEstimated gallery descriptionImages stockQuantity variantGroups specifications')
             .lean() as any
           if (current) {
             const fill: Record<string, unknown> = {}
@@ -491,6 +511,34 @@ export async function POST(req: NextRequest) {
             const newVideos = [...new Set(toUrls(raw.videos).map(v => v.trim().replace(/^\/\//, 'https://')).filter(isVideoFileUrl))].slice(0, 2)
             if (newVideos.length && !gallery.some(isVideoFileUrl)) fill.gallery = [...gallery.slice(0, 1), ...newVideos, ...gallery.slice(1)]
             if (!current.stockQuantity) fill.stockQuantity = 100
+            // Fiche technique et variantes source : complétées si absentes (variantes saisies à la main
+            // avec une seule option par groupe = placeholders, remplacées par les vraies déclinaisons)
+            const hasSpecs = current.specifications && Object.keys(current.specifications).length > 0
+            if (!hasSpecs && raw.specifications && typeof raw.specifications === 'object' && Object.keys(raw.specifications).length) {
+              fill.specifications = raw.specifications
+            }
+            const currentGroups: any[] = Array.isArray(current.variantGroups) ? current.variantGroups : []
+            const placeholderVariants = currentGroups.every(g => (g.variants || []).length <= 1)
+            if (placeholderVariants) {
+              const sourceGroups = normalizeVariantGroups(raw.variantGroups, raw.variants).map(group => ({
+                ...group,
+                variants: group.variants.map(v => ({ ...v, price1688: variantPriceCny(v.price1688) })),
+              }))
+              if (sourceGroups.some(g => g.variants.length > 1)) fill.variantGroups = sourceGroups
+            }
+            // Textes chinois complétés : traduction (options de variantes + fiche technique)
+            const cjk = /[\u4e00-\u9fff]/
+            const needsTr = (fill.variantGroups as any[] | undefined)?.some(g => cjk.test(g.name) || g.variants.some((v: any) => cjk.test(v.name)))
+              || (fill.specifications && cjk.test(JSON.stringify(fill.specifications)))
+            if (needsTr && shouldEnrich) {
+              const tr = await enrichProduct(raw)
+              const names = tr.variantNames || {}
+              for (const g of (fill.variantGroups as any[] | undefined) || []) {
+                g.name = names[g.name] || g.name
+                for (const v of g.variants) v.name = names[v.name] || v.name
+              }
+              if (fill.specifications && tr.specifications && Object.keys(tr.specifications).length >= 3) fill.specifications = tr.specifications
+            }
             if (Object.keys(fill).length) await Product.updateOne({ _id: existing._id }, { $set: fill })
           }
           results.push({ index: i, name: raw.name, success: true, updated: true, productId: String(existing._id) })
@@ -541,6 +589,8 @@ export async function POST(req: NextRequest) {
         let category = raw.category || undefined
         let enriched = false
         let aiWeight: unknown
+        let specifications: Record<string, unknown> | undefined =
+          raw.specifications && typeof raw.specifications === 'object' && Object.keys(raw.specifications).length ? raw.specifications as Record<string, unknown> : undefined
 
         if (shouldEnrich) {
           const enrichedData = await enrichProduct(raw)
@@ -550,6 +600,15 @@ export async function POST(req: NextRequest) {
           tags = enrichedData.tags.length > 0 ? enrichedData.tags : tags
           category = enrichedData.category || category
           aiWeight = enrichedData.estimatedWeightKg
+          // Fiche technique traduite (sinon la brute) ; options de variantes en français
+          if (enrichedData.specifications && Object.keys(enrichedData.specifications).length >= 3) specifications = enrichedData.specifications
+          const tr = enrichedData.variantNames || {}
+          if (Object.keys(tr).length) {
+            for (const group of variantGroups) {
+              group.name = tr[group.name] || group.name
+              for (const v of group.variants) v.name = tr[v.name] || v.name
+            }
+          }
           enriched = enrichedData.name !== String(raw.name || '') || enrichedData.description !== String(raw.description || '')
         }
 
@@ -615,7 +674,7 @@ export async function POST(req: NextRequest) {
           widthCm: hasCompleteDimensions ? widthCm : undefined,
           heightCm: hasCompleteDimensions ? heightCm : undefined,
           volumeM3,
-          specifications: (raw.specifications && typeof raw.specifications === 'object') ? raw.specifications : undefined,
+          specifications,
           sourcing: {
             platform: source.platform,
             productUrl: source.url || rawSourceUrl,

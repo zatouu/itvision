@@ -45,6 +45,7 @@ export interface IProduct extends Document {
   gallery?: string[]
   descriptionImages?: string[]          // Images de présentation/description (grandes, séparées de la galerie)
   features?: string[]
+  specifications?: Record<string, string>
   requiresQuote?: boolean
   deliveryDays?: number
   stockStatus?: 'in_stock' | 'preorder' | 'out_of_stock'
@@ -147,6 +148,8 @@ const ProductSchema = new Schema<IProduct>({
   gallery: { type: [String], default: [] },
   descriptionImages: { type: [String], default: [] },
   features: { type: [String], default: [] },
+  // Fiche technique clé/valeur de la source (Puissance, Tension, Matériau…) — publique
+  specifications: { type: Schema.Types.Mixed },
   requiresQuote: { type: Boolean, default: false },
   deliveryDays: { type: Number, default: 0 },
   stockStatus: { type: String, enum: ['in_stock', 'preorder', 'out_of_stock'], default: 'preorder' },

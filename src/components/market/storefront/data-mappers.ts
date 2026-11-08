@@ -215,20 +215,28 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     }
   }
 
+  // Tableau technique = paires clé/valeur réelles ; les phrases marketing
+  // (« Étanchéité IP67 – résiste à la pluie ») deviennent des points forts.
   const specs: [string, string][] = [];
+  const highlights: string[] = [];
+  if (Array.isArray(p?.specifications)) {
+    for (const entry of p.specifications) {
+      if (Array.isArray(entry) && entry[0] && entry[1]) specs.push([String(entry[0]), String(entry[1])]);
+    }
+  }
   if (Array.isArray(p?.features)) {
     for (const f of p.features) {
       if (typeof f === 'string') {
-        const [label, ...rest] = f.split(':');
-        specs.push([
-          (label || f).trim(),
-          rest.join(':').trim() || '—',
-        ]);
+        const idx = f.indexOf(':');
+        const label = idx > 0 ? f.slice(0, idx).trim() : '';
+        const value = idx > 0 ? f.slice(idx + 1).trim() : '';
+        if (label && value && label.length <= 40) specs.push([label, value]);
+        else if (f.trim()) highlights.push(f.trim());
       } else if (f && typeof f === 'object') {
-        specs.push([
-          f.label || f.name || 'Détail',
-          f.value || f.description || '—',
-        ]);
+        const label = f.label || f.name;
+        const value = f.value || f.description;
+        if (label && value) specs.push([label, value]);
+        else if (label || value) highlights.push(String(label || value));
       }
     }
   }
@@ -242,21 +250,29 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
   const shippingOptions = pricing.shippingOptions || p?.shippingOptions;
   if (Array.isArray(shippingOptions)) {
     for (const opt of shippingOptions) {
-      const key =
-        opt.id ||
-        (opt.durationDays && opt.durationDays <= 7 ? 'express' : opt.durationDays && opt.durationDays <= 15 ? 'aerien' : 'maritime');
+      const kind =
+        opt.id === 'air_express' ? 'express'
+          : opt.id === 'air_15' ? 'aerien'
+            : opt.id === 'sea_freight' ? 'maritime'
+              : opt.durationDays && opt.durationDays <= 7 ? 'express'
+                : opt.durationDays && opt.durationDays <= 20 ? 'aerien' : 'maritime';
+      const key = opt.id || kind;
       const label =
-        key === 'express'
-          ? 'Express aérien'
-          : key === 'aerien'
-            ? 'Standard aérien'
-            : 'Maritime';
+        kind === 'express'
+          ? 'Aérien express'
+          : kind === 'aerien'
+            ? 'Aérien standard'
+            : 'Maritime (groupage)';
+      // Fourchette lisible (« 3-5 jours ») : depuis le libellé serveur, sinon la durée moyenne
+      const range = typeof opt.label === 'string' ? opt.label.match(/(\d+)\s*[-–à]\s*(\d+)/) : null;
       const days =
         opt.durationDays && opt.durationDaysEnd
-          ? `${opt.durationDays}-${opt.durationDaysEnd}j`
-          : opt.durationDays
-            ? `${opt.durationDays}j`
-            : '—';
+          ? `${opt.durationDays}-${opt.durationDaysEnd} jours`
+          : range
+            ? `${range[1]}-${range[2]} jours`
+            : opt.durationDays
+              ? `~${opt.durationDays} jours`
+              : '—';
       const from = opt.cost ?? opt.price ?? 0;
       modes.push({ key, label, days, from });
     }
@@ -298,6 +314,7 @@ export function mapProductDetail(p: any, activeGroup?: any): Product {
     variants: variants.length > 0 ? variants : [],
     variantGroups,
     specs: specs.length > 0 ? filterSpecEntries(specs) : [],
+    highlights: highlights.slice(0, 10),
     // Images rapatriées chez nous (/api/uploads/…) comprises : l'ancien filtre « http » les perdait
     descriptionImages: Array.isArray(p?.descriptionImages)
       ? p.descriptionImages.filter(isDisplayableMediaUrl)

@@ -20,6 +20,7 @@ type PricingDefaultsState = {
   singleImportServiceFeeRate: number
   defaultInsuranceRate: number
   defaultB2BDiscountPercent: number
+  inlandTransportCny: number
   serviceFeeTiers: ServiceFeeTierSetting[]
 }
 
@@ -59,6 +60,7 @@ export default function AdminPricingDefaults() {
           singleImportServiceFeeRate: loaded.singleImportServiceFeeRate ?? DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE,
           defaultInsuranceRate: loaded.defaultInsuranceRate ?? 2.5,
           defaultB2BDiscountPercent: Number(loaded.defaultB2BDiscountPercent) || 15,
+          inlandTransportCny: typeof loaded.inlandTransportCny === 'number' ? loaded.inlandTransportCny : 5,
           serviceFeeTiers: Array.isArray(loaded.serviceFeeTiers) && loaded.serviceFeeTiers.length > 0
             ? loaded.serviceFeeTiers
             : DEFAULT_TIER_SETTINGS,
@@ -173,6 +175,12 @@ export default function AdminPricingDefaults() {
           <div>Remise B2B par défaut (%)</div>
           <NumInput required min="1" max="50" step="0.1" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.defaultB2BDiscountPercent}
             onChange={v => setDefaults({ ...defaults, defaultB2BDiscountPercent: v ?? NaN })} />
+        </label>
+        <label className="space-y-1 text-xs">
+          <div>Transport intérieur Chine (¥ / pièce)</div>
+          <NumInput required min="0" max="200" step="0.5" className="min-h-11 w-full rounded border px-2 py-1 text-base sm:text-sm" value={defaults.inlandTransportCny}
+            onChange={v => setDefaults({ ...defaults, inlandTransportCny: v ?? NaN })} />
+          <p className="text-[11px] text-gray-500">Fournisseur → entrepôt, ajouté au prix source des imports</p>
         </label>
       </div>
 

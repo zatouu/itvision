@@ -14,6 +14,7 @@ import { BASE_SHIPPING_RATES } from '@/lib/logistics'
 import type { ShippingMethodId } from '@/lib/logistics'
 import FileDropZone from '@/components/ui/FileDropZone'
 import NumInput from '@/components/ui/NumInput'
+import { defaultGroupTiers, maxGroupDiscount } from '@/lib/pricing/group-tiers'
 import { uploadFile } from '@/lib/http/upload-file'
 
 type ShippingOverride = {
@@ -2883,13 +2884,7 @@ export default function AdminProductManager() {
                   if (enabled && (!editing.priceTiers || editing.priceTiers.length === 0)) {
                     // Générer automatiquement les paliers de prix
                     const basePrice = editing.price || editing.baseCost || 50000
-                    const autoTiers = [
-                      { minQty: 5, maxQty: 9, price: Math.round(basePrice * 0.95), discount: 5 },
-                      { minQty: 10, maxQty: 24, price: Math.round(basePrice * 0.90), discount: 10 },
-                      { minQty: 25, maxQty: 49, price: Math.round(basePrice * 0.85), discount: 15 },
-                      { minQty: 50, maxQty: 99, price: Math.round(basePrice * 0.80), discount: 20 },
-                      { minQty: 100, price: Math.round(basePrice * 0.75), discount: 25 },
-                    ]
+                    const autoTiers = defaultGroupTiers(basePrice, editing)
                     setEditing({ 
                       ...editing, 
                       groupBuyEnabled: true,
@@ -2986,7 +2981,24 @@ export default function AdminProductManager() {
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
               <p className="text-xs text-gray-500">Prix de base (unité)</p>
               <p className="text-xl font-bold text-gray-900">{formatCurrency(editing.price, editing.currency)}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Marge {editing.marginRate || 0}% + frais {editing.serviceFeeRate ?? 10}% · remise de lot max. conseillée <b>{maxGroupDiscount(editing)}%</b>
+              </p>
             </div>
+            {(editing.priceTiers || []).some(t => (t.discount || 0) > maxGroupDiscount(editing)) && (
+              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Certains paliers cèdent plus de la moitié du bénéfice (marge + frais) : le lot risque d'être vendu à perte.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditing({ ...editing, priceTiers: defaultGroupTiers(editing.price || 0, editing) })}
+                  className="min-h-9 shrink-0 rounded-md bg-amber-600 px-3 font-semibold text-white hover:bg-amber-700"
+                >
+                  Recalculer des paliers sûrs
+                </button>
+              </div>
+            )}
             
             {(!editing.priceTiers || editing.priceTiers.length === 0) ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">

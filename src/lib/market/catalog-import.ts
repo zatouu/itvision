@@ -34,7 +34,7 @@ export function importSourcePrice(input: {
   salePrice?: number
   promoPrice?: number
   currency?: string
-}, config: SharedPricingConfig, transportCny = CHINA_INLAND_TRANSPORT_CNY) {
+}, config: SharedPricingConfig, transportCny = config.defaults.inlandTransportCny ?? CHINA_INLAND_TRANSPORT_CNY) {
   // Prix promo retenu seulement s'il est plausible (sélecteurs « sale/promotion » parfois trop larges)
   const base = input.salePrice && input.salePrice > 0 ? input.salePrice : undefined
   const promo = input.promoPrice && input.promoPrice > 0 ? input.promoPrice : undefined
@@ -148,9 +148,13 @@ const WEIGHT_HINTS: Array<[RegExp, number]> = [
 /** Poids d'expédition estimé quand la source ne le donne pas (le transport est recalculé au poids réel). */
 export function estimateWeightKg(text: string, aiEstimate?: unknown): number {
   const ai = Number(aiEstimate)
-  if (Number.isFinite(ai) && ai >= 0.01 && ai <= 50) return Math.round(ai * 100) / 100
-  for (const [re, kg] of WEIGHT_HINTS) if (re.test(text)) return kg
-  return 0.5
+  const hint = WEIGHT_HINTS.find(([re]) => re.test(text))?.[1]
+  // Garde-fou : une estimation IA 4× au-dessus de l'ordre de grandeur de la famille
+  // (ex. 2 kg pour une ampoule) gonflerait le transport affiché — on garde l'indice.
+  if (Number.isFinite(ai) && ai >= 0.01 && ai <= 50 && (hint === undefined || ai <= hint * 4)) {
+    return Math.round(ai * 100) / 100
+  }
+  return hint ?? 0.5
 }
 
 /** Titre en français pour un nom chinois ou anglais ; renvoie le titre d'origine si l'IA ne répond pas. */

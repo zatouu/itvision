@@ -1,6 +1,7 @@
 // Serveur uniquement : cacher le require à webpack/next pour éviter le bundling côté client
 import { registerPlatformExchangeRate, registerPlatformSingleImportServiceFeeRate } from './platform-rate'
 import { DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE } from './tiered-service-fees'
+import { CHINA_INLAND_TRANSPORT_CNY } from './constants'
 import { randomUUID } from 'node:crypto'
 import { pricingDefaultsUpdateSchema } from '@/lib/validation'
 
@@ -25,6 +26,8 @@ export interface PricingDefaults {
   defaultInsuranceRate: number
   defaultB2BDiscountPercent: number
   serviceFeeTiers: ServiceFeeTierSetting[]
+  /** Transport intérieur Chine (fournisseur → entrepôt), en ¥ ajoutés au prix source */
+  inlandTransportCny?: number
 }
 
 export const DEFAULT_SERVICE_FEE_TIERS: ServiceFeeTierSetting[] = [
@@ -40,7 +43,8 @@ const DEFAULTS: PricingDefaults = {
   singleImportServiceFeeRate: DEFAULT_SINGLE_IMPORT_SERVICE_FEE_RATE,
   defaultInsuranceRate: 2.5,
   defaultB2BDiscountPercent: 15,
-  serviceFeeTiers: DEFAULT_SERVICE_FEE_TIERS
+  serviceFeeTiers: DEFAULT_SERVICE_FEE_TIERS,
+  inlandTransportCny: CHINA_INLAND_TRANSPORT_CNY
 }
 
 export { DEFAULTS as DEFAULT_PRICING_SETTINGS }
@@ -124,7 +128,10 @@ function sanitizePricingDefaults(raw: unknown): PricingDefaults {
       Number.isFinite(defaultB2BDiscountPercent) && defaultB2BDiscountPercent >= 1 && defaultB2BDiscountPercent <= 50
         ? Number(defaultB2BDiscountPercent)
         : DEFAULTS.defaultB2BDiscountPercent,
-    serviceFeeTiers: normalizeServiceFeeTiers(source.serviceFeeTiers, resolvedDefaultServiceFeeRate)
+    serviceFeeTiers: normalizeServiceFeeTiers(source.serviceFeeTiers, resolvedDefaultServiceFeeRate),
+    inlandTransportCny: Number.isFinite(Number(source.inlandTransportCny)) && Number(source.inlandTransportCny) >= 0 && Number(source.inlandTransportCny) <= 200
+      ? Number(source.inlandTransportCny)
+      : DEFAULTS.inlandTransportCny
   }
 }
 

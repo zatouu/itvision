@@ -6,6 +6,17 @@ import { firstImage } from './media'
 
 // Note: Les fonctions de pricing source sont réservées à l'usage admin interne
 
+// Fiche technique publique : on écarte toute clé liée au fournisseur, au prix ou à la logistique source
+const PRIVATE_SPEC_KEY = /prix|price|价|供应|supplier|fournisseur|vendeur|seller|shop|店|起批|批发|moq|库存|stock|发货|运费|shipping|lien|url|电话|phone|联系/i
+function publicSpecifications(raw: unknown): [string, string][] {
+  if (!raw || typeof raw !== 'object') return []
+  const entries = raw instanceof Map ? [...raw.entries()] : Object.entries(raw as Record<string, unknown>)
+  return entries
+    .map(([k, v]) => [String(k).trim(), String(v ?? '').trim()] as [string, string])
+    .filter(([k, v]) => k && v && k.length <= 60 && v.length <= 200 && !PRIVATE_SPEC_KEY.test(k))
+    .slice(0, 40)
+}
+
 const normalizeGallery = (product: any): string[] => {
   if (Array.isArray(product.gallery) && product.gallery.length > 0) {
     return product.gallery
@@ -100,6 +111,8 @@ export const formatProductDetail = (
     gallery: normalizeGallery(product),
     descriptionImages: Array.isArray(product.descriptionImages) ? product.descriptionImages : [],
     features: Array.isArray(product.features) ? product.features : [],
+    // Caractéristiques techniques clé/valeur issues de la fiche source (aucune donnée fournisseur/prix)
+    specifications: publicSpecifications((product as any).specifications),
     colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     variantOptions: Array.isArray(product.variantOptions) ? product.variantOptions : [],
     // Variantes avec prix et images (style 1688)

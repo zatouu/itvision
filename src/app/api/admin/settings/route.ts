@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       success: true,
       defaults: pricing.config.defaults,
       sourceCurrencyRates: pricing.config.sourceCurrencyRates,
-      inlandTransportCny: CHINA_INLAND_TRANSPORT_CNY,
+      inlandTransportCny: pricing.config.defaults.inlandTransportCny ?? CHINA_INLAND_TRANSPORT_CNY,
       pricingVersion: pricing.version,
       permissions: { canWrite: ['ADMIN', 'SUPER_ADMIN'].includes(auth.user.role.toUpperCase()) },
     }, { headers: { 'Cache-Control': 'private, no-store' } })

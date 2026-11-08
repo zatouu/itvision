@@ -609,6 +609,144 @@
     return null;
   };
 
+  /** Valeur JSON (objet/tableau) qui suit une clé `"key":` dans n'importe quel script inline. */
+  const extractJsonAfterKey = (key) => {
+    const needle = `"${key}"`;
+    for (const s of document.querySelectorAll('script:not([src])')) {
+      const text = s.textContent || '';
+      let from = 0;
+      while (true) {
+        const idx = text.indexOf(needle, from);
+        if (idx === -1) break;
+        from = idx + needle.length;
+        let start = text.indexOf(':', from);
+        if (start === -1) break;
+        start++;
+        while (start < text.length && /\s/.test(text[start])) start++;
+        const open = text[start];
+        if (open !== '{' && open !== '[') continue;
+        const close = open === '{' ? '}' : ']';
+        let end = start + 1, depth = 1;
+        while (end < text.length && depth > 0) {
+          const c = text[end];
+          if (c === '"') {
+            end++;
+            while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
+          } else if (c === open) depth++;
+          else if (c === close) depth--;
+          end++;
+        }
+        if (depth === 0) {
+          try { return JSON.parse(text.slice(start, end)); } catch {}
+        }
+      }
+    }
+    return null;
+  };
+
+  const VARIANT_GROUP_FR = [
+    [/颜色|色|colou?r/i, 'Couleur'],
+    [/尺码|尺寸|size|taille/i, 'Taille'],
+    [/规格|型号|款式|款|model|style|type/i, 'Modèle'],
+    [/长度|length|longueur/i, 'Longueur'],
+    [/功率|power|watt|puissance/i, 'Puissance'],
+    [/容量|capacity|capacité/i, 'Capacité'],
+    [/电压|voltage|tension/i, 'Tension'],
+    [/套餐|package|bundle|pack/i, 'Pack'],
+    [/插头|plug|prise/i, 'Prise'],
+  ];
+  const frGroupName = (name) => {
+    const n = String(name || '').trim();
+    for (const [re, fr] of VARIANT_GROUP_FR) if (re.test(n)) return fr;
+    return n || 'Options';
+  };
+  const decodeEntities = (s) => String(s || '').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+  const num = (v) => { const n = parseFloat(typeof v === 'object' && v ? (v.value ?? v.amount ?? v.price) : v); return Number.isFinite(n) && n > 0 ? n : undefined; };
+
+  /**
+   * Variantes depuis l'état JSON de la page (fiable même si le DOM est minifié) :
+   * - 1688 : skuProps [{prop, value:[{name,imageUrl}]}] + skuInfoMap {"红色>10米": {price, discountPrice, canBookCount}}
+   * - AliExpress : productSKUPropertyList [{skuPropertyName, skuPropertyValues:[…]}] + skuPriceList
+   * Prix par option = prix minimal des combinaisons qui la contiennent.
+   */
+  const extractVariantsFromScripts = () => {
+    // ── 1688 ──
+    const skuProps = extractJsonAfterKey('skuProps');
+    if (Array.isArray(skuProps) && skuProps.length) {
+      const infoMap = extractJsonAfterKey('skuInfoMap') || {};
+      const combos = Object.entries(infoMap).map(([k, v]) => ({
+        parts: decodeEntities(k).split('>').map(p => p.trim()),
+        price: num(v?.discountPrice) || num(v?.price),
+        stock: Number(v?.canBookCount ?? v?.saleCount ?? 0) || 0,
+      }));
+      const groups = skuProps.map(g => {
+        const values = Array.isArray(g?.value) ? g.value : [];
+        const variants = values.map((v, idx) => {
+          const name = String(v?.name || '').trim();
+          if (!name) return null;
+          const matching = combos.filter(c => c.parts.includes(name));
+          const prices = matching.map(c => c.price).filter(Boolean);
+          const stock = matching.reduce((s, c) => s + c.stock, 0);
+          const image = v?.imageUrl ? cleanImageUrl(v.imageUrl) : undefined;
+          return {
+            id: `sku-${idx}`,
+            name,
+            image,
+            price1688: prices.length ? Math.min(...prices) : undefined,
+            stock: stock || 1000,
+            isDefault: idx === 0,
+          };
+        }).filter(Boolean);
+        return { name: frGroupName(g?.prop || g?.name), sourceName: g?.prop || '', variants };
+      }).filter(g => g.variants.length > 0);
+      if (groups.some(g => g.variants.length > 1)) return groups;
+    }
+
+    // ── AliExpress ──
+    const propList = extractJsonAfterKey('productSKUPropertyList') || extractJsonAfterKey('skuPropertyList');
+    if (Array.isArray(propList) && propList.length) {
+      const priceList = extractJsonAfterKey('skuPriceList') || [];
+      const combos = (Array.isArray(priceList) ? priceList : []).map(c => ({
+        ids: String(c?.skuPropIds || '').split(',').map(s => s.trim()),
+        price: num(c?.skuVal?.skuActivityAmount) || num(c?.skuVal?.skuAmount) || num(c?.skuVal?.actSkuCalPrice) || num(c?.skuVal?.skuCalPrice),
+        stock: Number(c?.skuVal?.availQuantity ?? 0) || 0,
+      }));
+      const groups = propList.map(g => {
+        const values = g?.skuPropertyValues || g?.skuPropertyValueList || [];
+        const variants = values.map((v, idx) => {
+          const name = String(v?.propertyValueDisplayName || v?.propertyValueDefinitionName || v?.propertyValueName || '').trim();
+          if (!name) return null;
+          const id = String(v?.propertyValueId ?? v?.propertyValueIdLong ?? '');
+          const matching = combos.filter(c => id && c.ids.some(x => x.endsWith(`:${id}`) || x === id));
+          const prices = matching.map(c => c.price).filter(Boolean);
+          const image = v?.skuPropertyImagePath || v?.skuPropertyImageSummPath;
+          return {
+            id: `sku-${idx}`,
+            name,
+            image: image ? cleanImageUrl(image) : undefined,
+            price1688: prices.length ? Math.min(...prices) : undefined,
+            stock: matching.reduce((s, c) => s + c.stock, 0) || 1000,
+            isDefault: idx === 0,
+          };
+        }).filter(Boolean);
+        return { name: frGroupName(g?.skuPropertyName), sourceName: g?.skuPropertyName || '', variants };
+      }).filter(g => g.variants.length > 0);
+      if (groups.some(g => g.variants.length > 1)) return groups;
+    }
+    return [];
+  };
+
+  /** Fusion : la structure JSON prime ; le DOM complète les images manquantes. */
+  const mergeVariantGroups = (fromScripts, fromDom) => {
+    if (!fromScripts.length) return fromDom;
+    const domImages = new Map();
+    (fromDom || []).forEach(g => (g.variants || []).forEach(v => { if (v.image) domImages.set(v.name, v.image); }));
+    return fromScripts.map(g => ({
+      name: g.name,
+      variants: g.variants.map(v => ({ ...v, image: v.image || domImages.get(v.name) })),
+    }));
+  };
+
   /** Trouver un objet ressemblant à un produit dans un arbre JSON */
   const findProductLikeObject = (root, depth = 5, seen = new WeakSet()) => {
     if (!root || depth < 0) return null;
@@ -1025,9 +1163,19 @@
         if (variants.length > 1) data.variantGroups.push({ name: 'Modèle', variants });
       }
 
+      // Source fiable : l'état JSON de la page (prix, stock et image par déclinaison)
+      const scriptGroups = extractVariantsFromScripts();
+      if (scriptGroups.length) {
+        data.variantGroups = mergeVariantGroups(scriptGroups, data.variantGroups);
+        data.variantGroups.forEach(g => g.variants.forEach(v => {
+          if (v.image && !imageCategories.variant.includes(v.image)) imageCategories.variant.push(v.image);
+        }));
+        console.log('[IT Vision] 1688 Variantes (JSON):', data.variantGroups.map(g => `${g.name}(${g.variants.length})`).join(', '));
+      }
+
       // Mettre à jour les images de variante
       if (data.imageCategories) {
-        data.imageCategories.variant = deduplicateImages(imageCategories.variant).slice(0, 20);
+        data.imageCategories.variant = deduplicateImages(imageCategories.variant).slice(0, 40);
       }
     } catch (e) { console.warn('[IT Vision] Variantes 1688:', e); }
 
@@ -2020,6 +2168,10 @@
           }
         }
       }
+
+      // JSON de la page : prix et stock par déclinaison, image par option
+      const scriptGroups = extractVariantsFromScripts();
+      if (scriptGroups.length) data.variantGroups = mergeVariantGroups(scriptGroups, data.variantGroups);
 
       console.log('[IT Vision] Total groupes de variantes:', data.variantGroups.length,
         data.variantGroups.map(g => `${g.name}(${g.variants.length})`).join(', '));
