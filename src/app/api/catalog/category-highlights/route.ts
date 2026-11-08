@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
@@ -6,7 +8,17 @@ import { defaultProductCategories } from '@/lib/data/default-categories'
 import { countProductsByCategory } from '@/lib/catalog/category-match'
 import { getRedisClient } from '@/lib/redis'
 
-const CACHE_KEY = 'catalog:category-highlights:v1'
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
+
+/** URLs externes acceptées telles quelles ; un upload local doit exister sur le disque. */
+function localUploadExists(url: string): boolean {
+  const match = /(?:^|\/)(?:api\/)?uploads\/(.+?)(?:[?#].*)?$/.exec(url)
+  if (!match || /^https?:\/\/(?!(?:www\.)?(?:ddm\.sn|itvisionplus\.sn|market\.itvisionplus\.sn))/i.test(url)) return true
+  const file = path.normalize(path.join(UPLOADS_DIR, decodeURIComponent(match[1])))
+  return file.startsWith(UPLOADS_DIR) && fs.existsSync(file)
+}
+
+const CACHE_KEY = 'catalog:category-highlights:v2'
 const CACHE_TTL = 300 // 5 min
 const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
 
@@ -45,7 +57,8 @@ export async function GET() {
     const items = categories.map((c: any) => {
       const slug = String(c.slug || c._id || c.name || '').toLowerCase()
       const stat = stats.get(slug)
-      const pool = stat?.images ?? []
+      // Fichier local supprimé (produit nettoyé, upload perdu) : on passe à l'image suivante
+      const pool = (stat?.images ?? []).filter(localUploadExists)
       const image = pool.find((u) => !usedImages.has(u)) ?? pool[0] ?? null
       if (image) usedImages.add(image)
       return {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -85,6 +85,10 @@ function SectionHeader({ id, title, subtitle, icon: Icon, tone, href, linkLabel 
 
 function CategoryTile({ category, index }: { category: HomeCategory; index: number }) {
   const [imageError, setImageError] = useState(false);
+  // Image rendue côté serveur : son échec peut survenir avant l'hydratation (onError jamais reçu)
+  const imgRef = useCallback((img: HTMLImageElement | null) => {
+    if (img && img.complete && img.naturalWidth === 0) setImageError(true);
+  }, []);
   const { Icon, tile } = categoryVisual(category.key, category.label, index);
   const count = typeof category.count === 'number' ? category.count : 0;
   return (
@@ -97,7 +101,7 @@ function CategoryTile({ category, index }: { category: HomeCategory; index: numb
       {count > 0 && <span className="relative z-10 mt-0.5 text-xs font-semibold text-white/90">{count} produit{count > 1 ? 's' : ''}</span>}
       <span className="relative z-10 mt-auto inline-flex items-center gap-1 text-xs font-bold">Voir<ArrowRight size={12} aria-hidden className="transition-transform group-hover:translate-x-0.5" /></span>
       {category.image && !imageError ? (
-        <img src={category.image} alt="" loading="lazy" decoding="async" onError={() => setImageError(true)}
+        <img ref={imgRef} src={category.image} alt="" loading="lazy" decoding="async" onError={() => setImageError(true)}
           className="absolute -bottom-3 -right-3 h-20 w-20 rotate-6 rounded-2xl bg-white object-contain p-1.5 shadow-lg transition-transform group-hover:rotate-0 sm:h-24 sm:w-24" />
       ) : (
         <Icon aria-hidden strokeWidth={1.5} className="absolute -bottom-4 -right-3 h-20 w-20 rotate-12 text-white/30 transition-transform group-hover:rotate-0 sm:h-24 sm:w-24" />
