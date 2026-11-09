@@ -13,7 +13,6 @@ import { ProductGridSkeleton } from '../Skeleton';
 import RetryNotice from '../RetryNotice';
 import { useQuickAdd } from '../useQuickAdd';
 import { mapCatalogItem, mapCategory } from '../data-mappers';
-import { productMatchesCategory } from '@/lib/catalog/category-match';
 import { PAGE_SIZE, MOQ_BUCKETS, buildCatalogParams, filtersFromParams, type CatalogFilters } from '../catalog-query';
 import type { Product, Category } from '../types';
 
@@ -149,10 +148,10 @@ export default function ScreenCatalog({ initialData }: { initialData?: CatalogIn
   );
   const effectivePriceRange: [number, number] = [priceRange[0], priceRange[1] === 0 ? catalogMaxPrice : priceRange[1]];
 
-  // Filtres d'affinage côté client (moq, vérifié, économie, prix, catégorie libre)
+  // Filtres d'affinage côté client (moq, vérifié, économie, prix) — la catégorie
+  // (famille + sous-catégories) est déjà filtrée par l'API.
   const filtered = useMemo(() => {
     return CATALOG.filter((p) => {
-      if (cat !== "Tous" && !productMatchesCategory(p, cat)) return false;
       if (p.price < effectivePriceRange[0] || p.price > effectivePriceRange[1]) return false;
       if (moqFilter === "lot" && (p.moq ?? p.minOrderQty ?? 1) <= 1) return false;
       if (moqFilter === "1-4" && (p.moq ?? p.minOrderQty ?? 0) > 4) return false;
@@ -172,9 +171,17 @@ export default function ScreenCatalog({ initialData }: { initialData?: CatalogIn
     effectivePriceRange[0] > 0 || effectivePriceRange[1] < catalogMaxPrice;
   const displayCount = clientOnlyFilters ? filtered.length : (total || filtered.length);
 
+  // Famille dépliée dans le panneau : la catégorie choisie ou la famille de la sous-catégorie choisie
+  const openFamily = CATEGORIES.find(c => c.key === cat || c.subs?.some(s => s.key === cat));
+  const catLabel = (key: string) =>
+    CATEGORIES.find(c => c.key === key)?.label || openFamily?.subs?.find(s => s.key === key)?.label || key;
+  // Familles vides masquées (sauf sélection) dès que les compteurs sont connus
+  const hasCounts = CATEGORIES.some(c => c.count > 0);
+  const visibleCategories = hasCounts ? CATEGORIES.filter(c => c.count > 0 || c.key === openFamily?.key) : CATEGORIES;
+
   // Chaque filtre actif est retirable individuellement via sa chip.
   const activeFilters = ([
-    cat !== "Tous" && { key: 'cat', label: CATEGORIES.find(c => c.key === cat)?.label || cat, clear: () => setCat("Tous") },
+    cat !== "Tous" && { key: 'cat', label: catLabel(cat), clear: () => setCat("Tous") },
     moqFilter !== "all" && { key: 'moq', label: moqFilter === "lot" ? "Vendu par lot" : `Lot ${moqFilter}`, clear: () => setMoqFilter("all") },
     groupOnly && { key: 'group', label: "Groupe actif", clear: () => setGroupOnly(false) },
     verifiedOnly && { key: 'verified', label: "Vérifiés", clear: () => setVerifiedOnly(false) },
@@ -223,11 +230,19 @@ export default function ScreenCatalog({ initialData }: { initialData?: CatalogIn
           <button onClick={() => setCat("Tous")} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === "Tous" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
             <span>Toutes</span><span className="text-[11px] tabular-nums text-slate-400">{total || CATALOG.length}</span>
           </button>
-          {CATEGORIES.map((c) => (
-            <button key={c.key} onClick={() => setCat(c.key)} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === c.key ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
-              <span className="flex items-center gap-1.5"><Icon name={c.icon} size={12}/>{c.label}</span>
-              <span className="text-[11px] tabular-nums text-slate-400">{c.count}</span>
-            </button>
+          {visibleCategories.map((c) => (
+            <Fragment key={c.key}>
+              <button onClick={() => setCat(c.key)} className={cn("flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold", cat === c.key ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")}>
+                <span className="flex min-w-0 items-center gap-1.5"><Icon name={c.icon} size={12}/><span className="truncate">{c.label}</span></span>
+                <span className="text-[11px] tabular-nums text-slate-400">{c.count}</span>
+              </button>
+              {openFamily?.key === c.key && (c.subs ?? []).filter(s => s.count > 0 || s.key === cat || !hasCounts).map((s) => (
+                <button key={s.key} onClick={() => setCat(s.key)} className={cn("ml-4 flex w-[calc(100%-1rem)] items-center justify-between rounded-lg border-l border-slate-200 px-2.5 py-1 text-[12px] dark:border-slate-700", cat === s.key ? "bg-emerald-50 font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800")}>
+                  <span className="truncate">{s.label}</span>
+                  <span className="text-[11px] tabular-nums text-slate-400">{s.count}</span>
+                </button>
+              ))}
+            </Fragment>
           ))}
         </div>
       </div>
@@ -364,7 +379,7 @@ export default function ScreenCatalog({ initialData }: { initialData?: CatalogIn
                 <Link href="/" className="cursor-pointer">Accueil</Link><Icon name="chevronRight" size={12}/><span className="text-slate-700 dark:text-slate-300">Catalogue</span>
               </div>
               <h1 className="text-2xl font-extrabold tracking-normal text-slate-900 dark:text-white">
-                {cat === "Tous" ? "Tous les produits" : (CATEGORIES.find(c => c.key === cat)?.label || cat)}
+                {cat === "Tous" ? "Tous les produits" : catLabel(cat)}
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400"><b className="text-slate-900 dark:text-white tabular-nums">{displayCount}</b> produit{displayCount > 1 ? "s" : ""} trouvé{displayCount > 1 ? "s" : ""}</p>
             </div>

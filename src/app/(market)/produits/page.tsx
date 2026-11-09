@@ -21,7 +21,9 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     return { title: `Recherche « ${filters.q} » — DDM+`, robots: { index: false, follow: true }, alternates: { canonical: '/produits' } };
   }
   if (filters.cat !== 'Tous') {
-    const category = (await loadCatalogCategories()).find(c => c.key === filters.cat);
+    const categories = await loadCatalogCategories();
+    const category = categories.find(c => c.key === filters.cat)
+      ?? categories.flatMap(c => c.subs ?? []).find(s => s.key === filters.cat);
     if (category) {
       return pageMetadata({
         path: `/produits?cat=${encodeURIComponent(category.key)}`,

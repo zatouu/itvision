@@ -15,17 +15,28 @@
  * Utilisé par la vitrine publique (/corporate-produits) et l'API
  * (/api/corporate/products) — une seule source pour éviter les divergences.
  */
+import { CATEGORY_TREE_SLUGS } from '../catalog/category-tree'
 
-/** Termes de recherche des catégories tech ITV (fallback historique). */
+/** Termes de recherche des catégories tech ITV (fallback historique, textes libres). */
 export const CORPORATE_CATEGORY_TERMS = Array.from(new Set([
   'camera', 'caméra', 'videosurveillance', 'vidéosurveillance', 'cctv', 'hikvision', 'dahua', 'nvr', 'dvr',
   "contrôle d'accès", "controle d'acces", 'biométrique', 'biometrique', 'badge', 'rfid', 'serrure', 'empreinte', 'pointeuse', 'badgeuse',
   'alarme', 'alarm', 'détecteur', 'detecteur', 'sirène', 'sirene', 'intrusion', 'capteur',
   'réseau', 'reseau', 'wifi', 'wi-fi', 'switch', 'poe', 'routeur', 'câble', 'cable', 'onduleur', 'ups', 'serveur',
   'domotique', 'smart home', 'maison intelligente', 'automatisation', 'tuya', 'zigbee', 'sonoff',
-  'gadget', 'accessoire', 'objet connecté', 'support', 'adaptateur',
+  'gadget', 'objet connecté', 'support', 'adaptateur',
   'incendie', 'fumée', 'fumee', 'extincteur', 'détection incendie',
 ]))
+
+/**
+ * Slugs de l'arborescence catalogue relevant du métier ITV (sécurité, réseau,
+ * domotique, énergie technique). Les produits reclassés portent ces slugs.
+ */
+export const CORPORATE_CATEGORY_SLUGS = [
+  'securite', 'videosurveillance', 'controle-acces', 'alarme-intrusion', 'interphones', 'serrures-connectees', 'incendie', 'traceurs-gps',
+  'domotique', 'eclairage-connecte', 'prises-interrupteurs', 'capteurs', 'assistants-vocaux', 'motorisation',
+  'reseau-informatique', 'cables', 'onduleurs', 'racks-baies', 'mobilier-technique',
+]
 
 export function corporateCategoryRegexes(): RegExp[] {
   return CORPORATE_CATEGORY_TERMS.map(t => new RegExp(escapeRegex(t), 'i'))
@@ -77,7 +88,13 @@ export function corporateCatalogFilter(params: CorporateCatalogParams = {}): Rec
   if (includeCategoryFallback) {
     const fallback = {
       $and: [
-        { category: { $in: corporateCategoryRegexes() } },
+        {
+          $or: [
+            { category: { $in: CORPORATE_CATEGORY_SLUGS } },
+            // Textes libres hors arborescence (produits non encore reclassés)
+            { category: { $nin: CATEGORY_TREE_SLUGS, $in: corporateCategoryRegexes() } },
+          ],
+        },
         { $or: [{ b2bPrice: { $gt: 0 } }, { price: { $gt: 0 } }] },
       ],
     }

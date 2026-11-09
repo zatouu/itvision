@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
+import Product from '@/lib/models/Product'
+import { categoryScope } from '@/lib/catalog/category-match'
 import { defaultProductCategories } from '@/lib/data/default-categories'
 import { formatCategoryForApi } from '@/lib/taxonomy/category-api-format'
 import { getRedisClient } from '@/lib/redis'
 
-const CATEGORIES_CACHE_KEY = 'catalog:categories:v1'
+const CATEGORIES_CACHE_KEY = 'catalog:categories:v2'
 const CATEGORIES_CACHE_TTL = 300 // 5 min
 const CATEGORIES_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
 
@@ -54,7 +56,18 @@ export async function GET() {
       dbItems = fallbackCategories as any
     }
 
-    const items = dbItems.map(c => formatCategoryForApi(c as any))
+    // Comptage des produits publi?s : une famille agr?ge ses sous-cat?gories
+    const rawCounts = await Product.aggregate<{ _id: string; count: number }>([
+      { $match: { isPublished: { $ne: false } } },
+      { $group: { _id: { $toLower: { $ifNull: ['$category', ''] } }, count: { $sum: 1 } } },
+    ])
+    const countsBySlug = new Map(rawCounts.map(r => [String(r._id), r.count]))
+    const sumScope = (scope: Set<string>) => Array.from(scope).reduce((n, s) => n + (countsBySlug.get(s) || 0), 0)
+
+    const items = dbItems.map((c: any) => {
+      const scope = categoryScope(c.slug, (c.subCategories || []).map((s: any) => s.slug))
+      return formatCategoryForApi(c, sumScope(scope), countsBySlug)
+    })
     const response = { success: true, items }
 
     if (redis && redis.status === 'ready') {

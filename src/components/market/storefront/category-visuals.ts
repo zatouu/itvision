@@ -1,5 +1,5 @@
 import {
-  Armchair, Baby, Car, Dumbbell, Gift, HeartPulse, House, Laptop, Package, Shirt, ShieldCheck, Smartphone, Utensils, Wrench,
+  Armchair, Baby, Car, Dumbbell, Gift, HeartPulse, House, Laptop, Package, PawPrint, PenLine, Shirt, ShieldCheck, Smartphone, Tv, Utensils, Wrench, Zap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -11,8 +11,12 @@ export interface CategoryVisual {
 
 const RULES: { test: RegExp; visual: CategoryVisual }[] = [
   { test: /secur|surveil|camera|alarm|acces|incendie/, visual: { Icon: ShieldCheck, tile: 'from-rose-600 to-red-500' } },
+  { test: /fourniture|papeterie|scolaire/, visual: { Icon: PenLine, tile: 'from-blue-700 to-sky-500' } },
   { test: /informat|bureau|ordinat|reseau|ecran|clavier|souris/, visual: { Icon: Laptop, tile: 'from-indigo-600 to-blue-500' } },
-  { test: /electron|smartphone|telephon|audio|video|\btv\b/, visual: { Icon: Smartphone, tile: 'from-sky-700 to-cyan-500' } },
+  { test: /smartphone|telephon|tablette/, visual: { Icon: Smartphone, tile: 'from-sky-700 to-cyan-500' } },
+  { test: /electron|audio|video|\btv\b|high tech/, visual: { Icon: Tv, tile: 'from-cyan-800 to-sky-500' } },
+  { test: /energie|solaire|onduleur|electrique/, visual: { Icon: Zap, tile: 'from-amber-700 to-yellow-500' } },
+  { test: /animau|chien|chat/, visual: { Icon: PawPrint, tile: 'from-amber-800 to-orange-500' } },
   { test: /domoti|smart|maison|eclairage|home/, visual: { Icon: House, tile: 'from-teal-700 to-emerald-500' } },
   { test: /mobilier|meuble|install|rack|baie/, visual: { Icon: Armchair, tile: 'from-orange-700 to-amber-500' } },
   { test: /pack|cadeau|gift/, visual: { Icon: Gift, tile: 'from-pink-600 to-fuchsia-500' } },

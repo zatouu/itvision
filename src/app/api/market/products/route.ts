@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Product from '@/lib/models/Product'
+import { categoryTreeDescendants } from '@/lib/catalog/category-tree'
 
 // GET /api/market/products?search=&category=&condition=&limit=20&skip=0
 // Catalogue public marketplace (ddm.sn)
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (q) query.name = new RegExp(q, 'i')
-    if (category) query.category = category
+    if (category) query.category = { $in: categoryTreeDescendants(category) }
     if (condition && (condition === 'new' || condition === 'used' || condition === 'refurbished')) {
       query.condition = condition
     }

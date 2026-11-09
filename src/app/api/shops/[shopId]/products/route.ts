@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Shop from '@/lib/models/Shop'
 import Product from '@/lib/models/Product'
+import { categoryTreeDescendants } from '@/lib/catalog/category-tree'
 import { computeProductPricing } from '@/lib/logistics'
 import { readSharedPricing, configuredShippingRates } from '@/lib/pricing/shared-settings'
 import mongoose from 'mongoose'
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const filter: any = { shopId: shop._id, isPublished: { $ne: false } }
     const category = (searchParams.get('category') || '').trim()
-    if (category) filter.category = category
+    if (category) filter.category = { $in: categoryTreeDescendants(category) }
 
     const [products, total] = await Promise.all([
       Product.find(filter)

@@ -1,8 +1,8 @@
 import { getRedisClient } from './redis'
 
 const CATALOG_PRODUCTS_PREFIX = 'catalog:v1:'
-const CATEGORIES_KEY = 'catalog:categories:v1'
-const CATEGORY_HIGHLIGHTS_KEY = 'catalog:category-highlights:v1'
+const CATEGORIES_KEY = 'catalog:categories:v2'
+const CATEGORY_HIGHLIGHTS_KEY = 'catalog:category-highlights:v3'
 const GROUP_ORDERS_PREFIX = 'mkt:group-orders:v1:'
 const PRODUCT_CATEGORIES_KEY = 'catalog:product-categories:v1'
 const PRODUCT_CATEGORIES_TTL = 300 // 5 min

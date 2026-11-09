@@ -3,7 +3,7 @@ import { connectMongoose } from '@/lib/mongoose'
 import ProductCategory from '@/lib/models/ProductCategory'
 import Product from '@/lib/models/Product'
 import { defaultProductCategories } from '@/lib/data/default-categories'
-import { aggregateProductCounts } from '@/lib/taxonomy/category-api-format'
+import { categoryScope } from '@/lib/catalog/category-match'
 import { getProductCategoriesCache, setProductCategoriesCache } from '@/lib/catalog-cache'
 
 const PRODUCT_CATEGORIES_CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
@@ -53,7 +53,10 @@ export async function GET() {
       { $match: { category: { $exists: true, $nin: [null, ''] } } },
       { $group: { _id: '$category', count: { $sum: 1 } } }
     ])
-    const countMap = aggregateProductCounts(dbCategories as any, counts as any)
+    const countMap = new Map<string, number>(counts.map((r: any) => [String(r._id), Number(r.count) || 0]))
+    // Une famille agrège ses propres produits et ceux de ses sous-catégories (arbre + base)
+    const sumScope = (scope: Set<string>) => Array.from(scope).reduce((n, slug) => n + (countMap.get(slug) || 0), 0)
+    const scopes = new Map(dbCategories.map((c: any) => [c.slug, categoryScope(c.slug, (c.subCategories || []).map((s: any) => s.slug))]))
 
     const items = dbCategories.map((c: any) => ({
       category: c.slug,
@@ -64,12 +67,16 @@ export async function GET() {
       subCategories: (c.subCategories || []).map((s: any) => ({
         slug: s.slug,
         name: s.labelFr || s.name,
-        icon: s.icon
+        icon: s.icon,
+        count: countMap.get(s.slug) || 0,
       })),
-      count: countMap.get(c.slug) || 0
+      count: sumScope(scopes.get(c.slug) || new Set([c.slug])),
     }))
 
-    const knownCategories = new Set(items.map(item => item.category))
+    // Slugs couverts (familles + sous-catégories) : seuls les textes libres restants
+    // apparaissent comme pseudo-catégories.
+    const knownCategories = new Set<string>()
+    for (const scope of Array.from(scopes.values())) for (const slug of Array.from(scope)) knownCategories.add(slug)
     for (const [category, count] of countMap.entries()) {
       if (!category || knownCategories.has(category)) continue
       items.push({

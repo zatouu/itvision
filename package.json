@@ -69,7 +69,9 @@
     "migrate:variant-ids": "tsx scripts/backfill-variant-ids.ts",
     "migrate:variant-ids:dry": "tsx scripts/backfill-variant-ids.ts --dry-run",
     "migrate:chat-messages": "tsx scripts/migrate-chat-messages.ts",
-    "migrate:chat-messages:dry": "tsx scripts/migrate-chat-messages.ts --dry-run"
+    "migrate:chat-messages:dry": "tsx scripts/migrate-chat-messages.ts --dry-run",
+    "migrate:product-categories": "tsx scripts/migrate-product-categories.ts",
+    "migrate:product-categories:dry": "tsx scripts/migrate-product-categories.ts --dry-run"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

@@ -18,14 +18,14 @@ function localUploadExists(url: string): boolean {
   return file.startsWith(UPLOADS_DIR) && fs.existsSync(file)
 }
 
-const CACHE_KEY = 'catalog:category-highlights:v2'
+const CACHE_KEY = 'catalog:category-highlights:v3'
 const CACHE_TTL = 300 // 5 min
 const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
 
 /**
  * Highlights par catégorie taxonomie : comptage réel + image représentative.
  * Endpoint léger (~2 KB) pour l'accueil — évite de télécharger tout le catalogue.
- * Les produits portent des `category` texte libres → matching par mots-clés.
+ * Une famille compte ses produits et ceux de ses sous-catégories.
  */
 export async function GET() {
   try {
@@ -41,6 +41,7 @@ export async function GET() {
     if (categories.length === 0) {
       categories = defaultProductCategories.map((c: any) => ({
         slug: c.id, name: c.name, icon: c.icon, labelFr: c.name,
+        subCategories: (c.subCategories || []).map((s: any) => ({ slug: s.id })),
       })) as any
     }
 
@@ -49,7 +50,11 @@ export async function GET() {
       .lean()
 
     const slugs = categories.map((c: any) => String(c.slug || c._id || c.name || '').toLowerCase())
-    const stats = countProductsByCategory(products as any, slugs)
+    const subSlugs: Record<string, string[]> = {}
+    categories.forEach((c: any, i: number) => {
+      subSlugs[slugs[i]] = (c.subCategories || []).map((s: any) => String(s?.slug || s?.id || '').toLowerCase())
+    })
+    const stats = countProductsByCategory(products as any, slugs, subSlugs)
 
     // Une image ne doit illustrer qu'une seule catégorie : on pioche dans le
     // pool de chaque slug la première image pas encore utilisée ailleurs.

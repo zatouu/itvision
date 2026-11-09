@@ -426,7 +426,7 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
   const [features, setFeatures] = useState<string[]>(prefill?.features?.length ? prefill.features : [''])
   const [variantGroups, setVariantGroups] = useState<VariantGroupRow[]>([])
   const [priceTiers, setPriceTiers] = useState<TierRow[]>([])
-  const [categories, setCategories] = useState<{ slug: string; name: string }[]>([])
+  const [categories, setCategories] = useState<{ slug: string; name: string; subs: { slug: string; name: string }[] }[]>([])
   const [open, setOpen] = useState({ variants: false, tiers: false, details: false })
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -437,8 +437,12 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
     fetch('/api/catalog/categories')
       .then(r => r.json())
       .then(d => {
-        const list = (d.categories || d || []) as any[]
-        setCategories(list.map(c => ({ slug: c.slug, name: c.labelFr || c.name || c.slug })))
+        const list = (d.items || d.categories || []) as any[]
+        setCategories(list.map(c => ({
+          slug: c.slug,
+          name: c.labelFr || c.name || c.slug,
+          subs: (c.subCategories || []).map((s: any) => ({ slug: s.slug, name: s.labelFr || s.name || s.slug })),
+        })))
       })
       .catch(() => {})
   }, [])
@@ -638,7 +642,15 @@ export function NewProductModal({ onClose, onCreated, prefill }: { onClose: () =
               {categories.length > 0 ? (
                 <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
                   <option value="">— Choisir —</option>
-                  {categories.map(c => <option key={c.slug} value={c.name}>{c.name}</option>)}
+                  {form.category && !categories.some(c => c.slug === form.category || c.subs.some(s => s.slug === form.category)) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+                  {categories.map(c => (
+                    <optgroup key={c.slug} label={c.name}>
+                      <option value={c.slug}>{c.name} (général)</option>
+                      {c.subs.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+                    </optgroup>
+                  ))}
                 </select>
               ) : (
                 <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls} placeholder="Ex : Électronique, Mode…" />
