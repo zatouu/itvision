@@ -39,23 +39,29 @@ export const viewport = {
   ],
 }
 
-// Valeurs par défaut (pages partagées : connexion, inscription…). Chaque site — corporate et
-// DDM+ — redéfinit son identité dans son propre layout : rien de spécifique à une marque ici
-// qui serait hérité par l'autre (mots-clés, auteur…).
+// Valeurs neutres de repli : chaque section redéfinit titre, description et favicon
+// dans son propre layout — corporate (IT Vision Plus), market (DDM+), admin, pages
+// partagées (login, légal) qui suivent le domaine consulté. Le manifeste PWA est
+// fourni par app/manifest.ts, lui aussi propre à chaque domaine.
 export const metadata: Metadata = {
-  title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
-  manifest: '/manifest.webmanifest',
-  description: 'DDM+ Marketplace : Import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés -45%, livraison Dakar.',
+  // Titre simple, sans template : un template ici serait propagé à tous les segments
+  // enfants et suffixerait les titres DDM+/admin (« … | IT Vision Plus » sur ddm.sn).
+  title: 'IT Vision Plus',
+  description:
+    'IT Vision Plus : sécurité électronique, vidéosurveillance, contrôle d\'accès, réseau et digitalisation au Sénégal. DDM+ : marketplace d\'import Chine et d\'achats groupés.',
+  applicationName: 'IT Vision Plus',
+  authors: [{ name: 'IT Vision Plus' }],
   icons: {
-    icon: '/branding/ddm-logo-favicon.svg',
-    shortcut: '/branding/ddm-logo-favicon.svg',
-    apple: '/branding/ddm-logo-favicon.svg',
+    icon: '/Icone.png',
+    shortcut: '/Icone.png',
+    apple: '/Icone.png',
   },
   openGraph: {
-    title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
-    description: 'Import direct Chine, livraison Sénégal. Mode, tech, beauté, maison, auto, sport. Achats groupés pour payer moins cher.',
+    siteName: 'IT Vision Plus',
+    locale: 'fr_SN',
     type: 'website',
   },
+  twitter: { card: 'summary_large_image' },
 }
 
 export default function RootLayout({

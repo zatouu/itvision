@@ -16,6 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!(await onMarketHost())) {
     return {
       metadataBase: new URL(CORPORATE_SITE_URL),
+      title: 'IT Vision Plus',
+      description:
+        'IT Vision Plus : sécurité électronique, vidéosurveillance, contrôle d\'accès, réseau et digitalisation à Dakar.',
       applicationName: 'IT Vision Plus',
       authors: [{ name: 'IT Vision Plus' }],
       icons: { icon: '/Icone.png', shortcut: '/Icone.png', apple: '/Icone.png' },
@@ -25,8 +28,16 @@ export async function generateMetadata(): Promise<Metadata> {
   }
   return {
     metadataBase: new URL(MARKET_SITE_URL),
+    title: 'DDM+ Marketplace — Import Chine & Achats Groupés',
+    description:
+      'DDM+ Marketplace : import direct Chine → Sénégal. Mode, électronique, beauté, maison, auto, sport. Prix usine, achats groupés, livraison Dakar.',
     applicationName: 'DDM+',
     authors: [{ name: 'DDM+' }],
+    icons: {
+      icon: '/branding/ddm-logo-favicon.svg',
+      shortcut: '/branding/ddm-logo-favicon.svg',
+      apple: '/branding/ddm-logo-favicon.svg',
+    },
     openGraph: { siteName: 'DDM+ Marketplace', locale: 'fr_SN', type: 'website', images: SITE_OG_IMAGES },
     twitter: { card: 'summary_large_image' },
   };
