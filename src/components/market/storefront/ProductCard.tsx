@@ -7,6 +7,7 @@ import { formatFcfa } from './formatFcfa';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { Icon } from './Icon';
+import { CardImage } from './CardImage';
 import { useWishlist, useCompare } from './useWishlist';
 import type { Product } from './types';
 
@@ -23,10 +24,6 @@ export interface ProductCardProps {
   onQuickAdd?: (product: Product) => void;
 }
 
-function getProductImage(product: Product): string {
-  return product.img || product.image || product.images?.[0] || '';
-}
-
 const AVAILABILITY: Record<string, { label: string; tone: string }> = {
   in_stock: { label: 'En stock à Dakar', tone: 'text-emerald-700 dark:text-emerald-400' },
   preorder: { label: 'Sur commande', tone: 'text-amber-700 dark:text-amber-400' },
@@ -41,12 +38,10 @@ export function ProductCard({
   href,
   onQuickAdd,
 }: ProductCardProps) {
-  const [imageError, setImageError] = useState(false);
   const { isFavorite, toggle: toggleFavorite } = useWishlist();
   const { isCompared, toggle: toggleCompare, max: compareMax } = useCompare();
   const [compareFull, setCompareFull] = useState(false);
 
-  const image = getProductImage(product);
   const category = product.cat || product.category || '';
   const moq = product.moq ?? product.minOrderQty ?? 1;
   // basePrice ne vaut que s'il s'agit d'une référence réellement inférieure
@@ -69,18 +64,9 @@ export function ProductCard({
       )}
     >
       <div className="relative aspect-square shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-800">
-        {image && !imageError ? (
-          <img loading="lazy" decoding="async" src={image}
-            alt={product.name}
-            onError={() => setImageError(true)}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-            <Icon name="package" size={28} />
-            <span className="text-[11px] mt-1">Image indisponible</span>
-          </div>
-        )}
+        <CardImage sources={[product.img, product.image, ...(product.images ?? [])]} alt={product.name}
+          className="transition-transform duration-300 group-hover:scale-105" />
+
 
         <div className="absolute left-2 top-2 flex flex-col gap-1">
           {/* Le MOQ n'est une information que s'il contraint réellement l'achat */}
