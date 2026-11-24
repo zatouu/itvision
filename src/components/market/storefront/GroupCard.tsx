@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Card } from './Card';
 import { Button } from './Button';
 import { ProgressBar } from './ProgressBar';
 import { Icon } from './Icon';
+import { CardImage } from './CardImage';
 import { formatFcfa } from './formatFcfa';
 import type { Group } from './types';
 
@@ -14,7 +14,6 @@ export interface GroupCardProps {
 }
 
 export function GroupCard({ group, className, onClick }: GroupCardProps) {
-  const [imageError, setImageError] = useState(false);
   const pct =
     group.targetQty > 0
       ? Math.round((group.currentQty / group.targetQty) * 100)
@@ -32,18 +31,8 @@ export function GroupCard({ group, className, onClick }: GroupCardProps) {
       )}
     >
       <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800">
-        {group.image && !imageError ? (
-          <img loading="lazy" decoding="async" src={group.image}
-            alt={group.name}
-            onError={() => setImageError(true)}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-            <Icon name="package" size={28} />
-            <span className="text-[11px] mt-1">Image indisponible</span>
-          </div>
-        )}
+        <CardImage sources={[group.image]} alt={group.name} />
+
 
         <div className="absolute left-2 top-2">
           {almost ? (

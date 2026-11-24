@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { ServiceFeeRate } from '../types/product.types'
+import { isGenericCategory, normalizeIncomingCategory, resolveCategoryExact } from '../catalog/category-classifier'
+import ProductCategory from './ProductCategory'
 
 // Interface pour une variante de produit (avec image et prix 1688)
 export interface IProductVariant {
@@ -342,6 +344,47 @@ function validateLogistics(doc: any): string | null {
   }
   return null
 }
+
+// Catégorie : libellés / textes d'import → slug de l'arbre de référence.
+// Une catégorie personnalisée (présente en base hors arbre) est conservée.
+async function resolveIncomingCategory(category: unknown, name: unknown): Promise<string | undefined> {
+  if (category === undefined || category === null) return undefined
+  const raw = String(category).trim()
+  if (raw && !resolveCategoryExact(raw) && !isGenericCategory(raw)) {
+    const custom = await ProductCategory.exists({ slug: raw }).catch(() => null)
+    if (custom) return raw
+  }
+  return normalizeIncomingCategory(raw, typeof name === 'string' ? name : '')
+}
+
+ProductSchema.pre('validate', async function (next) {
+  try {
+    if (this.isNew || this.isModified('category')) {
+      const category = await resolveIncomingCategory(this.category, this.name)
+      if (category !== undefined && category !== this.category) this.category = category
+    }
+    next()
+  } catch (error) {
+    next(error as Error)
+  }
+})
+
+async function normalizeCategoryInUpdate(this: mongoose.Query<unknown, unknown>) {
+  const update = this.getUpdate() as Record<string, any> | null
+  if (!update || Array.isArray(update)) return
+  const target = update.$set && 'category' in update.$set ? update.$set : 'category' in update ? update : null
+  if (!target) return
+  // Une catégorie générique (« Catalogue import Chine ») n'écrase jamais un classement existant.
+  if (isGenericCategory(target.category)) {
+    delete target.category
+    return
+  }
+  const name = target.name ?? update.$set?.name ?? update.name
+  const category = await resolveIncomingCategory(target.category, name)
+  if (category !== undefined) target.category = category
+}
+
+ProductSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], normalizeCategoryInUpdate)
 
 // Génère un slug SEO-friendly si le nom est modifié ou si le slug est absent
 ProductSchema.pre('save', async function (next) {

@@ -5,6 +5,7 @@ export interface ApiSubCategory {
   name: string
   labelFr: string
   icon: string
+  count?: number
   // Taxonomy extras
   level?: number
   isLeaf?: boolean
@@ -49,12 +50,13 @@ export interface ApiCategoryItem {
   }
 }
 
-export function formatCategoryForApi(c: IProductCategory, count?: number): ApiCategoryItem {
+export function formatCategoryForApi(c: IProductCategory, count?: number, countsBySlug?: Map<string, number>): ApiCategoryItem {
   const subCategories = (c.subCategories || []).map(s => ({
     slug: s.slug,
     name: s.name,
     labelFr: s.labelFr,
     icon: s.icon || 'tag',
+    ...(countsBySlug ? { count: countsBySlug.get(s.slug) || 0 } : {}),
     level: 2,
     isLeaf: true,
     requiredAttributes: c.requiredAttributes,

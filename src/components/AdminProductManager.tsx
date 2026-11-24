@@ -700,28 +700,49 @@ export default function AdminProductManager() {
 
   const resetCategories = async () => {
     if (seedingCategories) return
-    if (!window.confirm('Réinitialiser les catégories produits depuis la liste par défaut ?')) return
 
-    setSeedingCategories(true)
-    try {
+    const callSeed = async (dryRun: boolean) => {
       const res = await fetch('/api/admin/catalog/categories/seed', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun })
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'Impossible de réinitialiser les catégories')
+        throw new Error(data?.error || 'Impossible de réorganiser les catégories')
       }
+      return data
+    }
 
-      await loadCategoryOptions()
-
-      const summary = data?.summary
-      const details = summary
-        ? `\nCréées: ${Number(summary.created) || 0}\nMises à jour: ${Number(summary.updated) || 0}`
+    setSeedingCategories(true)
+    try {
+      // 1. Aperçu (aucune écriture)
+      const preview = (await callSeed(true))?.report
+      const products = preview?.products || {}
+      const sample = (products.changes || []).slice(0, 12)
+        .map((c: any) => `• ${String(c.name || '').slice(0, 45)} : ${c.from || '—'} → ${c.to}`)
+        .join('\n')
+      const custom = (preview?.customCategories || []).length
+        ? `\nCatégories personnalisées conservées : ${preview.customCategories.join(', ')}`
         : ''
-      alert(`Catégories réinitialisées avec succès.${details}`)
+      const message = [
+        'Réorganiser les catégories en familles / sous-catégories ?',
+        '',
+        `Familles : ${preview?.families?.created?.length || 0} créées, ${preview?.families?.updated?.length || 0} mises à jour`,
+        `Anciennes catégories désactivées : ${preview?.deactivated?.length || 0}`,
+        `Produits reclassés : ${products.changed || 0} / ${products.scanned || 0}`,
+        custom,
+        sample ? `\nExemples :\n${sample}` : '',
+      ].filter(Boolean).join('\n')
+      if (!window.confirm(message)) return
+
+      // 2. Application
+      const applied = (await callSeed(false))?.report
+      await Promise.all([loadCategoryOptions(), refresh()])
+      alert(`Catégories réorganisées : ${applied?.products?.changed || 0} produit(s) reclassé(s).`)
     } catch (e: any) {
-      alert(e?.message || 'Erreur lors de la réinitialisation des catégories')
+      alert(e?.message || 'Erreur lors de la réorganisation des catégories')
     } finally {
       setSeedingCategories(false)
     }
@@ -3141,9 +3162,10 @@ export default function AdminProductManager() {
             onClick={resetCategories}
             disabled={seedingCategories}
             className="inline-flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-700 px-4 py-2 rounded-lg shadow-sm"
+            title="Aperçu puis application de l'arborescence familles / sous-catégories et reclassement des produits"
           >
             {seedingCategories ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Réinitialiser catégories
+            Réorganiser les catégories
           </button>
           <button onClick={() => { setAutoPrice(true); setActiveTab('info'); setEditing({ ...empty, exchangeRate: sourceRef.rates.CNY || empty.exchangeRate }) }} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm">
             <Plus className="h-4 w-4" /> Nouveau produit

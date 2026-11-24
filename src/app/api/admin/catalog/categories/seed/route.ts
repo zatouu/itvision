@@ -1,29 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
-import ProductCategory from '@/lib/models/ProductCategory'
 import { requireAdminApi } from '@/lib/api-auth'
-import { defaultProductCategories } from '@/lib/data/default-categories'
 import { invalidateCatalogCache } from '@/lib/catalog-cache'
+import { reorganizeCategories } from '@/lib/catalog/category-migration'
 
-function toSeedCategories() {
-  return defaultProductCategories.map((category, index) => ({
-    slug: category.id,
-    name: category.name,
-    labelFr: category.name,
-    icon: category.icon,
-    color: '#f97316',
-    description: category.description,
-    subCategories: (category.subCategories || []).map((s) => ({
-      slug: s.id,
-      name: s.name,
-      labelFr: s.name,
-      icon: s.icon
-    })),
-    order: index,
-    isActive: true,
-  }))
-}
-
+/**
+ * Installe l'arborescence de référence et reclasse les produits.
+ * Body `{ dryRun?: boolean }` — aperçu par défaut, `dryRun: false` pour appliquer.
+ */
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAdminApi(request, ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'])
@@ -31,47 +15,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: auth.error }, { status: auth.status })
     }
 
+    const body = await request.json().catch(() => ({}))
+    const dryRun = body?.dryRun !== false
+
     await connectMongoose()
-
-    const categories = toSeedCategories()
-    let created = 0
-    let updated = 0
-
-    for (const [index, category] of categories.entries()) {
-      const existing = await ProductCategory.findOne({ slug: category.slug }).lean()
-
-      await ProductCategory.findOneAndUpdate(
-        { slug: category.slug },
-        {
-          $set: {
-            ...category,
-            order: index,
-            isActive: true,
-          },
-        },
-        {
-          upsert: true,
-          new: true,
-        }
-      )
-
-      if (existing) {
-        updated += 1
-      } else {
-        created += 1
-      }
-    }
-
-    void invalidateCatalogCache()
+    const report = await reorganizeCategories({ dryRun })
+    if (!dryRun) void invalidateCatalogCache()
 
     return NextResponse.json({
       success: true,
-      message: 'Catégories produits seedées',
+      message: dryRun ? 'Aperçu de la réorganisation' : 'Catégories réorganisées',
       summary: {
-        total: categories.length,
-        created,
-        updated,
+        total: report.families.created.length + report.families.updated.length,
+        created: report.families.created.length,
+        updated: report.families.updated.length,
       },
+      report,
     })
   } catch (error) {
     console.error('POST /api/admin/catalog/categories/seed error', error)

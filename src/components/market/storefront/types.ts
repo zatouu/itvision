@@ -204,6 +204,7 @@ export interface Category {
   label: string;
   icon: string;
   count: number;
+  subs?: { key: string; label: string; count: number }[];
 }
 
 export interface Testimonial {

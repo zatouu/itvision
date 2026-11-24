@@ -50,6 +50,17 @@ import {
   Users,
   Wallet,
   X,
+  Tv,
+  Zap,
+  PawPrint,
+  PenLine,
+  Shirt,
+  Baby,
+  Wrench,
+  Dumbbell,
+  Sofa,
+  Car,
+  Refrigerator,
   type LucideProps,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -107,6 +118,17 @@ const ICONS = {
   eye: Eye,
   send: Send,
   chevronsRight: ChevronsRight,
+  tv: Tv,
+  zap: Zap,
+  paw: PawPrint,
+  pen: PenLine,
+  shirt: Shirt,
+  baby: Baby,
+  wrench: Wrench,
+  dumbbell: Dumbbell,
+  sofa: Sofa,
+  car: Car,
+  fridge: Refrigerator,
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -505,18 +505,28 @@ export function mapCategory(c: any): Category {
   const iconMap: Record<string, string> = {
     securite: 'shield',
     securité: 'shield',
+    'telephones-tablettes': 'smartphone',
+    electromenager: 'fridge',
+    'beaute-sante': 'heart',
+    'bebe-enfants': 'baby',
+    'auto-moto': 'car',
+    energie: 'zap',
+    'sport-loisirs': 'dumbbell',
+    bricolage: 'wrench',
+    'bureau-fournitures': 'pen',
+    animaux: 'paw',
     audio: 'message',
     eclairage: 'sparkles',
     auto: 'truck',
-    mode: 'gift',
+    mode: 'shirt',
     maison: 'home',
     beaute: 'heart',
     beauté: 'heart',
     bureau: 'package',
     informatique: 'monitor',
     domotique: 'home',
-    electronique: 'smartphone',
-    mobilier: 'package',
+    electronique: 'tv',
+    mobilier: 'sofa',
     'packs-cadeaux': 'gift',
   };
   // L'API renvoie des emojis (🛡️) — non résolubles en icône Lucide → mapping par clé.
@@ -538,6 +548,13 @@ export function mapCategory(c: any): Category {
       iconMap[key] ||
       'package',
     count: c?.count ?? c?.productCount ?? 0,
+    ...(Array.isArray(c?.subCategories) && c.subCategories.length
+      ? {
+          subs: c.subCategories
+            .filter((s: any) => s?.slug)
+            .map((s: any) => ({ key: String(s.slug), label: s.labelFr || s.name || s.slug, count: s.count ?? 0 })),
+        }
+      : {}),
   };
 }
 
