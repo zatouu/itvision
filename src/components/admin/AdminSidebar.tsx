@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
+  Factory,
   LayoutDashboard,
   BarChart3,
   BookOpen,
@@ -420,6 +421,12 @@ const menuSections: MenuSection[] = [
             label: 'Auto Import 1688/Ali',
             icon: Download,
             href: '/admin/auto-import'
+          },
+          {
+            id: 'fournisseurs',
+            label: 'Grilles fournisseurs',
+            icon: Factory,
+            href: '/admin/fournisseurs'
           },
           {
             id: 'marketplace-sourcing',

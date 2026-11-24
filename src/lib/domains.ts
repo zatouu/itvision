@@ -78,6 +78,7 @@ export const PAGE_RULES: RouteRule[] = [
   // ── Back-office transversal (à namespacer par domaine) ──
   // Sections accessibles aux rôles staff non-admin (le middleware honore staffRoles).
   { prefix: '/admin/produits', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'Catalogue produits + pricing B2B → sous-domaine market' },
+  { prefix: '/admin/fournisseurs', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] }, note: 'DDM : grilles de fournisseurs directs (aperçu prix Dakar, import en base réservé ADMIN)' },
   { prefix: '/admin/prices', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
   { prefix: '/admin/catalog', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'PRODUCT_MANAGER'] } },
   { prefix: '/admin/comptabilite', domain: 'admin', access: { staffRoles: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } },

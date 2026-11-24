@@ -140,6 +140,23 @@ relevé (CNY sur 1688, USD/EUR/FCFA… sur AliExpress/Alibaba) est converti en �
 (`src/lib/market/catalog-import.ts`) ; le prix d'origine est tracé dans
 `sourcing.sourcePrice` / `sourcing.sourceCurrency` / `sourcing.inlandTransportCny`.
 
+## Grilles de fournisseurs directs (usines)
+
+Grille reçue (PDF/Excel) → `src/lib/market/supplier-pricelists/<fournisseur>.ts` (familles + variantes
+`[libellé, ¥, MOQ, image]`) + `<fournisseur>-market.ts` (prix de détail relevés à Dakar, questions à l'usine),
+déclarée dans `index.ts` ; images dans `public/images/suppliers/<fournisseur>/`. Import : page
+**/admin/fournisseurs** (aperçu, cases à cocher, bouton « Appliquer en base », ADMIN seulement) ou
+`npm run import:zhilian:dry` / `npm run import:zhilian`. Tests : `npm run test:supplier-pricelist`.
+
+- **Prix de gros calé sur Dakar** (`pricing-rules.ts`) : payé client au lot minimum (frais, remise quantité
+  globale, transport estimé compris) = −20 % vs Dakar, paliers jusqu'à −35 %, jamais au-delà ; marge produit
+  ≥ 15 %. Sans relevé : famille comparable (`marketLike`) sinon 1er quartile des marges relevées.
+  Le calcul reproduit `cart-calculator` (vérifié contre `/api/pricing/quote`).
+- **Lot minimum** (`min-order.ts`) : ligne ≥ 10 000 F, MOQ usine / 10 acheteurs, articles ≥ 5 kg en maritime.
+- Clé `sourcing.platform='factory'` + `sourcing.externalId='<grille>:<famille>'` (idempotent) ; EXW →
+  `inlandTransportCny: 0` ; `sellerName` = DDM (jamais le nom de l'usine) ; brouillon sauf « Publier ».
+  Une ré-importation ne touche que prix, paliers, lot minimum, MOQ et variantes. Exclure les marques (contrefaçon).
+
 ## SEO — deux sites, deux identités
 
 `itvisionplus.sn` (B2B sécurité électronique) et `ddm.sn` (import Chine grand
