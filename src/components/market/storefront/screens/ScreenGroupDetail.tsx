@@ -719,7 +719,7 @@ export default function ScreenGroupDetail() {
       ) : null}
     </Card>
   ) : (
-    <Card id="join-form" className="scroll-mt-24 p-4">
+    <Card id="join-form" className="scroll-mt-[calc(var(--mkt-header-h,0px)+12px)] p-4">
       <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Rejoindre le groupe</h3>
       <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Aucun paiement maintenant : vous paierez le prix final à la clôture.</p>
 

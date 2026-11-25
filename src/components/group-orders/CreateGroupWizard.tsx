@@ -9,7 +9,7 @@ import NumInput from '@/components/ui/NumInput'
 import {
   Search, Tag, Box, CheckCircle, ChevronRight, ChevronLeft,
   Truck, CalendarDays, User, Phone, Mail, Eye, Package, Zap, Factory, ArrowLeft, Users,
-  Share2, Copy, Check
+  Share2, Copy, Check, Minus, Plus
 } from 'lucide-react'
 
 interface CatalogProduct {
@@ -95,6 +95,8 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
         setForm(f => {
           const patch: Partial<typeof f> = {}
           if (!(f.targetQty > 0) && next.targetQty > 0) patch.targetQty = next.targetQty
+          // Quantité de départ au minimum d'adhésion : sinon le premier « + » saute de 1 au minimum
+          if (f.initialQty < next.minQty) patch.initialQty = next.minQty
           if (next.allowedShipping && !next.allowedShipping.includes(f.shippingMethod)) {
             patch.shippingMethod = next.allowedShipping[0] as typeof f.shippingMethod
           }
@@ -111,7 +113,9 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
   const nameInputRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!form.productName.trim() || form.productName.trim().length < 2) {
+    // Produit déjà choisi (liste ou ?productId=) : le nom est rempli par applyProduct, pas tapé —
+    // ne pas rouvrir les suggestions, qui recouvriraient la quantité sur mobile.
+    if (form.productId || !form.productName.trim() || form.productName.trim().length < 2) {
       setNameSuggestions([])
       setShowSuggestions(false)
       return
@@ -129,7 +133,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
       finally { setSuggestLoading(false) }
     }, 300)
     return () => clearTimeout(timer)
-  }, [form.productName])
+  }, [form.productName, form.productId])
 
   function applyProduct(p: CatalogProduct) {
     setSelectedProduct(p)
@@ -513,7 +517,7 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
                         {suggestLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gray-200 border-t-[#7C4DFF] rounded-full animate-spin" />}
                       </div>
                       {showSuggestions && nameSuggestions.length > 0 && (
-                        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                        <div className="absolute z-20 left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
                           {nameSuggestions.map(p => {
                             const eligible = p.groupBuyEnabled
                             return (
@@ -564,10 +568,14 @@ export default function CreateGroupWizard({ preselectedId }: { preselectedId?: s
 
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
                     <h3 className="font-bold text-[#1A1A2E] flex items-center gap-2"><Box className="w-4 h-4 text-[#00C853]"/> Quantité & Prix</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
-                        <NumInput integer emptyValue={0} min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={v=>setForm(f=>({...f,initialQty:v ?? 0}))} onBlur={()=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(f.initialQty || groupDefaults.minQty))}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00C853]" />
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <div className="col-span-2 sm:col-span-1">
+                        <label htmlFor="group-initial-qty" className="block text-xs font-semibold text-gray-600 mb-1">Votre quantité</label>
+                        <div className="flex items-center gap-1 rounded-xl border border-gray-200 p-0.5 focus-within:ring-2 focus-within:ring-[#00C853]">
+                          <button type="button" aria-label="Diminuer la quantité" onClick={()=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(f.initialQty || 0) - 1)}))} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-700 hover:bg-gray-100"><Minus className="h-4 w-4"/></button>
+                          <NumInput id="group-initial-qty" integer emptyValue={0} min={groupDefaults.minQty} max={groupDefaults.maxJoinQty > 0 ? groupDefaults.maxJoinQty : undefined} required value={form.initialQty} onChange={v=>setForm(f=>({...f,initialQty:v ?? 0}))} onBlur={()=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(f.initialQty || groupDefaults.minQty))}))} className="w-full min-w-0 flex-1 bg-transparent py-2 text-center font-semibold tabular-nums focus:outline-none" />
+                          <button type="button" aria-label="Augmenter la quantité" onClick={()=>setForm(f=>({...f,initialQty:Math.max(groupDefaults.minQty, Math.round(f.initialQty || 0) + 1)}))} disabled={groupDefaults.maxJoinQty > 0 && form.initialQty >= groupDefaults.maxJoinQty} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-40"><Plus className="h-4 w-4"/></button>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Qté cible</label>
