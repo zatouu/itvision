@@ -46,6 +46,7 @@ interface AdminValidationProps {
 export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: AdminValidationProps) {
   const [reports, setReports] = useState<any[]>([])
   const [selectedReport, setSelectedReport] = useState<any>(null)
+  const [detailReport, setDetailReport] = useState<any>(null)
   const [currentView, setCurrentView] = useState<'list' | 'detail' | 'analytics'>('list')
   const [filters, setFilters] = useState({
     status: 'pending_validation',
@@ -191,23 +192,23 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50/40">
       {/* Header avec stats en temps réel */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/70">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Validation des Rapports</h1>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Validation des <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Rapports</span></h1>
               <p className="text-sm text-gray-600">
-                {analytics.totalPending} rapports en attente • 
-                Temps moyen: {Math.round(analytics.avgValidationTime)}min • 
-                Taux d'approbation: {Math.round(analytics.approvalRate)}%
+                {analytics.totalPending || 0} rapport{(analytics.totalPending || 0) > 1 ? 's' : ''} en attente
+                {Number.isFinite(analytics.avgValidationTime) && analytics.avgValidationTime > 0 && <> · Temps moyen : {Math.round(analytics.avgValidationTime)} min</>}
+                {Number.isFinite(analytics.approvalRate) && analytics.approvalRate > 0 && <> · Taux d'approbation : {Math.round(analytics.approvalRate)} %</>}
               </p>
             </div>
             
             <div className="flex items-center space-x-4">
               {analytics.urgentReports > 0 && (
-                <div className="flex items-center bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm">
+                <div className="flex items-center bg-red-50 text-red-700 ring-1 ring-red-200 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm">
                   <AlertTriangle className="h-4 w-4 mr-1" />
                   {analytics.urgentReports} urgent(s)
                 </div>
@@ -215,7 +216,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
               
               <button
                 onClick={() => setCurrentView('analytics')}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 transition-all"
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Analytics
@@ -226,9 +227,9 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
       </div>
 
       {/* Navigation onglets */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-8">
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <div className="inline-flex bg-white/70 backdrop-blur rounded-2xl p-1.5 shadow-sm ring-1 ring-gray-200/70">
+          <div className="flex space-x-1">
             {[
               { id: 'list', label: 'Rapports en Attente', icon: Clock, count: analytics.totalPending },
               { id: 'analytics', label: 'Tableau de Bord', icon: BarChart3 }
@@ -236,16 +237,16 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
               <button
                 key={tab.id}
                 onClick={() => setCurrentView(tab.id as any)}
-                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${
+                className={`flex items-center space-x-2 py-2.5 px-4 rounded-xl font-medium text-sm transition-all ${
                   currentView === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/25'
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                 }`}
               >
                 <tab.icon className="h-4 w-4" />
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
-                  <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${currentView === tab.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'}`}>
                     {tab.count}
                   </span>
                 )}
@@ -259,14 +260,14 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
       {currentView === 'list' && (
         <div className="max-w-7xl mx-auto px-4 py-6">
           {/* Filtres avancés */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-white/80 backdrop-blur rounded-2xl shadow-sm ring-1 ring-gray-200/70 p-5 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
                 <select
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-shadow text-sm"
                 >
                   <option value="pending_validation">En attente</option>
                   <option value="validated">Validés</option>
@@ -280,7 +281,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                 <select
                   value={filters.priority}
                   onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-shadow text-sm"
                 >
                   <option value="all">Toutes</option>
                   <option value="urgent">Urgent</option>
@@ -295,7 +296,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                 <select
                   value={filters.technician}
                   onChange={(e) => setFilters({ ...filters, technician: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-shadow text-sm"
                 >
                   <option value="all">Tous</option>
                   <option value="TECH-001">Moussa Diop</option>
@@ -309,7 +310,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                 <select
                   value={filters.dateRange}
                   onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-shadow text-sm"
                 >
                   <option value="today">Aujourd'hui</option>
                   <option value="7days">7 derniers jours</option>
@@ -321,18 +322,27 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
           </div>
 
           {/* Liste des rapports */}
+          {reports.length === 0 && (
+            <div className="bg-white/80 backdrop-blur rounded-2xl ring-1 ring-gray-200/70 p-12 text-center">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center mb-4">
+                <FileText className="h-7 w-7 text-blue-500" />
+              </div>
+              <p className="font-semibold text-gray-800">Aucun rapport dans cette vue</p>
+              <p className="text-sm text-gray-500 mt-1">Modifiez les filtres ou revenez plus tard.</p>
+            </div>
+          )}
           <div className="space-y-4">
             {reports.map((report) => {
               const delay = getValidationDelay(report.createdAt)
               
               return (
-                <div key={report._id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div key={report._id} className="group bg-white rounded-2xl shadow-sm ring-1 ring-gray-200/70 hover:shadow-xl hover:shadow-blue-900/5 hover:ring-blue-200 transition-all duration-200">
                   <div className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-3">
                           <span className="font-bold text-lg text-blue-600">{report.reportId}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs border ${getPriorityColor(report.priority)}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border ${getPriorityColor(report.priority)}`}>
                             {report.priority}
                           </span>
                           <span className={`text-sm ${delay.color}`}>
@@ -387,8 +397,8 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                       {/* Actions */}
                       <div className="flex flex-col space-y-2 ml-6">
                         <button
-                          onClick={() => setSelectedReport(report)}
-                          className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          onClick={() => setDetailReport(report)}
+                          className="flex items-center px-3 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:shadow-sm transition-all"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Voir
@@ -396,7 +406,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                         
                         <button
                           onClick={() => openValidationModal(report, 'approve')}
-                          className="flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          className="flex items-center px-3 py-2 text-sm font-medium bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl shadow-sm shadow-green-600/25 hover:shadow-md hover:shadow-green-600/35 transition-all"
                         >
                           <ThumbsUp className="h-4 w-4 mr-2" />
                           Valider
@@ -404,7 +414,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                         
                         <button
                           onClick={() => openValidationModal(report, 'reject')}
-                          className="flex items-center px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                          className="flex items-center px-3 py-2 text-sm font-medium bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl shadow-sm shadow-red-600/25 hover:shadow-md hover:shadow-red-600/35 transition-all"
                         >
                           <ThumbsDown className="h-4 w-4 mr-2" />
                           Rejeter
@@ -518,10 +528,193 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
         </div>
       )}
 
+      {/* Fiche détaillée du rapport (bouton « Voir ») */}
+      {detailReport && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 sm:p-6 border-b flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold truncate">Rapport {detailReport.reportId}</h3>
+                <p className="text-sm text-gray-500">
+                  {detailReport.interventionDate ? new Date(detailReport.interventionDate).toLocaleDateString('fr-FR') : ''}
+                  {detailReport.startTime ? ` · ${detailReport.startTime}` : ''}{detailReport.endTime ? `–${detailReport.endTime}` : ''}
+                  {detailReport.interventionType ? ` · ${detailReport.interventionType}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailReport(null)}
+                className="text-gray-400 hover:text-gray-600 shrink-0"
+                aria-label="Fermer"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+              {/* Informations générales */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center text-gray-700"><User className="h-4 w-4 mr-2 text-gray-400" />{detailReport.technicianId?.name || 'Technicien'}</div>
+                <div className="flex items-center text-gray-700"><Building className="h-4 w-4 mr-2 text-gray-400" />{detailReport.clientId?.name || detailReport.clientContact?.name || 'Client'}</div>
+                <div className="flex items-center text-gray-700"><MapPin className="h-4 w-4 mr-2 text-gray-400" />{detailReport.site || '—'}</div>
+                <div className="flex items-center text-gray-700"><Timer className="h-4 w-4 mr-2 text-gray-400" />{detailReport.duration ? `${detailReport.duration} min` : '—'}</div>
+              </div>
+
+              {/* Observations */}
+              {(detailReport.initialObservations || detailReport.problemDescription) && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Observations</h4>
+                  {detailReport.initialObservations && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap">{detailReport.initialObservations}</div>
+                  )}
+                  {detailReport.problemDescription && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap mt-2">{detailReport.problemDescription}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Tâches réalisées */}
+              {Array.isArray(detailReport.tasksPerformed) && detailReport.tasksPerformed.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Tâches réalisées</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {detailReport.tasksPerformed.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Résultats */}
+              {detailReport.results && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Résultats</h4>
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap">{detailReport.results}</div>
+                </div>
+              )}
+
+              {/* Recommandations */}
+              {Array.isArray(detailReport.recommendations) && detailReport.recommendations.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Recommandations</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {detailReport.recommendations.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Anomalies détectées */}
+              {Array.isArray(detailReport.issuesDetected) && detailReport.issuesDetected.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Anomalies détectées</h4>
+                  <div className="space-y-2">
+                    {detailReport.issuesDetected.map((issue: any, i: number) => (
+                      <div key={i} className="border border-gray-200 rounded-lg p-3 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{issue.reference || issue.component || `Anomalie ${i + 1}`}</span>
+                          {issue.severity && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">{issue.severity}</span>}
+                        </div>
+                        {issue.description && <p className="text-gray-600 mt-1">{issue.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Matériel utilisé */}
+              {Array.isArray(detailReport.materialsUsed) && detailReport.materialsUsed.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Matériel utilisé</h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    {detailReport.materialsUsed.map((m: any, i: number) => (
+                      <li key={i} className="flex justify-between gap-2"><span>{m.name}</span><span className="text-gray-500">×{m.quantity}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Photos avant / après */}
+              {(detailReport.photos?.before?.length > 0 || detailReport.photos?.after?.length > 0) && (
+                <div className="space-y-4">
+                  {detailReport.photos?.before?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Photos avant ({detailReport.photos.before.length})</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {detailReport.photos.before.map((ph: any, i: number) => (
+                          <a key={i} href={ph.url} target="_blank" rel="noopener noreferrer" className="group block aspect-video bg-gray-100 rounded-xl overflow-hidden ring-1 ring-gray-200/70 hover:ring-blue-300 transition-shadow">
+                            <img src={ph.url} alt={ph.caption || `Avant ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {detailReport.photos?.after?.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Photos après ({detailReport.photos.after.length})</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {detailReport.photos.after.map((ph: any, i: number) => (
+                          <a key={i} href={ph.url} target="_blank" rel="noopener noreferrer" className="group block aspect-video bg-gray-100 rounded-xl overflow-hidden ring-1 ring-gray-200/70 hover:ring-blue-300 transition-shadow">
+                            <img src={ph.url} alt={ph.caption || `Après ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Signatures */}
+              {(detailReport.signatures?.technician || detailReport.signatures?.client) && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500 inline-block" />Signatures</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {detailReport.signatures?.technician && (
+                      <div className="border border-gray-200 rounded-lg p-3 text-sm">
+                        <p className="font-medium">Technicien : {detailReport.signatures.technician.name}</p>
+                        {typeof detailReport.signatures.technician.signature === 'string' && detailReport.signatures.technician.signature.startsWith('data:image') && (
+                          <img src={detailReport.signatures.technician.signature} alt="Signature technicien" className="mt-2 h-16 object-contain" />
+                        )}
+                      </div>
+                    )}
+                    {detailReport.signatures?.client && (
+                      <div className="border border-gray-200 rounded-lg p-3 text-sm">
+                        <p className="font-medium">Client : {detailReport.signatures.client.name}{detailReport.signatures.client.title ? ` (${detailReport.signatures.client.title})` : ''}</p>
+                        {typeof detailReport.signatures.client.signature === 'string' && detailReport.signatures.client.signature.startsWith('data:image') && (
+                          <img src={detailReport.signatures.client.signature} alt="Signature client" className="mt-2 h-16 object-contain" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 sm:p-6 border-t bg-gray-50 flex flex-wrap items-center justify-end gap-3">
+              <button
+                onClick={() => setDetailReport(null)}
+                className="px-4 py-2.5 text-gray-700 bg-white ring-1 ring-gray-200 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={() => openValidationModal(detailReport, 'reject')}
+                className="flex items-center px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium shadow-md shadow-red-600/25 hover:shadow-lg hover:shadow-red-600/35 transition-all"
+              >
+                <ThumbsDown className="h-4 w-4 mr-2" />
+                Rejeter
+              </button>
+              <button
+                onClick={() => openValidationModal(detailReport, 'approve')}
+                className="flex items-center px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl font-medium shadow-md shadow-green-600/25 hover:shadow-lg hover:shadow-green-600/35 transition-all"
+              >
+                <ThumbsUp className="h-4 w-4 mr-2" />
+                Valider
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Modal de validation détaillée */}
       {validationModal.open && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">
@@ -581,7 +774,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                     comments: e.target.value 
                   })}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-shadow text-sm"
                   placeholder={validationModal.action === 'approve' 
                     ? 'Commentaires sur la validation (optionnel)...'
                     : 'Expliquez les raisons du rejet...'
