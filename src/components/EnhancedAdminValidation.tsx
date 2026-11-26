@@ -36,7 +36,9 @@ import {
   Smartphone,
   Timer,
   Award,
-  AlertCircle
+  AlertCircle,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react'
 
 interface AdminValidationProps {
@@ -47,6 +49,21 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
   const [reports, setReports] = useState<any[]>([])
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [detailReport, setDetailReport] = useState<any>(null)
+  const [detailEntered, setDetailEntered] = useState(false)
+  const [detailWide, setDetailWide] = useState(false)
+
+  // Animation d'entrée du panneau latéral
+  useEffect(() => {
+    if (!detailReport) { setDetailEntered(false); return }
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setDetailEntered(true)))
+    return () => cancelAnimationFrame(raf)
+  }, [detailReport])
+
+  // Sortie animée : on laisse le panneau coulisser avant de démonter
+  const closeDetail = () => {
+    setDetailEntered(false)
+    setTimeout(() => setDetailReport(null), 300)
+  }
   const [currentView, setCurrentView] = useState<'list' | 'detail' | 'analytics'>('list')
   const [filters, setFilters] = useState({
     status: 'pending_validation',
@@ -397,7 +414,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                       {/* Actions */}
                       <div className="flex flex-col space-y-2 ml-6">
                         <button
-                          onClick={() => setDetailReport(report)}
+                          onClick={() => { setDetailWide(false); setDetailReport(report) }}
                           className="flex items-center px-3 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:shadow-sm transition-all"
                         >
                           <Eye className="h-4 w-4 mr-2" />
@@ -530,8 +547,12 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
 
       {/* Fiche détaillée du rapport (bouton « Voir ») */}
       {detailReport && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[60]">
+          <div
+            className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300 ${detailEntered ? 'opacity-100' : 'opacity-0'}`}
+            onClick={closeDetail}
+          />
+          <aside className={`absolute inset-y-0 right-0 bg-white shadow-2xl flex flex-col transition-all duration-300 ease-out w-full ${detailWide ? 'sm:max-w-5xl' : 'sm:max-w-xl'} ${detailEntered ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="p-4 sm:p-6 border-b flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold truncate">Rapport {detailReport.reportId}</h3>
@@ -541,13 +562,23 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                   {detailReport.interventionType ? ` · ${detailReport.interventionType}` : ''}
                 </p>
               </div>
-              <button
-                onClick={() => setDetailReport(null)}
-                className="text-gray-400 hover:text-gray-600 shrink-0"
-                aria-label="Fermer"
-              >
-                <X className="h-6 w-6" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setDetailWide(w => !w)}
+                  className="hidden sm:grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label={detailWide ? 'Réduire le panneau' : 'Élargir le panneau'}
+                  title={detailWide ? 'Réduire' : 'Élargir'}
+                >
+                  {detailWide ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+                </button>
+                <button
+                  onClick={closeDetail}
+                  className="grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="Fermer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
@@ -688,7 +719,7 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
 
             <div className="p-4 sm:p-6 border-t bg-gray-50 flex flex-wrap items-center justify-end gap-3">
               <button
-                onClick={() => setDetailReport(null)}
+                onClick={closeDetail}
                 className="px-4 py-2.5 text-gray-700 bg-white ring-1 ring-gray-200 rounded-xl hover:bg-gray-50 font-medium transition-colors"
               >
                 Fermer
@@ -708,9 +739,10 @@ export default function EnhancedAdminValidation({ adminId = 'ADMIN-001' }: Admin
                 Valider
               </button>
             </div>
-          </div>
+          </aside>
         </div>
       )}
+
       {/* Modal de validation détaillée */}
       {validationModal.open && selectedReport && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
