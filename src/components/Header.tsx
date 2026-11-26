@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck, UserPlus } from 'lucide-react'
+import { Menu, X, Phone, Mail, ChevronDown, Home as HomeIcon, Boxes, CircuitBoard, Images, Info, MessageSquare, Camera, Lock, Home as House, Flame, Cable, Wrench, Shield, ArrowRight, FileCheck, UserPlus, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import UnifiedLoginButton from './UnifiedLoginButton'
 import ThemeToggle from './ThemeToggle'
@@ -64,6 +64,7 @@ const Header = () => {
   const navigation = [
     { name: 'Accueil', href: '/', icon: HomeIcon },
     { name: 'Services', href: '/services', icon: Boxes },
+    { name: 'Équipements', href: '/produits', icon: Package },
     { name: 'Digitalisation', href: '/digitalisation', icon: CircuitBoard },
     { name: 'Réalisations', href: '/realisations', icon: Images },
     { name: 'À propos', href: '/about', icon: Info },
