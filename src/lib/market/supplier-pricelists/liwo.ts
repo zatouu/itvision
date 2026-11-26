@@ -24,6 +24,7 @@ interface Opts {
   cat?: string
   sub?: string
   img?: string
+  gallery?: string[]
   corp?: boolean
   market?: string
   feats?: string[]
@@ -39,6 +40,7 @@ function L(key: string, name: string, cny: number, pack: [number, number, number
     subCategory: o.sub || 'Prises & interrupteurs connectés',
     corporate: o.corp,
     image: o.img || '',
+    gallery: o.gallery,
     weightKg: Math.round((kg / pcs) * 100) / 100,
     volumeM3: Math.round((m3 / pcs) * 10000) / 10000,
     marketLike: o.market,
