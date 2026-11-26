@@ -5,7 +5,8 @@ export type SupplierVariant = [label: string, cny: number, moq: number, image?: 
 export interface SupplierFamily {
   key: string
   name: string
-  category: 'Informatique & Bureautique' | 'Électronique grand public'
+  /** Famille de l’arbre DDM (category-tree.ts) — ex. Sécurité & surveillance, Informatique */
+  category: string
   subCategory: string
   /** Visible aussi sur le catalogue B2B IT Vision */
   corporate?: boolean
