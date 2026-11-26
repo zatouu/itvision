@@ -41,6 +41,8 @@ interface Expense {
   category: string
   projectId?: string
   projectName?: string
+  interventionId?: string
+  interventionNumber?: string
   supplier?: { name?: string; email?: string; phone?: string }
   amountHT: number
   taxRate: number
@@ -89,6 +91,7 @@ const emptyExpense: Partial<Expense> = {
 export default function ExpenseManager() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [interventions, setInterventions] = useState<ProjectOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
@@ -102,9 +105,10 @@ export default function ExpenseManager() {
   const load = async () => {
     try {
       setLoading(true)
-      const [expRes, prjRes] = await Promise.all([
+      const [expRes, prjRes, itvRes] = await Promise.all([
         fetch('/api/admin/expenses', { credentials: 'include' }),
-        fetch('/api/projects?limit=200', { credentials: 'include' })
+        fetch('/api/projects?limit=200', { credentials: 'include' }),
+        fetch('/api/interventions?limit=200', { credentials: 'include' })
       ])
       if (expRes.ok) {
         const j = await expRes.json()
@@ -114,6 +118,14 @@ export default function ExpenseManager() {
         const j = await prjRes.json()
         const list = (j.projects || []).map((p: any) => ({ _id: String(p._id || p.id), name: p.name }))
         setProjects(list)
+      }
+      if (itvRes.ok) {
+        const j = await itvRes.json()
+        const list = (j.interventions || []).map((i: any) => ({
+          _id: String(i._id || i.id),
+          name: `${i.interventionNumber || ''} — ${i.title || ''}`.trim()
+        }))
+        setInterventions(list)
       }
     } catch (e: any) {
       setError(e?.message || 'Erreur')
@@ -393,7 +405,9 @@ export default function ExpenseManager() {
                           {CATEGORIES.find((c) => c.value === e.category)?.label || e.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-stone-600">{e.projectName || '—'}</td>
+                      <td className="px-4 py-3 text-stone-600">
+                        {e.projectName || (e.interventionNumber ? <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-medium">{e.interventionNumber}</span> : '—')}
+                      </td>
                       <td className="px-4 py-3 text-stone-600">
                         {new Date(e.expenseDate).toLocaleDateString('fr-FR')}
                         {isOverdue && (
@@ -480,6 +494,23 @@ export default function ExpenseManager() {
                   >
                     <option value="">— Aucun (frais généraux)</option>
                     {projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Intervention associée">
+                  <select
+                    value={editing.interventionId || ''}
+                    onChange={(e) => {
+                      const itv = interventions.find(iv => iv._id === e.target.value)
+                      setEditing({
+                        ...editing,
+                        interventionId: e.target.value || undefined,
+                        interventionNumber: itv?.name.split(' — ')[0] || undefined
+                      })
+                    }}
+                    className="input"
+                  >
+                    <option value="">— Aucune</option>
+                    {interventions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Fournisseur">

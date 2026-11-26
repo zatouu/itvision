@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectMongoose } from '@/lib/mongoose'
 import Expense from '@/lib/models/Expense'
 import Project from '@/lib/models/Project'
+import Intervention from '@/lib/models/Intervention'
 import { requireAdminApi } from '@/lib/api-auth'
 import { expenseStatusFor, nextExpenseNumero, reconcileExpensePayments } from '@/lib/finance/billing'
 
@@ -50,6 +51,8 @@ export async function GET(request: NextRequest) {
     const filter: any = {}
     const projectId = asObjectIdString(searchParams.get('projectId'))
     if (projectId) filter.projectId = projectId
+    const interventionId = asObjectIdString(searchParams.get('interventionId'))
+    if (interventionId) filter.interventionId = interventionId
     const category = searchParams.get('category')
     if (category) filter.category = category
     const paymentStatus = searchParams.get('paymentStatus')
@@ -96,6 +99,13 @@ export async function POST(request: NextRequest) {
       projectName = p?.name
     }
 
+    const interventionId = asObjectIdString(body.interventionId)
+    let interventionNumber = body.interventionNumber
+    if (interventionId && !interventionNumber) {
+      const itv = await Intervention.findById(interventionId).select({ interventionNumber: 1 }).lean() as any
+      interventionNumber = itv?.interventionNumber
+    }
+
     const amounts = computeAmounts(body)
     // « Payée » sans montant saisi = réglée en totalité
     let paidAmount = Math.max(0, Number(body.paidAmount) || 0)
@@ -113,6 +123,8 @@ export async function POST(request: NextRequest) {
       subCategory: body.subCategory,
       projectId: projectId || undefined,
       projectName,
+      interventionId: interventionId || undefined,
+      interventionNumber,
       clientCompanyId: asObjectIdString(body.clientCompanyId) || undefined,
       supplier: body.supplier || {},
       ...amounts,

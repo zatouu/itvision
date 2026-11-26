@@ -38,6 +38,11 @@ export interface IExpense extends Document {
   projectId?: Types.ObjectId
   projectName?: string
 
+  // Liaison intervention (optionnelle) — une maintenance n'est pas un projet
+  // mais a ses propres dépenses (déplacements, main d'oeuvre, pièces)
+  interventionId?: Types.ObjectId
+  interventionNumber?: string
+
   // Liaison client (optionnelle, pour dépenses refacturables)
   clientCompanyId?: Types.ObjectId
 
@@ -118,6 +123,9 @@ const ExpenseSchema = new Schema<IExpense>({
   projectId: { type: Schema.Types.ObjectId, ref: 'Project', },
   projectName: { type: String },
 
+  interventionId: { type: Schema.Types.ObjectId, ref: 'Intervention', index: true },
+  interventionNumber: { type: String },
+
   clientCompanyId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
 
   supplier: {
@@ -172,6 +180,7 @@ const ExpenseSchema = new Schema<IExpense>({
 
 ExpenseSchema.index({ expenseDate: -1 })
 ExpenseSchema.index({ projectId: 1, expenseDate: -1 })
+ExpenseSchema.index({ interventionId: 1, expenseDate: -1 })
 ExpenseSchema.index({ category: 1, expenseDate: -1 })
 ExpenseSchema.index({ paymentStatus: 1, dueDate: 1 })
 ExpenseSchema.index({ 'payments.date': 1 })
