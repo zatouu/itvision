@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { X, Camera, Link as LinkIcon, FileText, Upload, Loader2, CheckCircle, AlertCircle, Clock, Package, Search, ChevronRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFcfa } from './formatFcfa';
+import { compressImage } from '@/lib/image-compress'
 import { useSourcingModal } from './SourcingModalContext';
 import NumInput from '@/components/ui/NumInput';
 
@@ -50,25 +51,6 @@ function isValidUrl(url: string) {
 }
 
 const CONTACT_KEY = 'ddm_sourcing_contact';
-
-/** Réduit une photo de téléphone (souvent 3-8 Mo) à ~1600 px JPEG avant envoi : upload rapide en 3G/4G. */
-async function compressImage(f: File): Promise<File> {
-  if (f.type === 'image/gif' || f.size < 600 * 1024) return f;
-  try {
-    const bitmap = await createImageBitmap(f);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
-    if (!blob || blob.size >= f.size) return f;
-    return new File([blob], f.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
-  } catch {
-    return f;
-  }
-}
 
 export default function SourcingRequestModal() {
   const { isOpen, close, prefill } = useSourcingModal();

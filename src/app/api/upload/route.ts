@@ -83,7 +83,7 @@ async function handleUpload(request: NextRequest): Promise<Response> {
     }
 
     // Vérifier le type de fichier (images + vidéo + audio)
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
     const allowedAudioTypes = ['audio/mp4', 'audio/m4a', 'audio/aac', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/x-m4a']
 
@@ -93,9 +93,14 @@ async function handleUpload(request: NextRequest): Promise<Response> {
       lowerName.endsWith('.jpg') ||
       lowerName.endsWith('.jpeg')
 
+    const isHeic = file.type === 'image/heic' ||
+      file.type === 'image/heif' ||
+      lowerName.endsWith('.heic') ||
+      lowerName.endsWith('.heif')
+
     const isVideoExt = /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(lowerName)
     const isAudioExt = /\.(m4a|aac|mp3|wav|ogg|webm|caf)$/i.test(lowerName)
-    const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg
+    const isAllowedImage = allowedImageTypes.includes(file.type) || isJpeg || isHeic
     const isAllowedVideo =
       allowedVideoTypes.includes(file.type) ||
       (isVideoExt && (file.type === '' || file.type === 'application/octet-stream' || file.type.startsWith('video/')))

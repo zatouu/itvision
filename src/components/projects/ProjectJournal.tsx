@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Camera, CheckCircle2, Clock, Eye, EyeOff, Loader2, NotebookPen, RotateCcw, Send, Trash2, X } from 'lucide-react'
+import { AlertTriangle, Camera, Image as ImageIcon, CheckCircle2, Clock, Eye, EyeOff, Loader2, NotebookPen, RotateCcw, Send, Trash2, X } from 'lucide-react'
+import { compressImage } from '@/lib/image-compress'
 import NumInput from '@/components/ui/NumInput'
 import { apiErrorMessage, readJsonResponse } from '@/lib/http/read-json'
 import { uploadFile } from '@/lib/http/upload-file'
@@ -91,7 +92,8 @@ export default function ProjectJournal({ projectId, mode, tasks, team, techId, c
     if (!files?.length) return
     setUploading(true); setError('')
     try {
-      for (const file of Array.from(files).slice(0, 12 - photos.length)) {
+      for (const raw of Array.from(files).slice(0, 12 - photos.length)) {
+        const file = await compressImage(raw)
         const up = await uploadFile(file, { fields: { type: 'projects' } })
         setPhotos(p => [...p, up.url])
       }
@@ -229,8 +231,12 @@ export default function ProjectJournal({ projectId, mode, tasks, team, techId, c
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex flex-1 items-center gap-2">
             <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-2 text-xs font-medium text-stone-600 hover:bg-stone-50">
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}Photos
-              <input type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={e => { addPhotos(e.target.files); e.target.value = '' }} />
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}Photo
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { addPhotos(e.target.files); e.target.value = '' }} />
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-2 text-xs font-medium text-stone-600 hover:bg-stone-50">
+              <ImageIcon className="h-4 w-4" />Galerie
+              <input type="file" accept="image/*" multiple className="hidden" onChange={e => { addPhotos(e.target.files); e.target.value = '' }} />
             </label>
             <label className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-3 py-1.5 text-xs text-stone-600">
               <Clock className="h-4 w-4" />

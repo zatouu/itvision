@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import FileDropZone from '@/components/ui/FileDropZone'
 import {
-  X, Loader2, AlertCircle, Phone, Navigation, Building2, MapPin, Play, CheckCircle2, Camera,
+  X, Loader2, AlertCircle, Phone, Navigation, Building2, MapPin, Play, CheckCircle2, Camera, Image as ImageIcon,
   PenLine, FileText, History, FolderKanban, ShieldCheck, Star, Trash2, ChevronRight,
 } from 'lucide-react'
 import SignaturePad from '@/components/portal/SignaturePad'
 import { INTERVENTION_STATUS, PRIORITY, REPORT_STATUS, TYPE_LABELS, clientLabel, dayLabel, dayKey, mapsUrl, shortDate, telUrl } from './tech-ui'
+import { compressImage } from '@/lib/image-compress'
 import { enqueueOutbox, flushOutbox, isNetworkError, outboxSupported } from '@/lib/tech/offline-outbox'
 
 /** Photo du compte rendu : téléversée (`url`) ou encore sur l'appareil (`file`, faute de réseau). */
@@ -108,7 +109,8 @@ export default function InterventionSheet({ id, techName = 'Technicien', onClose
     setUploading(true); setErr(''); setConfirmEmpty(false)
     const added: PendingPhoto[] = []
     let refused = 0
-    for (const file of Array.from(files).slice(0, 8)) {
+    for (const raw of Array.from(files).slice(0, 8)) {
+      const file = await compressImage(raw)
       const local: PendingPhoto = { key: crypto.randomUUID(), file, preview: URL.createObjectURL(file) }
       if (isOffline()) { added.push(local); continue }
       try {
@@ -368,8 +370,14 @@ export default function InterventionSheet({ id, techName = 'Technicien', onClose
                         <div className="flex gap-2 overflow-x-auto pb-1">
                           <label className="flex h-20 w-20 flex-shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-200 text-stone-400 transition hover:border-emerald-400 hover:text-emerald-600">
                             {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                            <span className="text-[10px] font-medium">Ajouter</span>
-                            <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={uploading}
+                            <span className="text-[10px] font-medium">Photo</span>
+                            <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading}
+                              onChange={e => { uploadPhotos(e.target.files, k); e.target.value = '' }} />
+                          </label>
+                          <label className="flex h-20 w-20 flex-shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-200 text-stone-400 transition hover:border-emerald-400 hover:text-emerald-600">
+                            <ImageIcon className="h-5 w-5" />
+                            <span className="text-[10px] font-medium">Galerie</span>
+                            <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
                               onChange={e => { uploadPhotos(e.target.files, k); e.target.value = '' }} />
                           </label>
                           {pending.map(p => (
