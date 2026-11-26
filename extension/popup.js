@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { products = [] } = await chrome.storage.local.get('products');
     countEl.textContent = products.length;
     btnExport.disabled = products.length === 0;
+    const btnJson = document.getElementById('btn-export-json');
+    if (btnJson) btnJson.disabled = products.length === 0;
     
     if (products.length > 0) {
       productsContainer.style.display = 'block';
@@ -452,6 +454,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnExport.textContent = label;
     }
   });
+
+  // Télécharger les produits extraits en JSON brut (sans passer par l'API)
+  const btnExportJson = document.getElementById('btn-export-json');
+  if (btnExportJson) {
+    btnExportJson.addEventListener('click', async () => {
+      const { products = [] } = await chrome.storage.local.get('products');
+      if (products.length === 0) { showNotification('Aucun produit à exporter', 'error'); return; }
+      const payload = JSON.stringify({ exportedAt: new Date().toISOString(), count: products.length, products }, null, 1);
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `itvision-scrape-${new Date().toISOString().slice(0, 10)}-${products.length}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showNotification(`${products.length} produit(s) téléchargés en JSON`, 'success');
+    });
+  }
 
   // Vider la liste
   btnClear.addEventListener('click', () => {
