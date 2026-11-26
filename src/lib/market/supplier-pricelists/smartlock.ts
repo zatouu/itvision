@@ -128,7 +128,7 @@ const FAMILIES: SupplierFamily[] = [
   }),
 
   // ══ TTLOCK — Smart deadbolt (p5) : pêne dormant, application TTLock (30 langues) ══
-  L('ttlock-deadbolt', 'Pêne dormant connecté TTLock — empreinte, code, carte', 220, [12, 14, 0.05], {
+  L('ttlock-deadbolt', 'Pêne dormant connecté TTLock — empreinte, code, carte', 220, [12, 14, 0.05], { img: '005-086',
     variants: [
       ['OS410FB', 220, 12], ['OS577FB', 230, 12], ['OS741FB', 240, 16], ['OS743FB', 260, 10], ['OS700FB', 260, 20],
     ],
@@ -137,20 +137,20 @@ const FAMILIES: SupplierFamily[] = [
     tags: ['serrure connectée', 'ttlock', 'pêne dormant', 'deadbolt'],
   }),
   // TTLOCK — Smart rim lock (p5) : verrou en applique, simple ou double face
-  L('ttlock-rim-os130', 'Verrou connecté en applique TTLock — OS130FB', 280, [10, 14, 0.046], {
+  L('ttlock-rim-os130', 'Verrou connecté en applique TTLock — OS130FB', 280, [10, 14, 0.046], { img: '005-081',
     variants: [['OS130FB simple face', 280, 10], ['OS142FB simple face', 410, 10]],
     feats: ['Application TTLock', 'Empreinte, code, carte IC, clé', 'Wifi via passerelle', 'Pose en applique sans percer la porte'],
     desc: 'Verrou connecté en applique TTLock, pose facile sur porte existante.',
     tags: ['verrou connecté', 'ttlock', 'applique'],
   }),
-  L('ttlock-rim-os768', 'Verrou connecté en applique TTLock — OS768FB', 255, [16, 24.28, 0.061], {
+  L('ttlock-rim-os768', 'Verrou connecté en applique TTLock — OS768FB', 255, [16, 24.28, 0.061], { img: '005-089',
     variants: [['Simple face', 255, 16], ['Double face', 350, 16]],
     vgroup: 'Face',
     feats: ['Application TTLock', 'Empreinte, code, carte IC, clé', 'Wifi via passerelle'],
     desc: 'Verrou connecté en applique TTLock, simple ou double face de lecture.',
     tags: ['verrou connecté', 'ttlock'],
   }),
-  L('ttlock-rim-os523', 'Verrou connecté en applique étanche TTLock — OS523FB', 235, [12, 24.28, 0.05], {
+  L('ttlock-rim-os523', 'Verrou connecté en applique étanche TTLock — OS523FB', 235, [12, 24.28, 0.05], { img: '005-098',
     variants: [['Simple face', 235, 12], ['Double face', 325, 12]],
     vgroup: 'Face',
     feats: ['Application TTLock', 'Empreinte, code, carte IC, clé', 'Étanche (extérieur)', 'Wifi via passerelle'],
