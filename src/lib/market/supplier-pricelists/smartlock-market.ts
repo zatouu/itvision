@@ -19,7 +19,7 @@ export const SMARTLOCK_MARKET: SupplierPricelist['market'] = {
   // ── Ancre serrure standard TTLock/Tuya (p5-29) — le TFT caméra est le modèle
   //    le plus proche relevé ; le ratio des coûts corrige l'écart de gamme ──
   'ttlock-deadbolt': [
-    { variant: 'Standard', fcfa: 125_000, shop: 'jumia.sn (serrure Tuya TFT caméra)', url: 'https://www.jumia.sn/catalog/?q=serrure+tuya' },
+    { variant: 'OS410FB', fcfa: 125_000, shop: 'jumia.sn (serrure Tuya TFT caméra)', url: 'https://www.jumia.sn/catalog/?q=serrure+tuya' },
   ],
   // ── Ancre cadenas connecté (p78-82) ──
   'padlock-os1101f': [
