@@ -218,7 +218,7 @@ async function recordCanvas(
   onProgress?: (pct: number) => void
 ): Promise<File> {
   const stream = canvas.captureStream(FPS)
-  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3_500_000 })
+  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 })
   const chunks: Blob[] = []
   recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
   const done = new Promise<void>((resolve) => { recorder.onstop = () => resolve() })

@@ -9,16 +9,20 @@ export const runtime = 'nodejs'
 // Séparateur de milliers en espace simple : l'espace fine de toLocaleString n'existe pas dans la police par défaut
 const fcfa = (n: number) => `${String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`
 
-/** Image produit en data URL (PNG/JPEG uniquement : le moteur de rendu ne lit pas le WebP). */
+/** Image produit en data URL JPEG. Tout format accepté : sharp convertit en JPEG
+ * (le moteur de rendu ne lit pas le WebP/AVIF des photos scrapées). */
 async function imageDataUrl(src: string | undefined, origin: string): Promise<string | null> {
-  if (!src) return null
+  if (!src || /\.(mp4|webm|mov)(\?|$)/i.test(src)) return null
   try {
     const res = await fetch(src.startsWith('http') ? src : `${origin}${src}`, { signal: AbortSignal.timeout(4000) })
     const type = res.headers.get('content-type') || ''
-    if (!res.ok || !/^image\/(png|jpe?g)/.test(type)) return null
+    if (!res.ok || !type.startsWith('image/')) return null
     const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length > 3_000_000) return null
-    return `data:${type};base64,${buf.toString('base64')}`
+    if (buf.length > 5_000_000) return null
+    if (/^image\/(png|jpe?g)/.test(type)) return `data:${type};base64,${buf.toString('base64')}`
+    const sharp = (await import('sharp')).default
+    const jpeg = await sharp(buf).flatten({ background: '#ffffff' }).jpeg({ quality: 85 }).toBuffer()
+    return `data:image/jpeg;base64,${jpeg.toString('base64')}`
   } catch {
     return null
   }
