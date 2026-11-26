@@ -18,6 +18,8 @@ export interface MarketPricingRules {
   entryDiscount: number
   bulkDiscount: number
   minMarginRate: number
+  /** Plafond de marge produit à l'unité (%) : au-delà le prix est jugé indéfendable face au client */
+  maxMarginRate: number
   /** Paliers en multiples du lot minimum (bornés au plus grand MOQ usine), avec la remise visée */
   tiers: Array<{ lotMultiple: number; discount: number }>
 }
@@ -26,6 +28,7 @@ export const DDM_PRICING_RULES: MarketPricingRules = {
   entryDiscount: 0.2,
   bulkDiscount: 0.35,
   minMarginRate: 15,
+  maxMarginRate: 110,
   tiers: [{ lotMultiple: 3, discount: 0.28 }, { lotMultiple: 10, discount: 0.35 }],
 }
 
@@ -104,11 +107,13 @@ export function marketPricing(input: {
   const { refs, minOrderQty, fees } = input
   const tierQtys = tierQuantities(minOrderQty, input.maxFactoryMoq, rules)
   const floor = rules.minMarginRate
+  const cap = rules.maxMarginRate
+  const clamp = (m: number) => Math.min(cap, Math.max(floor, m))
 
   if (!refs.length) {
-    const entry = Math.max(floor, input.fallbackMarginRate)
+    const entry = clamp(input.fallbackMarginRate)
     const tiers = tierQtys
-      .map(t => ({ minQty: t.minQty, marginRate: round1(Math.max(floor, ((1 + entry / 100) * (1 - t.discount) / (1 - rules.entryDiscount) - 1) * 100)) }))
+      .map(t => ({ minQty: t.minQty, marginRate: round1(clamp(((1 + entry / 100) * (1 - t.discount) / (1 - rules.entryDiscount) - 1) * 100)) }))
       .filter(t => t.marginRate < entry)
     return { source: 'estimé', marginRate: round1(entry), tiers, competitiveness: 'ok' }
   }
@@ -119,10 +124,10 @@ export function marketPricing(input: {
   }))
 
   const rawEntry = marginAt(minOrderQty, rules.entryDiscount)
-  const entry = Math.max(floor, rawEntry)
+  const entry = clamp(rawEntry)
   const tiers: MarketPricingResult['tiers'] = []
   for (const t of tierQtys) {
-    const m = Math.max(floor, marginAt(t.minQty, t.discount))
+    const m = clamp(marginAt(t.minQty, t.discount))
     if (m < (tiers.at(-1)?.marginRate ?? entry) - 0.5) tiers.push({ minQty: t.minQty, marginRate: round1(m) })
   }
 

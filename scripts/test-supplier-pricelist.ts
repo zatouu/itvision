@@ -28,15 +28,19 @@ assert.equal(ddmMinOrderQty({ unitPriceFcfa: 100, factoryMoq: 50, weightKg: 0.01
 const fees = { insuranceRate: 2.5 }
 const near = (a: number, b: number, tol = 0.02) => assert.ok(Math.abs(a - b) / b <= tol, `${a} ≉ ${b}`)
 near(paidPerUnit(unitForPaid(8_000, 10, fees, 500), 10, fees, 500), 8_000, 0.005)
-const ref = { costFcfa: 1_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }
+const ref = { costFcfa: 4_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }
+// Plafond de marge à l’unité : un coût très bas ne dépasse jamais 110 % (prix encore plus bas que Dakar)
+const cheap = marketPricing({ refs: [{ costFcfa: 1_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
+assert.equal(cheap.marginRate, 110)
+assert.ok(paidPerUnit(1_000 * (1 + cheap.marginRate / 100), 10, fees, 500) < 8_000)
 const p = marketPricing({ refs: [ref], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
 assert.equal(p.competitiveness, 'ok')
-near(paidPerUnit(1_000 * (1 + p.marginRate / 100), 10, fees, 500), 8_000)
+near(paidPerUnit(4_000 * (1 + p.marginRate / 100), 10, fees, 500), 8_000)
 // Palier à 3 lots ; à 100 unités la remise quantité globale (−15 %) suffit à atteindre −35 % : pas de palier en plus
 assert.deepEqual(p.tiers.map(t => t.minQty), [30])
 assert.ok(p.tiers[0].marginRate < p.marginRate)
-near(paidPerUnit(1_000 * (1 + p.tiers[0].marginRate / 100), 30, fees, 500), 7_200)
-near(paidPerUnit(1_000 * (1 + p.tiers[0].marginRate / 100), 100, fees, 500), 6_500)
+near(paidPerUnit(4_000 * (1 + p.tiers[0].marginRate / 100), 30, fees, 500), 7_200)
+near(paidPerUnit(4_000 * (1 + p.tiers[0].marginRate / 100), 100, fees, 500), 6_400)
 // Plusieurs relevés : le plus exigeant gagne
 const two = marketPricing({ refs: [ref, { ...ref, marketFcfa: 6_000 }], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
 assert.ok(two.marginRate < p.marginRate)
