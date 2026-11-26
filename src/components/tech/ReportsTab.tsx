@@ -17,7 +17,7 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'done', label: 'Validés' },
 ]
 
-const editable = (status: string) => status === 'draft' || status === 'rejected'
+const editable = (status: string) => status === 'draft' || status === 'rejected' || status === 'pending_validation'
 
 const dateInput = (d?: string | Date) => (d ? new Date(d).toISOString().slice(0, 10) : '')
 const amount = (n?: number) => (typeof n === 'number' ? String(n) : '')
@@ -317,7 +317,7 @@ export default function ReportsTab({ compose, openReportId, clients, onConsumed,
                     <>
                       <button onClick={() => setMode({ kind: 'edit', report: r })}
                         className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
-                        <Pencil className="h-3.5 w-3.5" /> {r.status === 'rejected' ? 'Corriger' : 'Compléter'}
+                        <Pencil className="h-3.5 w-3.5" /> {r.status === 'rejected' ? 'Corriger' : r.status === 'pending_validation' ? 'Modifier' : 'Compléter'}
                       </button>
                       {r.status === 'draft' && (
                         <button onClick={() => { setNotice(null); setToSubmit(r) }}
@@ -342,7 +342,7 @@ export default function ReportsTab({ compose, openReportId, clients, onConsumed,
       <ModernModal isOpen={!!toSubmit} onClose={() => setToSubmit(null)} title="Soumettre le rapport"
         subtitle="Il sera relu par IT Vision avant publication au client" icon={<Send className="h-5 w-5 text-white" />} size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">Une fois soumis, le rapport n’est plus modifiable sauf si des corrections sont demandées. L’intervention liée sera marquée terminée.</p>
+          <p className="text-sm text-stone-600">Le rapport reste modifiable tant qu’IT Vision ne l’a pas validé. L’intervention liée sera marquée terminée.</p>
           <ModalActions>
             <ModalSecondaryButton onClick={() => setToSubmit(null)} disabled={submitting}>Annuler</ModalSecondaryButton>
             <ModalPrimaryButton onClick={confirmSubmit} loading={submitting} icon={submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}>Soumettre</ModalPrimaryButton>

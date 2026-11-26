@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import FileDropZone from '@/components/ui/FileDropZone'
+import { compressImage } from '@/lib/image-compress'
 import NumInput from '@/components/ui/NumInput'
 import {
-  Building2, Clock, ClipboardList, Wrench, Camera, Send, Save, Loader2, Plus, Trash2, AlertTriangle,
+  Building2, Clock, ClipboardList, Wrench, Camera, Image as ImageIcon, Send, Save, Loader2, Plus, Trash2, AlertTriangle,
   CheckCircle2, ChevronLeft, ChevronRight, PenLine, X, RotateCcw, Package, Lightbulb, CalendarClock,
 } from 'lucide-react'
 import SignaturePad from '@/components/portal/SignaturePad'
@@ -216,6 +217,7 @@ export default function EnhancedMaintenanceForm({
   const linkedToIntervention = !!interventionId
   const storageKey = `tech-report-draft:${existingReportId || interventionId || 'new'}`
   const ro = isReadOnly
+  const alreadySubmitted = form.status === 'pending_validation'
 
   const update = useCallback(<K extends keyof MaintenanceFormData>(key: K, value: MaintenanceFormData[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -415,7 +417,7 @@ export default function EnhancedMaintenanceForm({
 
   async function handleSave() {
     const id = await save()
-    if (id) setNotice({ ok: true, text: 'Brouillon enregistré.' })
+    if (id) setNotice({ ok: true, text: alreadySubmitted ? 'Modifications enregistrées.' : 'Brouillon enregistré.' })
   }
 
   async function handleSubmit() {
@@ -463,8 +465,9 @@ export default function EnhancedMaintenanceForm({
     setUploading(kind); setNotice(null)
     const urls: string[] = []
     let failed = 0
-    for (const file of Array.from(files).slice(0, 10)) {
+    for (const raw of Array.from(files).slice(0, 10)) {
       try {
+        const file = await compressImage(raw)
         const fd = new FormData()
         fd.append('file', file)
         fd.append('type', 'reports')
@@ -765,12 +768,20 @@ export default function EnhancedMaintenanceForm({
                       </div>
                     ))}
                     {!ro && (
+                      <>
                       <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-200 text-stone-400 transition hover:border-emerald-400 hover:text-emerald-600">
                         {uploading === kind ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                        <span className="text-[10px] font-semibold">{uploading === kind ? 'Envoi…' : 'Ajouter'}</span>
-                        <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={!!uploading}
+                        <span className="text-[10px] font-semibold">{uploading === kind ? 'Envoi…' : 'Photo'}</span>
+                        <input type="file" accept="image/*" capture="environment" className="hidden" disabled={!!uploading}
                           onChange={e => { uploadPhotos(e.target.files, kind); e.target.value = '' }} />
                       </label>
+                      <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-200 text-stone-400 transition hover:border-emerald-400 hover:text-emerald-600">
+                        <ImageIcon className="h-5 w-5" />
+                        <span className="text-[10px] font-semibold">Galerie</span>
+                        <input type="file" accept="image/*" multiple className="hidden" disabled={!!uploading}
+                          onChange={e => { uploadPhotos(e.target.files, kind); e.target.value = '' }} />
+                      </label>
+                      </>
                     )}
                   </div>
                   </FileDropZone>
@@ -857,10 +868,10 @@ export default function EnhancedMaintenanceForm({
             {!ro && (
               <section className={`rounded-2xl border p-4 ${submissionErrors.length ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
                 {submissionErrors.length === 0 ? (
-                  <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800"><CheckCircle2 className="h-4 w-4" /> Rapport complet, prêt à être envoyé pour relecture.</p>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800"><CheckCircle2 className="h-4 w-4" /> {alreadySubmitted ? 'Rapport déjà en relecture : enregistrez pour mettre à jour son contenu.' : 'Rapport complet, prêt à être envoyé pour relecture.'}</p>
                 ) : (
                   <>
-                    <p className="text-sm font-semibold text-amber-900">Avant l’envoi, il manque :</p>
+                    <p className="text-sm font-semibold text-amber-900">{alreadySubmitted ? 'Points incomplets :' : 'Avant l’envoi, il manque :'}</p>
                     <ul className="mt-1.5 space-y-1">
                       {submissionErrors.map(e => (
                         <li key={e}>
@@ -892,9 +903,9 @@ export default function EnhancedMaintenanceForm({
                 Suivant <ChevronRight className="h-4 w-4" />
               </button>
             ) : (
-              <button type="button" onClick={handleSubmit} disabled={!!busy || !!uploading}
+              <button type="button" onClick={alreadySubmitted ? handleSave : handleSubmit} disabled={!!busy || !!uploading}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-800 py-3 text-sm font-bold text-white disabled:opacity-50">
-                {busy === 'submit' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Envoyer
+                {busy === 'submit' ? <Loader2 className="h-4 w-4 animate-spin" /> : alreadySubmitted ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />} {alreadySubmitted ? 'Enregistrer les modifications' : 'Envoyer'}
               </button>
             )}
           </div>

@@ -676,8 +676,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Seuls un brouillon ou un rapport à corriger se modifient (un rapport soumis attend la relecture)
-    if (!['draft', 'rejected'].includes(existingReport.status)) {
+    // Brouillon, rapport à corriger ou en attente de validation : tant que l'admin n'a pas
+    // validé, le rapport reste interne et son technicien peut encore le corriger
+    if (!['draft', 'rejected', 'pending_validation'].includes(existingReport.status)) {
       return NextResponse.json(
         { error: 'Rapport non modifiable dans cet état' },
         { status: 403 }
