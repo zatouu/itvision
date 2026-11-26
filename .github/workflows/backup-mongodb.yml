@@ -1,5 +1,5 @@
 name: Backup Quotidien MongoDB
-description: Sauvegarde automatique de la base MongoDB avec rotation de 7 jours
+description: Sauvegarde MongoDB streamée hors de la VM (artefact GitHub, rotation ~8 jours)
 
 on:
   schedule:
@@ -9,43 +9,54 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+
     steps:
-    - name: SSH et Backup sur EC2
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          cd ~/itvision-1
-          
-          # Créer dossier backup avec date
-          BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
-          mkdir -p $BACKUP_DIR
-          
-          # Dump MongoDB
-          docker exec itvision-mongodb mongodump \
+    - name: Dump MongoDB streamé hors de la VM
+      env:
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_USER: ${{ secrets.SSH_USER }}
+        SSH_KEY: ${{ secrets.SSH_KEY }}
+        MONGO_APP_PASSWORD: ${{ secrets.MONGO_APP_PASSWORD }}
+      run: |
+        set -e
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+
+        DATE=$(date +%Y%m%d_%H%M%S)
+        FILE="backup-itvision-${DATE}.gz"
+
+        # mongodump --archive --gzip écrit sur stdout : le dump traverse SSH et
+        # atterrit directement sur le runner — rien n'est stocké sur la VM
+        # (disque saturé) et la sauvegarde est hors de la machine de production.
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
+          "docker exec itvision-mongodb mongodump \
             --username itvision_app \
-            --password ${{ secrets.MONGO_APP_PASSWORD }} \
+            --password '${MONGO_APP_PASSWORD}' \
             --authenticationDatabase itvision_db \
             --db itvision_db \
-            --out /tmp/mongodump
-          
-          # Copier hors du container
-          docker cp itvision-mongodb:/tmp/mongodump $BACKUP_DIR/
-          
-          # Compresser
-          tar -czf ${BACKUP_DIR}.tar.gz -C $BACKUPDIR .
-          rm -rf $BACKUP_DIR
-          
-          # Garder seulement 7 derniers backups
-          ls -t ./backups/*.tar.gz | tail -n +8 | xargs rm -f
-          
-          echo "✅ Backup créé: ${BACKUP_DIR}.tar.gz"
-    
+            --archive --gzip" > "$FILE"
+
+        # Sanity check : un dump gzip valide fait plus que quelques octets
+        SIZE=$(stat -c%s "$FILE")
+        echo "Taille du dump : $SIZE octets"
+        if [ "$SIZE" -lt 1000 ]; then
+          echo "::error::Dump anormalement petit — vérifie les identifiants Mongo et le conteneur."
+          exit 1
+        fi
+        echo "Backup créé : $FILE"
+
+    - name: Upload artefact (rotation automatique ~8 jours)
+      uses: actions/upload-artifact@v4
+      with:
+        name: backup-mongodb-${{ github.run_number }}
+        path: backup-itvision-*.gz
+        retention-days: 8
+        compression-level: 0  # déjà gzippé
+
     - name: Notification Slack (optionnel)
-      if: failure()
+      if: failure() && secrets.SLACK_WEBHOOK_URL != ''
       run: |
         curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"❌ Backup MongoDB EC2 échoué!"}' \
