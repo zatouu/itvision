@@ -91,3 +91,4 @@ data/agent-worker.pid
 
 # Sentry Config File
 .env.sentry-build-plugin
+.scrape-profile/
