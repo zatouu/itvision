@@ -56,8 +56,12 @@ jobs:
         compression-level: 0  # déjà gzippé
 
     - name: Notification Slack (optionnel)
-      if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+      if: failure()
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       run: |
-        curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"❌ Backup MongoDB EC2 échoué!"}' \
-          ${{ secrets.SLACK_WEBHOOK_URL }}
+        if [ -n "$SLACK_WEBHOOK_URL" ]; then
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"❌ Backup MongoDB EC2 échoué!"}' \
+            "$SLACK_WEBHOOK_URL"
+        fi
