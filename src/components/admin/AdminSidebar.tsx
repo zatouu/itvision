@@ -390,6 +390,12 @@ const menuSections: MenuSection[] = [
             label: 'Pricing B2B en masse',
             icon: Tags,
             href: '/admin/produits/b2b-pricing'
+          },
+          {
+            id: 'produits-fournisseurs',
+            label: 'Grilles fournisseurs',
+            icon: Factory,
+            href: '/admin/fournisseurs'
           }
         ]
       },
