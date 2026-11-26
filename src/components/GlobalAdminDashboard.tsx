@@ -61,6 +61,7 @@ import {
   LogOut
 } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
+import SlideOver from '@/components/ui/SlideOver'
 import AdminAnalytics from './AdminAnalytics'
 import dynamic from 'next/dynamic'
 
@@ -1059,20 +1060,14 @@ export default function GlobalAdminDashboard() {
       {activeTab === 'analytics' && <AdminAnalytics />}
 
       {/* Modal détail projet */}
-      {showProjectDetail && selectedProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">{selectedProject.name}</h3>
-              <button
-                onClick={() => setShowProjectDetail(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="p-6">
+      {/* Détail projet : panneau latéral coulissant, la liste reste visible */}
+      <SlideOver
+        isOpen={showProjectDetail && !!selectedProject}
+        onClose={() => setShowProjectDetail(false)}
+        title={selectedProject?.name || ''}
+      >
+        {selectedProject && (
+          <div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">Informations client</h4>
@@ -1114,10 +1109,9 @@ export default function GlobalAdminDashboard() {
                   ))}
                 </div>
               </div>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </SlideOver>
     </div>
   )
 }

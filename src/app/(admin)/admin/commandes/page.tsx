@@ -31,7 +31,9 @@ import {
   FileText,
   Send,
   Bell,
-  Printer
+  Printer,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react'
 
 const formatCurrency = (v?: number) => (typeof v === 'number' ? `${v.toLocaleString('fr-FR')} FCFA` : '-')
@@ -126,6 +128,7 @@ export default function AdminOrdersPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [detailWide, setDetailWide] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null) // ID de la commande en cours
@@ -753,15 +756,16 @@ export default function AdminOrdersPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setSelectedOrder(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl"
+              className={`absolute inset-y-0 right-0 bg-white w-full overflow-y-auto shadow-2xl transition-[max-width] duration-300 ${detailWide ? 'sm:max-w-6xl' : 'sm:max-w-3xl'}`}
             >
               <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white">
                 <div className="flex justify-between items-start mb-4">
@@ -769,9 +773,19 @@ export default function AdminOrdersPage() {
                     <h2 className="text-2xl font-bold">Commande #{selectedOrder.orderId}</h2>
                     <p className="text-slate-400 text-sm">Passée le {new Date(selectedOrder.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</p>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-white/10 rounded-full transition">
-                    <X className="w-6 h-6" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setDetailWide(w => !w)}
+                      className="hidden sm:block p-2 hover:bg-white/10 rounded-full transition"
+                      aria-label={detailWide ? 'Réduire le panneau' : 'Élargir le panneau'}
+                      title={detailWide ? 'Réduire' : 'Élargir'}
+                    >
+                      {detailWide ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
+                    </button>
+                    <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-white/10 rounded-full transition" aria-label="Fermer">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between mt-4">

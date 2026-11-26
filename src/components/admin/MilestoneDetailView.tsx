@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import {
   X, CheckCircle2, Circle, AlertTriangle, Clock, FileText,
   Camera, Star, Lightbulb, BookOpen, Users, ChevronRight,
-  Save, Loader2, Plus, Trash2, Flag
+  Save, Loader2, Plus, Trash2, Flag, PanelRightOpen, PanelRightClose
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useToastContext } from '@/components/ToastProvider'
 import NumInput from '@/components/ui/NumInput'
 
@@ -177,6 +178,8 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
 
   const progress = Math.round(((editable.checklist?.filter(c => c.done).length || 0) / Math.max(editable.checklist?.length || 1, 1)) * 100)
 
+  const [wide, setWide] = useState(false)
+
   const sections = [
     { key: 'overview' as const, label: 'Vue d\'ensemble', icon: Flag },
     { key: 'checklist' as const, label: 'Checklist', icon: CheckCircle2 },
@@ -187,8 +190,20 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-5xl w-full my-6 shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
+        className={`absolute inset-y-0 right-0 bg-white w-full shadow-2xl flex flex-col transition-[max-width] duration-300 ${wide ? 'sm:max-w-5xl' : 'sm:max-w-xl'}`}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -214,9 +229,19 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
               <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg text-stone-400 hover:text-stone-600">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setWide(w => !w)}
+              className="hidden sm:block p-2 hover:bg-stone-100 rounded-lg text-stone-400 hover:text-stone-600"
+              aria-label={wide ? 'Réduire le panneau' : 'Élargir le panneau'}
+              title={wide ? 'Réduire' : 'Élargir'}
+            >
+              {wide ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-lg text-stone-400 hover:text-stone-600" aria-label="Fermer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Sections nav */}
@@ -471,11 +496,11 @@ export default function MilestoneDetailView({ milestone, projectId, projectServi
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-stone-200 bg-stone-50 rounded-b-2xl flex items-center justify-between">
+        <div className="px-6 py-3 border-t border-stone-200 bg-stone-50 flex items-center justify-between">
           <span className="text-xs text-stone-500">{saving && <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Sauvegarde...</span>}</span>
           <button onClick={onClose} className="px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-lg text-sm font-medium hover:bg-stone-50">Fermer</button>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

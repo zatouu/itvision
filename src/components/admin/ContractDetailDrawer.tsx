@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, FileText, Download, Pencil, Check, Loader2, MapPin, CalendarDays, Shield, Banknote, Wrench, AlertCircle } from 'lucide-react'
+import { X, FileText, Download, Pencil, Check, Loader2, MapPin, CalendarDays, Shield, Banknote, Wrench, AlertCircle, PanelRightOpen, PanelRightClose } from 'lucide-react'
+import { motion } from 'framer-motion'
 import NumInput from '@/components/ui/NumInput'
 
 interface Equipment { type: string; quantity: number; location?: string }
@@ -55,6 +56,7 @@ export default function ContractDetailDrawer({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<any>({})
+  const [wide, setWide] = useState(false)
 
   useEffect(() => {
     setEditing(false)
@@ -163,9 +165,18 @@ export default function ContractDetailDrawer({
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <aside
-        className="h-full w-full max-w-2xl overflow-y-auto bg-stone-50 shadow-2xl"
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+      />
+      <motion.aside
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
+        className={`absolute inset-y-0 right-0 h-full w-full overflow-y-auto bg-stone-50 shadow-2xl transition-[max-width] duration-300 ${wide ? 'max-w-5xl' : 'max-w-2xl'}`}
         onClick={e => e.stopPropagation()}
       >
         {/* En-tête */}
@@ -178,6 +189,14 @@ export default function ContractDetailDrawer({
             </div>
             <div className="flex items-center gap-2">
               <span className={`rounded-full px-3 py-1 text-xs font-bold ${st.cls}`}>{st.label}</span>
+              <button
+                onClick={() => setWide(w => !w)}
+                className="hidden sm:block rounded-lg p-1.5 text-emerald-200 hover:bg-white/10"
+                aria-label={wide ? 'Réduire le panneau' : 'Élargir le panneau'}
+                title={wide ? 'Réduire' : 'Élargir'}
+              >
+                {wide ? <PanelRightClose className="h-5 w-5" /> : <PanelRightOpen className="h-5 w-5" />}
+              </button>
               <button onClick={onClose} className="rounded-lg p-1.5 text-emerald-200 hover:bg-white/10" aria-label="Fermer"><X className="h-5 w-5" /></button>
             </div>
           </div>
@@ -343,7 +362,7 @@ export default function ContractDetailDrawer({
             )}
           </section>
         </div>
-      </aside>
+      </motion.aside>
     </div>
   )
 }
