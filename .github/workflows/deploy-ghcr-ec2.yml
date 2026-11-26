@@ -271,6 +271,20 @@ jobs:
           script: |
             mkdir -p ~/itvision/docker/mongodb ~/itvision/docker/nginx
 
+      - name: Free disk space on EC2 (old docker images)
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            df -h / | tail -1
+            # Images anciennes non utilisées (les conteneurs actifs ne sont pas touchés).
+            # Jamais --volumes : les données mongo ne doivent pas être effacées.
+            docker system prune -af 2>/dev/null || true
+            docker image prune -af 2>/dev/null || true
+            df -h / | tail -1
+
       - name: Copy compose and init script to EC2
         uses: appleboy/scp-action@v1.0.0
         with:
