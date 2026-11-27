@@ -101,6 +101,7 @@ export default function ScreenGroupDetail() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const [resell, setResell] = useState(false);
+  const [videoReseller, setVideoReseller] = useState(false);
   const [resalePrice, setResalePrice] = useState('');
   const [subscribeAll, setSubscribeAll] = useState(true);
   const [videoSupported, setVideoSupported] = useState(false);
@@ -409,6 +410,12 @@ export default function ScreenGroupDetail() {
     setShareNotice('');
     setVideoProgress(0);
     try {
+      // Variante revendeur : même logique de marge que le calculateur intégré
+      let reseller: { cost: number; resale: number } | undefined;
+      if (videoReseller) {
+        const cost = (g.unit || 0) + (g.shippingCostPerUnit || 0);
+        if (cost > 0) reseller = { cost, resale: Math.round((cost * 1.3) / 100) * 100 };
+      }
       const file = await renderGroupVideo({
         name: g.name,
         unit: g.unit,
@@ -421,6 +428,7 @@ export default function ScreenGroupDetail() {
         link: `${shareUrl}?via=tiktok`,
         brand: MARKET_BRAND.name,
         photoUrl: `/api/og/group/${encodeURIComponent(g.id)}?format=photo`,
+        reseller,
       }, setVideoProgress);
       setVideoFile(file);
     } catch (e: any) {
@@ -952,9 +960,17 @@ export default function ScreenGroupDetail() {
               <button type="button" onClick={() => setVideoFile(null)} className="h-10 rounded-lg border border-slate-200 px-3 text-[12px] font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">Refaire</button>
             </div>
           ) : (
-            <button type="button" onClick={() => void makeVideo()} disabled={videoProgress !== null} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 text-[12px] font-bold text-violet-700 disabled:opacity-80 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
-              {videoProgress !== null ? `Création de la vidéo… ${videoProgress} % (gardez la page ouverte)` : 'Créer une vidéo de 12 s pour TikTok'}
-            </button>
+            <div>
+              <button type="button" onClick={() => setVideoReseller((v) => !v)} className="mb-1.5 flex w-full items-center justify-between rounded-lg px-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <span>Version revendeurs : la vidéo montre la marge de revente</span>
+                <span className={cn('relative h-4 w-7 rounded-full transition-colors', videoReseller ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-600')}>
+                  <span className={cn('absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all', videoReseller ? 'left-3.5' : 'left-0.5')}/>
+                </span>
+              </button>
+              <button type="button" onClick={() => void makeVideo()} disabled={videoProgress !== null} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 text-[12px] font-bold text-violet-700 disabled:opacity-80 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                {videoProgress !== null ? `Création de la vidéo… ${videoProgress} % (gardez la page ouverte)` : 'Créer une vidéo de 12 s pour TikTok'}
+              </button>
+            </div>
           )}
         </div>
       )}

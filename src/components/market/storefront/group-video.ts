@@ -19,6 +19,9 @@ export interface GroupVideoData {
   brand: string
   /** Photo servie depuis notre domaine (sinon le canvas devient non enregistrable) */
   photoUrl?: string
+  /** Variante revendeur : coût d'achat/pièce (transport inclus) et prix de revente suggéré —
+   * la vidéo parle marge au lieu d'économies */
+  reseller?: { cost: number; resale: number }
 }
 
 const W = 720
@@ -116,7 +119,7 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
     ctx.fillStyle = '#fff'
     ctx.font = '800 40px system-ui, sans-serif'
     ctx.fillText(d.brand, W / 2, 80)
-    pill(ctx, 'ACHAT GROUPÉ', W / 2, 100, '700 22px system-ui, sans-serif', '#ddd6fe', '#4c1d95', 18, 40)
+    pill(ctx, d.reseller ? 'OPPORTUNITÉ REVENDEURS' : 'ACHAT GROUPÉ', W / 2, 100, '700 22px system-ui, sans-serif', '#ddd6fe', '#4c1d95', 18, 40)
 
     // Accroche
     const a = phase(t, 0, 800)
@@ -125,8 +128,13 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
     ctx.font = '800 52px system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.fillText('Achetez moins cher', W / 2, 205 + (1 - a) * 30)
-    ctx.fillText('en groupe', W / 2, 265 + (1 - a) * 30)
+    if (d.reseller) {
+      ctx.fillText('Achète au prix groupe', W / 2, 205 + (1 - a) * 30)
+      ctx.fillText('revends avec marge', W / 2, 265 + (1 - a) * 30)
+    } else {
+      ctx.fillText('Achetez moins cher', W / 2, 205 + (1 - a) * 30)
+      ctx.fillText('en groupe', W / 2, 265 + (1 - a) * 30)
+    }
     ctx.globalAlpha = 1
 
     // Photo (léger zoom arrière)
@@ -164,11 +172,19 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
       ctx.fillStyle = '#fff'
       ctx.font = '900 92px system-ui, sans-serif'
       ctx.fillText(fcfa(shown), W / 2, 985)
-      if (d.base > d.unit && p1 > 0.95) {
+      if (d.base > d.unit && p1 > 0.95 && !d.reseller) {
         ctx.fillStyle = '#6ee7b7'
         ctx.font = '800 30px system-ui, sans-serif'
         const save = Math.round(((d.base - shown) / d.base) * 100)
         ctx.fillText(`-${save} % par rapport au prix normal`, W / 2, 1030)
+      }
+      if (d.reseller && p1 > 0.95) {
+        const profit = d.reseller.resale - shown
+        if (profit > 0) {
+          ctx.fillStyle = '#6ee7b7'
+          ctx.font = '800 32px system-ui, sans-serif'
+          ctx.fillText(`Revente ${fcfa(d.reseller.resale)} → marge ${fcfa(profit)}/pièce`, W / 2, 1036)
+        }
       }
       ctx.globalAlpha = 1
     }
@@ -217,7 +233,11 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
       ctx.fillText('SCANNE POUR REJOINDRE', W / 2, cy0 + 68)
       ctx.fillStyle = '#6b7280'
       ctx.font = '600 26px system-ui, sans-serif'
-      ctx.fillText(best && best.price < d.unit ? `jusqu'à ${fcfa(best.price)}/pièce au groupe complet` : 'le prix baisse à chaque participant', W / 2, cy0 + 112)
+      ctx.fillText(
+        d.reseller && best && best.price < d.unit
+          ? `coût au groupe complet : ${fcfa(best.price)} → marge max ${fcfa(d.reseller.resale - best.price)}/pièce`
+          : best && best.price < d.unit ? `jusqu'à ${fcfa(best.price)}/pièce au groupe complet` : 'le prix baisse à chaque participant',
+        W / 2, cy0 + 112)
 
       // QR code (zone tranquille incluse dans le blanc de la carte)
       const qrPx = 300
