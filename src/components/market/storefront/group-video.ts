@@ -237,7 +237,8 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
       ctx.fillText(d.link.replace(/^https?:\/\//, ''), W / 2, qy + qrPx + 52)
       ctx.fillStyle = '#9ca3af'
       ctx.font = '600 22px system-ui, sans-serif'
-      ctx.fillText('Aucun paiement maintenant · prix final à la clôture', W / 2, cy0 + ch - 28)
+      ctx.fillText('Envoie cette vidéo à tes proches intéressés', W / 2, cy0 + ch - 56)
+      ctx.fillText('Aucun paiement maintenant · prix final à la clôture', W / 2, cy0 + ch - 24)
       ctx.globalAlpha = 1
     }
   }

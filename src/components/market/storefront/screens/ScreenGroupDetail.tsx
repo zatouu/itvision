@@ -328,6 +328,7 @@ export default function ScreenGroupDetail() {
       : 'Meilleur prix atteint : il reste encore des places.',
     `Déjà ${g.participants} participant${g.participants > 1 ? 's' : ''} · ${g.currentQty}/${g.targetQty} pièces${closeDate ? ` · clôture ${closeDate}` : ''}`,
     'Aucun paiement maintenant : on paie le prix final à la clôture.',
+    '👉 Envoie cette annonce à tes proches que ça intéresse : plus on est nombreux, moins on paie !',
     `Je rejoins ici : ${shareUrl}?via=${via}`,
   ].join('\n');
   const shareText = buildShareText('wa');
@@ -916,7 +917,7 @@ export default function ScreenGroupDetail() {
             </div>
           ) : (
             <button type="button" onClick={() => void makeVideo()} disabled={videoProgress !== null} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 text-[12px] font-bold text-violet-700 disabled:opacity-80 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
-              {videoProgress !== null ? `Création de la vidéo… ${videoProgress} % (gardez la page ouverte)` : 'Créer une vidéo de 10 s pour TikTok'}
+              {videoProgress !== null ? `Création de la vidéo… ${videoProgress} % (gardez la page ouverte)` : 'Créer une vidéo de 12 s pour TikTok'}
             </button>
           )}
         </div>
