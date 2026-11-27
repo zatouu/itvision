@@ -793,7 +793,7 @@ const FAMILIES: SupplierFamily[] = [
 export const SMARTLOCK_PRICELIST: SupplierPricelist = {
   id: 'smartlock',
   supplier: SUPPLIER,
-  imageBase: '/images/suppliers/smartlock/',
+  imageBase: '/images/suppliers/smartlock',
   families: FAMILIES,
   market: SMARTLOCK_MARKET,
   questions: SMARTLOCK_QUESTIONS,
