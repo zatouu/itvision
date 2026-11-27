@@ -15,20 +15,25 @@ import { calculateCompleteFees, type ServiceFeeTier } from '@/lib/pricing/tiered
 import { applyTierDiscount } from '@/lib/pricing/tiered-pricing'
 
 export interface MarketPricingRules {
+  /** Remise vs Dakar pour l'achat d'UNE pièce : le prix catalogue est ancré sur ce niveau —
+   * l'acheteur à l'unité paie près du prix marché, la marge unitaire finance la logistique */
+  unitDiscount: number
   entryDiscount: number
   bulkDiscount: number
   minMarginRate: number
-  /** Plafond de marge produit à l'unité (%) : au-delà le prix est jugé indéfendable face au client */
+  /** Plafond de marge produit à l'unité (%) : garde-fou contre les relevés aberrants,
+   * assez haut pour ne pas écraser les produits chers du marché local */
   maxMarginRate: number
   /** Paliers en multiples du lot minimum (bornés au plus grand MOQ usine), avec la remise visée */
   tiers: Array<{ lotMultiple: number; discount: number }>
 }
 
 export const DDM_PRICING_RULES: MarketPricingRules = {
+  unitDiscount: 0.1,
   entryDiscount: 0.2,
   bulkDiscount: 0.35,
   minMarginRate: 15,
-  maxMarginRate: 110,
+  maxMarginRate: 250,
   tiers: [{ lotMultiple: 3, discount: 0.28 }, { lotMultiple: 10, discount: 0.35 }],
 }
 
@@ -113,7 +118,7 @@ export function marketPricing(input: {
   if (!refs.length) {
     const entry = clamp(input.fallbackMarginRate)
     const tiers = tierQtys
-      .map(t => ({ minQty: t.minQty, marginRate: round1(clamp(((1 + entry / 100) * (1 - t.discount) / (1 - rules.entryDiscount) - 1) * 100)) }))
+      .map(t => ({ minQty: t.minQty, marginRate: round1(clamp(((1 + entry / 100) * (1 - t.discount) / (1 - rules.unitDiscount) - 1) * 100)) }))
       .filter(t => t.marginRate < entry)
     return { source: 'estimé', marginRate: round1(entry), tiers, competitiveness: 'ok' }
   }
@@ -123,9 +128,15 @@ export function marketPricing(input: {
     return marginFor(unitForPaid(r.marketFcfa * (1 - discount), qty, fees, shipping), r.costFcfa)
   }))
 
-  const rawEntry = marginAt(minOrderQty, rules.entryDiscount)
+  // Prix catalogue = ancrage à l'unité : une pièce achetée seule paie market × (1 − unitDiscount).
+  const rawEntry = marginAt(1, rules.unitDiscount)
   const entry = clamp(rawEntry)
   const tiers: MarketPricingResult['tiers'] = []
+  // Premier palier : le lot minimum à −entryDiscount vs Dakar (s'il est au-delà d'une pièce).
+  if (minOrderQty > 1) {
+    const m = clamp(marginAt(minOrderQty, rules.entryDiscount))
+    if (m < entry - 0.5) tiers.push({ minQty: minOrderQty, marginRate: round1(m) })
+  }
   for (const t of tierQtys) {
     const m = clamp(marginAt(t.minQty, t.discount))
     if (m < (tiers.at(-1)?.marginRate ?? entry) - 0.5) tiers.push({ minQty: t.minQty, marginRate: round1(m) })

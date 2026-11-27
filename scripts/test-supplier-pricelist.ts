@@ -24,35 +24,37 @@ assert.equal(ddmMinOrderQty({ unitPriceFcfa: 12_000, factoryMoq: 400, weightKg: 
 // Jamais au-delà du MOQ usine
 assert.equal(ddmMinOrderQty({ unitPriceFcfa: 100, factoryMoq: 50, weightKg: 0.01 }).qty, 50)
 
-// Prix calé sur Dakar : -20 % au lot minimum, -35 % au gros volume, marge plancher 15 %
+// Prix calé sur Dakar : -10 % a l’unité, -20 % au lot minimum, -35 % au gros volume, marge plancher 15 %
 const fees = { insuranceRate: 2.5 }
 const near = (a: number, b: number, tol = 0.02) => assert.ok(Math.abs(a - b) / b <= tol, `${a} ≉ ${b}`)
 near(paidPerUnit(unitForPaid(8_000, 10, fees, 500), 10, fees, 500), 8_000, 0.005)
 const ref = { costFcfa: 4_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }
-// Plafond de marge à l’unité : un coût très bas ne dépasse jamais 110 % (prix encore plus bas que Dakar)
+// Plafond de marge a l’unite : un cout tres bas ne depasse jamais 250 % (prix encore bien sous Dakar)
 const cheap = marketPricing({ refs: [{ costFcfa: 1_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
-assert.equal(cheap.marginRate, 110)
-assert.ok(paidPerUnit(1_000 * (1 + cheap.marginRate / 100), 10, fees, 500) < 8_000)
+assert.equal(cheap.marginRate, 250)
+assert.ok(paidPerUnit(1_000 * (1 + cheap.marginRate / 100), 1, fees, 500) < 9_000)
 const p = marketPricing({ refs: [ref], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
 assert.equal(p.competitiveness, 'ok')
-near(paidPerUnit(4_000 * (1 + p.marginRate / 100), 10, fees, 500), 8_000)
-// Palier à 3 lots ; à 100 unités la remise quantité globale (−15 %) suffit à atteindre −35 % : pas de palier en plus
-assert.deepEqual(p.tiers.map(t => t.minQty), [30])
+// Prix catalogue = ancre unitaire : 1 piece payee market x (1 - 10 %)
+near(paidPerUnit(4_000 * (1 + p.marginRate / 100), 1, fees, 500), 9_000)
+// Premier palier au lot minimum (-20 %), puis a 3 lots ; a 100 unites la remise globale suffit : pas de palier en plus
+assert.deepEqual(p.tiers.map(t => t.minQty), [10, 30])
 assert.ok(p.tiers[0].marginRate < p.marginRate)
-near(paidPerUnit(4_000 * (1 + p.tiers[0].marginRate / 100), 30, fees, 500), 7_200)
-near(paidPerUnit(4_000 * (1 + p.tiers[0].marginRate / 100), 100, fees, 500), 6_400)
-// Plusieurs relevés : le plus exigeant gagne
+assert.ok(p.tiers[1].marginRate < p.tiers[0].marginRate)
+near(paidPerUnit(4_000 * (1 + p.tiers[0].marginRate / 100), 10, fees, 500), 8_000)
+near(paidPerUnit(4_000 * (1 + p.tiers[1].marginRate / 100), 30, fees, 500), 7_200)
+near(paidPerUnit(4_000 * (1 + p.tiers[1].marginRate / 100), 100, fees, 500), 6_400)
+// Plusieurs releves : le plus exigeant gagne
 const two = marketPricing({ refs: [ref, { ...ref, marketFcfa: 6_000 }], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
 assert.ok(two.marginRate < p.marginRate)
-// Coût trop élevé pour le marché : marge plancher, signalé
+// Cout trop eleve pour le marche : marge plancher, signale
 const dear = marketPricing({ refs: [{ costFcfa: 9_000, marketFcfa: 10_000, shippingPerUnit: () => 500 }], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 50 })
 assert.equal(dear.marginRate, 15)
 assert.equal(dear.competitiveness, 'plus cher que Dakar')
 assert.equal(dear.tiers.length, 0)
-// Sans relevé : marge de repli, paliers proportionnels
+// Sans releve : marge de repli, paliers proportionnels
 const est = marketPricing({ refs: [], minOrderQty: 10, maxFactoryMoq: 100, fees, fallbackMarginRate: 60 })
 assert.equal(est.source, 'estimé')
 assert.equal(est.marginRate, 60)
 assert.ok(est.tiers.every(t => t.marginRate >= 15 && t.marginRate < 60))
-
 console.log('Lot minimum et prix fournisseurs : assertions OK')

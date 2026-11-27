@@ -148,9 +148,10 @@ déclarée dans `index.ts` ; images dans `public/images/suppliers/<fournisseur>/
 **/admin/fournisseurs** (aperçu, cases à cocher, bouton « Appliquer en base », ADMIN seulement) ou
 `npm run import:zhilian:dry` / `npm run import:zhilian`. Tests : `npm run test:supplier-pricelist`.
 
-- **Prix de gros calé sur Dakar** (`pricing-rules.ts`) : payé client au lot minimum (frais, remise quantité
-  globale, transport estimé compris) = −20 % vs Dakar, paliers jusqu'à −35 %, jamais au-delà ; marge produit
-  ≥ 15 %. Sans relevé : famille comparable (`marketLike`) sinon 1er quartile des marges relevées.
+- **Prix calé sur Dakar** (`pricing-rules.ts`) : le prix catalogue est ancré sur l'achat à l'unité
+  = −10 % vs Dakar (la marge unitaire finance la logistique, plafond 250 %) ; paliers dégressifs :
+  lot minimum −20 %, jusqu'à −35 % au gros volume ; marge produit ≥ 15 %. Sans relevé : famille
+  comparable (`marketLike`) sinon 1er quartile des marges relevées.
   Le calcul reproduit `cart-calculator` (vérifié contre `/api/pricing/quote`).
 - **Lot minimum** (`min-order.ts`) : ligne ≥ 10 000 F, MOQ usine / 10 acheteurs, articles ≥ 5 kg en maritime.
 - Clé `sourcing.platform='factory'` + `sourcing.externalId='<grille>:<famille>'` (idempotent) ; EXW →
