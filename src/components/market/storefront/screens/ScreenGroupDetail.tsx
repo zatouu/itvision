@@ -826,23 +826,18 @@ export default function ScreenGroupDetail() {
           const myUnit = priceAt(withMe);
           const afterMe = tiers.find((t) => t.minQty > withMe);
           const best = tiers.length ? tiers[tiers.length - 1] : null;
-          const rows: { label: string; unit: number; strong?: boolean }[] = [
-            { label: `Avec vous (${withMe} pcs)`, unit: myUnit, strong: true },
-          ];
-          if (afterMe) rows.push({ label: `Si le groupe atteint ${afterMe.minQty} pcs`, unit: priceAt(afterMe.minQty) });
-          if (best && best !== afterMe && best.minQty > withMe) rows.push({ label: `Au meilleur palier (${best.minQty} pcs)`, unit: priceAt(best.minQty) });
+          const bestUnit = best && best.minQty > withMe ? priceAt(best.minQty) : null;
           return (
             <Fragment>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Votre total selon le groupe{unitVariantAdjusted ? ' · votre variante' : ''}</p>
-              {rows.map((r) => (
-                <div key={r.label} className="mt-3 flex flex-col gap-1 text-[12px]">
-                  <span className={r.strong ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}>{r.label}</span>
-                  <span className="flex flex-wrap items-baseline gap-x-1 tabular-nums">
-                    <span className="text-[11px] text-slate-400">{formatFcfa(r.unit)}/pc · </span>
-                    <b className={r.strong ? 'text-violet-700 dark:text-violet-300' : 'text-slate-900 dark:text-white'}>{formatFcfa(r.unit * qty)}</b>
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[12px] font-semibold text-slate-600 dark:text-slate-400">Votre total</span>
+                <span className="text-lg font-extrabold tabular-nums text-violet-700 dark:text-violet-300">{formatFcfa(myUnit * qty)}</span>
+              </div>
+              {bestUnit && bestUnit < myUnit && (
+                <p className="mt-1.5 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  Si le groupe est complet : <span className="tabular-nums">{formatFcfa(bestUnit * qty)}</span> seulement — partagez pour en profiter !
+                </p>
+              )}
               {myUnit < unitEst && (
                 <p className="mt-2 rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Votre commande fait passer tout le groupe au palier suivant !</p>
               )}
