@@ -4,6 +4,8 @@
  * Formats : MP4 quand le navigateur sait l'enregistrer (Safari, Chrome récents), sinon WebM.
  */
 
+import QRCode from 'qrcode'
+
 export interface GroupVideoData {
   name: string
   unit: number
@@ -22,7 +24,7 @@ export interface GroupVideoData {
 const W = 720
 const H = 1280
 const FPS = 30
-const DURATION = 10_000
+const DURATION = 12_000
 
 const fcfa = (n: number) => `${String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} F`
 const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3))
@@ -89,6 +91,10 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
   canvas.height = H
   const ctx = canvas.getContext('2d')!
   const photo = await loadImage(d.photoUrl)
+  // Matrice QR du lien (modules noirs = true), dessinée module par module en fin de vidéo
+  const qr = QRCode.create(d.link, { errorCorrectionLevel: 'M' })
+  const qrSize = qr.modules.size
+  const qrGet = (x: number, y: number) => qr.modules.get(y, x)
 
   const tiers = [...d.tiers].sort((a, b) => a.minQty - b.minQty)
   const next = tiers.find((t) => t.minQty > d.currentQty)
@@ -188,21 +194,50 @@ export async function renderGroupVideo(d: GroupVideoData, onProgress?: (pct: num
       ctx.globalAlpha = 1
     }
 
-    // Appel à l'action
-    if (t > 7800) {
-      const c = phase(t, 7800, 8300)
-      const pulse = 1 + 0.04 * Math.sin((t - 7800) / 140)
+    // End-card : QR code scannable + lien lisible (t > 8000, visible ~4 s)
+    if (t > 8000) {
+      const c = phase(t, 8000, 8500)
+      ctx.globalAlpha = c * 0.55
+      ctx.fillStyle = '#1e1b4b'
+      ctx.fillRect(0, 0, W, H)
       ctx.globalAlpha = c
-      ctx.save()
-      ctx.translate(W / 2, 1205)
-      ctx.scale(pulse, pulse)
-      pill(ctx, best && best.price < d.unit ? `Rejoins · jusqu'à ${fcfa(best.price)}` : 'Rejoins le groupe', 0, -32, '800 30px system-ui, sans-serif', '#fff', '#4c1d95', 34, 64)
-      ctx.restore()
-      ctx.fillStyle = '#ede9fe'
-      ctx.font = '600 20px system-ui, sans-serif'
+
+      // Carte blanche centrale
+      const cx0 = 60, cy0 = 640, cw = W - 120, ch = 580
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      ctx.roundRect(cx0, cy0, cw, ch, 40)
+      ctx.fill()
+
+      // Accroche dans la carte
+      ctx.fillStyle = '#4c1d95'
+      ctx.font = '900 40px system-ui, sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'alphabetic'
-      ctx.fillText(d.link.replace(/^https?:\/\//, ''), W / 2, 1262)
+      ctx.fillText('SCANNE POUR REJOINDRE', W / 2, cy0 + 68)
+      ctx.fillStyle = '#6b7280'
+      ctx.font = '600 26px system-ui, sans-serif'
+      ctx.fillText(best && best.price < d.unit ? `jusqu'à ${fcfa(best.price)}/pièce au groupe complet` : 'le prix baisse à chaque participant', W / 2, cy0 + 112)
+
+      // QR code (zone tranquille incluse dans le blanc de la carte)
+      const qrPx = 300
+      const qx = (W - qrPx) / 2
+      const qy = cy0 + 140
+      const mod = qrPx / qrSize
+      ctx.fillStyle = '#111827'
+      for (let yy = 0; yy < qrSize; yy++) {
+        for (let xx = 0; xx < qrSize; xx++) {
+          if (qrGet(xx, yy)) ctx.fillRect(qx + xx * mod, qy + yy * mod, Math.ceil(mod), Math.ceil(mod))
+        }
+      }
+
+      // Lien court lisible sous le QR
+      ctx.fillStyle = '#4c1d95'
+      ctx.font = '800 28px system-ui, sans-serif'
+      ctx.fillText(d.link.replace(/^https?:\/\//, ''), W / 2, qy + qrPx + 52)
+      ctx.fillStyle = '#9ca3af'
+      ctx.font = '600 22px system-ui, sans-serif'
+      ctx.fillText('Aucun paiement maintenant · prix final à la clôture', W / 2, cy0 + ch - 28)
       ctx.globalAlpha = 1
     }
   }
