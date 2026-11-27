@@ -13,6 +13,7 @@ export interface IGroupOrderParticipant {
   totalAmount: number      // Montant total pour ce participant
   variantIds?: string[]    // Variantes choisies (ids des variantGroups produit)
   variantLabels?: string[] // Libellés dérivés serveur (« Groupe: Nom »)
+  via?: string            // Canal d'arrivée (« tiktok », « wa », « status »…) capté au join
   paidAmount: number       // Montant déjà payé
   paymentStatus: 'pending' | 'partial' | 'paid' | 'refunded'
   paymentReference?: string
@@ -138,6 +139,7 @@ const GroupOrderParticipantSchema = new Schema<IGroupOrderParticipant>({
   totalAmount: { type: Number, required: true },
   variantIds: { type: [String], default: undefined },
   variantLabels: { type: [String], default: undefined },
+  via: { type: String, maxlength: 40 },
   paidAmount: { type: Number, default: 0 },
   paymentStatus: { 
     type: String, 

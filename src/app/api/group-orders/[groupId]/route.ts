@@ -331,6 +331,11 @@ export async function POST(
     }
     if (auth.userId) participantDoc.userId = new mongoose.Types.ObjectId(auth.userId)
     if (email) participantDoc.email = email
+    // Canal viral d'arrivée (« tiktok », « wa »…) — alphanumérique court, sans données personnelles
+    if (typeof body?.via === 'string') {
+      const via = body.via.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40)
+      if (via) participantDoc.via = via
+    }
     if (variantSelection.variantIds.length > 0) {
       participantDoc.variantIds = variantSelection.variantIds
       participantDoc.variantLabels = variantSelection.variantLabels

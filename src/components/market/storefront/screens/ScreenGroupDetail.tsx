@@ -113,6 +113,35 @@ export default function ScreenGroupDetail() {
     if (Number.isInteger(q) && q >= 1 && q <= 1000) setQty(q);
   }, []);
 
+  // Canal viral : capté depuis l'URL (?via=tiktok…), conservé en session pour le join,
+  // et mesure de la vue — le funnel admin compare vues / re-partages / participants par canal.
+  useEffect(() => {
+    if (!groupId) return;
+    let via = '';
+    try {
+      const raw = new URLSearchParams(window.location.search).get('via') || '';
+      if (raw) {
+        via = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+        if (via) sessionStorage.setItem('ddm-via', via);
+      } else {
+        via = sessionStorage.getItem('ddm-via') || '';
+      }
+    } catch {}
+    void via;
+    fetch(`/api/group-orders/${encodeURIComponent(groupId)}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'view', via: via || 'direct' }),
+    }).catch(() => {});
+  }, [groupId]);
+
+  const currentVia = (): string => {
+    try {
+      const raw = new URLSearchParams(window.location.search).get('via') || sessionStorage.getItem('ddm-via') || '';
+      return raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+    } catch { return ''; }
+  };
+
   // Image pré-chargée : le partage natif doit partir immédiatement après le clic (sinon le navigateur le refuse)
   useEffect(() => {
     if (!g?.id) return;
@@ -355,6 +384,12 @@ export default function ScreenGroupDetail() {
   };
 
   const shareOrDownload = async (file: File, text: string) => {
+    // Mesure du re-partage (boucle virale) — silencieux en cas d'échec
+    fetch(`/api/group-orders/${encodeURIComponent(groupId)}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'reshare', via: currentVia() || 'organic' }),
+    }).catch(() => {});
     if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], text });
       return;
@@ -482,6 +517,7 @@ export default function ScreenGroupDetail() {
           qty,
           variantIds,
           ...(pickupId ? { pickupPointId: pickupId } : {}),
+          ...(currentVia() ? { via: currentVia() } : {}),
         }),
       });
       const data = await res.json();

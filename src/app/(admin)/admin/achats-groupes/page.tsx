@@ -33,6 +33,7 @@ import { groupAnnouncementText } from '@/lib/group-orders/announce-text'
 import { renderGroupVideo, canRenderGroupVideo } from '@/components/market/storefront/group-video'
 import { MARKET_BRAND } from '@/lib/branding'
 import FreightPanel from '@/components/admin/FreightPanel'
+import GroupFunnelPanel from '@/components/admin/GroupFunnelPanel'
 
 interface GroupOrder {
   groupId: string
@@ -563,6 +564,7 @@ export default function AdminGroupOrdersPage() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto p-8">
+        <GroupFunnelPanel />
         {/* Demande latente — « Préviens-moi » par produit */}
         {interests && (interests.products.length > 0 || interests.globalInterested > 0) && (
           <motion.div

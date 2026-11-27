@@ -295,6 +295,7 @@ export const MODEL_DOMAINS: Record<string, Domain> = {
   ProductQuestion: 'market',
   Order: 'market',
   GroupOrder: 'market',
+  GroupShareEvent: 'market',
   GroupInterest: 'market',
   Shop: 'market',
   MarketplaceProfile: 'market',
