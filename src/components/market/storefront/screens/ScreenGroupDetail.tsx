@@ -96,6 +96,7 @@ export default function ScreenGroupDetail() {
   const [remindState, setRemindState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
   const [remindMsg, setRemindMsg] = useState('');
   const [sharing, setSharing] = useState<'status' | 'social' | null>(null);
+  const [moreShare, setMoreShare] = useState(false);
   const [shareNotice, setShareNotice] = useState('');
   const [storyFile, setStoryFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -932,17 +933,25 @@ export default function ScreenGroupDetail() {
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-slate-200 p-3 dark:border-slate-800">
-        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+      <div className="border-t border-slate-200 p-3 dark:border-slate-800">
+        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
           <Icon name="whatsapp" size={13}/>Envoyer à mes contacts
         </a>
-        <button type="button" onClick={() => void shareStory('social')} disabled={!!sharing} className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
-          <Icon name="share" size={13}/>{sharing === 'social' ? 'Préparation…' : 'TikTok · Instagram'}
+        <button type="button" onClick={() => setMoreShare((v) => !v)} className="mt-1.5 flex w-full items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          {moreShare ? 'Moins d’options' : 'Plus d’options de partage'}
+          <Icon name="chevronRight" size={12} className={cn('transition-transform', moreShare && 'rotate-90')}/>
         </button>
-        <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${shareUrl}?via=fb`)}`} target="_blank" rel="noopener noreferrer" className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">Facebook</a>
-        <button onClick={copy} className={cn("flex h-10 items-center justify-center gap-1.5 rounded-lg text-[12px] font-bold transition-colors", copied ? "bg-emerald-600 text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900")}>
-          {copied ? <Fragment><Icon name="check" size={12}/>Lien copié</Fragment> : <Fragment><Icon name="copy" size={12}/>Copier le lien</Fragment>}
-        </button>
+        {moreShare && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => void shareStory('social')} disabled={!!sharing} className="flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+              {sharing === 'social' ? '…' : 'TikTok · Insta'}
+            </button>
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${shareUrl}?via=fb`)}`} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">Facebook</a>
+            <button onClick={copy} className={cn("flex h-9 items-center justify-center gap-1 rounded-lg text-[11px] font-bold transition-colors", copied ? "bg-emerald-600 text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900")}>
+              {copied ? <Fragment><Icon name="check" size={11}/>Copié</Fragment> : <Fragment><Icon name="copy" size={11}/>Copier le lien</Fragment>}
+            </button>
+          </div>
+        )}
       </div>
       {shareNotice && <p className="px-4 pb-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300">{shareNotice}</p>}
       {videoSupported && (
